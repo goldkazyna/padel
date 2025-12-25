@@ -3,61 +3,72 @@
 @section('title', 'Клубы')
 
 @section('content')
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header">
+    <div>
         <h2>Клубы</h2>
-        <a href="{{ route('admin.clubs.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-1"></i> Добавить клуб
-        </a>
+        <p>Управление клубами платформы</p>
     </div>
+    <a href="{{ route('admin.clubs.create') }}" class="btn-primary-custom">
+        <i class="bi bi-plus-circle"></i>
+        <span>Добавить клуб</span>
+    </a>
+</div>
 
-    <div class="card">
+<div class="card-dark">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
+            <table class="table table-dark-custom mb-0">
+                <thead>
                     <tr>
                         <th>Название</th>
                         <th>Адрес</th>
                         <th>Телефон</th>
                         <th>Админов</th>
                         <th>Статус</th>
-                        <th width="150">Действия</th>
+                        <th width="180">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($clubs as $club)
                         <tr>
-                            <td>{{ $club->name }}</td>
-                            <td>{{ $club->address }}</td>
-                            <td>{{ $club->phone ?? '—' }}</td>
-                            <td>{{ $club->admins_count }}</td>
+                            <td class="fw-medium">{{ $club->name }}</td>
+                            <td class="text-secondary">{{ $club->address }}</td>
+                            <td class="text-secondary">{{ $club->phone ?? '—' }}</td>
+                            <td>
+                                <span class="badge-secondary-custom">{{ $club->admins_count }}</span>
+                            </td>
                             <td>
                                 @if($club->is_active)
-                                    <span class="badge bg-success">Активен</span>
+                                    <span class="badge-success-custom">Активен</span>
                                 @else
-                                    <span class="badge bg-secondary">Неактивен</span>
+                                    <span class="badge-secondary-custom">Неактивен</span>
                                 @endif
                             </td>
                             <td>
-								<a href="{{ route('admin.clubs.admins', $club) }}" class="btn btn-sm btn-outline-success" title="Админы">
-									<i class="bi bi-people"></i>
-								</a>
-								<a href="{{ route('admin.clubs.edit', $club) }}" class="btn btn-sm btn-outline-primary" title="Редактировать">
-									<i class="bi bi-pencil"></i>
-								</a>
-                                <form action="{{ route('admin.clubs.destroy', $club) }}" method="POST" class="d-inline" 
-                                      onsubmit="return confirm('Удалить клуб?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('admin.clubs.admins', $club) }}" class="btn-outline-custom btn-sm" title="Админы">
+                                        <i class="bi bi-people"></i>
+                                    </a>
+                                    <a href="{{ route('admin.clubs.edit', $club) }}" class="btn-outline-custom btn-sm" title="Редактировать">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form action="{{ route('admin.clubs.destroy', $club) }}" method="POST" class="d-inline" 
+                                          onsubmit="return confirm('Удалить клуб?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-danger-custom btn-sm" title="Удалить">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Клубов пока нет</td>
+                            <td colspan="6" class="text-center text-secondary py-5">
+                                <i class="bi bi-buildings fs-1 d-block mb-3 opacity-50"></i>
+                                Клубов пока нет
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
