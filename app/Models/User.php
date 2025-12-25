@@ -77,4 +77,11 @@ class User extends Authenticatable
         if ($this->level < 5) return 'Продвинутый';
         return 'Про';
     }
+	// Турниры в которых участвует
+	public function tournaments()
+	{
+		return $this->belongsToMany(Tournament::class, 'tournament_participants')
+					->withPivot('status')
+					->withTimestamps();
+	}
 }

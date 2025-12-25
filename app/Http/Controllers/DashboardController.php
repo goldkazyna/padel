@@ -8,16 +8,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
-
-        if ($user->isSuperAdmin()) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        if ($user->isClubAdmin()) {
-            return redirect()->route('club.dashboard');
-        }
-
+        // Все видят одинаковый dashboard игрока
         return view('dashboard.player');
     }
 

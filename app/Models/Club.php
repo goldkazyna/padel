@@ -34,4 +34,9 @@ class Club extends Model
     {
         return $query->where('is_active', true);
     }
+	// Турниры клуба
+	public function tournaments()
+	{
+		return $this->hasMany(Tournament::class);
+	}
 }

@@ -431,6 +431,29 @@
             border-radius: 6px;
             font-weight: 500;
         }
+		.badge-warning-custom {
+			background: rgba(234, 179, 8, 0.15);
+			color: #eab308;
+			padding: 6px 12px;
+			border-radius: 6px;
+			font-weight: 500;
+		}
+
+		.badge-primary-custom {
+			background: rgba(59, 130, 246, 0.15);
+			color: #3b82f6;
+			padding: 6px 12px;
+			border-radius: 6px;
+			font-weight: 500;
+		}
+
+		.badge-info-custom {
+			background: rgba(6, 182, 212, 0.15);
+			color: #06b6d4;
+			padding: 6px 12px;
+			border-radius: 6px;
+			font-weight: 500;
+		}
         
         /* ===== PROFILE CARD ===== */
         .profile-card-gradient {
@@ -568,7 +591,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}">
                         <i class="bi bi-trophy"></i>
                         <span>Турниры</span>
                     </a>
@@ -581,14 +604,20 @@
                 </li>
                 
                 @if(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
-                    <li class="nav-section-title">Админ клуба</li>
-                    <li class="nav-item">
-                        <a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.*') ? 'active' : '' }}">
-                            <i class="bi bi-building"></i>
-                            <span>Мой клуб</span>
-                        </a>
-                    </li>
-                @endif
+					<li class="nav-section-title">Админ клуба</li>
+					<li class="nav-item">
+						<a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
+							<i class="bi bi-building"></i>
+							<span>Мой клуб</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+							<i class="bi bi-trophy"></i>
+							<span>Турниры клуба</span>
+						</a>
+					</li>
+				@endif
                 
                 @if(auth()->user()->isSuperAdmin())
                     <li class="nav-section-title">Супер-админ</li>
@@ -656,7 +685,7 @@
                 <i class="bi bi-house"></i>
                 Главная
             </a>
-            <a href="#" class="mobile-nav-item">
+            <a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}" class="mobile-nav-item">
                 <i class="bi bi-trophy"></i>
                 Турниры
             </a>
