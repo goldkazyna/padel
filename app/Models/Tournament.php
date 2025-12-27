@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\GameMatch;
 
 class Tournament extends Model
 {
@@ -106,4 +107,8 @@ class Tournament extends Model
             default => 'secondary',
         };
     }
+	public function matches()
+	{
+		return $this->hasMany(GameMatch::class);
+	}
 }

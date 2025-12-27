@@ -60,7 +60,7 @@
                     <table class="table table-dark-custom mb-0">
                         <thead>
                             <tr>
-                                <th>Игрок</th>
+                                <th>Игрок1</th>
                                 <th>Уровень</th>
                                 <th>Рейтинг</th>
                                 <th>Дата записи</th>
@@ -100,6 +100,60 @@
                     <div class="text-center text-secondary py-5">
                         <i class="bi bi-people fs-1 d-block mb-3 opacity-50"></i>
                         Пока нет участников
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- Матчи -->
+        <div class="card-dark mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-controller"></i> Матчи</h5>
+                <a href="{{ route('club.matches.create', $tournament) }}" class="btn-primary-custom btn-sm">
+                    <i class="bi bi-plus"></i> Добавить матч
+                </a>
+            </div>
+            <div class="card-body p-0">
+                @php $matches = $tournament->matches()->with(['player1', 'player2', 'winner'])->get(); @endphp
+                @if($matches->count() > 0)
+                    <table class="table table-dark-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>Игрок 1</th>
+                                <th>Игрок 2</th>
+                                <th>Счёт</th>
+                                <th>Изменение</th>
+                                <th width="80"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($matches as $match)
+                                <tr>
+                                    <td class="{{ $match->winner_id === $match->player1_id ? 'text-success fw-bold' : '' }}">
+                                        {{ $match->player1->full_name }}
+                                        <small class="text-secondary">({{ $match->player1_rating_before }} → {{ $match->player1_rating_after }})</small>
+                                    </td>
+                                    <td class="{{ $match->winner_id === $match->player2_id ? 'text-success fw-bold' : '' }}">
+                                        {{ $match->player2->full_name }}
+                                        <small class="text-secondary">({{ $match->player2_rating_before }} → {{ $match->player2_rating_after }})</small>
+                                    </td>
+                                    <td>{{ $match->score }}</td>
+                                    <td>±{{ $match->rating_change }}</td>
+                                    <td>
+                                        <form action="{{ route('club.matches.destroy', [$tournament, $match]) }}" method="POST" 
+                                              onsubmit="return confirm('Удалить матч? Рейтинг будет откатен.')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn-danger-custom btn-sm"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <div class="text-center text-secondary py-4">
+                        Матчей пока нет
                     </div>
                 @endif
             </div>

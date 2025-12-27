@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\GameMatch;
 
 class User extends Authenticatable
 {
@@ -83,5 +84,39 @@ class User extends Authenticatable
 		return $this->belongsToMany(Tournament::class, 'tournament_participants')
 					->withPivot('status')
 					->withTimestamps();
+	}
+	
+	// Матчи игрока
+	public function matches()
+	{
+		return GameMatch::where('player1_id', $this->id)
+					->orWhere('player2_id', $this->id)
+					->orderBy('created_at', 'desc');
+	}
+
+	// Победы
+	public function wins()
+	{
+		return GameMatch::where('winner_id', $this->id)->count();
+	}
+
+	// Поражения  
+	public function losses()
+	{
+		return GameMatch::where('status', 'completed')
+					->where(function($q) {
+						$q->where('player1_id', $this->id)
+						  ->orWhere('player2_id', $this->id);
+					})
+					->where('winner_id', '!=', $this->id)
+					->count();
+	}
+
+	// Винрейт
+	public function winRate(): float
+	{
+		$total = $this->wins() + $this->losses();
+		if ($total === 0) return 0;
+		return round(($this->wins() / $total) * 100, 1);
 	}
 }

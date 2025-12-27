@@ -6,6 +6,8 @@ use App\Http\Controllers\TournamentController;
 use App\Http\Controllers\Admin\ClubController;
 use App\Http\Controllers\Club\TournamentController as ClubTournamentController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Club\MatchController;
+use App\Http\Controllers\RatingController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -27,6 +29,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/tournaments/{tournament}', [TournamentController::class, 'show'])->name('tournaments.show');
     Route::post('/tournaments/{tournament}/register', [TournamentController::class, 'register'])->name('tournaments.register');
     Route::delete('/tournaments/{tournament}/cancel', [TournamentController::class, 'cancel'])->name('tournaments.cancel');
+	// Рейтинг
+	Route::get('/rating', [RatingController::class, 'index'])->name('rating.index');
 
     // Админ клуба
     Route::middleware('role:club_admin,super_admin')->prefix('club')->name('club.')->group(function () {
@@ -34,6 +38,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('tournaments', ClubTournamentController::class);
         Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])
             ->name('tournaments.participants.remove');
+		// Матчи
+		Route::get('/tournaments/{tournament}/matches/create', [MatchController::class, 'create'])->name('matches.create');
+		Route::post('/tournaments/{tournament}/matches', [MatchController::class, 'store'])->name('matches.store');
+		Route::delete('/tournaments/{tournament}/matches/{match}', [MatchController::class, 'destroy'])->name('matches.destroy');	
     });
 
     // Супер-админ

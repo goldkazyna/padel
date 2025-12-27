@@ -597,7 +597,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="{{ route('rating.index') }}" class="nav-link {{ request()->routeIs('rating.*') ? 'active' : '' }}" class="nav-link">
                         <i class="bi bi-bar-chart"></i>
                         <span>Рейтинг</span>
                     </a>
