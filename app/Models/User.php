@@ -119,4 +119,10 @@ class User extends Authenticatable
 		if ($total === 0) return 0;
 		return round(($this->wins() / $total) * 100, 1);
 	}
+	public function tournamentGroups()
+	{
+		return $this->belongsToMany(TournamentGroup::class, 'tournament_group_players')
+					->withPivot('total_points')
+					->withTimestamps();
+	}
 }

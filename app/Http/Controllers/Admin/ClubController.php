@@ -11,7 +11,7 @@ class ClubController extends Controller
 {
     public function index()
     {
-        $clubs = Club::withCount('admins')->get();
+        $clubs = Club::withCount(['admins', 'tournaments'])->get();
         return view('admin.clubs.index', compact('clubs'));
     }
 
@@ -99,4 +99,22 @@ class ClubController extends Controller
         $club->delete();
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб удалён!');
     }
+	// Поиск игрока по email
+	public function searchPlayer(Request $request)
+	{
+		$email = $request->get('email');
+		
+		$player = User::where('email', $email)
+					  ->where('role', 'player')
+					  ->first();
+		
+		return response()->json([
+			'found' => $player ? true : false,
+			'player' => $player ? [
+				'id' => $player->id,
+				'name' => $player->full_name,
+				'email' => $player->email,
+			] : null
+		]);
+	}
 }

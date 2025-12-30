@@ -21,6 +21,9 @@ class Tournament extends Model
         'max_participants',
         'price',
         'status',
+		'type',
+		'points_to_win',
+		'groups_count',
     ];
 
     protected $casts = [
@@ -110,5 +113,29 @@ class Tournament extends Model
 	public function matches()
 	{
 		return $this->hasMany(GameMatch::class);
+	}
+	public function groups()
+	{
+		return $this->hasMany(TournamentGroup::class);
+	}
+
+	public function isAmericano(): bool
+	{
+		return $this->type === 'americano';
+	}
+
+	public function isClassic(): bool
+	{
+		return $this->type === 'classic';
+	}
+
+	public function getTypeNameAttribute(): string
+	{
+		return match($this->type) {
+			'americano' => 'Американо',
+			'mexicano' => 'Мексикано',
+			'classic' => 'Классический',
+			default => $this->type,
+		};
 	}
 }

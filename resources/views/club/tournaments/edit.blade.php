@@ -17,7 +17,11 @@
                 <form action="{{ route('club.tournaments.update', $tournament) }}" method="POST">
                     @csrf
                     @method('PUT')
-
+					<div class="mb-4">
+						<label class="form-label">Тип турнира</label>
+						<input type="text" class="form-control" value="{{ $tournament->type_name }}" disabled>
+						<small class="text-secondary">Тип нельзя изменить после создания</small>
+					</div>
                     <div class="mb-4">
                         <label class="form-label">Название *</label>
                         <input type="text" name="name" class="form-control" value="{{ old('name', $tournament->name) }}" required>
@@ -77,7 +81,23 @@
                                    value="{{ old('price', $tournament->price) }}" min="0">
                         </div>
                     </div>
-
+					@if($tournament->isAmericano())
+					<div class="row">
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Очки для победы</label>
+							<select name="points_to_win" class="form-select">
+								<option value="16" {{ old('points_to_win', $tournament->points_to_win) == 16 ? 'selected' : '' }}>До 16 очков</option>
+								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>До 24 очков</option>
+								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>До 32 очков</option>
+							</select>
+						</div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Количество групп</label>
+							<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
+							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+					</div>
+					@endif	
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
                         <select name="status" class="form-select" required>

@@ -62,31 +62,67 @@
                 <h5><i class="bi bi-person-plus"></i> Добавить админа</h5>
             </div>
             <div class="card-body">
-                @if($players->count() > 0)
-                    <form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST">
-                        @csrf
-                        <div class="mb-4">
-                            <label class="form-label">Выберите игрока</label>
-                            <select name="user_id" class="form-select" required>
-                                <option value="">— Выберите игрока —</option>
-                                @foreach($players as $player)
-                                    <option value="{{ $player->id }}">
-                                        {{ $player->full_name }} ({{ $player->email }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <button type="submit" class="btn-primary-custom">
-                            <i class="bi bi-plus-circle"></i> Назначить админом
-                        </button>
-                    </form>
-                @else
-                    <div class="text-center text-secondary py-5">
-                        <i class="bi bi-person-x fs-1 d-block mb-3 opacity-50"></i>
-                        Нет доступных игроков
-                    </div>
-                @endif
-            </div>
+				<div class="mb-3">
+					<label class="form-label">Email игрока</label>
+					<div class="input-group">
+						<input type="email" id="searchEmail" class="form-control" placeholder="player@example.com">
+						<button type="button" class="btn-primary-custom" onclick="searchPlayer()">
+							<i class="bi bi-search"></i> Найти
+						</button>
+					</div>
+				</div>
+				
+				<div id="searchResult"></div>
+			</div>
+
+			<script>
+			function searchPlayer() {
+				const email = document.getElementById('searchEmail').value;
+				const resultDiv = document.getElementById('searchResult');
+				
+				if (!email) {
+					resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
+					return;
+				}
+				
+				fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
+					.then(response => response.json())
+					.then(data => {
+						if (data.found) {
+							resultDiv.innerHTML = `
+								<div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
+									<div class="d-flex align-items-center gap-3">
+										<div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
+										<div>
+											<div class="fw-medium">${data.player.name}</div>
+											<small class="text-secondary">${data.player.email}</small>
+										</div>
+									</div>
+									<form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST">
+										@csrf
+										<input type="hidden" name="user_id" value="${data.player.id}">
+										<button type="submit" class="btn-primary-custom btn-sm">
+											<i class="bi bi-plus"></i> Назначить
+										</button>
+									</form>
+								</div>
+							`;
+						} else {
+							resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден или уже является админом</div>';
+						}
+					})
+					.catch(error => {
+						resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
+					});
+			}
+
+			document.getElementById('searchEmail').addEventListener('keypress', function(e) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					searchPlayer();
+				}
+			});
+			</script>
         </div>
     </div>
 </div>
