@@ -27,6 +27,14 @@
 						<i class="bi bi-play-fill"></i> Начать турнир
 					</button>
 				</form>
+			@elseif($tournament->isTeamBased() && $tournament->teams->count() === $tournament->max_participants / 2)
+				<form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
+					  onsubmit="return confirm('Начать турнир? Группы и матчи будут сгенерированы автоматически.')">
+					@csrf
+					<button type="submit" class="btn-primary-custom">
+						<i class="bi bi-play-fill"></i> Начать турнир
+					</button>
+				</form>
 			@endif
 		@endif
 
@@ -63,6 +71,23 @@
 				@else
 					<span class="btn-outline-custom disabled" title="Сыграйте все раунды">
 						<i class="bi bi-hourglass"></i> Не все раунды сыграны
+					</span>
+				@endif
+			@elseif($tournament->isTeamBased())
+				@php
+					$canFinish = app(\App\Services\TeamTournamentService::class)->canFinishTournament($tournament);
+				@endphp
+				@if($canFinish)
+					<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
+						  onsubmit="return confirm('Завершить турнир?')">
+						@csrf
+						<button type="submit" class="btn-primary-custom">
+							<i class="bi bi-trophy-fill"></i> Завершить турнир
+						</button>
+					</form>
+				@elseif($tournament->playoffMatches->count() > 0)
+					<span class="btn-outline-custom disabled">
+						<i class="bi bi-hourglass"></i> Сыграйте финал
 					</span>
 				@endif
 			@endif
@@ -650,6 +675,458 @@
 @endif
 
 
+{{-- Групповой + Плей-офф --}}
+@if($tournament->isTeamBased())
+    <div class="card-dark mb-4">
+        <div class="card-header-dark d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Зарегистрированные пары</h5>
+            <span class="badge bg-primary">{{ $tournament->teams->count() }} / {{ $tournament->max_participants / 2 }} пар</span>
+        </div>
+        <div class="card-body-dark">
+            @if($tournament->status === 'open')
+                {{-- Форма добавления пары --}}
+                <div class="mb-4 p-3" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <h6 class="text-white mb-3"><i class="bi bi-plus-circle me-2"></i>Добавить пару</h6>
+                    <form action="{{ route('club.tournaments.addTeam', $tournament) }}" method="POST">
+                        @csrf
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Игрок 1 *</label>
+                                <input type="text" class="form-control" id="searchPlayer1" placeholder="Поиск по email или имени..." autocomplete="off">
+                                <input type="hidden" name="player1_id" id="player1_id">
+                                <div id="player1Results" class="search-results"></div>
+                                <div id="player1Selected" class="selected-player mt-2" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Игрок 2 *</label>
+                                <input type="text" class="form-control" id="searchPlayer2" placeholder="Поиск по email или имени..." autocomplete="off">
+                                <input type="hidden" name="player2_id" id="player2_id">
+                                <div id="player2Results" class="search-results"></div>
+                                <div id="player2Selected" class="selected-player mt-2" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Название команды</label>
+                                <input type="text" name="name" class="form-control" placeholder="Опционально">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn-primary-custom">
+								<i class="bi bi-plus-lg me-1"></i> Добавить пару
+							</button>
+							</form>
+
+							<form action="{{ route('club.tournaments.addTestTeams', $tournament) }}" method="POST" class="d-inline mt-2">
+								@csrf
+								<button type="submit" class="btn-outline-custom">
+									<i class="bi bi-lightning me-1"></i> +Тестовые пары
+								</button>
+							</form>
+                        </div>
+                    </form>
+                </div>
+            @endif
+
+            {{-- Список пар --}}
+            @if($tournament->teams->count() > 0)
+                <div class="teams-grid">
+                    @foreach($tournament->teams()->orderBy('rating_avg', 'desc')->get() as $index => $team)
+                        <div class="team-card">
+                            <div class="team-rank">{{ $index + 1 }}</div>
+                            <div class="team-info">
+                                <div class="team-name">{{ $team->name }}</div>
+                                <div class="team-players-names">
+                                    {{ $team->player1->full_name }} / {{ $team->player2->full_name }}
+                                </div>
+                                <div class="team-rating">
+                                    <i class="bi bi-star-fill text-warning"></i> {{ $team->rating_avg }}
+                                </div>
+                            </div>
+                            @if($tournament->status === 'open')
+                                <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" 
+                                      onsubmit="return confirm('Удалить пару?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn-remove-team" title="Удалить">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="text-center text-secondary py-4">
+                    <i class="bi bi-people" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Пока нет зарегистрированных пар</p>
+                </div>
+            @endif
+        </div>
+    </div>
+@endif
+{{-- Групповой этап --}}
+@if($tournament->isTeamBased() && $tournament->teamGroups->count() > 0)
+<div class="card-dark mb-4">
+    <div class="card-header-dark">
+        <h5 class="mb-0"><i class="bi bi-collection text-info me-2"></i>Групповой этап</h5>
+    </div>
+    <div class="card-body-dark">
+        <div class="row">
+            @foreach($tournament->teamGroups as $group)
+                <div class="col-lg-6 mb-4">
+                    <div class="group-card">
+                        <div class="group-header">
+                            <h6 class="mb-0">{{ $group->name }}</h6>
+                            @if($group->isCompleted())
+                                <span class="badge bg-success">Завершена</span>
+                            @else
+                                <span class="badge bg-primary">В игре</span>
+                            @endif
+                        </div>
+                        
+                        {{-- Таблица группы --}}
+                        <div class="table-responsive mb-3">
+                            <table class="table table-dark table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30px;">#</th>
+                                        <th>Пара</th>
+                                        <th class="text-center" title="Сыграно">И</th>
+                                        <th class="text-center" title="Победы">В</th>
+                                        <th class="text-center" title="Поражения">П</th>
+                                        <th class="text-center" title="Забито">ЗМ</th>
+                                        <th class="text-center" title="Пропущено">ПМ</th>
+                                        <th class="text-center" title="Разница">+/-</th>
+                                        <th class="text-center" title="Очки"><strong>О</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($group->standings as $index => $standing)
+                                        <tr class="{{ $index < $tournament->teams_advance ? 'table-success-custom' : '' }}">
+                                            <td>{{ $index + 1 }}</td>
+                                            <td>
+                                                <span class="team-name-cell">{{ $standing->team->name }}</span>
+                                            </td>
+                                            <td class="text-center">{{ $standing->played }}</td>
+                                            <td class="text-center">{{ $standing->won }}</td>
+                                            <td class="text-center">{{ $standing->lost }}</td>
+                                            <td class="text-center">{{ $standing->points_for }}</td>
+                                            <td class="text-center">{{ $standing->points_against }}</td>
+                                            <td class="text-center">
+                                                @php $diff = $standing->points_diff; @endphp
+                                                <span class="{{ $diff > 0 ? 'text-success' : ($diff < 0 ? 'text-danger' : '') }}">
+                                                    {{ $diff > 0 ? '+' : '' }}{{ $diff }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center"><strong>{{ $standing->points }}</strong></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {{-- Матчи группы --}}
+                        <div class="group-matches">
+                            <h6 class="text-secondary mb-2"><i class="bi bi-calendar3 me-1"></i>Матчи</h6>
+                            @php
+                                $matchesByRound = $group->matches->groupBy('round_number');
+                            @endphp
+                            @foreach($matchesByRound as $roundNumber => $matches)
+                                <div class="round-block mb-2">
+                                    <div class="round-label">Тур {{ $roundNumber }}</div>
+                                    @foreach($matches as $match)
+                                        <div class="group-match-card" data-match-id="{{ $match->id }}">
+                                            <div class="match-team-name {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
+                                                {{ $match->team1->name }}
+                                            </div>
+                                            <div class="match-score-block">
+                                                @if($match->isCompleted())
+                                                    <span class="match-score">{{ $match->team1_score }} : {{ $match->team2_score }}</span>
+                                                    <button class="btn-score-edit-sm" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#editGroupMatchModal{{ $match->id }}">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                @elseif($match->status === 'in_progress')
+                                                    <button class="btn-score-sm" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#groupMatchModal{{ $match->id }}">
+                                                        <i class="bi bi-pencil-square"></i> Счёт
+                                                    </button>
+                                                @else
+                                                    <span class="text-secondary">—</span>
+                                                @endif
+                                            </div>
+                                            <div class="match-team-name {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
+                                                {{ $match->team2->name }}
+                                            </div>
+                                        </div>
+
+                                        {{-- Модалка ввода счёта --}}
+                                        @if($match->status === 'in_progress' && !$match->isCompleted())
+                                        <div class="modal fade" id="groupMatchModal{{ $match->id }}" tabindex="-1">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content modal-dark">
+                                                    <div class="modal-header border-0">
+                                                        <h5 class="modal-title">{{ $group->name }} — Тур {{ $roundNumber }}</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form action="{{ route('club.team.saveGroupMatchScore', $match) }}" method="POST">
+                                                        @csrf
+                                                        <div class="modal-body">
+                                                            <div class="score-input-grid">
+                                                                <div class="score-team">
+                                                                    <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                                    <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
+                                                                           min="0" max="99" required placeholder="0">
+                                                                </div>
+                                                                <div class="score-separator">:</div>
+                                                                <div class="score-team">
+                                                                    <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                                    <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
+                                                                           min="0" max="99" required placeholder="0">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer border-0">
+                                                            <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                            <button type="submit" class="btn-primary-custom">
+                                                                <i class="bi bi-check-lg me-1"></i> Сохранить
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+
+                                        {{-- Модалка редактирования счёта --}}
+                                        @if($match->isCompleted())
+                                        <div class="modal fade" id="editGroupMatchModal{{ $match->id }}" tabindex="-1">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content modal-dark">
+                                                    <div class="modal-header border-0">
+                                                        <h5 class="modal-title">Редактировать — {{ $group->name }}</h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form action="{{ route('club.team.updateGroupMatchScore', $match) }}" method="POST">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <div class="modal-body">
+                                                            <div class="score-input-grid">
+                                                                <div class="score-team">
+                                                                    <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                                    <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
+                                                                           min="0" max="99" required value="{{ $match->team1_score }}">
+                                                                </div>
+                                                                <div class="score-separator">:</div>
+                                                                <div class="score-team">
+                                                                    <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                                    <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
+                                                                           min="0" max="99" required value="{{ $match->team2_score }}">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer border-0">
+                                                            <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                            <button type="submit" class="btn-primary-custom">
+                                                                <i class="bi bi-check-lg me-1"></i> Обновить
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        
+        {{-- Кнопка генерации плей-офф --}}
+        @php
+            $groupStageCompleted = app(\App\Services\TeamTournamentService::class)->isGroupStageCompleted($tournament);
+        @endphp
+        @if($groupStageCompleted && $tournament->playoffMatches->count() === 0)
+            <div class="text-center mt-4">
+                <form action="{{ route('club.team.generatePlayoff', $tournament) }}" method="POST"
+                      onsubmit="return confirm('Сгенерировать сетку плей-офф? Топ-{{ $tournament->teams_advance }} из каждой группы выйдут в следующий этап.')">
+                    @csrf
+                    <button type="submit" class="btn-primary-custom btn-lg">
+                        <i class="bi bi-diagram-3 me-2"></i>
+                        Сгенерировать плей-офф
+                    </button>
+                </form>
+            </div>
+        @elseif(!$groupStageCompleted)
+            <div class="text-center mt-3">
+                <span class="text-secondary">
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    Завершите все матчи группового этапа для генерации плей-офф
+                </span>
+            </div>
+        @endif
+    </div>
+</div>
+@endif
+{{-- Плей-офф --}}
+@if($tournament->isTeamBased() && $tournament->playoffMatches->count() > 0)
+<div class="card-dark mb-4">
+    <div class="card-header-dark">
+        <h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Плей-офф</h5>
+    </div>
+    <div class="card-body-dark">
+        @php
+            $stages = $tournament->playoffMatches->groupBy('stage');
+            $stageOrder = ['quarter' => '1/4 финала', 'semi' => 'Полуфинал', 'final' => 'Финал'];
+        @endphp
+        
+        <div class="playoff-bracket">
+            @foreach($stageOrder as $stageKey => $stageName)
+                @if(isset($stages[$stageKey]))
+                    <div class="playoff-stage">
+                        <div class="stage-title">{{ $stageName }}</div>
+                        <div class="stage-matches">
+                            @foreach($stages[$stageKey] as $match)
+                                <div class="playoff-match-card {{ $match->isCompleted() ? 'completed' : '' }}">
+                                    <div class="playoff-team {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
+                                        <span class="playoff-team-name">
+                                            {{ $match->team1 ? $match->team1->name : $match->team1_source }}
+                                        </span>
+                                        @if($match->isCompleted())
+                                            <span class="playoff-score">{{ $match->team1_score }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="playoff-team {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
+                                        <span class="playoff-team-name">
+                                            {{ $match->team2 ? $match->team2->name : $match->team2_source }}
+                                        </span>
+                                        @if($match->isCompleted())
+                                            <span class="playoff-score">{{ $match->team2_score }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="playoff-actions">
+                                        @if($match->status === 'in_progress' && $match->team1_id && $match->team2_id)
+                                            <button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#playoffModal{{ $match->id }}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                        @elseif($match->isCompleted())
+                                            <button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editPlayoffModal{{ $match->id }}">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Модалка ввода --}}
+                                @if($match->status === 'in_progress' && $match->team1_id && $match->team2_id)
+                                <div class="modal fade" id="playoffModal{{ $match->id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content modal-dark">
+                                            <div class="modal-header border-0">
+                                                <h5 class="modal-title">{{ $stageName }}</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ route('club.team.savePlayoffScore', $match) }}" method="POST">
+                                                @csrf
+                                                <div class="modal-body">
+                                                    <div class="score-input-grid">
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                            <input type="number" name="team1_score" class="form-control form-control-lg text-center" min="0" required placeholder="0">
+                                                        </div>
+                                                        <div class="score-separator">:</div>
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                            <input type="number" name="team2_score" class="form-control form-control-lg text-center" min="0" required placeholder="0">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                    <button type="submit" class="btn-primary-custom"><i class="bi bi-check-lg me-1"></i> Сохранить</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+
+                                {{-- Модалка редактирования --}}
+                                @if($match->isCompleted())
+                                <div class="modal fade" id="editPlayoffModal{{ $match->id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content modal-dark">
+                                            <div class="modal-header border-0">
+                                                <h5 class="modal-title">Редактировать — {{ $stageName }}</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ route('club.team.updatePlayoffScore', $match) }}" method="POST">
+                                                @csrf
+                                                @method('PUT')
+                                                <div class="modal-body">
+                                                    <div class="score-input-grid">
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                            <input type="number" name="team1_score" class="form-control form-control-lg text-center" min="0" required value="{{ $match->team1_score }}">
+                                                        </div>
+                                                        <div class="score-separator">:</div>
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                            <input type="number" name="team2_score" class="form-control form-control-lg text-center" min="0" required value="{{ $match->team2_score }}">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                    <button type="submit" class="btn-primary-custom"><i class="bi bi-check-lg me-1"></i> Обновить</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endforeach
+        </div>
+
+        {{-- Победитель --}}
+        @php
+            $finalMatch = $tournament->playoffMatches->where('stage', 'final')->first();
+        @endphp
+        @if($finalMatch && $finalMatch->isCompleted())
+            <div class="winner-block mt-4">
+                <div class="winner-trophy"><i class="bi bi-trophy-fill"></i></div>
+                <div class="winner-title">Победитель турнира</div>
+                <div class="winner-name">{{ $finalMatch->winner->name }}</div>
+                <div class="winner-players">{{ $finalMatch->winner->full_name }}</div>
+            </div>
+        @endif
+    </div>
+</div>
+@endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 <!-- Классические матчи (для не-Американо) -->
 @if(!$tournament->isAmericano())
@@ -691,6 +1168,343 @@
 @endif
 
 <style>
+/* Playoff Styles */
+.playoff-bracket {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    padding: 16px 0;
+}
+
+.playoff-stage {
+    min-width: 220px;
+}
+
+.stage-title {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+    text-align: center;
+    padding: 8px;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 6px;
+}
+
+.stage-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.playoff-match-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.playoff-match-card.completed {
+    border-color: var(--accent);
+}
+
+.playoff-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.playoff-team:last-of-type {
+    border-bottom: none;
+}
+
+.playoff-team.winner {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.playoff-team.winner .playoff-team-name {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.playoff-team-name {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.playoff-score {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.playoff-actions {
+    display: flex;
+    justify-content: center;
+    padding: 6px;
+    background: rgba(0,0,0,0.2);
+}
+
+.winner-block {
+    text-align: center;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(234, 179, 8, 0.1));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+}
+
+.winner-trophy {
+    font-size: 3rem;
+    color: #eab308;
+    margin-bottom: 8px;
+}
+
+.winner-title {
+    font-size: 0.9rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.winner-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 8px 0;
+}
+
+.winner-players {
+    color: #fff;
+}
+/* Group Stage Styles */
+.group-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.table-success-custom {
+    background: rgba(34, 197, 94, 0.15) !important;
+}
+
+.team-name-cell {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    display: inline-block;
+}
+
+.group-matches {
+    margin-top: 12px;
+}
+
+.round-block {
+    margin-bottom: 8px;
+}
+
+.round-label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.group-match-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+}
+
+.match-team-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.match-team-name:first-child {
+    text-align: left;
+}
+
+.match-team-name:last-child {
+    text-align: right;
+}
+
+.match-team-name.winner {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.match-score-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.match-score {
+    font-weight: 600;
+    color: #fff;
+}
+
+.btn-score-sm {
+    background: var(--accent);
+    border: none;
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.btn-score-sm:hover {
+    background: #16a34a;
+}
+
+.btn-score-edit-sm {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+
+.btn-score-edit-sm:hover {
+    color: var(--accent);
+}
+/* Team Tournament Styles */
+.teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.team-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.team-card:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.team-rank {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.team-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.team-name {
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.team-players-names {
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+.team-rating {
+    font-size: 0.85rem;
+    color: var(--accent);
+}
+
+.btn-remove-team {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-remove-team:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* Search Results */
+.search-results {
+    position: absolute;
+    z-index: 100;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    width: 100%;
+    display: none;
+}
+
+.search-results.show {
+    display: block;
+}
+
+.search-result-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #374151;
+}
+
+.search-result-item:hover {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.selected-player {
+    padding: 8px 12px;
+    background: rgba(34, 197, 94, 0.2);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: #fff;
+}
+
+.col-md-4 {
+    position: relative;
+}
 .group-tabs {
     display: flex;
     gap: 8px;
@@ -1555,5 +2369,81 @@ document.querySelectorAll('form[data-mexicano="true"]').forEach(form => {
         });
     }
 });
+// Поиск игроков для групповых турниров
+function setupPlayerSearch(inputId, resultsId, selectedId, hiddenId) {
+    const input = document.getElementById(inputId);
+    const results = document.getElementById(resultsId);
+    const selected = document.getElementById(selectedId);
+    const hidden = document.getElementById(hiddenId);
+
+    if (!input) return;
+
+    let timeout;
+    input.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            results.classList.remove('show');
+            return;
+        }
+
+        timeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ route('club.tournaments.searchPlayer') }}?q=${encodeURIComponent(query)}`);
+                const players = await response.json();
+                
+                if (players.length > 0) {
+                    results.innerHTML = players.map(p => `
+                        <div class="search-result-item" data-id="${p.id}" data-name="${p.first_name} ${p.last_name}">
+                            <div><strong>${p.first_name} ${p.last_name}</strong></div>
+                            <div style="font-size: 0.8rem; color: #9ca3af;">
+                                ${p.email} | Рейтинг: ${p.rating} | Уровень: ${p.level}
+                            </div>
+                        </div>
+                    `).join('');
+                    results.classList.add('show');
+                    
+                    results.querySelectorAll('.search-result-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const id = this.dataset.id;
+                            const name = this.dataset.name;
+                            
+                            hidden.value = id;
+                            selected.innerHTML = `<i class="bi bi-check-circle me-2"></i>${name}`;
+                            selected.style.display = 'block';
+                            input.style.display = 'none';
+                            results.classList.remove('show');
+                        });
+                    });
+                } else {
+                    results.innerHTML = '<div class="search-result-item">Ничего не найдено</div>';
+                    results.classList.add('show');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }, 300);
+    });
+
+    // Сброс при клике на выбранного
+    selected.addEventListener('click', function() {
+        hidden.value = '';
+        selected.style.display = 'none';
+        input.style.display = 'block';
+        input.value = '';
+        input.focus();
+    });
+
+    // Закрыть при клике вне
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !results.contains(e.target)) {
+            results.classList.remove('show');
+        }
+    });
+}
+
+setupPlayerSearch('searchPlayer1', 'player1Results', 'player1Selected', 'player1_id');
+setupPlayerSearch('searchPlayer2', 'player2Results', 'player2Selected', 'player2_id');
 </script>
 @endsection

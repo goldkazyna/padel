@@ -44,6 +44,7 @@
 							<option value="classic" {{ old('type') === 'classic' ? 'selected' : '' }}>Классический</option>
 							<option value="americano" {{ old('type') === 'americano' ? 'selected' : '' }}>Американо</option>
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
+							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -127,6 +128,8 @@
 							<strong>Американо:</strong> Участники делятся на группы по рейтингу. Каждый играет с каждым в паре. Очки считаются индивидуально.
 						</div>
 					</div>
+					
+					
 					<div id="mexicanoFields" style="display: none;">
 						<div class="row">
 							<div class="col-md-4 mb-4">
@@ -153,6 +156,51 @@
 							<strong>Мексикано:</strong> Пары формируются динамически после каждого раунда. Играют те, кто набрал похожее количество очков. Все играют вместе без разделения на группы.
 						</div>
 					</div>
+					<div id="teamFields" style="display: none;">
+						<div class="row">
+							<div class="col-md-4 mb-4">
+								<label class="form-label">Количество групп *</label>
+								<select name="groups_count" class="form-select">
+									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
+									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
+								</select>
+							</div>
+							<div class="col-md-4 mb-4">
+								<label class="form-label">Выходят из группы *</label>
+								<select name="teams_advance" class="form-select">
+									<option value="1" {{ old('teams_advance') == 1 ? 'selected' : '' }}>1 пара</option>
+									<option value="2" {{ old('teams_advance', 2) == 2 ? 'selected' : '' }}>2 пары</option>
+									<option value="3" {{ old('teams_advance') == 3 ? 'selected' : '' }}>3 пары</option>
+								</select>
+							</div>
+							<div class="col-md-4 mb-4">
+								<label class="form-label">Очки за матч *</label>
+								<select name="points_to_win" class="form-select">
+									<option value="24" {{ old('points_to_win', 24) == 24 ? 'selected' : '' }}>до 24</option>
+									<option value="32" {{ old('points_to_win') == 32 ? 'selected' : '' }}>до 32</option>
+									<option value="21" {{ old('points_to_win') == 21 ? 'selected' : '' }}>до 21</option>
+								</select>
+							</div>
+						</div>
+						
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Групповой + Плей-офф:</strong> Фиксированные пары регистрируются вместе. 
+							Групповой этап — каждая пара играет с каждой. 
+							Лучшие выходят в плей-офф (на вылет).
+						</div>
+					</div>
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
+					
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
                         <select name="status" class="form-select" required>
@@ -177,16 +225,20 @@ function toggleTypeFields() {
     const type = document.getElementById('tournamentType').value;
     const americanoFields = document.getElementById('americanoFields');
     const mexicanoFields = document.getElementById('mexicanoFields');
+    const teamFields = document.getElementById('teamFields');
     
     // Скрываем все
-    americanoFields.style.display = 'none';
-    mexicanoFields.style.display = 'none';
+    if (americanoFields) americanoFields.style.display = 'none';
+    if (mexicanoFields) mexicanoFields.style.display = 'none';
+    if (teamFields) teamFields.style.display = 'none';
     
     // Показываем нужное
-    if (type === 'americano') {
+    if (type === 'americano' && americanoFields) {
         americanoFields.style.display = 'block';
-    } else if (type === 'mexicano') {
+    } else if (type === 'mexicano' && mexicanoFields) {
         mexicanoFields.style.display = 'block';
+    } else if (type === 'team' && teamFields) {
+        teamFields.style.display = 'block';
     }
 }
 

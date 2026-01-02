@@ -25,6 +25,7 @@ class Tournament extends Model
 		'points_to_win',
 		'groups_count',
 		'rounds_count',
+		'teams_advance',
     ];
 
     protected $casts = [
@@ -135,6 +136,7 @@ class Tournament extends Model
 		return match($this->type) {
 			'americano' => 'Американо',
 			'mexicano' => 'Мексикано',
+			'team' => 'Групповой + Плей-офф',
 			'classic' => 'Классический',
 			default => $this->type,
 		};
@@ -157,5 +159,24 @@ class Tournament extends Model
 	public function mexicanoPairHistory()
 	{
 		return $this->hasMany(MexicanoPairHistory::class);
+	}
+	public function isTeamBased(): bool
+	{
+		return $this->type === 'team';
+	}
+
+	public function teams()
+	{
+		return $this->hasMany(TournamentTeam::class);
+	}
+
+	public function teamGroups()
+	{
+		return $this->hasMany(TournamentTeamGroup::class);
+	}
+
+	public function playoffMatches()
+	{
+		return $this->hasMany(TournamentPlayoffMatch::class);
 	}
 }

@@ -7,6 +7,9 @@ use App\Models\Tournament;
 use App\Models\Club;
 use Illuminate\Http\Request;
 use App\Services\AmericanoService;
+use App\Models\TournamentPlayoffMatch;
+
+
 
 class TournamentController extends Controller
 {
@@ -51,22 +54,23 @@ class TournamentController extends Controller
     {
         $club = $this->getClub();
         
-        $validated = $request->validate([
-            'club_id' => 'required|exists:clubs,id',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'start_date' => 'required|date|after:now',
-            'registration_deadline' => 'required|date|before:start_date',
-            'min_level' => 'required|numeric|min:1|max:5.75',
-            'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
-            'max_participants' => 'required|integer|min:2|max:128',
-            'price' => 'nullable|numeric|min:0',
-            'status' => 'required|in:draft,open',
-			'type' => 'required|in:classic,americano,mexicano',
-			'points_to_win' => 'required_if:type,americano|integer|in:16,24,32',
-			'groups_count' => 'required_if:type,americano|nullable|integer|in:1,2',
-			'rounds_count' => 'required_if:type,mexicano|integer|min:3|max:10',
-        ]);
+		$validated = $request->validate([
+			'club_id' => 'required|exists:clubs,id',
+			'name' => 'required|string|max:255',
+			'description' => 'nullable|string',
+			'start_date' => 'required|date|after:now',
+			'registration_deadline' => 'required|date|before:start_date',
+			'min_level' => 'required|numeric|min:1|max:5.75',
+			'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
+			'max_participants' => 'required|integer|min:2|max:128',
+			'price' => 'nullable|numeric|min:0',
+			'status' => 'required|in:draft,open',
+			'type' => 'required|in:classic,americano,mexicano,team',
+			'points_to_win' => 'required_if:type,americano,team|nullable|integer|in:16,21,24,32,42',
+			'groups_count' => 'required_if:type,americano,team|nullable|integer|in:1,2,4',
+			'rounds_count' => 'required_if:type,mexicano|nullable|integer|min:3|max:10',
+			'teams_advance' => 'required_if:type,team|nullable|integer|in:1,2,3',
+		]);
 
         // Проверяем доступ к клубу
         if ($club && $validated['club_id'] != $club->id) {
@@ -165,7 +169,7 @@ class TournamentController extends Controller
 	/**
 	 * Запустить турнир Американо
 	 */
-	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService)
+	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService)
 	{
 		$club = $this->getClub();
 		
@@ -177,6 +181,8 @@ class TournamentController extends Controller
 			$result = $americanoService->startTournament($tournament);
 		} elseif ($tournament->isMexicano()) {
 			$result = $mexicanoService->startTournament($tournament);
+		} elseif ($tournament->isTeamBased()) {
+			$result = $teamTournamentService->startTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}
@@ -186,7 +192,7 @@ class TournamentController extends Controller
 							->with('success', 'Турнир начался!');
 		}
 
-		return back()->with('error', 'Не удалось начать турнир. Проверьте количество участников.');
+		return back()->with('error', 'Не удалось начать турнир. Проверьте количество участников/пар.');
 	}
 	/**
 	 * Добавить тестовых игроков
@@ -228,7 +234,7 @@ class TournamentController extends Controller
 	/**
 	 * Завершить турнир и начислить рейтинг
 	 */
-	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService)
+	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService)
 	{
 		$club = $this->getClub();
 		
@@ -246,15 +252,49 @@ class TournamentController extends Controller
 				return back()->with('error', 'Не все раунды сыграны');
 			}
 			$result = $mexicanoService->finishTournament($tournament);
+		} elseif ($tournament->isTeamBased()) {
+			if (!$teamTournamentService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Финал не сыгран');
+			}
+			$result = $teamTournamentService->finishTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}
 
 		if ($result) {
 			return redirect()->route('club.tournaments.show', $tournament)
-							->with('success', 'Турнир завершён! Рейтинг начислен всем участникам.');
+							->with('success', 'Турнир завершён!');
 		}
 
 		return back()->with('error', 'Ошибка завершения турнира');
+	}
+	/**
+	 * Сохранить счёт матча плей-офф
+	 */
+	public function savePlayoffScore(Request $request, TournamentPlayoffMatch $match, TeamTournamentService $service)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0|different:team1_score',
+		]);
+
+		$service->savePlayoffMatchResult($match, $validated['team1_score'], $validated['team2_score']);
+
+		return back()->with('success', 'Счёт сохранён!');
+	}
+
+	/**
+	 * Обновить счёт матча плей-офф
+	 */
+	public function updatePlayoffScore(Request $request, TournamentPlayoffMatch $match, TeamTournamentService $service)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0|different:team1_score',
+		]);
+
+		$service->savePlayoffMatchResult($match, $validated['team1_score'], $validated['team2_score']);
+
+		return back()->with('success', 'Счёт обновлён!');
 	}
 }

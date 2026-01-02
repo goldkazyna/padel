@@ -114,6 +114,28 @@
 							<small class="text-secondary">Нельзя изменить после создания</small>
 						</div>
 					</div>
+					@endif	
+					@if($tournament->isTeamBased())
+					<div class="row">
+						<div class="col-md-4 mb-4">
+							<label class="form-label">Количество групп</label>
+							<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
+							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+						<div class="col-md-4 mb-4">
+							<label class="form-label">Выходят из группы</label>
+							<input type="text" class="form-control" value="{{ $tournament->teams_advance }} пары" disabled>
+							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+						<div class="col-md-4 mb-4">
+							<label class="form-label">Очки за матч</label>
+							<select name="points_to_win" class="form-select">
+								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>до 24</option>
+								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>до 32</option>
+								<option value="21" {{ old('points_to_win', $tournament->points_to_win) == 21 ? 'selected' : '' }}>до 21</option>
+							</select>
+						</div>
+					</div>
 					@endif					
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
