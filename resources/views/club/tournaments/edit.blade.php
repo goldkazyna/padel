@@ -97,7 +97,24 @@
 							<small class="text-secondary">Нельзя изменить после создания</small>
 						</div>
 					</div>
-					@endif	
+					@endif
+					@if($tournament->isMexicano())
+					<div class="row">
+						<div class="col-md-4 mb-4">
+							<label class="form-label">Сумма очков за матч</label>
+							<select name="points_to_win" class="form-select">
+								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>32 очка</option>
+								<option value="42" {{ old('points_to_win', $tournament->points_to_win) == 42 ? 'selected' : '' }}>42 очка</option>
+								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>24 очка</option>
+							</select>
+						</div>
+						<div class="col-md-4 mb-4">
+							<label class="form-label">Количество раундов</label>
+							<input type="text" class="form-control" value="{{ $tournament->rounds_count }}" disabled>
+							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+					</div>
+					@endif					
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
                         <select name="status" class="form-select" required>

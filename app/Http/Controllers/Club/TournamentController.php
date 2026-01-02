@@ -62,9 +62,10 @@ class TournamentController extends Controller
             'max_participants' => 'required|integer|min:2|max:128',
             'price' => 'nullable|numeric|min:0',
             'status' => 'required|in:draft,open',
-			'type' => 'required|in:classic,americano',
+			'type' => 'required|in:classic,americano,mexicano',
 			'points_to_win' => 'required_if:type,americano|integer|in:16,24,32',
-			'groups_count' => 'required_if:type,americano|integer|in:1,2',
+			'groups_count' => 'required_if:type,americano|nullable|integer|in:1,2',
+			'rounds_count' => 'required_if:type,mexicano|integer|min:3|max:10',
         ]);
 
         // Проверяем доступ к клубу
@@ -164,7 +165,7 @@ class TournamentController extends Controller
 	/**
 	 * Запустить турнир Американо
 	 */
-	public function start(Tournament $tournament, AmericanoService $americanoService)
+	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService)
 	{
 		$club = $this->getClub();
 		
@@ -172,26 +173,20 @@ class TournamentController extends Controller
 			abort(403);
 		}
 
-		if (!$tournament->isAmericano()) {
-			return back()->with('error', 'Этот тип турнира не поддерживает автоматический старт');
+		if ($tournament->isAmericano()) {
+			$result = $americanoService->startTournament($tournament);
+		} elseif ($tournament->isMexicano()) {
+			$result = $mexicanoService->startTournament($tournament);
+		} else {
+			return back()->with('error', 'Неизвестный тип турнира');
 		}
-
-		if ($tournament->participants()->count() !== $tournament->max_participants) {
-			return back()->with('error', 'Нужно ровно ' . $tournament->max_participants . ' участников');
-		}
-
-		if ($tournament->status !== 'open') {
-			return back()->with('error', 'Турнир уже запущен или завершён');
-		}
-
-		$result = $americanoService->startTournament($tournament);
 
 		if ($result) {
 			return redirect()->route('club.tournaments.show', $tournament)
-							->with('success', 'Турнир запущен! Группы и раунды сгенерированы.');
+							->with('success', 'Турнир начался!');
 		}
 
-		return back()->with('error', 'Ошибка запуска турнира');
+		return back()->with('error', 'Не удалось начать турнир. Проверьте количество участников.');
 	}
 	/**
 	 * Добавить тестовых игроков
@@ -233,7 +228,7 @@ class TournamentController extends Controller
 	/**
 	 * Завершить турнир и начислить рейтинг
 	 */
-	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService)
+	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService)
 	{
 		$club = $this->getClub();
 		
@@ -241,15 +236,19 @@ class TournamentController extends Controller
 			abort(403);
 		}
 
-		if (!$tournament->isAmericano()) {
-			return back()->with('error', 'Только для турниров Американо');
+		if ($tournament->isAmericano()) {
+			if (!$americanoService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Не все матчи сыграны');
+			}
+			$result = $americanoService->finishTournament($tournament);
+		} elseif ($tournament->isMexicano()) {
+			if (!$mexicanoService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Не все раунды сыграны');
+			}
+			$result = $mexicanoService->finishTournament($tournament);
+		} else {
+			return back()->with('error', 'Неизвестный тип турнира');
 		}
-
-		if (!$americanoService->canFinishTournament($tournament)) {
-			return back()->with('error', 'Не все матчи сыграны');
-		}
-
-		$result = $americanoService->finishTournament($tournament);
 
 		if ($result) {
 			return redirect()->route('club.tournaments.show', $tournament)

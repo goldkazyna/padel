@@ -15,6 +15,15 @@
         <div class="card-dark">
             <div class="card-body">
                 <form action="{{ route('club.tournaments.store') }}" method="POST">
+				@if($errors->any())
+					<div class="alert-danger-custom mb-4">
+						<ul class="mb-0">
+							@foreach($errors->all() as $error)
+								<li>{{ $error }}</li>
+							@endforeach
+						</ul>
+					</div>
+				@endif
                     @csrf
 
                     @if($clubs->count() > 1)
@@ -34,6 +43,7 @@
 						<select name="type" id="tournamentType" class="form-select" required onchange="toggleTypeFields()">
 							<option value="classic" {{ old('type') === 'classic' ? 'selected' : '' }}>Классический</option>
 							<option value="americano" {{ old('type') === 'americano' ? 'selected' : '' }}>Американо</option>
+							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -94,29 +104,55 @@
                         </div>
                     </div>
 					<div id="americanoFields" style="display: none;">
-					<div class="row">
-						<div class="col-md-6 mb-4">
-							<label class="form-label">Очки для победы *</label>
-							<select name="points_to_win" class="form-select">
-								<option value="16" {{ old('points_to_win', 16) == 16 ? 'selected' : '' }}>До 16 очков</option>
-								<option value="24" {{ old('points_to_win') == 24 ? 'selected' : '' }}>До 24 очков</option>
-								<option value="32" {{ old('points_to_win') == 32 ? 'selected' : '' }}>До 32 очков</option>
-							</select>
+						<div class="row">
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Очки для победы *</label>
+								<select name="points_to_win" class="form-select">
+									<option value="16" {{ old('points_to_win', 16) == 16 ? 'selected' : '' }}>До 16 очков</option>
+									<option value="24" {{ old('points_to_win') == 24 ? 'selected' : '' }}>До 24 очков</option>
+									<option value="32" {{ old('points_to_win') == 32 ? 'selected' : '' }}>До 32 очков</option>
+								</select>
+							</div>
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Количество групп *</label>
+								<select name="groups_count" class="form-select">
+									<option value="1" {{ old('groups_count', 1) == 1 ? 'selected' : '' }}>1 группа</option>
+									<option value="2" {{ old('groups_count') == 2 ? 'selected' : '' }}>2 группы</option>
+								</select>
+							</div>
 						</div>
-						<div class="col-md-6 mb-4">
-							<label class="form-label">Количество групп *</label>
-							<select name="groups_count" class="form-select">
-								<option value="1" {{ old('groups_count', 1) == 1 ? 'selected' : '' }}>1 группа</option>
-								<option value="2" {{ old('groups_count') == 2 ? 'selected' : '' }}>2 группы</option>
-							</select>
+						
+						<div class="alert-success-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Американо:</strong> Участники делятся на группы по рейтингу. Каждый играет с каждым в паре. Очки считаются индивидуально.
 						</div>
 					</div>
-					
-					<div class="alert-success-custom mb-4">
-						<i class="bi bi-info-circle me-2"></i>
-						<strong>Американо:</strong> Участники делятся на группы по рейтингу. Каждый играет с каждым в паре. Очки считаются индивидуально.
+					<div id="mexicanoFields" style="display: none;">
+						<div class="row">
+							<div class="col-md-4 mb-4">
+								<label class="form-label">Сумма очков за матч *</label>
+								<select name="points_to_win" class="form-select">
+									<option value="32" {{ old('points_to_win', 32) == 32 ? 'selected' : '' }}>32 очка</option>
+									<option value="42" {{ old('points_to_win') == 42 ? 'selected' : '' }}>42 очка</option>
+									<option value="24" {{ old('points_to_win') == 24 ? 'selected' : '' }}>24 очка</option>
+								</select>
+							</div>
+							<div class="col-md-4 mb-4">
+								<label class="form-label">Количество раундов *</label>
+								<select name="rounds_count" class="form-select">
+									<option value="5" {{ old('rounds_count', 5) == 5 ? 'selected' : '' }}>5 раундов</option>
+									<option value="6" {{ old('rounds_count') == 6 ? 'selected' : '' }}>6 раундов</option>
+									<option value="7" {{ old('rounds_count') == 7 ? 'selected' : '' }}>7 раундов</option>
+									<option value="8" {{ old('rounds_count') == 8 ? 'selected' : '' }}>8 раундов</option>
+								</select>
+							</div>
+						</div>
+						
+						<div class="alert-success-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Мексикано:</strong> Пары формируются динамически после каждого раунда. Играют те, кто набрал похожее количество очков. Все играют вместе без разделения на группы.
+						</div>
 					</div>
-				</div>
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
                         <select name="status" class="form-select" required>
@@ -140,15 +176,20 @@
 function toggleTypeFields() {
     const type = document.getElementById('tournamentType').value;
     const americanoFields = document.getElementById('americanoFields');
+    const mexicanoFields = document.getElementById('mexicanoFields');
     
+    // Скрываем все
+    americanoFields.style.display = 'none';
+    mexicanoFields.style.display = 'none';
+    
+    // Показываем нужное
     if (type === 'americano') {
         americanoFields.style.display = 'block';
-    } else {
-        americanoFields.style.display = 'none';
+    } else if (type === 'mexicano') {
+        mexicanoFields.style.display = 'block';
     }
 }
 
-// При загрузке страницы
 document.addEventListener('DOMContentLoaded', toggleTypeFields);
 </script>
 @endsection

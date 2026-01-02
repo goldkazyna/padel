@@ -24,6 +24,7 @@ class Tournament extends Model
 		'type',
 		'points_to_win',
 		'groups_count',
+		'rounds_count',
     ];
 
     protected $casts = [
@@ -137,5 +138,24 @@ class Tournament extends Model
 			'classic' => 'Классический',
 			default => $this->type,
 		};
+	}
+	public function isMexicano(): bool
+	{
+		return $this->type === 'mexicano';
+	}
+
+	public function mexicanoPlayers()
+	{
+		return $this->hasMany(MexicanoPlayer::class);
+	}
+
+	public function mexicanoRounds()
+	{
+		return $this->hasMany(MexicanoRound::class)->orderBy('round_number');
+	}
+
+	public function mexicanoPairHistory()
+	{
+		return $this->hasMany(MexicanoPairHistory::class);
 	}
 }

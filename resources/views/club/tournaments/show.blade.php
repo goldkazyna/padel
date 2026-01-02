@@ -19,9 +19,9 @@
 				</form>
 			@endif
 			
-			@if($tournament->isAmericano() && $tournament->participants->count() === $tournament->max_participants)
+			@if(($tournament->isAmericano() || $tournament->isMexicano()) && $tournament->participants->count() === $tournament->max_participants)
 				<form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
-					  onsubmit="return confirm('Начать турнир? Группы и раунды будут сгенерированы автоматически.')">
+					  onsubmit="return confirm('Начать турнир? Раунды будут сгенерированы автоматически.')">
 					@csrf
 					<button type="submit" class="btn-primary-custom">
 						<i class="bi bi-play-fill"></i> Начать турнир
@@ -30,22 +30,41 @@
 			@endif
 		@endif
 
-		@if($tournament->status === 'in_progress' && $tournament->isAmericano())
-			@php
-				$canFinish = app(\App\Services\AmericanoService::class)->canFinishTournament($tournament);
-			@endphp
-			@if($canFinish)
-				<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
-					  onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
-					@csrf
-					<button type="submit" class="btn-primary-custom">
-						<i class="bi bi-trophy-fill"></i> Завершить турнир
-					</button>
-				</form>
-			@else
-				<span class="btn-outline-custom disabled" title="Сыграйте все матчи">
-					<i class="bi bi-hourglass"></i> Не все матчи сыграны
-				</span>
+		@if($tournament->status === 'in_progress')
+			@if($tournament->isAmericano())
+				@php
+					$canFinish = app(\App\Services\AmericanoService::class)->canFinishTournament($tournament);
+				@endphp
+				@if($canFinish)
+					<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
+						  onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
+						@csrf
+						<button type="submit" class="btn-primary-custom">
+							<i class="bi bi-trophy-fill"></i> Завершить турнир
+						</button>
+					</form>
+				@else
+					<span class="btn-outline-custom disabled" title="Сыграйте все матчи">
+						<i class="bi bi-hourglass"></i> Не все матчи сыграны
+					</span>
+				@endif
+			@elseif($tournament->isMexicano())
+				@php
+					$canFinish = app(\App\Services\MexicanoService::class)->canFinishTournament($tournament);
+				@endphp
+				@if($canFinish)
+					<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
+						  onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
+						@csrf
+						<button type="submit" class="btn-primary-custom">
+							<i class="bi bi-trophy-fill"></i> Завершить турнир
+						</button>
+					</form>
+				@else
+					<span class="btn-outline-custom disabled" title="Сыграйте все раунды">
+						<i class="bi bi-hourglass"></i> Не все раунды сыграны
+					</span>
+				@endif
 			@endif
 		@endif
 		
@@ -367,6 +386,270 @@
         @endforeach
     </div>
 @endif
+
+
+
+
+
+
+
+{{-- Мексикано --}}
+@if($tournament->isMexicano() && $tournament->mexicanoPlayers->count() > 0)
+<div class="card-dark mb-4">
+    <div class="card-header-dark">
+        <h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Турнир Мексикано</h5>
+    </div>
+    <div class="card-body-dark">
+        
+        {{-- Информация о турнире --}}
+        <div class="alert-info-custom mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Раундов:</strong> {{ $tournament->mexicanoRounds->count() }} / {{ $tournament->rounds_count }}
+            &nbsp;|&nbsp;
+            <strong>Сумма очков:</strong> {{ $tournament->points_to_win }}
+        </div>
+
+        <div class="row">
+            {{-- Таблица лидеров --}}
+            <div class="col-lg-4 mb-4">
+                <h6 class="text-white mb-3"><i class="bi bi-bar-chart-fill text-success me-2"></i>Таблица лидеров</h6>
+                <div class="leaderboard-list" id="mexicanoLeaderboard">
+                    @foreach($tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->with('user')->get() as $index => $player)
+                        @php
+                            $rankClass = $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : ''));
+                        @endphp
+                        <div class="leaderboard-row {{ $rankClass }}">
+                            <div class="leaderboard-rank {{ $rankClass }}">{{ $index + 1 }}</div>
+                            <div class="leaderboard-avatar">
+                                {{ strtoupper(substr($player->user->first_name, 0, 1) . substr($player->user->last_name, 0, 1)) }}
+                            </div>
+                            <div class="leaderboard-info">
+                                <div class="leaderboard-name">{{ $player->user->full_name }}</div>
+                                <div class="leaderboard-rating">Рейтинг: {{ $player->user->rating }}</div>
+                            </div>
+                            <div class="leaderboard-points">{{ $player->total_points }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Раунды --}}
+            <div class="col-lg-8">
+                <h6 class="text-white mb-3"><i class="bi bi-layers-fill text-primary me-2"></i>Раунды</h6>
+                <div class="rounds-grid">
+                    @foreach($tournament->mexicanoRounds as $round)
+                        <div class="round-card" data-round-id="{{ $round->id }}">
+                            <div class="round-header">
+                                <div class="round-title">
+                                    @if($round->isCompleted())
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    @elseif($round->isInProgress())
+                                        <i class="bi bi-play-circle-fill text-primary"></i>
+                                    @else
+                                        <i class="bi bi-clock text-secondary"></i>
+                                    @endif
+                                    Раунд {{ $round->round_number }}
+                                </div>
+                                <span class="round-status {{ $round->status }}">
+                                    @if($round->isCompleted())
+                                        Завершён
+                                    @elseif($round->isInProgress())
+                                        Идёт
+                                    @else
+                                        Ожидание
+                                    @endif
+                                </span>
+                            </div>
+                            <div class="round-matches">
+                                @foreach($round->matches as $match)
+                                    <div class="match-card" data-match-id="{{ $match->id }}">
+                                        <div class="match-team {{ $match->winning_team === 1 ? 'winner' : '' }}">
+                                            <div class="team-players">
+                                                <div class="player-badge">
+                                                    <span class="player-name">{{ $match->team1Player1->first_name }}</span>
+                                                    <span class="player-level">{{ $match->team1Player1->level }}</span>
+                                                </div>
+                                                <div class="player-badge">
+                                                    <span class="player-name">{{ $match->team1Player2->first_name }}</span>
+                                                    <span class="player-level">{{ $match->team1Player2->level }}</span>
+                                                </div>
+                                            </div>
+                                            @if($match->isCompleted())
+                                                <div class="team-score {{ $match->winning_team === 1 ? 'text-success' : '' }}">
+                                                    {{ $match->team1_score }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="match-vs">
+                                            @if($match->isCompleted())
+                                                <button class="btn-score-edit" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#editMexicanoScoreModal{{ $match->id }}"
+                                                        title="Редактировать счёт">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            @elseif($round->isInProgress())
+                                                <button class="btn-score" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#mexicanoScoreModal{{ $match->id }}">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+                                            @else
+                                                <span class="text-secondary">VS</span>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="match-team {{ $match->winning_team === 2 ? 'winner' : '' }}">
+                                            @if($match->isCompleted())
+                                                <div class="team-score {{ $match->winning_team === 2 ? 'text-success' : '' }}">
+                                                    {{ $match->team2_score }}
+                                                </div>
+                                            @endif
+                                            <div class="team-players">
+                                                <div class="player-badge">
+                                                    <span class="player-name">{{ $match->team2Player1->first_name }}</span>
+                                                    <span class="player-level">{{ $match->team2Player1->level }}</span>
+                                                </div>
+                                                <div class="player-badge">
+                                                    <span class="player-name">{{ $match->team2Player2->first_name }}</span>
+                                                    <span class="player-level">{{ $match->team2Player2->level }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Модалка ввода счёта --}}
+                                    @if(!$match->isCompleted())
+                                    <div class="modal fade" id="mexicanoScoreModal{{ $match->id }}" tabindex="-1">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content modal-dark">
+                                                <div class="modal-header border-0">
+                                                    <h5 class="modal-title">Ввод счёта — Раунд {{ $round->round_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form action="{{ route('club.mexicano.saveScore', $match) }}" method="POST"
+                                                      data-ajax-score data-match-id="{{ $match->id }}" data-mexicano="true">
+                                                    @csrf
+                                                    <div class="modal-body">
+                                                        <div class="score-input-grid">
+                                                            <div class="score-team">
+                                                                <div class="score-team-names">
+                                                                    {{ $match->team1Player1->first_name }} / {{ $match->team1Player2->first_name }}
+                                                                </div>
+                                                                <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
+                                                                       min="0" max="99" required placeholder="0">
+                                                            </div>
+                                                            <div class="score-separator">:</div>
+                                                            <div class="score-team">
+                                                                <div class="score-team-names">
+                                                                    {{ $match->team2Player1->first_name }} / {{ $match->team2Player2->first_name }}
+                                                                </div>
+                                                                <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
+                                                                       min="0" max="99" required placeholder="0">
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-center text-secondary mt-2">
+                                                            <small>Сумма должна быть {{ $tournament->points_to_win }}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-0">
+                                                        <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                        <button type="submit" class="btn-primary-custom">
+                                                            <i class="bi bi-check-lg me-1"></i> Сохранить
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @endif
+
+                                    {{-- Модалка редактирования счёта --}}
+                                    <div class="modal fade" id="editMexicanoScoreModal{{ $match->id }}" tabindex="-1">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content modal-dark">
+                                                <div class="modal-header border-0">
+                                                    <h5 class="modal-title">Редактировать счёт — Раунд {{ $round->round_number }}</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form action="{{ route('club.mexicano.updateScore', $match) }}" method="POST"
+                                                      data-ajax-score data-match-id="{{ $match->id }}" data-mexicano="true">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="modal-body">
+                                                        <div class="score-input-grid">
+                                                            <div class="score-team">
+                                                                <div class="score-team-names">
+                                                                    {{ $match->team1Player1->first_name }} / {{ $match->team1Player2->first_name }}
+                                                                </div>
+                                                                <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
+                                                                       min="0" max="99" required value="{{ $match->team1_score }}">
+                                                            </div>
+                                                            <div class="score-separator">:</div>
+                                                            <div class="score-team">
+                                                                <div class="score-team-names">
+                                                                    {{ $match->team2Player1->first_name }} / {{ $match->team2Player2->first_name }}
+                                                                </div>
+                                                                <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
+                                                                       min="0" max="99" required value="{{ $match->team2_score }}">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer border-0">
+                                                        <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                        <button type="submit" class="btn-primary-custom">
+                                                            <i class="bi bi-check-lg me-1"></i> Обновить
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+				{{-- Кнопка следующего раунда --}}
+                @if($tournament->status === 'in_progress')
+                    @php
+                        $canGenerateNext = app(\App\Services\MexicanoService::class)->canGenerateNextRound($tournament);
+                        $currentRoundNumber = $tournament->mexicanoRounds->max('round_number') ?? 0;
+                    @endphp
+                    
+                    @if($canGenerateNext)
+                        <div class="text-center mt-4">
+                            <form action="{{ route('club.mexicano.nextRound', $tournament) }}" method="POST"
+                                  onsubmit="return confirm('Сгенерировать раунд {{ $currentRoundNumber + 1 }}? Пары будут составлены по текущим очкам.')">
+                                @csrf
+                                <button type="submit" class="btn-primary-custom btn-lg">
+                                    <i class="bi bi-plus-circle me-2"></i>
+                                    Сгенерировать раунд {{ $currentRoundNumber + 1 }}
+                                </button>
+                            </form>
+                            <div class="text-secondary mt-2">
+                                <small>Осталось раундов: {{ $tournament->rounds_count - $currentRoundNumber }}</small>
+                            </div>
+                        </div>
+                    @elseif($currentRoundNumber >= $tournament->rounds_count)
+                        <div class="text-center mt-4">
+                            <div class="alert-success-custom">
+                                <i class="bi bi-check-circle me-2"></i>
+                                Все {{ $tournament->rounds_count }} раундов сыграны! Можно завершить турнир.
+                            </div>
+                        </div>
+                    @endif
+                @endif
+				
+				
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+
 
 <!-- Классические матчи (для не-Американо) -->
 @if(!$tournament->isAmericano())
@@ -1057,14 +1340,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     // Активируем следующий раунд если текущий завершён
-                    if (data.nextRound) {
-                        activateNextRound(data.nextRound);
-                    }
+                    // if (data.nextRound) {
+						//     activateNextRound(data.nextRound);
+						// }
                     
                     const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
                     if (modal) modal.hide();
                     
                     showToast(data.message, 'success');
+					
+					// Перезагружаем страницу если раунд завершён (для появления кнопки)
+					if (data.round && data.round.status === 'completed') {
+						setTimeout(() => {
+							window.location.reload();
+						}, 1000);
+					}
                 } else {
                     showToast('Ошибка сохранения', 'error');
                 }
@@ -1122,23 +1412,43 @@ function updateMatchCard(matchId, matchData) {
 }
 
 function updateLeaderboard(groupId, leaderboard) {
-    const leaderboardList = document.querySelector(`#group${groupId} .leaderboard-list`);
-    if (!leaderboardList) return;
-    
-    leaderboardList.innerHTML = leaderboard.map((player, index) => {
-        const rankClass = index === 0 ? 'gold' : (index === 1 ? 'silver' : (index === 2 ? 'bronze' : ''));
-        return `
-            <div class="leaderboard-row ${rankClass}">
-                <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
-                <div class="leaderboard-avatar">${player.initials}</div>
-                <div class="leaderboard-info">
-                    <div class="leaderboard-name">${player.name}</div>
-                    <div class="leaderboard-rating">Рейтинг: ${player.rating}</div>
+    // Для Американо (с группами)
+    const groupLeaderboard = document.querySelector(`#group${groupId} .leaderboard-list`);
+    if (groupLeaderboard) {
+        groupLeaderboard.innerHTML = leaderboard.map((player, index) => {
+            const rankClass = index === 0 ? 'gold' : (index === 1 ? 'silver' : (index === 2 ? 'bronze' : ''));
+            return `
+                <div class="leaderboard-row ${rankClass}">
+                    <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
+                    <div class="leaderboard-avatar">${player.initials}</div>
+                    <div class="leaderboard-info">
+                        <div class="leaderboard-name">${player.name}</div>
+                        <div class="leaderboard-rating">Рейтинг: ${player.rating}</div>
+                    </div>
+                    <div class="leaderboard-points">${player.points}</div>
                 </div>
-                <div class="leaderboard-points">${player.points}</div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    }
+    
+    // Для Мексикано (без групп)
+    const mexicanoLeaderboard = document.querySelector('#mexicanoLeaderboard');
+    if (mexicanoLeaderboard) {
+        mexicanoLeaderboard.innerHTML = leaderboard.map((player, index) => {
+            const rankClass = index === 0 ? 'gold' : (index === 1 ? 'silver' : (index === 2 ? 'bronze' : ''));
+            return `
+                <div class="leaderboard-row ${rankClass}">
+                    <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
+                    <div class="leaderboard-avatar">${player.initials}</div>
+                    <div class="leaderboard-info">
+                        <div class="leaderboard-name">${player.name}</div>
+                        <div class="leaderboard-rating">Рейтинг: ${player.rating}</div>
+                    </div>
+                    <div class="leaderboard-points">${player.points}</div>
+                </div>
+            `;
+        }).join('');
+    }
 }
 
 function updateRoundStatus(roundData) {
@@ -1224,5 +1534,26 @@ function showToast(message, type = 'success') {
     
     toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
 }
+// Автозаполнение счёта для Мексикано
+document.querySelectorAll('form[data-mexicano="true"]').forEach(form => {
+    const inputs = form.querySelectorAll('input[type="number"]');
+    if (inputs.length === 2) {
+        const pointsTotal = {{ $tournament->points_to_win ?? 32 }};
+        
+        inputs[0].addEventListener('input', function() {
+            const val = parseInt(this.value) || 0;
+            if (val >= 0 && val <= pointsTotal) {
+                inputs[1].value = pointsTotal - val;
+            }
+        });
+        
+        inputs[1].addEventListener('input', function() {
+            const val = parseInt(this.value) || 0;
+            if (val >= 0 && val <= pointsTotal) {
+                inputs[0].value = pointsTotal - val;
+            }
+        });
+    }
+});
 </script>
 @endsection

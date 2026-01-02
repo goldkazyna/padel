@@ -41,9 +41,12 @@ Route::middleware('auth')->group(function () {
 			->name('tournaments.participants.remove');
 		Route::post('/tournaments/{tournament}/start', [ClubTournamentController::class, 'start'])->name('tournaments.start');
 		Route::post('/tournaments/{tournament}/finish', [ClubTournamentController::class, 'finish'])->name('tournaments.finish');
+		
+		
 		Route::get('/tournaments/{tournament}/preview-rating', function (\App\Models\Tournament $tournament) {
 		$service = app(\App\Services\AmericanoService::class);
 		$preview = $service->previewRatingChanges($tournament);
+		
 		
 		echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
 		foreach ($preview as $groupName => $players) {
@@ -60,10 +63,81 @@ Route::middleware('auth')->group(function () {
 			}
 		}
 		echo "</pre>";
-	})->name('tournaments.previewRating');
+		})->name('tournaments.previewRating');
+		Route::get('/tournaments/{tournament}/preview-rating-mexicano', function (\App\Models\Tournament $tournament) {
+			$service = app(\App\Services\MexicanoService::class);
+			$preview = $service->previewRatingChanges($tournament);
+			
+			echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
+			echo "<b style='color:#22c55e;'>=== Мексикано: Превью рейтинга ===</b>\n\n";
+			foreach ($preview as $playerId => $data) {
+				$diff = $data['current_rating'] - $data['rating_before'];
+				$sign = $diff >= 0 ? '+' : '';
+				$color = $diff >= 0 ? '#22c55e' : '#ef4444';
+				echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
+				if (!empty($data['matches'])) {
+					echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
+				}
+				echo "\n";
+			}
+			echo "</pre>";
+		})->name('tournaments.previewRatingMexicano');
+		
+		Route::get('/mexicano/debug/{tournament}', function (\App\Models\Tournament $tournament) {
+			$service = app(\App\Services\MexicanoService::class);
+			
+			$currentRound = $tournament->mexicanoRounds()->orderBy('round_number', 'desc')->first();
+			
+			echo "<pre>";
+			echo "Tournament ID: {$tournament->id}\n";
+			echo "Tournament status: {$tournament->status}\n";
+			echo "Rounds count setting: {$tournament->rounds_count}\n";
+			echo "Current round: " . ($currentRound ? $currentRound->round_number : 'null') . "\n";
+			echo "Current round status: " . ($currentRound ? $currentRound->status : 'null') . "\n";
+			echo "canGenerateNextRound: " . ($service->canGenerateNextRound($tournament) ? 'true' : 'false') . "\n";
+			echo "</pre>";
+		});
+		
+		
+		Route::get('/mexicano/debug-round/{tournament}', function (\App\Models\Tournament $tournament) {
+			echo "<pre>";
+			echo "Tournament ID: {$tournament->id}\n\n";
+			
+			$allRounds = $tournament->mexicanoRounds()->orderBy('round_number', 'asc')->get();
+			
+			echo "Total rounds: " . $allRounds->count() . "\n\n";
+			
+			foreach ($allRounds as $round) {
+				echo "=== Round {$round->round_number} (ID: {$round->id}) ===\n";
+				echo "Status: {$round->status}\n";
+				
+				$pendingCount = $round->matches()->where('status', 'pending')->count();
+				$completedCount = $round->matches()->where('status', 'completed')->count();
+				
+				echo "Matches: {$completedCount} completed, {$pendingCount} pending\n";
+				
+				foreach ($round->matches as $match) {
+					echo "  Match {$match->id}: status={$match->status}, score={$match->team1_score}:{$match->team2_score}\n";
+				}
+				echo "\n";
+			}
+			
+			$lastRound = $tournament->mexicanoRounds()->orderBy('round_number', 'desc')->first();
+			echo "Last round by orderBy desc: " . ($lastRound ? "Round {$lastRound->round_number}" : "NULL") . "\n";
+			
+			echo "</pre>";
+		});
+		
+		
+		
 		Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])->name('tournaments.addTestPlayers');
 		Route::post('/americano/match/{match}/score', [AmericanoController::class, 'saveScore'])->name('americano.saveScore');
 		Route::put('/americano/match/{match}/score', [AmericanoController::class, 'updateScore'])->name('americano.updateScore');
+		// Mexicano
+		Route::post('/mexicano/match/{match}/score', [App\Http\Controllers\Club\MexicanoController::class, 'saveScore'])->name('mexicano.saveScore');
+		Route::put('/mexicano/match/{match}/score', [App\Http\Controllers\Club\MexicanoController::class, 'updateScore'])->name('mexicano.updateScore');
+		Route::post('/mexicano/tournament/{tournament}/next-round', [App\Http\Controllers\Club\MexicanoController::class, 'generateNextRound'])->name('mexicano.nextRound');
+		
 		
 		// Матчи
 		Route::get('/tournaments/{tournament}/matches/create', [MatchController::class, 'create'])->name('matches.create');

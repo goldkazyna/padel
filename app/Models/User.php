@@ -125,4 +125,8 @@ class User extends Authenticatable
 					->withPivot('total_points')
 					->withTimestamps();
 	}
+	public function mexicanoPlayers()
+	{
+		return $this->hasMany(MexicanoPlayer::class);
+	}
 }
