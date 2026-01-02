@@ -27,7 +27,8 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
-
+	// Профиль игрока
+	Route::get('/players/{player}', [App\Http\Controllers\PlayerController::class, 'show'])->name('players.show');
     /*
     |--------------------------------------------------------------------------
     | Общие роуты (все роли)

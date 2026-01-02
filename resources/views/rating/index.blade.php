@@ -12,9 +12,7 @@
 
 <div class="rating-list">
     @forelse($players as $index => $player)
-        <div class="rating-row {{ $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : '')) }}"
-             data-bs-toggle="modal" 
-             data-bs-target="#playerModal{{ $player->id }}">
+        <a href="{{ route('players.show', $player) }}" class="rating-row {{ $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : '')) }}" style="text-decoration: none; color: inherit;">
             <div class="rank {{ $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : 'text-secondary')) }}">
                 #{{ $index + 1 }}
             </div>
@@ -45,7 +43,7 @@
                 </div>
             </div>
             <div class="player-rating">{{ $player->rating }}</div>
-        </div>
+        </a>
     @empty
         <div class="card-dark">
             <div class="card-body text-center py-5">
