@@ -350,7 +350,6 @@ class MexicanoService
             
             $player->update(['rating_after' => $newRating]);
             $player->user->update(['rating' => $newRating]);
-            $this->updateLevel($player->user->fresh());
         }
 
         $tournament->update(['status' => 'completed']);

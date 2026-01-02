@@ -251,7 +251,7 @@ class AmericanoService
 
                 // Обновляем рейтинг игрока
                 $player->update(['rating' => $newRating]);
-                $this->updateLevel($player);
+                
             }
         }
 

@@ -517,8 +517,6 @@ class TeamTournamentService
 			$team->player1->update(['rating' => $player1NewRating]);
 			$team->player2->update(['rating' => $player2NewRating]);
 
-			$this->updateLevel($team->player1->fresh());
-			$this->updateLevel($team->player2->fresh());
 		}
 
 		$tournament->update(['status' => 'completed']);
