@@ -11,6 +11,7 @@ use App\Http\Controllers\Club\MexicanoController;
 use App\Http\Controllers\Club\TeamTournamentController;
 use App\Http\Controllers\RatingController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\TelegramAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -237,5 +238,10 @@ Route::middleware('auth')->group(function () {
     });
     
 });
+// Telegram Auth
+Route::get('/auth/telegram/callback', [TelegramAuthController::class, 'callback'])->name('auth.telegram.callback');
+Route::get('/register/telegram', [TelegramAuthController::class, 'showRegisterForm'])->name('auth.telegram.register');
+Route::post('/register/telegram', [TelegramAuthController::class, 'completeRegistration'])->name('auth.telegram.complete');
+
 
 require __DIR__.'/auth.php';

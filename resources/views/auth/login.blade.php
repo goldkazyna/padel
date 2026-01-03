@@ -44,4 +44,23 @@
             </x-primary-button>
         </div>
     </form>
+	{{-- Telegram Login --}}
+	<div class="mt-4 text-center">
+		<p class="text-secondary mb-3">или</p>
+		<script async src="https://telegram.org/js/telegram-widget.js?22"
+				data-telegram-login="add_padel_tournament_bot"
+				data-size="large"
+				data-radius="8"
+				data-onauth="onTelegramAuth(user)"
+				data-request-access="write">
+		</script>
+	</div>
+
+	<script>
+	function onTelegramAuth(user) {
+		// Формируем URL с параметрами
+		const params = new URLSearchParams(user).toString();
+		window.location.href = "{{ route('auth.telegram.callback') }}?" + params;
+	}
+	</script>
 </x-guest-layout>
