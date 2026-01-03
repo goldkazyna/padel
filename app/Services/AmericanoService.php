@@ -251,6 +251,16 @@ class AmericanoService
 
                 // Обновляем рейтинг игрока
                 $player->update(['rating' => $newRating]);
+				
+				// Записываем историю
+				\App\Models\RatingHistory::create([
+					'user_id' => $player->id,
+					'tournament_id' => $tournament->id,
+					'rating_before' => $ratingChanges[$player->id]['rating_before'],
+					'rating_after' => $newRating,
+					'change' => $newRating - $ratingChanges[$player->id]['rating_before'],
+					'reason' => $tournament->name,
+				]);
                 
             }
         }

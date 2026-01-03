@@ -350,6 +350,15 @@ class MexicanoService
             
             $player->update(['rating_after' => $newRating]);
             $player->user->update(['rating' => $newRating]);
+			// Записываем историю
+			\App\Models\RatingHistory::create([
+				'user_id' => $player->user_id,
+				'tournament_id' => $tournament->id,
+				'rating_before' => (int) $player->rating_before,
+				'rating_after' => $newRating,
+				'change' => $newRating - (int) $player->rating_before,
+				'reason' => $tournament->name,
+			]);
         }
 
         $tournament->update(['status' => 'completed']);

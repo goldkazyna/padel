@@ -379,4 +379,195 @@ class User extends Authenticatable
 
 		return $matches;
 	}
+	
+	public function ratingHistory()
+	{
+		return $this->hasMany(RatingHistory::class)->orderBy('created_at', 'desc');
+	}
+	/**
+	 * Статистика по турнирам
+	 */
+	public function getTournamentStats(): array
+	{
+		$stats = [
+			'total' => 0,
+			'wins' => 0,
+			'by_type' => [],
+		];
+
+		// Американо
+		$americanoCount = \App\Models\Tournament::where('type', 'americano')
+			->where('status', 'completed')
+			->whereHas('groups.players', function($q) {
+				$q->where('users.id', $this->id);
+			})->count();
+		
+		if ($americanoCount > 0) {
+			$stats['total'] += $americanoCount;
+			$stats['by_type']['americano'] = $americanoCount;
+		}
+
+		// Мексикано
+		$mexicanoTournaments = \App\Models\Tournament::where('type', 'mexicano')
+			->where('status', 'completed')
+			->whereHas('mexicanoPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($mexicanoTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['mexicano'] = ($stats['by_type']['mexicano'] ?? 0) + 1;
+			
+			// Проверяем 1-е место
+			$winner = $tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->first();
+			if ($winner && $winner->user_id === $this->id) {
+				$stats['wins']++;
+			}
+		}
+
+		// Групповой
+		$teamTournaments = \App\Models\Tournament::where('type', 'team')
+			->where('status', 'completed')
+			->whereHas('teams', function($q) {
+				$q->where('player1_id', $this->id)
+				  ->orWhere('player2_id', $this->id);
+			})->get();
+
+		foreach ($teamTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['team'] = ($stats['by_type']['team'] ?? 0) + 1;
+			
+			// Проверяем победителя финала
+			$finalMatch = $tournament->playoffMatches()->where('stage', 'final')->first();
+			if ($finalMatch && $finalMatch->winner) {
+				if ($finalMatch->winner->player1_id === $this->id || $finalMatch->winner->player2_id === $this->id) {
+					$stats['wins']++;
+				}
+			}
+		}
+
+		return $stats;
+	}
+
+	/**
+	 * Лучший партнёр
+	 */
+	public function getBestPartner(): ?array
+	{
+		$partners = [];
+		$matchHistory = $this->getMatchHistory();
+
+		foreach ($matchHistory as $match) {
+			if (empty($match['partner'])) continue;
+			
+			$partnerName = $match['partner'];
+			if (!isset($partners[$partnerName])) {
+				$partners[$partnerName] = ['wins' => 0, 'total' => 0];
+			}
+			$partners[$partnerName]['total']++;
+			if ($match['won']) {
+				$partners[$partnerName]['wins']++;
+			}
+		}
+
+		if (empty($partners)) return null;
+
+		uasort($partners, fn($a, $b) => $b['wins'] <=> $a['wins']);
+		$bestPartnerName = array_key_first($partners);
+
+		return [
+			'name' => $bestPartnerName,
+			'wins' => $partners[$bestPartnerName]['wins'],
+			'total' => $partners[$bestPartnerName]['total'],
+		];
+	}
+
+	/**
+	 * Серия побед/поражений
+	 */
+	public function getCurrentStreak(): array
+	{
+		$matchHistory = $this->getMatchHistory();
+
+		if (empty($matchHistory)) {
+			return ['type' => 'none', 'count' => 0];
+		}
+
+		$firstResult = $matchHistory[0]['won'];
+		$count = 0;
+
+		foreach ($matchHistory as $match) {
+			if ($match['won'] === $firstResult) {
+				$count++;
+			} else {
+				break;
+			}
+		}
+
+		return [
+			'type' => $firstResult ? 'win' : 'loss',
+			'count' => $count,
+		];
+	}
+
+	/**
+	 * Тренд рейтинга
+	 */
+	public function getRatingTrend(): string
+	{
+		$history = $this->ratingHistory()->take(5)->get();
+
+		if ($history->count() < 2) return 'stable';
+
+		$totalChange = $history->sum('change');
+
+		if ($totalChange > 20) return 'up';
+		if ($totalChange < -20) return 'down';
+		return 'stable';
+	}
+
+	/**
+	 * Достижения
+	 */
+	public function getAchievements(): array
+	{
+		$achievements = [];
+		$stats = $this->getAllMatchesStats();
+		$tournamentStats = $this->getTournamentStats();
+		$streak = $this->getCurrentStreak();
+
+		if ($stats['won'] >= 1) {
+			$achievements[] = ['icon' => '🎯', 'name' => 'Первая победа', 'desc' => 'Выиграл первый матч'];
+		}
+
+		if ($stats['won'] >= 10) {
+			$achievements[] = ['icon' => '⭐', 'name' => 'Десятка', 'desc' => '10 побед'];
+		}
+
+		if ($stats['won'] >= 50) {
+			$achievements[] = ['icon' => '🌟', 'name' => 'Полтинник', 'desc' => '50 побед'];
+		}
+
+		if ($stats['total'] >= 100) {
+			$achievements[] = ['icon' => '💯', 'name' => 'Сотня', 'desc' => '100 матчей сыграно'];
+		}
+
+		if ($tournamentStats['wins'] >= 1) {
+			$achievements[] = ['icon' => '🏆', 'name' => 'Чемпион', 'desc' => 'Победитель турнира'];
+		}
+
+		if ($tournamentStats['wins'] >= 5) {
+			$achievements[] = ['icon' => '👑', 'name' => 'Король', 'desc' => '5 турниров выиграно'];
+		}
+
+		if ($streak['type'] === 'win' && $streak['count'] >= 5) {
+			$achievements[] = ['icon' => '🔥', 'name' => 'В ударе', 'desc' => 'Серия из 5+ побед'];
+		}
+
+		if ($stats['total'] >= 10 && $this->winRate() >= 60) {
+			$achievements[] = ['icon' => '💪', 'name' => 'Стабильный', 'desc' => 'Винрейт 60%+'];
+		}
+
+		return $achievements;
+	}
 }

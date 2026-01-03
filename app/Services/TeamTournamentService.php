@@ -516,6 +516,24 @@ class TeamTournamentService
 
 			$team->player1->update(['rating' => $player1NewRating]);
 			$team->player2->update(['rating' => $player2NewRating]);
+			// Записываем историю
+			\App\Models\RatingHistory::create([
+				'user_id' => $team->player1_id,
+				'tournament_id' => $tournament->id,
+				'rating_before' => $ratingChanges[$team->player1_id]['rating_before'],
+				'rating_after' => $player1NewRating,
+				'change' => $player1NewRating - $ratingChanges[$team->player1_id]['rating_before'],
+				'reason' => $tournament->name,
+			]);
+
+			\App\Models\RatingHistory::create([
+				'user_id' => $team->player2_id,
+				'tournament_id' => $tournament->id,
+				'rating_before' => $ratingChanges[$team->player2_id]['rating_before'],
+				'rating_after' => $player2NewRating,
+				'change' => $player2NewRating - $ratingChanges[$team->player2_id]['rating_before'],
+				'reason' => $tournament->name,
+			]);
 
 		}
 

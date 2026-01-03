@@ -7,10 +7,47 @@ use Illuminate\Support\Facades\Auth;
 
 class ProfileController extends Controller
 {
-    public function show()
-    {
-        return view('profile.show', ['user' => Auth::user()]);
-    }
+	public function show()
+	{
+		$user = auth()->user();
+		
+		// Статистика матчей
+		$stats = $user->getAllMatchesStats();
+		
+		// История рейтинга
+		$ratingHistory = $user->ratingHistory()->take(20)->get();
+		
+		// Турниры
+		$tournamentStats = $user->getTournamentStats();
+		
+		// Лучший партнёр
+		$bestPartner = $user->getBestPartner();
+		
+		// Серия
+		$streak = $user->getCurrentStreak();
+		
+		// Тренд
+		$trend = $user->getRatingTrend();
+		
+		// Достижения
+		$achievements = $user->getAchievements();
+		
+		// Последние матчи
+		$matchHistory = array_slice($user->getMatchHistory(), 0, 5);
+		
+		// Место в рейтинге
+		$rank = \App\Models\User::where('role', 'player')
+			->where('rating', '>', $user->rating)
+			->count() + 1;
+		
+		$totalPlayers = \App\Models\User::where('role', 'player')->count();
+
+		return view('profile.show', compact(
+			'user', 'stats', 'ratingHistory', 'tournamentStats',
+			'bestPartner', 'streak', 'trend', 'achievements',
+			'matchHistory', 'rank', 'totalPlayers'
+		));
+	}
 
     public function edit()
     {

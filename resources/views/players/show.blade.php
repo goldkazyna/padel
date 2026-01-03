@@ -53,6 +53,36 @@
     </div>
 </div>
 
+{{-- График рейтинга --}}
+@if($ratingHistory->count() > 0)
+<div class="card-dark mb-4">
+    <div class="card-header-dark">
+        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>История рейтинга</h5>
+    </div>
+    <div class="card-body-dark">
+        <div class="rating-chart-container">
+            <canvas id="ratingChart"></canvas>
+        </div>
+        
+        <div class="rating-history-list mt-4">
+            @foreach($ratingHistory as $history)
+                <div class="rating-history-item">
+                    <div class="history-date">{{ $history->created_at->format('d.m.Y') }}</div>
+                    <div class="history-reason">{{ $history->reason }}</div>
+                    <div class="history-change {{ $history->change >= 0 ? 'positive' : 'negative' }}">
+                        {{ $history->change >= 0 ? '+' : '' }}{{ $history->change }}
+                    </div>
+                    <div class="history-rating">{{ $history->rating_after }}</div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
+
+
+
+
 {{-- История матчей --}}
 <div class="card-dark">
     <div class="card-header-dark">
@@ -99,6 +129,58 @@
 </div>
 
 <style>
+/* График рейтинга */
+.rating-chart-container {
+    height: 250px;
+    margin-bottom: 16px;
+}
+
+.rating-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rating-history-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+}
+
+.history-date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.history-reason {
+    flex: 1;
+    font-weight: 500;
+}
+
+.history-change {
+    font-weight: 700;
+    min-width: 60px;
+    text-align: right;
+}
+
+.history-change.positive {
+    color: var(--accent);
+}
+
+.history-change.negative {
+    color: #ef4444;
+}
+
+.history-rating {
+    font-weight: 600;
+    min-width: 50px;
+    text-align: right;
+    color: var(--text-secondary);
+}
 .btn-back {
     display: inline-flex;
     align-items: center;
@@ -360,4 +442,81 @@
     }
 }
 </style>
+@if($ratingHistory->count() > 0)
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('ratingChart').getContext('2d');
+    
+    const data = @json($ratingHistory->reverse()->values());
+    const labels = data.map(h => {
+        const date = new Date(h.created_at);
+        return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    });
+    const ratings = data.map(h => h.rating_after);
+    
+    // Добавляем начальную точку
+    if (data.length > 0) {
+        labels.unshift('Старт');
+        ratings.unshift(data[0].rating_before);
+    }
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Рейтинг',
+                data: ratings,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#22c55e',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: '#1f2937',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#374151',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255,255,255,0.05)'
+                    },
+                    ticks: {
+                        color: '#9ca3af'
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255,255,255,0.05)'
+                    },
+                    ticks: {
+                        color: '#9ca3af'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+@endif
 @endsection

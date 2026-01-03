@@ -14,12 +14,13 @@ class PlayerController extends Controller
 
         $stats = $player->getAllMatchesStats();
         $matchHistory = $player->getMatchHistory();
+        $ratingHistory = $player->ratingHistory()->take(20)->get();
         
         // Позиция в рейтинге
         $rank = User::where('role', 'player')
             ->where('rating', '>', $player->rating)
             ->count() + 1;
 
-        return view('players.show', compact('player', 'stats', 'matchHistory', 'rank'));
+        return view('players.show', compact('player', 'stats', 'matchHistory', 'ratingHistory', 'rank'));
     }
 }
