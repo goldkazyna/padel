@@ -31,11 +31,11 @@ class TournamentController extends Controller
         
         if ($club) {
             $tournaments = Tournament::where('club_id', $club->id)
-                ->orderBy('start_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
         } else {
             $tournaments = Tournament::with('club')
-                ->orderBy('start_date', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
         }
 
@@ -59,7 +59,6 @@ class TournamentController extends Controller
 			'name' => 'required|string|max:255',
 			'description' => 'nullable|string',
 			'start_date' => 'required|date|after:now',
-			'registration_deadline' => 'required|date|before:start_date',
 			'min_level' => 'required|numeric|min:1|max:5.75',
 			'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
 			'max_participants' => 'required|integer|min:2|max:128',
@@ -121,7 +120,6 @@ class TournamentController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date',
-            'registration_deadline' => 'required|date|before:start_date',
             'min_level' => 'required|numeric|min:1|max:5.75',
             'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
             'max_participants' => 'required|integer|min:2|max:128',

@@ -111,13 +111,7 @@
             <div class="info-value">{{ $tournament->start_date->format('d.m.Y H:i') }}</div>
         </div>
     </div>
-    <div class="info-card">
-        <div class="info-icon"><i class="bi bi-hourglass-split"></i></div>
-        <div class="info-content">
-            <div class="info-label">Дедлайн</div>
-            <div class="info-value">{{ $tournament->registration_deadline->format('d.m.Y H:i') }}</div>
-        </div>
-    </div>
+
     <div class="info-card">
         <div class="info-icon"><i class="bi bi-bar-chart"></i></div>
         <div class="info-content">

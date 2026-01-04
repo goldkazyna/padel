@@ -79,7 +79,33 @@ class Tournament extends Model
         
         return true;
     }
-
+	/**
+	 * Причина почему нельзя зарегистрироваться
+	 */
+	public function getRegistrationBlockReason(User $user): ?string
+	{
+		if ($this->isRegistered($user)) {
+			return null; // Уже зарегистрирован - не блок
+		}
+		
+		if (!$this->isOpen()) {
+			return 'Турнир не открыт для регистрации';
+		}
+		
+		if ($this->isFull()) {
+			return 'Все места заняты';
+		}
+		
+		if ($user->level < $this->min_level) {
+			return 'Ваш уровень (' . $user->level . ') ниже минимального (' . $this->min_level . ')';
+		}
+		
+		if ($user->level > $this->max_level) {
+			return 'Ваш уровень (' . $user->level . ') выше максимального (' . $this->max_level . ')';
+		}
+		
+		return null;
+	}
     public function isRegistered(User $user): bool
     {
         return $this->participants()->where('user_id', $user->id)->exists();

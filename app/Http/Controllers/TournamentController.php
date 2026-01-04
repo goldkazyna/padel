@@ -12,7 +12,7 @@ class TournamentController extends Controller
     {
         $tournaments = Tournament::with('club')
             ->where('status', '!=', 'draft')
-            ->orderBy('start_date')
+            ->orderBy('created_at', 'desc')
             ->get();
 
         return view('tournaments.index', compact('tournaments'));

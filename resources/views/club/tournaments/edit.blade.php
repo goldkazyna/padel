@@ -34,17 +34,17 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label">Дата и время *</label>
-                            <input type="datetime-local" name="start_date" class="form-control" 
-                                   value="{{ old('start_date', $tournament->start_date->format('Y-m-d\TH:i')) }}" required>
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label">Дедлайн регистрации *</label>
-                            <input type="datetime-local" name="registration_deadline" class="form-control" 
-                                   value="{{ old('registration_deadline', $tournament->registration_deadline->format('Y-m-d\TH:i')) }}" required>
-                        </div>
-                    </div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Дата и время *</label>
+							<input type="datetime-local" 
+								   name="start_date" 
+								   class="form-control" 
+								   value="{{ old('start_date', $tournament->start_date->format('Y-m-d\TH:i')) }}" 
+								   required
+								   style="cursor: pointer;"
+								   onclick="this.showPicker()">
+						</div>
+					</div>
 
                     <div class="row">
                         <div class="col-md-6 mb-4">
@@ -161,3 +161,9 @@
     </div>
 </div>
 @endsection
+
+<style>
+.form-control:disabled {
+    background-color: #141414 !important;
+}
+</style>

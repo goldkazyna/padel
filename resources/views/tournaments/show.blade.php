@@ -27,8 +27,8 @@
                         <div>{{ $tournament->start_date->format('d.m.Y H:i') }}</div>
                     </div>
                     <div class="col-sm-6">
-                        <div class="text-secondary mb-1">Дедлайн регистрации</div>
-                        <div>{{ $tournament->registration_deadline->format('d.m.Y H:i') }}</div>
+                        <div class="text-secondary mb-1">Формат</div>
+                        <div>{{ $tournament->type_name }}</div>
                     </div>
                     <div class="col-sm-6">
                         <div class="text-secondary mb-1">Место</div>
@@ -108,11 +108,31 @@
                         </button>
                     </form>
                 @else
-                    <div class="text-center text-secondary">
-                        <i class="bi bi-lock fs-1"></i>
-                        <div class="mt-2">Регистрация недоступна</div>
+                    @php
+                        $blockReason = $tournament->getRegistrationBlockReason(auth()->user());
+                    @endphp
+                    <div class="text-center">
+                        <i class="bi bi-exclamation-circle fs-1 text-warning"></i>
+                        <div class="mt-2 fw-medium">Регистрация недоступна</div>
+                        @if($blockReason)
+                            <div class="mt-2 text-secondary small">{{ $blockReason }}</div>
+                        @endif
                     </div>
                 @endif
+            </div>
+        </div>
+        
+        <!-- Ваш уровень -->
+        <div class="card-dark mt-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">Ваш уровень:</span>
+                    <span class="badge-success-custom">{{ auth()->user()->level }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <span class="text-secondary">Требуется:</span>
+                    <span>{{ $tournament->min_level }} — {{ $tournament->max_level }}</span>
+                </div>
             </div>
         </div>
     </div>

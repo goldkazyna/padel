@@ -59,17 +59,18 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label">Дата и время *</label>
-                            <input type="datetime-local" name="start_date" class="form-control" value="{{ old('start_date') }}" required>
-                            @error('start_date')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label">Дедлайн регистрации *</label>
-                            <input type="datetime-local" name="registration_deadline" class="form-control" value="{{ old('registration_deadline') }}" required>
-                            @error('registration_deadline')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Дата и время *</label>
+							<input type="datetime-local" 
+								   name="start_date" 
+								   class="form-control" 
+								   value="{{ old('start_date') }}" 
+								   required
+								   style="cursor: pointer;"
+								   onclick="this.showPicker()">
+							@error('start_date')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+						</div>
+					</div>
 
                     <div class="row">
                         <div class="col-md-6 mb-4">

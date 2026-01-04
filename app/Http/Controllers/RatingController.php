@@ -12,7 +12,7 @@ class RatingController extends Controller
         $players = User::where('role', 'player')
                        ->orWhere('role', 'club_admin')
                        ->orderBy('rating', 'desc')
-                       ->get();
+                       ->paginate(50);
 
         return view('rating.index', compact('players'));
     }

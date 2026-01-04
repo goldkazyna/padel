@@ -11,10 +11,13 @@
 </div>
 
 <div class="rating-list">
-    @forelse($players as $index => $player)
-        <a href="{{ route('players.show', $player) }}" class="rating-row {{ $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : '')) }}" style="text-decoration: none; color: inherit;">
-            <div class="rank {{ $index === 0 ? 'gold' : ($index === 1 ? 'silver' : ($index === 2 ? 'bronze' : 'text-secondary')) }}">
-                #{{ $index + 1 }}
+    @forelse($players as $player)
+        @php
+            $position = ($players->currentPage() - 1) * $players->perPage() + $loop->iteration;
+        @endphp
+        <a href="{{ route('players.show', $player) }}" class="rating-row {{ $position === 1 ? 'gold' : ($position === 2 ? 'silver' : ($position === 3 ? 'bronze' : '')) }}">
+            <div class="rank {{ $position === 1 ? 'gold' : ($position === 2 ? 'silver' : ($position === 3 ? 'bronze' : '')) }}">
+                #{{ $position }}
             </div>
             <div class="player-avatar">
                 {{ strtoupper(substr($player->first_name, 0, 1) . substr($player->last_name, 0, 1)) }}
@@ -54,66 +57,69 @@
     @endforelse
 </div>
 
-<!-- Модальные окна -->
-@foreach($players as $index => $player)
-<div class="modal fade" id="playerModal{{ $player->id }}" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border);">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Профиль игрока</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="text-center mb-4">
-                    <div class="user-avatar mx-auto mb-3" style="width:72px;height:72px;font-size:1.8rem;">
-                        {{ strtoupper(substr($player->first_name, 0, 1) . substr($player->last_name, 0, 1)) }}
-                    </div>
-                    <h4 class="mb-1">{{ $player->full_name }}</h4>
-                    <span class="badge-success-custom">{{ $player->level }} · {{ $player->level_name }}</span>
-                </div>
-                
-                <div class="row g-3 text-center">
-                    <div class="col-4">
-                        <div class="p-3 rounded-3" style="background: var(--bg-secondary);">
-                            <div class="fs-4 fw-bold">{{ $index + 1 }}</div>
-                            <small class="text-secondary">Место</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="p-3 rounded-3" style="background: var(--bg-secondary);">
-                            <div class="fs-4 fw-bold text-success">{{ $player->rating }}</div>
-                            <small class="text-secondary">Рейтинг</small>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="p-3 rounded-3" style="background: var(--bg-secondary);">
-                            <div class="fs-4 fw-bold">{{ $player->winRate() }}%</div>
-                            <small class="text-secondary">Винрейт</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <hr style="border-color: var(--border);">
-                
-                <div class="row text-center">
-                    <div class="col-4">
-                        <div class="fs-5 fw-bold">{{ $player->wins() + $player->losses() }}</div>
-                        <small class="text-secondary">Матчей</small>
-                    </div>
-                    <div class="col-4">
-                        <div class="fs-5 fw-bold text-success">{{ $player->wins() }}</div>
-                        <small class="text-secondary">Побед</small>
-                    </div>
-                    <div class="col-4">
-                        <div class="fs-5 fw-bold text-danger">{{ $player->losses() }}</div>
-                        <small class="text-secondary">Поражений</small>
-                    </div>
-                </div>
-            </div>
-        </div>
+{{-- Пагинация --}}
+@if($players->hasPages())
+<div class="pagination-custom">
+    <div class="pagination-info">
+        Показано {{ $players->firstItem() }}–{{ $players->lastItem() }} из {{ $players->total() }}
+    </div>
+    <div class="pagination-buttons">
+        {{-- Назад --}}
+        @if($players->onFirstPage())
+            <span class="page-btn disabled"><i class="bi bi-chevron-left"></i></span>
+        @else
+            <a href="{{ $players->previousPageUrl() }}" class="page-btn"><i class="bi bi-chevron-left"></i></a>
+        @endif
+
+        {{-- Номера страниц --}}
+        @php
+            $currentPage = $players->currentPage();
+            $lastPage = $players->lastPage();
+            
+            // Показываем максимум 5 страниц
+            $start = max(1, $currentPage - 2);
+            $end = min($lastPage, $currentPage + 2);
+            
+            // Корректируем если в начале или конце
+            if ($currentPage <= 3) {
+                $end = min($lastPage, 5);
+            }
+            if ($currentPage >= $lastPage - 2) {
+                $start = max(1, $lastPage - 4);
+            }
+        @endphp
+
+        @if($start > 1)
+            <a href="{{ $players->url(1) }}" class="page-btn">1</a>
+            @if($start > 2)
+                <span class="page-dots">...</span>
+            @endif
+        @endif
+
+        @for($i = $start; $i <= $end; $i++)
+            @if($i == $currentPage)
+                <span class="page-btn active">{{ $i }}</span>
+            @else
+                <a href="{{ $players->url($i) }}" class="page-btn">{{ $i }}</a>
+            @endif
+        @endfor
+
+        @if($end < $lastPage)
+            @if($end < $lastPage - 1)
+                <span class="page-dots">...</span>
+            @endif
+            <a href="{{ $players->url($lastPage) }}" class="page-btn">{{ $lastPage }}</a>
+        @endif
+
+        {{-- Вперёд --}}
+        @if($players->hasMorePages())
+            <a href="{{ $players->nextPageUrl() }}" class="page-btn"><i class="bi bi-chevron-right"></i></a>
+        @else
+            <span class="page-btn disabled"><i class="bi bi-chevron-right"></i></span>
+        @endif
     </div>
 </div>
-@endforeach
+@endif
 
 <style>
 .rating-list {
@@ -131,6 +137,8 @@
     border: 1px solid var(--border);
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
+    color: inherit;
 }
 
 .rating-row:hover {
@@ -155,8 +163,9 @@
 
 .rank {
     width: 50px;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 700;
+    color: var(--text-secondary);
 }
 
 .rank.gold { color: #eab308; }
@@ -230,30 +239,147 @@
     text-align: right;
 }
 
+/* Пагинация */
+.pagination-custom {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.pagination-info {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.page-btn:hover:not(.disabled):not(.active) {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
+
+.page-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
+
+.page-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.page-dots {
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+
+/* Мобильная адаптация */
 @media (max-width: 768px) {
+    .rating-row {
+        padding: 12px 14px;
+    }
+    
+    .rank {
+        width: 36px;
+        font-size: 0.9rem;
+    }
+    
+    .player-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.8rem;
+        margin-right: 10px;
+        border-radius: 10px;
+    }
+    
+    .player-name {
+        font-size: 0.9rem;
+    }
+    
+    .player-level {
+        font-size: 0.75rem;
+    }
+    
     .player-stats {
         display: none;
     }
     
     .player-rating {
-        font-size: 1.2rem;
-        min-width: 60px;
+        font-size: 1.1rem;
+        min-width: 50px;
     }
     
+    /* Пагинация на мобилке */
+    .pagination-custom {
+        margin-top: 20px;
+    }
+    
+    .pagination-info {
+        font-size: 0.8rem;
+    }
+    
+    .pagination-buttons {
+        gap: 4px;
+    }
+    
+    .page-btn {
+        min-width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+        padding: 0 8px;
+    }
+}
+
+@media (max-width: 400px) {
     .rating-row {
-        padding: 14px 16px;
+        padding: 10px 12px;
     }
     
     .rank {
-        width: 40px;
-        font-size: 1rem;
+        width: 30px;
+        font-size: 0.85rem;
     }
     
     .player-avatar {
-        width: 38px;
-        height: 38px;
-        font-size: 0.85rem;
-        margin-right: 12px;
+        width: 32px;
+        height: 32px;
+        font-size: 0.7rem;
+        margin-right: 8px;
+    }
+    
+    .player-rating {
+        font-size: 1rem;
+        min-width: 45px;
+    }
+    
+    .you-badge {
+        font-size: 0.6rem;
+        padding: 1px 4px;
     }
 }
 </style>
