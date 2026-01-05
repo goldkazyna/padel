@@ -35,9 +35,9 @@ class TournamentController extends Controller
             return back()->with('error', 'Вы не можете зарегистрироваться на этот турнир');
         }
 
-        $tournament->participants()->attach($user->id, ['status' => 'registered']);
+        $tournament->participants()->attach($user->id, ['status' => 'pending']);
 
-        return back()->with('success', 'Вы успешно зарегистрировались на турнир!');
+        return back()->with('success', 'Заявка отправлена! Ожидайте подтверждения от организатора.');
     }
 
     // Отмена регистрации

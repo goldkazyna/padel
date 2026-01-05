@@ -56,9 +56,9 @@ class Tournament extends Model
     }
 
     public function isFull(): bool
-    {
-        return $this->participants()->count() >= $this->max_participants;
-    }
+	{
+		return $this->approvedParticipantsCount() >= $this->max_participants;
+	}
 
     public function canRegister(User $user): bool
     {
@@ -68,8 +68,6 @@ class Tournament extends Model
         // Не переполнен
         if ($this->isFull()) return false;
         
-        // Дедлайн не прошёл
-        if (now() > $this->registration_deadline) return false;
         
         // Уровень подходит
         if ($user->level < $this->min_level || $user->level > $this->max_level) return false;
@@ -205,4 +203,50 @@ class Tournament extends Model
 	{
 		return $this->hasMany(TournamentPlayoffMatch::class);
 	}
+	/**
+     * Одобренные участники
+     */
+    public function approvedParticipants()
+    {
+        return $this->belongsToMany(User::class, 'tournament_participants')
+                    ->withPivot('status')
+                    ->withTimestamps()
+                    ->wherePivot('status', 'registered');
+    }
+
+    /**
+     * Заявки на модерации
+     */
+    public function pendingParticipants()
+    {
+        return $this->belongsToMany(User::class, 'tournament_participants')
+                    ->withPivot('status')
+                    ->withTimestamps()
+                    ->wherePivot('status', 'pending');
+    }
+
+    /**
+     * Количество одобренных
+     */
+    public function approvedParticipantsCount(): int
+    {
+        return $this->participants()->wherePivot('status', 'registered')->count();
+    }
+
+    /**
+     * Количество на модерации
+     */
+    public function pendingParticipantsCount(): int
+    {
+        return $this->participants()->wherePivot('status', 'pending')->count();
+    }
+
+    /**
+     * Получить статус участника
+     */
+    public function getParticipantStatus(User $user): ?string
+    {
+        $participant = $this->participants()->where('user_id', $user->id)->first();
+        return $participant ? $participant->pivot->status : null;
+    }
 }

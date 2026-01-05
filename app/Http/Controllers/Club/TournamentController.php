@@ -295,4 +295,90 @@ class TournamentController extends Controller
 
 		return back()->with('success', 'Счёт обновлён!');
 	}
+	/**
+     * Одобрить заявку участника
+     */
+    public function approveParticipant(Tournament $tournament, $userId)
+    {
+        $club = $this->getClub();
+        
+        if ($club && $tournament->club_id != $club->id) {
+            abort(403);
+        }
+
+        if ($tournament->status !== 'open') {
+            return back()->with('error', 'Турнир не открыт для регистрации');
+        }
+
+        $participant = $tournament->participants()->where('user_id', $userId)->first();
+        
+        if (!$participant) {
+            return back()->with('error', 'Участник не найден');
+        }
+
+        if ($participant->pivot->status !== 'pending') {
+            return back()->with('error', 'Заявка уже обработана');
+        }
+
+        // Проверяем лимит одобренных участников
+        $approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+        if ($approvedCount >= $tournament->max_participants) {
+            return back()->with('error', 'Достигнут лимит участников');
+        }
+
+        $tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
+
+        return back()->with('success', 'Заявка одобрена!');
+    }
+
+    /**
+     * Отклонить заявку участника
+     */
+    public function rejectParticipant(Tournament $tournament, $userId)
+    {
+        $club = $this->getClub();
+        
+        if ($club && $tournament->club_id != $club->id) {
+            abort(403);
+        }
+
+        $tournament->participants()->detach($userId);
+
+        return back()->with('success', 'Заявка отклонена');
+    }
+
+    /**
+     * Одобрить все заявки
+     */
+    public function approveAllParticipants(Tournament $tournament)
+    {
+        $club = $this->getClub();
+        
+        if ($club && $tournament->club_id != $club->id) {
+            abort(403);
+        }
+
+        if ($tournament->status !== 'open') {
+            return back()->with('error', 'Турнир не открыт для регистрации');
+        }
+
+        $approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+        $availableSlots = $tournament->max_participants - $approvedCount;
+
+        if ($availableSlots <= 0) {
+            return back()->with('error', 'Нет свободных мест');
+        }
+
+        // Одобряем заявки (сколько есть мест)
+        $pendingIds = $tournament->participants()
+            ->wherePivot('status', 'pending')
+            ->limit($availableSlots)
+            ->pluck('users.id');
+
+        foreach ($pendingIds as $id) {
+            $tournament->participants()->updateExistingPivot($id, ['status' => 'registered']);
+        }
+
+        return back()->with('success', "Одобрено заявок: {$pendingIds->count()}");
+    }
 }

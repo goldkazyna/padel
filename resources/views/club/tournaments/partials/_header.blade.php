@@ -5,7 +5,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         @if($tournament->status === 'open')
-            @if($tournament->participants->count() < $tournament->max_participants)
+            @if($tournament->approvedParticipantsCount() < $tournament->max_participants)
                 <form action="{{ route('club.tournaments.addTestPlayers', $tournament) }}" method="POST">
                     @csrf
                     <button type="submit" class="btn-outline-custom">
@@ -14,7 +14,7 @@
                 </form>
             @endif
             
-            @if(($tournament->isAmericano() || $tournament->isMexicano()) && $tournament->participants->count() === $tournament->max_participants)
+            @if(($tournament->isAmericano() || $tournament->isMexicano()) && $tournament->approvedParticipantsCount() === $tournament->max_participants)
                 <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
                       onsubmit="return confirm('Начать турнир? Раунды будут сгенерированы автоматически.')">
                     @csrf

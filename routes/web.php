@@ -83,6 +83,15 @@ Route::middleware('auth')->group(function () {
         | Турниры - Участники
         |----------------------------------------------------------------------
         */
+		// Модерация заявок
+		Route::post('/tournaments/{tournament}/participants/{userId}/approve', [ClubTournamentController::class, 'approveParticipant'])
+			->name('tournaments.participants.approve');
+
+		Route::post('/tournaments/{tournament}/participants/{userId}/reject', [ClubTournamentController::class, 'rejectParticipant'])
+			->name('tournaments.participants.reject');
+
+		Route::post('/tournaments/{tournament}/participants/approve-all', [ClubTournamentController::class, 'approveAllParticipants'])
+			->name('tournaments.participants.approveAll');
         Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])
             ->name('tournaments.participants.remove');
         Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])
