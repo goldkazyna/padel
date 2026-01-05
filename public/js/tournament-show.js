@@ -1,39 +1,3 @@
-@extends('layouts.app')
-
-@section('title', $tournament->name)
-
-@push('styles')
-<link rel="stylesheet" href="{{ asset('css/tournament-show.css') }}?v={{ time() }}">
-@endpush
-
-@section('content')
-{{-- Шапка --}}
-@include('club.tournaments.partials._header')
-
-{{-- Информация о турнире --}}
-@include('club.tournaments.partials._info')
-
-{{-- Участники --}}
-@include('club.tournaments.partials._participants')
-
-{{-- Американо --}}
-@if($tournament->isAmericano() && $tournament->groups->count() > 0)
-    @include('club.tournaments.partials._americano')
-@endif
-
-{{-- Мексикано --}}
-@if($tournament->isMexicano() && $tournament->mexicanoPlayers->count() > 0)
-    @include('club.tournaments.partials._mexicano')
-@endif
-
-{{-- Командный турнир --}}
-@if($tournament->isTeamBased())
-    @include('club.tournaments.partials._team')
-@endif
-
-
-
-<script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('form[data-ajax-score]').forEach(form => {
         form.addEventListener('submit', async function(e) {
@@ -132,10 +96,14 @@ function updateMatchCard(matchId, matchData) {
     score1.className = 'team-score' + (matchData.winning_team === 1 ? ' text-success' : '');
     score2.className = 'team-score' + (matchData.winning_team === 2 ? ' text-success' : '');
     
+    // Определяем ID модалки - для Мексикано другой префикс
+    const isMexicano = matchCard.closest('.card-dark')?.querySelector('.card-header-dark h5')?.textContent?.includes('Мексикано');
+    const modalPrefix = isMexicano ? 'editMexicanoScoreModal' : 'editScoreModal';
+    
     vsBlock.innerHTML = `
         <button class="btn-score-edit" 
                 data-bs-toggle="modal" 
-                data-bs-target="#editScoreModal${matchId}"
+                data-bs-target="#${modalPrefix}${matchId}"
                 title="Редактировать счёт">
             <i class="bi bi-pencil"></i>
         </button>
@@ -269,7 +237,7 @@ function showToast(message, type = 'success') {
 document.querySelectorAll('form[data-mexicano="true"]').forEach(form => {
     const inputs = form.querySelectorAll('input[type="number"]');
     if (inputs.length === 2) {
-        const pointsTotal = {{ $tournament->points_to_win ?? 32 }};
+        const pointsTotal = window.tournamentConfig?.pointsToWin || 32;
         
         inputs[0].addEventListener('input', function() {
             const val = parseInt(this.value) || 0;
@@ -307,7 +275,7 @@ function setupPlayerSearch(inputId, resultsId, selectedId, hiddenId) {
 
         timeout = setTimeout(async () => {
             try {
-                const response = await fetch(`{{ route('club.tournaments.searchPlayer') }}?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/club/tournaments/search-player?q=${encodeURIComponent(query)}`);
                 const players = await response.json();
                 
                 if (players.length > 0) {
@@ -362,5 +330,3 @@ function setupPlayerSearch(inputId, resultsId, selectedId, hiddenId) {
 
 setupPlayerSearch('searchPlayer1', 'player1Results', 'player1Selected', 'player1_id');
 setupPlayerSearch('searchPlayer2', 'player2Results', 'player2Selected', 'player2_id');
-</script>
-@endsection

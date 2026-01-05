@@ -7,6 +7,7 @@
     <title>@yield('title', 'Padel Center')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+	
     <style>
         :root {
             --bg-primary: #0f0f0f;
@@ -560,6 +561,7 @@
             .page-header .btn-primary-custom { width: 100%; justify-content: center; }
         }
     </style>
+	@stack('styles')
 </head>
 <body>
     <!-- Mobile menu button -->
@@ -707,5 +709,6 @@
             document.querySelector('.overlay').classList.toggle('show');
         }
     </script>
+	@stack('scripts')
 </body>
 </html>
