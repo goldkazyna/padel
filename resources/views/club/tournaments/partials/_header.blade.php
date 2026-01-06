@@ -35,20 +35,41 @@
 
         @if($tournament->status === 'in_progress')
             @if($tournament->isAmericano())
-                @php $canFinish = app(\App\Services\AmericanoService::class)->canFinishTournament($tournament); @endphp
-                @if($canFinish)
-                    <form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
-                          onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
-                        @csrf
-                        <button type="submit" class="btn-primary-custom">
-                            <i class="bi bi-trophy-fill"></i> Завершить турнир
-                        </button>
-                    </form>
-                @else
-                    <span class="btn-outline-custom disabled" title="Сыграйте все матчи">
-                        <i class="bi bi-hourglass"></i> Не все матчи сыграны
-                    </span>
-                @endif
+				@php 
+					$canFinish = app(\App\Services\AmericanoService::class)->canFinishTournament($tournament);
+					$canGeneratePlayoff = app(\App\Services\AmericanoService::class)->canGeneratePlayoff($tournament);
+					$hasPlayoffMatches = $tournament->playoffMatches()->count() > 0;
+				@endphp
+				
+				{{-- Кнопка генерации плей-офф --}}
+				@if($tournament->hasPlayoff() && $canGeneratePlayoff)
+					<form action="{{ route('club.americano.generatePlayoff', $tournament) }}" method="POST" 
+						  onsubmit="return confirm('Сгенерировать плей-офф? Лучшие игроки из групп выйдут в финальную стадию.')">
+						@csrf
+						<button type="submit" class="btn-primary-custom">
+							<i class="bi bi-trophy"></i> Сгенерировать плей-офф
+						</button>
+					</form>
+				@endif
+				
+				{{-- Кнопка завершения --}}
+				@if($canFinish)
+					<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
+						  onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
+						@csrf
+						<button type="submit" class="btn-primary-custom">
+							<i class="bi bi-trophy-fill"></i> Завершить турнир
+						</button>
+					</form>
+				@elseif($tournament->hasPlayoff() && $hasPlayoffMatches)
+					<span class="btn-outline-custom disabled" title="Сыграйте плей-офф">
+						<i class="bi bi-hourglass"></i> Сыграйте плей-офф
+					</span>
+				@else
+					<span class="btn-outline-custom disabled" title="Сыграйте все матчи">
+						<i class="bi bi-hourglass"></i> Не все матчи сыграны
+					</span>
+				@endif
             @elseif($tournament->isMexicano())
                 @php $canFinish = app(\App\Services\MexicanoService::class)->canFinishTournament($tournament); @endphp
                 @if($canFinish)

@@ -19,6 +19,7 @@
 {{-- Американо --}}
 @if($tournament->isAmericano() && $tournament->groups->count() > 0)
     @include('club.tournaments.partials._americano')
+	@include('club.tournaments.partials._americano_playoff')
 @endif
 
 {{-- Мексикано --}}

@@ -84,17 +84,42 @@
 					@if($tournament->isAmericano())
 					<div class="row">
 						<div class="col-md-6 mb-4">
-							<label class="form-label">Очки для победы</label>
-							<select name="points_to_win" class="form-select">
-								<option value="16" {{ old('points_to_win', $tournament->points_to_win) == 16 ? 'selected' : '' }}>До 16 очков</option>
-								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>До 24 очков</option>
-								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>До 32 очков</option>
-							</select>
-						</div>
-						<div class="col-md-6 mb-4">
 							<label class="form-label">Количество групп</label>
 							<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
 							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+					</div>
+
+					{{-- Плей-офф опции --}}
+					<div class="mb-4">
+						<label class="form-label">Плей-офф</label>
+						<div class="playoff-options">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" name="has_playoff" id="hasPlayoff" value="1" 
+									   {{ old('has_playoff', $tournament->has_playoff) ? 'checked' : '' }} onchange="togglePlayoffType()">
+								<label class="form-check-label" for="hasPlayoff">
+									Добавить плей-офф после группового этапа
+								</label>
+							</div>
+							
+							<div id="playoffTypeOptions" class="mt-3 ms-4" style="{{ old('has_playoff', $tournament->has_playoff) ? '' : 'display: none;' }}">
+								<div class="form-check">
+									<input type="radio" class="form-check-input" name="playoff_type" id="finalOnly" value="final_only" 
+										   {{ old('playoff_type', $tournament->playoff_type ?? 'final_only') === 'final_only' ? 'checked' : '' }}>
+									<label class="form-check-label" for="finalOnly">
+										Только финал
+									</label>
+								</div>
+								@if($tournament->groups_count >= 2)
+								<div class="form-check mt-2">
+									<input type="radio" class="form-check-input" name="playoff_type" id="semifinalFinal" value="semifinal_final"
+										   {{ old('playoff_type', $tournament->playoff_type) === 'semifinal_final' ? 'checked' : '' }}>
+									<label class="form-check-label" for="semifinalFinal">
+										Полуфинал + Финал
+									</label>
+								</div>
+								@endif
+							</div>
 						</div>
 					</div>
 					@endif
@@ -161,7 +186,16 @@
     </div>
 </div>
 @endsection
-
+<script>
+function togglePlayoffType() {
+    const hasPlayoff = document.getElementById('hasPlayoff');
+    const playoffTypeOptions = document.getElementById('playoffTypeOptions');
+    
+    if (hasPlayoff && playoffTypeOptions) {
+        playoffTypeOptions.style.display = hasPlayoff.checked ? 'block' : 'none';
+    }
+}
+</script>
 <style>
 .form-control:disabled {
     background-color: #141414 !important;

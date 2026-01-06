@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AmericanoMatch;
 use App\Services\AmericanoService;
 use Illuminate\Http\Request;
+use App\Models\Tournament;
+use App\Models\TournamentPlayoffMatch;
 
 class AmericanoController extends Controller
 {
@@ -110,5 +112,68 @@ class AmericanoController extends Controller
 		];
 
 		return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
+	}
+	/**
+	 * Сгенерировать плей-офф
+	 */
+	public function generatePlayoff(Tournament $tournament, AmericanoService $americanoService)
+	{
+		if (!$americanoService->canGeneratePlayoff($tournament)) {
+			return back()->with('error', 'Невозможно сгенерировать плей-офф. Проверьте что все матчи сыграны.');
+		}
+
+		$result = $americanoService->generatePlayoff($tournament);
+
+		if ($result) {
+			return back()->with('success', 'Плей-офф сгенерирован!');
+		}
+
+		return back()->with('error', 'Ошибка генерации плей-офф');
+	}
+	/**
+	 * Сохранить счёт плей-офф матча
+	 */
+	public function savePlayoffScore(Request $request, TournamentPlayoffMatch $match, AmericanoService $americanoService)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0',
+		]);
+
+		$match->update([
+			'team1_score' => $validated['team1_score'],
+			'team2_score' => $validated['team2_score'],
+			'status' => 'completed',
+		]);
+
+		// Если это полуфинал — обновляем финал
+		if ($match->stage === 'Полуфинал') {
+			$americanoService->updateFinalAfterSemifinal($match);
+		}
+
+		return back()->with('success', 'Счёт сохранён!');
+	}
+
+	/**
+	 * Обновить счёт плей-офф матча
+	 */
+	public function updatePlayoffScore(Request $request, TournamentPlayoffMatch $match, AmericanoService $americanoService)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0',
+		]);
+
+		$match->update([
+			'team1_score' => $validated['team1_score'],
+			'team2_score' => $validated['team2_score'],
+		]);
+
+		// Если это полуфинал — обновляем финал
+		if ($match->stage === 'Полуфинал') {
+			$americanoService->updateFinalAfterSemifinal($match);
+		}
+
+		return back()->with('success', 'Счёт обновлён!');
 	}
 }

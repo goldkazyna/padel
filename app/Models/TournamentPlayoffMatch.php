@@ -21,6 +21,10 @@ class TournamentPlayoffMatch extends Model
         'team2_score',
         'winner_id',
         'status',
+		'team1_player1_id',
+		'team1_player2_id',
+		'team2_player1_id',
+		'team2_player2_id',
     ];
 
     public function tournament()
@@ -58,4 +62,33 @@ class TournamentPlayoffMatch extends Model
             default => $this->stage,
         };
     }
+	// Игроки команды 1 (для Американо)
+	public function team1Player1()
+	{
+		return $this->belongsTo(User::class, 'team1_player1_id');
+	}
+
+	public function team1Player2()
+	{
+		return $this->belongsTo(User::class, 'team1_player2_id');
+	}
+
+	// Игроки команды 2 (для Американо)
+	public function team2Player1()
+	{
+		return $this->belongsTo(User::class, 'team2_player1_id');
+	}
+
+	public function team2Player2()
+	{
+		return $this->belongsTo(User::class, 'team2_player2_id');
+	}
+
+	/**
+	 * Это матч Американо (по игрокам, не по командам)
+	 */
+	public function isAmericanoMatch(): bool
+	{
+		return $this->team1_player1_id !== null;
+	}
 }

@@ -65,11 +65,21 @@ class TournamentController extends Controller
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
 			'type' => 'required|in:classic,americano,mexicano,team',
-			'points_to_win' => 'required_if:type,americano,team|nullable|integer|in:16,21,24,32,42',
-			'groups_count' => 'required_if:type,americano,team|nullable|integer|in:1,2,4',
-			'rounds_count' => 'required_if:type,mexicano|nullable|integer|min:3|max:10',
-			'teams_advance' => 'required_if:type,team|nullable|integer|in:1,2,3',
+			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+			'groups_count' => 'nullable|integer|in:1,2,4',
+			'rounds_count' => 'nullable|integer|min:3|max:10',
+			'teams_advance' => 'nullable|integer|in:1,2,3',
+			'has_playoff' => 'nullable|boolean',
+			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 		]);
+
+		// Обработка чекбокса плей-офф
+		$validated['has_playoff'] = $request->has('has_playoff');
+
+		// Если плей-офф не включен, убираем тип
+		if (!$validated['has_playoff']) {
+			$validated['playoff_type'] = null;
+		}
 
         // Проверяем доступ к клубу
         if ($club && $validated['club_id'] != $club->id) {
@@ -109,29 +119,39 @@ class TournamentController extends Controller
     }
 
     public function update(Request $request, Tournament $tournament)
-    {
-        $club = $this->getClub();
-        
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'start_date' => 'required|date',
-            'min_level' => 'required|numeric|min:1|max:5.75',
-            'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
-            'max_participants' => 'required|integer|min:2|max:128',
-            'price' => 'nullable|numeric|min:0',
-            'status' => 'required|in:draft,open,closed,in_progress,completed,cancelled',
-			'points_to_win' => 'nullable|integer|in:16,24,32',
-        ]);
+		$validated = $request->validate([
+			'name' => 'required|string|max:255',
+			'description' => 'nullable|string',
+			'start_date' => 'required|date',
+			'min_level' => 'required|numeric|min:1|max:5.75',
+			'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
+			'max_participants' => 'required|integer|min:2|max:128',
+			'price' => 'nullable|numeric|min:0',
+			'status' => 'required|in:draft,open,closed,in_progress,completed,cancelled',
+			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+			'has_playoff' => 'nullable|boolean',
+			'playoff_type' => 'nullable|in:final_only,semifinal_final',
+		]);
 
-        $tournament->update($validated);
+		// Обработка чекбокса плей-офф
+		$validated['has_playoff'] = $request->has('has_playoff');
+		
+		// Если плей-офф не включен, убираем тип
+		if (!$validated['has_playoff']) {
+			$validated['playoff_type'] = null;
+		}
 
-        return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
-    }
+		$tournament->update($validated);
+
+		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
+	}
 
     public function destroy(Tournament $tournament)
     {

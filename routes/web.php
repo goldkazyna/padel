@@ -21,7 +21,28 @@ use App\Http\Controllers\Auth\TelegramAuthController;
 Route::get('/', function () {
     return view('welcome');
 });
-
+// Превью рейтинга Американо
+        Route::get('/tournaments/{tournament}/preview-rating', function (\App\Models\Tournament $tournament) {
+            $service = app(\App\Services\AmericanoService::class);
+            $preview = $service->previewRatingChanges($tournament);
+            
+            echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
+            foreach ($preview as $groupName => $players) {
+                echo "\n<b style='color:#22c55e;'>=== {$groupName} ===</b>\n\n";
+                foreach ($players as $data) {
+                    $diff = $data['current_rating'] - $data['rating_before'];
+                    $sign = $diff >= 0 ? '+' : '';
+                    $color = $diff >= 0 ? '#22c55e' : '#ef4444';
+                    echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
+                    if (!empty($data['matches'])) {
+                        echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
+                    }
+                    echo "\n";
+                }
+            }
+            echo "</pre>";
+        })->name('tournaments.previewRating');
+        
 /*
 |--------------------------------------------------------------------------
 | Авторизованные пользователи
@@ -116,28 +137,12 @@ Route::middleware('auth')->group(function () {
             ->name('americano.saveScore');
         Route::put('/americano/match/{match}/score', [AmericanoController::class, 'updateScore'])
             ->name('americano.updateScore');
-        
-        // Превью рейтинга Американо
-        Route::get('/tournaments/{tournament}/preview-rating', function (\App\Models\Tournament $tournament) {
-            $service = app(\App\Services\AmericanoService::class);
-            $preview = $service->previewRatingChanges($tournament);
-            
-            echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
-            foreach ($preview as $groupName => $players) {
-                echo "\n<b style='color:#22c55e;'>=== {$groupName} ===</b>\n\n";
-                foreach ($players as $data) {
-                    $diff = $data['current_rating'] - $data['rating_before'];
-                    $sign = $diff >= 0 ? '+' : '';
-                    $color = $diff >= 0 ? '#22c55e' : '#ef4444';
-                    echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
-                    if (!empty($data['matches'])) {
-                        echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
-                    }
-                    echo "\n";
-                }
-            }
-            echo "</pre>";
-        })->name('tournaments.previewRating');
+        Route::post('/americano/tournament/{tournament}/generate-playoff', [AmericanoController::class, 'generatePlayoff'])
+		->name('americano.generatePlayoff');
+		Route::post('/americano/playoff-match/{match}/score', [AmericanoController::class, 'savePlayoffScore'])
+		->name('americano.savePlayoffScore');
+		Route::put('/americano/playoff-match/{match}/score', [AmericanoController::class, 'updatePlayoffScore'])
+		->name('americano.updatePlayoffScore');
         
         /*
         |----------------------------------------------------------------------

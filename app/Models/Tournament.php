@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\GameMatch;
+use App\Models\TournamentPlayoffMatch;
+
 
 class Tournament extends Model
 {
@@ -26,6 +28,8 @@ class Tournament extends Model
 		'groups_count',
 		'rounds_count',
 		'teams_advance',
+		'has_playoff',
+		'playoff_type',
     ];
 
     protected $casts = [
@@ -34,6 +38,7 @@ class Tournament extends Model
         'min_level' => 'decimal:2',
         'max_level' => 'decimal:2',
         'price' => 'decimal:2',
+		'has_playoff' => 'boolean',
     ];
 
     // Связи
@@ -249,4 +254,36 @@ class Tournament extends Model
         $participant = $this->participants()->where('user_id', $user->id)->first();
         return $participant ? $participant->pivot->status : null;
     }
+	
+	/**
+	 * Есть ли плей-офф в турнире
+	 */
+	public function hasPlayoff(): bool
+	{
+		return $this->has_playoff === true;
+	}
+
+	/**
+	 * Только финал
+	 */
+	public function isFinalOnly(): bool
+	{
+		return $this->playoff_type === 'final_only';
+	}
+
+	/**
+	 * Полуфинал + финал
+	 */
+	public function isSemifinalFinal(): bool
+	{
+		return $this->playoff_type === 'semifinal_final';
+	}
+
+	/**
+	 * Можно ли выбрать полуфинал (2+ группы)
+	 */
+	public function canHaveSemifinal(): bool
+	{
+		return $this->groups_count >= 2;
+	}
 }
