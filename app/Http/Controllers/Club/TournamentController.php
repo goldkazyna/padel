@@ -8,7 +8,7 @@ use App\Models\Club;
 use Illuminate\Http\Request;
 use App\Services\AmericanoService;
 use App\Models\TournamentPlayoffMatch;
-
+use App\Models\TournamentParticipant;
 
 
 class TournamentController extends Controller
@@ -72,6 +72,7 @@ class TournamentController extends Controller
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
+			'reserve_count' => 'nullable|integer|min:0|max:10',
 		]);
 
 
@@ -91,7 +92,22 @@ class TournamentController extends Controller
             abort(403);
         }
 
-        Tournament::create($validated);
+        $tournament = Tournament::create($validated);
+
+		// Добавляем резервных игроков
+		$reserveCount = $validated['reserve_count'] ?? 0;
+		if ($reserveCount > 0) {
+			$reserves = \App\Models\User::where('role', 'reserve')
+				->orderBy('id')
+				->limit($reserveCount)
+				->get();
+			
+			foreach ($reserves as $reserve) {
+				$tournament->participants()->attach($reserve->id, [
+					'status' => 'registered',
+				]);
+			}
+		}
 
         return redirect()->route('club.tournaments.index')->with('success', 'Турнир создан!');
     }
@@ -504,4 +520,5 @@ class TournamentController extends Controller
 		
 		return back()->with('success', "Участник заменён на {$newUser->full_name}!");
 	}
+	
 }

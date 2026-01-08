@@ -123,7 +123,6 @@ Route::middleware('auth')->group(function () {
 			->name('tournaments.participants.add');
 		Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
 			->name('tournaments.participants.replace');
-        
         /*
         |----------------------------------------------------------------------
         | Турниры - Управление

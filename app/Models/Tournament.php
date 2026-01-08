@@ -36,6 +36,7 @@ class Tournament extends Model
 		'has_playoff',
 		'playoff_type',
 		'playoff_format',
+		'reserve_count',
     ];
 
     protected $casts = [
@@ -306,5 +307,13 @@ class Tournament extends Model
     {
         return self::playoffFormats()[$this->playoff_format] ?? 'Микс';
     }
+	/**
+	 * Есть ли резервы среди участников
+	 */
+	public function hasReserveParticipants(): bool
+	{
+		$reserveIds = \App\Models\User::where('role', 'reserve')->pluck('id');
+		return $this->participants()->whereIn('user_id', $reserveIds)->exists();
+	}
 
 }

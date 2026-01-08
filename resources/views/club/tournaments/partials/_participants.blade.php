@@ -68,7 +68,9 @@
         </div>
     </div>
     @endif
-
+	
+	
+	
     {{-- Одобренные участники --}}
     <div class="participants-list">
         @forelse($tournament->approvedParticipants as $index => $participant)
@@ -391,6 +393,7 @@
 .add-participant-form {
     position: relative;
 }
+
 </style>
 
 <script>

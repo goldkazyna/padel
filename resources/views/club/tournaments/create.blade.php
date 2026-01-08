@@ -104,6 +104,12 @@
                             <label class="form-label">Стоимость (₸)</label>
                             <input type="number" name="price" class="form-control" value="{{ old('price', 0) }}" min="0">
                         </div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Забронировать мест</label>
+							<input type="number" name="reserve_count" class="form-control" 
+								   value="{{ old('reserve_count', 0) }}" min="0" max="10">
+							<small class="text-secondary">Места для знакомых, которых заменишь позже</small>
+						</div>
                     </div>
 					<div id="americanoFields" style="display: none;">
 						<div class="row">
