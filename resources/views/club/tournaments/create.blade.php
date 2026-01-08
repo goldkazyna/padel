@@ -128,6 +128,12 @@
 									<option value="2" {{ old('groups_count') == 2 ? 'selected' : '' }}>2 группы</option>
 								</select>
 							</div>
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Количество раундов *</label>
+								<input type="number" name="rounds_count" id="americanoRoundsCount" class="form-control" disabled
+									   value="{{ old('rounds_count', 15) }}" min="1" max="30">
+								<small class="text-secondary">Авто: игроков в группе - 1</small>
+							</div>
 						</div>
 						
 						{{-- Плей-офф опции --}}
@@ -194,7 +200,7 @@
 							</div>
 							<div class="col-md-4 mb-4">
 								<label class="form-label">Количество раундов *</label>
-								<select name="rounds_count" class="form-select">
+								<select name="rounds_count" id="mexicanoRoundsCount" class="form-select" disabled>
 									<option value="5" {{ old('rounds_count', 5) == 5 ? 'selected' : '' }}>5 раундов</option>
 									<option value="6" {{ old('rounds_count') == 6 ? 'selected' : '' }}>6 раундов</option>
 									<option value="7" {{ old('rounds_count') == 7 ? 'selected' : '' }}>7 раундов</option>
@@ -289,11 +295,24 @@ function toggleTypeFields() {
 		if (document.getElementById('teamGroupsCount')) {
 			document.getElementById('teamGroupsCount').disabled = true;
 		}
+		if (document.getElementById('americanoRoundsCount')) {
+			document.getElementById('americanoRoundsCount').disabled = false;
+		}
+		if (document.getElementById('mexicanoRoundsCount')) {
+			document.getElementById('mexicanoRoundsCount').disabled = true;
+		}
 		togglePlayoffOptions();
 		togglePlayoffType();
 		generateCourtsInputs();
+		updateAmericanoRounds();
 	} else if (type === 'mexicano' && mexicanoFields) {
         mexicanoFields.style.display = 'block';
+		if (document.getElementById('mexicanoRoundsCount')) {
+			document.getElementById('mexicanoRoundsCount').disabled = false;
+		}
+		if (document.getElementById('americanoRoundsCount')) {
+			document.getElementById('americanoRoundsCount').disabled = true;
+		}
 	} else if (type === 'team' && teamFields) {
 		teamFields.style.display = 'block';
 		document.getElementById('teamGroupsCount').disabled = false;
@@ -364,6 +383,20 @@ function generateCourtsInputs() {
     }
     container.innerHTML = html;
 }
+function updateAmericanoRounds() {
+    const maxParticipants = parseInt(document.querySelector('input[name="max_participants"]')?.value) || 16;
+    const groupsCount = parseInt(document.getElementById('americanoGroupsCount')?.value) || 1;
+    const roundsInput = document.getElementById('americanoRoundsCount');
+    
+    if (roundsInput) {
+        const playersPerGroup = Math.floor(maxParticipants / groupsCount);
+        const defaultRounds = playersPerGroup - 1;
+        roundsInput.value = defaultRounds;
+        roundsInput.max = defaultRounds;
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeFields();
     
@@ -376,11 +409,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Слушаем изменение max_participants
-    const maxParticipantsInput = document.querySelector('input[name="max_participants"]');
-    if (maxParticipantsInput) {
-        maxParticipantsInput.addEventListener('change', generateCourtsInputs);
-    }
+
+	// Слушаем изменения для авто-расчёта раундов Американо
+	const americanoGroupsSelect = document.getElementById('americanoGroupsCount');
+	if (americanoGroupsSelect) {
+		americanoGroupsSelect.addEventListener('change', updateAmericanoRounds);
+	}
+
+	const maxParticipantsInput = document.querySelector('input[name="max_participants"]');
+	if (maxParticipantsInput) {
+		maxParticipantsInput.addEventListener('change', function() {
+			generateCourtsInputs();
+			updateAmericanoRounds();
+		});
+	}
 });
 </script>
 @endsection
