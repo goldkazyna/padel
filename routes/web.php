@@ -117,6 +117,12 @@ Route::middleware('auth')->group(function () {
             ->name('tournaments.participants.remove');
         Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])
             ->name('tournaments.addTestPlayers');
+		Route::get('/tournaments/{tournament}/search-players', [ClubTournamentController::class, 'searchPlayers'])
+			->name('tournaments.searchPlayers');
+		Route::post('/tournaments/{tournament}/participants/add', [ClubTournamentController::class, 'addParticipant'])
+			->name('tournaments.participants.add');
+		Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
+			->name('tournaments.participants.replace');
         
         /*
         |----------------------------------------------------------------------

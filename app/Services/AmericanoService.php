@@ -660,27 +660,82 @@ class AmericanoService
 			return; // Недостаточно игроков
 		}
 		
-		// Полуфинал 1: A1+B2 vs A3+B4
+		// Получаем формат плей-офф (по умолчанию mix)
+		$format = $tournament->playoff_format ?? 'mix';
+		
+		// Формируем пары в зависимости от формата
+		switch ($format) {
+			case 'group_vs':
+				// Группа vs Группа: A1+A2 vs B1+B2, A3+A4 vs B3+B4
+				$semi1 = [
+					'team1' => [$A[0]->id, $A[1]->id],
+					'team2' => [$B[0]->id, $B[1]->id],
+				];
+				$semi2 = [
+					'team1' => [$A[2]->id, $A[3]->id],
+					'team2' => [$B[2]->id, $B[3]->id],
+				];
+				break;
+				
+			case 'tops':
+				// Топы вместе: A1+B1 vs A3+B3, A2+B2 vs A4+B4
+				$semi1 = [
+					'team1' => [$A[0]->id, $B[0]->id],
+					'team2' => [$A[2]->id, $B[2]->id],
+				];
+				$semi2 = [
+					'team1' => [$A[1]->id, $B[1]->id],
+					'team2' => [$A[3]->id, $B[3]->id],
+				];
+				break;
+				
+			case 'cross':
+				// Крест: A1+B4 vs B1+A4, A2+B3 vs B2+A3
+				$semi1 = [
+					'team1' => [$A[0]->id, $B[3]->id],
+					'team2' => [$B[0]->id, $A[3]->id],
+				];
+				$semi2 = [
+					'team1' => [$A[1]->id, $B[2]->id],
+					'team2' => [$B[1]->id, $A[2]->id],
+				];
+				break;
+				
+			case 'mix':
+			default:
+				// Микс: A1+B2 vs A3+B4, A2+B1 vs B3+A4
+				$semi1 = [
+					'team1' => [$A[0]->id, $B[1]->id],
+					'team2' => [$A[2]->id, $B[3]->id],
+				];
+				$semi2 = [
+					'team1' => [$A[1]->id, $B[0]->id],
+					'team2' => [$B[2]->id, $A[3]->id],
+				];
+				break;
+		}
+		
+		// Создаём полуфинал 1
 		\App\Models\TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'stage' => 'Полуфинал',
 			'match_number' => 1,
-			'team1_player1_id' => $A[0]->id,
-			'team1_player2_id' => $B[1]->id,
-			'team2_player1_id' => $A[2]->id,
-			'team2_player2_id' => $B[3]->id,
+			'team1_player1_id' => $semi1['team1'][0],
+			'team1_player2_id' => $semi1['team1'][1],
+			'team2_player1_id' => $semi1['team2'][0],
+			'team2_player2_id' => $semi1['team2'][1],
 			'status' => 'pending',
 		]);
 		
-		// Полуфинал 2: A2+B1 vs B3+A4
+		// Создаём полуфинал 2
 		\App\Models\TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'stage' => 'Полуфинал',
 			'match_number' => 2,
-			'team1_player1_id' => $A[1]->id,
-			'team1_player2_id' => $B[0]->id,
-			'team2_player1_id' => $B[2]->id,
-			'team2_player2_id' => $A[3]->id,
+			'team1_player1_id' => $semi2['team1'][0],
+			'team1_player2_id' => $semi2['team1'][1],
+			'team2_player1_id' => $semi2['team2'][0],
+			'team2_player2_id' => $semi2['team2'][1],
 			'status' => 'pending',
 		]);
 		

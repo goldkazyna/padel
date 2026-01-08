@@ -131,17 +131,31 @@
 								<div id="playoffTypeOptions" class="mt-3 ms-4" style="display: none;">
 									<div class="form-check">
 										<input type="radio" class="form-check-input" name="playoff_type" id="finalOnly" value="final_only" 
-											   {{ old('playoff_type', 'final_only') === 'final_only' ? 'checked' : '' }}>
+											   {{ old('playoff_type', 'final_only') === 'final_only' ? 'checked' : '' }} onchange="togglePlayoffFormat()">
 										<label class="form-check-label" for="finalOnly">
 											Только финал
 										</label>
 									</div>
 									<div class="form-check mt-2" id="semifinalOption" style="display: none;">
 										<input type="radio" class="form-check-input" name="playoff_type" id="semifinalFinal" value="semifinal_final"
-											   {{ old('playoff_type') === 'semifinal_final' ? 'checked' : '' }}>
+											   {{ old('playoff_type') === 'semifinal_final' ? 'checked' : '' }} onchange="togglePlayoffFormat()">
 										<label class="form-check-label" for="semifinalFinal">
 											Полуфинал + Финал
 										</label>
+									</div>
+									
+									{{-- Выбор формата пар --}}
+									<div id="playoffFormatOptions" class="mt-3" style="display: none;">
+										<label class="form-label">Формат пар в полуфиналах</label>
+										<select name="playoff_format" id="playoffFormat" class="form-select">
+											<option value="mix" {{ old('playoff_format') === 'mix' ? 'selected' : '' }}>Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
+											<option value="group_vs" {{ old('playoff_format') === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
+											<option value="tops" {{ old('playoff_format') === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
+											<option value="cross" {{ old('playoff_format') === 'cross' ? 'selected' : '' }}>Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+										</select>
+										<small class="text-secondary mt-2 d-block">
+											A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.
+										</small>
 									</div>
 								</div>
 							</div>
@@ -251,12 +265,10 @@ function toggleTypeFields() {
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
     
-    // Скрываем все
     if (americanoFields) americanoFields.style.display = 'none';
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
     
-    // Показываем нужное
     if (type === 'americano' && americanoFields) {
         americanoFields.style.display = 'block';
         togglePlayoffOptions();
@@ -274,6 +286,7 @@ function togglePlayoffType() {
     
     if (hasPlayoff && playoffTypeOptions) {
         playoffTypeOptions.style.display = hasPlayoff.checked ? 'block' : 'none';
+        togglePlayoffFormat();
     }
 }
 
@@ -286,18 +299,42 @@ function togglePlayoffOptions() {
         const groups = parseInt(groupsCount.value);
         
         if (groups >= 2) {
-            // 2+ группы — показываем опцию полуфинала
             semifinalOption.style.display = 'block';
         } else {
-            // 1 группа — только финал
             semifinalOption.style.display = 'none';
             if (finalOnly) finalOnly.checked = true;
+            togglePlayoffFormat();
+        }
+    }
+}
+
+function togglePlayoffFormat() {
+    const semifinalFinal = document.getElementById('semifinalFinal');
+    const playoffFormatOptions = document.getElementById('playoffFormatOptions');
+    const groupsCount = document.getElementById('americanoGroupsCount');
+    
+    if (playoffFormatOptions && semifinalFinal && groupsCount) {
+        const groups = parseInt(groupsCount.value);
+        // Показываем выбор формата только если 2 группы И выбран полуфинал+финал
+        if (groups >= 2 && semifinalFinal.checked) {
+            playoffFormatOptions.style.display = 'block';
+        } else {
+            playoffFormatOptions.style.display = 'none';
         }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeFields();
+    
+    // Слушаем изменение количества групп
+    const groupsSelect = document.getElementById('americanoGroupsCount');
+    if (groupsSelect) {
+        groupsSelect.addEventListener('change', function() {
+            togglePlayoffOptions();
+            togglePlayoffFormat();
+        });
+    }
 });
 </script>
 @endsection

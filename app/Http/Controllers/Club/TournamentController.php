@@ -71,14 +71,19 @@ class TournamentController extends Controller
 			'teams_advance' => 'nullable|integer|in:1,2,3',
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
+			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
 		]);
 
-		// Обработка чекбокса плей-офф
-		$validated['has_playoff'] = $request->has('has_playoff');
 
-		// Если плей-офф не включен, убираем тип
+		$validated['has_playoff'] = $request->has('has_playoff');
+		// Если плей-офф не включен, убираем тип и формат
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
+			$validated['playoff_format'] = null;
+		}
+		// Если не полуфинал+финал, убираем формат
+		if (($validated['playoff_type'] ?? null) !== 'semifinal_final') {
+			$validated['playoff_format'] = null;
 		}
 
         // Проверяем доступ к клубу
@@ -125,7 +130,6 @@ class TournamentController extends Controller
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
 		}
-
 		$validated = $request->validate([
 			'name' => 'required|string|max:255',
 			'description' => 'nullable|string',
@@ -138,18 +142,24 @@ class TournamentController extends Controller
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
+			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
 		]);
-
+		
 		// Обработка чекбокса плей-офф
 		$validated['has_playoff'] = $request->has('has_playoff');
 		
-		// Если плей-офф не включен, убираем тип
+		// Если плей-офф не включен, убираем тип и формат
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
+			$validated['playoff_format'] = null;
 		}
-
+		
+		// Если не полуфинал+финал, убираем формат
+		if (($validated['playoff_type'] ?? null) !== 'semifinal_final') {
+			$validated['playoff_format'] = null;
+		}
+		
 		$tournament->update($validated);
-
 		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
 	}
 
@@ -401,4 +411,97 @@ class TournamentController extends Controller
 
         return back()->with('success', "Одобрено заявок: {$pendingIds->count()}");
     }
+	/**
+	 * Поиск игроков по телефону
+	 */
+	public function searchPlayers(Request $request, Tournament $tournament)
+	{
+		$query = $request->get('q', '');
+		
+		if (strlen($query) < 3) {
+			return response()->json([]);
+		}
+		
+		// Получаем ID уже добавленных участников
+		$existingIds = $tournament->participants()->pluck('user_id')->toArray();
+		
+		$players = \App\Models\User::where(function ($q) use ($query) {
+				$q->where('phone', 'LIKE', "%{$query}%")
+				  ->orWhere('first_name', 'LIKE', "%{$query}%")
+				  ->orWhere('last_name', 'LIKE', "%{$query}%");
+			})
+			->whereNotIn('id', $existingIds)
+			->where('role', 'player')
+			->whereBetween('level', [$tournament->min_level, $tournament->max_level])
+			->limit(10)
+			->get(['id', 'first_name', 'last_name', 'phone', 'level', 'rating']);
+		
+		return response()->json($players->map(function ($player) {
+			return [
+				'id' => $player->id,
+				'name' => $player->full_name,
+				'phone' => $player->phone,
+				'level' => $player->level,
+				'rating' => $player->rating,
+			];
+		}));
+	}
+
+	/**
+	 * Добавить участника вручную
+	 */
+	public function addParticipant(Request $request, Tournament $tournament)
+	{
+		$validated = $request->validate([
+			'user_id' => 'required|exists:users,id',
+		]);
+		
+		// Проверяем что игрок ещё не добавлен
+		$exists = $tournament->participants()->where('user_id', $validated['user_id'])->exists();
+		if ($exists) {
+			return back()->with('error', 'Игрок уже добавлен в турнир');
+		}
+		
+		// Проверяем лимит участников
+		if ($tournament->approvedParticipantsCount() >= $tournament->max_participants) {
+			return back()->with('error', 'Достигнут лимит участников');
+		}
+		
+		$user = \App\Models\User::find($validated['user_id']);
+		
+		// Добавляем сразу как одобренного
+		$tournament->participants()->attach($validated['user_id'], [
+			'status' => 'registered',
+		]);
+		
+		return back()->with('success', "Игрок {$user->full_name} добавлен!");
+	}
+
+	/**
+	 * Заменить участника
+	 */
+	public function replaceParticipant(Request $request, Tournament $tournament, $userId)
+	{
+		$validated = $request->validate([
+			'new_user_id' => 'required|exists:users,id',
+		]);
+		
+		// Проверяем что новый игрок ещё не добавлен
+		$exists = $tournament->participants()->where('user_id', $validated['new_user_id'])->exists();
+		if ($exists) {
+			return back()->with('error', 'Этот игрок уже участвует в турнире');
+		}
+		
+		// Удаляем старого участника
+		$tournament->participants()->detach($userId);
+		
+		// Добавляем нового
+		$tournament->participants()->attach($validated['new_user_id'], [
+			'status' => 'registered',
+		]);
+		
+		$newUser = \App\Models\User::find($validated['new_user_id']);
+		
+		return back()->with('success', "Участник заменён на {$newUser->full_name}!");
+	}
 }

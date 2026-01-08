@@ -11,7 +11,12 @@ use App\Models\TournamentPlayoffMatch;
 class Tournament extends Model
 {
     use HasFactory;
-
+	    // Форматы плей-офф
+    const PLAYOFF_FORMAT_MIX = 'mix';
+    const PLAYOFF_FORMAT_GROUP_VS = 'group_vs';
+    const PLAYOFF_FORMAT_TOPS = 'tops';
+    const PLAYOFF_FORMAT_CROSS = 'cross';
+	
     protected $fillable = [
         'club_id',
         'name',
@@ -30,6 +35,7 @@ class Tournament extends Model
 		'teams_advance',
 		'has_playoff',
 		'playoff_type',
+		'playoff_format',
     ];
 
     protected $casts = [
@@ -286,4 +292,19 @@ class Tournament extends Model
 	{
 		return $this->groups_count >= 2;
 	}
+	public static function playoffFormats(): array
+    {
+        return [
+            self::PLAYOFF_FORMAT_MIX => 'Микс (A1+B2 vs A3+B4)',
+            self::PLAYOFF_FORMAT_GROUP_VS => 'Группа vs Группа (A1+A2 vs B1+B2)',
+            self::PLAYOFF_FORMAT_TOPS => 'Топы вместе (A1+B1 vs A3+B3)',
+            self::PLAYOFF_FORMAT_CROSS => 'Крест (A1+B4 vs B1+A4)',
+        ];
+    }
+
+    public function getPlayoffFormatName(): string
+    {
+        return self::playoffFormats()[$this->playoff_format] ?? 'Микс';
+    }
+
 }
