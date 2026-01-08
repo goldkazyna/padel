@@ -110,12 +110,20 @@
 								   value="{{ old('reserve_count', 0) }}" min="0" max="10">
 							<small class="text-secondary">Места для знакомых, которых заменишь позже</small>
 						</div>
+						{{-- Названия кортов --}}
+						<div class="mb-4" id="courtsSection">
+							<label class="form-label">Названия кортов</label>
+							<div id="courtsInputs">
+								{{-- Генерируется через JavaScript --}}
+							</div>
+							<small class="text-secondary">Оставьте пустым для "Корт 1", "Корт 2" и т.д.</small>
+						</div>
                     </div>
 					<div id="americanoFields" style="display: none;">
 						<div class="row">
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
-								<select name="groups_count" id="americanoGroupsCount" class="form-select" onchange="togglePlayoffOptions()">
+								<select name="groups_count" id="americanoGroupsCount" class="form-select" onchange="togglePlayoffOptions()" disabled>
 									<option value="1" {{ old('groups_count', 1) == 1 ? 'selected' : '' }}>1 группа</option>
 									<option value="2" {{ old('groups_count') == 2 ? 'selected' : '' }}>2 группы</option>
 								</select>
@@ -204,7 +212,7 @@
 						<div class="row">
 							<div class="col-md-4 mb-4">
 								<label class="form-label">Количество групп *</label>
-								<select name="groups_count" class="form-select">
+								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
 									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
 									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
 								</select>
@@ -275,15 +283,24 @@ function toggleTypeFields() {
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
     
-    if (type === 'americano' && americanoFields) {
-        americanoFields.style.display = 'block';
-        togglePlayoffOptions();
-        togglePlayoffType();
-    } else if (type === 'mexicano' && mexicanoFields) {
+	if (type === 'americano' && americanoFields) {
+		americanoFields.style.display = 'block';
+		document.getElementById('americanoGroupsCount').disabled = false;
+		if (document.getElementById('teamGroupsCount')) {
+			document.getElementById('teamGroupsCount').disabled = true;
+		}
+		togglePlayoffOptions();
+		togglePlayoffType();
+		generateCourtsInputs();
+	} else if (type === 'mexicano' && mexicanoFields) {
         mexicanoFields.style.display = 'block';
-    } else if (type === 'team' && teamFields) {
-        teamFields.style.display = 'block';
-    }
+	} else if (type === 'team' && teamFields) {
+		teamFields.style.display = 'block';
+		document.getElementById('teamGroupsCount').disabled = false;
+		if (document.getElementById('americanoGroupsCount')) {
+			document.getElementById('americanoGroupsCount').disabled = true;
+		}
+	}
 }
 
 function togglePlayoffType() {
@@ -329,7 +346,24 @@ function togglePlayoffFormat() {
         }
     }
 }
-
+function generateCourtsInputs() {
+    const maxParticipants = document.querySelector('input[name="max_participants"]')?.value || 16;
+    const courtsCount = Math.ceil(maxParticipants / 4);
+    const container = document.getElementById('courtsInputs');
+    
+    if (!container) return;
+    
+    let html = '';
+    for (let i = 1; i <= courtsCount; i++) {
+        html += `
+            <div class="input-group mb-2">
+                <span class="input-group-text">Корт ${i}</span>
+                <input type="text" name="courts[]" class="form-control" placeholder="Название корта ${i}">
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeFields();
     
@@ -340,6 +374,12 @@ document.addEventListener('DOMContentLoaded', function() {
             togglePlayoffOptions();
             togglePlayoffFormat();
         });
+    }
+    
+    // Слушаем изменение max_participants
+    const maxParticipantsInput = document.querySelector('input[name="max_participants"]');
+    if (maxParticipantsInput) {
+        maxParticipantsInput.addEventListener('change', generateCourtsInputs);
     }
 });
 </script>

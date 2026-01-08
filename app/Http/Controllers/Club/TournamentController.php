@@ -73,6 +73,8 @@ class TournamentController extends Controller
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
+			'courts' => 'nullable|array',
+			'courts.*' => 'nullable|string|max:50',
 		]);
 
 
@@ -93,7 +95,17 @@ class TournamentController extends Controller
         }
 
         $tournament = Tournament::create($validated);
-
+		// Убираем пустые названия кортов
+		if (isset($validated['courts'])) {
+			$validated['courts'] = array_map(function($court) {
+				return $court ?: null;
+			}, $validated['courts']);
+			
+			// Если все пустые - убираем совсем
+			if (empty(array_filter($validated['courts']))) {
+				$validated['courts'] = null;
+			}
+		}
 		// Добавляем резервных игроков
 		$reserveCount = $validated['reserve_count'] ?? 0;
 		if ($reserveCount > 0) {

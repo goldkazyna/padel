@@ -15,71 +15,65 @@ class AmericanoService
      * Запустить турнир Американо
      */
     public function startTournament(Tournament $tournament): bool
-    {
-        $participants = $tournament->participants()->orderBy('rating', 'desc')->get();
-        
-        if ($participants->count() !== $tournament->max_participants) {
-            return false;
-        }
-
-        if ($tournament->groups()->count() > 0) {
-            return false;
-        }
-
-        $groupsCount = $tournament->groups_count;
-        $playersPerGroup = intval($participants->count() / $groupsCount);
-        
-        for ($i = 0; $i < $groupsCount; $i++) {
-            $group = TournamentGroup::create([
-                'tournament_id' => $tournament->id,
-                'name' => 'Группа ' . chr(65 + $i),
-            ]);
-
-            $groupPlayers = $participants->slice($i * $playersPerGroup, $playersPerGroup);
-
-            foreach ($groupPlayers as $player) {
-                $group->players()->attach($player->id, [
-                    'total_points' => 0,
-                    'rating_before' => $player->rating, // Сохраняем исходный рейтинг
-                    'rating_after' => null,
-                ]);
-            }
-
-            $this->generateRounds($group, $groupPlayers->pluck('id')->toArray());
-        }
-
-        $tournament->update(['status' => 'in_progress']);
-
-        return true;
-    }
+	{
+		$participants = $tournament->participants()->orderBy('rating', 'desc')->get();
+		
+		if ($participants->count() !== $tournament->max_participants) {
+			return false;
+		}
+		if ($tournament->groups()->count() > 0) {
+			return false;
+		}
+		$groupsCount = $tournament->groups_count;
+		$playersPerGroup = intval($participants->count() / $groupsCount);
+		$courtsPerGroup = intval($playersPerGroup / 4);
+		
+		for ($i = 0; $i < $groupsCount; $i++) {
+			$group = TournamentGroup::create([
+				'tournament_id' => $tournament->id,
+				'name' => 'Группа ' . chr(65 + $i),
+			]);
+			$groupPlayers = $participants->slice($i * $playersPerGroup, $playersPerGroup);
+			foreach ($groupPlayers as $player) {
+				$group->players()->attach($player->id, [
+					'total_points' => 0,
+					'rating_before' => $player->rating,
+					'rating_after' => null,
+				]);
+			}
+			
+			// Смещение кортов: Группа A = 1, Группа B = courtsPerGroup + 1, и т.д.
+			$courtStartNumber = $i * $courtsPerGroup + 1;
+			$this->generateRounds($group, $groupPlayers->pluck('id')->toArray(), $courtStartNumber);
+		}
+		$tournament->update(['status' => 'in_progress']);
+		return true;
+	}
 
     /**
      * Генерация раундов
      */
-    protected function generateRounds(TournamentGroup $group, array $playerIds): void
-    {
-        $players = $playerIds;
-        $numPlayers = count($players);
-        $numRounds = $numPlayers - 1;
-
-        if ($numPlayers % 2 !== 0) {
-            $players[] = null;
-            $numPlayers++;
-            $numRounds++;
-        }
-
-        for ($roundNum = 1; $roundNum <= $numRounds; $roundNum++) {
-            $round = AmericanoRound::create([
-                'tournament_group_id' => $group->id,
-                'round_number' => $roundNum,
-                'status' => $roundNum === 1 ? 'in_progress' : 'pending',
-            ]);
-
-            $pairs = $this->generatePairsForRound($players, $roundNum);
-            $this->createMatches($round, $pairs);
-            $players = $this->rotatePlayersForNextRound($players);
-        }
-    }
+	protected function generateRounds(TournamentGroup $group, array $playerIds, int $courtStartNumber = 1): void
+	{
+		$players = $playerIds;
+		$numPlayers = count($players);
+		$numRounds = $numPlayers - 1;
+		if ($numPlayers % 2 !== 0) {
+			$players[] = null;
+			$numPlayers++;
+			$numRounds++;
+		}
+		for ($roundNum = 1; $roundNum <= $numRounds; $roundNum++) {
+			$round = AmericanoRound::create([
+				'tournament_group_id' => $group->id,
+				'round_number' => $roundNum,
+				'status' => $roundNum === 1 ? 'in_progress' : 'pending',
+			]);
+			$pairs = $this->generatePairsForRound($players, $roundNum);
+			$this->createMatches($round, $pairs, $courtStartNumber);
+			$players = $this->rotatePlayersForNextRound($players);
+		}
+	}
 
     protected function generatePairsForRound(array $players, int $roundNum): array
     {
@@ -98,21 +92,25 @@ class AmericanoService
         return $pairs;
     }
 
-    protected function createMatches(AmericanoRound $round, array $pairs): void
-    {
-        for ($i = 0; $i < count($pairs); $i += 2) {
-            if (isset($pairs[$i]) && isset($pairs[$i + 1])) {
-                AmericanoMatch::create([
-                    'americano_round_id' => $round->id,
-                    'team1_player1_id' => $pairs[$i][0],
-                    'team1_player2_id' => $pairs[$i][1],
-                    'team2_player1_id' => $pairs[$i + 1][0],
-                    'team2_player2_id' => $pairs[$i + 1][1],
-                    'status' => 'pending',
-                ]);
-            }
-        }
-    }
+	protected function createMatches(AmericanoRound $round, array $pairs, int $courtStartNumber = 1): void
+	{
+		$courtNumber = $courtStartNumber;
+		
+		for ($i = 0; $i < count($pairs); $i += 2) {
+			if (isset($pairs[$i]) && isset($pairs[$i + 1])) {
+				AmericanoMatch::create([
+					'americano_round_id' => $round->id,
+					'court_number' => $courtNumber,
+					'team1_player1_id' => $pairs[$i][0],
+					'team1_player2_id' => $pairs[$i][1],
+					'team2_player1_id' => $pairs[$i + 1][0],
+					'team2_player2_id' => $pairs[$i + 1][1],
+					'status' => 'pending',
+				]);
+				$courtNumber++;
+			}
+		}
+	}
 
     protected function rotatePlayersForNextRound(array $players): array
     {

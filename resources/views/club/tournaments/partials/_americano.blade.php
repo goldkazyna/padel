@@ -167,47 +167,55 @@
                         </div>
                         
                         <div class="round-matches">
+						
                             @foreach($round->matches as $match)
                                 <div class="match-card" data-match-id="{{ $match->id }}">
-                                    <div class="match-team {{ $match->winning_team === 1 ? 'winner' : '' }}">
-                                        <div class="team-players">
-                                            <div class="player-line">{{ $match->team1Player1->full_name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
-                                            <div class="player-line">{{ $match->team1Player2->full_name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
-                                        </div>
-                                        @if($match->isCompleted())
-                                            <div class="team-score">{{ $match->team1_score }}</div>
-                                        @endif
-                                    </div>
-                                    
-                                    <div class="match-vs">
-                                        @if($match->isCompleted())
-                                            <button class="btn-score-edit" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#editScoreModal{{ $match->id }}"
-                                                    title="Редактировать счёт">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                        @elseif($round->status === 'in_progress')
-                                            <button class="btn-score" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#scoreModal{{ $match->id }}">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </button>
-                                        @else
-                                            <span class="vs-pending">VS</span>
-                                        @endif
-                                    </div>
-                                    
-                                    <div class="match-team {{ $match->winning_team === 2 ? 'winner' : '' }}">
-                                        @if($match->isCompleted())
-                                            <div class="team-score">{{ $match->team2_score }}</div>
-                                        @endif
-                                        <div class="team-players">
-                                            <div class="player-line">{{ $match->team2Player1->full_name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
-                                            <div class="player-line">{{ $match->team2Player2->full_name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
-                                        </div>
-                                    </div>
-                                </div>
+									@if($match->court_number)
+										<div class="match-court-header">
+											<i class="bi bi-geo-alt"></i> {{ $tournament->getCourtName($match->court_number) }}
+										</div>
+									@endif
+									<div class="match-teams">
+										<div class="match-team {{ $match->winning_team === 1 ? 'winner' : '' }}">
+											<div class="team-players">
+												<div class="player-line">{{ $match->team1Player1->full_name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
+												<div class="player-line">{{ $match->team1Player2->full_name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
+											</div>
+											@if($match->isCompleted())
+												<div class="team-score">{{ $match->team1_score }}</div>
+											@endif
+										</div>
+										
+										<div class="match-vs">
+											@if($match->isCompleted())
+												<button class="btn-score-edit" 
+														data-bs-toggle="modal" 
+														data-bs-target="#editScoreModal{{ $match->id }}"
+														title="Редактировать счёт">
+													<i class="bi bi-pencil"></i>
+												</button>
+											@elseif($round->status === 'in_progress')
+												<button class="btn-score" 
+														data-bs-toggle="modal" 
+														data-bs-target="#scoreModal{{ $match->id }}">
+													<i class="bi bi-pencil-square"></i>
+												</button>
+											@else
+												<span class="vs-pending">VS</span>
+											@endif
+										</div>
+										
+										<div class="match-team {{ $match->winning_team === 2 ? 'winner' : '' }}">
+											@if($match->isCompleted())
+												<div class="team-score">{{ $match->team2_score }}</div>
+											@endif
+											<div class="team-players">
+												<div class="player-line">{{ $match->team2Player1->full_name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
+												<div class="player-line">{{ $match->team2Player2->full_name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
+											</div>
+										</div>
+									</div>
+								</div>
 
                                 <!-- Модалка ввода счёта -->
                                 @if(!$match->isCompleted())
@@ -378,5 +386,42 @@
 .col-stat.percentage {
     font-weight: 600;
     color: var(--text-primary);
+}
+/* Корт в матче */
+.match-court {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #0dcaf0;
+    background: rgba(13, 202, 240, 0.1);
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+/* Корт в матче - сверху по центру */
+.match-court-header {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #0dcaf0;
+    background: rgba(13, 202, 240, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: inline-block;
+    width: 100%;
+}
+
+.match-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.match-teams {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
 }
 </style>

@@ -18,6 +18,7 @@ class AmericanoMatch extends Model
         'team1_score',
         'team2_score',
         'status',
+		'court_number',
     ];
 
     public function round()

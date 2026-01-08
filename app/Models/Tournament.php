@@ -37,6 +37,7 @@ class Tournament extends Model
 		'playoff_type',
 		'playoff_format',
 		'reserve_count',
+		'courts',
     ];
 
     protected $casts = [
@@ -46,6 +47,7 @@ class Tournament extends Model
         'max_level' => 'decimal:2',
         'price' => 'decimal:2',
 		'has_playoff' => 'boolean',
+		'courts' => 'array',
     ];
 
     // Связи
@@ -314,6 +316,24 @@ class Tournament extends Model
 	{
 		$reserveIds = \App\Models\User::where('role', 'reserve')->pluck('id');
 		return $this->participants()->whereIn('user_id', $reserveIds)->exists();
+	}
+	/**
+	 * Количество кортов (автоматически)
+	 */
+	public function getCourtsCount(): int
+	{
+		return (int) ceil($this->max_participants / 4);
+	}
+
+	/**
+	 * Название корта по номеру
+	 */
+	public function getCourtName(int $courtNumber): string
+	{
+		if ($this->courts && isset($this->courts[$courtNumber - 1])) {
+			return $this->courts[$courtNumber - 1];
+		}
+		return "Корт {$courtNumber}";
 	}
 
 }
