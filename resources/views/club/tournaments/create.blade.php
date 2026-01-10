@@ -190,21 +190,12 @@
 					
 					<div id="mexicanoFields" style="display: none;">
 						<div class="row">
-							<div class="col-md-4 mb-4">
-								<label class="form-label">Сумма очков за матч *</label>
-								<select name="points_to_win" class="form-select">
-									<option value="32" {{ old('points_to_win', 32) == 32 ? 'selected' : '' }}>32 очка</option>
-									<option value="42" {{ old('points_to_win') == 42 ? 'selected' : '' }}>42 очка</option>
-									<option value="24" {{ old('points_to_win') == 24 ? 'selected' : '' }}>24 очка</option>
-								</select>
-							</div>
-							<div class="col-md-4 mb-4">
+							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество раундов *</label>
 								<select name="rounds_count" id="mexicanoRoundsCount" class="form-select" disabled>
-									<option value="5" {{ old('rounds_count', 5) == 5 ? 'selected' : '' }}>5 раундов</option>
-									<option value="6" {{ old('rounds_count') == 6 ? 'selected' : '' }}>6 раундов</option>
-									<option value="7" {{ old('rounds_count') == 7 ? 'selected' : '' }}>7 раундов</option>
-									<option value="8" {{ old('rounds_count') == 8 ? 'selected' : '' }}>8 раундов</option>
+									@for($i = 1; $i <= 15; $i++)
+										<option value="{{ $i }}" {{ old('rounds_count', 7) == $i ? 'selected' : '' }}>{{ $i }} {{ $i == 1 ? 'раунд' : ($i < 5 ? 'раунда' : 'раундов') }}</option>
+									@endfor
 								</select>
 							</div>
 						</div>
@@ -313,6 +304,7 @@ function toggleTypeFields() {
 		if (document.getElementById('americanoRoundsCount')) {
 			document.getElementById('americanoRoundsCount').disabled = true;
 		}
+		generateCourtsInputs();
 	} else if (type === 'team' && teamFields) {
 		teamFields.style.display = 'block';
 		document.getElementById('teamGroupsCount').disabled = false;

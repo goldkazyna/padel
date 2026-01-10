@@ -48,36 +48,41 @@ class MexicanoService
      * Генерация первого раунда (по рейтингу)
      */
     protected function generateFirstRound(Tournament $tournament, array $playerIds): void
-    {
-        $round = MexicanoRound::create([
-            'tournament_id' => $tournament->id,
-            'round_number' => 1,
-            'status' => 'in_progress',
-        ]);
+	{
+		$round = MexicanoRound::create([
+			'tournament_id' => $tournament->id,
+			'round_number' => 1,
+			'status' => 'in_progress',
+		]);
 
-        // Игроки уже отсортированы по рейтингу
-        // 1+2 vs 3+4, 5+6 vs 7+8, ...
-        for ($i = 0; $i < count($playerIds); $i += 4) {
-            if (isset($playerIds[$i + 3])) {
-                MexicanoMatch::create([
-                    'mexicano_round_id' => $round->id,
-                    'team1_player1_id' => $playerIds[$i],
-                    'team1_player2_id' => $playerIds[$i + 1],
-                    'team2_player1_id' => $playerIds[$i + 2],
-                    'team2_player2_id' => $playerIds[$i + 3],
-                    'status' => 'pending',
-                ]);
+		$courtNumber = 1;
 
-                // Записываем историю пар
-                $this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 1], true);
-                $this->recordPairHistory($tournament->id, $playerIds[$i + 2], $playerIds[$i + 3], true);
-                $this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 2], false);
-                $this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 3], false);
-                $this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 2], false);
-                $this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 3], false);
-            }
-        }
-    }
+		// Игроки уже отсортированы по рейтингу
+		// 1+2 vs 3+4, 5+6 vs 7+8, ...
+		for ($i = 0; $i < count($playerIds); $i += 4) {
+			if (isset($playerIds[$i + 3])) {
+				MexicanoMatch::create([
+					'mexicano_round_id' => $round->id,
+					'court_number' => $courtNumber,
+					'team1_player1_id' => $playerIds[$i],
+					'team1_player2_id' => $playerIds[$i + 1],
+					'team2_player1_id' => $playerIds[$i + 2],
+					'team2_player2_id' => $playerIds[$i + 3],
+					'status' => 'pending',
+				]);
+
+				// Записываем историю пар
+				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 1], true);
+				$this->recordPairHistory($tournament->id, $playerIds[$i + 2], $playerIds[$i + 3], true);
+				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 2], false);
+				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 3], false);
+				$this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 2], false);
+				$this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 3], false);
+
+				$courtNumber++;
+			}
+		}
+	}
 
     /**
      * Записать историю пар
@@ -104,97 +109,163 @@ class MexicanoService
         }
     }
 
-    /**
-     * Генерация следующего раунда (по очкам)
-     */
-    public function generateNextRound(Tournament $tournament): ?MexicanoRound
-    {
-        $currentRoundNumber = $tournament->mexicanoRounds()->reorder('round_number', 'desc')->value('round_number') ?? 0;
-        
-        if ($currentRoundNumber >= $tournament->rounds_count) {
-            return null; // Все раунды сыграны
-        }
-
-        // Получаем игроков отсортированных по очкам
-        $players = $tournament->mexicanoPlayers()
-            ->orderBy('total_points', 'desc')
-            ->with('user')
-            ->get();
-
-        $round = MexicanoRound::create([
-            'tournament_id' => $tournament->id,
-            'round_number' => $currentRoundNumber + 1,
-            'status' => 'in_progress',
-        ]);
-
-        // Формируем пары с учётом истории
-        $this->generatePairsForRound($tournament, $round, $players);
-
-        return $round;
-    }
 
     /**
-     * Формирование пар для раунда
-     */
-    protected function generatePairsForRound(Tournament $tournament, MexicanoRound $round, $players): void
-    {
-        $playerIds = $players->pluck('user_id')->toArray();
-        $used = [];
-        $matches = [];
+	 * Генерация следующего раунда (по очкам)
+	 */
+	public function generateNextRound(Tournament $tournament): ?MexicanoRound
+	{
+		$currentRoundNumber = $tournament->mexicanoRounds()->reorder('round_number', 'desc')->value('round_number') ?? 0;
+		
+		if ($currentRoundNumber >= $tournament->rounds_count) {
+			return null; // Все раунды сыграны
+		}
 
-        while (count($used) < count($playerIds)) {
-            // Находим первого неиспользованного игрока
-            $p1 = null;
-            foreach ($playerIds as $id) {
-                if (!in_array($id, $used)) {
-                    $p1 = $id;
-                    $used[] = $id;
-                    break;
-                }
-            }
+		// Получаем игроков и считаем статистику
+		$players = $tournament->mexicanoPlayers()->with('user')->get();
+		
+		// Собираем статистику по матчам для правильной сортировки
+		$playerStats = $this->calculatePlayerStats($tournament);
+		
+		// Сортируем игроков по очкам, разнице, проценту
+		$sortedPlayers = $players->sort(function($a, $b) use ($playerStats) {
+			$statsA = $playerStats[$a->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
+			$statsB = $playerStats[$b->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
+			
+			// По очкам
+			if ($statsA['total_points'] !== $statsB['total_points']) {
+				return $statsB['total_points'] <=> $statsA['total_points'];
+			}
+			// По разнице мячей
+			if ($statsA['diff'] !== $statsB['diff']) {
+				return $statsB['diff'] <=> $statsA['diff'];
+			}
+			// По проценту
+			return $statsB['pct'] <=> $statsA['pct'];
+		});
 
-            if (!$p1) break;
+		$round = MexicanoRound::create([
+			'tournament_id' => $tournament->id,
+			'round_number' => $currentRoundNumber + 1,
+			'status' => 'in_progress',
+		]);
 
-            // Ищем лучшего партнёра (с кем меньше всего играл в паре)
-            $p2 = $this->findBestPartner($tournament->id, $p1, $playerIds, $used);
-            if ($p2) $used[] = $p2;
+		// Формируем пары с учётом истории
+		$this->generatePairsForRound($tournament, $round, $sortedPlayers);
 
-            // Ищем первого соперника
-            $p3 = null;
-            foreach ($playerIds as $id) {
-                if (!in_array($id, $used)) {
-                    $p3 = $id;
-                    $used[] = $id;
-                    break;
-                }
-            }
+		return $round;
+	}
 
-            if (!$p3) break;
+	/**
+	 * Рассчитать статистику игроков для сортировки
+	 */
+	protected function calculatePlayerStats(Tournament $tournament): array
+	{
+		$stats = [];
+		
+		// Инициализируем
+		foreach ($tournament->mexicanoPlayers as $mp) {
+			$stats[$mp->user_id] = [
+				'total_points' => $mp->total_points,
+				'points_for' => 0,
+				'points_against' => 0,
+				'diff' => 0,
+				'pct' => 0,
+			];
+		}
+		
+		// Собираем данные по матчам
+		foreach ($tournament->mexicanoRounds as $round) {
+			foreach ($round->matches as $match) {
+				if (!$match->isCompleted()) continue;
+				
+				$team1 = [$match->team1_player1_id, $match->team1_player2_id];
+				$team2 = [$match->team2_player1_id, $match->team2_player2_id];
+				
+				foreach ($team1 as $pId) {
+					if (isset($stats[$pId])) {
+						$stats[$pId]['points_for'] += $match->team1_score;
+						$stats[$pId]['points_against'] += $match->team2_score;
+					}
+				}
+				
+				foreach ($team2 as $pId) {
+					if (isset($stats[$pId])) {
+						$stats[$pId]['points_for'] += $match->team2_score;
+						$stats[$pId]['points_against'] += $match->team1_score;
+					}
+				}
+			}
+		}
+		
+		// Считаем разницу и процент
+		foreach ($stats as $pId => &$s) {
+			$s['diff'] = $s['points_for'] - $s['points_against'];
+			$total = $s['points_for'] + $s['points_against'];
+			$s['pct'] = $total > 0 ? $s['points_for'] / $total : 0;
+		}
+		
+		return $stats;
+	}
 
-            // Ищем лучшего партнёра для p3
-            $p4 = $this->findBestPartner($tournament->id, $p3, $playerIds, $used);
-            if ($p4) $used[] = $p4;
+    /**
+	 * Формирование пар для раунда (правильный Мексикано)
+	 */
+	protected function generatePairsForRound(Tournament $tournament, MexicanoRound $round, $players): void
+	{
+		$playerIds = $players->pluck('user_id')->toArray();
+		$courtNumber = 1;
 
-            if ($p1 && $p2 && $p3 && $p4) {
-                MexicanoMatch::create([
-                    'mexicano_round_id' => $round->id,
-                    'team1_player1_id' => $p1,
-                    'team1_player2_id' => $p2,
-                    'team2_player1_id' => $p3,
-                    'team2_player2_id' => $p4,
-                    'status' => 'pending',
-                ]);
+		// Разбиваем игроков на группы по 4 (они уже отсортированы по очкам)
+		$groups = array_chunk($playerIds, 4);
 
-                // Записываем историю
-                $this->recordPairHistory($tournament->id, $p1, $p2, true);
-                $this->recordPairHistory($tournament->id, $p3, $p4, true);
-                $this->recordPairHistory($tournament->id, $p1, $p3, false);
-                $this->recordPairHistory($tournament->id, $p1, $p4, false);
-                $this->recordPairHistory($tournament->id, $p2, $p3, false);
-                $this->recordPairHistory($tournament->id, $p2, $p4, false);
-            }
-        }
-    }
+		foreach ($groups as $group) {
+			if (count($group) < 4) continue;
+
+			// Игроки в группе отсортированы по очкам: [лучший, 2-й, 3-й, худший]
+			// Формируем пары: 1+4 vs 2+3 для баланса
+			$p1 = $group[0]; // лучший
+			$p4 = $group[3]; // худший
+			$p2 = $group[1]; // 2-й
+			$p3 = $group[2]; // 3-й
+
+			// Проверяем историю партнёрств и выбираем лучшую комбинацию
+			$bestPairing = $this->findBestPairingForGroup($tournament->id, $p1, $p2, $p3, $p4);
+
+			MexicanoMatch::create([
+				'mexicano_round_id' => $round->id,
+				'court_number' => $courtNumber,
+				'team1_player1_id' => $bestPairing['team1'][0],
+				'team1_player2_id' => $bestPairing['team1'][1],
+				'team2_player1_id' => $bestPairing['team2'][0],
+				'team2_player2_id' => $bestPairing['team2'][1],
+				'status' => 'pending',
+			]);
+
+			// Записываем историю
+			$this->recordPairHistory($tournament->id, $bestPairing['team1'][0], $bestPairing['team1'][1], true);
+			$this->recordPairHistory($tournament->id, $bestPairing['team2'][0], $bestPairing['team2'][1], true);
+			$this->recordPairHistory($tournament->id, $bestPairing['team1'][0], $bestPairing['team2'][0], false);
+			$this->recordPairHistory($tournament->id, $bestPairing['team1'][0], $bestPairing['team2'][1], false);
+			$this->recordPairHistory($tournament->id, $bestPairing['team1'][1], $bestPairing['team2'][0], false);
+			$this->recordPairHistory($tournament->id, $bestPairing['team1'][1], $bestPairing['team2'][1], false);
+
+			$courtNumber++;
+		}
+	}
+
+	/**
+	 * Найти лучшую комбинацию пар для группы из 4 игроков
+	 * Мексикано: всегда 1+4 vs 2+3 для максимального баланса
+	 */
+	protected function findBestPairingForGroup(int $tournamentId, int $p1, int $p2, int $p3, int $p4): array
+	{
+		// Всегда самый сбалансированный вариант: 1+4 vs 2+3
+		return [
+			'team1' => [$p1, $p4],
+			'team2' => [$p2, $p3],
+		];
+	}
 
     /**
      * Найти лучшего партнёра (с кем меньше всего играл)

@@ -124,19 +124,22 @@ class TournamentController extends Controller
         return redirect()->route('club.tournaments.index')->with('success', 'Турнир создан!');
     }
 
-    public function show(Tournament $tournament)
-    {
-        $club = $this->getClub();
-        
-        // Проверяем доступ
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+	public function show(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        $tournament->load(['club', 'participants']);
+		// Мексикано — отдельный контроллер
+		if ($tournament->isMexicano()) {
+			return app(\App\Http\Controllers\Club\MexicanoController::class)->show($tournament);
+		}
 
-        return view('club.tournaments.show', compact('tournament'));
-    }
+		$tournament->load(['club', 'participants']);
+		return view('club.tournaments.show', compact('tournament'));
+	}
 
     public function edit(Tournament $tournament)
     {

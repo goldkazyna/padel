@@ -15,7 +15,7 @@
                                 {{ $match->team1Player1->full_name }} / {{ $match->team1Player2->full_name }}
                             </div>
                             <input type="number" name="team1_score" class="score-input" 
-                                   min="0" max="{{ $tournament->points_to_win }}" 
+                                   min="0" max="99" 
                                    value="{{ $match->team1_score }}" required>
                         </div>
                         <div class="score-separator">:</div>
@@ -24,7 +24,7 @@
                                 {{ $match->team2Player1->full_name }} / {{ $match->team2Player2->full_name }}
                             </div>
                             <input type="number" name="team2_score" class="score-input" 
-                                   min="0" max="{{ $tournament->points_to_win }}" 
+                                   min="0" max="99" 
                                    value="{{ $match->team2_score }}" required>
                         </div>
                     </div>

@@ -122,7 +122,7 @@
 								<td class="col-player">
 									<div class="player-info">
 										<div class="player-avatar">
-											{{ strtoupper(substr($player->first_name, 0, 1) . substr($player->last_name, 0, 1)) }}
+											{{ mb_strtoupper(mb_substr($player->first_name, 0, 1) . mb_substr($player->last_name, 0, 1)) }}
 										</div>
 										<div class="player-details">
 											<div class="player-name">{{ $player->full_name }}</div>

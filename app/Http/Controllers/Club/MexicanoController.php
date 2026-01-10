@@ -4,11 +4,26 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\MexicanoMatch;
+use App\Models\Tournament;
 use App\Services\MexicanoService;
 use Illuminate\Http\Request;
 
 class MexicanoController extends Controller
 {
+	/**
+     * Показать турнир Мексикано
+     */
+    public function show(Tournament $tournament)
+    {
+        $tournament->load([
+            'club', 
+            'participants', 
+            'mexicanoPlayers.user',
+            'mexicanoRounds.matches'
+        ]);
+        
+        return view('club.tournaments.mexicano.show', compact('tournament'));
+    }
     public function saveScore(Request $request, MexicanoMatch $match, MexicanoService $mexicanoService)
     {
         $validated = $request->validate([
