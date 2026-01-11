@@ -200,6 +200,50 @@
 							</div>
 						</div>
 						
+						{{-- Плей-офф опции --}}
+						<div class="mb-4">
+							<label class="form-label">Плей-офф</label>
+							<div class="playoff-options">
+								<div class="form-check">
+									<input type="checkbox" class="form-check-input" name="has_playoff" id="mexicanoHasPlayoff" value="1" 
+										   {{ old('has_playoff') ? 'checked' : '' }} onchange="toggleMexicanoPlayoffType()">
+									<label class="form-check-label" for="mexicanoHasPlayoff">
+										Добавить плей-офф после основных раундов
+									</label>
+								</div>
+								
+								<div id="mexicanoPlayoffTypeOptions" class="mt-3 ms-4" style="display: none;">
+									<div class="form-check">
+										<input type="radio" class="form-check-input" name="playoff_type" id="mexicanoFinalOnly" value="final_only" 
+											   {{ old('playoff_type', 'final_only') === 'final_only' ? 'checked' : '' }}>
+										<label class="form-check-label" for="mexicanoFinalOnly">
+											Только финал (топ-4: 1+4 vs 2+3)
+										</label>
+									</div>
+									<div class="form-check mt-2">
+										<input type="radio" class="form-check-input" name="playoff_type" id="mexicanoSemifinalFinal" value="semifinal_final"
+											   {{ old('playoff_type') === 'semifinal_final' ? 'checked' : '' }} onchange="toggleMexicanoPlayoffFormat()">
+										<label class="form-check-label" for="mexicanoSemifinalFinal">
+											Полуфинал + Финал (топ-8)
+										</label>
+									</div>
+									
+									{{-- Выбор формата пар для полуфиналов --}}
+									<div id="mexicanoPlayoffFormatOptions" class="mt-3" style="display: none;">
+										<label class="form-label">Формат пар в полуфиналах</label>
+										<select name="playoff_format" id="mexicanoPlayoffFormat" class="form-select">
+											<option value="mix" {{ old('playoff_format', 'mix') === 'mix' ? 'selected' : '' }}>Микс (1+8 vs 4+5, 2+7 vs 3+6)</option>
+											<option value="tops" {{ old('playoff_format') === 'tops' ? 'selected' : '' }}>Топы вместе (1+2 vs 7+8, 3+4 vs 5+6)</option>
+											<option value="balanced" {{ old('playoff_format') === 'balanced' ? 'selected' : '' }}>Сбалансированный (1+4 vs 5+8, 2+3 vs 6+7)</option>
+										</select>
+										<small class="text-secondary mt-2 d-block">
+											Цифры = места в таблице лидеров после основных раундов
+										</small>
+									</div>
+								</div>
+							</div>
+						</div>
+						
 						<div class="alert-success-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
 							<strong>Мексикано:</strong> Пары формируются динамически после каждого раунда. Играют те, кто набрал похожее количество очков. Все играют вместе без разделения на группы.
@@ -305,6 +349,7 @@ function toggleTypeFields() {
 			document.getElementById('americanoRoundsCount').disabled = true;
 		}
 		generateCourtsInputs();
+		toggleMexicanoPlayoffType(); // <-- добавь эту строку
 	} else if (type === 'team' && teamFields) {
 		teamFields.style.display = 'block';
 		document.getElementById('teamGroupsCount').disabled = false;
@@ -387,7 +432,24 @@ function updateAmericanoRounds() {
         roundsInput.max = defaultRounds;
     }
 }
+function toggleMexicanoPlayoffType() {
+    const hasPlayoff = document.getElementById('mexicanoHasPlayoff');
+    const playoffTypeOptions = document.getElementById('mexicanoPlayoffTypeOptions');
+    
+    if (hasPlayoff && playoffTypeOptions) {
+        playoffTypeOptions.style.display = hasPlayoff.checked ? 'block' : 'none';
+        toggleMexicanoPlayoffFormat();
+    }
+}
 
+function toggleMexicanoPlayoffFormat() {
+    const semifinalFinal = document.getElementById('mexicanoSemifinalFinal');
+    const playoffFormatOptions = document.getElementById('mexicanoPlayoffFormatOptions');
+    
+    if (playoffFormatOptions && semifinalFinal) {
+        playoffFormatOptions.style.display = semifinalFinal.checked ? 'block' : 'none';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeFields();

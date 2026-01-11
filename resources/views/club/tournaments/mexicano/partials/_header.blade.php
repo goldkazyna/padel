@@ -32,22 +32,28 @@
             @endif
         @endif
 
-        @if($tournament->status === 'in_progress')
-            @php $canFinish = app(\App\Services\MexicanoService::class)->canFinishTournament($tournament); @endphp
-            @if($canFinish)
-                <form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
-                      onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
-                    @csrf
-                    <button type="submit" class="btn-primary-custom">
-                        <i class="bi bi-trophy-fill"></i> Завершить турнир
-                    </button>
-                </form>
-            @else
-                <span class="btn-outline-custom disabled" title="Сыграйте все раунды">
-                    <i class="bi bi-hourglass"></i> Не все раунды сыграны
-                </span>
-            @endif
-        @endif
+	@if($tournament->status === 'in_progress')
+		@php $canFinish = app(\App\Services\MexicanoService::class)->canFinishTournament($tournament); @endphp
+		@if($canFinish)
+			<form action="{{ route('club.tournaments.finish', $tournament) }}" method="POST" 
+				  onsubmit="return confirm('Завершить турнир и начислить рейтинг всем участникам?')">
+				@csrf
+				<button type="submit" class="btn-primary-custom">
+					<i class="bi bi-trophy-fill"></i> Завершить турнир
+				</button>
+			</form>
+		@else
+			@if($tournament->hasPlayoff())
+				<span class="btn-outline-custom disabled" title="Сыграйте финал плей-офф">
+					<i class="bi bi-hourglass"></i> Сыграйте финал
+				</span>
+			@else
+				<span class="btn-outline-custom disabled" title="Сыграйте все раунды">
+					<i class="bi bi-hourglass"></i> Не все раунды сыграны
+				</span>
+			@endif
+		@endif
+	@endif
         
         <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom">
             <i class="bi bi-pencil"></i> Редактировать

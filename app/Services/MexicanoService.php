@@ -379,48 +379,78 @@ class MexicanoService
 			$round->update(['status' => 'completed']);
 		}
 	}
-    /**
-     * Проверить можно ли завершить турнир
-     */
-    public function canFinishTournament(Tournament $tournament): bool
-    {
-        $completedRounds = $tournament->mexicanoRounds()->where('status', 'completed')->count();
-        return $completedRounds >= $tournament->rounds_count;
-    }
+	/**
+	 * Проверить можно ли завершить турнир
+	 */
+	public function canFinishTournament(Tournament $tournament): bool
+	{
+		// Все раунды должны быть сыграны
+		$completedRounds = $tournament->mexicanoRounds()->where('status', 'completed')->count();
+		if ($completedRounds < $tournament->rounds_count) {
+			return false;
+		}
 
-    /**
-     * Завершить турнир и начислить Эло
-     */
-    public function finishTournament(Tournament $tournament): bool
-    {
-        if (!$this->canFinishTournament($tournament)) {
-            return false;
-        }
+		// Если есть плей-офф — проверяем что финал сыгран
+		if ($tournament->hasPlayoff()) {
+			$finalMatch = $tournament->playoffMatches()
+				->where('stage', 'Финал')
+				->first();
+			
+			if (!$finalMatch || $finalMatch->status !== 'completed') {
+				return false;
+			}
+		}
 
-        $players = $tournament->mexicanoPlayers()->with('user')->get();
-        $ratingChanges = [];
+		return true;
+	}
 
-        // Инициализируем рейтинги
-        foreach ($players as $player) {
-            $ratingChanges[$player->user_id] = [
-                'rating_before' => (int) $player->rating_before,
-                'current_rating' => (int) $player->rating_before,
-            ];
-        }
+   /**
+	 * Завершить турнир и начислить Эло
+	 */
+	public function finishTournament(Tournament $tournament): bool
+	{
+		if (!$this->canFinishTournament($tournament)) {
+			return false;
+		}
 
-        // Проходим по всем матчам
-        foreach ($tournament->mexicanoRounds()->orderBy('round_number')->get() as $round) {
-            foreach ($round->matches as $match) {
-                $this->calculateEloForMatch($match, $ratingChanges);
-            }
-        }
+		$players = $tournament->mexicanoPlayers()->with('user')->get();
+		$ratingChanges = [];
 
-        // Сохраняем финальные рейтинги
-        foreach ($players as $player) {
-            $newRating = (int) $ratingChanges[$player->user_id]['current_rating'];
-            
-            $player->update(['rating_after' => $newRating]);
-            $player->user->update(['rating' => $newRating]);
+		// Инициализируем рейтинги
+		foreach ($players as $player) {
+			$ratingChanges[$player->user_id] = [
+				'rating_before' => (int) $player->rating_before,
+				'current_rating' => (int) $player->rating_before,
+			];
+		}
+
+		// Проходим по всем матчам основных раундов
+		foreach ($tournament->mexicanoRounds()->orderBy('round_number')->get() as $round) {
+			foreach ($round->matches as $match) {
+				$this->calculateEloForMatch($match, $ratingChanges);
+			}
+		}
+
+		// Проходим по плей-офф матчам
+		if ($tournament->hasPlayoff()) {
+			$playoffMatches = $tournament->playoffMatches()
+				->where('status', 'completed')
+				->orderBy('stage')
+				->orderBy('match_number')
+				->get();
+
+			foreach ($playoffMatches as $match) {
+				$this->calculateEloForPlayoffMatch($match, $ratingChanges);
+			}
+		}
+
+		// Сохраняем финальные рейтинги
+		foreach ($players as $player) {
+			$newRating = (int) $ratingChanges[$player->user_id]['current_rating'];
+			
+			$player->update(['rating_after' => $newRating]);
+			$player->user->update(['rating' => $newRating]);
+			
 			// Записываем историю
 			\App\Models\RatingHistory::create([
 				'user_id' => $player->user_id,
@@ -430,12 +460,61 @@ class MexicanoService
 				'change' => $newRating - (int) $player->rating_before,
 				'reason' => $tournament->name,
 			]);
-        }
+		}
 
-        $tournament->update(['status' => 'completed']);
+		$tournament->update(['status' => 'completed']);
 
-        return true;
-    }
+		return true;
+	}
+
+	/**
+	 * Рассчитать Эло для плей-офф матча
+	 */
+	protected function calculateEloForPlayoffMatch(\App\Models\TournamentPlayoffMatch $match, array &$ratingChanges): void
+	{
+		$p1_1 = $match->team1_player1_id;
+		$p1_2 = $match->team1_player2_id;
+		$p2_1 = $match->team2_player1_id;
+		$p2_2 = $match->team2_player2_id;
+
+		if (!$p1_1 || !$p1_2 || !$p2_1 || !$p2_2) return;
+
+		// Инициализируем если нет
+		foreach ([$p1_1, $p1_2, $p2_1, $p2_2] as $pId) {
+			if (!isset($ratingChanges[$pId])) {
+				$player = \App\Models\User::find($pId);
+				if ($player) {
+					$ratingChanges[$pId] = [
+						'rating_before' => $player->rating,
+						'current_rating' => $player->rating,
+					];
+				}
+			}
+		}
+
+		$team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
+		$team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
+
+		$expected1 = $this->expectedScore($team1Rating, $team2Rating);
+		$expected2 = $this->expectedScore($team2Rating, $team1Rating);
+
+		if ($match->team1_score > $match->team2_score) {
+			$actual1 = 1;
+			$actual2 = 0;
+		} else {
+			$actual1 = 0;
+			$actual2 = 1;
+		}
+
+		$kFactor = 24;
+		$change1 = round($kFactor * ($actual1 - $expected1));
+		$change2 = round($kFactor * ($actual2 - $expected2));
+
+		$ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
+		$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
+		$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
+		$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
+	}
 
     /**
      * Рассчитать Эло для матча
@@ -509,67 +588,130 @@ class MexicanoService
         $player->update(['level' => $level]);
     }
 
-    /**
-     * Превью рейтинга
-     */
-    public function previewRatingChanges(Tournament $tournament): array
-    {
-        $players = $tournament->mexicanoPlayers()->with('user')->get();
-        $ratingChanges = [];
+   /**
+	 * Превью рейтинга
+	 */
+	public function previewRatingChanges(Tournament $tournament): array
+	{
+		$players = $tournament->mexicanoPlayers()->with('user')->get();
+		$ratingChanges = [];
 
-        foreach ($players as $player) {
-            $ratingBefore = (int) $player->rating_before;
-            $ratingChanges[$player->user_id] = [
-                'name' => $player->user->full_name,
-                'rating_before' => $ratingBefore,
-                'current_rating' => $ratingBefore,
-                'matches' => [],
-            ];
-        }
+		foreach ($players as $player) {
+			$ratingBefore = (int) $player->rating_before;
+			$ratingChanges[$player->user_id] = [
+				'name' => $player->user->full_name,
+				'rating_before' => $ratingBefore,
+				'current_rating' => $ratingBefore,
+				'matches' => [],
+			];
+		}
 
-        foreach ($tournament->mexicanoRounds()->orderBy('round_number')->get() as $round) {
-            foreach ($round->matches as $match) {
-                if (!$match->isCompleted()) continue;
+		// Основные раунды
+		foreach ($tournament->mexicanoRounds()->orderBy('round_number')->get() as $round) {
+			foreach ($round->matches as $match) {
+				if (!$match->isCompleted()) continue;
 
-                $p1_1 = $match->team1_player1_id;
-                $p1_2 = $match->team1_player2_id;
-                $p2_1 = $match->team2_player1_id;
-                $p2_2 = $match->team2_player2_id;
+				$p1_1 = $match->team1_player1_id;
+				$p1_2 = $match->team1_player2_id;
+				$p2_1 = $match->team2_player1_id;
+				$p2_2 = $match->team2_player2_id;
 
-                $team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
-                $team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
+				$team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
+				$team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
 
-                $expected1 = $this->expectedScore($team1Rating, $team2Rating);
-                $expected2 = $this->expectedScore($team2Rating, $team1Rating);
+				$expected1 = $this->expectedScore($team1Rating, $team2Rating);
+				$expected2 = $this->expectedScore($team2Rating, $team1Rating);
 
-                if ($match->team1_score > $match->team2_score) {
-                    $actual1 = 1; $actual2 = 0;
-                } elseif ($match->team2_score > $match->team1_score) {
-                    $actual1 = 0; $actual2 = 1;
-                } else {
-                    $actual1 = 0.5; $actual2 = 0.5;
-                }
+				if ($match->team1_score > $match->team2_score) {
+					$actual1 = 1; $actual2 = 0;
+				} elseif ($match->team2_score > $match->team1_score) {
+					$actual1 = 0; $actual2 = 1;
+				} else {
+					$actual1 = 0.5; $actual2 = 0.5;
+				}
 
-                $kFactor = 24;
-                $change1 = round($kFactor * ($actual1 - $expected1));
-                $change2 = round($kFactor * ($actual2 - $expected2));
+				$kFactor = 24;
+				$change1 = round($kFactor * ($actual1 - $expected1));
+				$change2 = round($kFactor * ($actual2 - $expected2));
 
-                $matchInfo = "Р{$round->round_number}: {$match->team1_score}:{$match->team2_score}";
-                
-                $ratingChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
-                $ratingChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
-                $ratingChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
-                $ratingChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
+				$matchInfo = "Р{$round->round_number}: {$match->team1_score}:{$match->team2_score}";
+				
+				$ratingChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
+				$ratingChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
+				$ratingChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
+				$ratingChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
 
-                $ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
-                $ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
-                $ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
-                $ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
-            }
-        }
+				$ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
+				$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
+				$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
+				$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
+			}
+		}
 
-        return $ratingChanges;
-    }
+		// Плей-офф матчи
+		if ($tournament->hasPlayoff()) {
+			$playoffMatches = $tournament->playoffMatches()
+				->where('status', 'completed')
+				->orderBy('stage')
+				->orderBy('match_number')
+				->get();
+
+			foreach ($playoffMatches as $match) {
+				$p1_1 = $match->team1_player1_id;
+				$p1_2 = $match->team1_player2_id;
+				$p2_1 = $match->team2_player1_id;
+				$p2_2 = $match->team2_player2_id;
+
+				if (!$p1_1 || !$p1_2 || !$p2_1 || !$p2_2) continue;
+
+				// Инициализируем если игрок не из основного турнира (на всякий случай)
+				foreach ([$p1_1, $p1_2, $p2_1, $p2_2] as $pId) {
+					if (!isset($ratingChanges[$pId])) {
+						$player = \App\Models\User::find($pId);
+						if ($player) {
+							$ratingChanges[$pId] = [
+								'name' => $player->full_name,
+								'rating_before' => $player->rating,
+								'current_rating' => $player->rating,
+								'matches' => [],
+							];
+						}
+					}
+				}
+
+				$team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
+				$team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
+
+				$expected1 = $this->expectedScore($team1Rating, $team2Rating);
+				$expected2 = $this->expectedScore($team2Rating, $team1Rating);
+
+				if ($match->team1_score > $match->team2_score) {
+					$actual1 = 1; $actual2 = 0;
+				} else {
+					$actual1 = 0; $actual2 = 1;
+				}
+
+				$kFactor = 24; // K-фактор для плей-офф
+				$change1 = round($kFactor * ($actual1 - $expected1));
+				$change2 = round($kFactor * ($actual2 - $expected2));
+
+				$stageName = $match->stage === 'Полуфинал' ? 'ПФ' : 'Ф';
+				$matchInfo = "{$stageName}: {$match->team1_score}:{$match->team2_score}";
+
+				$ratingChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
+				$ratingChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
+				$ratingChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
+				$ratingChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
+
+				$ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
+				$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
+				$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
+				$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
+			}
+		}
+
+		return $ratingChanges;
+	}
 	/**
 	 * Можно ли сгенерировать следующий раунд
 	 */
@@ -595,5 +737,200 @@ class MexicanoService
 		}
 		
 		return true;
+	}
+	/**
+	 * Можно ли сгенерировать плей-офф
+	 */
+	public function canGeneratePlayoff(Tournament $tournament): bool
+	{
+		// Турнир должен быть Мексикано с плей-офф
+		if (!$tournament->isMexicano() || !$tournament->hasPlayoff()) {
+			return false;
+		}
+
+		// Турнир должен быть в процессе
+		if ($tournament->status !== 'in_progress') {
+			return false;
+		}
+
+		// Плей-офф ещё не сгенерирован
+		if ($tournament->playoffMatches()->count() > 0) {
+			return false;
+		}
+
+		// Все раунды должны быть сыграны
+		$completedRounds = $tournament->mexicanoRounds()->where('status', 'completed')->count();
+		if ($completedRounds < $tournament->rounds_count) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Сгенерировать плей-офф для Мексикано
+	 */
+	public function generatePlayoff(Tournament $tournament): bool
+	{
+		if (!$this->canGeneratePlayoff($tournament)) {
+			return false;
+		}
+
+		// Получаем топ игроков отсортированных по очкам, разнице, проценту
+		$playerStats = $this->calculatePlayerStats($tournament);
+		
+		$sortedPlayers = $tournament->mexicanoPlayers()
+			->with('user')
+			->get()
+			->sort(function($a, $b) use ($playerStats) {
+				$statsA = $playerStats[$a->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
+				$statsB = $playerStats[$b->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
+				
+				if ($statsA['total_points'] !== $statsB['total_points']) {
+					return $statsB['total_points'] <=> $statsA['total_points'];
+				}
+				if ($statsA['diff'] !== $statsB['diff']) {
+					return $statsB['diff'] <=> $statsA['diff'];
+				}
+				return $statsB['pct'] <=> $statsA['pct'];
+			})
+			->values();
+
+		if ($tournament->isFinalOnly()) {
+			$this->createMexicanoFinalMatch($tournament, $sortedPlayers);
+		} else {
+			$this->createMexicanoSemifinalMatches($tournament, $sortedPlayers);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Создать только финальный матч (топ-4: 1+4 vs 2+3)
+	 */
+	protected function createMexicanoFinalMatch(Tournament $tournament, $players): void
+	{
+		if ($players->count() < 4) {
+			return;
+		}
+
+		// 1+4 vs 2+3 для баланса
+		\App\Models\TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'stage' => 'Финал',
+			'match_number' => 1,
+			'team1_player1_id' => $players[0]->user_id,
+			'team1_player2_id' => $players[3]->user_id,
+			'team2_player1_id' => $players[1]->user_id,
+			'team2_player2_id' => $players[2]->user_id,
+			'status' => 'pending',
+		]);
+	}
+
+	/**
+	 * Создать полуфиналы и финал (топ-8)
+	 */
+	protected function createMexicanoSemifinalMatches(Tournament $tournament, $players): void
+	{
+		if ($players->count() < 8) {
+			return;
+		}
+
+		$format = $tournament->playoff_format ?? 'mix';
+		
+		// Топ-8 игроков (индексы 0-7 = места 1-8)
+		$p = [];
+		for ($i = 0; $i < 8; $i++) {
+			$p[$i + 1] = $players[$i]->user_id;
+		}
+
+		// Формируем пары в зависимости от формата
+		switch ($format) {
+			case 'tops':
+				// Топы вместе: (1+2 vs 7+8), (3+4 vs 5+6)
+				$semi1 = ['team1' => [$p[1], $p[2]], 'team2' => [$p[7], $p[8]]];
+				$semi2 = ['team1' => [$p[3], $p[4]], 'team2' => [$p[5], $p[6]]];
+				break;
+				
+			case 'balanced':
+				// Сбалансированный: (1+4 vs 5+8), (2+3 vs 6+7)
+				$semi1 = ['team1' => [$p[1], $p[4]], 'team2' => [$p[5], $p[8]]];
+				$semi2 = ['team1' => [$p[2], $p[3]], 'team2' => [$p[6], $p[7]]];
+				break;
+				
+			case 'mix':
+			default:
+				// Микс: (1+8 vs 4+5), (2+7 vs 3+6)
+				$semi1 = ['team1' => [$p[1], $p[8]], 'team2' => [$p[4], $p[5]]];
+				$semi2 = ['team1' => [$p[2], $p[7]], 'team2' => [$p[3], $p[6]]];
+				break;
+		}
+
+		// Полуфинал 1
+		\App\Models\TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'stage' => 'Полуфинал',
+			'match_number' => 1,
+			'team1_player1_id' => $semi1['team1'][0],
+			'team1_player2_id' => $semi1['team1'][1],
+			'team2_player1_id' => $semi1['team2'][0],
+			'team2_player2_id' => $semi1['team2'][1],
+			'status' => 'pending',
+		]);
+
+		// Полуфинал 2
+		\App\Models\TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'stage' => 'Полуфинал',
+			'match_number' => 2,
+			'team1_player1_id' => $semi2['team1'][0],
+			'team1_player2_id' => $semi2['team1'][1],
+			'team2_player1_id' => $semi2['team2'][0],
+			'team2_player2_id' => $semi2['team2'][1],
+			'status' => 'pending',
+		]);
+
+		// Финал (пустой, заполнится после полуфиналов)
+		\App\Models\TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'stage' => 'Финал',
+			'match_number' => 1,
+			'status' => 'pending',
+		]);
+	}
+
+	/**
+	 * Обновить финал после полуфинала
+	 */
+	public function updateFinalAfterSemifinal(\App\Models\TournamentPlayoffMatch $semifinalMatch): void
+	{
+		$tournament = $semifinalMatch->tournament;
+		
+		// Находим финальный матч
+		$finalMatch = $tournament->playoffMatches()
+			->where('stage', 'Финал')
+			->first();
+		
+		if (!$finalMatch) {
+			return;
+		}
+
+		// Определяем победителя полуфинала
+		$winnerId1 = $semifinalMatch->team1_score > $semifinalMatch->team2_score 
+			? [$semifinalMatch->team1_player1_id, $semifinalMatch->team1_player2_id]
+			: [$semifinalMatch->team2_player1_id, $semifinalMatch->team2_player2_id];
+
+		// Обновляем финал в зависимости от номера полуфинала
+		if ($semifinalMatch->match_number === 1) {
+			$finalMatch->update([
+				'team1_player1_id' => $winnerId1[0],
+				'team1_player2_id' => $winnerId1[1],
+			]);
+		} else {
+			$finalMatch->update([
+				'team2_player1_id' => $winnerId1[0],
+				'team2_player2_id' => $winnerId1[1],
+			]);
+		}
 	}
 }

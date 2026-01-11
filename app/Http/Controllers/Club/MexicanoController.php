@@ -153,4 +153,68 @@ class MexicanoController extends Controller
 		
 		return back()->with('error', 'Ошибка генерации раунда');
 	}
+	/**
+	 * Сгенерировать плей-офф
+	 */
+	public function generatePlayoff(Tournament $tournament, MexicanoService $mexicanoService)
+	{
+		if (!$mexicanoService->canGeneratePlayoff($tournament)) {
+			return back()->with('error', 'Невозможно сгенерировать плей-офф. Проверьте что все раунды сыграны.');
+		}
+
+		$result = $mexicanoService->generatePlayoff($tournament);
+
+		if ($result) {
+			return back()->with('success', 'Плей-офф сгенерирован!');
+		}
+
+		return back()->with('error', 'Ошибка генерации плей-офф');
+	}
+
+	/**
+	 * Сохранить счёт плей-офф матча
+	 */
+	public function savePlayoffScore(Request $request, \App\Models\TournamentPlayoffMatch $match, MexicanoService $mexicanoService)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0',
+		]);
+
+		$match->update([
+			'team1_score' => $validated['team1_score'],
+			'team2_score' => $validated['team2_score'],
+			'status' => 'completed',
+		]);
+
+		// Если это полуфинал — обновляем финал
+		if ($match->stage === 'Полуфинал') {
+			$mexicanoService->updateFinalAfterSemifinal($match);
+		}
+
+		return back()->with('success', 'Счёт сохранён!');
+	}
+
+	/**
+	 * Обновить счёт плей-офф матча
+	 */
+	public function updatePlayoffScore(Request $request, \App\Models\TournamentPlayoffMatch $match, MexicanoService $mexicanoService)
+	{
+		$validated = $request->validate([
+			'team1_score' => 'required|integer|min:0',
+			'team2_score' => 'required|integer|min:0',
+		]);
+
+		$match->update([
+			'team1_score' => $validated['team1_score'],
+			'team2_score' => $validated['team2_score'],
+		]);
+
+		// Если это полуфинал — обновляем финал
+		if ($match->stage === 'Полуфинал') {
+			$mexicanoService->updateFinalAfterSemifinal($match);
+		}
+
+		return back()->with('success', 'Счёт обновлён!');
+	}
 }

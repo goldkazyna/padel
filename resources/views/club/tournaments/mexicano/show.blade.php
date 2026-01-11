@@ -38,6 +38,24 @@
             <i class="bi bi-calendar3"></i> Раунды
         </div>
         @include('club.tournaments.mexicano.partials._rounds')
+		{{-- Кнопка генерации плей-офф --}}
+        @if($tournament->hasPlayoff() && $tournament->playoffMatches()->count() === 0)
+            @php $canGeneratePlayoff = app(\App\Services\MexicanoService::class)->canGeneratePlayoff($tournament); @endphp
+            @if($canGeneratePlayoff)
+                <div class="text-center mt-4">
+                    <form action="{{ route('club.mexicano.generatePlayoff', $tournament) }}" method="POST"
+                          onsubmit="return confirm('Сгенерировать плей-офф? Пары будут составлены из топ игроков.')">
+                        @csrf
+                        <button type="submit" class="btn-primary-custom btn-lg">
+                            <i class="bi bi-trophy me-2"></i> Сгенерировать плей-офф
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endif
+        
+        {{-- Плей-офф --}}
+        @include('club.tournaments.mexicano.partials._playoff')
     </div>
 
 @endif
