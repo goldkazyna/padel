@@ -297,7 +297,7 @@ class TelegramMiniAppController extends Controller
     {
         return [
             'id' => $user->id,
-            'name' => $user->full_name,
+            'name' => $user->name,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'rating' => $user->rating,
@@ -305,4 +305,31 @@ class TelegramMiniAppController extends Controller
             'phone' => $user->phone,
         ];
     }
+	/**
+	 * Сохранить телефон пользователя
+	 */
+	public function savePhone(Request $request)
+	{
+		$user = $this->getUser($request);
+
+		if (!$user) {
+			return response()->json(['error' => 'User not found'], 404);
+		}
+
+		$phone = $request->input('phone');
+		
+		if (empty($phone)) {
+			return response()->json(['error' => 'Phone is required'], 400);
+		}
+
+		// Чистим телефон — оставляем только цифры
+		$phone = preg_replace('/[^0-9]/', '', $phone);
+
+		$user->update(['phone' => $phone]);
+
+		return response()->json([
+			'success' => true,
+			'user' => $this->formatUser($user),
+		]);
+	}
 }

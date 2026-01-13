@@ -92,30 +92,28 @@ document.getElementById('back-btn').addEventListener('click', () => {
     if (!isDev) tg.BackButton.hide();
 });
 
+// Auth & Init
 async function init() {
     try {
         console.log('Starting init...');
-        console.log('isDev:', isDev);
-        console.log('initData:', tg.initData ? 'exists' : 'empty');
-        
         const authResult = await api('/auth', 'POST');
         console.log('Auth result:', authResult);
-        
-        // DEBUG: показываем на экране
-        if (authResult.error) {
-            document.getElementById('loading').innerHTML = `
-                <p style="color: red;">Ошибка: ${authResult.error}</p>
-                <p style="font-size: 12px; margin-top: 10px;">isDev: ${isDev}</p>
-                <p style="font-size: 12px;">initData: ${tg.initData ? 'есть' : 'нет'}</p>
-            `;
-            return;
-        }
         
         if (authResult.success) {
             currentUser = authResult.user;
             
+            // Если новый пользователь — запрашиваем телефон
             if (authResult.is_new) {
-                showAlert('Добро пожаловать в Padel Center! 🎾');
+                showScreen('phone-request');
+                setupPhoneRequest();
+                return;
+            }
+            
+            // Если старый пользователь без телефона — тоже запрашиваем
+            if (!currentUser.phone) {
+                showScreen('phone-request');
+                setupPhoneRequest();
+                return;
             }
             
             await loadTournaments();
@@ -125,12 +123,64 @@ async function init() {
         }
     } catch (error) {
         console.error('Init error:', error);
-        // DEBUG: показываем ошибку на экране
-        document.getElementById('loading').innerHTML = `
-            <p style="color: red;">Catch Error: ${error.message}</p>
-            <p style="font-size: 12px; margin-top: 10px;">isDev: ${isDev}</p>
-        `;
+        showAlert('Ошибка подключения к серверу');
     }
+}
+
+// Setup phone request handlers
+function setupPhoneRequest() {
+    document.getElementById('share-phone-btn').addEventListener('click', requestPhone);
+    document.getElementById('skip-phone-btn').addEventListener('click', skipPhone);
+}
+
+// Request phone via Telegram
+function requestPhone() {
+    if (typeof tg.requestContact !== 'function') {
+        showAlert('Обновите Telegram');
+        return;
+    }
+    
+    tg.requestContact((sent) => {
+        if (sent) {
+            showAlert('Спасибо! Номер сохранён');
+            setTimeout(async () => {
+                // Перезагружаем профиль
+                const result = await api('/auth', 'POST');
+                if (result.success) {
+                    currentUser = result.user;
+                }
+                await loadTournaments();
+                showScreen('main');
+            }, 1500);
+        } else {
+            showAlert('Вы отменили отправку');
+        }
+    });
+}
+
+// Save phone to server
+async function savePhone(phone) {
+    try {
+        const result = await api('/profile/phone', 'POST', { phone });
+        
+        if (result.success) {
+            currentUser = result.user;
+            showAlert('Спасибо! Номер сохранён');
+            await loadTournaments();
+            showScreen('main');
+        } else {
+            showAlert(result.error || 'Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Save phone error:', error);
+        showAlert('Ошибка сохранения телефона');
+    }
+}
+
+// Skip phone request
+async function skipPhone() {
+    await loadTournaments();
+    showScreen('main');
 }
 // Load Tournaments
 async function loadTournaments() {

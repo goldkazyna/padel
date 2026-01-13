@@ -444,3 +444,38 @@ body {
     background: rgba(234, 179, 8, 0.2);
     color: #eab308;
 }
+/* Phone Request Screen */
+.phone-request-card {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.phone-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.phone-request-card h2 {
+    margin-bottom: 12px;
+    font-size: 24px;
+}
+
+.phone-request-card p {
+    color: var(--tg-theme-hint-color);
+    margin-bottom: 32px;
+    line-height: 1.5;
+}
+
+.skip-btn {
+    background: none;
+    border: none;
+    color: var(--tg-theme-hint-color);
+    font-size: 14px;
+    margin-top: 16px;
+    cursor: pointer;
+    padding: 12px;
+}
+
+.skip-btn:hover {
+    color: var(--tg-theme-text-color);
+}

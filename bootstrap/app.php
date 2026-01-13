@@ -14,12 +14,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         __DIR__.'/../app/Console/Commands',
     ])
-    ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
+    ->withMiddleware(function (Middleware $middleware) {
+		$middleware->validateCsrfTokens(except: [
+			'api/telegram/webhook',
+		]);
+		
+		$middleware->alias([
+			'role' => \App\Http\Middleware\RoleMiddleware::class,
 			'telegram.miniapp' => \App\Http\Middleware\TelegramMiniAppAuth::class,
-        ]);
-    })
+		]);
+	})
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
