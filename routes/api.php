@@ -2,6 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TelegramMiniAppController;
+use App\Http\Controllers\Api\TelegramWebhookController;
+
+/*
+|--------------------------------------------------------------------------
+| Telegram Bot Webhook (без middleware!)
+|--------------------------------------------------------------------------
+*/
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
 /*
 |--------------------------------------------------------------------------
@@ -15,7 +23,5 @@ Route::prefix('tg')->middleware('telegram.miniapp')->group(function () {
     Route::get('/tournaments/{tournament}', [TelegramMiniAppController::class, 'tournamentShow']);
     Route::post('/tournaments/{tournament}/register', [TelegramMiniAppController::class, 'register']);
     Route::post('/tournaments/{tournament}/cancel', [TelegramMiniAppController::class, 'cancelRegistration']);
-	Route::post('/profile/phone', [TelegramMiniAppController::class, 'savePhone']);
-	// Telegram Bot Webhook (без авторизации!)
-	Route::post('/telegram/webhook', [App\Http\Controllers\Api\TelegramWebhookController::class, 'handle']);
+    Route::post('/profile/phone', [TelegramMiniAppController::class, 'savePhone']);
 });
