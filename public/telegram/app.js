@@ -92,23 +92,17 @@ document.getElementById('back-btn').addEventListener('click', () => {
     if (!isDev) tg.BackButton.hide();
 });
 
-// Auth & Init
-// Auth & Init
 async function init() {
     try {
-        console.log('Starting init...');
         const authResult = await api('/auth', 'POST');
-        console.log('Auth result:', authResult);
         
         if (authResult.success) {
             currentUser = authResult.user;
-            console.log('User:', currentUser);
-            console.log('is_new:', authResult.is_new);
-            console.log('phone:', currentUser.phone);
             
-            // Если новый пользователь или нет телефона — запрашиваем
+            // ОТЛАДКА
+            showAlert('is_new: ' + authResult.is_new + ', phone: ' + currentUser.phone);
+            
             if (authResult.is_new || !currentUser.phone || currentUser.phone === '' || currentUser.phone === null) {
-                console.log('Showing phone request screen');
                 showScreen('phone-request');
                 setupPhoneRequest();
                 return;
@@ -117,11 +111,11 @@ async function init() {
             await loadTournaments();
             showScreen('main');
         } else {
-            showAlert('Ошибка авторизации: ' + (authResult.error || 'Unknown error'));
+            showAlert('Ошибка: ' + (authResult.error || 'Unknown'));
         }
     } catch (error) {
         console.error('Init error:', error);
-        showAlert('Ошибка подключения к серверу');
+        showAlert('Ошибка: ' + error.message);
     }
 }
 
