@@ -1,0 +1,191 @@
+/* ============================================
+   BASE.CSS - Переменные, сброс, общие стили
+   ============================================ */
+
+/* ------------ Переменные ------------ */
+:root {
+    --primary: #22c55e;
+    --primary-light: #dcfce7;
+    --primary-dark: #16a34a;
+    
+    --bg: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-card: #ffffff;
+    
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #22c55e;
+    
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    
+    --radius: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+    
+    --nav-height: 80px;
+}
+
+/* ------------ Сброс ------------ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: var(--nav-height);
+}
+
+/* ------------ Экраны ------------ */
+.screen {
+    display: none;
+    min-height: 100vh;
+    background: var(--bg-secondary);
+}
+
+.screen.active {
+    display: block;
+}
+
+.screen-header {
+    background: var(--bg);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.screen-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.screen-content {
+    padding: 16px;
+}
+
+/* ------------ Секции ------------ */
+.section {
+    margin-bottom: 24px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.section-link {
+    font-size: 14px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+/* ------------ Утилиты ------------ */
+.icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.positive { color: var(--primary); }
+.negative { color: var(--danger); }
+
+.hidden { display: none !important; }
+
+/* ------------ Загрузка ------------ */
+#loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#loading p {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ------------ Запрос телефона ------------ */
+#phone-request {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: var(--bg);
+}
+
+.phone-request-card {
+    text-align: center;
+    max-width: 320px;
+}
+
+.phone-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.phone-request-card h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+}
+
+.phone-request-card p {
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+    line-height: 1.6;
+}
+
+.skip-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 16px;
+    cursor: pointer;
+    padding: 12px;
+}

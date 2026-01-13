@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\TelegramWebhookController;
 |--------------------------------------------------------------------------
 */
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
-
 /*
 |--------------------------------------------------------------------------
 | Telegram Mini App API
@@ -24,4 +23,5 @@ Route::prefix('tg')->middleware('telegram.miniapp')->group(function () {
     Route::post('/tournaments/{tournament}/register', [TelegramMiniAppController::class, 'register']);
     Route::post('/tournaments/{tournament}/cancel', [TelegramMiniAppController::class, 'cancelRegistration']);
     Route::post('/profile/phone', [TelegramMiniAppController::class, 'savePhone']);
+	Route::get('/rating', [TelegramMiniAppController::class, 'rating']);
 });

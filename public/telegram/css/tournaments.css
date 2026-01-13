@@ -1,0 +1,247 @@
+/* ============================================
+   TOURNAMENTS.CSS - Страница турниров
+   ============================================ */
+
+/* ------------ Список турниров ------------ */
+.tournaments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ------------ Карточка турнира ------------ */
+.tournament-card {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.tournament-card:active {
+    transform: scale(0.98);
+}
+
+.tournament-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.tournament-type {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tournament-type.americano {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.tournament-type.mexicano {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.tournament-type.team {
+    background: #f3e8ff;
+    color: #9333ea;
+}
+
+.tournament-type.classic {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.tournament-price {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tournament-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.tournament-club {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.tournament-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tournament-detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.tournament-detail .icon {
+    color: var(--text-muted);
+    width: 16px;
+    height: 16px;
+}
+
+.tournament-card-footer {
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+}
+
+.tournament-status {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.tournament-status.registered {
+    color: var(--primary);
+}
+
+.tournament-status.pending {
+    color: var(--warning);
+}
+
+/* ------------ Детали турнира ------------ */
+.tournament-detail-card {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.tournament-detail-header {
+    margin-bottom: 16px;
+}
+
+.tournament-detail-type {
+    margin-bottom: 8px;
+}
+
+.tournament-detail-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.tournament-detail-club {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.tournament-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.tournament-info-item {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+}
+
+.tournament-info-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tournament-info-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* ------------ Участники ------------ */
+.participants-section {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.participants-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+}
+
+.participant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.participant-item:last-child {
+    border-bottom: none;
+}
+
+.participant-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.participant-level {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ------------ Кнопка регистрации ------------ */
+.btn-register {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-register:active {
+    background: var(--primary-dark);
+}
+
+.btn-register:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    width: 100%;
+    padding: 14px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}

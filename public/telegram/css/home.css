@@ -1,0 +1,210 @@
+/* ============================================
+   HOME.CSS - Главная страница
+   ============================================ */
+
+/* ------------ Приветствие ------------ */
+.welcome-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.welcome-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.welcome-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* ------------ Быстрая статистика ------------ */
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.quick-stat {
+    background: var(--bg);
+    padding: 16px;
+    border-radius: var(--radius);
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.quick-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.quick-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* ------------ Ближайший турнир ------------ */
+.next-tournament-card {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.next-tournament-card:active {
+    transform: scale(0.98);
+}
+
+.next-tournament-date {
+    background: var(--primary-light);
+    color: var(--primary);
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.date-day {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.date-month {
+    font-size: 12px;
+    text-transform: lowercase;
+}
+
+.next-tournament-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.next-tournament-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+
+.next-tournament-club {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.next-tournament-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.next-tournament-status {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.next-tournament-status.registered {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.next-tournament-status .icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* ------------ Список матчей ------------ */
+.matches-list {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.match-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.match-item:last-child {
+    border-bottom: none;
+}
+
+.match-result {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.match-item.win .match-result {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.match-item.loss .match-result {
+    background: #fef2f2;
+    color: var(--danger);
+}
+
+.match-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.match-teams {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.match-tournament {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.match-score {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    flex-shrink: 0;
+}
