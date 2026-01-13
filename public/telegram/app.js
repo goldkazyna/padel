@@ -93,6 +93,7 @@ document.getElementById('back-btn').addEventListener('click', () => {
 });
 
 // Auth & Init
+// Auth & Init
 async function init() {
     try {
         console.log('Starting init...');
@@ -101,16 +102,13 @@ async function init() {
         
         if (authResult.success) {
             currentUser = authResult.user;
+            console.log('User:', currentUser);
+            console.log('is_new:', authResult.is_new);
+            console.log('phone:', currentUser.phone);
             
-            // Если новый пользователь — запрашиваем телефон
-            if (authResult.is_new) {
-                showScreen('phone-request');
-                setupPhoneRequest();
-                return;
-            }
-            
-            // Если старый пользователь без телефона — тоже запрашиваем
-            if (!currentUser.phone) {
+            // Если новый пользователь или нет телефона — запрашиваем
+            if (authResult.is_new || !currentUser.phone || currentUser.phone === '' || currentUser.phone === null) {
+                console.log('Showing phone request screen');
                 showScreen('phone-request');
                 setupPhoneRequest();
                 return;
