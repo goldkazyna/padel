@@ -114,17 +114,20 @@ body {
 
 .positive { color: var(--primary); }
 .negative { color: var(--danger); }
-
 .hidden { display: none !important; }
 
 /* ------------ Загрузка ------------ */
-#loading {
-    display: flex;
+#loading-screen {
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     background: var(--bg);
+}
+
+#loading-screen.active {
+    display: flex;
 }
 
 .loader {
@@ -140,21 +143,25 @@ body {
     to { transform: rotate(360deg); }
 }
 
-#loading p {
+#loading-screen p {
     margin-top: 16px;
     color: var(--text-secondary);
     font-size: 14px;
 }
 
 /* ------------ Запрос телефона ------------ */
-#phone-request {
-    display: flex;
+#phone-request-screen {
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     padding: 24px;
     background: var(--bg);
+}
+
+#phone-request-screen.active {
+    display: flex;
 }
 
 .phone-request-card {
