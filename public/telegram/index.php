@@ -193,7 +193,18 @@
         </nav>
 
     </div>
-
+	<!-- Модалка редактирования имени -->
+	<div id="edit-name-modal" class="modal">
+		<div class="modal-backdrop" onclick="closeEditName()"></div>
+		<div class="modal-content">
+			<h3>Изменить имя</h3>
+			<input type="text" id="edit-name-input" class="modal-input" placeholder="Введите имя">
+			<div class="modal-buttons">
+				<button class="btn btn-secondary" onclick="closeEditName()">Отмена</button>
+				<button class="btn btn-primary" onclick="submitEditName()">Сохранить</button>
+			</div>
+		</div>
+	</div>
     <!-- JS -->
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>

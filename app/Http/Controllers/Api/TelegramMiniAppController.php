@@ -380,9 +380,28 @@ class TelegramMiniAppController extends Controller
 
 
 	/**
-	 * Также добавь роут в routes/api.php в группу tg:
-	 * 
-	 * Route::get('/rating', [TelegramMiniAppController::class, 'rating']);
+	 * Сохранить имя пользователя
 	 */
+	public function saveName(Request $request)
+	{
+		$user = $this->getUser($request);
+
+		if (!$user) {
+			return response()->json(['error' => 'User not found'], 404);
+		}
+
+		$name = $request->input('name');
+		
+		if (empty($name)) {
+			return response()->json(['error' => 'Name is required'], 400);
+		}
+
+		$user->update(['name' => trim($name)]);
+
+		return response()->json([
+			'success' => true,
+			'user' => $this->formatUser($user),
+		]);
+	}
 
 }

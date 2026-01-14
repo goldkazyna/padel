@@ -95,3 +95,9 @@ async function apiRating() {
 async function apiSavePhone(phone) {
     return api('/profile/phone', 'POST', { phone });
 }
+/**
+ * Сохранить имя
+ */
+async function apiSaveName(name) {
+    return api('/profile/name', 'POST', { name });
+}
