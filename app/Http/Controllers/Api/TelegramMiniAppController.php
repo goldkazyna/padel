@@ -414,5 +414,31 @@ class TelegramMiniAppController extends Controller
 			'user' => $this->formatUser($user),
 		]);
 	}
+	
+	/**
+	 * Проверить статус регистрации
+	 */
+	public function registrationStatus(Tournament $tournament, Request $request)
+	{
+		$user = $this->getUser($request);
+		
+		\Log::info('Polling status', [
+			'user_id' => $user?->id,
+			'user_name' => $user?->name,
+			'tournament_id' => $tournament->id,
+		]);
+		
+		if (!$user) {
+			return response()->json(['status' => null]);
+		}
+		
+		$registration = $tournament->participants()
+			->where('user_id', $user->id)
+			->first();
+		
+		return response()->json([
+			'status' => $registration?->pivot?->status,
+		]);
+	}
 
 }

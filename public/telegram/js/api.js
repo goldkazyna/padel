@@ -107,3 +107,9 @@ async function apiSaveName(name) {
 async function apiRating(page = 1) {
     return api(`/rating?page=${page}`);
 }
+/**
+ * Проверить статус регистрации
+ */
+async function apiCheckStatus(tournamentId) {
+    return api(`/tournaments/${tournamentId}/status`);
+}

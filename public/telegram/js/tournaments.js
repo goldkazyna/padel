@@ -5,6 +5,7 @@
 let allTournaments = [];
 let currentFilter = 'all';
 
+let statusPolling = null;
 /**
  * Загрузить турниры
  */
@@ -178,15 +179,27 @@ function renderTournamentDetail(data) {
     
     let actionButton = '';
     if (is_registered) {
-        const statusText = registration_status === 'pending' ? '⏳ Ваша заявка на модерации' : '✓ Вы зарегистрированы';
-        actionButton = `
-            <div class="alert alert-${registration_status === 'pending' ? 'warning' : 'success'}">${statusText}</div>
-            <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
-        `;
+        if (registration_status === 'pending') {
+            actionButton = `
+                <div class="alert alert-warning">⏳ Ваша заявка на модерации</div>
+                <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+            `;
+            // Запускаем polling
+            startStatusPolling(tournament.id);
+        } else {
+            actionButton = `
+                <div class="alert alert-success">✓ Вы зарегистрированы</div>
+                <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+            `;
+            // Останавливаем polling если был
+            stopStatusPolling();
+        }
     } else if (can_register) {
         actionButton = `<button class="btn-register" onclick="registerTournament(${tournament.id})">Записаться на турнир</button>`;
+        stopStatusPolling();
     } else {
         actionButton = `<button class="btn-register" disabled>Регистрация недоступна</button>`;
+        stopStatusPolling();
     }
     
     container.innerHTML = `
@@ -277,5 +290,37 @@ function cancelRegistration(id) {
  * Назад из деталей турнира
  */
 function backFromTournament() {
+    stopStatusPolling();
     navigateTo('tournaments');
+}
+/**
+ * Запустить polling статуса
+ */
+function startStatusPolling(tournamentId) {
+    // Останавливаем предыдущий если был
+    stopStatusPolling();
+    
+    statusPolling = setInterval(async () => {
+        const result = await apiCheckStatus(tournamentId);
+        
+        if (result.status === 'registered') {
+            // Статус изменился — обновляем и останавливаем polling
+            stopStatusPolling();
+            showAlert('🎉 Ваша заявка одобрена!');
+            openTournament(tournamentId);
+        } else if (result.status !== 'pending') {
+            // Статус не pending — останавливаем polling
+            stopStatusPolling();
+        }
+    }, 30000); // каждые 30 секунд
+}
+
+/**
+ * Остановить polling
+ */
+function stopStatusPolling() {
+    if (statusPolling) {
+        clearInterval(statusPolling);
+        statusPolling = null;
+    }
 }
