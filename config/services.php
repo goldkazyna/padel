@@ -38,6 +38,7 @@ return [
 	'telegram' => [
 		'bot_token' => env('TELEGRAM_BOT_TOKEN'),
 		'bot_username' => 'add_padel_tournament_bot',
+		'channel_id' => env('TELEGRAM_CHANNEL_ID'),
 	],
 
 ];
