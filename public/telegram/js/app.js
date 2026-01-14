@@ -15,7 +15,7 @@ async function initApp() {
         tg.ready();
         tg.expand();
 		tg.disableVerticalSwipes();
-		tg.setHeaderColor('#22c55e');  // или '#22c55e' для зелёного
+		tg.setHeaderColor('#ffffff');  // или '#22c55e' для зелёного
 		tg.setBackgroundColor('#ffffff');
     }
    
