@@ -64,7 +64,7 @@ body {
 /* Центрированные экраны */
 #loading-screen.active,
 #phone-request-screen.active {
-    display: flex;
+    display: flex !important;
     justify-content: center;
     align-items: center;
     flex-direction: column;
