@@ -45,13 +45,22 @@
                 <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
             </div>
             <div class="tournament-actions">
-                <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
-                    <i class="bi bi-eye"></i>
-                </a>
-                <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                @if($tournament->status === 'draft')
+				<a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
+					<i class="bi bi-eye"></i>
+				</a>
+				<a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
+					<i class="bi bi-pencil"></i>
+				</a>
+				@if($tournament->status === 'open')
+					<form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
+						  onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
+						@csrf
+						<button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
+							<i class="bi bi-telegram"></i>
+						</button>
+					</form>
+				@endif
+				@if($tournament->status === 'draft')
                     <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
                           onsubmit="return confirm('Удалить турнир?')">
                         @csrf
@@ -224,6 +233,15 @@
         order: 4;
         margin-left: auto;
     }
+}
+.btn-telegram {
+    color: #229ED9;
+    border-color: #229ED9;
+}
+
+.btn-telegram:hover {
+    background: #229ED9;
+    color: white;
 }
 </style>
 @endsection

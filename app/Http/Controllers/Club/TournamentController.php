@@ -535,5 +535,25 @@ class TournamentController extends Controller
 		
 		return back()->with('success', "Участник заменён на {$newUser->full_name}!");
 	}
+	/**
+	 * Опубликовать турнир в Telegram канал
+	 */
+	public function publishToChannel(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$service = new \App\Services\TelegramChannelService();
+		$result = $service->postTournament($tournament);
+
+		if ($result) {
+			return back()->with('success', 'Турнир опубликован в канал!');
+		}
+
+		return back()->with('error', 'Ошибка публикации в канал');
+	}
 	
 }
