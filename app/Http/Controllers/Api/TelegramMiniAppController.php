@@ -342,24 +342,32 @@ class TelegramMiniAppController extends Controller
 	public function rating(Request $request)
 	{
 		$user = $this->getUser($request);
+		$page = (int) $request->input('page', 1);
+		$perPage = 20;
 		
-		// Получаем топ-50 игроков по рейтингу
+		// Общее количество игроков
+		$total = User::where('role', 'player')->count();
+		$totalPages = ceil($total / $perPage);
+		
+		// Получаем игроков для текущей страницы
 		$players = User::where('role', 'player')
 			->orderBy('rating', 'desc')
-			->limit(50)
+			->offset(($page - 1) * $perPage)
+			->limit($perPage)
 			->get()
-			->map(function ($player, $index) {
+			->map(function ($player, $index) use ($page, $perPage) {
 				return [
 					'id' => $player->id,
 					'name' => $player->name ?? $player->first_name,
 					'rating' => $player->rating,
 					'level' => $player->level,
-					'position' => $index + 1,
+					'position' => ($page - 1) * $perPage + $index + 1,
 				];
 			});
 		
 		// Находим позицию текущего пользователя
 		$myRank = null;
+		$myPage = null;
 		$myChange = 0;
 		
 		if ($user) {
@@ -367,14 +375,17 @@ class TelegramMiniAppController extends Controller
 				->where('rating', '>', $user->rating)
 				->count() + 1;
 			
-			// TODO: посчитать изменение рейтинга за последний турнир
-			// $myChange = ...
+			$myPage = ceil($myRank / $perPage);
 		}
 		
 		return response()->json([
 			'players' => $players,
 			'my_rank' => $myRank,
+			'my_page' => $myPage,
 			'my_change' => $myChange,
+			'page' => $page,
+			'total_pages' => $totalPages,
+			'total' => $total,
 		]);
 	}
 

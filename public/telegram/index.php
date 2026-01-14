@@ -128,6 +128,10 @@
                 <div id="ranking-list">
                     <!-- Рендерится через JS -->
                 </div>
+				<!-- Пагинация -->
+				<div id="rating-pagination">
+					<!-- Рендерится через JS -->
+				</div>
             </div>
         </div>
 

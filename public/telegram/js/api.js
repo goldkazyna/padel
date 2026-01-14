@@ -101,3 +101,9 @@ async function apiSavePhone(phone) {
 async function apiSaveName(name) {
     return api('/profile/name', 'POST', { name });
 }
+/**
+ * Получить рейтинг
+ */
+async function apiRating(page = 1) {
+    return api(`/rating?page=${page}`);
+}
