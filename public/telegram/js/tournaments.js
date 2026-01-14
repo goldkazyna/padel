@@ -181,17 +181,15 @@ function renderTournamentDetail(data) {
     if (is_registered) {
         if (registration_status === 'pending') {
             actionButton = `
-                <div class="alert alert-warning">⏳ Ваша заявка на модерации</div>
+                <div class="alert alert-warning">⏳ Ваша заявка на модерации (polling started)</div>
                 <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
             `;
-            // Запускаем polling
             startStatusPolling(tournament.id);
         } else {
             actionButton = `
-                <div class="alert alert-success">✓ Вы зарегистрированы</div>
+                <div class="alert alert-success">✓ Вы зарегистрированы (status: ${registration_status})</div>
                 <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
             `;
-            // Останавливаем polling если был
             stopStatusPolling();
         }
     } else if (can_register) {
