@@ -181,7 +181,7 @@ function renderTournamentDetail(data) {
     if (is_registered) {
         if (registration_status === 'pending') {
             actionButton = `
-                <div class="alert alert-warning">⏳ Ваша заявка на модерации (polling started)</div>
+                <div class="alert alert-warning">⏳ Ваша заявка на модерации</div>
                 <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
             `;
             startStatusPolling(tournament.id);
