@@ -118,13 +118,17 @@ body {
 .hidden { display: none !important; }
 
 /* ------------ Загрузка ------------ */
-#loading {
+#loading-screen {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     background: var(--bg);
+}
+
+#loading-screen.active {
+    display: flex;
 }
 
 .loader {
@@ -147,7 +151,7 @@ body {
 }
 
 /* ------------ Запрос телефона ------------ */
-#phone-request {
+#phone-request-screen {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -155,6 +159,10 @@ body {
     min-height: 100vh;
     padding: 24px;
     background: var(--bg);
+}
+
+#phone-request-screen.active {
+    display: flex;
 }
 
 .phone-request-card {
