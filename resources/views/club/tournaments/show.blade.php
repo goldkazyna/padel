@@ -316,7 +316,7 @@ function setupPlayerSearch(inputId, resultsId, selectedId, hiddenId) {
                         <div class="search-result-item" data-id="${p.id}" data-name="${p.first_name} ${p.last_name}">
                             <div><strong>${p.first_name} ${p.last_name}</strong></div>
                             <div style="font-size: 0.8rem; color: #9ca3af;">
-                                ${p.email} | Рейтинг: ${p.rating} | Уровень: ${p.level}
+                                ${p.phone} | Рейтинг: ${p.rating} | Уровень: ${p.level}
                             </div>
                         </div>
                     `).join('');

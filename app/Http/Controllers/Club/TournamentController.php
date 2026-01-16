@@ -275,12 +275,13 @@ class TournamentController extends Controller
 			return back()->with('error', 'Турнир уже заполнен');
 		}
 
-		// Берём игроков которые ещё не в турнире
+		// Берём только ТЕСТОВЫХ игроков (email: 1@gmail.com, 2@gmail.com, ...)
 		$existingIds = $tournament->participants()->pluck('users.id')->toArray();
-		
+
 		$players = \App\Models\User::where('role', 'player')
 			->whereNotIn('id', $existingIds)
-			->orderBy('rating', 'desc')
+			->whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
+			->inRandomOrder()
 			->limit($needed)
 			->get();
 

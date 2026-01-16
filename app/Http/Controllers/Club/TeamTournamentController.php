@@ -87,53 +87,49 @@ class TeamTournamentController extends Controller
      * Добавить тестовые пары
      */
     public function addTestTeams(Tournament $tournament)
-    {
-        if ($tournament->status !== 'open') {
-            return back()->with('error', 'Турнир не открыт для регистрации');
-        }
+	{
+		if ($tournament->status !== 'open') {
+			return back()->with('error', 'Турнир не открыт для регистрации');
+		}
 
-        $maxTeams = $tournament->max_participants / 2;
-        $currentTeams = $tournament->teams()->count();
-        $neededTeams = $maxTeams - $currentTeams;
+		// Получаем игроков которые УЖЕ В ПАРЕ
+		$playersInTeams = $tournament->teams()
+			->get()
+			->flatMap(fn($team) => [$team->player1_id, $team->player2_id])
+			->toArray();
 
-        if ($neededTeams <= 0) {
-            return back()->with('error', 'Турнир уже заполнен');
-        }
+		// Берём ЗАРЕГИСТРИРОВАННЫХ участников, которые ещё НЕ в паре
+		$availablePlayers = $tournament->participants()
+			->whereNotIn('users.id', $playersInTeams)
+			->inRandomOrder()
+			->get();
 
-        // Получаем игроков которые ещё не в турнире
-        $existingPlayerIds = $tournament->teams()
-            ->get()
-            ->flatMap(fn($team) => [$team->player1_id, $team->player2_id])
-            ->toArray();
+		if ($availablePlayers->count() < 2) {
+			return back()->with('error', 'Недостаточно свободных участников для создания пар');
+		}
 
-        $availablePlayers = User::where('role', 'player')
-            ->whereNotIn('id', $existingPlayerIds)
-            ->orderBy('rating', 'desc')
-            ->limit($neededTeams * 2)
-            ->get();
+		$teamsAdded = 0;
+		$maxTeams = $tournament->max_participants / 2;
+		$currentTeams = $tournament->teams()->count();
 
-        if ($availablePlayers->count() < 2) {
-            return back()->with('error', 'Недостаточно свободных игроков');
-        }
+		for ($i = 0; $i < $availablePlayers->count() - 1; $i += 2) {
+			if ($currentTeams + $teamsAdded >= $maxTeams) break;
 
-        $teamsAdded = 0;
-        for ($i = 0; $i < $availablePlayers->count() - 1; $i += 2) {
-            $player1 = $availablePlayers[$i];
-            $player2 = $availablePlayers[$i + 1];
+			$player1 = $availablePlayers[$i];
+			$player2 = $availablePlayers[$i + 1];
 
-            TournamentTeam::create([
-                'tournament_id' => $tournament->id,
-                'player1_id' => $player1->id,
-                'player2_id' => $player2->id,
-                'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
-            ]);
+			TournamentTeam::create([
+				'tournament_id' => $tournament->id,
+				'player1_id' => $player1->id,
+				'player2_id' => $player2->id,
+				'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
+			]);
 
-            $teamsAdded++;
-            if ($teamsAdded >= $neededTeams) break;
-        }
+			$teamsAdded++;
+		}
 
-        return back()->with('success', "Добавлено {$teamsAdded} тестовых пар!");
-    }
+		return back()->with('success', "Создано {$teamsAdded} пар из зарегистрированных участников!");
+	}
 
     /**
      * Поиск игрока для добавления в пару
@@ -147,13 +143,13 @@ class TeamTournamentController extends Controller
         }
 
         $players = User::where('role', 'player')
-            ->where(function($q) use ($query) {
-                $q->where('email', 'like', "%{$query}%")
-                  ->orWhere('first_name', 'like', "%{$query}%")
-                  ->orWhere('last_name', 'like', "%{$query}%");
-            })
-            ->limit(10)
-            ->get(['id', 'first_name', 'last_name', 'email', 'rating', 'level']);
+			->where(function($q) use ($query) {
+				$q->where('phone', 'like', "%{$query}%")
+				  ->orWhere('first_name', 'like', "%{$query}%")
+				  ->orWhere('last_name', 'like', "%{$query}%");
+			})
+			->limit(10)
+			->get(['id', 'first_name', 'last_name', 'phone', 'rating', 'level']);
 
         return response()->json($players);
     }
