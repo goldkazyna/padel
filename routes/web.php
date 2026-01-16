@@ -161,6 +161,8 @@ Route::middleware('auth')->group(function () {
 			->name('tournaments.participants.add');
 		Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
 			->name('tournaments.participants.replace');
+		Route::post('/tournaments/{tournament}/cancel', [ClubTournamentController::class, 'cancel'])
+		->name('tournaments.cancel');	
         /*
         |----------------------------------------------------------------------
         | Турниры - Управление

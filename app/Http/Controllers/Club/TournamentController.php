@@ -555,5 +555,19 @@ class TournamentController extends Controller
 
 		return back()->with('error', 'Ошибка публикации в канал');
 	}
+	/**
+	 * Отменить турнир
+	 */
+	public function cancel(Tournament $tournament)
+	{
+		// Нельзя отменить завершённый турнир
+		if ($tournament->status === 'completed') {
+			return back()->with('error', 'Нельзя отменить завершённый турнир');
+		}
+
+		$tournament->update(['status' => 'cancelled']);
+
+		return back()->with('success', 'Турнир отменён');
+	}
 	
 }

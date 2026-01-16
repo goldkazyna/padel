@@ -335,5 +335,9 @@ class Tournament extends Model
 		}
 		return "Корт {$courtNumber}";
 	}
+	public function isCancelled(): bool
+	{
+		return $this->status === 'cancelled';
+	}
 
 }
