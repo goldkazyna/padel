@@ -61,6 +61,26 @@ Route::get('/', function () {
             }
             echo "</pre>";
         })->name('tournaments.previewRatingMexicano');
+				// Превью рейтинга Team
+		Route::get('/tournaments/{tournament}/preview-rating-team', function (\App\Models\Tournament $tournament) {
+			$service = app(\App\Services\TeamTournamentService::class);
+			$preview = $service->previewRatingChanges($tournament);
+			
+			echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
+			echo "<b style='color:#22c55e;'>=== Групповой + Плей-офф: Превью рейтинга ===</b>\n\n";
+			foreach ($preview as $playerId => $data) {
+				$diff = $data['current_rating'] - $data['rating_before'];
+				$sign = $diff >= 0 ? '+' : '';
+				$color = $diff >= 0 ? '#22c55e' : '#ef4444';
+				echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
+				if (!empty($data['matches'])) {
+					echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
+				}
+				echo "\n";
+			}
+			echo "</pre>";
+		})->name('tournaments.previewRatingTeam');
+        /*
 /*
 |--------------------------------------------------------------------------
 | Авторизованные пользователи
@@ -191,26 +211,7 @@ Route::middleware('auth')->group(function () {
         
 		
 		
-		// Превью рейтинга Team
-		Route::get('/tournaments/{tournament}/preview-rating-team', function (\App\Models\Tournament $tournament) {
-			$service = app(\App\Services\TeamTournamentService::class);
-			$preview = $service->previewRatingChanges($tournament);
-			
-			echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
-			echo "<b style='color:#22c55e;'>=== Групповой + Плей-офф: Превью рейтинга ===</b>\n\n";
-			foreach ($preview as $playerId => $data) {
-				$diff = $data['current_rating'] - $data['rating_before'];
-				$sign = $diff >= 0 ? '+' : '';
-				$color = $diff >= 0 ? '#22c55e' : '#ef4444';
-				echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
-				if (!empty($data['matches'])) {
-					echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
-				}
-				echo "\n";
-			}
-			echo "</pre>";
-		})->name('tournaments.previewRatingTeam');
-        /*
+/*
 		|----------------------------------------------------------------------
 		| Групповой + Плей-офф (Team)
 		|----------------------------------------------------------------------

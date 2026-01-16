@@ -251,27 +251,20 @@
 					</div>
 					<div id="teamFields" style="display: none;">
 						<div class="row">
-							<div class="col-md-4 mb-4">
+							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
 								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
 									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
 									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
 								</select>
 							</div>
-							<div class="col-md-4 mb-4">
+							<div class="col-md-6 mb-4">
 								<label class="form-label">Выходят из группы *</label>
 								<select name="teams_advance" class="form-select">
 									<option value="1" {{ old('teams_advance') == 1 ? 'selected' : '' }}>1 пара</option>
 									<option value="2" {{ old('teams_advance', 2) == 2 ? 'selected' : '' }}>2 пары</option>
 									<option value="3" {{ old('teams_advance') == 3 ? 'selected' : '' }}>3 пары</option>
-								</select>
-							</div>
-							<div class="col-md-4 mb-4">
-								<label class="form-label">Очки за матч *</label>
-								<select name="points_to_win" class="form-select">
-									<option value="24" {{ old('points_to_win', 24) == 24 ? 'selected' : '' }}>до 24</option>
-									<option value="32" {{ old('points_to_win') == 32 ? 'selected' : '' }}>до 32</option>
-									<option value="21" {{ old('points_to_win') == 21 ? 'selected' : '' }}>до 21</option>
+									<option value="4" {{ old('teams_advance') == 4 ? 'selected' : '' }}>4 пары</option>
 								</select>
 							</div>
 						</div>

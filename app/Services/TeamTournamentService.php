@@ -181,14 +181,14 @@ class TeamTournamentService
             $standing2->decrement('points_against', $match->team1_score);
 
             if ($match->team1_score > $match->team2_score) {
-                $standing1->decrement('won');
-                $standing1->decrement('points', 2);
-                $standing2->decrement('lost');
-            } elseif ($match->team2_score > $match->team1_score) {
-                $standing2->decrement('won');
-                $standing2->decrement('points', 2);
-                $standing1->decrement('lost');
-            }
+				$standing1->decrement('won');
+				$standing1->decrement('points', 1);
+				$standing2->decrement('lost');
+			} else {
+				$standing2->decrement('won');
+				$standing2->decrement('points', 1);
+				$standing1->decrement('lost');
+			}
         }
     }
 
@@ -213,14 +213,14 @@ class TeamTournamentService
             $standing2->increment('points_against', $match->team1_score);
 
             if ($match->team1_score > $match->team2_score) {
-                $standing1->increment('won');
-                $standing1->increment('points', 2);
-                $standing2->increment('lost');
-            } elseif ($match->team2_score > $match->team1_score) {
-                $standing2->increment('won');
-                $standing2->increment('points', 2);
-                $standing1->increment('lost');
-            }
+				$standing1->increment('won');
+				$standing1->increment('points', 1);
+				$standing2->increment('lost');
+			} else {
+				$standing2->increment('won');
+				$standing2->increment('points', 1);
+				$standing1->increment('lost');
+			}
         }
     }
 

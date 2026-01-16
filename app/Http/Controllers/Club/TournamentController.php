@@ -68,7 +68,7 @@ class TournamentController extends Controller
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
-			'teams_advance' => 'nullable|integer|in:1,2,3',
+			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
