@@ -64,28 +64,33 @@
                                 <div class="round-block mb-2">
                                     <div class="round-label">Тур {{ $roundNumber }}</div>
                                     @foreach($matches as $match)
-                                        <div class="group-match-card" data-match-id="{{ $match->id }}">
-                                            <div class="match-team-name {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
-                                                {{ $match->team1->name }}
-                                            </div>
-                                            <div class="match-score-block">
-                                                @if($match->isCompleted())
-                                                    <span class="match-score">{{ $match->team1_score }} : {{ $match->team2_score }}</span>
-                                                    <button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editGroupMatchModal{{ $match->id }}">
-                                                        <i class="bi bi-pencil"></i>
-                                                    </button>
-                                                @elseif($match->status === 'in_progress')
-                                                    <button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#groupMatchModal{{ $match->id }}">
-                                                        <i class="bi bi-pencil-square"></i> Счёт
-                                                    </button>
-                                                @else
-                                                    <span class="text-secondary">—</span>
-                                                @endif
-                                            </div>
-                                            <div class="match-team-name {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
-                                                {{ $match->team2->name }}
-                                            </div>
-                                        </div>
+										<div class="group-match-card" data-match-id="{{ $match->id }}">
+											@if($match->court_number)
+												<div class="match-court-header">
+													<i class="bi bi-geo-alt"></i> {{ $tournament->getCourtName($match->court_number) }}
+												</div>
+											@endif
+											<div class="match-team-name {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
+												{{ $match->team1->name }}
+											</div>
+											<div class="match-score-block">
+												@if($match->isCompleted())
+													<span class="match-score">{{ $match->team1_score }} : {{ $match->team2_score }}</span>
+													<button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editGroupMatchModal{{ $match->id }}">
+														<i class="bi bi-pencil"></i>
+													</button>
+												@elseif($match->status === 'in_progress')
+													<button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#groupMatchModal{{ $match->id }}">
+														<i class="bi bi-pencil-square"></i> Счёт
+													</button>
+												@else
+													<span class="text-secondary">—</span>
+												@endif
+											</div>
+											<div class="match-team-name {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
+												{{ $match->team2->name }}
+											</div>
+										</div>
 
                                         {{-- Модалка ввода счёта --}}
                                         @if($match->status === 'in_progress' && !$match->isCompleted())
@@ -182,3 +187,18 @@
         @endif
     </div>
 </div>
+
+<style>
+.match-court-header {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #0dcaf0;
+    background: rgba(13, 202, 240, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-right: 12px;
+    display: inline-block;
+    width: 100px;
+}
+</style>

@@ -11,6 +11,7 @@ class TournamentPlayoffMatch extends Model
 
     protected $fillable = [
         'tournament_id',
+		'court_number',
         'stage',
         'match_number',
         'team1_id',

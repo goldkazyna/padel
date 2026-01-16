@@ -11,6 +11,7 @@ class TournamentGroupMatch extends Model
 
     protected $fillable = [
         'group_id',
+		'court_number',
         'team1_id',
         'team2_id',
         'team1_score',

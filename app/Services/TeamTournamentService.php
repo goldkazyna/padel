@@ -88,50 +88,63 @@ class TeamTournamentService
         }
     }
 
-    /**
-     * Генерация матчей группового этапа (круговая система)
-     */
-    protected function generateGroupMatches(Tournament $tournament): void
-    {
-        foreach ($tournament->teamGroups as $group) {
-            $teams = $group->standings()->with('team')->get()->pluck('team');
-            $teamIds = $teams->pluck('id')->toArray();
-            $numTeams = count($teamIds);
+	/**
+	 * Генерация матчей группового этапа (круговая система)
+	 */
+	protected function generateGroupMatches(Tournament $tournament): void
+	{
+		$groups = $tournament->teamGroups()->orderBy('name')->get();
+		$courtOffset = 0;
+		
+		foreach ($groups as $group) {
+			$teams = $group->standings()->with('team')->get()->pluck('team');
+			$teamIds = $teams->pluck('id')->toArray();
+			$numTeams = count($teamIds);
 
-            // Если нечётное — добавляем "пустую" команду
-            if ($numTeams % 2 !== 0) {
-                $teamIds[] = null;
-                $numTeams++;
-            }
+			// Если нечётное — добавляем "пустую" команду
+			if ($numTeams % 2 !== 0) {
+				$teamIds[] = null;
+				$numTeams++;
+			}
 
-            $rounds = $numTeams - 1;
-            $matchesPerRound = $numTeams / 2;
+			$rounds = $numTeams - 1;
+			$matchesPerRound = $numTeams / 2;
 
-            for ($round = 0; $round < $rounds; $round++) {
-                for ($match = 0; $match < $matchesPerRound; $match++) {
-                    $home = $teamIds[$match];
-                    $away = $teamIds[$numTeams - 1 - $match];
+			for ($round = 0; $round < $rounds; $round++) {
+				$courtNumber = $courtOffset + 1; // Начинаем с offset
+				
+				for ($match = 0; $match < $matchesPerRound; $match++) {
+					$home = $teamIds[$match];
+					$away = $teamIds[$numTeams - 1 - $match];
 
-                    // Пропускаем если одна из команд "пустая"
-                    if ($home === null || $away === null) {
-                        continue;
-                    }
+					// Пропускаем если одна из команд "пустая"
+					if ($home === null || $away === null) {
+						continue;
+					}
 
-                    TournamentGroupMatch::create([
-                        'group_id' => $group->id,
-                        'team1_id' => $home,
-                        'team2_id' => $away,
-                        'round_number' => $round + 1,
-                        'status' => $round === 0 ? 'in_progress' : 'pending',
-                    ]);
-                }
+					TournamentGroupMatch::create([
+						'group_id' => $group->id,
+						'court_number' => $courtNumber,
+						'team1_id' => $home,
+						'team2_id' => $away,
+						'round_number' => $round + 1,
+						'status' => $round === 0 ? 'in_progress' : 'pending',
+					]);
+					
+					$courtNumber++;
+				}
 
-                // Ротация (первый фиксирован)
-                $last = array_pop($teamIds);
-                array_splice($teamIds, 1, 0, [$last]);
-            }
-        }
-    }
+				// Ротация (первый фиксирован)
+				$last = array_pop($teamIds);
+				array_splice($teamIds, 1, 0, [$last]);
+			}
+			
+			// Смещаем offset для следующей группы
+			// Количество кортов = количество матчей в раунде этой группы
+			$courtsInGroup = floor($numTeams / 2);
+			$courtOffset += $courtsInGroup;
+		}
+	}
 
     /**
      * Сохранить результат матча группового этапа
@@ -311,105 +324,113 @@ class TeamTournamentService
     }
 
     /**
-     * Создание матчей плей-офф
-     */
-    protected function createPlayoffMatches(Tournament $tournament, array $playoffTeams, string $stage): void
-    {
-        if ($stage === 'final') {
-            // Финал: A1 vs B1
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'final',
-                'match_number' => 1,
-                'team1_id' => $playoffTeams[0]['team']->id,
-                'team2_id' => $playoffTeams[1]['team']->id,
-                'team1_source' => $playoffTeams[0]['source'],
-                'team2_source' => $playoffTeams[1]['source'],
-                'status' => 'in_progress',
-            ]);
-        } elseif ($stage === 'semi') {
-            // Полуфиналы: A1 vs B2, B1 vs A2
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'semi',
-                'match_number' => 1,
-                'team1_id' => $playoffTeams[0]['team']->id, // A1
-                'team2_id' => $playoffTeams[3]['team']->id, // B2
-                'team1_source' => $playoffTeams[0]['source'],
-                'team2_source' => $playoffTeams[3]['source'],
-                'status' => 'in_progress',
-            ]);
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'semi',
-                'match_number' => 2,
-                'team1_id' => $playoffTeams[2]['team']->id, // B1
-                'team2_id' => $playoffTeams[1]['team']->id, // A2
-                'team1_source' => $playoffTeams[2]['source'],
-                'team2_source' => $playoffTeams[1]['source'],
-                'status' => 'in_progress',
-            ]);
+	 * Создание матчей плей-офф
+	 */
+	protected function createPlayoffMatches(Tournament $tournament, array $playoffTeams, string $stage): void
+	{
+		if ($stage === 'final') {
+			// Финал: A1 vs B1
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'match_number' => 1,
+				'team1_id' => $playoffTeams[0]['team']->id,
+				'team2_id' => $playoffTeams[1]['team']->id,
+				'team1_source' => $playoffTeams[0]['source'],
+				'team2_source' => $playoffTeams[1]['source'],
+				'status' => 'in_progress',
+			]);
+		} elseif ($stage === 'semi') {
+			// Полуфиналы: A1 vs B2, B1 vs A2
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'semi',
+				'match_number' => 1,
+				'team1_id' => $playoffTeams[0]['team']->id, // A1
+				'team2_id' => $playoffTeams[3]['team']->id, // B2
+				'team1_source' => $playoffTeams[0]['source'],
+				'team2_source' => $playoffTeams[3]['source'],
+				'status' => 'in_progress',
+			]);
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'semi',
+				'match_number' => 2,
+				'team1_id' => $playoffTeams[2]['team']->id, // B1
+				'team2_id' => $playoffTeams[1]['team']->id, // A2
+				'team1_source' => $playoffTeams[2]['source'],
+				'team2_source' => $playoffTeams[1]['source'],
+				'status' => 'in_progress',
+			]);
 
-            // Финал (пустой, команды определятся позже)
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'final',
-                'match_number' => 1,
-                'team1_source' => 'W1',
-                'team2_source' => 'W2',
-                'status' => 'pending',
-            ]);
-        } elseif ($stage === 'quarter') {
-            // 1/4 финала для 8 команд
-            $matchups = [
-                [0, 7], // A1 vs D2
-                [4, 3], // C1 vs B2
-                [2, 5], // B1 vs C2
-                [6, 1], // D1 vs A2
-            ];
+			// Финал (пустой, команды определятся позже)
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'match_number' => 1,
+				'team1_source' => 'W1',
+				'team2_source' => 'W2',
+				'status' => 'pending',
+			]);
+		} elseif ($stage === 'quarter') {
+			// 1/4 финала для 8 команд
+			$matchups = [
+				[0, 7], // A1 vs D2
+				[4, 3], // C1 vs B2
+				[2, 5], // B1 vs C2
+				[6, 1], // D1 vs A2
+			];
 
-            foreach ($matchups as $i => $pair) {
-                TournamentPlayoffMatch::create([
-                    'tournament_id' => $tournament->id,
-                    'stage' => 'quarter',
-                    'match_number' => $i + 1,
-                    'team1_id' => $playoffTeams[$pair[0]]['team']->id,
-                    'team2_id' => $playoffTeams[$pair[1]]['team']->id,
-                    'team1_source' => $playoffTeams[$pair[0]]['source'],
-                    'team2_source' => $playoffTeams[$pair[1]]['source'],
-                    'status' => 'in_progress',
-                ]);
-            }
+			foreach ($matchups as $i => $pair) {
+				TournamentPlayoffMatch::create([
+					'tournament_id' => $tournament->id,
+					'court_number' => $i + 1,
+					'stage' => 'quarter',
+					'match_number' => $i + 1,
+					'team1_id' => $playoffTeams[$pair[0]]['team']->id,
+					'team2_id' => $playoffTeams[$pair[1]]['team']->id,
+					'team1_source' => $playoffTeams[$pair[0]]['source'],
+					'team2_source' => $playoffTeams[$pair[1]]['source'],
+					'status' => 'in_progress',
+				]);
+			}
 
-            // Полуфиналы (пустые)
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'semi',
-                'match_number' => 1,
-                'team1_source' => 'W1',
-                'team2_source' => 'W2',
-                'status' => 'pending',
-            ]);
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'semi',
-                'match_number' => 2,
-                'team1_source' => 'W3',
-                'team2_source' => 'W4',
-                'status' => 'pending',
-            ]);
+			// Полуфиналы (пустые)
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'semi',
+				'match_number' => 1,
+				'team1_source' => 'W1',
+				'team2_source' => 'W2',
+				'status' => 'pending',
+			]);
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'semi',
+				'match_number' => 2,
+				'team1_source' => 'W3',
+				'team2_source' => 'W4',
+				'status' => 'pending',
+			]);
 
-            // Финал
-            TournamentPlayoffMatch::create([
-                'tournament_id' => $tournament->id,
-                'stage' => 'final',
-                'match_number' => 1,
-                'team1_source' => 'W5',
-                'team2_source' => 'W6',
-                'status' => 'pending',
-            ]);
-        }
-    }
+			// Финал
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'match_number' => 1,
+				'team1_source' => 'W5',
+				'team2_source' => 'W6',
+				'status' => 'pending',
+			]);
+		}
+	}
 
     /**
      * Сохранить результат матча плей-офф

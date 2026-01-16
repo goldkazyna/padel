@@ -349,6 +349,7 @@ function toggleTypeFields() {
 		if (document.getElementById('americanoGroupsCount')) {
 			document.getElementById('americanoGroupsCount').disabled = true;
 		}
+		generateCourtsInputs();
 	}
 }
 

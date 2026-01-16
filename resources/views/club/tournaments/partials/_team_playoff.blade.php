@@ -16,31 +16,36 @@
                         <div class="stage-title">{{ $stageName }}</div>
                         <div class="stage-matches">
                             @foreach($stages[$stageKey] as $match)
-                                <div class="playoff-match-card {{ $match->isCompleted() ? 'completed' : '' }}">
-                                    <div class="playoff-team {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
-                                        <span class="playoff-team-name">{{ $match->team1 ? $match->team1->name : $match->team1_source }}</span>
-                                        @if($match->isCompleted())
-                                            <span class="playoff-score">{{ $match->team1_score }}</span>
-                                        @endif
-                                    </div>
-                                    <div class="playoff-team {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
-                                        <span class="playoff-team-name">{{ $match->team2 ? $match->team2->name : $match->team2_source }}</span>
-                                        @if($match->isCompleted())
-                                            <span class="playoff-score">{{ $match->team2_score }}</span>
-                                        @endif
-                                    </div>
-                                    <div class="playoff-actions">
-                                        @if($match->status === 'in_progress' && $match->team1_id && $match->team2_id)
-                                            <button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#playoffModal{{ $match->id }}">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </button>
-                                        @elseif($match->isCompleted())
-                                            <button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editPlayoffModal{{ $match->id }}">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                        @endif
-                                    </div>
-                                </div>
+								<div class="playoff-match-card {{ $match->isCompleted() ? 'completed' : '' }}">
+									@if($match->court_number)
+										<div class="match-court-header-playoff">
+											<i class="bi bi-geo-alt"></i> {{ $tournament->getCourtName($match->court_number) }}
+										</div>
+									@endif
+									<div class="playoff-team {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
+										<span class="playoff-team-name">{{ $match->team1 ? $match->team1->name : $match->team1_source }}</span>
+										@if($match->isCompleted())
+											<span class="playoff-score">{{ $match->team1_score }}</span>
+										@endif
+									</div>
+									<div class="playoff-team {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
+										<span class="playoff-team-name">{{ $match->team2 ? $match->team2->name : $match->team2_source }}</span>
+										@if($match->isCompleted())
+											<span class="playoff-score">{{ $match->team2_score }}</span>
+										@endif
+									</div>
+									<div class="playoff-actions">
+										@if($match->status === 'in_progress' && $match->team1_id && $match->team2_id)
+											<button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#playoffModal{{ $match->id }}">
+												<i class="bi bi-pencil-square"></i>
+											</button>
+										@elseif($match->isCompleted())
+											<button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editPlayoffModal{{ $match->id }}">
+												<i class="bi bi-pencil"></i>
+											</button>
+										@endif
+									</div>
+								</div>
 
                                 {{-- Модалка ввода --}}
                                 @if($match->status === 'in_progress' && $match->team1_id && $match->team2_id)
@@ -129,3 +134,20 @@
         @endif
     </div>
 </div>
+
+
+<style>
+.match-court-header-playoff {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #0dcaf0;
+    background: rgba(13, 202, 240, 0.1);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+	margin-top:10px;
+    display: inline-block;
+    width: 100%;
+}
+</style>
