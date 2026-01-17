@@ -14,40 +14,48 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
     public function create(): View
     {
         return view('auth.register');
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-	public function store(Request $request): RedirectResponse
-	{
-		$request->validate([
-			'first_name' => ['required', 'string', 'max:255'],
-			'last_name' => ['required', 'string', 'max:255'],
-			'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-			'password' => ['required', 'confirmed', Rules\Password::defaults()],
-		]);
+    public function store(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:20'],
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
 
-		$user = User::create([
-			'first_name' => $request->first_name,
-			'last_name' => $request->last_name,
-			'name' => $request->first_name . ' ' . $request->last_name,
-			'email' => $request->email,
-			'password' => Hash::make($request->password),
-		]);
+        // Очищаем телефон
+        $phone = preg_replace('/\D/', '', $request->phone);
+        if (str_starts_with($phone, '8') && strlen($phone) === 11) {
+            $phone = '7' . substr($phone, 1);
+        }
 
-		event(new Registered($user));
+        // Проверяем уникальность телефона
+        if (User::where('phone', $phone)->exists()) {
+            return back()->withErrors(['phone' => 'Этот телефон уже зарегистрирован.'])->withInput();
+        }
 
-		Auth::login($user);
+        $user = User::create([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'name' => $request->first_name . ' ' . $request->last_name,
+            'phone' => $phone,
+            'email' => $request->email ?? $phone . '@padel.local',
+            'password' => Hash::make($request->password),
+            'role' => 'player',
+            'rating' => 1000,
+            'level' => 1.0,
+        ]);
 
-		return redirect(route('dashboard', absolute: false));
-	}
+        event(new Registered($user));
+
+        Auth::login($user);
+
+        return redirect(route('dashboard'));
+    }
 }

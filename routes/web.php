@@ -19,7 +19,10 @@ use App\Http\Controllers\Auth\TelegramAuthController;
 |--------------------------------------------------------------------------
 */
 Route::get('/', function () {
-    return view('welcome');
+    if (auth()->check()) {
+        return redirect('/dashboard');
+    }
+    return redirect('/login');
 });
 // Превью рейтинга Американо
         Route::get('/tournaments/{tournament}/preview-rating', function (\App\Models\Tournament $tournament) {
