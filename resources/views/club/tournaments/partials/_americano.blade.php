@@ -143,13 +143,16 @@
 			</div>
 
             <!-- Раунды -->
-            <div class="section-subheader">
-                <i class="bi bi-calendar3"></i> Раунды
-            </div>
-            
+            <div class="section-subheader collapsible" onclick="toggleSection('rounds-{{ $group->id }}')">
+				<div style="font-size:24px;">
+					<i class="bi bi-calendar3"></i> Раунды
+				</div>
+				<i class="bi bi-chevron-down collapse-icon" id="icon-rounds-{{ $group->id }}"></i>
+			</div>
+            <div class="collapsible-content" id="rounds-{{ $group->id }}">
             <div class="rounds-grid">
                 @foreach($group->rounds as $round)
-                    <div class="round-card" data-round-id="{{ $round->id }}">
+                    <div class="round-card {{ $round->status === 'in_progress' ? 'active' : ($round->isCompleted() ? 'completed' : 'pending') }}" data-round-id="{{ $round->id }}">
                         <div class="round-header">
                             <div class="round-title">
                                 @if($round->isCompleted())
@@ -229,6 +232,7 @@
                     </div>
                 @endforeach
             </div>
+			</div>
         </div>
     @endforeach
 </div>
@@ -237,8 +241,15 @@
 <style>
 .rounds-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(1000px, 11fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
+}
+.player-line{
+	    font-size: 35px;
+}
+
+.match-court-header{
+	font-size:24px;
 }
 /* Таблица лидеров */
 .leaderboard-table-wrapper {
@@ -365,8 +376,11 @@
 
 .player-name {
     font-weight: 500;
+	font-size:24px;
 }
-
+.col-stat{
+	font-size:24px;
+}
 .player-rating {
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -406,7 +420,7 @@
 /* Корт в матче - сверху по центру */
 .match-court-header {
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 24px;
     color: #0dcaf0;
     background: rgba(13, 202, 240, 0.1);
     padding: 6px 16px;
@@ -429,4 +443,104 @@
     width: 100%;
     justify-content: space-between;
 }
+/* ===== АКТИВНЫЙ РАУНД — ВЫДЕЛЕНИЕ ===== */
+.round-card.active {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+    background: var(--bg-card);
+}
+
+.round-card.active .round-header {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.round-card.active .round-title {
+    color: var(--accent);
+    font-size: 1.3rem;
+}
+
+/* Неактивные раунды — приглушённые */
+.round-card.completed {
+    opacity: 0.6;
+}
+
+.round-card.pending {
+    opacity: 0.4;
+}
+
+/* При наведении возвращаем яркость */
+.round-card.completed:hover,
+.round-card.pending:hover {
+    opacity: 1;
+}
+.score-team-name{
+	font-size:24px;
+}
+.team-score{
+	font-size:40px;
+}
+/* ===== СВОРАЧИВАЕМЫЕ СЕКЦИИ ===== */
+.section-subheader.collapsible {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    transition: all 0.3s;
+}
+
+.section-subheader.collapsible:hover {
+    color: var(--accent);
+}
+
+.collapse-icon {
+    transition: transform 0.3s;
+}
+
+.collapse-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+.collapsible-content {
+    max-height: 5000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s;
+    opacity: 1;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+.section-subheader div{
+	font-size:24px;
+}
 </style>
+
+<script>
+function toggleSection(id) {
+    const content = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    
+    if (content && icon) {
+        content.classList.toggle('collapsed');
+        icon.classList.toggle('collapsed');
+        
+        // Сохраняем состояние
+        localStorage.setItem('section-' + id, content.classList.contains('collapsed') ? 'collapsed' : 'open');
+    }
+}
+
+// Восстанавливаем состояние при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.collapsible-content').forEach(function(el) {
+        const saved = localStorage.getItem('section-' + el.id);
+        const icon = document.getElementById('icon-' + el.id);
+        
+        if (saved === 'collapsed') {
+            el.classList.add('collapsed');
+            if (icon) icon.classList.add('collapsed');
+        }
+    });
+});
+</script>

@@ -31,15 +31,6 @@
         </div>
     </div>
     
-    @if($tournament->isAmericano() || $tournament->isMexicano())
-        <div class="info-card">
-            <div class="info-icon"><i class="bi bi-bullseye"></i></div>
-            <div class="info-content">
-                <div class="info-label">Очки для победы</div>
-                <div class="info-value">{{ $tournament->points_to_win }}</div>
-            </div>
-        </div>
-    @endif
     
     <div class="info-card status">
         <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>

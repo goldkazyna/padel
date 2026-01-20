@@ -1,6 +1,7 @@
 {{-- resources/views/club/tournaments/partials/_americano_playoff.blade.php --}}
+<hr/>
 @if($tournament->isAmericano() && $tournament->hasPlayoff() && $tournament->playoffMatches()->count() > 0)
-<div class="card-dark mb-4">
+<div class="mb-4">
     <div class="card-header-dark">
         <h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Плей-офф</h5>
     </div>
@@ -147,9 +148,16 @@
 @endif
 <style>
 .playoff-stage {
-    min-width: 391px;
+    min-width: 700px;
 }
 .playoff-team-name{
-	    max-width: 340px;
+	    max-width: 700px;
+		font-size:35px;
+}
+.score-team-names{
+	font-size:24px;
+}
+.playoff-score{
+	font-size:40px;
 }
 </style>
