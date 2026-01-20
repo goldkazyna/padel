@@ -24,6 +24,38 @@
             --border: #2d2d2d;
             --border-light: #3d3d3d;
         }
+		:root {
+			--bg-primary: #0f0f0f;
+			--bg-secondary: #141414;
+			--bg-sidebar: #0a0a0a;
+			--bg-card: #1a1a1a;
+			--bg-card-hover: #222222;
+			--accent: #22c55e;
+			--accent-dark: #16a34a;
+			--accent-glow: rgba(34, 197, 94, 0.15);
+			--text-primary: #ffffff;
+			--text-secondary: #9ca3af;
+			--text-muted: #6b7280;
+			--border: #2d2d2d;
+			--border-light: #3d3d3d;
+		}
+
+		/* Светлая тема */
+		body.light-theme {
+			--bg-primary: #f5f5f5;
+			--bg-secondary: #ffffff;
+			--bg-sidebar: #ffffff;
+			--bg-card: #ffffff;
+			--bg-card-hover: #f0f0f0;
+			--accent: #16a34a;
+			--accent-dark: #15803d;
+			--accent-glow: rgba(22, 163, 74, 0.15);
+			--text-primary: #1a1a1a;
+			--text-secondary: #666666;
+			--text-muted: #999999;
+			--border: #e0e0e0;
+			--border-light: #d0d0d0;
+		}
         
         * { box-sizing: border-box; }
         
@@ -560,6 +592,168 @@
             .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
             .page-header .btn-primary-custom { width: 100%; justify-content: center; }
         }
+		/* ===== THEME TOGGLE ===== */
+		.btn-theme-toggle {
+			background: var(--bg-secondary);
+			border: 1px solid var(--border);
+			color: var(--text-secondary);
+			width: 40px;
+			height: 40px;
+			border-radius: 10px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			transition: all 0.3s;
+			margin-bottom: 12px;
+		}
+
+		.btn-theme-toggle:hover {
+			background: var(--bg-card-hover);
+			color: var(--accent);
+			border-color: var(--accent);
+		}
+		/* ===== SIDEBAR TOGGLE ===== */
+		.sidebar-toggle {
+			position: absolute;
+			top: 20px;
+			right: -12px;
+			width: 24px;
+			height: 24px;
+			background: var(--accent);
+			border: none;
+			border-radius: 50%;
+			color: white;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 12px;
+			transition: all 0.3s;
+			z-index: 100;
+		}
+
+		.sidebar-toggle:hover {
+			background: var(--accent-dark);
+			transform: scale(1.1);
+		}
+
+		/* Свёрнутый sidebar */
+		.sidebar.collapsed {
+			width: 70px;
+		}
+
+		.sidebar.collapsed .sidebar-logo span,
+		.sidebar.collapsed .nav-link span,
+		.sidebar.collapsed .user-info,
+		.sidebar.collapsed .btn-logout span {
+			display: none;
+		}
+
+		.sidebar.collapsed .sidebar-logo {
+			justify-content: center;
+			padding: 20px 10px;
+		}
+
+		.sidebar.collapsed .nav-link {
+			justify-content: center;
+			padding: 14px 10px;
+		}
+
+		.sidebar.collapsed .nav-link i {
+			margin-right: 0;
+			font-size: 1.3rem;
+		}
+
+		.sidebar.collapsed .user-card {
+			justify-content: center;
+		}
+
+		.sidebar.collapsed .user-avatar {
+			margin-right: 0;
+		}
+
+		.sidebar.collapsed .btn-logout {
+			justify-content: center;
+			padding: 12px 10px;
+		}
+
+		.sidebar.collapsed .sidebar-toggle i {
+			transform: rotate(180deg);
+		}
+
+		/* Сдвиг контента */
+		.main-content {
+			margin-left: 260px;
+			transition: margin-left 0.3s;
+		}
+
+/* ===== SIDEBAR COLLAPSED ===== */
+body.sidebar-collapsed .sidebar {
+    width: 70px;
+}
+
+body.sidebar-collapsed .main-content {
+    margin-left: 70px;
+}
+
+/* Скрываем ВСЕ тексты */
+body.sidebar-collapsed .sidebar span,
+body.sidebar-collapsed .sidebar .user-info,
+body.sidebar-collapsed .sidebar .user-name,
+body.sidebar-collapsed .sidebar .user-role,
+body.sidebar-collapsed .sidebar-logo span,
+body.sidebar-collapsed .nav-section-title,
+body.sidebar-collapsed .sidebar h6,
+body.sidebar-collapsed .sidebar small {
+    display: none !important;
+}
+
+/* Центрируем иконки */
+body.sidebar-collapsed .sidebar-logo {
+    justify-content: center;
+    padding: 20px 10px;
+}
+
+body.sidebar-collapsed .sidebar-logo img,
+body.sidebar-collapsed .sidebar-logo i {
+    margin-right: 0;
+}
+
+body.sidebar-collapsed .nav-link,
+body.sidebar-collapsed .sidebar a {
+    justify-content: center;
+    padding: 14px 10px;
+}
+
+body.sidebar-collapsed .nav-link i {
+    margin-right: 0;
+    font-size: 1.3rem;
+}
+
+body.sidebar-collapsed .user-card {
+    justify-content: center;
+    padding: 10px;
+}
+
+body.sidebar-collapsed .user-avatar {
+    margin-right: 0;
+}
+
+body.sidebar-collapsed .btn-logout,
+body.sidebar-collapsed .btn-theme-toggle {
+    justify-content: center;
+    width: 100%;
+}
+
+body.sidebar-collapsed .sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+body.sidebar-collapsed .sidebar-footer {
+    padding: 10px;
+}
+
     </style>
 	@stack('styles')
 </head>
@@ -574,8 +768,11 @@
     
     <!-- Sidebar -->
     <aside class="sidebar">
+		<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" title="Свернуть меню">
+			<i class="bi bi-chevron-left" id="sidebar-toggle-icon"></i>
+		</button>
         <div class="sidebar-brand">
-            <h4>🎾 <span>Padel</span>Center</h4>
+            <h4>🎾 <span>Padel</span></h4>
         </div>
         
         <nav class="sidebar-nav">
@@ -651,6 +848,10 @@
                     </div>
                 </div>
             </div>
+			<button type="button" class="btn-theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+				<i class="bi bi-sun-fill" id="theme-icon-light" style="display: none;"></i>
+				<i class="bi bi-moon-fill" id="theme-icon-dark"></i>
+			</button>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button type="submit" class="btn-logout">
@@ -710,5 +911,46 @@
         }
     </script>
 	@stack('scripts')
+	<script>
+	// Theme Toggle
+	function toggleTheme() {
+		const body = document.body;
+		const isLight = body.classList.toggle('light-theme');
+		
+		localStorage.setItem('theme', isLight ? 'light' : 'dark');
+		updateThemeIcon(isLight);
+	}
+
+	function updateThemeIcon(isLight) {
+		document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
+		document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
+	}
+
+	// Apply saved theme on load
+	document.addEventListener('DOMContentLoaded', function() {
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme === 'light') {
+			document.body.classList.add('light-theme');
+			updateThemeIcon(true);
+		}
+	});
+	</script>
+	<script>
+	// Sidebar Toggle
+	function toggleSidebar() {
+		const body = document.body;
+		const isCollapsed = body.classList.toggle('sidebar-collapsed');
+		
+		localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+	}
+
+	// Apply saved sidebar state on load
+	document.addEventListener('DOMContentLoaded', function() {
+		const savedState = localStorage.getItem('sidebarCollapsed');
+		if (savedState === 'true') {
+			document.body.classList.add('sidebar-collapsed');
+		}
+	});
+	</script>
 </body>
 </html>

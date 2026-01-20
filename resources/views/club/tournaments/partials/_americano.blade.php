@@ -235,6 +235,11 @@
 
 
 <style>
+.rounds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(1000px, 11fr));
+    gap: 16px;
+}
 /* Таблица лидеров */
 .leaderboard-table-wrapper {
     overflow-x: auto;
