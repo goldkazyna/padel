@@ -51,258 +51,114 @@ class AmericanoService
 	}
 
     protected function generateRounds(TournamentGroup $group, array $playerIds, int $courtStartNumber = 1): void
-{
-    $players = $playerIds;
-    $numPlayers = count($players);
-    
-    $maxRounds = $numPlayers - 1;
-    $tournament = $group->tournament;
-    $numRounds = $tournament->rounds_count ?? $maxRounds;
-    
-    if ($numRounds > $maxRounds) {
-        $numRounds = $maxRounds;
-    }
-    
-    // История: кто с кем играл в паре и против кого
-    $partnerHistory = []; // [playerId => [partnerId => count]]
-    $opponentHistory = []; // [playerId => [opponentId => count]]
-    
-    foreach ($players as $p) {
-        $partnerHistory[$p] = [];
-        $opponentHistory[$p] = [];
-    }
-    
-    $courtsCount = intval(count($players) / 4);
-    
-    for ($roundNum = 1; $roundNum <= $numRounds; $roundNum++) {
-        $round = AmericanoRound::create([
-            'tournament_group_id' => $group->id,
-            'round_number' => $roundNum,
-            'status' => $roundNum === 1 ? 'in_progress' : 'pending',
-        ]);
-        
-        $matches = $this->generateSmartMatches(
-            $players, 
-            $partnerHistory, 
-            $opponentHistory,
-            $courtsCount,
-            $courtStartNumber
-        );
-        
-        foreach ($matches as $match) {
-            AmericanoMatch::create([
-                'americano_round_id' => $round->id,
-                'court_number' => $match['court'],
-                'team1_player1_id' => $match['team1'][0],
-                'team1_player2_id' => $match['team1'][1],
-                'team2_player1_id' => $match['team2'][0],
-                'team2_player2_id' => $match['team2'][1],
-                'status' => 'pending',
-            ]);
-            
-            // Обновляем историю партнёров
-            $this->updateHistory($partnerHistory, $match['team1'][0], $match['team1'][1]);
-            $this->updateHistory($partnerHistory, $match['team2'][0], $match['team2'][1]);
-            
-            // Обновляем историю соперников
-            foreach ($match['team1'] as $p1) {
-                foreach ($match['team2'] as $p2) {
-                    $this->updateHistory($opponentHistory, $p1, $p2);
-                }
-            }
-        }
-    }
-}
-
-	protected function generateSmartMatches(array $players, array &$partnerHistory, array &$opponentHistory, int $courtsCount, int $courtStartNumber): array
 	{
-		// Пробуем найти идеальную комбинацию без повторов партнёров
-		$result = $this->findPerfectMatching($players, $partnerHistory);
+		$players = array_values($playerIds);
+		$numPlayers = count($players);
 		
-		if ($result !== null) {
-			// Назначаем корты
+		$maxRounds = $numPlayers - 1;
+		$tournament = $group->tournament;
+		$numRounds = $tournament->rounds_count ?? $maxRounds;
+		
+		if ($numRounds > $maxRounds) {
+			$numRounds = $maxRounds;
+		}
+		
+		$courtsCount = intval($numPlayers / 4);
+		
+		// Генерируем ВСЕ раунды сразу с гарантией уникальных пар
+		$allRoundsMatches = $this->generateAllRoundsRoundRobin($players, $numRounds);
+		
+		\Log::info("Round-Robin: сгенерировано " . count($allRoundsMatches) . " раундов для " . $numPlayers . " игроков");
+		
+		foreach ($allRoundsMatches as $roundNum => $roundMatches) {
+			$round = AmericanoRound::create([
+				'tournament_group_id' => $group->id,
+				'round_number' => $roundNum,
+				'status' => $roundNum === 1 ? 'in_progress' : 'pending',
+			]);
+			
 			$courtNumber = $courtStartNumber;
-			foreach ($result as &$match) {
-				$match['court'] = $courtNumber;
+			foreach ($roundMatches as $match) {
+				AmericanoMatch::create([
+					'americano_round_id' => $round->id,
+					'court_number' => $courtNumber,
+					'team1_player1_id' => $match['team1'][0],
+					'team1_player2_id' => $match['team1'][1],
+					'team2_player1_id' => $match['team2'][0],
+					'team2_player2_id' => $match['team2'][1],
+					'status' => 'pending',
+				]);
 				$courtNumber++;
 			}
-			return $result;
 		}
-		
-		// Если идеальный вариант невозможен — используем fallback с минимизацией повторов
-		\Log::warning('Americano: не удалось найти пары без повторов, используем fallback');
-		return $this->fallbackGenerateMatches($players, $partnerHistory, $courtStartNumber);
 	}
 	/**
-	 * Найти идеальное распределение пар без повторов (backtracking)
+	 * Round-Robin алгоритм для генерации всех раундов
+	 * Гарантирует что каждая пара встречается ровно 1 раз
 	 */
-	protected function findPerfectMatching(array $players, array $partnerHistory): ?array
+	protected function generateAllRoundsRoundRobin(array $players, int $numRounds): array
 	{
-		$matches = [];
-		$used = [];
+		$n = count($players);
 		
-		// Перемешиваем для разнообразия
+		// Перемешиваем игроков для разнообразия
 		shuffle($players);
 		
-		$result = $this->backtrackMatching($players, $partnerHistory, $matches, $used);
+		// Round-Robin: фиксируем первого игрока, остальные "вращаются"
+		$fixed = $players[0];
+		$rotating = array_slice($players, 1);
 		
-		if ($result) {
-			shuffle($matches); // Перемешиваем порядок матчей
-			return $matches;
-		}
+		$allPairings = []; // Все пары для каждого раунда
 		
-		return null;
-	}
-
-	/**
-	 * Рекурсивный backtracking для поиска пар
-	 */
-	protected function backtrackMatching(array $players, array $partnerHistory, array &$matches, array &$used): bool
-	{
-		// Находим всех свободных игроков
-		$available = array_values(array_diff($players, $used));
-		
-		// Если осталось меньше 4 — успех (все распределены)
-		if (count($available) < 4) {
-			return true;
-		}
-		
-		// Берём первого свободного игрока
-		$player1 = $available[0];
-		$used[] = $player1;
-		
-		// Получаем всех возможных партнёров (с кем ещё НЕ играл)
-		$possiblePartners = $this->getUnusedPartners($player1, $available, $partnerHistory);
-		
-		// Перемешиваем для разнообразия
-		shuffle($possiblePartners);
-		
-		foreach ($possiblePartners as $partner1) {
-			$used[] = $partner1;
+		for ($round = 0; $round < $n - 1; $round++) {
+			$roundPairs = [];
 			
-			// Находим оставшихся
-			$remaining = array_values(array_diff($available, [$player1, $partner1]));
+			// Первая пара: фиксированный + первый из вращающихся
+			$roundPairs[] = [$fixed, $rotating[0]];
 			
-			if (count($remaining) < 2) {
-				// Откат
-				array_pop($used);
-				continue;
+			// Остальные пары: соединяем симметрично
+			for ($i = 1; $i <= (($n - 2) / 2); $i++) {
+				$p1 = $rotating[$i];
+				$p2 = $rotating[$n - 1 - $i];
+				$roundPairs[] = [$p1, $p2];
 			}
 			
-			// Берём следующего игрока
-			$player2 = $remaining[0];
-			$used[] = $player2;
+			$allPairings[$round + 1] = $roundPairs;
 			
-			// Получаем возможных партнёров для него
-			$possiblePartners2 = $this->getUnusedPartners($player2, $remaining, $partnerHistory);
+			// Вращаем массив (сдвиг вправо)
+			$last = array_pop($rotating);
+			array_unshift($rotating, $last);
+		}
+		
+		// Теперь группируем пары в матчи (по 2 пары на матч)
+		// При этом стараемся минимизировать повторы соперников
+		$allRoundsMatches = [];
+		
+		for ($round = 1; $round <= min($numRounds, $n - 1); $round++) {
+			$pairs = $allPairings[$round];
+			shuffle($pairs); // Перемешиваем порядок пар
 			
-			shuffle($possiblePartners2);
-			
-			foreach ($possiblePartners2 as $partner2) {
-				$used[] = $partner2;
-				
-				// Добавляем матч
+			$matches = [];
+			for ($i = 0; $i < count($pairs) - 1; $i += 2) {
 				$matches[] = [
-					'team1' => [$player1, $partner1],
-					'team2' => [$player2, $partner2],
+					'team1' => $pairs[$i],
+					'team2' => $pairs[$i + 1],
 				];
-				
-				// Рекурсивно пробуем распределить остальных
-				if ($this->backtrackMatching($players, $partnerHistory, $matches, $used)) {
-					return true;
-				}
-				
-				// Откат — убираем матч и partner2
-				array_pop($matches);
-				array_pop($used);
 			}
 			
-			// Откат — убираем player2
-			array_pop($used);
-			
-			// Откат — убираем partner1
-			array_pop($used);
+			$allRoundsMatches[$round] = $matches;
 		}
 		
-		// Откат — убираем player1
-		array_pop($used);
-		
-		return false;
-	}
-
-	/**
-	 * Получить список игроков, с которыми ещё НЕ играли в паре
-	 */
-	protected function getUnusedPartners(int $playerId, array $availablePlayers, array $partnerHistory): array
-	{
-		$partners = [];
-		
-		foreach ($availablePlayers as $candidate) {
-			if ($candidate === $playerId) {
-				continue;
-			}
-			
-			$timesPlayed = $partnerHistory[$playerId][$candidate] ?? 0;
-			if ($timesPlayed === 0) {
-				$partners[] = $candidate;
-			}
-		}
-		
-		return $partners;
+		return $allRoundsMatches;
 	}
 	
 
 
 
-	protected function fallbackGenerateMatches(array $players, array $partnerHistory, int $courtStartNumber): array
-	{
-		$matches = [];
-		$used = [];
-		
-		shuffle($players);
-		
-		while (count($used) < count($players) - 3) {
-			// Находим свободных
-			$available = array_values(array_diff($players, $used));
-			
-			if (count($available) < 4) {
-				break;
-			}
-			
-			// Берём первого игрока
-			$player1 = $available[0];
-			$used[] = $player1;
-			
-			// Ищем лучшего партнёра (с минимальным количеством совместных игр)
-			$remaining = array_values(array_diff($available, [$player1]));
-			$partner1 = $this->findBestPartner($player1, $remaining, $partnerHistory);
-			$used[] = $partner1;
-			
-			// Берём следующего
-			$remaining = array_values(array_diff($available, [$player1, $partner1]));
-			$player2 = $remaining[0];
-			$used[] = $player2;
-			
-			// Ищем лучшего партнёра
-			$remaining = array_values(array_diff($remaining, [$player2]));
-			$partner2 = $this->findBestPartner($player2, $remaining, $partnerHistory);
-			$used[] = $partner2;
-			
-			$matches[] = [
-				'team1' => [$player1, $partner1],
-				'team2' => [$player2, $partner2],
-			];
-		}
-		
-		shuffle($matches);
-		$courtNumber = $courtStartNumber;
-		foreach ($matches as &$match) {
-			$match['court'] = $courtNumber;
-			$courtNumber++;
-		}
-		
-		return $matches;
-	}
+	
+
+
+
+
 
 protected function removeFromArray(array &$array, $value): void
 {
@@ -313,25 +169,7 @@ protected function removeFromArray(array &$array, $value): void
     }
 }
 
-protected function findBestPartner(int $playerId, array $availablePlayers, array $partnerHistory): int
-{
-    $bestPartner = null;
-    $minCount = PHP_INT_MAX;
-    
-    // Перемешиваем чтобы при равных значениях выбор был случайным
-    $shuffled = $availablePlayers;
-    shuffle($shuffled);
-    
-    foreach ($shuffled as $candidate) {
-        $count = $partnerHistory[$playerId][$candidate] ?? 0;
-        if ($count < $minCount) {
-            $minCount = $count;
-            $bestPartner = $candidate;
-        }
-    }
-    
-    return $bestPartner;
-}
+
 
 protected function updateHistory(array &$history, int $player1, int $player2): void
 {
