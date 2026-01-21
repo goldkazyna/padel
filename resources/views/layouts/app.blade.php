@@ -24,38 +24,23 @@
             --border: #2d2d2d;
             --border-light: #3d3d3d;
         }
-		:root {
-			--bg-primary: #0f0f0f;
-			--bg-secondary: #141414;
-			--bg-sidebar: #0a0a0a;
-			--bg-card: #1a1a1a;
-			--bg-card-hover: #222222;
-			--accent: #22c55e;
-			--accent-dark: #16a34a;
-			--accent-glow: rgba(34, 197, 94, 0.15);
-			--text-primary: #ffffff;
-			--text-secondary: #9ca3af;
-			--text-muted: #6b7280;
-			--border: #2d2d2d;
-			--border-light: #3d3d3d;
-		}
 
-		/* Светлая тема */
-		body.light-theme {
-			--bg-primary: #f5f5f5;
-			--bg-secondary: #ffffff;
-			--bg-sidebar: #ffffff;
-			--bg-card: #ffffff;
-			--bg-card-hover: #f0f0f0;
-			--accent: #16a34a;
-			--accent-dark: #15803d;
-			--accent-glow: rgba(22, 163, 74, 0.15);
-			--text-primary: #1a1a1a;
-			--text-secondary: #666666;
-			--text-muted: #999999;
-			--border: #e0e0e0;
-			--border-light: #d0d0d0;
-		}
+        /* Светлая тема */
+        body.light-theme {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f0f0f0;
+            --accent: #16a34a;
+            --accent-dark: #15803d;
+            --accent-glow: rgba(22, 163, 74, 0.15);
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #d0d0d0;
+        }
         
         * { box-sizing: border-box; }
         
@@ -78,7 +63,7 @@
             border-right: 1px solid var(--border);
             padding: 24px 0;
             z-index: 1000;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
         }
@@ -169,6 +154,7 @@
             justify-content: center;
             font-weight: 700;
             font-size: 1rem;
+            flex-shrink: 0;
         }
         
         .user-info { flex: 1; min-width: 0; }
@@ -213,6 +199,7 @@
             margin-left: 260px;
             padding: 30px;
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
         }
         
         .page-header {
@@ -464,29 +451,30 @@
             border-radius: 6px;
             font-weight: 500;
         }
-		.badge-warning-custom {
-			background: rgba(234, 179, 8, 0.15);
-			color: #eab308;
-			padding: 6px 12px;
-			border-radius: 6px;
-			font-weight: 500;
-		}
 
-		.badge-primary-custom {
-			background: rgba(59, 130, 246, 0.15);
-			color: #3b82f6;
-			padding: 6px 12px;
-			border-radius: 6px;
-			font-weight: 500;
-		}
+        .badge-warning-custom {
+            background: rgba(234, 179, 8, 0.15);
+            color: #eab308;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
 
-		.badge-info-custom {
-			background: rgba(6, 182, 212, 0.15);
-			color: #06b6d4;
-			padding: 6px 12px;
-			border-radius: 6px;
-			font-weight: 500;
-		}
+        .badge-primary-custom {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .badge-info-custom {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
         
         /* ===== PROFILE CARD ===== */
         .profile-card-gradient {
@@ -508,6 +496,106 @@
             font-size: 1.8rem;
             font-weight: 700;
             margin-bottom: 16px;
+        }
+
+        /* ===== THEME TOGGLE ===== */
+        .btn-theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+
+        .btn-theme-toggle:hover {
+            background: var(--bg-card-hover);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ===== SIDEBAR TOGGLE (Desktop) ===== */
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: -12px;
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--accent-dark);
+            transform: scale(1.1);
+        }
+
+        /* ===== SIDEBAR COLLAPSED (Desktop only) ===== */
+        body.sidebar-collapsed .sidebar {
+            width: 70px;
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: 70px;
+        }
+
+        body.sidebar-collapsed .sidebar span,
+        body.sidebar-collapsed .sidebar .user-info,
+        body.sidebar-collapsed .sidebar .user-name,
+        body.sidebar-collapsed .sidebar .user-role,
+        body.sidebar-collapsed .sidebar-brand span,
+        body.sidebar-collapsed .nav-section-title {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .sidebar-brand {
+            padding: 0 10px 28px;
+            text-align: center;
+        }
+
+        body.sidebar-collapsed .nav-link {
+            justify-content: center;
+            padding: 14px 10px;
+        }
+
+        body.sidebar-collapsed .nav-link i {
+            margin-right: 0;
+            font-size: 1.3rem;
+        }
+
+        body.sidebar-collapsed .user-card {
+            justify-content: center;
+            padding: 10px;
+        }
+
+        body.sidebar-collapsed .btn-logout,
+        body.sidebar-collapsed .btn-theme-toggle {
+            justify-content: center;
+            width: 100%;
+        }
+
+        body.sidebar-collapsed .sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        body.sidebar-collapsed .sidebar-footer {
+            padding: 10px;
+            margin: 0 5px;
         }
         
         /* ===== MOBILE ===== */
@@ -577,12 +665,63 @@
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
         
+        /* ===== MOBILE BREAKPOINT ===== */
         @media (max-width: 991px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.show { transform: translateX(0); }
-            .main-content { margin-left: 0; padding: 80px 20px 100px; }
+            /* Sidebar скрыт по умолчанию */
+            .sidebar { 
+                transform: translateX(-100%); 
+                width: 260px !important; /* Всегда полная ширина на мобильных */
+            }
+            .sidebar.show { 
+                transform: translateX(0); 
+            }
+            
+            /* Контент на всю ширину */
+            .main-content { 
+                margin-left: 0 !important; /* Переопределяем collapsed */
+                padding: 80px 20px 100px; 
+            }
+            
+            /* Показываем мобильные элементы */
             .mobile-menu-btn { display: flex; }
             .mobile-nav { display: block; }
+            
+            /* Скрываем кнопку сворачивания на мобильных */
+            .sidebar-toggle { display: none; }
+            
+            /* Отменяем collapsed стили на мобильных */
+            body.sidebar-collapsed .sidebar {
+                width: 260px;
+            }
+            
+            body.sidebar-collapsed .sidebar span,
+            body.sidebar-collapsed .sidebar .user-info,
+            body.sidebar-collapsed .sidebar .user-name,
+            body.sidebar-collapsed .sidebar .user-role,
+            body.sidebar-collapsed .sidebar-brand span,
+            body.sidebar-collapsed .nav-section-title {
+                display: block !important;
+            }
+            
+            body.sidebar-collapsed .sidebar-brand {
+                padding: 0 24px 28px;
+                text-align: left;
+            }
+            
+            body.sidebar-collapsed .nav-link {
+                justify-content: flex-start;
+                padding: 14px 16px;
+            }
+            
+            body.sidebar-collapsed .user-card {
+                justify-content: flex-start;
+                padding: 12px;
+            }
+            
+            body.sidebar-collapsed .sidebar-footer {
+                padding: 20px 16px;
+                margin: 0 12px;
+            }
         }
         
         @media (max-width: 576px) {
@@ -592,185 +731,23 @@
             .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
             .page-header .btn-primary-custom { width: 100%; justify-content: center; }
         }
-		/* ===== THEME TOGGLE ===== */
-		.btn-theme-toggle {
-			background: var(--bg-secondary);
-			border: 1px solid var(--border);
-			color: var(--text-secondary);
-			width: 40px;
-			height: 40px;
-			border-radius: 10px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			cursor: pointer;
-			transition: all 0.3s;
-			margin-bottom: 12px;
-		}
-
-		.btn-theme-toggle:hover {
-			background: var(--bg-card-hover);
-			color: var(--accent);
-			border-color: var(--accent);
-		}
-		/* ===== SIDEBAR TOGGLE ===== */
-		.sidebar-toggle {
-			position: absolute;
-			top: 20px;
-			right: -12px;
-			width: 24px;
-			height: 24px;
-			background: var(--accent);
-			border: none;
-			border-radius: 50%;
-			color: white;
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			font-size: 12px;
-			transition: all 0.3s;
-			z-index: 100;
-		}
-
-		.sidebar-toggle:hover {
-			background: var(--accent-dark);
-			transform: scale(1.1);
-		}
-
-		/* Свёрнутый sidebar */
-		.sidebar.collapsed {
-			width: 70px;
-		}
-
-		.sidebar.collapsed .sidebar-logo span,
-		.sidebar.collapsed .nav-link span,
-		.sidebar.collapsed .user-info,
-		.sidebar.collapsed .btn-logout span {
-			display: none;
-		}
-
-		.sidebar.collapsed .sidebar-logo {
-			justify-content: center;
-			padding: 20px 10px;
-		}
-
-		.sidebar.collapsed .nav-link {
-			justify-content: center;
-			padding: 14px 10px;
-		}
-
-		.sidebar.collapsed .nav-link i {
-			margin-right: 0;
-			font-size: 1.3rem;
-		}
-
-		.sidebar.collapsed .user-card {
-			justify-content: center;
-		}
-
-		.sidebar.collapsed .user-avatar {
-			margin-right: 0;
-		}
-
-		.sidebar.collapsed .btn-logout {
-			justify-content: center;
-			padding: 12px 10px;
-		}
-
-		.sidebar.collapsed .sidebar-toggle i {
-			transform: rotate(180deg);
-		}
-
-		/* Сдвиг контента */
-		.main-content {
-			margin-left: 260px;
-			transition: margin-left 0.3s;
-		}
-
-/* ===== SIDEBAR COLLAPSED ===== */
-body.sidebar-collapsed .sidebar {
-    width: 70px;
-}
-
-body.sidebar-collapsed .main-content {
-    margin-left: 70px;
-}
-
-/* Скрываем ВСЕ тексты */
-body.sidebar-collapsed .sidebar span,
-body.sidebar-collapsed .sidebar .user-info,
-body.sidebar-collapsed .sidebar .user-name,
-body.sidebar-collapsed .sidebar .user-role,
-body.sidebar-collapsed .sidebar-logo span,
-body.sidebar-collapsed .nav-section-title,
-body.sidebar-collapsed .sidebar h6,
-body.sidebar-collapsed .sidebar small {
-    display: none !important;
-}
-
-/* Центрируем иконки */
-body.sidebar-collapsed .sidebar-logo {
-    justify-content: center;
-    padding: 20px 10px;
-}
-
-body.sidebar-collapsed .sidebar-logo img,
-body.sidebar-collapsed .sidebar-logo i {
-    margin-right: 0;
-}
-
-body.sidebar-collapsed .nav-link,
-body.sidebar-collapsed .sidebar a {
-    justify-content: center;
-    padding: 14px 10px;
-}
-
-body.sidebar-collapsed .nav-link i {
-    margin-right: 0;
-    font-size: 1.3rem;
-}
-
-body.sidebar-collapsed .user-card {
-    justify-content: center;
-    padding: 10px;
-}
-
-body.sidebar-collapsed .user-avatar {
-    margin-right: 0;
-}
-
-body.sidebar-collapsed .btn-logout,
-body.sidebar-collapsed .btn-theme-toggle {
-    justify-content: center;
-    width: 100%;
-}
-
-body.sidebar-collapsed .sidebar-toggle i {
-    transform: rotate(180deg);
-}
-
-body.sidebar-collapsed .sidebar-footer {
-    padding: 10px;
-}
-
     </style>
-	@stack('styles')
+    @stack('styles')
 </head>
 <body>
     <!-- Mobile menu button -->
-    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
         <i class="bi bi-list"></i>
     </button>
     
     <!-- Overlay -->
-    <div class="overlay" onclick="toggleSidebar()"></div>
+    <div class="overlay" onclick="toggleMobileMenu()"></div>
     
     <!-- Sidebar -->
     <aside class="sidebar">
-		<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" title="Свернуть меню">
-			<i class="bi bi-chevron-left" id="sidebar-toggle-icon"></i>
-		</button>
+        <button type="button" class="sidebar-toggle" onclick="toggleSidebarCollapse()" title="Свернуть меню">
+            <i class="bi bi-chevron-left" id="sidebar-toggle-icon"></i>
+        </button>
         <div class="sidebar-brand">
             <h4>🎾 <span>Padel</span></h4>
         </div>
@@ -796,27 +773,27 @@ body.sidebar-collapsed .sidebar-footer {
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('rating.index') }}" class="nav-link {{ request()->routeIs('rating.*') ? 'active' : '' }}" class="nav-link">
+                    <a href="{{ route('rating.index') }}" class="nav-link {{ request()->routeIs('rating.*') ? 'active' : '' }}">
                         <i class="bi bi-bar-chart"></i>
                         <span>Рейтинг</span>
                     </a>
                 </li>
                 
                 @if(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
-					<li class="nav-section-title">Админ клуба</li>
-					<li class="nav-item">
-						<a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
-							<i class="bi bi-building"></i>
-							<span>Мой клуб</span>
-						</a>
-					</li>
-					<li class="nav-item">
-						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
-							<i class="bi bi-trophy"></i>
-							<span>Турниры клуба</span>
-						</a>
-					</li>
-				@endif
+                    <li class="nav-section-title">Админ клуба</li>
+                    <li class="nav-item">
+                        <a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
+                            <i class="bi bi-building"></i>
+                            <span>Мой клуб</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+                            <i class="bi bi-trophy"></i>
+                            <span>Турниры клуба</span>
+                        </a>
+                    </li>
+                @endif
                 
                 @if(auth()->user()->isSuperAdmin())
                     <li class="nav-section-title">Супер-админ</li>
@@ -848,10 +825,10 @@ body.sidebar-collapsed .sidebar-footer {
                     </div>
                 </div>
             </div>
-			<button type="button" class="btn-theme-toggle" onclick="toggleTheme()" title="Переключить тему">
-				<i class="bi bi-sun-fill" id="theme-icon-light" style="display: none;"></i>
-				<i class="bi bi-moon-fill" id="theme-icon-dark"></i>
-			</button>
+            <button type="button" class="btn-theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                <i class="bi bi-sun-fill" id="theme-icon-light" style="display: none;"></i>
+                <i class="bi bi-moon-fill" id="theme-icon-dark"></i>
+            </button>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button type="submit" class="btn-logout">
@@ -888,11 +865,11 @@ body.sidebar-collapsed .sidebar-footer {
                 <i class="bi bi-house"></i>
                 Главная
             </a>
-            <a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}" class="mobile-nav-item">
+            <a href="{{ route('tournaments.index') }}" class="mobile-nav-item {{ request()->routeIs('tournaments.*') ? 'active' : '' }}">
                 <i class="bi bi-trophy"></i>
                 Турниры
             </a>
-            <a href="#" class="mobile-nav-item">
+            <a href="{{ route('rating.index') }}" class="mobile-nav-item {{ request()->routeIs('rating.*') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart"></i>
                 Рейтинг
             </a>
@@ -904,53 +881,51 @@ body.sidebar-collapsed .sidebar-footer {
     </nav>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-        function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('show');
-            document.querySelector('.overlay').classList.toggle('show');
+    // ===== MOBILE MENU (показ/скрытие sidebar на мобильных) =====
+    function toggleMobileMenu() {
+        document.querySelector('.sidebar').classList.toggle('show');
+        document.querySelector('.overlay').classList.toggle('show');
+    }
+
+    // ===== SIDEBAR COLLAPSE (сворачивание на десктопе) =====
+    function toggleSidebarCollapse() {
+        const body = document.body;
+        const isCollapsed = body.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+    }
+
+    // ===== THEME TOGGLE =====
+    function toggleTheme() {
+        const body = document.body;
+        const isLight = body.classList.toggle('light-theme');
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        updateThemeIcon(isLight);
+    }
+
+    function updateThemeIcon(isLight) {
+        document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
+        document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
+    }
+
+    // ===== APPLY SAVED SETTINGS ON LOAD =====
+    document.addEventListener('DOMContentLoaded', function() {
+        // Theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-theme');
+            updateThemeIcon(true);
         }
+        
+        // Sidebar collapsed (только на десктопе)
+        const savedSidebar = localStorage.getItem('sidebarCollapsed');
+        if (savedSidebar === 'true' && window.innerWidth > 991) {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    });
     </script>
-	@stack('scripts')
-	<script>
-	// Theme Toggle
-	function toggleTheme() {
-		const body = document.body;
-		const isLight = body.classList.toggle('light-theme');
-		
-		localStorage.setItem('theme', isLight ? 'light' : 'dark');
-		updateThemeIcon(isLight);
-	}
-
-	function updateThemeIcon(isLight) {
-		document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
-		document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
-	}
-
-	// Apply saved theme on load
-	document.addEventListener('DOMContentLoaded', function() {
-		const savedTheme = localStorage.getItem('theme');
-		if (savedTheme === 'light') {
-			document.body.classList.add('light-theme');
-			updateThemeIcon(true);
-		}
-	});
-	</script>
-	<script>
-	// Sidebar Toggle
-	function toggleSidebar() {
-		const body = document.body;
-		const isCollapsed = body.classList.toggle('sidebar-collapsed');
-		
-		localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
-	}
-
-	// Apply saved sidebar state on load
-	document.addEventListener('DOMContentLoaded', function() {
-		const savedState = localStorage.getItem('sidebarCollapsed');
-		if (savedState === 'true') {
-			document.body.classList.add('sidebar-collapsed');
-		}
-	});
-	</script>
+    
+    @stack('scripts')
 </body>
 </html>
