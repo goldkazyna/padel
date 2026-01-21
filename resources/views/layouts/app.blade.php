@@ -731,6 +731,47 @@
             .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
             .page-header .btn-primary-custom { width: 100%; justify-content: center; }
         }
+		/* ===== FIX FOR CHROME iOS ===== */
+		html {
+			overflow: hidden;
+			height: 100%;
+		}
+
+		body {
+			overflow: auto;
+			height: 100%;
+			overscroll-behavior: none;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.main-content {
+			height: 100dvh; /* Добавь эту строку после существующих стилей main-content */
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.mobile-nav {
+			/* Замени существующий .mobile-nav на этот: */
+			display: none;
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background: var(--bg-sidebar);
+			border-top: 1px solid var(--border);
+			padding: 10px 0;
+			padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+			z-index: 1000;
+			transform: translateZ(0);
+			-webkit-transform: translateZ(0);
+		}
+
+		@media (max-width: 991px) {
+			.main-content {
+				padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+			}
+		}
     </style>
     @stack('styles')
 </head>
@@ -769,7 +810,7 @@
                 <li class="nav-item">
                     <a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}">
                         <i class="bi bi-trophy"></i>
-                        <span>Турниры</span>
+                        <span>Турниры1</span>
                     </a>
                 </li>
                 <li class="nav-item">
