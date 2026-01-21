@@ -116,100 +116,177 @@ class AmericanoService
 
 	protected function generateSmartMatches(array $players, array &$partnerHistory, array &$opponentHistory, int $courtsCount, int $courtStartNumber): array
 	{
-		// Пробуем сгенерировать матчи без повторов партнёров
-		$maxAttempts = 100;
+		// Пробуем найти идеальную комбинацию без повторов партнёров
+		$result = $this->findPerfectMatching($players, $partnerHistory);
 		
-		for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
-			$result = $this->tryGenerateMatches($players, $partnerHistory, $courtStartNumber);
-			
-			if ($result !== null) {
-				return $result;
+		if ($result !== null) {
+			// Назначаем корты
+			$courtNumber = $courtStartNumber;
+			foreach ($result as &$match) {
+				$match['court'] = $courtNumber;
+				$courtNumber++;
 			}
+			return $result;
 		}
 		
-		// Если не удалось за 100 попыток — используем fallback
+		// Если идеальный вариант невозможен — используем fallback с минимизацией повторов
+		\Log::warning('Americano: не удалось найти пары без повторов, используем fallback');
 		return $this->fallbackGenerateMatches($players, $partnerHistory, $courtStartNumber);
 	}
-
-	protected function tryGenerateMatches(array $players, array $partnerHistory, int $courtStartNumber): ?array
+	/**
+	 * Найти идеальное распределение пар без повторов (backtracking)
+	 */
+	protected function findPerfectMatching(array $players, array $partnerHistory): ?array
 	{
 		$matches = [];
-		$availablePlayers = $players;
-		shuffle($availablePlayers);
+		$used = [];
 		
-		while (count($availablePlayers) >= 4) {
-			$player1 = array_shift($availablePlayers);
-			
-			// Ищем партнёра, с которым ещё НЕ играли
-			$partner1 = $this->findUnusedPartner($player1, $availablePlayers, $partnerHistory);
-			
-			if ($partner1 === null) {
-				return null; // Не удалось — пробуем заново
-			}
-			
-			$this->removeFromArray($availablePlayers, $partner1);
-			
-			$player2 = array_shift($availablePlayers);
-			
-			$partner2 = $this->findUnusedPartner($player2, $availablePlayers, $partnerHistory);
-			
-			if ($partner2 === null) {
-				return null; // Не удалось — пробуем заново
-			}
-			
-			$this->removeFromArray($availablePlayers, $partner2);
-			
-			$matches[] = [
-				'team1' => [$player1, $partner1],
-				'team2' => [$player2, $partner2],
-			];
+		// Перемешиваем для разнообразия
+		shuffle($players);
+		
+		$result = $this->backtrackMatching($players, $partnerHistory, $matches, $used);
+		
+		if ($result) {
+			shuffle($matches); // Перемешиваем порядок матчей
+			return $matches;
 		}
 		
-		// Перемешиваем и назначаем корты
-		shuffle($matches);
-		$courtNumber = $courtStartNumber;
-		foreach ($matches as &$match) {
-			$match['court'] = $courtNumber;
-			$courtNumber++;
-		}
-		
-		return $matches;
+		return null;
 	}
 
-	protected function findUnusedPartner(int $playerId, array $availablePlayers, array $partnerHistory): ?int
+	/**
+	 * Рекурсивный backtracking для поиска пар
+	 */
+	protected function backtrackMatching(array $players, array $partnerHistory, array &$matches, array &$used): bool
 	{
-		$candidates = [];
+		// Находим всех свободных игроков
+		$available = array_values(array_diff($players, $used));
+		
+		// Если осталось меньше 4 — успех (все распределены)
+		if (count($available) < 4) {
+			return true;
+		}
+		
+		// Берём первого свободного игрока
+		$player1 = $available[0];
+		$used[] = $player1;
+		
+		// Получаем всех возможных партнёров (с кем ещё НЕ играл)
+		$possiblePartners = $this->getUnusedPartners($player1, $available, $partnerHistory);
+		
+		// Перемешиваем для разнообразия
+		shuffle($possiblePartners);
+		
+		foreach ($possiblePartners as $partner1) {
+			$used[] = $partner1;
+			
+			// Находим оставшихся
+			$remaining = array_values(array_diff($available, [$player1, $partner1]));
+			
+			if (count($remaining) < 2) {
+				// Откат
+				array_pop($used);
+				continue;
+			}
+			
+			// Берём следующего игрока
+			$player2 = $remaining[0];
+			$used[] = $player2;
+			
+			// Получаем возможных партнёров для него
+			$possiblePartners2 = $this->getUnusedPartners($player2, $remaining, $partnerHistory);
+			
+			shuffle($possiblePartners2);
+			
+			foreach ($possiblePartners2 as $partner2) {
+				$used[] = $partner2;
+				
+				// Добавляем матч
+				$matches[] = [
+					'team1' => [$player1, $partner1],
+					'team2' => [$player2, $partner2],
+				];
+				
+				// Рекурсивно пробуем распределить остальных
+				if ($this->backtrackMatching($players, $partnerHistory, $matches, $used)) {
+					return true;
+				}
+				
+				// Откат — убираем матч и partner2
+				array_pop($matches);
+				array_pop($used);
+			}
+			
+			// Откат — убираем player2
+			array_pop($used);
+			
+			// Откат — убираем partner1
+			array_pop($used);
+		}
+		
+		// Откат — убираем player1
+		array_pop($used);
+		
+		return false;
+	}
+
+	/**
+	 * Получить список игроков, с которыми ещё НЕ играли в паре
+	 */
+	protected function getUnusedPartners(int $playerId, array $availablePlayers, array $partnerHistory): array
+	{
+		$partners = [];
 		
 		foreach ($availablePlayers as $candidate) {
+			if ($candidate === $playerId) {
+				continue;
+			}
+			
 			$timesPlayed = $partnerHistory[$playerId][$candidate] ?? 0;
 			if ($timesPlayed === 0) {
-				$candidates[] = $candidate;
+				$partners[] = $candidate;
 			}
 		}
 		
-		if (empty($candidates)) {
-			return null;
-		}
-		
-		// Рандомно выбираем из тех, с кем ещё не играли
-		shuffle($candidates);
-		return $candidates[0];
+		return $partners;
 	}
+	
+
+
 
 	protected function fallbackGenerateMatches(array $players, array $partnerHistory, int $courtStartNumber): array
 	{
 		$matches = [];
-		$availablePlayers = $players;
-		shuffle($availablePlayers);
+		$used = [];
 		
-		while (count($availablePlayers) >= 4) {
-			$player1 = array_shift($availablePlayers);
-			$partner1 = $this->findBestPartner($player1, $availablePlayers, $partnerHistory);
-			$this->removeFromArray($availablePlayers, $partner1);
+		shuffle($players);
+		
+		while (count($used) < count($players) - 3) {
+			// Находим свободных
+			$available = array_values(array_diff($players, $used));
 			
-			$player2 = array_shift($availablePlayers);
-			$partner2 = $this->findBestPartner($player2, $availablePlayers, $partnerHistory);
-			$this->removeFromArray($availablePlayers, $partner2);
+			if (count($available) < 4) {
+				break;
+			}
+			
+			// Берём первого игрока
+			$player1 = $available[0];
+			$used[] = $player1;
+			
+			// Ищем лучшего партнёра (с минимальным количеством совместных игр)
+			$remaining = array_values(array_diff($available, [$player1]));
+			$partner1 = $this->findBestPartner($player1, $remaining, $partnerHistory);
+			$used[] = $partner1;
+			
+			// Берём следующего
+			$remaining = array_values(array_diff($available, [$player1, $partner1]));
+			$player2 = $remaining[0];
+			$used[] = $player2;
+			
+			// Ищем лучшего партнёра
+			$remaining = array_values(array_diff($remaining, [$player2]));
+			$partner2 = $this->findBestPartner($player2, $remaining, $partnerHistory);
+			$used[] = $partner2;
 			
 			$matches[] = [
 				'team1' => [$player1, $partner1],
