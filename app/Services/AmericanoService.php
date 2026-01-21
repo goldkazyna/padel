@@ -772,18 +772,41 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 				]);
 			}
 		} elseif (count($groupNames) === 1) {
-			// Одна группа: 1+4 vs 2+3
+			// Одна группа — формат зависит от настроек
 			$players = $leaders[$groupNames[0]];
 			
 			if ($players->count() >= 4) {
+				$format = $tournament->playoff_format ?? 'cross';
+				
+				switch ($format) {
+					case 'tops':
+						// 1+2 vs 3+4
+						$team1 = [$players[0]->id, $players[1]->id];
+						$team2 = [$players[2]->id, $players[3]->id];
+						break;
+						
+					case 'mix':
+						// 1+3 vs 2+4
+						$team1 = [$players[0]->id, $players[2]->id];
+						$team2 = [$players[1]->id, $players[3]->id];
+						break;
+						
+					case 'cross':
+					default:
+						// 1+4 vs 2+3
+						$team1 = [$players[0]->id, $players[3]->id];
+						$team2 = [$players[1]->id, $players[2]->id];
+						break;
+				}
+				
 				\App\Models\TournamentPlayoffMatch::create([
 					'tournament_id' => $tournament->id,
 					'stage' => 'Финал',
 					'match_number' => 1,
-					'team1_player1_id' => $players[0]->id,
-					'team1_player2_id' => $players[3]->id,
-					'team2_player1_id' => $players[1]->id,
-					'team2_player2_id' => $players[2]->id,
+					'team1_player1_id' => $team1[0],
+					'team1_player2_id' => $team1[1],
+					'team2_player1_id' => $team2[0],
+					'team2_player2_id' => $team2[1],
 					'status' => 'pending',
 				]);
 			}

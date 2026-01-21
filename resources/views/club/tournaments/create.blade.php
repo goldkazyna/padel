@@ -165,18 +165,13 @@
 									</div>
 									
 									{{-- Выбор формата пар --}}
-									<div id="playoffFormatOptions" class="mt-3" style="display: none;">
-										<label class="form-label">Формат пар в полуфиналах</label>
-										<select name="playoff_format" id="playoffFormat" class="form-select">
-											<option value="mix" {{ old('playoff_format') === 'mix' ? 'selected' : '' }}>Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
-											<option value="group_vs" {{ old('playoff_format') === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
-											<option value="tops" {{ old('playoff_format') === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
-											<option value="cross" {{ old('playoff_format') === 'cross' ? 'selected' : '' }}>Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
-										</select>
-										<small class="text-secondary mt-2 d-block">
-											A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.
-										</small>
-									</div>
+										<div id="playoffFormatOptions" class="mt-3" style="display: none;">
+											<label class="form-label" id="playoffFormatLabel">Формат пар</label>
+											<select name="playoff_format" id="playoffFormat" class="form-select">
+												<!-- Options будут заполняться через JavaScript -->
+											</select>
+											<small class="text-secondary mt-2 d-block" id="playoffFormatHint"></small>
+										</div>
 								</div>
 							</div>
 						</div>
@@ -313,44 +308,57 @@ function toggleTypeFields() {
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
     
+    // Скрываем все
     if (americanoFields) americanoFields.style.display = 'none';
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
     
-	if (type === 'americano' && americanoFields) {
-		americanoFields.style.display = 'block';
-		document.getElementById('americanoGroupsCount').disabled = false;
-		if (document.getElementById('teamGroupsCount')) {
-			document.getElementById('teamGroupsCount').disabled = true;
-		}
-		if (document.getElementById('americanoRoundsCount')) {
-			document.getElementById('americanoRoundsCount').disabled = false;
-		}
-		if (document.getElementById('mexicanoRoundsCount')) {
-			document.getElementById('mexicanoRoundsCount').disabled = true;
-		}
-		togglePlayoffOptions();
-		togglePlayoffType();
-		generateCourtsInputs();
-		updateAmericanoRounds();
-	} else if (type === 'mexicano' && mexicanoFields) {
+    // Отключаем все playoff_format селекты
+    const playoffFormat = document.getElementById('playoffFormat');
+    const mexicanoPlayoffFormat = document.getElementById('mexicanoPlayoffFormat');
+    if (playoffFormat) playoffFormat.disabled = true;
+    if (mexicanoPlayoffFormat) mexicanoPlayoffFormat.disabled = true;
+    
+    if (type === 'americano' && americanoFields) {
+        americanoFields.style.display = 'block';
+        document.getElementById('americanoGroupsCount').disabled = false;
+        if (document.getElementById('teamGroupsCount')) {
+            document.getElementById('teamGroupsCount').disabled = true;
+        }
+        if (document.getElementById('americanoRoundsCount')) {
+            document.getElementById('americanoRoundsCount').disabled = false;
+        }
+        if (document.getElementById('mexicanoRoundsCount')) {
+            document.getElementById('mexicanoRoundsCount').disabled = true;
+        }
+        // Включаем американо формат
+        if (playoffFormat) playoffFormat.disabled = false;
+        
+        togglePlayoffOptions();
+        togglePlayoffType();
+        generateCourtsInputs();
+        updateAmericanoRounds();
+    } else if (type === 'mexicano' && mexicanoFields) {
         mexicanoFields.style.display = 'block';
-		if (document.getElementById('mexicanoRoundsCount')) {
-			document.getElementById('mexicanoRoundsCount').disabled = false;
-		}
-		if (document.getElementById('americanoRoundsCount')) {
-			document.getElementById('americanoRoundsCount').disabled = true;
-		}
-		generateCourtsInputs();
-		toggleMexicanoPlayoffType(); // <-- добавь эту строку
-	} else if (type === 'team' && teamFields) {
-		teamFields.style.display = 'block';
-		document.getElementById('teamGroupsCount').disabled = false;
-		if (document.getElementById('americanoGroupsCount')) {
-			document.getElementById('americanoGroupsCount').disabled = true;
-		}
-		generateCourtsInputs();
-	}
+        if (document.getElementById('mexicanoRoundsCount')) {
+            document.getElementById('mexicanoRoundsCount').disabled = false;
+        }
+        if (document.getElementById('americanoRoundsCount')) {
+            document.getElementById('americanoRoundsCount').disabled = true;
+        }
+        // Включаем мексикано формат
+        if (mexicanoPlayoffFormat) mexicanoPlayoffFormat.disabled = false;
+        
+        generateCourtsInputs();
+        toggleMexicanoPlayoffType();
+    } else if (type === 'team' && teamFields) {
+        teamFields.style.display = 'block';
+        document.getElementById('teamGroupsCount').disabled = false;
+        if (document.getElementById('americanoGroupsCount')) {
+            document.getElementById('americanoGroupsCount').disabled = true;
+        }
+        generateCourtsInputs();
+    }
 }
 
 function togglePlayoffType() {
@@ -383,17 +391,46 @@ function togglePlayoffOptions() {
 
 function togglePlayoffFormat() {
     const semifinalFinal = document.getElementById('semifinalFinal');
+    const finalOnly = document.getElementById('finalOnly');
+    const hasPlayoff = document.getElementById('hasPlayoff');
     const playoffFormatOptions = document.getElementById('playoffFormatOptions');
+    const playoffFormatSelect = document.getElementById('playoffFormat');
+    const playoffFormatLabel = document.getElementById('playoffFormatLabel');
+    const playoffFormatHint = document.getElementById('playoffFormatHint');
     const groupsCount = document.getElementById('americanoGroupsCount');
     
-    if (playoffFormatOptions && semifinalFinal && groupsCount) {
-        const groups = parseInt(groupsCount.value);
-        // Показываем выбор формата только если 2 группы И выбран полуфинал+финал
-        if (groups >= 2 && semifinalFinal.checked) {
-            playoffFormatOptions.style.display = 'block';
-        } else {
-            playoffFormatOptions.style.display = 'none';
-        }
+    if (!playoffFormatOptions || !playoffFormatSelect || !groupsCount || !hasPlayoff) return;
+    
+    // Скрываем по умолчанию
+    playoffFormatOptions.style.display = 'none';
+    
+    // Если плей-офф не включен - выходим
+    if (!hasPlayoff.checked) return;
+    
+    const groups = parseInt(groupsCount.value);
+    
+    // 2+ группы и полуфинал+финал
+    if (groups >= 2 && semifinalFinal && semifinalFinal.checked) {
+        playoffFormatOptions.style.display = 'block';
+        playoffFormatLabel.textContent = 'Формат пар в полуфиналах';
+        playoffFormatHint.textContent = 'A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.';
+        playoffFormatSelect.innerHTML = `
+            <option value="mix">Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
+            <option value="group_vs">Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
+            <option value="tops">Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
+            <option value="cross">Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+        `;
+    }
+    // 1 группа и только финал
+    else if (groups === 1 && finalOnly && finalOnly.checked) {
+        playoffFormatOptions.style.display = 'block';
+        playoffFormatLabel.textContent = 'Формат пар в финале';
+        playoffFormatHint.textContent = '1 = 1-е место, 2 = 2-е место и т.д.';
+        playoffFormatSelect.innerHTML = `
+            <option value="cross">1+4 vs 2+3 (крест)</option>
+            <option value="tops">1+2 vs 3+4 (топы вместе)</option>
+            <option value="mix">1+3 vs 2+4 (микс)</option>
+        `;
     }
 }
 function generateCourtsInputs() {

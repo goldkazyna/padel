@@ -84,10 +84,7 @@ class TournamentController extends Controller
 			$validated['playoff_type'] = null;
 			$validated['playoff_format'] = null;
 		}
-		// Если не полуфинал+финал, убираем формат
-		if (($validated['playoff_type'] ?? null) !== 'semifinal_final') {
-			$validated['playoff_format'] = null;
-		}
+
 
         // Проверяем доступ к клубу
         if ($club && $validated['club_id'] != $club->id) {
