@@ -515,6 +515,53 @@
 .section-subheader div{
 	font-size:24px;
 }
+/* ===== АККОРДЕОН РАУНДОВ ===== */
+.round-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.round-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.round-header .collapse-icon {
+    transition: transform 0.3s ease;
+    margin-left: auto;
+}
+
+.round-card.collapsed .round-header .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.round-matches {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+    max-height: 2000px;
+}
+
+.round-card.collapsed .round-matches {
+    max-height: 0;
+    opacity: 0;
+    padding: 0;
+}
+
+.round-card.collapsed {
+    opacity: 0.7;
+}
+
+.round-card.collapsed:hover {
+    opacity: 1;
+}
+/* ===== УБИРАЕМ BACKDROP МОДАЛКИ ===== */
+.modal-backdrop {
+    display: none !important;
+}
+
+.modal {
+    background: rgba(0, 0, 0, 0.5);
+}
 </style>
 
 <script>
@@ -541,6 +588,28 @@ document.addEventListener('DOMContentLoaded', function() {
             el.classList.add('collapsed');
             if (icon) icon.classList.add('collapsed');
         }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.round-card').forEach(card => {
+        const header = card.querySelector('.round-header');
+        const isActive = card.classList.contains('active');
+        
+        // Добавляем иконку
+        if (!header.querySelector('.collapse-icon')) {
+            header.insertAdjacentHTML('beforeend', '<i class="bi bi-chevron-down collapse-icon"></i>');
+        }
+        
+        // Сворачиваем все кроме активного
+        if (!isActive) {
+            card.classList.add('collapsed');
+        }
+        
+        // Клик
+        header.addEventListener('click', () => card.classList.toggle('collapsed'));
     });
 });
 </script>
