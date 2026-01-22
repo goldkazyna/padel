@@ -221,3 +221,8 @@ body {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+/* ------------ Статус "Мест нет" ------------ */
+.tournament-status.full {
+    color: var(--danger);
+    font-weight: 600;
+}
