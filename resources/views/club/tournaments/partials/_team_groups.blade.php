@@ -18,39 +18,43 @@
                         </div>
                         
                         {{-- Таблица группы --}}
-                        <div class="table-responsive mb-3">
-                            <table class="table table-dark table-sm mb-0">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 30px;">#</th>
-                                        <th>Пара</th>
-                                        <th class="text-center" title="Сыграно">И</th>
-                                        <th class="text-center" title="Победы">В</th>
-                                        <th class="text-center" title="Поражения">П</th>
-                                        <th class="text-center" title="Забито">ЗМ</th>
-                                        <th class="text-center" title="Пропущено">ПМ</th>
-                                        <th class="text-center" title="Разница">+/-</th>
-                                        <th class="text-center" title="Очки"><strong>О</strong></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($group->standings as $index => $standing)
+						@php
+							$sortedStandings = app(\App\Services\TeamTournamentService::class)->getSortedStandings($group);
+						@endphp
+						<div class="table-responsive mb-3">
+							<table class="table table-dark table-sm mb-0">
+								<thead>
+									<tr>
+										<th style="width: 30px;">#</th>
+										<th>Пара</th>
+										<th class="text-center" title="Сыграно">И</th>
+										<th class="text-center" title="Победы">В</th>
+										<th class="text-center" title="Поражения">П</th>
+										<th class="text-center" title="Забито">ЗМ</th>
+										<th class="text-center" title="Пропущено">ПМ</th>
+										<th class="text-center" title="Разница">+/-</th>
+										<th class="text-center" title="Очки"><strong>О</strong></th>
+									</tr>
+								</thead>
+								<tbody>
+									@foreach($sortedStandings as $index => $standing)
+										@php $team = \App\Models\TournamentTeam::find($standing['team_id']); @endphp
                                         <tr class="{{ $index < $tournament->teams_advance ? 'table-success-custom' : '' }}">
-                                            <td>{{ $index + 1 }}</td>
-                                            <td><span class="team-name-cell">{{ $standing->team->name }}</span></td>
-                                            <td class="text-center">{{ $standing->played }}</td>
-                                            <td class="text-center">{{ $standing->won }}</td>
-                                            <td class="text-center">{{ $standing->lost }}</td>
-                                            <td class="text-center">{{ $standing->points_for }}</td>
-                                            <td class="text-center">{{ $standing->points_against }}</td>
-                                            <td class="text-center">
-                                                @php $diff = $standing->points_diff; @endphp
-                                                <span class="{{ $diff > 0 ? 'text-success' : ($diff < 0 ? 'text-danger' : '') }}">
-                                                    {{ $diff > 0 ? '+' : '' }}{{ $diff }}
-                                                </span>
-                                            </td>
-                                            <td class="text-center"><strong>{{ $standing->points }}</strong></td>
-                                        </tr>
+											<td>{{ $index + 1 }}</td>
+											<td><span class="team-name-cell">{{ $team->name }}</span></td>
+											<td class="text-center">{{ $standing['played'] }}</td>
+											<td class="text-center">{{ $standing['won'] }}</td>
+											<td class="text-center">{{ $standing['lost'] }}</td>
+											<td class="text-center">{{ $standing['points_for'] }}</td>
+											<td class="text-center">{{ $standing['points_against'] }}</td>
+											<td class="text-center">
+												@php $diff = $standing['points_for'] - $standing['points_against']; @endphp
+												<span class="{{ $diff > 0 ? 'text-success' : ($diff < 0 ? 'text-danger' : '') }}">
+													{{ $diff > 0 ? '+' : '' }}{{ $diff }}
+												</span>
+											</td>
+											<td class="text-center"><strong>{{ $standing['points'] }}</strong></td>
+										</tr>
                                     @endforeach
                                 </tbody>
                             </table>

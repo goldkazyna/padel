@@ -275,53 +275,51 @@ class TeamTournamentService
     /**
      * Генерация плей-офф
      */
-    public function generatePlayoff(Tournament $tournament): bool
-    {
-        if (!$this->isGroupStageCompleted($tournament)) {
-            return false;
-        }
-
-        if ($tournament->playoffMatches()->count() > 0) {
-            return false;
-        }
-
-        $teamsAdvance = $tournament->teams_advance;
-        $groupsCount = $tournament->groups_count;
-        $totalPlayoffTeams = $teamsAdvance * $groupsCount;
-
-        // Определяем этап плей-офф
-        $stage = match($totalPlayoffTeams) {
-            2 => 'final',
-            4 => 'semi',
-            8 => 'quarter',
-            default => 'quarter',
-        };
-
-        // Собираем команды из групп
-        $playoffTeams = [];
-        foreach ($tournament->teamGroups as $group) {
-            $topTeams = $group->standings()
-                ->with('team')
-                ->orderBy('points', 'desc')
-                ->orderByRaw('points_for - points_against DESC')
-                ->limit($teamsAdvance)
-                ->get();
-
-            foreach ($topTeams as $index => $standing) {
-                $playoffTeams[] = [
-                    'team' => $standing->team,
-                    'group' => $group->name,
-                    'position' => $index + 1,
-                    'source' => substr($group->name, -1) . ($index + 1), // A1, A2, B1, B2...
-                ];
-            }
-        }
-
-        // Создаём матчи плей-офф
-        $this->createPlayoffMatches($tournament, $playoffTeams, $stage);
-
-        return true;
-    }
+   public function generatePlayoff(Tournament $tournament): bool
+	{
+		if (!$this->isGroupStageCompleted($tournament)) {
+			return false;
+		}
+		
+		if ($tournament->playoffMatches()->count() > 0) {
+			return false;
+		}
+		
+		$teamsAdvance = $tournament->teams_advance;
+		$groupsCount = $tournament->groups_count;
+		$totalPlayoffTeams = $teamsAdvance * $groupsCount;
+		
+		// Определяем этап плей-офф
+		$stage = match($totalPlayoffTeams) {
+			2 => 'final',
+			4 => 'semi',
+			8 => 'quarter',
+			default => 'quarter',
+		};
+		
+		// Собираем команды из групп с правильной сортировкой
+		$playoffTeams = [];
+		foreach ($tournament->teamGroups as $group) {
+			$sortedStandings = $this->getSortedStandings($group);
+			$topTeams = array_slice($sortedStandings, 0, $teamsAdvance);
+			
+			foreach ($topTeams as $index => $standing) {
+				$team = TournamentTeam::find($standing['team_id']);
+				
+				$playoffTeams[] = [
+					'team' => $team,
+					'group' => $group->name,
+					'position' => $index + 1,
+					'source' => substr($group->name, -1) . ($index + 1), // A1, A2, B1, B2...
+				];
+			}
+		}
+		
+		// Создаём матчи плей-офф
+		$this->createPlayoffMatches($tournament, $playoffTeams, $stage);
+		
+		return true;
+	}
 
     /**
 	 * Создание матчей плей-офф
@@ -378,12 +376,12 @@ class TeamTournamentService
 			]);
 		} elseif ($stage === 'quarter') {
 			// 1/4 финала для 8 команд
-			$matchups = [
-				[0, 7], // A1 vs D2
-				[4, 3], // C1 vs B2
-				[2, 5], // B1 vs C2
-				[6, 1], // D1 vs A2
-			];
+			    $matchups = [
+					[0, 7], // Матч 1: A1 vs B4
+					[5, 2], // Матч 2: B2 vs A3
+					[4, 3], // Матч 3: B1 vs A4
+					[1, 6], // Матч 4: A2 vs B3
+				];
 
 			foreach ($matchups as $i => $pair) {
 				TournamentPlayoffMatch::create([
@@ -679,5 +677,103 @@ class TeamTournamentService
 		$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
 		$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
 		$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
+	}
+
+	/**
+	 * Отсортировать команды в группе по правилам
+	 * 1. Очки
+	 * 2. Если 2 команды равны — личная встреча
+	 * 3. Если 3+ команды равны — разница мячей, потом рекурсивно для оставшихся
+	 */
+	public function getSortedStandings(TournamentTeamGroup $group): array
+	{
+		$standings = $group->standings()->with('team')->get()->toArray();
+		
+		// Получаем все матчи группы для личных встреч
+		$matches = $group->matches()->where('status', 'completed')->get();
+		
+		// Строим карту личных встреч: [team1_id][team2_id] => winnerId
+		$headToHead = [];
+		foreach ($matches as $match) {
+			if ($match->team1_score > $match->team2_score) {
+				$headToHead[$match->team1_id][$match->team2_id] = $match->team1_id;
+				$headToHead[$match->team2_id][$match->team1_id] = $match->team1_id;
+			} elseif ($match->team2_score > $match->team1_score) {
+				$headToHead[$match->team1_id][$match->team2_id] = $match->team2_id;
+				$headToHead[$match->team2_id][$match->team1_id] = $match->team2_id;
+			} else {
+				$headToHead[$match->team1_id][$match->team2_id] = null;
+				$headToHead[$match->team2_id][$match->team1_id] = null;
+			}
+		}
+		
+		// Группируем по очкам
+		$byPoints = [];
+		foreach ($standings as $standing) {
+			$points = $standing['points'];
+			$byPoints[$points][] = $standing;
+		}
+		
+		// Сортируем по очкам (desc)
+		krsort($byPoints);
+		
+		// Результат
+		$sorted = [];
+		
+		foreach ($byPoints as $points => $teams) {
+			$sortedGroup = $this->sortTeamGroup($teams, $headToHead);
+			foreach ($sortedGroup as $team) {
+				$sorted[] = $team;
+			}
+		}
+		
+		return $sorted;
+	}
+
+	/**
+	 * Сортировка группы команд с равными очками
+	 */
+	protected function sortTeamGroup(array $teams, array $headToHead): array
+	{
+		if (count($teams) <= 1) {
+			return $teams;
+		}
+		
+		if (count($teams) === 2) {
+			// Две команды — смотрим личную встречу
+			$team1 = $teams[0];
+			$team2 = $teams[1];
+			$winner = $headToHead[$team1['team_id']][$team2['team_id']] ?? null;
+			
+			if ($winner === $team2['team_id']) {
+				return [$team2, $team1];
+			} elseif ($winner === $team1['team_id']) {
+				return [$team1, $team2];
+			} else {
+				// Ничья или не играли — по разнице мячей
+				$diff1 = $team1['points_for'] - $team1['points_against'];
+				$diff2 = $team2['points_for'] - $team2['points_against'];
+				
+				if ($diff2 > $diff1) {
+					return [$team2, $team1];
+				}
+				return [$team1, $team2];
+			}
+		}
+		
+		// 3+ команды — сортируем по разнице мячей
+		usort($teams, function($a, $b) {
+			$diffA = $a['points_for'] - $a['points_against'];
+			$diffB = $b['points_for'] - $b['points_against'];
+			return $diffB <=> $diffA;
+		});
+		
+		// Берём первого (лучшая разница)
+		$first = array_shift($teams);
+		
+		// Рекурсивно сортируем оставшихся
+		$rest = $this->sortTeamGroup($teams, $headToHead);
+		
+		return array_merge([$first], $rest);
 	}
 }
