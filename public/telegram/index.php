@@ -46,7 +46,7 @@
 			    <div class="screen-header" style="display: flex; justify-content: space-between; align-items: center;">
 					<h1 class="screen-title">Главная</h1>
 					<button class="btn-icon" onclick="refreshHome()">
-						⟳ Обновить
+						⟳
 					</button>
 				</div>
             <div class="screen-content">
@@ -90,7 +90,7 @@
             <div class="screen-header">
                 <h1 class="screen-title">Турниры</h1>
 				<button class="btn-icon" onclick="refreshTournaments()" title="Обновить">
-					⟳ Обновить
+					⟳
 				</button>
             </div>
             <div class="screen-content">
@@ -115,7 +115,7 @@
 					← Назад
 				</button>
 				<button class="btn btn-secondary" onclick="refreshTournament()" style="padding: 8px 16px;">
-					⟳ Обновить
+					⟳
 				</button>
 			</div>
             <div class="screen-content">

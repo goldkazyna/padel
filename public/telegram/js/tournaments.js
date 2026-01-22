@@ -185,7 +185,7 @@ async function refreshTournament() {
     // Возвращаем кнопку
     if (btn) {
         btn.disabled = false;
-        btn.textContent = '⟳ Обновить';
+        btn.textContent = '⟳';
     }
 }
 /**
