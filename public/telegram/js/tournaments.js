@@ -173,21 +173,17 @@ async function openTournament(id) {
 async function refreshTournament() {
     if (!currentTournamentId) return;
     
-    // Дизейблим кнопку на время загрузки
     const btn = document.querySelector('[onclick="refreshTournament()"]');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
     }
     
     await openTournament(currentTournamentId);
     
-    // Возвращаем кнопку
     if (btn) {
         btn.disabled = false;
-        btn.textContent = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-    </svg>';
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
     }
 }
 /**
