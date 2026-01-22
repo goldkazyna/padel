@@ -6,6 +6,8 @@ let allTournaments = [];
 let currentFilter = 'all';
 
 let statusPolling = null;
+
+let currentTournamentId = null;
 /**
  * Загрузить турниры
  */
@@ -143,6 +145,8 @@ function renderTournamentCard(tournament) {
  * Открыть турнир
  */
 async function openTournament(id) {
+    currentTournamentId = id; // Сохраняем ID
+    
     const result = await apiTournament(id);
     
     if (!result.tournament) {
@@ -163,6 +167,15 @@ async function openTournament(id) {
     }
 }
 
+/**
+ * Обновить текущий турнир
+ */
+async function refreshTournament() {
+    if (!currentTournamentId) return;
+    
+    showAlert('Обновление...');
+    await openTournament(currentTournamentId);
+}
 /**
  * Рендер детальной страницы турнира
  */
@@ -262,6 +275,13 @@ async function registerTournament(id) {
         openTournament(id);
     } else {
         showAlert(result.error || 'Ошибка регистрации');
+        
+        // Если мест нет — обновляем страницу
+        if (result.error && result.error.includes('мест')) {
+            setTimeout(() => {
+                refreshTournament();
+            }, 1500);
+        }
     }
 }
 
@@ -288,6 +308,7 @@ function cancelRegistration(id) {
  * Назад из деталей турнира
  */
 function backFromTournament() {
+	currentTournamentId = null; // Сбрасываем ID
     stopStatusPolling();
     navigateTo('tournaments');
 }

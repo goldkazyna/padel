@@ -101,11 +101,14 @@
 
         <!-- ============ ДЕТАЛИ ТУРНИРА ============ -->
         <div id="tournament-detail-screen" class="screen">
-            <div class="screen-header">
-                <button class="btn btn-secondary" onclick="backFromTournament()" style="padding: 8px 16px;">
-                    ← Назад
-                </button>
-            </div>
+            <div class="screen-header" style="display: flex; justify-content: space-between; align-items: center;">
+				<button class="btn btn-secondary" onclick="backFromTournament()" style="padding: 8px 16px;">
+					← Назад
+				</button>
+				<button class="btn btn-secondary" onclick="refreshTournament()" style="padding: 8px 16px;">
+					🔄 Обновить
+				</button>
+			</div>
             <div class="screen-content">
                 <div id="tournament-detail-content">
                     <!-- Рендерится через JS -->
