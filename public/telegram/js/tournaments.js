@@ -355,3 +355,10 @@ function stopStatusPolling() {
         statusPolling = null;
     }
 }
+
+/**
+ * Обновить список турниров
+ */
+async function refreshTournaments() {
+    await loadTournaments();
+}

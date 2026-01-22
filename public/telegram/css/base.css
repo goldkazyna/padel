@@ -196,3 +196,24 @@ body {
     cursor: pointer;
     padding: 12px;
 }
+
+/* ------------ Кнопка-иконка ------------ */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    font-size: 18px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-icon:active {
+    background: var(--border);
+    transform: scale(0.95);
+}

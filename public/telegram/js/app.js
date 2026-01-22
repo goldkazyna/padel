@@ -231,6 +231,11 @@ function getTournamentTypeName(type) {
     };
     return types[type] || type;
 }
-
+/**
+ * Обновить главную страницу
+ */
+async function refreshHome() {
+    await loadHome();
+}
 // Запуск приложения
 document.addEventListener('DOMContentLoaded', initApp);
