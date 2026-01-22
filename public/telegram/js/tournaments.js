@@ -173,8 +173,20 @@ async function openTournament(id) {
 async function refreshTournament() {
     if (!currentTournamentId) return;
     
-    showAlert('Обновление...');
+    // Дизейблим кнопку на время загрузки
+    const btn = document.querySelector('[onclick="refreshTournament()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳';
+    }
+    
     await openTournament(currentTournamentId);
+    
+    // Возвращаем кнопку
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔄 Обновить';
+    }
 }
 /**
  * Рендер детальной страницы турнира
