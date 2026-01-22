@@ -781,14 +781,69 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 			return false;
 		}
 
-		// Собираем топ-4 из каждой группы
+		// Собираем топ-4 из каждой группы с правильной сортировкой
 		$leaders = [];
-		
+
 		foreach ($tournament->groups as $group) {
-			$topPlayers = $group->players()
-				->orderByPivot('total_points', 'desc')
-				->limit(4)
-				->get();
+			// Считаем статистику для каждого игрока
+			$playerStats = [];
+			
+			foreach ($group->players as $player) {
+				$playerStats[$player->id] = [
+					'player' => $player,
+					'total_points' => $player->pivot->total_points,
+					'wins' => 0,
+					'points_for' => 0,
+					'points_against' => 0,
+				];
+			}
+			
+			// Собираем статистику из матчей
+			foreach ($group->rounds as $round) {
+				foreach ($round->matches as $match) {
+					if ($match->status !== 'completed') continue;
+					
+					$team1Players = [$match->team1_player1_id, $match->team1_player2_id];
+					$team2Players = [$match->team2_player1_id, $match->team2_player2_id];
+					
+					foreach ($team1Players as $pId) {
+						if (isset($playerStats[$pId])) {
+							$playerStats[$pId]['points_for'] += $match->team1_score;
+							$playerStats[$pId]['points_against'] += $match->team2_score;
+							if ($match->team1_score > $match->team2_score) {
+								$playerStats[$pId]['wins']++;
+							}
+						}
+					}
+					
+					foreach ($team2Players as $pId) {
+						if (isset($playerStats[$pId])) {
+							$playerStats[$pId]['points_for'] += $match->team2_score;
+							$playerStats[$pId]['points_against'] += $match->team1_score;
+							if ($match->team2_score > $match->team1_score) {
+								$playerStats[$pId]['wins']++;
+							}
+						}
+					}
+				}
+			}
+			
+			// Сортируем: очки → победы → разница мячей
+			uasort($playerStats, function($a, $b) {
+				if ($a['total_points'] !== $b['total_points']) {
+					return $b['total_points'] <=> $a['total_points'];
+				}
+				if ($a['wins'] !== $b['wins']) {
+					return $b['wins'] <=> $a['wins'];
+				}
+				$diffA = $a['points_for'] - $a['points_against'];
+				$diffB = $b['points_for'] - $b['points_against'];
+				return $diffB <=> $diffA;
+			});
+			
+			// Берём топ-4 игроков
+			$topPlayers = collect(array_slice($playerStats, 0, 4))
+				->map(fn($stat) => $stat['player']);
 			
 			$leaders[$group->name] = $topPlayers;
 		}

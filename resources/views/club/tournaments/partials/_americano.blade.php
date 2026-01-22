@@ -89,7 +89,20 @@
 				}
 				
 				// Сортируем по очкам
-				uasort($playerStats, fn($a, $b) => $b['total_points'] <=> $a['total_points']);
+				uasort($playerStats, function($a, $b) {
+					// 1. По очкам
+					if ($a['total_points'] !== $b['total_points']) {
+						return $b['total_points'] <=> $a['total_points'];
+					}
+					// 2. По количеству побед
+					if ($a['wins'] !== $b['wins']) {
+						return $b['wins'] <=> $a['wins'];
+					}
+					// 3. По разнице мячей
+					$diffA = $a['points_for'] - $a['points_against'];
+					$diffB = $b['points_for'] - $b['points_against'];
+					return $diffB <=> $diffA;
+				});
 			@endphp
 
 			<div class="leaderboard-table-wrapper mb-4">
