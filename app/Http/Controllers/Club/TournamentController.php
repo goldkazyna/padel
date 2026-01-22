@@ -210,18 +210,30 @@ class TournamentController extends Controller
     }
 
     // Удалить участника
-    public function removeParticipant(Tournament $tournament, $userId)
-    {
-        $club = $this->getClub();
-        
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+	public function removeParticipant(Tournament $tournament, $userId)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        $tournament->participants()->detach($userId);
+		// Проверяем был ли турнир полным ДО удаления
+		$takenSlots = $tournament->participants()
+			->wherePivotIn('status', ['registered', 'pending'])
+			->count();
+		$wasFull = $takenSlots >= $tournament->max_participants;
 
-        return back()->with('success', 'Участник удалён');
-    }
+		$tournament->participants()->detach($userId);
+
+		// Если турнир был полным и открыт — уведомляем в канал
+		if ($wasFull && $tournament->status === 'open') {
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
+		}
+
+		return back()->with('success', 'Участник удалён');
+	}
 	/**
 	 * Запустить турнир Американо
 	 */
@@ -410,6 +422,12 @@ class TournamentController extends Controller
 
 		// Получаем пользователя до удаления
 		$user = \App\Models\User::find($userId);
+
+		// Проверяем был ли турнир полным ДО удаления
+		$takenSlots = $tournament->participants()
+			->wherePivotIn('status', ['registered', 'pending'])
+			->count();
+		$wasFull = $takenSlots >= $tournament->max_participants;
 		
 		$tournament->participants()->detach($userId);
 
@@ -417,6 +435,12 @@ class TournamentController extends Controller
 		if ($user) {
 			$notificationService = new \App\Services\TelegramNotificationService();
 			$notificationService->notifyRegistrationRejected($user, $tournament);
+		}
+
+		// Если турнир был полным — уведомляем в канал
+		if ($wasFull && $tournament->status === 'open') {
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
 		}
 
 		return back()->with('success', 'Заявка отклонена');
@@ -584,14 +608,32 @@ class TournamentController extends Controller
 	 */
 	public function cancel(Tournament $tournament)
 	{
-		// Нельзя отменить завершённый турнир
-		if ($tournament->status === 'completed') {
-			return back()->with('error', 'Нельзя отменить завершённый турнир');
+		$user = auth()->user();
+
+		if (!$tournament->isRegistered($user)) {
+			return back()->with('error', 'Вы не зарегистрированы на этот турнир');
 		}
 
-		$tournament->update(['status' => 'cancelled']);
+		// Можно отменить только пока турнир не начался
+		if ($tournament->status === 'in_progress' || $tournament->status === 'completed') {
+			return back()->with('error', 'Нельзя отменить регистрацию после начала турнира');
+		}
 
-		return back()->with('success', 'Турнир отменён');
+		// Проверяем был ли турнир полным ДО удаления
+		$takenSlots = $tournament->participants()
+			->wherePivotIn('status', ['registered', 'pending'])
+			->count();
+		$wasFull = $takenSlots >= $tournament->max_participants;
+
+		$tournament->participants()->detach($user->id);
+
+		// Если турнир был полным — уведомляем в канал
+		if ($wasFull && $tournament->status === 'open') {
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
+		}
+
+		return back()->with('success', 'Регистрация отменена');
 	}
 	
 }

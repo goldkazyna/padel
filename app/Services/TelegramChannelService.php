@@ -96,4 +96,21 @@ class TelegramChannelService
             return false;
         }
     }
+	/**
+	 * Уведомление об освободившемся месте
+	 */
+	public function postSlotAvailable($tournament): bool
+	{
+		$date = $tournament->start_date->format('d.m.Y');
+		$time = $tournament->start_date->format('H:i');
+		$clubName = $tournament->club->name ?? 'Клуб';
+		
+		$message = "🎉 <b>Освободилось место!</b>\n\n"
+			. "📌 <b>{$tournament->name}</b>\n"
+			. "📅 {$date} в {$time}\n"
+			. "📍 {$clubName}\n\n"
+			. "Есть свободное место для участия! Успейте зарегистрироваться!";
+
+		return $this->sendWithButton($message, '📝 Записаться');
+	}
 }

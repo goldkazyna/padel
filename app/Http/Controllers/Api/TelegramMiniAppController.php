@@ -255,31 +255,43 @@ class TelegramMiniAppController extends Controller
      * Отмена регистрации
      */
     public function cancelRegistration(Request $request, Tournament $tournament)
-    {
-        $user = $this->getUser($request);
+	{
+		$user = $this->getUser($request);
 
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
+		if (!$user) {
+			return response()->json(['error' => 'User not found'], 404);
+		}
 
-        $participant = $tournament->participants()->where('user_id', $user->id)->first();
-        
-        if (!$participant) {
-            return response()->json(['error' => 'Вы не зарегистрированы'], 400);
-        }
+		$participant = $tournament->participants()->where('user_id', $user->id)->first();
+		
+		if (!$participant) {
+			return response()->json(['error' => 'Вы не зарегистрированы'], 400);
+		}
 
-        // Нельзя отменить если турнир уже начался
-        if ($tournament->status !== 'open') {
-            return response()->json(['error' => 'Турнир уже начался'], 400);
-        }
+		// Нельзя отменить если турнир уже начался
+		if ($tournament->status !== 'open') {
+			return response()->json(['error' => 'Турнир уже начался'], 400);
+		}
 
-        $tournament->participants()->detach($user->id);
+		// Проверяем был ли турнир полным ДО удаления
+		$takenSlots = $tournament->participants()
+			->wherePivotIn('status', ['registered', 'pending'])
+			->count();
+		$wasFull = $takenSlots >= $tournament->max_participants;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Регистрация отменена',
-        ]);
-    }
+		$tournament->participants()->detach($user->id);
+
+		// Если турнир был полным — уведомляем в канал
+		if ($wasFull) {
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
+		}
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Регистрация отменена',
+		]);
+	}
 
     /**
      * Получить пользователя из Telegram данных
