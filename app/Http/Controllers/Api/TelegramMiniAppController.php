@@ -128,7 +128,7 @@ class TelegramMiniAppController extends Controller
                     'min_level' => $t->min_level,
                     'max_level' => $t->max_level,
                     'price' => $t->price,
-                    'participants_count' => $t->participants()->wherePivot('status', 'registered')->count(),
+                    'participants_count' => $t->participants()->wherePivotIn('status', ['registered', 'pending'])->count(),
                     'max_participants' => $t->max_participants,
                     'is_registered' => $isRegistered,
                     'registration_status' => $registrationStatus,
@@ -166,9 +166,12 @@ class TelegramMiniAppController extends Controller
                 $registrationStatus = $participant->pivot->status;
             } else {
                 // Проверяем может ли зарегистрироваться
-                $canRegister = $user->level >= $tournament->min_level 
-                    && $user->level <= $tournament->max_level
-                    && $tournament->participants()->wherePivot('status', 'registered')->count() < $tournament->max_participants;
+                $takenSlots = $tournament->participants()
+					->wherePivotIn('status', ['registered', 'pending'])
+					->count();
+				$canRegister = $user->level >= $tournament->min_level 
+					&& $user->level <= $tournament->max_level
+					&& $takenSlots < $tournament->max_participants;
             }
         }
 
@@ -226,11 +229,13 @@ class TelegramMiniAppController extends Controller
             ], 400);
         }
 
-        // Проверка мест
-        $registeredCount = $tournament->participants()->wherePivot('status', 'registered')->count();
-        if ($registeredCount >= $tournament->max_participants) {
-            return response()->json(['error' => 'Все места заняты'], 400);
-        }
+		// Проверка мест (учитываем и registered, и pending)
+		$takenSlots = $tournament->participants()
+			->wherePivotIn('status', ['registered', 'pending'])
+			->count();
+		if ($takenSlots >= $tournament->max_participants) {
+			return response()->json(['error' => 'Все места заняты'], 400);
+		}
 
         // Регистрируем (статус pending для модерации или сразу registered)
         $status = 'pending'; // Или 'registered' если без модерации
