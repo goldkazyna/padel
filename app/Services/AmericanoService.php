@@ -50,36 +50,179 @@ class AmericanoService
 		return true;
 	}
 
-    protected function generateRounds(TournamentGroup $group, array $playerIds, int $courtStartNumber = 1): void
+	/**
+	 * Генерация раундов
+	 */
+	protected function generateRounds(TournamentGroup $group, array $playerIds, int $courtStartNumber = 1): void
 	{
 		$players = array_values($playerIds);
 		$numPlayers = count($players);
 		
-		$maxRounds = $numPlayers - 1;
 		$tournament = $group->tournament;
-		$numRounds = $tournament->rounds_count ?? $maxRounds;
+		$maxRounds = $numPlayers - 1;
+		$numRounds = min($tournament->rounds_count ?? $maxRounds, $maxRounds);
 		
-		if ($numRounds > $maxRounds) {
-			$numRounds = $maxRounds;
+		// Перемешиваем для разнообразия (кто будет под каким индексом)
+		shuffle($players);
+		
+		// Пробуем оптимальное расписание
+		$optimalSchedule = $this->getOptimalSchedule($numPlayers);
+		
+		if ($optimalSchedule) {
+			\Log::info("Americano: оптимальное расписание для {$numPlayers} игроков");
+			$this->generateFromOptimalSchedule($group, $players, $optimalSchedule, $numRounds, $courtStartNumber);
+		} else {
+			\Log::info("Americano: Round-Robin с балансировкой для {$numPlayers} игроков");
+			$this->generateFromRoundRobinBalanced($group, $players, $numRounds, $courtStartNumber);
+		}
+	}
+	/**
+	 * Оптимальные расписания (0-based индексы)
+	 * Проверены и гарантируют идеальный баланс
+	 */
+	protected function getOptimalSchedule(int $numPlayers): ?array
+	{
+		$schedules = [
+			// 8 игроков — проверено ✅
+			8 => [
+				1 => [[[0,1], [2,3]], [[4,5], [6,7]]],
+				2 => [[[0,2], [4,6]], [[1,3], [5,7]]],
+				3 => [[[0,3], [5,6]], [[1,2], [4,7]]],
+				4 => [[[0,4], [1,5]], [[2,6], [3,7]]],
+				5 => [[[0,5], [2,7]], [[1,4], [3,6]]],
+				6 => [[[0,6], [1,7]], [[2,4], [3,5]]],
+				7 => [[[0,7], [3,4]], [[1,6], [2,5]]],
+			],
+			
+			// 12 игроков — проверено ✅ (с devenezia.com)
+			12 => [
+				1  => [[[11,0], [8,9]],   [[1,7], [2,5]],   [[3,10], [4,6]]],
+				2  => [[[11,1], [9,10]],  [[2,8], [3,6]],   [[4,0], [5,7]]],
+				3  => [[[11,2], [10,0]],  [[3,9], [4,7]],   [[5,1], [6,8]]],
+				4  => [[[11,3], [0,1]],   [[4,10], [5,8]],  [[6,2], [7,9]]],
+				5  => [[[11,4], [1,2]],   [[5,0], [6,9]],   [[7,3], [8,10]]],
+				6  => [[[11,5], [2,3]],   [[6,1], [7,10]],  [[8,4], [9,0]]],
+				7  => [[[11,6], [3,4]],   [[7,2], [8,0]],   [[9,5], [10,1]]],
+				8  => [[[11,7], [4,5]],   [[8,3], [9,1]],   [[10,6], [0,2]]],
+				9  => [[[11,8], [5,6]],   [[9,4], [10,2]],  [[0,7], [1,3]]],
+				10 => [[[11,9], [6,7]],   [[10,5], [0,3]],  [[1,8], [2,4]]],
+				11 => [[[11,10], [7,8]],  [[0,6], [1,4]],   [[2,9], [3,5]]],
+			],
+		];
+		
+		return $schedules[$numPlayers] ?? null;
+	}
+	/**
+	 * Генерация из оптимального расписания
+	 */
+	protected function generateFromOptimalSchedule(
+		TournamentGroup $group,
+		array $players,
+		array $schedule,
+		int $numRounds,
+		int $courtStartNumber
+	): void {
+		for ($roundNum = 1; $roundNum <= $numRounds; $roundNum++) {
+			if (!isset($schedule[$roundNum])) continue;
+			
+			$round = \App\Models\AmericanoRound::create([
+				'tournament_group_id' => $group->id,
+				'round_number' => $roundNum,
+				'status' => $roundNum === 1 ? 'in_progress' : 'pending',
+			]);
+			
+			// 1. Собираем матчи в массив
+			$roundMatches = [];
+			foreach ($schedule[$roundNum] as $match) {
+				[$team1Indices, $team2Indices] = $match;
+				
+				$roundMatches[] = [
+					'team1_player1_id' => $players[$team1Indices[0]],
+					'team1_player2_id' => $players[$team1Indices[1]],
+					'team2_player1_id' => $players[$team2Indices[0]],
+					'team2_player2_id' => $players[$team2Indices[1]],
+				];
+			}
+			
+			// 2. Перемешиваем — рандомные корты!
+			shuffle($roundMatches);
+			
+			// 3. Записываем в БД
+			$courtNumber = $courtStartNumber;
+			foreach ($roundMatches as $matchData) {
+				\App\Models\AmericanoMatch::create([
+					'americano_round_id' => $round->id,
+					'court_number' => $courtNumber,
+					'team1_player1_id' => $matchData['team1_player1_id'],
+					'team1_player2_id' => $matchData['team1_player2_id'],
+					'team2_player1_id' => $matchData['team2_player1_id'],
+					'team2_player2_id' => $matchData['team2_player2_id'],
+					'status' => 'pending',
+				]);
+				
+				$courtNumber++;
+			}
+		}
+	}
+
+	/**
+	 * Fallback: Round-Robin с балансировкой соперников
+	 */
+	protected function generateFromRoundRobinBalanced(
+		TournamentGroup $group,
+		array $players,
+		int $numRounds,
+		int $courtStartNumber
+	): void {
+		$n = count($players);
+		
+		// Генерируем пары Round-Robin
+		$fixed = $players[0];
+		$rotating = array_slice($players, 1);
+		
+		$allPairings = [];
+		
+		for ($round = 0; $round < $n - 1; $round++) {
+			$roundPairs = [];
+			$roundPairs[] = [$fixed, $rotating[0]];
+			
+			for ($i = 1; $i <= (($n - 2) / 2); $i++) {
+				$roundPairs[] = [$rotating[$i], $rotating[$n - 1 - $i]];
+			}
+			
+			$allPairings[$round + 1] = $roundPairs;
+			
+			$last = array_pop($rotating);
+			array_unshift($rotating, $last);
 		}
 		
-		$courtsCount = intval($numPlayers / 4);
+		// История соперников
+		$opponentCount = [];
 		
-		// Генерируем ВСЕ раунды сразу с гарантией уникальных пар
-		$allRoundsMatches = $this->generateAllRoundsRoundRobin($players, $numRounds);
-		
-		\Log::info("Round-Robin: сгенерировано " . count($allRoundsMatches) . " раундов для " . $numPlayers . " игроков");
-		
-		foreach ($allRoundsMatches as $roundNum => $roundMatches) {
-			$round = AmericanoRound::create([
+		for ($roundNum = 1; $roundNum <= $numRounds; $roundNum++) {
+			$pairs = $allPairings[$roundNum];
+			$matches = $this->balancePairsToMatches($pairs, $opponentCount);
+			if (!empty($matches)) {
+				shuffle($matches);
+			}
+			$round = \App\Models\AmericanoRound::create([
 				'tournament_group_id' => $group->id,
 				'round_number' => $roundNum,
 				'status' => $roundNum === 1 ? 'in_progress' : 'pending',
 			]);
 			
 			$courtNumber = $courtStartNumber;
-			foreach ($roundMatches as $match) {
-				AmericanoMatch::create([
+			
+			foreach ($matches as $match) {
+				// Обновляем историю соперников
+				foreach ($match['team1'] as $p1) {
+					foreach ($match['team2'] as $p2) {
+						$key = min($p1, $p2) . '-' . max($p1, $p2);
+						$opponentCount[$key] = ($opponentCount[$key] ?? 0) + 1;
+					}
+				}
+				
+				\App\Models\AmericanoMatch::create([
 					'americano_round_id' => $round->id,
 					'court_number' => $courtNumber,
 					'team1_player1_id' => $match['team1'][0],
@@ -88,68 +231,65 @@ class AmericanoService
 					'team2_player2_id' => $match['team2'][1],
 					'status' => 'pending',
 				]);
+				
 				$courtNumber++;
 			}
 		}
 	}
+
 	/**
-	 * Round-Robin алгоритм для генерации всех раундов
-	 * Гарантирует что каждая пара встречается ровно 1 раз
+	 * Балансировка пар в матчи (жадный алгоритм)
 	 */
-	protected function generateAllRoundsRoundRobin(array $players, int $numRounds): array
+	protected function balancePairsToMatches(array $pairs, array $opponentCount): array
 	{
-		$n = count($players);
+		$matches = [];
+		$used = [];
 		
-		// Перемешиваем игроков для разнообразия
-		shuffle($players);
-		
-		// Round-Robin: фиксируем первого игрока, остальные "вращаются"
-		$fixed = $players[0];
-		$rotating = array_slice($players, 1);
-		
-		$allPairings = []; // Все пары для каждого раунда
-		
-		for ($round = 0; $round < $n - 1; $round++) {
-			$roundPairs = [];
+		while (count($used) < count($pairs) - 1) {
+			$firstIdx = null;
+			for ($i = 0; $i < count($pairs); $i++) {
+				if (!in_array($i, $used)) {
+					$firstIdx = $i;
+					break;
+				}
+			}
+			if ($firstIdx === null) break;
 			
-			// Первая пара: фиксированный + первый из вращающихся
-			$roundPairs[] = [$fixed, $rotating[0]];
+			$used[] = $firstIdx;
+			$firstPair = $pairs[$firstIdx];
 			
-			// Остальные пары: соединяем симметрично
-			for ($i = 1; $i <= (($n - 2) / 2); $i++) {
-				$p1 = $rotating[$i];
-				$p2 = $rotating[$n - 1 - $i];
-				$roundPairs[] = [$p1, $p2];
+			$bestIdx = null;
+			$bestScore = PHP_INT_MAX;
+			
+			for ($j = 0; $j < count($pairs); $j++) {
+				if (in_array($j, $used)) continue;
+				
+				$score = 0;
+				foreach ($firstPair as $p1) {
+					foreach ($pairs[$j] as $p2) {
+						$key = min($p1, $p2) . '-' . max($p1, $p2);
+						$score += ($opponentCount[$key] ?? 0);
+					}
+				}
+				
+				if ($score < $bestScore) {
+					$bestScore = $score;
+					$bestIdx = $j;
+				}
 			}
 			
-			$allPairings[$round + 1] = $roundPairs;
-			
-			// Вращаем массив (сдвиг вправо)
-			$last = array_pop($rotating);
-			array_unshift($rotating, $last);
-		}
-		
-		// Теперь группируем пары в матчи (по 2 пары на матч)
-		// При этом стараемся минимизировать повторы соперников
-		$allRoundsMatches = [];
-		
-		for ($round = 1; $round <= min($numRounds, $n - 1); $round++) {
-			$pairs = $allPairings[$round];
-			shuffle($pairs); // Перемешиваем порядок пар
-			
-			$matches = [];
-			for ($i = 0; $i < count($pairs) - 1; $i += 2) {
+			if ($bestIdx !== null) {
+				$used[] = $bestIdx;
 				$matches[] = [
-					'team1' => $pairs[$i],
-					'team2' => $pairs[$i + 1],
+					'team1' => $firstPair,
+					'team2' => $pairs[$bestIdx],
 				];
 			}
-			
-			$allRoundsMatches[$round] = $matches;
 		}
 		
-		return $allRoundsMatches;
+		return $matches;
 	}
+
 	
 
 
