@@ -355,91 +355,117 @@ class TournamentController extends Controller
 		return back()->with('success', 'Счёт обновлён!');
 	}
 	/**
-     * Одобрить заявку участника
-     */
-    public function approveParticipant(Tournament $tournament, $userId)
-    {
-        $club = $this->getClub();
-        
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+	 * Одобрить заявку участника
+	 */
+	public function approveParticipant(Tournament $tournament, $userId)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        if ($tournament->status !== 'open') {
-            return back()->with('error', 'Турнир не открыт для регистрации');
-        }
+		if ($tournament->status !== 'open') {
+			return back()->with('error', 'Турнир не открыт для регистрации');
+		}
 
-        $participant = $tournament->participants()->where('user_id', $userId)->first();
-        
-        if (!$participant) {
-            return back()->with('error', 'Участник не найден');
-        }
+		$participant = $tournament->participants()->where('user_id', $userId)->first();
+		
+		if (!$participant) {
+			return back()->with('error', 'Участник не найден');
+		}
 
-        if ($participant->pivot->status !== 'pending') {
-            return back()->with('error', 'Заявка уже обработана');
-        }
+		if ($participant->pivot->status !== 'pending') {
+			return back()->with('error', 'Заявка уже обработана');
+		}
 
-        // Проверяем лимит одобренных участников
-        $approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
-        if ($approvedCount >= $tournament->max_participants) {
-            return back()->with('error', 'Достигнут лимит участников');
-        }
+		// Проверяем лимит одобренных участников
+		$approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+		if ($approvedCount >= $tournament->max_participants) {
+			return back()->with('error', 'Достигнут лимит участников');
+		}
 
-        $tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
+		$tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
 
-        return back()->with('success', 'Заявка одобрена!');
-    }
+		// Отправляем уведомление в Telegram
+		$user = \App\Models\User::find($userId);
+		if ($user) {
+			$notificationService = new \App\Services\TelegramNotificationService();
+			$notificationService->notifyRegistrationApproved($user, $tournament);
+		}
 
-    /**
-     * Отклонить заявку участника
-     */
-    public function rejectParticipant(Tournament $tournament, $userId)
-    {
-        $club = $this->getClub();
-        
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+		return back()->with('success', 'Заявка одобрена!');
+	}
 
-        $tournament->participants()->detach($userId);
+	/**
+	 * Отклонить заявку участника
+	 */
+	public function rejectParticipant(Tournament $tournament, $userId)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        return back()->with('success', 'Заявка отклонена');
-    }
+		// Получаем пользователя до удаления
+		$user = \App\Models\User::find($userId);
+		
+		$tournament->participants()->detach($userId);
 
-    /**
-     * Одобрить все заявки
-     */
-    public function approveAllParticipants(Tournament $tournament)
-    {
-        $club = $this->getClub();
-        
-        if ($club && $tournament->club_id != $club->id) {
-            abort(403);
-        }
+		// Отправляем уведомление об отклонении
+		if ($user) {
+			$notificationService = new \App\Services\TelegramNotificationService();
+			$notificationService->notifyRegistrationRejected($user, $tournament);
+		}
 
-        if ($tournament->status !== 'open') {
-            return back()->with('error', 'Турнир не открыт для регистрации');
-        }
+		return back()->with('success', 'Заявка отклонена');
+	}
 
-        $approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
-        $availableSlots = $tournament->max_participants - $approvedCount;
+	/**
+	 * Одобрить все заявки
+	 */
+	public function approveAllParticipants(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
 
-        if ($availableSlots <= 0) {
-            return back()->with('error', 'Нет свободных мест');
-        }
+		if ($tournament->status !== 'open') {
+			return back()->with('error', 'Турнир не открыт для регистрации');
+		}
 
-        // Одобряем заявки (сколько есть мест)
-        $pendingIds = $tournament->participants()
-            ->wherePivot('status', 'pending')
-            ->limit($availableSlots)
-            ->pluck('users.id');
+		$approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+		$availableSlots = $tournament->max_participants - $approvedCount;
 
-        foreach ($pendingIds as $id) {
-            $tournament->participants()->updateExistingPivot($id, ['status' => 'registered']);
-        }
+		if ($availableSlots <= 0) {
+			return back()->with('error', 'Нет свободных мест');
+		}
 
-        return back()->with('success', "Одобрено заявок: {$pendingIds->count()}");
-    }
+		// Получаем pending заявки
+		$pendingParticipants = $tournament->participants()
+			->wherePivot('status', 'pending')
+			->limit($availableSlots)
+			->get();
+
+		$pendingIds = $pendingParticipants->pluck('id')->toArray();
+
+		// Одобряем
+		$tournament->participants()
+			->wherePivot('status', 'pending')
+			->whereIn('user_id', $pendingIds)
+			->update(['tournament_participants.status' => 'registered']);
+
+		// Отправляем уведомления всем одобренным
+		$notificationService = new \App\Services\TelegramNotificationService();
+		foreach ($pendingParticipants as $user) {
+			$notificationService->notifyRegistrationApproved($user, $tournament);
+		}
+
+		return back()->with('success', 'Одобрено заявок: ' . count($pendingIds));
+	}
 	/**
 	 * Поиск игроков по телефону
 	 */
