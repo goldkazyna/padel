@@ -1,6 +1,6 @@
 {{-- Зарегистрированные пары --}}
-<div class="card-dark mb-4">
-    <div class="card-header-dark d-flex justify-content-between align-items-center">
+<div class="mb-4">
+    <div class="card-header-dark d-flex justify-content-between align-items-center" style="margin-bottom:20px;">
         <h5 class="mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Зарегистрированные пары</h5>
         <span class="badge bg-primary">{{ $tournament->teams->count() }} / {{ $tournament->max_participants / 2 }} пар</span>
     </div>

@@ -1,6 +1,6 @@
 {{-- resources/views/club/tournaments/partials/_team_playoff.blade.php --}}
-<div class="card-dark mb-4">
-    <div class="card-header-dark">
+<div class="mb-4">
+    <div class="card-header-dark" style="margin-bottom:20px;">
         <h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Плей-офф</h5>
     </div>
     <div class="card-body-dark">
@@ -23,13 +23,13 @@
 										</div>
 									@endif
 									<div class="playoff-team {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
-										<span class="playoff-team-name">{{ $match->team1 ? $match->team1->name : $match->team1_source }}</span>
+										<span class="playoff-team-name">{{ $match->team1 ? $match->team1->full_name : $match->team1_source }}</span>
 										@if($match->isCompleted())
 											<span class="playoff-score">{{ $match->team1_score }}</span>
 										@endif
 									</div>
 									<div class="playoff-team {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
-										<span class="playoff-team-name">{{ $match->team2 ? $match->team2->name : $match->team2_source }}</span>
+										<span class="playoff-team-name">{{ $match->team2 ? $match->team2->full_name : $match->team2_source }}</span>
 										@if($match->isCompleted())
 											<span class="playoff-score">{{ $match->team2_score }}</span>
 										@endif

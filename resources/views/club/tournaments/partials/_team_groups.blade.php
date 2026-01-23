@@ -1,6 +1,6 @@
 {{-- resources/views/club/tournaments/partials/_team_groups.blade.php --}}
-<div class="card-dark mb-4">
-    <div class="card-header-dark">
+<div class=" mb-4">
+    <div class="card-header-dark" style="margin-bottom:20px;">
         <h5 class="mb-0"><i class="bi bi-collection text-info me-2"></i>Групповой этап</h5>
     </div>
     <div class="card-body-dark">
@@ -25,15 +25,15 @@
 							<table class="table table-dark table-sm mb-0">
 								<thead>
 									<tr>
-										<th style="width: 30px;">#</th>
-										<th>Пара</th>
-										<th class="text-center" title="Сыграно">И</th>
-										<th class="text-center" title="Победы">В</th>
-										<th class="text-center" title="Поражения">П</th>
-										<th class="text-center" title="Забито">ЗМ</th>
-										<th class="text-center" title="Пропущено">ПМ</th>
-										<th class="text-center" title="Разница">+/-</th>
-										<th class="text-center" title="Очки"><strong>О</strong></th>
+										<th class="ttt" style="width: 30px;">#</th>
+										<th class="ttt">Пара</th>
+										<th class="text-center ttt" title="Сыграно">И</th>
+										<th class="text-center ttt" title="Победы">В</th>
+										<th class="text-center ttt" title="Поражения">П</th>
+										<th class="text-center ttt" title="Забито">ЗМ</th>
+										<th class="text-center ttt" title="Пропущено">ПМ</th>
+										<th class="text-center ttt" title="Разница">+/-</th>
+										<th class="text-center ttt" title="Очки"><strong>О</strong></th>
 									</tr>
 								</thead>
 								<tbody>
@@ -41,19 +41,19 @@
 										@php $team = \App\Models\TournamentTeam::find($standing['team_id']); @endphp
                                         <tr class="{{ $index < $tournament->teams_advance ? 'table-success-custom' : '' }}">
 											<td>{{ $index + 1 }}</td>
-											<td><span class="team-name-cell">{{ $team->name }}</span></td>
-											<td class="text-center">{{ $standing['played'] }}</td>
-											<td class="text-center">{{ $standing['won'] }}</td>
-											<td class="text-center">{{ $standing['lost'] }}</td>
-											<td class="text-center">{{ $standing['points_for'] }}</td>
-											<td class="text-center">{{ $standing['points_against'] }}</td>
-											<td class="text-center">
+											<td><span class="team-name-cell">{{ $team->full_name }}</span></td>
+											<td class="text-center ttt">{{ $standing['played'] }}</td>
+											<td class="text-center ttt">{{ $standing['won'] }}</td>
+											<td class="text-center ttt">{{ $standing['lost'] }}</td>
+											<td class="text-center ttt">{{ $standing['points_for'] }}</td>
+											<td class="text-center ttt">{{ $standing['points_against'] }}</td>
+											<td class="text-center ttt">
 												@php $diff = $standing['points_for'] - $standing['points_against']; @endphp
 												<span class="{{ $diff > 0 ? 'text-success' : ($diff < 0 ? 'text-danger' : '') }}">
 													{{ $diff > 0 ? '+' : '' }}{{ $diff }}
 												</span>
 											</td>
-											<td class="text-center"><strong>{{ $standing['points'] }}</strong></td>
+											<td class="text-center ttt"><strong>{{ $standing['points'] }}</strong></td>
 										</tr>
                                     @endforeach
                                 </tbody>
@@ -75,7 +75,7 @@
 												</div>
 											@endif
 											<div class="match-team-name {{ $match->winner_id === $match->team1_id ? 'winner' : '' }}">
-												{{ $match->team1->name }}
+												{{ $match->team1->full_name  }}
 											</div>
 											<div class="match-score-block">
 												@if($match->isCompleted())
@@ -92,7 +92,7 @@
 												@endif
 											</div>
 											<div class="match-team-name {{ $match->winner_id === $match->team2_id ? 'winner' : '' }}">
-												{{ $match->team2->name }}
+												{{ $match->team2->full_name  }}
 											</div>
 										</div>
 
@@ -110,12 +110,12 @@
                                                         <div class="modal-body">
                                                             <div class="score-input-grid">
                                                                 <div class="score-team">
-                                                                    <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                                    <div class="score-team-names">{{ $match->team1->full_name  }}</div>
                                                                     <input type="number" name="team1_score" class="form-control form-control-lg text-center" min="0" max="99" required placeholder="0">
                                                                 </div>
                                                                 <div class="score-separator">:</div>
                                                                 <div class="score-team">
-                                                                    <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                                    <div class="score-team-names">{{ $match->team2->full_name  }}</div>
                                                                     <input type="number" name="team2_score" class="form-control form-control-lg text-center" min="0" max="99" required placeholder="0">
                                                                 </div>
                                                             </div>
@@ -145,12 +145,12 @@
                                                         <div class="modal-body">
                                                             <div class="score-input-grid">
                                                                 <div class="score-team">
-                                                                    <div class="score-team-names">{{ $match->team1->name }}</div>
+                                                                    <div class="score-team-names">{{ $match->team1->full_name}}</div>
                                                                     <input type="number" name="team1_score" class="form-control form-control-lg text-center" min="0" max="99" required value="{{ $match->team1_score }}">
                                                                 </div>
                                                                 <div class="score-separator">:</div>
                                                                 <div class="score-team">
-                                                                    <div class="score-team-names">{{ $match->team2->name }}</div>
+                                                                    <div class="score-team-names">{{ $match->team2->full_name }}</div>
                                                                     <input type="number" name="team2_score" class="form-control form-control-lg text-center" min="0" max="99" required value="{{ $match->team2_score }}">
                                                                 </div>
                                                             </div>
@@ -205,4 +205,25 @@
     display: inline-block;
     width: 100px;
 }
+.team-name-cell{
+	max-width: 550px;
+	font-size:24px;
+}
+.ttt{
+	font-size:24px;
+}
+.match-team-name{
+	font-size:24px;
+}
+.playoff-stage{
+	min-width:600px;
+}
+.playoff-team-name{
+	max-width: inherit;
+	font-size:24px;
+}
+.match-score{
+	font-size:24px;
+}
+
 </style>
