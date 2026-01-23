@@ -511,7 +511,6 @@ class TournamentController extends Controller
 			})
 			->whereNotIn('id', $existingIds)
 			->where('role', 'player')
-			->whereBetween('level', [$tournament->min_level, $tournament->max_level])
 			->limit(10)
 			->get(['id', 'first_name', 'last_name', 'phone', 'level', 'rating']);
 		
