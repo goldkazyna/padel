@@ -118,7 +118,7 @@ function renderProfileStats(stats) {
     
     container.innerHTML = `
         <div class="profile-stat">
-            <div class="profile-stat-value">${currentUser.rating || 1000}</div>
+            <div class="profile-stat-value">-</div>
             <div class="profile-stat-label">Рейтинг</div>
         </div>
         <div class="profile-stat">

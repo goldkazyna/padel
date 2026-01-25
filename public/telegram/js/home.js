@@ -46,7 +46,7 @@ async function renderQuickStats() {
     
     container.innerHTML = `
         <div class="quick-stat">
-            <div class="quick-stat-value">${currentUser.rating || 1000}</div>
+            <div class="quick-stat-value">-</div>
             <div class="quick-stat-label">Рейтинг</div>
         </div>
         <div class="quick-stat">

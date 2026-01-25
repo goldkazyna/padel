@@ -12,17 +12,24 @@ let myRank = null;
  * Загрузить рейтинг
  */
 async function loadRating(page = 1) {
-    const result = await apiRating(page);
+    const container = document.getElementById('ranking-list');
+    if (!container) return;
     
-    ratingData = result.players || [];
-    currentPage = result.page || 1;
-    totalPages = result.total_pages || 1;
-    myPage = result.my_page || 1;
-    myRank = result.my_rank;
+    // Заглушка - раздел в разработке
+    container.innerHTML = `
+        <div class="development-placeholder">
+            <div class="development-icon">🚧</div>
+            <div class="development-title">Раздел в разработке</div>
+            <div class="development-text">Рейтинг игроков скоро будет доступен</div>
+        </div>
+    `;
     
-    renderMyRank(result);
-    renderRankingList(ratingData);
-    renderPagination();
+    // Скрываем остальные элементы
+    const myRankEl = document.getElementById('my-rank');
+    if (myRankEl) myRankEl.style.display = 'none';
+    
+    const pagination = document.getElementById('pagination');
+    if (pagination) pagination.style.display = 'none';
 }
 
 /**
