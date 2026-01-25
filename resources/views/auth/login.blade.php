@@ -68,7 +68,7 @@
     <div class="mt-6 text-center">
         <p class="text-gray-500 mb-3">или</p>
         <script async src="https://telegram.org/js/telegram-widget.js?22"
-                data-telegram-login="add_app_bot"
+                data-telegram-login="add_padel_tournament_bot"
                 data-size="large"
                 data-radius="8"
                 data-onauth="onTelegramAuth(user)"
