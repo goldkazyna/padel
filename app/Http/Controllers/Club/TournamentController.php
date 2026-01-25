@@ -71,7 +71,7 @@ class TournamentController extends Controller
 			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
-			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
+			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
