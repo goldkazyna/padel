@@ -20,28 +20,41 @@ class TelegramChannelService
         $this->botUsername = config('services.telegram.bot_username', 'add_app_bot');
     }
 
-    /**
-     * Опубликовать анонс турнира в канал
-     */
-    public function postTournament($tournament): bool
-    {
-        $date = date('d.m.Y', strtotime($tournament->date));
-        $time = date('H:i', strtotime($tournament->start_time));
-        $price = $tournament->price > 0 ? number_format($tournament->price, 0, '', ' ') . ' ₸' : 'Бесплатно';
-        
-        $clubName = $tournament->club->name ?? 'Клуб';
-        
-        $message = "🎾 <b>Новый турнир!</b>\n\n"
-            . "📌 <b>{$tournament->name}</b>\n"
-            . "📅 {$date} в {$time}\n"
-            . "📍 {$clubName}\n"
-            . "💰 {$price}\n"
-            . "👥 Мест: {$tournament->max_participants}\n"
-            . "⭐ Уровень: {$tournament->min_level} - {$tournament->max_level}\n\n"
-            . "Успей записаться!";
+	/**
+	 * Опубликовать анонс турнира в канал
+	 */
+	public function postTournament($tournament): bool
+	{
+		// Исправляем форматирование даты/времени
+		$date = $tournament->date instanceof \Carbon\Carbon 
+			? $tournament->date->format('d.m.Y') 
+			: date('d.m.Y', strtotime($tournament->date));
+		
+		$time = $tournament->start_time instanceof \Carbon\Carbon
+			? $tournament->start_time->format('H:i')
+			: date('H:i', strtotime($tournament->start_time));
+		
+		$price = $tournament->price > 0 ? number_format($tournament->price, 0, '', ' ') . ' ₸' : 'Бесплатно';
+		
+		$clubName = $tournament->club->name ?? 'Клуб';
+		
+		// Описание (если есть)
+		$description = $tournament->description 
+			? "\n📝 {$tournament->description}\n" 
+			: '';
+		
+		$message = "🎾 <b>Новый турнир!</b>\n\n"
+			. "📌 <b>{$tournament->name}</b>\n"
+			. $description
+			. "📅 {$date} в {$time}\n"
+			. "📍 {$clubName}\n"
+			. "💰 {$price}\n"
+			. "👥 Мест: {$tournament->max_participants}\n"
+			. "⭐ Уровень: {$tournament->min_level} - {$tournament->max_level}\n\n"
+			. "Успей записаться!";
 
-        return $this->sendWithButton($message, '📝 Записаться');
-    }
+		return $this->sendWithButton($message, '📝 Записаться');
+	}
 
     /**
      * Отправить сообщение с кнопкой Mini App
