@@ -25,14 +25,9 @@ class TelegramChannelService
 	 */
 	public function postTournament($tournament): bool
 	{
-		// Исправляем форматирование даты/времени
-		$date = $tournament->date instanceof \Carbon\Carbon 
-			? $tournament->date->format('d.m.Y') 
-			: date('d.m.Y', strtotime($tournament->date));
-		
-		$time = $tournament->start_time instanceof \Carbon\Carbon
-			? $tournament->start_time->format('H:i')
-			: date('H:i', strtotime($tournament->start_time));
+		// Используем start_date (это datetime с датой и временем)
+		$date = $tournament->start_date->format('d.m.Y');
+		$time = $tournament->start_date->format('H:i');
 		
 		$price = $tournament->price > 0 ? number_format($tournament->price, 0, '', ' ') . ' ₸' : 'Бесплатно';
 		
