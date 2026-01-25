@@ -14,6 +14,12 @@ const isDev = !tg.initData || tg.initData === '';
  * Базовый API запрос
  */
 async function api(endpoint, method = 'GET', body = null) {
+	// Отладка
+    console.log('=== API DEBUG ===');
+    console.log('tg.initData:', tg.initData);
+    console.log('tg.initData length:', tg.initData?.length);
+    console.log('isDev:', isDev);
+
     const headers = {
         'Content-Type': 'application/json',
     };
