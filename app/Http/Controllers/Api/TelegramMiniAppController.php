@@ -141,65 +141,75 @@ class TelegramMiniAppController extends Controller
     /**
      * Детали турнира
      */
-    public function tournamentShow(Request $request, Tournament $tournament)
-    {
-        $user = $this->getUser($request);
-
-        $participants = $tournament->participants()
-            ->wherePivot('status', 'registered')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->id,
-                'name' => $p->full_name,
-                'level' => $p->level,
-                'rating' => $p->rating,
-            ]);
-
-        $isRegistered = false;
-        $registrationStatus = null;
-        $canRegister = false;
-
-        if ($user) {
-            $participant = $tournament->participants()->where('user_id', $user->id)->first();
-            if ($participant) {
-                $isRegistered = true;
-                $registrationStatus = $participant->pivot->status;
-            } else {
-                // Проверяем может ли зарегистрироваться
-                $takenSlots = $tournament->participants()
+	   public function tournamentShow(Request $request, Tournament $tournament)
+	{
+		$user = $this->getUser($request);
+		
+		$participants = $tournament->participants()
+			->wherePivot('status', 'registered')
+			->get()
+			->map(fn($p) => [
+				'id' => $p->id,
+				'name' => $p->full_name,
+				'level' => $p->level,
+				'rating' => $p->rating,
+			]);
+		
+		$isRegistered = false;
+		$registrationStatus = null;
+		$canRegister = false;
+		$blockReason = null;
+		
+		if ($user) {
+			$participant = $tournament->participants()->where('user_id', $user->id)->first();
+			
+			if ($participant) {
+				$isRegistered = true;
+				$registrationStatus = $participant->pivot->status;
+			} else {
+				// Проверяем может ли зарегистрироваться
+				$takenSlots = $tournament->participants()
 					->wherePivotIn('status', ['registered', 'pending'])
 					->count();
-				$canRegister = $user->level >= $tournament->min_level 
-					&& $user->level <= $tournament->max_level
-					&& $takenSlots < $tournament->max_participants;
-            }
-        }
-
-        return response()->json([
-            'tournament' => [
-                'id' => $tournament->id,
-                'name' => $tournament->name,
-                'description' => $tournament->description,
-                'club' => $tournament->club->name ?? 'Клуб',
-                'address' => $tournament->club->address ?? '',
-                'date' => $tournament->start_date->format('d.m.Y'),
-                'time' => $tournament->start_date->format('H:i'),
-                'type' => $tournament->type,
-                'type_name' => $tournament->type_name,
-                'min_level' => $tournament->min_level,
-                'max_level' => $tournament->max_level,
-                'price' => $tournament->price,
-                'participants_count' => $participants->count(),
-                'max_participants' => $tournament->max_participants,
-                'points_to_win' => $tournament->points_to_win,
-                'rounds_count' => $tournament->rounds_count,
-            ],
-            'participants' => $participants,
-            'is_registered' => $isRegistered,
-            'registration_status' => $registrationStatus,
-            'can_register' => $canRegister,
-        ]);
-    }
+				
+				if ($user->level < $tournament->min_level) {
+					$blockReason = "Ваш уровень ({$user->level}) ниже минимального ({$tournament->min_level})";
+				} elseif ($user->level > $tournament->max_level) {
+					$blockReason = "Ваш уровень ({$user->level}) выше максимального ({$tournament->max_level})";
+				} elseif ($takenSlots >= $tournament->max_participants) {
+					$blockReason = "Все места заняты";
+				} else {
+					$canRegister = true;
+				}
+			}
+		}
+		
+		return response()->json([
+			'tournament' => [
+				'id' => $tournament->id,
+				'name' => $tournament->name,
+				'description' => $tournament->description,
+				'club' => $tournament->club->name ?? 'Клуб',
+				'address' => $tournament->club->address ?? '',
+				'date' => $tournament->start_date->format('d.m.Y'),
+				'time' => $tournament->start_date->format('H:i'),
+				'type' => $tournament->type,
+				'type_name' => $tournament->type_name,
+				'min_level' => $tournament->min_level,
+				'max_level' => $tournament->max_level,
+				'price' => $tournament->price,
+				'participants_count' => $participants->count(),
+				'max_participants' => $tournament->max_participants,
+				'points_to_win' => $tournament->points_to_win,
+				'rounds_count' => $tournament->rounds_count,
+			],
+			'participants' => $participants,
+			'is_registered' => $isRegistered,
+			'registration_status' => $registrationStatus,
+			'can_register' => $canRegister,
+			'block_reason' => $blockReason,
+		]);
+	}
 
     /**
      * Регистрация на турнир

@@ -222,10 +222,14 @@ function renderTournamentDetail(data) {
     } else if (can_register) {
         actionButton = `<button class="btn-register" onclick="registerTournament(${tournament.id})">Записаться на турнир</button>`;
         stopStatusPolling();
-    } else {
-        actionButton = `<button class="btn-register" disabled>Регистрация недоступна</button>`;
-        stopStatusPolling();
-    }
+	} else {
+		const reason = data.block_reason || 'Регистрация недоступна';
+		actionButton = `
+			<div class="alert alert-danger">⛔ ${reason}</div>
+			<button class="btn-blocked" disabled>Регистрация недоступна</button>
+		`;
+		stopStatusPolling();
+	}
     
     container.innerHTML = `
         <div class="tournament-detail-card">
