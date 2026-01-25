@@ -47,7 +47,7 @@ class MexicanoService
     /**
      * Генерация первого раунда (по рейтингу)
      */
-    protected function generateFirstRound(Tournament $tournament, array $playerIds): void
+	protected function generateFirstRound(Tournament $tournament, array $playerIds): void
 	{
 		$round = MexicanoRound::create([
 			'tournament_id' => $tournament->id,
@@ -57,8 +57,9 @@ class MexicanoService
 
 		$courtNumber = 1;
 
-		// Игроки уже отсортированы по рейтингу
-		// 1+2 vs 3+4, 5+6 vs 7+8, ...
+		// Первый раунд — случайные пары
+		shuffle($playerIds);
+		
 		for ($i = 0; $i < count($playerIds); $i += 4) {
 			if (isset($playerIds[$i + 3])) {
 				MexicanoMatch::create([

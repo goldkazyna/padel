@@ -85,14 +85,14 @@
     <table class="leaderboard-table">
         <thead>
             <tr>
-                <th class="col-rank">#</th>
-                <th class="col-player">Игрок</th>
-                <th class="col-stat">В</th>
-                <th class="col-stat">П</th>
-                <th class="col-stat">З</th>
-                <th class="col-stat">Пр</th>
-                <th class="col-stat">%</th>
-                <th class="col-points">Очки</th>
+                <th class="col-rank ttt">#</th>
+                <th class="col-player ttt">Игрок</th>
+                <th class="col-stat ttt">В</th>
+                <th class="col-stat ttt">П</th>
+                <th class="col-stat ttt">З</th>
+                <th class="col-stat ttt">Пр</th>
+                <th class="col-stat ttt">%</th>
+                <th class="col-points ttt">Очки</th>
             </tr>
         </thead>
         <tbody>
@@ -105,13 +105,13 @@
                     $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
                 @endphp
                 <tr class="{{ $rankClass }}">
-                    <td class="col-rank">
+                    <td class="col-rank ttt">
                         <span class="rank-badge {{ $rankClass }}">{{ $rank }}</span>
                     </td>
-                    <td class="col-player">
+                    <td class="col-player ttt">
                         <div class="player-info">
-                            <div class="player-avatar">
-                                {{ strtoupper(substr($player->first_name, 0, 1) . substr($player->last_name, 0, 1)) }}
+                            <div class="player-avatar ">
+								{{ mb_strtoupper(mb_substr($player->first_name, 0, 1) . mb_substr($player->last_name, 0, 1)) }}
                             </div>
                             <div class="player-details">
                                 <div class="player-name">{{ $player->full_name }}</div>
@@ -119,14 +119,25 @@
                             </div>
                         </div>
                     </td>
-                    <td class="col-stat wins">{{ $stats['wins'] }}</td>
-                    <td class="col-stat losses">{{ $stats['losses'] }}</td>
-                    <td class="col-stat points-for">{{ $stats['points_for'] }}</td>
-                    <td class="col-stat points-against">{{ $stats['points_against'] }}</td>
-                    <td class="col-stat percentage">{{ $percentage }}%</td>
-                    <td class="col-points">{{ $stats['total_points'] }}</td>
+                    <td class="col-stat wins ttt">{{ $stats['wins'] }}</td>
+                    <td class="col-stat losses ttt">{{ $stats['losses'] }}</td>
+                    <td class="col-stat points-for ttt">{{ $stats['points_for'] }}</td>
+                    <td class="col-stat points-against ttt">{{ $stats['points_against'] }}</td>
+                    <td class="col-stat percentage ttt">{{ $percentage }}%</td>
+                    <td class="col-points ttt">{{ $stats['total_points'] }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 </div>
+
+
+<style>
+.player-name {
+    font-weight: 500;
+    font-size: 24px;
+}
+.ttt{
+	font-size:24px;
+}
+</style>
