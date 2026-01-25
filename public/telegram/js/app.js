@@ -181,8 +181,30 @@ async function skipPhone() {
 /**
  * Форматирование даты
  */
+/**
+ * Форматирование даты
+ */
 function formatDate(dateStr) {
-    const date = new Date(dateStr);
+    if (!dateStr) return { day: '?', month: '', full: '?' };
+    
+    let date;
+    
+    // Если формат DD.MM.YYYY
+    if (typeof dateStr === 'string' && dateStr.includes('.')) {
+        const parts = dateStr.split('.');
+        if (parts.length === 3) {
+            // Создаём дату как YYYY-MM-DD
+            date = new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+    } else {
+        date = new Date(dateStr);
+    }
+    
+    // Проверяем что дата валидна
+    if (isNaN(date.getTime())) {
+        return { day: '?', month: '', full: dateStr || '?' };
+    }
+    
     const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
     return {
         day: date.getDate(),
