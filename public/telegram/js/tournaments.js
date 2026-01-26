@@ -194,6 +194,7 @@ async function refreshTournament() {
  * Рендер детальной страницы турнира
  */
 function renderTournamentDetail(data) {
+	alert('Участники: ' + JSON.stringify(data.participants));
     const { tournament, participants, is_registered, registration_status, can_register } = data;
     const container = document.getElementById('tournament-detail-content');
     if (!container) return;
