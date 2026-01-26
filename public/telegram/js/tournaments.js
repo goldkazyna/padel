@@ -275,11 +275,11 @@ function renderTournamentDetail(data) {
         <div class="participants-section">
             <div class="participants-title">Участники (${participants.length})</div>
             ${participants.length > 0 ? participants.map(p => `
-                <div class="participant-item">
-                    <div class="participant-name">${p.name}</div>
-                    <div class="participant-level">Ур. ${p.level}</div>
-                </div>
-            `).join('') : '<p style="color: var(--text-muted); font-size: 14px;">Пока никого нет</p>'}
+				<div class="participant-item ${p.status === 'pending' ? 'pending' : ''}">
+					<div class="participant-name">${p.name} ${p.status === 'pending' ? '<span class="pending-badge">⏳</span>' : ''}</div>
+					<div class="participant-level">Ур. ${p.level}</div>
+				</div>
+			`).join('') : '<p style="color: var(--text-muted); font-size: 14px;">Пока никого нет</p>'}
         </div>
         
         ${actionButton}

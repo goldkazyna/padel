@@ -146,13 +146,14 @@ class TelegramMiniAppController extends Controller
 		$user = $this->getUser($request);
 		
 		$participants = $tournament->participants()
-			->wherePivot('status', 'registered')
+			->wherePivot('status', ['registered', 'pending'])
 			->get()
 			->map(fn($p) => [
 				'id' => $p->id,
 				'name' => $p->full_name,
 				'level' => $p->level,
 				'rating' => $p->rating,
+				'status' => $p->pivot->status,
 			]);
 		
 		$isRegistered = false;

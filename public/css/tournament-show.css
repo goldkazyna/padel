@@ -1146,3 +1146,12 @@
 .payment-link:active {
     opacity: 0.8;
 }
+
+.participant-item.pending {
+    opacity: 0.7;
+}
+
+.pending-badge {
+    font-size: 12px;
+    margin-left: 4px;
+}
