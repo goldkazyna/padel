@@ -41,7 +41,7 @@
                     </div>
                     <div class="participant-info">
                         <div class="participant-name">{{ $participant->name }}</div>
-						<small class="text-muted">{{ $participant->phone ? preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
+						<small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
                             <span class="text-warning">На модерации</span>
@@ -85,7 +85,7 @@
                 </div>
                 <div class="participant-info">
                     <div class="participant-name">{{ $participant->name }}</div>
-					<small class="text-muted">{{ $participant->phone ? preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
+					<small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
                         <span class="text-success">Одобрен</span>
@@ -396,7 +396,10 @@
     position: relative;
 }
 .text-muted{
-	color:#16a34a !important;
+	color:#ffffff !important;
+	background-color:#16a34a;
+	border-radius:5px;
+	paddin:3px;
 }
 </style>
 
