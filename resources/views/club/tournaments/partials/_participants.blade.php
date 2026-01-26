@@ -37,11 +37,11 @@
                         <i class="bi bi-clock"></i>
                     </div>
                     <div class="participant-avatar">
-                        {{ strtoupper(substr($participant->first_name, 0, 1) . substr($participant->last_name, 0, 1)) }}
+                        {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
                     </div>
                     <div class="participant-info">
                         <div class="participant-name">{{ $participant->name }}</div>
-						<small class="text-muted">{{ $participant->phone }}</small>
+						<small class="text-muted">{{ $participant->phone ? preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
                             <span class="text-warning">На модерации</span>
@@ -81,10 +81,11 @@
                 </div>
                 <div class="participant-rank">{{ $index + 1 }}</div>
                 <div class="participant-avatar">
-                    {{ strtoupper(substr($participant->first_name, 0, 1) . substr($participant->last_name, 0, 1)) }}
+                    {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
                 </div>
                 <div class="participant-info">
                     <div class="participant-name">{{ $participant->name }}</div>
+					<small class="text-muted">{{ $participant->phone ? preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
                         <span class="text-success">Одобрен</span>
@@ -125,7 +126,7 @@
                                     <label class="form-label text-secondary">Текущий участник</label>
                                     <div class="current-player-card">
                                         <div class="participant-avatar">
-                                            {{ strtoupper(substr($participant->first_name, 0, 1) . substr($participant->last_name, 0, 1)) }}
+                                            {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
                                         </div>
                                         <div>
                                             <div class="fw-bold">{{ $participant->full_name }}</div>
@@ -394,7 +395,9 @@
 .add-participant-form {
     position: relative;
 }
-
+.text-muted{
+	color:#16a34a !important;
+}
 </style>
 
 <script>
