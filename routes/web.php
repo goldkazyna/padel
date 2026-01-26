@@ -124,7 +124,8 @@ Route::middleware('auth')->group(function () {
         
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
-        
+        Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
+		Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
         /*
         |----------------------------------------------------------------------
         | ВАЖНО: Статические роуты ПЕРЕД динамическими с {tournament}
