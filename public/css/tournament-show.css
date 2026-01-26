@@ -1132,3 +1132,17 @@
     font-size: 14px;
     text-align: center;
 }
+.payment-link {
+    display: inline-block;
+    background: #f04e23;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+.payment-link:active {
+    opacity: 0.8;
+}

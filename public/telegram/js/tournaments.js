@@ -207,10 +207,15 @@ function renderTournamentDetail(data) {
     let actionButton = '';
     if (is_registered) {
         if (registration_status === 'pending') {
-            actionButton = `
-                <div class="alert alert-warning">⏳ Ваша заявка на модерации</div>
-                <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
-            `;
+			actionButton = `
+				<div class="alert alert-warning">
+					⏳ Ваша заявка на модерации<br><br>
+					💳 Для подтверждения произведите оплату:<br>
+					<a href="https://pay.kaspi.kz/pay/g6b21oa4" target="_blank" class="payment-link">Оплатить через Kaspi</a><br><br>
+					📩 После оплаты сообщите администрации
+				</div>
+				<button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+			`;
             startStatusPolling(tournament.id);
         } else {
             actionButton = `
