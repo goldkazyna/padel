@@ -40,7 +40,8 @@
                         {{ strtoupper(substr($participant->first_name, 0, 1) . substr($participant->last_name, 0, 1)) }}
                     </div>
                     <div class="participant-info">
-                        <div class="participant-name">{{ $participant->full_name }}</div>
+                        <div class="participant-name">{{ $participant->name }}</div>
+						<small class="text-muted">{{ $participant->phone }}</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
                             <span class="text-warning">На модерации</span>
@@ -83,7 +84,7 @@
                     {{ strtoupper(substr($participant->first_name, 0, 1) . substr($participant->last_name, 0, 1)) }}
                 </div>
                 <div class="participant-info">
-                    <div class="participant-name">{{ $participant->full_name }}</div>
+                    <div class="participant-name">{{ $participant->name }}</div>
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
                         <span class="text-success">Одобрен</span>
