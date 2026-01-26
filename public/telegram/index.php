@@ -229,7 +229,7 @@
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
     <script src="js/home.js?v=<?= time() ?>"></script>
-    <script src="js/tournaments.js?v=<?= time() ?>"></script>
+    <script src="js/tournaments.js?v=1444"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
 </body>
