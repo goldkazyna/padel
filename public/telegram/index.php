@@ -35,9 +35,7 @@
                 <button id="share-phone-btn" class="btn btn-primary btn-block">
                     Поделиться номером
                 </button>
-                <button id="skip-phone-btn" class="skip-btn">
-                    Пропустить
-                </button>
+
             </div>
         </div>
 
