@@ -399,7 +399,8 @@
 	color:#ffffff !important;
 	background-color:#16a34a;
 	border-radius:5px;
-	paddin:3px;
+	padding: 3px;
+    font-size: 12px;
 }
 </style>
 
