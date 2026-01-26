@@ -150,7 +150,7 @@ class TelegramMiniAppController extends Controller
 			->get()
 			->map(fn($p) => [
 				'id' => $p->id,
-				'name' => $p->full_name,
+				'name' => $p->name,
 				'level' => $p->level,
 				'rating' => $p->rating,
 				'status' => $p->pivot->status,
