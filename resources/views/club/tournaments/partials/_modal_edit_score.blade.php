@@ -12,7 +12,7 @@
                     <div class="score-input-grid">
                         <div class="score-team">
                             <div class="score-team-name">
-                                {{ $match->team1Player1->full_name }} / {{ $match->team1Player2->full_name }}
+                                {{ $match->team1Player1->name }} / {{ $match->team1Player2->name }}
                             </div>
                             <input type="number" name="team1_score" class="score-input" 
                                    min="0" max="99" 
@@ -21,7 +21,7 @@
                         <div class="score-separator">:</div>
                         <div class="score-team">
                             <div class="score-team-name">
-                                {{ $match->team2Player1->full_name }} / {{ $match->team2Player2->full_name }}
+                                {{ $match->team2Player1->name }} / {{ $match->team2Player2->name }}
                             </div>
                             <input type="number" name="team2_score" class="score-input" 
                                    min="0" max="99" 
