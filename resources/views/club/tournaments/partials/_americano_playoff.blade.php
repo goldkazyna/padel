@@ -20,10 +20,10 @@
                             @foreach($stages[$stageKey] as $match)
                                 @php
                                     $team1Name = $match->team1Player1 && $match->team1Player2 
-									? $match->team1Player1->full_name . ' / ' . $match->team1Player2->full_name 
+									? $match->team1Player1->name . ' / ' . $match->team1Player2->name 
 									: 'Ожидание...';
 								$team2Name = $match->team2Player1 && $match->team2Player2 
-									? $match->team2Player1->full_name . ' / ' . $match->team2Player2->full_name 
+									? $match->team2Player1->name . ' / ' . $match->team2Player2->name 
 									: 'Ожидание...';
                                     $team1Wins = $match->status === 'completed' && $match->team1_score > $match->team2_score;
                                     $team2Wins = $match->status === 'completed' && $match->team2_score > $match->team1_score;
@@ -140,7 +140,7 @@
                 <div class="winner-trophy"><i class="bi bi-trophy-fill"></i></div>
                 <div class="winner-title">Победители турнира</div>
                 <div class="winner-name">{{ $winnerP1->first_name }} / {{ $winnerP2->first_name }}</div>
-                <div class="winner-players">{{ $winnerP1->full_name }} & {{ $winnerP2->full_name }}</div>
+                <div class="winner-players">{{ $winnerP1->name }} & {{ $winnerP2->name }}</div>
             </div>
         @endif
     </div>

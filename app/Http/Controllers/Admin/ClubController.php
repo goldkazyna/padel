@@ -57,7 +57,7 @@ class ClubController extends Controller
     }
 	public function admins(Club $club)
 	{
-		$club->load('admins');
+		$club->load(['admins', 'moderators']);
 		$players = \App\Models\User::where('role', 'player')->get();
 		
 		return view('admin.clubs.admins', compact('club', 'players'));
@@ -116,5 +116,31 @@ class ClubController extends Controller
 				'email' => $player->email,
 			] : null
 		]);
+	}
+	public function addModerator(Request $request, Club $club)
+	{
+		$request->validate(['user_id' => 'required|exists:users,id']);
+		
+		$user = User::findOrFail($request->user_id);
+		
+		// Меняем роль на модератора
+		$user->update(['role' => 'club_moderator']);
+		
+		// Привязываем к клубу
+		$club->moderators()->syncWithoutDetaching([$user->id]);
+		
+		return back()->with('success', 'Модератор добавлен');
+	}
+
+	public function removeModerator(Club $club, User $user)
+	{
+		$club->moderators()->detach($user->id);
+		
+		// Возвращаем роль player если больше нигде не модератор
+		if ($user->moderatorClubs()->count() === 0) {
+			$user->update(['role' => 'player']);
+		}
+		
+		return back()->with('success', 'Модератор удалён');
 	}
 }

@@ -807,42 +807,51 @@
                         <span>Профиль</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}">
-                        <i class="bi bi-trophy"></i>
-                        <span>Турниры</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('rating.index') }}" class="nav-link {{ request()->routeIs('rating.*') ? 'active' : '' }}">
-                        <i class="bi bi-bar-chart"></i>
-                        <span>Рейтинг</span>
-                    </a>
-                </li>
+				@if(!auth()->user()->isClubModerator())
+				<li class="nav-item">
+					<a href="{{ route('tournaments.index') }}" class="nav-link {{ request()->routeIs('tournaments.*') ? 'active' : '' }}">
+						<i class="bi bi-trophy"></i>
+						<span>Турниры</span>
+					</a>
+				</li>
+				<li class="nav-item">
+					<a href="{{ route('rating.index') }}" class="nav-link {{ request()->routeIs('rating.*') ? 'active' : '' }}">
+						<i class="bi bi-bar-chart"></i>
+						<span>Рейтинг</span>
+					</a>
+				</li>
+				@endif
                 
-                @if(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
-                    <li class="nav-section-title">Админ клуба</li>
-                    <li class="nav-item">
-                        <a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
-                            <i class="bi bi-building"></i>
-                            <span>Мой клуб</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
-                            <i class="bi bi-trophy"></i>
-                            <span>Турниры клуба</span>
-                        </a>
-                    </li>
+                @if(auth()->user()->isClubModerator())
+					<li class="nav-section-title">Модератор</li>
+					<li class="nav-item">
+						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+							<i class="bi bi-trophy"></i>
+							<span>Турниры клуба</span>
+						</a>
+					</li>
+				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
+					<li class="nav-section-title">Админ клуба</li>
+					<li class="nav-item">
+						<a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
+							<i class="bi bi-building"></i>
+							<span>Мой клуб</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+							<i class="bi bi-trophy"></i>
+							<span>Турниры клуба</span>
+						</a>
+					</li>
 					<li class="nav-item">
 						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Пользователи</span>
 						</a>
 					</li>
+				@endif
 
-                @endif
-                
                 @if(auth()->user()->isSuperAdmin())
                     <li class="nav-section-title">Супер-админ</li>
                     <li class="nav-item">

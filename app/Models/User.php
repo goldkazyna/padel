@@ -46,7 +46,11 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Club::class, 'club_admins');
     }
-
+	// Связь: клубы где юзер модератор
+	public function moderatorClubs()
+	{
+		return $this->belongsToMany(Club::class, 'club_moderators');
+	}
     // Проверки ролей
     public function isPlayer(): bool
     {
@@ -62,7 +66,10 @@ class User extends Authenticatable
     {
         return $this->role === 'super_admin';
     }
-
+	public function isClubModerator(): bool
+	{
+		return $this->role === 'club_moderator';
+	}
     // Полное имя
     public function getFullNameAttribute(): string
     {

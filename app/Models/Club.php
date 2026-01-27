@@ -28,7 +28,11 @@ class Club extends Model
     {
         return $this->belongsToMany(User::class, 'club_admins');
     }
-
+	// Связь: модераторы клуба
+	public function moderators()
+	{
+		return $this->belongsToMany(User::class, 'club_moderators');
+	}
     // Scope: только активные
     public function scopeActive($query)
     {

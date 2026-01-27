@@ -120,7 +120,7 @@ Route::middleware('auth')->group(function () {
     | Админ клуба (club_admin, super_admin)
     |--------------------------------------------------------------------------
     */
-    Route::middleware('role:club_admin,super_admin')->prefix('club')->name('club.')->group(function () {
+    Route::middleware('role:club_admin,club_moderator,super_admin')->prefix('club')->name('club.')->group(function () {
         
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
@@ -250,7 +250,28 @@ Route::middleware('auth')->group(function () {
         Route::delete('/tournaments/{tournament}/matches/{match}', [MatchController::class, 'destroy'])
             ->name('matches.destroy');
     });
-        
+    /*
+	|--------------------------------------------------------------------------
+	| Модератор клуба (club_moderator)
+	|--------------------------------------------------------------------------
+	*/
+	Route::middleware(['auth', 'role:club_moderator'])->prefix('moderator')->name('moderator.')->group(function () {
+		
+		// Dashboard
+		Route::get('/dashboard', [App\Http\Controllers\Moderator\DashboardController::class, 'index'])->name('dashboard');
+		
+		// Турниры (только открытые)
+		Route::get('/tournaments', [App\Http\Controllers\Moderator\TournamentController::class, 'index'])->name('tournaments.index');
+		Route::get('/tournaments/{tournament}', [App\Http\Controllers\Moderator\TournamentController::class, 'show'])->name('tournaments.show');
+		
+		// Модерация участников
+		Route::post('/tournaments/{tournament}/participants/{userId}/approve', [App\Http\Controllers\Moderator\TournamentController::class, 'approveParticipant'])
+			->name('tournaments.participants.approve');
+		Route::post('/tournaments/{tournament}/participants/{userId}/reject', [App\Http\Controllers\Moderator\TournamentController::class, 'rejectParticipant'])
+			->name('tournaments.participants.reject');
+		Route::delete('/tournaments/{tournament}/participants/{user}', [App\Http\Controllers\Moderator\TournamentController::class, 'removeParticipant'])
+			->name('tournaments.participants.remove');
+	});    
     /*
     |--------------------------------------------------------------------------
     | Супер-админ (super_admin)
@@ -269,6 +290,9 @@ Route::middleware('auth')->group(function () {
         
         // Поиск игроков
         Route::get('/players/search', [ClubController::class, 'searchPlayer'])->name('players.search');
+		// Модераторы клуба
+		Route::post('/clubs/{club}/moderators', [ClubController::class, 'addModerator'])->name('clubs.moderators.add');
+		Route::delete('/clubs/{club}/moderators/{user}', [ClubController::class, 'removeModerator'])->name('clubs.moderators.remove');
     });
     
 });

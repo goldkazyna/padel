@@ -5,7 +5,7 @@
 @section('content')
 <div class="page-header">
     <div>
-        <h2>Админы клуба</h2>
+        <h2>Управление клубом</h2>
         <p>{{ $club->name }}</p>
     </div>
     <a href="{{ route('admin.clubs.index') }}" class="btn-outline-custom">
@@ -14,7 +14,9 @@
     </a>
 </div>
 
-<div class="row g-4">
+{{-- АДМИНЫ --}}
+<h4 class="mb-3"><i class="bi bi-person-badge me-2"></i>Админы</h4>
+<div class="row g-4 mb-5">
     <!-- Current admins -->
     <div class="col-lg-6">
         <div class="card-dark h-100">
@@ -28,7 +30,7 @@
                              style="background: var(--bg-secondary);">
                             <div class="d-flex align-items-center gap-3">
                                 <div class="user-avatar">
-                                    {{ strtoupper(substr($admin->first_name, 0, 1) . substr($admin->last_name, 0, 1)) }}
+                                    {{ mb_strtoupper(mb_substr($admin->first_name, 0, 1) . mb_substr($admin->last_name, 0, 1)) }}
                                 </div>
                                 <div>
                                     <div class="fw-medium">{{ $admin->full_name }}</div>
@@ -62,68 +64,181 @@
                 <h5><i class="bi bi-person-plus"></i> Добавить админа</h5>
             </div>
             <div class="card-body">
-				<div class="mb-3">
-					<label class="form-label">Email игрока</label>
-					<div class="input-group">
-						<input type="email" id="searchEmail" class="form-control" placeholder="player@example.com">
-						<button type="button" class="btn-primary-custom" onclick="searchPlayer()">
-							<i class="bi bi-search"></i> Найти
-						</button>
-					</div>
-				</div>
-				
-				<div id="searchResult"></div>
-			</div>
-
-			<script>
-			function searchPlayer() {
-				const email = document.getElementById('searchEmail').value;
-				const resultDiv = document.getElementById('searchResult');
-				
-				if (!email) {
-					resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
-					return;
-				}
-				
-				fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
-					.then(response => response.json())
-					.then(data => {
-						if (data.found) {
-							resultDiv.innerHTML = `
-								<div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
-									<div class="d-flex align-items-center gap-3">
-										<div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
-										<div>
-											<div class="fw-medium">${data.player.name}</div>
-											<small class="text-secondary">${data.player.email}</small>
-										</div>
-									</div>
-									<form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST">
-										@csrf
-										<input type="hidden" name="user_id" value="${data.player.id}">
-										<button type="submit" class="btn-primary-custom btn-sm">
-											<i class="bi bi-plus"></i> Назначить
-										</button>
-									</form>
-								</div>
-							`;
-						} else {
-							resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден или уже является админом</div>';
-						}
-					})
-					.catch(error => {
-						resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
-					});
-			}
-
-			document.getElementById('searchEmail').addEventListener('keypress', function(e) {
-				if (e.key === 'Enter') {
-					e.preventDefault();
-					searchPlayer();
-				}
-			});
-			</script>
+                <div class="mb-3">
+                    <label class="form-label">Email игрока</label>
+                    <div class="input-group">
+                        <input type="email" id="searchAdminEmail" class="form-control" placeholder="player@example.com">
+                        <button type="button" class="btn-primary-custom" onclick="searchAdmin()">
+                            <i class="bi bi-search"></i> Найти
+                        </button>
+                    </div>
+                </div>
+                <div id="searchAdminResult"></div>
+            </div>
         </div>
     </div>
 </div>
+
+{{-- МОДЕРАТОРЫ --}}
+<h4 class="mb-3"><i class="bi bi-shield-check me-2"></i>Модераторы</h4>
+<div class="row g-4">
+    <!-- Current moderators -->
+    <div class="col-lg-6">
+        <div class="card-dark h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-people"></i> Текущие модераторы</h5>
+            </div>
+            <div class="card-body">
+                @if($club->moderators->count() > 0)
+                    @foreach($club->moderators as $moderator)
+                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3 mb-3" 
+                             style="background: var(--bg-secondary);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="user-avatar">
+                                    {{ mb_strtoupper(mb_substr($moderator->first_name, 0, 1) . mb_substr($moderator->last_name, 0, 1)) }}
+                                </div>
+                                <div>
+                                    <div class="fw-medium">{{ $moderator->full_name }}</div>
+                                    <small class="text-secondary">{{ $moderator->email }}</small>
+                                </div>
+                            </div>
+                            <form action="{{ route('admin.clubs.moderators.remove', [$club, $moderator]) }}" method="POST"
+                                  onsubmit="return confirm('Удалить модератора?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-danger-custom btn-sm">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="text-center text-secondary py-5">
+                        <i class="bi bi-shield fs-1 d-block mb-3 opacity-50"></i>
+                        Нет назначенных модераторов
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Add moderator -->
+    <div class="col-lg-6">
+        <div class="card-dark h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-person-plus"></i> Добавить модератора</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Email игрока</label>
+                    <div class="input-group">
+                        <input type="email" id="searchModeratorEmail" class="form-control" placeholder="player@example.com">
+                        <button type="button" class="btn-primary-custom" onclick="searchModerator()">
+                            <i class="bi bi-search"></i> Найти
+                        </button>
+                    </div>
+                </div>
+                <div id="searchModeratorResult"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Поиск админа
+function searchAdmin() {
+    const email = document.getElementById('searchAdminEmail').value;
+    const resultDiv = document.getElementById('searchAdminResult');
+    
+    if (!email) {
+        resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
+        return;
+    }
+    
+    fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.found) {
+                resultDiv.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
+                            <div>
+                                <div class="fw-medium">${data.player.name}</div>
+                                <small class="text-secondary">${data.player.email}</small>
+                            </div>
+                        </div>
+                        <form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="user_id" value="${data.player.id}">
+                            <button type="submit" class="btn-primary-custom btn-sm">
+                                <i class="bi bi-plus"></i> Назначить
+                            </button>
+                        </form>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
+        });
+}
+
+// Поиск модератора
+function searchModerator() {
+    const email = document.getElementById('searchModeratorEmail').value;
+    const resultDiv = document.getElementById('searchModeratorResult');
+    
+    if (!email) {
+        resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
+        return;
+    }
+    
+    fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.found) {
+                resultDiv.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
+                            <div>
+                                <div class="fw-medium">${data.player.name}</div>
+                                <small class="text-secondary">${data.player.email}</small>
+                            </div>
+                        </div>
+                        <form action="{{ route('admin.clubs.moderators.add', $club) }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="user_id" value="${data.player.id}">
+                            <button type="submit" class="btn-primary-custom btn-sm">
+                                <i class="bi bi-plus"></i> Назначить
+                            </button>
+                        </form>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
+        });
+}
+
+document.getElementById('searchAdminEmail').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchAdmin();
+    }
+});
+
+document.getElementById('searchModeratorEmail').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchModerator();
+    }
+});
+</script>
 @endsection

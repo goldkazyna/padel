@@ -138,7 +138,7 @@
 											{{ mb_strtoupper(mb_substr($player->first_name, 0, 1) . mb_substr($player->last_name, 0, 1)) }}
 										</div>
 										<div class="player-details">
-											<div class="player-name">{{ $player->full_name }}</div>
+											<div class="player-name">{{ $player->name }}</div>
 											<div class="player-rating">{{ $player->rating }}</div>
 										</div>
 									</div>
@@ -194,8 +194,8 @@
 									<div class="match-teams">
 										<div class="match-team {{ $match->winning_team === 1 ? 'winner' : '' }}">
 											<div class="team-players">
-												<div class="player-line">{{ $match->team1Player1->full_name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
-												<div class="player-line">{{ $match->team1Player2->full_name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
+												<div class="player-line">{{ $match->team1Player1->name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
+												<div class="player-line">{{ $match->team1Player2->name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
 											</div>
 											@if($match->isCompleted())
 												<div class="team-score">{{ $match->team1_score }}</div>
@@ -226,8 +226,8 @@
 												<div class="team-score">{{ $match->team2_score }}</div>
 											@endif
 											<div class="team-players">
-												<div class="player-line">{{ $match->team2Player1->full_name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
-												<div class="player-line">{{ $match->team2Player2->full_name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
+												<div class="player-line">{{ $match->team2Player1->name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
+												<div class="player-line">{{ $match->team2Player2->name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
 											</div>
 										</div>
 									</div>
