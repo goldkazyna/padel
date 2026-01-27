@@ -225,3 +225,8 @@
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
 }
+#next-tournament {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}

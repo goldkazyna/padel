@@ -63,7 +63,7 @@
                 <!-- Ближайший турнир -->
                 <div class="section">
                     <div class="section-header">
-                        <h2 class="section-title">Ближайший турнир</h2>
+                        <h2 class="section-title">Турниры</h2>
                         <a href="#" class="section-link" onclick="navigateTo('tournaments'); return false;">Все</a>
                     </div>
                     <div id="next-tournament">
@@ -78,7 +78,7 @@
                     </div>
                     <div id="recent-matches">
                         <div class="empty-state">
-                            <div class="empty-state-text">Пока нет сыгранных матчей</div>
+                            <div class="empty-state-text">Раздел в разработке</div>
                         </div>
                     </div>
                 </div>
@@ -228,7 +228,7 @@
     <!-- JS -->
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
-    <script src="js/home.js?v=145"></script>
+    <script src="js/home.js?v=146"></script>
     <script src="js/tournaments.js?v=147"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
