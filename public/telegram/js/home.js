@@ -92,6 +92,7 @@ async function renderNextTournament() {
     const date = formatDate(nextTournament.date);
     const time = formatTime(nextTournament.time);
     const typeClass = getTournamentTypeClass(nextTournament.type);
+    const isFull = nextTournament.participants_count >= nextTournament.max_participants;
     
     container.innerHTML = `
         <div class="next-tournament-card" onclick="openTournament(${nextTournament.id})">
@@ -110,7 +111,7 @@ async function renderNextTournament() {
                         </svg>
                         ${time}
                     </span>
-                    <span class="meta-item">
+                    <span class="meta-item ${isFull ? 'full' : ''}">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                             <circle cx="9" cy="7" r="4"/>
@@ -118,6 +119,7 @@ async function renderNextTournament() {
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                         ${nextTournament.participants_count}/${nextTournament.max_participants}
+                        ${isFull ? '<span class="full-badge">Мест нет</span>' : ''}
                     </span>
                     <span class="meta-item">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -131,6 +133,14 @@ async function renderNextTournament() {
                 <div class="next-tournament-status registered">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                </div>
+            ` : isFull ? `
+                <div class="next-tournament-status full">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
                     </svg>
                 </div>
             ` : ''}

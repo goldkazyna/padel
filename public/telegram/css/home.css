@@ -208,3 +208,20 @@
     color: var(--text);
     flex-shrink: 0;
 }
+.meta-item.full {
+    color: #ef4444;
+}
+
+.full-badge {
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+.next-tournament-status.full {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
