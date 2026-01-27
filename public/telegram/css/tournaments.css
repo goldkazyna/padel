@@ -245,3 +245,20 @@
     font-weight: 600;
     cursor: pointer;
 }
+
+.tournament-detail.full {
+    color: #ef4444;
+}
+
+.tournament-detail.full .icon {
+    stroke: #ef4444;
+}
+
+.tournament-status.full {
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+}
