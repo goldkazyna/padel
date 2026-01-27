@@ -96,12 +96,7 @@
 					</button>
 				</div>
             <div class="screen-content">
-                <!-- Фильтры -->
-                <div class="filters">
-                    <button class="filter-btn active" data-filter="all">Все</button>
-                    <button class="filter-btn" data-filter="open">Открытые</button>
-                    <button class="filter-btn" data-filter="my">Мои</button>
-                </div>
+                
 
                 <!-- Список турниров -->
                 <div id="tournaments-list">
@@ -229,7 +224,7 @@
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
     <script src="js/home.js?v=149"></script>
-    <script src="js/tournaments.js?v=147"></script>
+    <script src="js/tournaments.js?v=148"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
 </body>

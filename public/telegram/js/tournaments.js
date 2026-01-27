@@ -13,10 +13,9 @@ let currentTournamentId = null;
  */
 async function loadTournaments() {
     const result = await apiTournaments();
-    allTournaments = result.tournaments || [];
+    const tournaments = result.tournaments || [];
     
-    setupTournamentFilters();
-    renderTournaments(allTournaments);
+    renderTournaments(tournaments);
 }
 
 /**
