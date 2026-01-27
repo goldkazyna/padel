@@ -531,18 +531,17 @@ class TournamentController extends Controller
 		
 		$players = \App\Models\User::where(function ($q) use ($query) {
 				$q->where('phone', 'LIKE', "%{$query}%")
-				  ->orWhere('first_name', 'LIKE', "%{$query}%")
-				  ->orWhere('last_name', 'LIKE', "%{$query}%");
+				  ->orWhere('name', 'LIKE', "%{$query}%");
 			})
 			->whereNotIn('id', $existingIds)
 			->where('role', 'player')
 			->limit(10)
-			->get(['id', 'first_name', 'last_name', 'phone', 'level', 'rating']);
+			->get(['id', 'name', 'phone', 'level', 'rating']);
 		
 		return response()->json($players->map(function ($player) {
 			return [
 				'id' => $player->id,
-				'name' => $player->full_name,
+				'name' => $player->name,
 				'phone' => $player->phone,
 				'level' => $player->level,
 				'rating' => $player->rating,
