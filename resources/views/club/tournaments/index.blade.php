@@ -8,10 +8,12 @@
         <h2>Турниры {{ $club ? '— ' . $club->name : '' }}</h2>
         <p>Управление турнирами клуба</p>
     </div>
+    @if(!auth()->user()->isClubModerator())
     <a href="{{ route('club.tournaments.create') }}" class="btn-primary-custom">
         <i class="bi bi-plus-circle"></i>
         <span>Создать турнир</span>
     </a>
+    @endif
 </div>
 
 <div class="tournaments-list">
@@ -45,22 +47,23 @@
                 <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
             </div>
             <div class="tournament-actions">
-				<a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
-					<i class="bi bi-eye"></i>
-				</a>
-				<a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
-					<i class="bi bi-pencil"></i>
-				</a>
-				@if($tournament->status === 'open')
-					<form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
-						  onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
-						@csrf
-						<button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
-							<i class="bi bi-telegram"></i>
-						</button>
-					</form>
-				@endif
-				@if($tournament->status === 'draft')
+                <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
+                    <i class="bi bi-eye"></i>
+                </a>
+                @if(!auth()->user()->isClubModerator())
+                <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                @if($tournament->status === 'open')
+                    <form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
+                          onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
+                        @csrf
+                        <button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
+                            <i class="bi bi-telegram"></i>
+                        </button>
+                    </form>
+                @endif
+                @if($tournament->status === 'draft')
                     <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
                           onsubmit="return confirm('Удалить турнир?')">
                         @csrf
@@ -70,6 +73,7 @@
                         </button>
                     </form>
                 @endif
+                @endif
             </div>
         </div>
     @empty
@@ -77,9 +81,11 @@
             <div class="card-body text-center py-5">
                 <i class="bi bi-trophy fs-1 text-secondary mb-3"></i>
                 <p class="text-secondary mb-3">Турниров пока нет</p>
+                @if(!auth()->user()->isClubModerator())
                 <a href="{{ route('club.tournaments.create') }}" class="btn-primary-custom">
                     <i class="bi bi-plus-circle"></i> Создать первый турнир
                 </a>
+                @endif
             </div>
         </div>
     @endforelse
