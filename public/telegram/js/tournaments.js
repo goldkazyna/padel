@@ -77,7 +77,6 @@ function renderTournaments(tournaments) {
     
     container.innerHTML = tournaments.map(t => renderTournamentCard(t)).join('');
 }
-
 /**
  * Рендер карточки турнира
  */
@@ -89,20 +88,19 @@ function renderTournamentCard(tournament) {
     
     const priceText = tournament.price > 0 ? `${tournament.price.toLocaleString()} ₸` : 'Бесплатно';
     
-	let footerContent = '';
-	const isFull = tournament.participants_count >= tournament.max_participants;
-
-	if (tournament.is_registered) {
-		const statusText = tournament.registration_status === 'pending' ? 'На модерации' : 'Вы записаны';
-		const statusClass = tournament.registration_status === 'pending' ? 'pending' : 'registered';
-		footerContent = `<span class="tournament-status ${statusClass}">✓ ${statusText}</span>`;
-	} else if (isFull) {
-		footerContent = `<span class="tournament-status full">Мест нет</span>`;
-	} else if (tournament.can_register !== false) {
-		footerContent = `<button class="btn-register" onclick="event.stopPropagation(); registerTournament(${tournament.id})">Записаться</button>`;
-	} else {
-		footerContent = `<span class="tournament-status">Регистрация закрыта</span>`;
-	}
+    let footerContent = '';
+    const isFull = tournament.participants_count >= tournament.max_participants;
+    if (tournament.is_registered) {
+        const statusText = tournament.registration_status === 'pending' ? 'На модерации' : 'Вы записаны';
+        const statusClass = tournament.registration_status === 'pending' ? 'pending' : 'registered';
+        footerContent = `<span class="tournament-status ${statusClass}">✓ ${statusText}</span>`;
+    } else if (isFull) {
+        footerContent = `<span class="tournament-status full">Мест нет</span>`;
+    } else if (tournament.can_register !== false) {
+        footerContent = `<button class="btn-register" onclick="event.stopPropagation(); registerTournament(${tournament.id})">Записаться</button>`;
+    } else {
+        footerContent = `<span class="tournament-status">Регистрация закрыта</span>`;
+    }
     
     return `
         <div class="tournament-card" onclick="openTournament(${tournament.id})">
@@ -122,14 +120,14 @@ function renderTournamentCard(tournament) {
                     </svg>
                     <span>${date.full}, ${time}</span>
                 </div>
-                <div class="tournament-detail">
+                <div class="tournament-detail ${isFull ? 'full' : ''}">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                         <circle cx="9" cy="7" r="4"/>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
-                    <span>${tournament.participants_count}/${tournament.max_participants} участников</span>
+                    <span>${tournament.participants_count}/${tournament.max_participants} участников ${isFull ? '<span class="full-badge">Мест нет</span>' : ''}</span>
                 </div>
                 <div class="tournament-detail">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
