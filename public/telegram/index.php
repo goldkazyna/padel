@@ -228,7 +228,7 @@
     <!-- JS -->
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
-    <script src="js/home.js?v=147"></script>
+    <script src="js/home.js?v=148"></script>
     <script src="js/tournaments.js?v=147"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>

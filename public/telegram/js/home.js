@@ -8,7 +8,7 @@
 async function loadHome() {
     renderWelcome();
     await renderQuickStats();
-    await renderTournaments();
+    await renderNextTournament();
     // TODO: renderRecentMatches() - когда будет API
 }
 
@@ -66,7 +66,7 @@ async function renderQuickStats() {
 /**
  * Рендер турниров
  */
-async function renderTournaments() {
+async function renderNextTournament() {
     const container = document.getElementById('next-tournament');
     if (!container) return;
     
