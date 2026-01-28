@@ -249,6 +249,12 @@ Route::middleware('auth')->group(function () {
             ->name('matches.store');
         Route::delete('/tournaments/{tournament}/matches/{match}', [MatchController::class, 'destroy'])
             ->name('matches.destroy');
+			
+		// Модерация команд
+		Route::post('/tournaments/{tournament}/teams/{team}/approve', [TeamTournamentController::class, 'approveTeam'])
+			->name('tournaments.approveTeam');
+		Route::post('/tournaments/{tournament}/teams/{team}/reject', [TeamTournamentController::class, 'rejectTeam'])
+			->name('tournaments.rejectTeam');
     });
     /*
 	|--------------------------------------------------------------------------

@@ -1,20 +1,82 @@
+{{-- Команды на модерации --}}
+@php
+    $pendingTeams = $tournament->teams()->where('status', 'pending')->orderBy('created_at', 'asc')->get();
+    $approvedTeams = $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get();
+@endphp
+
+@if($tournament->status === 'open' && $pendingTeams->count() > 0)
+<section class="pending-teams mb-4">
+    <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 16px;">
+        <h2 class="section-title">
+            <i class="bi bi-hourglass-split text-warning me-2"></i>На модерации
+        </h2>
+        <span class="badge bg-warning text-dark">{{ $pendingTeams->count() }} пар</span>
+    </div>
+    
+    <div class="pairs-grid">
+        @foreach($pendingTeams as $team)
+            <div class="pair-card pending-card">
+                <span class="pair-rank">⏳</span>
+                <div class="pair-info-block">
+                    <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
+                    <div class="pair-phones">
+                        <small class="text-muted">
+                            {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                            / 
+                            {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                        </small>
+                    </div>
+                </div>
+                <div class="pair-rating">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    {{ $team->rating_avg }}
+                </div>
+                <div class="pair-actions">
+                    <form action="{{ route('club.tournaments.approveTeam', [$tournament, $team]) }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-success btn-sm" title="Одобрить">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                    </form>
+                    <form action="{{ route('club.tournaments.rejectTeam', [$tournament, $team]) }}" method="POST" class="d-inline" onsubmit="return confirm('Отклонить заявку?')">
+                        @csrf
+                        <button type="submit" class="btn btn-danger btn-sm" title="Отклонить">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @endforeach
+    </div>
+</section>
+@endif
+
 {{-- Зарегистрированные пары --}}
 <section class="registered-pairs mb-4">
     <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 16px;">
         <h2 class="section-title">Зарегистрированные пары</h2>
-        <span class="badge bg-primary">{{ $tournament->teams->count() }} / {{ $tournament->max_participants / 2 }} пар</span>
+        <span class="badge bg-primary">{{ $approvedTeams->count() }} / {{ $tournament->max_participants / 2 }} пар</span>
     </div>
     
     @if($tournament->status === 'open')
         @include('club.tournaments.partials._team_form')
     @endif
     
-    @if($tournament->teams->count() > 0)
+    @if($approvedTeams->count() > 0)
         <div class="pairs-grid">
-            @foreach($tournament->teams()->orderBy('rating_avg', 'desc')->get() as $index => $team)
+            @foreach($approvedTeams as $index => $team)
                 <div class="pair-card">
                     <span class="pair-rank">{{ $index + 1 }}</span>
-                    <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
+                    <div class="pair-info-block">
+                        <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
+                        <div class="pair-phones">
+                            <small class="text-muted">
+                                {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                                / 
+                                {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                            </small>
+                        </div>
+                    </div>
                     <div class="pair-rating">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         {{ $team->rating_avg }}
@@ -789,6 +851,24 @@
     font-size: 12px !important;
     font-weight: 700 !important;
     color: #71717a !important;
+}
+
+.pending-card {
+    border: 2px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.pair-info-block {
+    flex: 1;
+}
+
+.pair-phones {
+    margin-top: 4px;
+}
+
+.pair-actions {
+    display: flex;
+    gap: 4px;
 }
     </style>
 {{-- Групповой этап --}}

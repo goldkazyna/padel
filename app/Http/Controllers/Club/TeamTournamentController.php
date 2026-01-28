@@ -230,4 +230,24 @@ class TeamTournamentController extends Controller
 		return back()->with('success', 'Счёт обновлён!');
 	}
 	
+	/**
+	 * Одобрить команду
+	 */
+	public function approveTeam(Tournament $tournament, TournamentTeam $team)
+	{
+		$team->update(['status' => 'approved']);
+		
+		return back()->with('success', 'Команда одобрена');
+	}
+
+	/**
+	 * Отклонить команду
+	 */
+	public function rejectTeam(Tournament $tournament, TournamentTeam $team)
+	{
+		$team->delete();
+		
+		return back()->with('success', 'Заявка отклонена');
+	}
+	
 }
