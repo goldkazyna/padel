@@ -8,10 +8,18 @@ let selectedPartner = null;
  * API: Поиск партнера
  */
 async function apiSearchPartner(phone) {
-    return await fetchAPI('/team/search-partner', {
-        method: 'POST',
-        body: JSON.stringify({ phone })
-    });
+    console.log('Searching for phone:', phone);
+    try {
+        const result = await fetchAPI('/team/search-partner', {
+            method: 'POST',
+            body: JSON.stringify({ phone })
+        });
+        console.log('Search result:', result);
+        return result;
+    } catch (error) {
+        console.error('Search error:', error);
+        throw error;
+    }
 }
 
 /**
