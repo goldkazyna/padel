@@ -8,7 +8,10 @@ let selectedPartner = null;
  * API: Поиск партнера
  */
 async function apiSearchPartner(phone) {
-    return api('/team/search-partner', 'POST', { phone });
+    console.log('Calling API with phone:', phone);
+    const result = await api('/team/search-partner', 'POST', { phone });
+    console.log('API result:', result);
+    return result;
 }
 
 /**
