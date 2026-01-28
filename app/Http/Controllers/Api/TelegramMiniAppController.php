@@ -97,47 +97,72 @@ class TelegramMiniAppController extends Controller
     /**
      * Список открытых турниров
      */
-    public function tournaments(Request $request)
-    {
-        $user = $this->getUser($request);
-
-        $tournaments = Tournament::where('status', 'open')
-            ->where('start_date', '>', now())
-            ->orderBy('start_date', 'asc')
-            ->with('club')
-            ->get()
-            ->map(function ($t) use ($user) {
-                $isRegistered = false;
-                $registrationStatus = null;
-                
-                if ($user) {
-                    $participant = $t->participants()->where('user_id', $user->id)->first();
-                    if ($participant) {
-                        $isRegistered = true;
-                        $registrationStatus = $participant->pivot->status;
-                    }
-                }
-
-                return [
-                    'id' => $t->id,
-                    'name' => $t->name,
-                    'club' => $t->club->name ?? 'Клуб',
-                    'date' => $t->start_date->format('d.m.Y'),
-                    'time' => $t->start_date->format('H:i'),
-                    'type' => $t->type,
-                    'type_name' => $t->type_name,
-                    'min_level' => $t->min_level,
-                    'max_level' => $t->max_level,
-                    'price' => $t->price,
-                    'participants_count' => $t->participants()->wherePivotIn('status', ['registered', 'pending'])->count(),
-                    'max_participants' => $t->max_participants,
-                    'is_registered' => $isRegistered,
-                    'registration_status' => $registrationStatus,
-                ];
-            });
-
-        return response()->json(['tournaments' => $tournaments]);
-    }
+	public function tournaments(Request $request)
+	{
+		$user = $this->getUser($request);
+		$tournaments = Tournament::where('status', 'open')
+			->where('start_date', '>', now())
+			->orderBy('start_date', 'asc')
+			->with('club')
+			->get()
+			->map(function ($t) use ($user) {
+				$isRegistered = false;
+				$registrationStatus = null;
+				
+				// Подсчёт участников в зависимости от типа турнира
+				if ($t->type === 'team') {
+					// Для командного турнира считаем команды * 2
+					$participantsCount = TournamentTeam::where('tournament_id', $t->id)
+						->whereIn('status', ['approved', 'pending'])
+						->count() * 2;
+					
+					// Проверяем регистрацию пользователя
+					if ($user) {
+						$team = TournamentTeam::where('tournament_id', $t->id)
+							->where(function($q) use ($user) {
+								$q->where('player1_id', $user->id)
+								  ->orWhere('player2_id', $user->id);
+							})
+							->first();
+						
+						if ($team) {
+							$isRegistered = true;
+							$registrationStatus = $team->status;
+						}
+					}
+				} else {
+					// Для americano/mexicano — старая логика
+					$participantsCount = $t->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
+					
+					if ($user) {
+						$participant = $t->participants()->where('user_id', $user->id)->first();
+						if ($participant) {
+							$isRegistered = true;
+							$registrationStatus = $participant->pivot->status;
+						}
+					}
+				}
+				
+				return [
+					'id' => $t->id,
+					'name' => $t->name,
+					'club' => $t->club->name ?? 'Клуб',
+					'date' => $t->start_date->format('d.m.Y'),
+					'time' => $t->start_date->format('H:i'),
+					'type' => $t->type,
+					'type_name' => $t->type_name,
+					'min_level' => $t->min_level,
+					'max_level' => $t->max_level,
+					'price' => $t->price,
+					'participants_count' => $participantsCount,
+					'max_participants' => $t->max_participants,
+					'is_registered' => $isRegistered,
+					'registration_status' => $registrationStatus,
+				];
+			});
+		
+		return response()->json(['tournaments' => $tournaments]);
+	}
 
     /**
 	 * Детали турнира
