@@ -8,7 +8,7 @@
 <section class="pending-teams mb-4">
     <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 16px;">
         <h2 class="section-title">
-            <i class="bi bi-hourglass-split text-warning me-2"></i>На модерации
+            <i class="bi bi-clock text-warning me-2"></i>Заявки на модерации
         </h2>
         <span class="badge bg-warning text-dark">{{ $pendingTeams->count() }} пар</span>
     </div>
@@ -854,8 +854,8 @@
 }
 
 .pending-card {
-    border: 2px solid #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    background: rgba(234, 179, 8, 0.05);
 }
 
 .pair-info-block {
