@@ -83,52 +83,66 @@ class TeamTournamentController extends Controller
         return back()->with('success', 'Пара удалена из турнира');
     }
 
-    /**
-     * Добавить тестовые пары
-     */
-    public function addTestTeams(Tournament $tournament)
+	/**
+	 * Добавить тестовые пары
+	 */
+	public function addTestTeams(Tournament $tournament)
 	{
 		if ($tournament->status !== 'open') {
 			return back()->with('error', 'Турнир не открыт для регистрации');
 		}
 
-		// Получаем игроков которые УЖЕ В ПАРЕ
+		$maxTeams = $tournament->max_participants / 2;
+		$currentTeams = $tournament->teams()->count();
+		$teamsToAdd = $maxTeams - $currentTeams;
+
+		if ($teamsToAdd <= 0) {
+			return back()->with('error', 'Все места заняты');
+		}
+
+		// Получаем ID игроков которые уже в парах
 		$playersInTeams = $tournament->teams()
 			->get()
 			->flatMap(fn($team) => [$team->player1_id, $team->player2_id])
 			->toArray();
 
-		// Берём ЗАРЕГИСТРИРОВАННЫХ участников, которые ещё НЕ в паре
-		$availablePlayers = $tournament->participants()
-			->whereNotIn('users.id', $playersInTeams)
-			->inRandomOrder()
-			->get();
+		// Берём тестовых пользователей по email (1@gmail.com - 16@gmail.com)
+		$testPlayers = User::whereIn('email', [
+			'1@gmail.com', '2@gmail.com', '3@gmail.com', '4@gmail.com',
+			'5@gmail.com', '6@gmail.com', '7@gmail.com', '8@gmail.com',
+			'9@gmail.com', '10@gmail.com', '11@gmail.com', '12@gmail.com',
+			'13@gmail.com', '14@gmail.com', '15@gmail.com', '16@gmail.com',
+		])
+		->whereNotIn('id', $playersInTeams)
+		->get()
+		->shuffle();
 
-		if ($availablePlayers->count() < 2) {
-			return back()->with('error', 'Недостаточно свободных участников для создания пар');
+		if ($testPlayers->count() < 2) {
+			return back()->with('error', 'Недостаточно свободных тестовых игроков');
 		}
 
 		$teamsAdded = 0;
-		$maxTeams = $tournament->max_participants / 2;
-		$currentTeams = $tournament->teams()->count();
 
-		for ($i = 0; $i < $availablePlayers->count() - 1; $i += 2) {
-			if ($currentTeams + $teamsAdded >= $maxTeams) break;
-
-			$player1 = $availablePlayers[$i];
-			$player2 = $availablePlayers[$i + 1];
+		for ($i = 0; $i < $testPlayers->count() - 1 && $teamsAdded < $teamsToAdd; $i += 2) {
+			$player1 = $testPlayers[$i];
+			$player2 = $testPlayers[$i + 1];
 
 			TournamentTeam::create([
 				'tournament_id' => $tournament->id,
 				'player1_id' => $player1->id,
 				'player2_id' => $player2->id,
 				'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
+				'status' => 'approved',
 			]);
 
 			$teamsAdded++;
 		}
 
-		return back()->with('success', "Создано {$teamsAdded} пар из зарегистрированных участников!");
+		if ($teamsAdded === 0) {
+			return back()->with('error', 'Не удалось создать пары');
+		}
+
+		return back()->with('success', "Создано {$teamsAdded} тестовых пар!");
 	}
 
     /**

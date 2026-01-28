@@ -228,6 +228,6 @@
     <script src="js/tournaments.js?v=149"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
-	<script src="js/team-registration.js?v=7"></script>
+	<script src="js/team-registration.js?v=8"></script>
 </body>
 </html>
