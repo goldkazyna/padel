@@ -8,30 +8,16 @@ let selectedPartner = null;
  * API: Поиск партнера
  */
 async function apiSearchPartner(phone) {
-    console.log('Searching for phone:', phone);
-    try {
-        const result = await fetchAPI('/team/search-partner', {
-            method: 'POST',
-            body: JSON.stringify({ phone })
-        });
-        console.log('Search result:', result);
-        return result;
-    } catch (error) {
-        console.error('Search error:', error);
-        throw error;
-    }
+    return api('/team/search-partner', 'POST', { phone });
 }
 
 /**
  * API: Регистрация пары
  */
 async function apiRegisterTeam(tournamentId, partnerId) {
-    return await fetchAPI('/team/register', {
-        method: 'POST',
-        body: JSON.stringify({ 
-            tournament_id: tournamentId, 
-            partner_id: partnerId 
-        })
+    return api('/team/register', 'POST', { 
+        tournament_id: tournamentId, 
+        partner_id: partnerId 
     });
 }
 
@@ -39,10 +25,7 @@ async function apiRegisterTeam(tournamentId, partnerId) {
  * API: Отмена регистрации пары
  */
 async function apiCancelTeam(tournamentId) {
-    return await fetchAPI('/team/cancel', {
-        method: 'POST',
-        body: JSON.stringify({ tournament_id: tournamentId })
-    });
+    return api('/team/cancel', 'POST', { tournament_id: tournamentId });
 }
 
 /**

@@ -26,4 +26,7 @@ Route::prefix('tg')->middleware('telegram.miniapp')->group(function () {
 	Route::get('/rating', [TelegramMiniAppController::class, 'rating']);
 	Route::post('/profile/name', [TelegramMiniAppController::class, 'saveName']);
 	Route::get('/tournaments/{tournament}/status', [TelegramMiniAppController::class, 'registrationStatus']);
+	Route::post('/team/search-partner', [TelegramMiniAppController::class, 'searchPartner']);
+    Route::post('/team/register', [TelegramMiniAppController::class, 'registerTeam']);
+    Route::post('/team/cancel', [TelegramMiniAppController::class, 'cancelTeam']);
 });
