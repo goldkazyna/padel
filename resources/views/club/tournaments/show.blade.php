@@ -13,8 +13,10 @@
 {{-- Информация о турнире --}}
 @include('club.tournaments.partials._info')
 
-{{-- Участники --}}
-@include('club.tournaments.partials._participants')
+{{-- Участники (не для парных турниров) --}}
+@if($tournament->type !== 'team')
+    @include('club.tournaments.partials._participants')
+@endif
 
 {{-- Американо --}}
 @if($tournament->isAmericano() && $tournament->groups->count() > 0)
