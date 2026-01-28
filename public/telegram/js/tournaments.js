@@ -87,19 +87,26 @@ function renderTournamentCard(tournament) {
     
     const priceText = tournament.price > 0 ? `${tournament.price.toLocaleString()} ₸` : 'Бесплатно';
     
-    let footerContent = '';
-    const isFull = tournament.participants_count >= tournament.max_participants;
-    if (tournament.is_registered) {
-        const statusText = tournament.registration_status === 'pending' ? 'На модерации' : 'Вы записаны';
-        const statusClass = tournament.registration_status === 'pending' ? 'pending' : 'registered';
-        footerContent = `<span class="tournament-status ${statusClass}">✓ ${statusText}</span>`;
-    } else if (isFull) {
-        footerContent = `<span class="tournament-status full">Мест нет</span>`;
-    } else if (tournament.can_register !== false) {
-        footerContent = `<button class="btn-register" onclick="event.stopPropagation(); registerTournament(${tournament.id})">Записаться</button>`;
-    } else {
-        footerContent = `<span class="tournament-status">Регистрация закрыта</span>`;
-    }
+	let footerContent = '';
+	const isFull = tournament.participants_count >= tournament.max_participants;
+	const isTeam = tournament.type === 'team';
+
+	if (tournament.is_registered) {
+		const statusText = tournament.registration_status === 'pending' ? 'На модерации' : 'Вы записаны';
+		const statusClass = tournament.registration_status === 'pending' ? 'pending' : 'registered';
+		footerContent = `<span class="tournament-status ${statusClass}">✓ ${statusText}</span>`;
+	} else if (isFull) {
+		footerContent = `<span class="tournament-status full">Мест нет</span>`;
+	} else if (tournament.can_register !== false) {
+		if (isTeam) {
+			// Для парных турниров — просто открываем турнир
+			footerContent = `<button class="btn-register" onclick="event.stopPropagation(); openTournament(${tournament.id}, true)">Записаться с партнёром</button>`;
+		} else {
+			footerContent = `<button class="btn-register" onclick="event.stopPropagation(); registerTournament(${tournament.id})">Записаться</button>`;
+		}
+	} else {
+		footerContent = `<span class="tournament-status">Регистрация закрыта</span>`;
+	}
     
     return `
         <div class="tournament-card" onclick="openTournament(${tournament.id})">
@@ -145,7 +152,7 @@ function renderTournamentCard(tournament) {
 /**
  * Открыть турнир
  */
-async function openTournament(id) {
+async function openTournament(id, scrollToRegister = false) {
     currentTournamentId = id; // Сохраняем ID
     
     const result = await apiTournament(id);
@@ -157,6 +164,16 @@ async function openTournament(id) {
     
     renderTournamentDetail(result);
     showScreen('tournament-detail');
+    
+    // Скролл к форме регистрации для парных турниров
+    if (scrollToRegister) {
+        setTimeout(() => {
+            const regForm = document.querySelector('.team-registration');
+            if (regForm) {
+                regForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
     
     // Back button
     if (!isDev) {
