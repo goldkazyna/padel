@@ -538,7 +538,7 @@ class TelegramMiniAppController extends Controller
 	 */
 	public function searchPartner(Request $request)
 	{
-		$user = $this->getUserFromRequest($request);
+		$user = $this->getUser($request);
 		if (!$user) {
 			return response()->json(['error' => 'Unauthorized'], 401);
 		}
@@ -579,7 +579,7 @@ class TelegramMiniAppController extends Controller
 	 */
 	public function registerTeam(Request $request)
 	{
-		$user = $this->getUserFromRequest($request);
+		$user = $this->getUser($request);
 		if (!$user) {
 			return response()->json(['error' => 'Unauthorized'], 401);
 		}
@@ -674,7 +674,7 @@ class TelegramMiniAppController extends Controller
 	 */
 	public function cancelTeam(Request $request)
 	{
-		$user = $this->getUserFromRequest($request);
+		$user = $this->getUser($request);
 		if (!$user) {
 			return response()->json(['error' => 'Unauthorized'], 401);
 		}
