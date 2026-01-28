@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="css/tournaments.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/rating.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/profile.css?v=<?= time() ?>">
-	<link rel="stylesheet" href="css/team-registration.css?v=3">
+	<link rel="stylesheet" href="css/team-registration.css?v=4">
 </head>
 <body>
     <div id="app">
