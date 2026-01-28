@@ -7,6 +7,9 @@ let selectedPartner = null;
 /**
  * API: Поиск партнера
  */
+ function showToast(message) {
+    alert(message);
+}
 async function apiSearchPartner(phone) {
     console.log('Calling API with phone:', phone);
     const result = await api('/team/search-partner', 'POST', { phone });
