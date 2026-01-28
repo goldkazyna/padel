@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="css/tournaments.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/rating.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/profile.css?v=<?= time() ?>">
+	<link rel="stylesheet" href="css/team-registration.css?v=<?= time() ?>">
 </head>
 <body>
     <div id="app">
@@ -224,8 +225,9 @@
     <script src="js/api.js?v=<?= time() ?>"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
     <script src="js/home.js?v=149"></script>
-    <script src="js/tournaments.js?v=148"></script>
+    <script src="js/tournaments.js?v=149"></script>
     <script src="js/rating.js?v=<?= time() ?>"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
+	<script src="js/team-registration.js?v=<?= time() ?>"></script>
 </body>
 </html>

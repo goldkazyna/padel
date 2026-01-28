@@ -270,3 +270,10 @@
     border-radius: 4px;
     margin-left: 4px;
 }
+.team-item {
+    background: var(--bg-tertiary);
+}
+
+.tournament-action {
+    margin-top: 16px;
+}

@@ -190,8 +190,9 @@ async function refreshTournament() {
 /**
  * Рендер детальной страницы турнира
  */
+
 function renderTournamentDetail(data) {
-    const { tournament, participants, is_registered, registration_status, can_register } = data;
+    const { tournament, participants, teams, user_team, is_registered, registration_status, can_register } = data;
     const container = document.getElementById('tournament-detail-content');
     if (!container) return;
     
@@ -201,37 +202,108 @@ function renderTournamentDetail(data) {
     const typeName = getTournamentTypeName(tournament.type);
     const priceText = tournament.price > 0 ? `${tournament.price.toLocaleString()} ₸` : 'Бесплатно';
     
+    const isTeamTournament = tournament.type === 'team';
+    
     let actionButton = '';
-    if (is_registered) {
-        if (registration_status === 'pending') {
-			actionButton = `
-				<div class="alert alert-warning">
-					⏳ Ваша заявка на модерации<br><br>
-					💳 Для подтверждения произведите оплату:<br>
-					<a href="https://pay.kaspi.kz/pay/g6b21oa4" target="_blank" class="payment-link">Оплатить через Kaspi</a><br><br>
-					📩 После оплаты сообщите администрации
-				</div>
-				<button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
-			`;
-            startStatusPolling(tournament.id);
+    
+    if (isTeamTournament) {
+        // Логика для командного турнира
+        if (is_registered && user_team) {
+            actionButton = renderTeamRegistrationStatus(tournament, user_team);
+            if (registration_status === 'pending') {
+                startStatusPolling(tournament.id);
+            } else {
+                stopStatusPolling();
+            }
+        } else if (can_register) {
+            actionButton = renderTeamRegistrationForm(tournament);
+            stopStatusPolling();
         } else {
+            const reason = data.block_reason || 'Регистрация недоступна';
             actionButton = `
-                <div class="alert alert-success">✓ Вы зарегистрированы (status: ${registration_status})</div>
-                <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+                <div class="alert alert-danger">⛔ ${reason}</div>
+                <button class="btn-blocked" disabled>Регистрация недоступна</button>
             `;
             stopStatusPolling();
         }
-    } else if (can_register) {
-        actionButton = `<button class="btn-register" onclick="registerTournament(${tournament.id})">Записаться на турнир</button>`;
-        stopStatusPolling();
-	} else {
-		const reason = data.block_reason || 'Регистрация недоступна';
-		actionButton = `
-			<div class="alert alert-danger">⛔ ${reason}</div>
-			<button class="btn-blocked" disabled>Регистрация недоступна</button>
-		`;
-		stopStatusPolling();
-	}
+    } else {
+        // Логика для americano/mexicano
+        if (is_registered) {
+            if (registration_status === 'pending') {
+                actionButton = `
+                    <div class="alert alert-warning">
+                        ⏳ Ваша заявка на модерации<br><br>
+                        💳 Для подтверждения произведите оплату:<br>
+                        <a href="https://pay.kaspi.kz/pay/g6b21oa4" target="_blank" class="payment-link">Оплатить через Kaspi</a><br><br>
+                        📩 После оплаты сообщите администрации
+                    </div>
+                    <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+                `;
+                startStatusPolling(tournament.id);
+            } else {
+                actionButton = `
+                    <div class="alert alert-success">✓ Вы зарегистрированы</div>
+                    <button class="btn-cancel" onclick="cancelRegistration(${tournament.id})">Отменить регистрацию</button>
+                `;
+                stopStatusPolling();
+            }
+        } else if (can_register) {
+            actionButton = `<button class="btn-register" onclick="registerTournament(${tournament.id})">Записаться на турнир</button>`;
+            stopStatusPolling();
+        } else {
+            const reason = data.block_reason || 'Регистрация недоступна';
+            actionButton = `
+                <div class="alert alert-danger">⛔ ${reason}</div>
+                <button class="btn-blocked" disabled>Регистрация недоступна</button>
+            `;
+            stopStatusPolling();
+        }
+    }
+    
+    // Секция участников/команд
+    let participantsSection = '';
+    
+    if (isTeamTournament) {
+        const teamsArray = teams || [];
+        const approvedTeams = teamsArray.filter(t => t.status === 'approved');
+        const pendingTeams = teamsArray.filter(t => t.status === 'pending');
+        const maxTeams = tournament.max_participants / 2;
+        
+        participantsSection = `
+            <div class="participants-section">
+                <div class="participants-title">Команды (${approvedTeams.length}/${maxTeams})</div>
+                ${approvedTeams.length > 0 ? approvedTeams.map(t => `
+                    <div class="participant-item team-item">
+                        <div class="participant-name">${t.player1} / ${t.player2}</div>
+                        <div class="participant-level">Ур. ${t.player1_level}-${t.player2_level}</div>
+                    </div>
+                `).join('') : '<p style="color: var(--text-muted); font-size: 14px;">Пока никого нет</p>'}
+                
+                ${pendingTeams.length > 0 ? `
+                    <div class="participants-title" style="margin-top: 16px;">На модерации (${pendingTeams.length})</div>
+                    ${pendingTeams.map(t => `
+                        <div class="participant-item team-item pending">
+                            <div class="participant-name">${t.player1} / ${t.player2} <span class="pending-badge">⏳</span></div>
+                            <div class="participant-level">Ур. ${t.player1_level}-${t.player2_level}</div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+            </div>
+        `;
+    } else {
+        const participantsArray = participants || [];
+        participantsSection = `
+            <div class="participants-section">
+                <div class="participants-title">Участники (${participantsArray.length})</div>
+                ${participantsArray.length > 0 ? participantsArray.map(p => `
+                    <div class="participant-item ${p.status === 'pending' ? 'pending' : ''}">
+                        <div class="participant-name">${p.name} ${p.status === 'pending' ? '<span class="pending-badge">⏳</span>' : ''}</div>
+                        <div class="participant-level">Ур. ${p.level}</div>
+                    </div>
+                `).join('') : '<p style="color: var(--text-muted); font-size: 14px;">Пока никого нет</p>'}
+            </div>
+        `;
+    }
     
     container.innerHTML = `
         <div class="tournament-detail-card">
@@ -260,7 +332,7 @@ function renderTournamentDetail(data) {
                 </div>
                 <div class="tournament-info-item">
                     <div class="tournament-info-label">Формат</div>
-                    <div class="tournament-info-value">${typeName}</div>
+                    <div class="tournament-info-value">${typeName}${isTeamTournament ? ' (пары)' : ''}</div>
                 </div>
                 <div class="tournament-info-item">
                     <div class="tournament-info-label">Мест</div>
@@ -269,17 +341,11 @@ function renderTournamentDetail(data) {
             </div>
         </div>
         
-        <div class="participants-section">
-            <div class="participants-title">Участники (${participants.length})</div>
-            ${participants.length > 0 ? participants.map(p => `
-				<div class="participant-item ${p.status === 'pending' ? 'pending' : ''}">
-					<div class="participant-name">${p.name} ${p.status === 'pending' ? '<span class="pending-badge">⏳</span>' : ''}</div>
-					<div class="participant-level">Ур. ${p.level}</div>
-				</div>
-			`).join('') : '<p style="color: var(--text-muted); font-size: 14px;">Пока никого нет</p>'}
-        </div>
+        ${participantsSection}
         
-        ${actionButton}
+        <div class="tournament-action">
+            ${actionButton}
+        </div>
     `;
 }
 

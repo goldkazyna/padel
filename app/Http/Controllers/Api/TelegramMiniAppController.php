@@ -7,6 +7,7 @@ use App\Models\Tournament;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\TournamentTeam;
 
 class TelegramMiniAppController extends Controller
 {
@@ -139,48 +140,112 @@ class TelegramMiniAppController extends Controller
     }
 
     /**
-     * Детали турнира
-     */
-	   public function tournamentShow(Request $request, Tournament $tournament)
+	 * Детали турнира
+	 */
+	public function tournamentShow(Request $request, Tournament $tournament)
 	{
 		$user = $this->getUser($request);
-		
-		$participants = $tournament->participants()
-			->wherePivotIn('status', ['registered', 'pending'])
-			->get()
-			->map(fn($p) => [
-				'id' => $p->id,
-				'name' => $p->name,
-				'level' => $p->level,
-				'rating' => $p->rating,
-				'status' => $p->pivot->status,
-			]);
 		
 		$isRegistered = false;
 		$registrationStatus = null;
 		$canRegister = false;
 		$blockReason = null;
+		$userTeam = null;
+		$participants = collect();
+		$teams = collect();
 		
-		if ($user) {
-			$participant = $tournament->participants()->where('user_id', $user->id)->first();
+		// Для командных турниров
+		if ($tournament->type === 'team') {
+			$teams = $tournament->teams()
+				->with(['player1', 'player2'])
+				->get()
+				->map(fn($t) => [
+					'id' => $t->id,
+					'player1' => $t->player1->name,
+					'player2' => $t->player2->name,
+					'player1_level' => $t->player1->level,
+					'player2_level' => $t->player2->level,
+					'status' => $t->status,
+				]);
 			
-			if ($participant) {
-				$isRegistered = true;
-				$registrationStatus = $participant->pivot->status;
-			} else {
-				// Проверяем может ли зарегистрироваться
-				$takenSlots = $tournament->participants()
-					->wherePivotIn('status', ['registered', 'pending'])
-					->count();
+			if ($user) {
+				// Проверяем есть ли команда с этим пользователем
+				$team = TournamentTeam::where('tournament_id', $tournament->id)
+					->where(function($q) use ($user) {
+						$q->where('player1_id', $user->id)
+						  ->orWhere('player2_id', $user->id);
+					})
+					->with(['player1', 'player2'])
+					->first();
 				
-				if ($user->level < $tournament->min_level) {
-					$blockReason = "Ваш уровень ({$user->level}) ниже минимального ({$tournament->min_level})";
-				} elseif ($user->level > $tournament->max_level) {
-					$blockReason = "Ваш уровень ({$user->level}) выше максимального ({$tournament->max_level})";
-				} elseif ($takenSlots >= $tournament->max_participants) {
-					$blockReason = "Все места заняты";
+				if ($team) {
+					$isRegistered = true;
+					$registrationStatus = $team->status;
+					$userTeam = [
+						'id' => $team->id,
+						'player1' => $team->player1->name,
+						'player2' => $team->player2->name,
+						'status' => $team->status,
+					];
 				} else {
-					$canRegister = true;
+					// Проверяем может ли зарегистрироваться
+					$maxTeams = $tournament->max_participants / 2;
+					$approvedTeams = TournamentTeam::where('tournament_id', $tournament->id)
+						->where('status', 'approved')
+						->count();
+					
+					if ($user->level < $tournament->min_level) {
+						$blockReason = "Ваш уровень ({$user->level}) ниже минимального ({$tournament->min_level})";
+					} elseif ($user->level > $tournament->max_level) {
+						$blockReason = "Ваш уровень ({$user->level}) выше максимального ({$tournament->max_level})";
+					} elseif ($approvedTeams >= $maxTeams) {
+						$blockReason = "Все места заняты";
+					} else {
+						$canRegister = true;
+					}
+				}
+			}
+			
+			// Для team турнира считаем approved команды
+			$participantsCount = TournamentTeam::where('tournament_id', $tournament->id)
+				->whereIn('status', ['approved', 'pending'])
+				->count() * 2;
+				
+		} else {
+			// Для americano/mexicano — старая логика
+			$participants = $tournament->participants()
+				->wherePivotIn('status', ['registered', 'pending'])
+				->get()
+				->map(fn($p) => [
+					'id' => $p->id,
+					'name' => $p->name,
+					'level' => $p->level,
+					'rating' => $p->rating,
+					'status' => $p->pivot->status,
+				]);
+			
+			$participantsCount = $participants->count();
+			
+			if ($user) {
+				$participant = $tournament->participants()->where('user_id', $user->id)->first();
+				
+				if ($participant) {
+					$isRegistered = true;
+					$registrationStatus = $participant->pivot->status;
+				} else {
+					$takenSlots = $tournament->participants()
+						->wherePivotIn('status', ['registered', 'pending'])
+						->count();
+					
+					if ($user->level < $tournament->min_level) {
+						$blockReason = "Ваш уровень ({$user->level}) ниже минимального ({$tournament->min_level})";
+					} elseif ($user->level > $tournament->max_level) {
+						$blockReason = "Ваш уровень ({$user->level}) выше максимального ({$tournament->max_level})";
+					} elseif ($takenSlots >= $tournament->max_participants) {
+						$blockReason = "Все места заняты";
+					} else {
+						$canRegister = true;
+					}
 				}
 			}
 		}
@@ -199,12 +264,14 @@ class TelegramMiniAppController extends Controller
 				'min_level' => $tournament->min_level,
 				'max_level' => $tournament->max_level,
 				'price' => $tournament->price,
-				'participants_count' => $participants->count(),
+				'participants_count' => $participantsCount,
 				'max_participants' => $tournament->max_participants,
 				'points_to_win' => $tournament->points_to_win,
 				'rounds_count' => $tournament->rounds_count,
 			],
 			'participants' => $participants,
+			'teams' => $teams,
+			'user_team' => $userTeam,
 			'is_registered' => $isRegistered,
 			'registration_status' => $registrationStatus,
 			'can_register' => $canRegister,
@@ -464,6 +531,182 @@ class TelegramMiniAppController extends Controller
 		
 		return response()->json([
 			'status' => $registration?->pivot?->status,
+		]);
+	}
+	/**
+	 * Поиск партнера по телефону
+	 */
+	public function searchPartner(Request $request)
+	{
+		$user = $this->getUserFromRequest($request);
+		if (!$user) {
+			return response()->json(['error' => 'Unauthorized'], 401);
+		}
+
+		$phone = $request->input('phone');
+		if (!$phone || strlen($phone) < 10) {
+			return response()->json(['error' => 'Введите номер телефона'], 400);
+		}
+
+		// Убираем всё кроме цифр
+		$phone = preg_replace('/\D/', '', $phone);
+
+		// Ищем игрока
+		$partner = User::where('role', 'player')
+			->where('id', '!=', $user->id)
+			->where(function($q) use ($phone) {
+				$q->where('phone', 'LIKE', "%{$phone}%");
+			})
+			->first();
+
+		if (!$partner) {
+			return response()->json(['error' => 'Игрок не найден'], 404);
+		}
+
+		return response()->json([
+			'found' => true,
+			'partner' => [
+				'id' => $partner->id,
+				'name' => $partner->name,
+				'level' => $partner->level,
+				'phone' => $partner->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $partner->phone) : null,
+			]
+		]);
+	}
+
+	/**
+	 * Регистрация пары на турнир
+	 */
+	public function registerTeam(Request $request)
+	{
+		$user = $this->getUserFromRequest($request);
+		if (!$user) {
+			return response()->json(['error' => 'Unauthorized'], 401);
+		}
+
+		$tournamentId = $request->input('tournament_id');
+		$partnerId = $request->input('partner_id');
+
+		if (!$tournamentId || !$partnerId) {
+			return response()->json(['error' => 'Не указан турнир или партнер'], 400);
+		}
+
+		$tournament = Tournament::find($tournamentId);
+		if (!$tournament) {
+			return response()->json(['error' => 'Турнир не найден'], 404);
+		}
+
+		if ($tournament->type !== 'team') {
+			return response()->json(['error' => 'Это не командный турнир'], 400);
+		}
+
+		if ($tournament->status !== 'open') {
+			return response()->json(['error' => 'Регистрация закрыта'], 400);
+		}
+
+		$partner = User::find($partnerId);
+		if (!$partner) {
+			return response()->json(['error' => 'Партнер не найден'], 404);
+		}
+
+		// Проверяем уровни
+		if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+			return response()->json(['error' => "Ваш уровень ({$user->level}) не подходит для турнира"], 400);
+		}
+
+		if ($partner->level < $tournament->min_level || $partner->level > $tournament->max_level) {
+			return response()->json(['error' => "Уровень партнера ({$partner->level}) не подходит для турнира"], 400);
+		}
+
+		// Проверяем, не зарегистрированы ли уже
+		$existingTeam = TournamentTeam::where('tournament_id', $tournament->id)
+			->where(function($q) use ($user, $partner) {
+				$q->where(function($q2) use ($user, $partner) {
+					$q2->where('player1_id', $user->id)
+					   ->orWhere('player2_id', $user->id);
+				})->orWhere(function($q2) use ($partner) {
+					$q2->where('player1_id', $partner->id)
+					   ->orWhere('player2_id', $partner->id);
+				});
+			})
+			->first();
+
+		if ($existingTeam) {
+			return response()->json(['error' => 'Вы или ваш партнер уже зарегистрированы'], 400);
+		}
+
+		// Проверяем количество мест (только approved команды)
+		$maxTeams = $tournament->max_participants / 2;
+		$approvedTeams = TournamentTeam::where('tournament_id', $tournament->id)
+			->where('status', 'approved')
+			->count();
+		$pendingTeams = TournamentTeam::where('tournament_id', $tournament->id)
+			->where('status', 'pending')
+			->count();
+
+		if ($approvedTeams >= $maxTeams) {
+			return response()->json(['error' => 'Все места заняты'], 400);
+		}
+
+		// Создаём команду со статусом pending
+		$team = TournamentTeam::create([
+			'tournament_id' => $tournament->id,
+			'player1_id' => $user->id,
+			'player2_id' => $partner->id,
+			'rating_avg' => ($user->rating + $partner->rating) / 2,
+			'status' => 'pending',
+		]);
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Заявка отправлена на модерацию',
+			'team' => [
+				'id' => $team->id,
+				'player1' => $user->name,
+				'player2' => $partner->name,
+				'status' => 'pending',
+			]
+		]);
+	}
+
+	/**
+	 * Отмена регистрации пары
+	 */
+	public function cancelTeam(Request $request)
+	{
+		$user = $this->getUserFromRequest($request);
+		if (!$user) {
+			return response()->json(['error' => 'Unauthorized'], 401);
+		}
+
+		$tournamentId = $request->input('tournament_id');
+
+		$tournament = Tournament::find($tournamentId);
+		if (!$tournament) {
+			return response()->json(['error' => 'Турнир не найден'], 404);
+		}
+
+		if ($tournament->status !== 'open') {
+			return response()->json(['error' => 'Отмена невозможна'], 400);
+		}
+
+		// Ищем команду где пользователь участвует
+		$team = TournamentTeam::where('tournament_id', $tournament->id)
+			->where(function($q) use ($user) {
+				$q->where('player1_id', $user->id)
+				  ->orWhere('player2_id', $user->id);
+			})
+			->first();
+
+		if (!$team) {
+			return response()->json(['error' => 'Вы не зарегистрированы'], 404);
+		}
+
+		$team->delete();
+
+		return response()->json([
+			'success' => true,
+			'message' => 'Регистрация отменена'
 		]);
 	}
 

@@ -300,6 +300,9 @@ Route::middleware('auth')->group(function () {
 Route::get('/auth/telegram/callback', [TelegramAuthController::class, 'callback'])->name('auth.telegram.callback');
 Route::get('/register/telegram', [TelegramAuthController::class, 'showRegisterForm'])->name('auth.telegram.register');
 Route::post('/register/telegram', [TelegramAuthController::class, 'completeRegistration'])->name('auth.telegram.complete');
-
+// Парные турниры (team)
+Route::post('/telegram/team/search-partner', [TelegramMiniAppController::class, 'searchPartner']);
+Route::post('/telegram/team/register', [TelegramMiniAppController::class, 'registerTeam']);
+Route::post('/telegram/team/cancel', [TelegramMiniAppController::class, 'cancelTeam']);
 
 require __DIR__.'/auth.php';
