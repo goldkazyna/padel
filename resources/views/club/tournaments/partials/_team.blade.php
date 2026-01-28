@@ -82,12 +82,16 @@
                         {{ $team->rating_avg }}
                     </div>
                     @if($tournament->status === 'open')
-                        <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')" class="pair-remove-form">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-remove-pair"><i class="bi bi-x-lg"></i></button>
-                        </form>
-                    @endif
+						<div class="pair-actions">
+							<form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')" class="d-inline">
+								@csrf
+								@method('DELETE')
+								<button type="submit" class="btn btn-danger btn-sm" title="Удалить">
+									<i class="bi bi-x-lg"></i>
+								</button>
+							</form>
+						</div>
+					@endif
                 </div>
             @endforeach
         </div>
