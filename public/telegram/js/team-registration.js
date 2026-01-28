@@ -76,6 +76,7 @@ function formatPhoneInput(input) {
  * Поиск партнера
  */
 async function searchPartner(tournamentId) {
+	alert('searchPartner called, tournamentId: ' + tournamentId);
     const phoneInput = document.getElementById('partner-phone');
     const resultDiv = document.getElementById('partner-result');
     const phone = phoneInput.value.replace(/\D/g, '');
