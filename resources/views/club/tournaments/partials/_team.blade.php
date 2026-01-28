@@ -15,8 +15,8 @@
     
     <div class="pairs-grid">
         @foreach($pendingTeams as $team)
-            <div class="pair-card pending-card">
-                <span class="pair-rank">⏳</span>
+			<div class="pair-card pending-card">
+				<span class="pair-rank pending-rank"><i class="bi bi-clock"></i></span>
                 <div class="pair-info-block">
                     <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                     <div class="pair-phones">
@@ -869,6 +869,11 @@
 .pair-actions {
     display: flex;
     gap: 4px;
+}
+.pending-rank {
+    background: transparent;
+    color: #eab308;
+    font-size: 1.2rem;
 }
     </style>
 {{-- Групповой этап --}}
