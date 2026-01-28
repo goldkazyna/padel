@@ -202,11 +202,11 @@ async function registerTeam(tournamentId) {
         const result = await apiRegisterTeam(tournamentId, selectedPartner.id);
         
         if (result.error) {
-            showToast(result.error);
-            btn.disabled = false;
-            btn.innerHTML = 'Записаться на турнир';
-            return;
-        }
+			alert(result.error);
+			// Обновляем страницу турнира
+			openTournament(tournamentId);
+			return;
+		}
         
         if (result.success) {
             showToast('Заявка отправлена!');
