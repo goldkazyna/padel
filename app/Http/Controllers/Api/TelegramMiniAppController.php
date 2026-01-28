@@ -544,33 +544,33 @@ class TelegramMiniAppController extends Controller
 		}
 
 		$phone = $request->input('phone');
-		if (!$phone || strlen($phone) < 10) {
-			return response()->json(['error' => 'Введите номер телефона'], 400);
-		}
-
+		
 		// Убираем всё кроме цифр
 		$phone = preg_replace('/\D/', '', $phone);
+		
+		if (strlen($phone) < 5) {
+			return response()->json(['error' => 'Введите минимум 5 цифр'], 400);
+		}
 
-		// Ищем игрока
-		$partner = User::where('role', 'player')
+		// Ищем игроков
+		$partners = User::where('role', 'player')
 			->where('id', '!=', $user->id)
-			->where(function($q) use ($phone) {
-				$q->where('phone', 'LIKE', "%{$phone}%");
-			})
-			->first();
+			->where('phone', 'LIKE', "%{$phone}%")
+			->limit(10)
+			->get();
 
-		if (!$partner) {
-			return response()->json(['error' => 'Игрок не найден'], 404);
+		if ($partners->isEmpty()) {
+			return response()->json(['error' => 'Игроки не найдены'], 404);
 		}
 
 		return response()->json([
 			'found' => true,
-			'partner' => [
-				'id' => $partner->id,
-				'name' => $partner->name,
-				'level' => $partner->level,
-				'phone' => $partner->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $partner->phone) : null,
-			]
+			'partners' => $partners->map(fn($p) => [
+				'id' => $p->id,
+				'name' => $p->name,
+				'level' => $p->level,
+				'phone' => $p->phone,
+			])
 		]);
 	}
 

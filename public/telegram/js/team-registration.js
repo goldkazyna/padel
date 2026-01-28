@@ -51,7 +51,7 @@ function renderTeamRegistrationForm(tournament) {
                     <input type="tel" 
                            id="partner-phone" 
                            class="partner-input" 
-                           placeholder="+7 777 123 45 67"
+                           placeholder="Введите минимум 5 цифр"
                            oninput="formatPhoneInput(this)">
                     <button class="btn-search-partner" onclick="searchPartner(${tournament.id})">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -77,18 +77,8 @@ function renderTeamRegistrationForm(tournament) {
  * Форматирование телефона при вводе
  */
 function formatPhoneInput(input) {
-    let value = input.value.replace(/\D/g, '');
-    if (value.length > 0) {
-        if (value[0] === '8') {
-            value = '7' + value.slice(1);
-        }
-        let formatted = '+' + value[0];
-        if (value.length > 1) formatted += ' ' + value.slice(1, 4);
-        if (value.length > 4) formatted += ' ' + value.slice(4, 7);
-        if (value.length > 7) formatted += ' ' + value.slice(7, 9);
-        if (value.length > 9) formatted += ' ' + value.slice(9, 11);
-        input.value = formatted;
-    }
+    // Убираем всё кроме цифр
+    input.value = input.value.replace(/[^\d]/g, '');
 }
 
 /**
@@ -99,8 +89,8 @@ async function searchPartner(tournamentId) {
     const resultDiv = document.getElementById('partner-result');
     const phone = phoneInput.value.replace(/\D/g, '');
     
-    if (phone.length < 10) {
-        resultDiv.innerHTML = `<div class="partner-error">Введите номер телефона</div>`;
+    if (phone.length < 5) {
+        resultDiv.innerHTML = `<div class="partner-error">Введите минимум 5 цифр</div>`;
         return;
     }
     
@@ -114,28 +104,42 @@ async function searchPartner(tournamentId) {
             return;
         }
         
-        if (result.found && result.partner) {
-            selectedPartner = result.partner;
+        if (result.found && result.partners && result.partners.length > 0) {
             resultDiv.innerHTML = `
-                <div class="partner-found">
-                    <div class="partner-info">
-                        <div class="partner-avatar">${getInitial(result.partner.name)}</div>
-                        <div class="partner-details">
-                            <div class="partner-name">${result.partner.name}</div>
-                            <div class="partner-level">Уровень: ${result.partner.level}</div>
+                <div class="partners-list">
+                    ${result.partners.map(partner => `
+                        <div class="partner-found">
+                            <div class="partner-info">
+                                <div class="partner-avatar">${getInitial(partner.name)}</div>
+                                <div class="partner-details">
+                                    <div class="partner-name">${partner.name}</div>
+                                    <div class="partner-meta">
+                                        <span>Уровень: ${partner.level}</span>
+                                        <span>Тел: ${partner.phone || '—'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-select-partner" onclick="selectPartnerFromList(${partner.id}, '${partner.name}', ${partner.level})">
+                                Выбрать
+                            </button>
                         </div>
-                    </div>
-                    <button class="btn-select-partner" onclick="selectPartner()">
-                        Выбрать
-                    </button>
+                    `).join('')}
                 </div>
             `;
         } else {
-            resultDiv.innerHTML = `<div class="partner-error">Игрок не найден</div>`;
+            resultDiv.innerHTML = `<div class="partner-error">Игроки не найдены</div>`;
         }
     } catch (error) {
         resultDiv.innerHTML = `<div class="partner-error">Ошибка поиска</div>`;
     }
+}
+
+/**
+ * Выбрать партнера из списка
+ */
+function selectPartnerFromList(id, name, level) {
+    selectedPartner = { id, name, level };
+    selectPartner();
 }
 
 /**
