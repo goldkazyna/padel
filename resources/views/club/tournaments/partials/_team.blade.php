@@ -584,7 +584,6 @@
         }
 
         .match-team {
-            font-size: 15px;
             font-weight: 600;
         }
 
@@ -613,7 +612,6 @@
         }
 
         .score-left, .score-right {
-            font-size: 22px;
             font-weight: 800;
             min-width: 32px;
             text-align: center;
@@ -776,7 +774,6 @@
 
 .match-team {
     flex: 1 !important;
-    font-size: 15px !important;
     font-weight: 600 !important;
 }
 
@@ -807,7 +804,6 @@
 }
 
 .score-left, .score-right {
-    font-size: 22px !important;
     font-weight: 800 !important;
     min-width: 32px !important;
     text-align: center !important;

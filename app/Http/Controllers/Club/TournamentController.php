@@ -238,9 +238,14 @@ class TournamentController extends Controller
 	public function removeParticipant(Tournament $tournament, $userId)
 	{
 		$club = $this->getClub();
-		
+    
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
+		}
+
+		// Блокируем если группы уже сформированы (для Американо)
+		if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+			return back()->with('error', 'Группы уже сформированы. Используйте редактор групп.');
 		}
 
 		// Проверяем был ли турнир полным ДО удаления
@@ -554,6 +559,11 @@ class TournamentController extends Controller
 	 */
 	public function addParticipant(Request $request, Tournament $tournament)
 	{
+		// Блокируем если группы уже сформированы (для Американо)
+		if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+			return back()->with('error', 'Группы уже сформированы. Используйте редактор групп.');
+		}
+
 		$validated = $request->validate([
 			'user_id' => 'required|exists:users,id',
 		]);
@@ -584,6 +594,11 @@ class TournamentController extends Controller
 	 */
 	public function replaceParticipant(Request $request, Tournament $tournament, $userId)
 	{
+		// Блокируем если группы уже сформированы (для Американо)
+		if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+			return back()->with('error', 'Группы уже сформированы. Используйте редактор групп.');
+		}
+
 		$validated = $request->validate([
 			'new_user_id' => 'required|exists:users,id',
 		]);

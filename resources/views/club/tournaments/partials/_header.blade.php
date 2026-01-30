@@ -28,18 +28,39 @@
                     </form>
                 @endif
                 
-                @if(($tournament->isAmericano() || $tournament->isMexicano()) && $tournament->approvedParticipantsCount() === $tournament->max_participants && !$tournament->hasReserveParticipants())
+                @if($tournament->isAmericano())
+                    @php
+                        $hasGroups = $tournament->groups()->count() > 0;
+                        $assignedPlayerIds = $tournament->groups()->with('players')->get()->pluck('players')->flatten()->pluck('id')->toArray();
+                        $unassignedCount = $tournament->participants()
+                            ->wherePivot('status', 'registered')
+                            ->whereNotIn('users.id', $assignedPlayerIds)
+                            ->count();
+                        $allAssigned = $hasGroups && $unassignedCount === 0;
+                    @endphp
+                    
+                    @if($hasGroups && $allAssigned && !$tournament->hasReserveParticipants())
+                        {{-- Группы сформированы и все распределены --}}
+                        <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
+                              onsubmit="return confirm('Начать турнир? Раунды будут сгенерированы автоматически.')">
+                            @csrf
+                            <button type="submit" class="btn-primary-custom">
+                                <i class="bi bi-play-fill"></i> Начать турнир
+                            </button>
+                        </form>
+                    @elseif($hasGroups && !$allAssigned)
+                        {{-- Группы есть, но не все распределены --}}
+                        <span class="btn-outline-custom disabled" title="Распределите всех игроков по группам">
+                            <i class="bi bi-exclamation-triangle"></i> Распределите игроков
+                        </span>
+                    @endif
+                @elseif($tournament->isMexicano() && $tournament->approvedParticipantsCount() === $tournament->max_participants && !$tournament->hasReserveParticipants())
                     <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
                           onsubmit="return confirm('Начать турнир? Раунды будут сгенерированы автоматически.')">
                         @csrf
                         <button type="submit" class="btn-primary-custom">
                             <i class="bi bi-play-fill"></i> Начать турнир
                         </button>
-                        @if($tournament->hasReserveParticipants())
-                            <span class="btn-outline-custom disabled" title="Замените все резервы">
-                                <i class="bi bi-exclamation-triangle"></i> Замените резервы на игроков
-                            </span>
-                        @endif
                     </form>
                 @elseif($tournament->isTeamBased() && $tournament->teams->count() === $tournament->max_participants / 2)
                     <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
@@ -49,6 +70,12 @@
                             <i class="bi bi-play-fill"></i> Начать турнир
                         </button>
                     </form>
+                @endif
+                
+                @if($tournament->hasReserveParticipants())
+                    <span class="btn-outline-custom disabled" title="Замените все резервы">
+                        <i class="bi bi-exclamation-triangle"></i> Замените резервы
+                    </span>
                 @endif
             @endif
 

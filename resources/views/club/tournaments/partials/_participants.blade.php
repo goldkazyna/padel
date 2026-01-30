@@ -1,3 +1,7 @@
+@php
+    $hasGroups = $tournament->isAmericano() && $tournament->groups()->count() > 0;
+@endphp
+
 <div class="section-header" style="cursor: pointer;" onclick="toggleParticipants()">
     <h5>
         <i class="bi bi-people"></i> 
@@ -5,11 +9,11 @@
         @if($tournament->pendingParticipantsCount() > 0)
             <span class="pending-badge">+{{ $tournament->pendingParticipantsCount() }} на модерации</span>
         @endif
-        @if($tournament->status === 'in_progress' || $tournament->status === 'completed')
+        @if($tournament->status === 'in_progress' || $tournament->status === 'completed' || $hasGroups)
             <i class="bi bi-chevron-down toggle-icon" id="toggleIcon"></i>
         @endif
     </h5>
-    @if($tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0)
+    @if($tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0 && !$hasGroups)
         <form action="{{ route('club.tournaments.participants.approveAll', $tournament) }}" method="POST" class="d-inline" onclick="event.stopPropagation()">
             @csrf
             <button type="submit" class="btn-outline-custom btn-sm" onclick="return confirm('Одобрить все заявки?')">
@@ -21,7 +25,18 @@
 
 {{-- Контент участников (сворачиваемый) --}}
 <div class="participants-content" id="participantsContent" 
-     style="{{ in_array($tournament->status, ['in_progress', 'completed']) ? 'display: none;' : '' }}">
+     style="{{ (in_array($tournament->status, ['in_progress', 'completed']) || $hasGroups) ? 'display: none;' : '' }}">
+
+    {{-- Предупреждение о блокировке --}}
+	@if($hasGroups && $tournament->status === 'open')
+		<div class="ge-alert ge-alert-success mb-3">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; flex-shrink: 0;">
+				<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+				<polyline points="22 4 12 14.01 9 11.01"/>
+			</svg>
+			<span>Группы сформированы. Редактирование участников заблокировано. Используйте <strong>Редактор групп</strong> ниже.</span>
+		</div>
+	@endif
 
     {{-- Заявки на модерации --}}
     @if($tournament->pendingParticipantsCount() > 0)
@@ -41,14 +56,14 @@
                     </div>
                     <div class="participant-info">
                         <div class="participant-name">{{ $participant->name }}</div>
-						<small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
+                        <small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
                             <span class="text-warning">На модерации</span>
                         </div>
                     </div>
                     <div class="participant-rating">{{ $participant->rating }}</div>
-                    @if($tournament->status === 'open')
+                    @if($tournament->status === 'open' && !$hasGroups)
                         <div class="participant-actions">
                             <form action="{{ route('club.tournaments.participants.approve', [$tournament, $participant->id]) }}" method="POST" class="d-inline">
                                 @csrf
@@ -70,8 +85,6 @@
     </div>
     @endif
 	
-	
-	
     {{-- Одобренные участники --}}
     <div class="participants-list">
         @forelse($tournament->approvedParticipants as $index => $participant)
@@ -85,14 +98,14 @@
                 </div>
                 <div class="participant-info">
                     <div class="participant-name">{{ $participant->name }}</div>
-					<small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
+                    <small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
                         <span class="text-success">Одобрен</span>
                     </div>
                 </div>
                 <div class="participant-rating">{{ $participant->rating }}</div>
-                @if($tournament->status === 'open')
+                @if($tournament->status === 'open' && !$hasGroups)
                     <div class="participant-actions">
                         <button type="button" class="btn-outline-custom btn-sm" 
                                 data-bs-toggle="modal" 
@@ -110,7 +123,7 @@
             </div>
 
             {{-- Модалка замены участника --}}
-            @if($tournament->status === 'open')
+            @if($tournament->status === 'open' && !$hasGroups)
             <div class="modal fade" id="replaceModal{{ $participant->id }}" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content modal-dark">
@@ -143,8 +156,8 @@
                                            placeholder="Введите телефон или имя..." 
                                            autocomplete="off">
                                     <input type="hidden" name="new_user_id" id="replace{{ $participant->id }}PlayerId">
-									<div class="search-results" id="replace{{ $participant->id }}Results"></div>
-									<div class="selected-player mt-2" id="replace{{ $participant->id }}Selected" style="display: none;"></div>
+                                    <div class="search-results" id="replace{{ $participant->id }}Results"></div>
+                                    <div class="selected-player mt-2" id="replace{{ $participant->id }}Selected" style="display: none;"></div>
                                 </div>
                             </div>
                             <div class="modal-footer border-0">
@@ -167,7 +180,7 @@
     </div>
 
     {{-- Форма добавления участника --}}
-    @if($tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants)
+    @if($tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">
         <div class="add-participant-header">
             <i class="bi bi-person-plus"></i>

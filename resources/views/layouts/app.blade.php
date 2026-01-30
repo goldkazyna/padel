@@ -519,7 +519,38 @@
             color: var(--accent);
             border-color: var(--accent);
         }
+		/* ===== SETTINGS BUTTONS ===== */
+		.settings-buttons {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
 
+		.font-size-controls {
+			display: flex;
+			gap: 4px;
+		}
+
+		.btn-font-size {
+			background: var(--bg-secondary);
+			border: 1px solid var(--border);
+			color: var(--text-secondary);
+			width: 40px;
+			height: 40px;
+			border-radius: 10px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			transition: all 0.3s;
+			font-size: 1.2rem;
+		}
+
+		.btn-font-size:hover {
+			background: var(--bg-card-hover);
+			color: var(--accent);
+			border-color: var(--accent);
+		}
         /* ===== SIDEBAR TOGGLE (Desktop) ===== */
         .sidebar-toggle {
             position: absolute;
@@ -772,6 +803,46 @@
 				padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
 			}
 		}
+		/* ===== PLAYER NAME & FONT SIZES ===== */
+		.player-name {
+			font-size: 18px;
+		}
+
+		.player-line {
+			font-size: 26px;
+		}
+
+		.match-court-header {
+			font-size: 24px;
+		}
+
+		.score-input {
+			font-size: 34px;
+		}
+
+		.team-score {
+			font-size: 40px;
+		}
+
+		.team-name {
+			font-size: 18px;
+		}
+
+		.match-team {
+			font-size: 15px !important;
+		}
+
+		.score-left, .score-right {
+			font-size: 22px !important;
+		}
+
+		.standings-table td {
+			font-size: 15px;
+		}
+
+		.court-name {
+			font-size: 14px !important;
+		}
     </style>
     @stack('styles')
 </head>
@@ -882,10 +953,20 @@
                     </div>
                 </div>
             </div>
-            <button type="button" class="btn-theme-toggle" onclick="toggleTheme()" title="Переключить тему">
-                <i class="bi bi-sun-fill" id="theme-icon-light" style="display: none;"></i>
-                <i class="bi bi-moon-fill" id="theme-icon-dark"></i>
-            </button>
+            <div class="settings-buttons">
+				<button type="button" class="btn-theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+					<i class="bi bi-sun-fill" id="theme-icon-light" style="display: none;"></i>
+					<i class="bi bi-moon-fill" id="theme-icon-dark"></i>
+				</button>
+				<div class="font-size-controls">
+					<button type="button" class="btn-font-size" onclick="changeFontSize(-1)" title="Уменьшить шрифт">
+						<i class="bi bi-dash"></i>
+					</button>
+					<button type="button" class="btn-font-size" onclick="changeFontSize(1)" title="Увеличить шрифт">
+						<i class="bi bi-plus"></i>
+					</button>
+				</div>
+			</div>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button type="submit" class="btn-logout">
@@ -965,22 +1046,90 @@
         document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
         document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
     }
+	// ===== FONT SIZE CONTROL =====
+	function changeFontSize(delta) {
+		const currentSize = parseInt(localStorage.getItem('playerNameFontSize')) || 18;
+		const newSize = Math.min(Math.max(currentSize + delta, 12), 32); // Мин 12px, макс 28px
+		
+		localStorage.setItem('playerNameFontSize', newSize);
+		applyFontSize(newSize);
+	}
 
+	function applyFontSize(size) {
+    // Базовый размер 18px, size - текущий выбранный
+    const diff = size - 18;
+    
+    // .player-name базовый 18px
+    document.querySelectorAll('.player-name').forEach(el => {
+        el.style.fontSize = size + 'px';
+    });
+    
+    // .player-line базовый 26px
+    document.querySelectorAll('.player-line').forEach(el => {
+        el.style.fontSize = (26 + diff) + 'px';
+    });
+    
+    // .match-court-header базовый 24px
+    document.querySelectorAll('.match-court-header').forEach(el => {
+        el.style.fontSize = (24 + diff) + 'px';
+    });
+    
+    // .score-input базовый 34px
+    document.querySelectorAll('.score-input').forEach(el => {
+        el.style.fontSize = (34 + diff) + 'px';
+    });
+    
+    // .team-score базовый 40px
+    document.querySelectorAll('.team-score').forEach(el => {
+        el.style.fontSize = (40 + diff) + 'px';
+    });
+    
+    // .team-name базовый 18px
+    document.querySelectorAll('.team-name').forEach(el => {
+        el.style.fontSize = size + 'px';
+    });
+    
+    // .match-team базовый 15px (с !important)
+    document.querySelectorAll('.match-team').forEach(el => {
+        el.style.setProperty('font-size', (15 + diff) + 'px', 'important');
+    });
+    
+    // .score-left, .score-right базовый 22px (с !important)
+    document.querySelectorAll('.score-left, .score-right').forEach(el => {
+        el.style.setProperty('font-size', (22 + diff) + 'px', 'important');
+    });
+    
+    // .standings-table td базовый 15px
+    document.querySelectorAll('.standings-table td').forEach(el => {
+        el.style.fontSize = (15 + diff) + 'px';
+    });
+    
+    // .court-name базовый 14px (с !important)
+    document.querySelectorAll('.court-name').forEach(el => {
+        el.style.setProperty('font-size', (14 + diff) + 'px', 'important');
+    });
+}
     // ===== APPLY SAVED SETTINGS ON LOAD =====
     document.addEventListener('DOMContentLoaded', function() {
-        // Theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.body.classList.add('light-theme');
-            updateThemeIcon(true);
-        }
-        
-        // Sidebar collapsed (только на десктопе)
-        const savedSidebar = localStorage.getItem('sidebarCollapsed');
-        if (savedSidebar === 'true' && window.innerWidth > 991) {
-            document.body.classList.add('sidebar-collapsed');
-        }
-    });
+		// Theme
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme === 'light') {
+			document.body.classList.add('light-theme');
+			updateThemeIcon(true);
+		}
+		
+		// Sidebar collapsed (только на десктопе)
+		const savedSidebar = localStorage.getItem('sidebarCollapsed');
+		if (savedSidebar === 'true' && window.innerWidth > 991) {
+			document.body.classList.add('sidebar-collapsed');
+		}
+		
+		// Font size
+		const savedFontSize = localStorage.getItem('playerNameFontSize');
+		if (savedFontSize) {
+			applyFontSize(parseInt(savedFontSize));
+		}
+	});
     </script>
     
     @stack('scripts')

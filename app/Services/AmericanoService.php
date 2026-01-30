@@ -14,38 +14,66 @@ class AmericanoService
     /**
      * Запустить турнир Американо
      */
-    public function startTournament(Tournament $tournament): bool
+	public function startTournament(Tournament $tournament): bool
 	{
-		$participants = $tournament->participants()->orderBy('rating', 'desc')->get();
+		$participants = $tournament->participants()
+			->wherePivot('status', 'registered')
+			->orderBy('rating', 'desc')
+			->get();
 		
 		if ($participants->count() !== $tournament->max_participants) {
 			return false;
 		}
-		if ($tournament->groups()->count() > 0) {
-			return false;
-		}
+		
 		$groupsCount = $tournament->groups_count;
 		$playersPerGroup = intval($participants->count() / $groupsCount);
 		$courtsPerGroup = intval($playersPerGroup / 4);
 		
-		for ($i = 0; $i < $groupsCount; $i++) {
-			$group = TournamentGroup::create([
-				'tournament_id' => $tournament->id,
-				'name' => 'Группа ' . chr(65 + $i),
-			]);
-			$groupPlayers = $participants->slice($i * $playersPerGroup, $playersPerGroup);
-			foreach ($groupPlayers as $player) {
-				$group->players()->attach($player->id, [
-					'total_points' => 0,
-					'rating_before' => $player->rating,
-					'rating_after' => null,
-				]);
+		// Проверяем есть ли уже группы (созданы через редактор)
+		$existingGroups = $tournament->groups()->with('players')->get();
+		
+		if ($existingGroups->count() > 0) {
+			// Группы уже созданы — проверяем что все игроки распределены
+			$assignedPlayerIds = $existingGroups->pluck('players')->flatten()->pluck('id')->toArray();
+			$registeredPlayerIds = $participants->pluck('id')->toArray();
+			
+			// Проверяем что все зарегистрированные игроки в группах
+			$unassigned = array_diff($registeredPlayerIds, $assignedPlayerIds);
+			if (count($unassigned) > 0) {
+				return false; // Не все игроки распределены
 			}
 			
-			// Смещение кортов: Группа A = 1, Группа B = courtsPerGroup + 1, и т.д.
-			$courtStartNumber = $i * $courtsPerGroup + 1;
-			$this->generateRounds($group, $groupPlayers->pluck('id')->toArray(), $courtStartNumber);
+			// Генерируем раунды для каждой группы
+			foreach ($existingGroups as $index => $group) {
+				// Проверяем что раунды ещё не созданы
+				if ($group->rounds()->count() === 0) {
+					$courtStartNumber = $index * $courtsPerGroup + 1;
+					$groupPlayerIds = $group->players->pluck('id')->toArray();
+					$this->generateRounds($group, $groupPlayerIds, $courtStartNumber);
+				}
+			}
+		} else {
+			// Старая логика — создаём группы и распределяем игроков
+			for ($i = 0; $i < $groupsCount; $i++) {
+				$group = TournamentGroup::create([
+					'tournament_id' => $tournament->id,
+					'name' => 'Группа ' . chr(65 + $i),
+				]);
+				
+				$groupPlayers = $participants->slice($i * $playersPerGroup, $playersPerGroup);
+				foreach ($groupPlayers as $player) {
+					$group->players()->attach($player->id, [
+						'total_points' => 0,
+						'rating_before' => $player->rating,
+						'rating_after' => null,
+					]);
+				}
+				
+				$courtStartNumber = $i * $courtsPerGroup + 1;
+				$this->generateRounds($group, $groupPlayers->pluck('id')->toArray(), $courtStartNumber);
+			}
 		}
+		
 		$tournament->update(['status' => 'in_progress']);
 		return true;
 	}

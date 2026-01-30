@@ -255,6 +255,17 @@ Route::middleware('auth')->group(function () {
 			->name('tournaments.approveTeam');
 		Route::post('/tournaments/{tournament}/teams/{team}/reject', [TeamTournamentController::class, 'rejectTeam'])
 			->name('tournaments.rejectTeam');
+			// Управление группами (Американо)
+		Route::post('/tournaments/{tournament}/generate-groups', [App\Http\Controllers\Club\GroupController::class, 'generateGroups'])
+			->name('tournaments.generateGroups');
+		Route::post('/tournaments/{tournament}/reset-groups', [App\Http\Controllers\Club\GroupController::class, 'resetGroups'])
+			->name('tournaments.resetGroups');
+		Route::delete('/tournaments/{tournament}/groups/{group}/players/{player}', [App\Http\Controllers\Club\GroupController::class, 'removePlayerFromGroup'])
+			->name('tournaments.groups.removePlayer');
+		Route::post('/tournaments/{tournament}/groups/{group}/players', [App\Http\Controllers\Club\GroupController::class, 'addPlayerToGroup'])
+			->name('tournaments.groups.addPlayer');
+		Route::get('/tournaments/{tournament}/unassigned-players', [App\Http\Controllers\Club\GroupController::class, 'getUnassignedPlayers'])
+			->name('tournaments.unassignedPlayers');
     });
     /*
 	|--------------------------------------------------------------------------
