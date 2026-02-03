@@ -4,10 +4,11 @@ namespace App\Services;
 
 use App\Models\GameMatch;
 use App\Models\User;
+use App\Traits\RatingCalculator;
 
 class EloService
 {
-    protected int $kFactor = 32;
+    use RatingCalculator;
 
     /**
      * Рассчитать и применить изменения рейтинга
@@ -20,7 +21,7 @@ class EloService
         $rating1 = $player1->rating;
         $rating2 = $player2->rating;
 
-        // Ожидаемый результат
+        // Ожидаемый результат (новая матрица)
         $expected1 = $this->expectedScore($rating1, $rating2);
         $expected2 = $this->expectedScore($rating2, $rating1);
 
@@ -28,13 +29,20 @@ class EloService
         $score1 = $winnerId === $player1->id ? 1 : 0;
         $score2 = $winnerId === $player2->id ? 1 : 0;
 
-        // Новые рейтинги
-        $newRating1 = round($rating1 + $this->kFactor * ($score1 - $expected1));
-        $newRating2 = round($rating2 + $this->kFactor * ($score2 - $expected2));
+        // K-фактор (максимальный из двух игроков)
+        $kFactor = $this->getMatchKFactor($rating1, $rating2);
 
-        // Не даём рейтингу упасть ниже 100
-        $newRating1 = max(100, $newRating1);
-        $newRating2 = max(100, $newRating2);
+        // Рассчитываем изменения (без множителя за счёт — матч 1v1)
+        $change1 = round($kFactor * ($score1 - $expected1));
+        $change2 = round($kFactor * ($score2 - $expected2));
+
+        // Бонус за победу минимум 1 очко
+        if ($score1 === 1 && $change1 < 1) $change1 = 1;
+        if ($score2 === 1 && $change2 < 1) $change2 = 1;
+
+        // Новые рейтинги (минимум 1000)
+        $newRating1 = $this->applyRatingChange($rating1, $change1);
+        $newRating2 = $this->applyRatingChange($rating2, $change2);
 
         // Изменение рейтинга
         $ratingChange = abs($newRating1 - $rating1);
@@ -50,9 +58,9 @@ class EloService
             'last_played_at' => now(),
         ]);
 
-        // Обновляем уровни
-        $this->updateLevel($player1);
-        $this->updateLevel($player2);
+        // Обновляем уровни (новая формула)
+        $this->updateLevel($player1->fresh());
+        $this->updateLevel($player2->fresh());
 
         return [
             'player1_rating_before' => $rating1,
@@ -61,47 +69,6 @@ class EloService
             'player2_rating_after' => $newRating2,
             'rating_change' => $ratingChange,
         ];
-    }
-
-    /**
-     * Ожидаемый результат по формуле Эло
-     */
-    protected function expectedScore(int $ratingA, int $ratingB): float
-    {
-        return 1 / (1 + pow(10, ($ratingB - $ratingA) / 400));
-    }
-
-    /**
-     * Обновить уровень игрока на основе рейтинга
-     */
-    protected function updateLevel(User $user): void
-    {
-        $rating = $user->rating;
-        
-        $level = match(true) {
-            $rating < 800 => 1.0,
-            $rating < 900 => 1.25,
-            $rating < 1000 => 1.5,
-            $rating < 1100 => 1.75,
-            $rating < 1200 => 2.0,
-            $rating < 1300 => 2.25,
-            $rating < 1400 => 2.5,
-            $rating < 1500 => 2.75,
-            $rating < 1600 => 3.0,
-            $rating < 1700 => 3.25,
-            $rating < 1800 => 3.5,
-            $rating < 1900 => 3.75,
-            $rating < 2000 => 4.0,
-            $rating < 2100 => 4.25,
-            $rating < 2200 => 4.5,
-            $rating < 2300 => 4.75,
-            $rating < 2400 => 5.0,
-            $rating < 2500 => 5.25,
-            $rating < 2600 => 5.5,
-            default => 5.75,
-        };
-
-        $user->update(['level' => $level]);
     }
 
     /**

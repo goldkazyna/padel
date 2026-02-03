@@ -11,6 +11,7 @@ use App\Models\TournamentPlayoffMatch;
 
 class TeamTournamentService
 {
+	use \App\Traits\RatingCalculator;
     /**
      * Запустить турнир
      */
@@ -535,6 +536,8 @@ class TeamTournamentService
 
 			$team->player1->update(['rating' => $player1NewRating]);
 			$team->player2->update(['rating' => $player2NewRating]);
+			$this->updateLevel($team->player1->fresh());
+			$this->updateLevel($team->player2->fresh());
 			// Записываем историю
 			\App\Models\RatingHistory::create([
 				'user_id' => $team->player1_id,
@@ -561,35 +564,7 @@ class TeamTournamentService
 		return true;
 	}
 
-	protected function updateLevel($player): void
-	{
-		$rating = $player->rating;
-		
-		$level = match(true) {
-			$rating < 800 => 1.0,
-			$rating < 900 => 1.25,
-			$rating < 1000 => 1.5,
-			$rating < 1100 => 1.75,
-			$rating < 1200 => 2.0,
-			$rating < 1300 => 2.25,
-			$rating < 1400 => 2.5,
-			$rating < 1500 => 2.75,
-			$rating < 1600 => 3.0,
-			$rating < 1700 => 3.25,
-			$rating < 1800 => 3.5,
-			$rating < 1900 => 3.75,
-			$rating < 2000 => 4.0,
-			$rating < 2100 => 4.25,
-			$rating < 2200 => 4.5,
-			$rating < 2300 => 4.75,
-			$rating < 2400 => 5.0,
-			$rating < 2500 => 5.25,
-			$rating < 2600 => 5.5,
-			default => 5.75,
-		};
-
-		$player->update(['level' => $level]);
-	}
+	
 	
 	/**
 	 * Превью изменений рейтинга
@@ -648,35 +623,29 @@ class TeamTournamentService
 		$team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
 		$team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
 
-		$expected1 = 1 / (1 + pow(10, ($team2Rating - $team1Rating) / 400));
-		$expected2 = 1 / (1 + pow(10, ($team1Rating - $team2Rating) / 400));
+		// Используем новую систему расчёта
+		$result = $this->calculateRatingChange(
+			$team1Rating,
+			$team2Rating,
+			$match->team1_score,
+			$match->team2_score
+		);
 
-		if ($match->team1_score > $match->team2_score) {
-			$actual1 = 1;
-			$actual2 = 0;
-		} elseif ($match->team2_score > $match->team1_score) {
-			$actual1 = 0;
-			$actual2 = 1;
-		} else {
-			$actual1 = 0.5;
-			$actual2 = 0.5;
-		}
+		$change1 = $result['change1'];
+		$change2 = $result['change2'];
 
-		$kFactor = 24;
-		$change1 = round($kFactor * ($actual1 - $expected1));
-		$change2 = round($kFactor * ($actual2 - $expected2));
-
+		// Логируем историю матчей
 		$matchInfo = "{$stageName}: {$match->team1_score}:{$match->team2_score}";
-
 		$ratingChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
 		$ratingChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
 		$ratingChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
 		$ratingChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
 
-		$ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
-		$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
-		$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
-		$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
+		// Применяем изменения (минимум 1000)
+		$ratingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_1]['current_rating'], $change1);
+		$ratingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_2]['current_rating'], $change1);
+		$ratingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_1]['current_rating'], $change2);
+		$ratingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_2]['current_rating'], $change2);
 	}
 
 	/**

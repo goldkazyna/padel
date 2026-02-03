@@ -11,6 +11,7 @@ use App\Models\TournamentPlayoffMatch;
 
 class AmericanoService
 {
+	use \App\Traits\RatingCalculator;
     /**
      * Запустить турнир Американо
      */
@@ -513,7 +514,7 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 			$player = \App\Models\User::find($playerId);
 			if ($player) {
 				$player->update(['rating' => $data['current_rating']]);
-
+				$this->updateLevel($player->fresh());
 				// Записываем историю
 				\App\Models\RatingHistory::create([
 					'user_id' => $playerId,
@@ -535,239 +536,269 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
      * Рассчитать Эло для матча (накопительно)
      */
     protected function calculateEloForMatch(AmericanoMatch $match, array &$ratingChanges): void
-    {
-        $p1_1 = $match->team1_player1_id;
-        $p1_2 = $match->team1_player2_id;
-        $p2_1 = $match->team2_player1_id;
-        $p2_2 = $match->team2_player2_id;
+	{
+		$p1_1 = $match->team1_player1_id;
+		$p1_2 = $match->team1_player2_id;
+		$p2_1 = $match->team2_player1_id;
+		$p2_2 = $match->team2_player2_id;
 
-        // Текущие рейтинги (накопленные)
-        $team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
-        $team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
+		// Текущие рейтинги (накопленные)
+		$team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
+		$team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
 
-        $expected1 = $this->expectedScore($team1Rating, $team2Rating);
-        $expected2 = $this->expectedScore($team2Rating, $team1Rating);
+		// Используем новую систему расчёта
+		$result = $this->calculateRatingChange(
+			$team1Rating,
+			$team2Rating,
+			$match->team1_score,
+			$match->team2_score
+		);
 
-        if ($match->team1_score > $match->team2_score) {
-            $actual1 = 1;
-            $actual2 = 0;
-        } elseif ($match->team2_score > $match->team1_score) {
-            $actual1 = 0;
-            $actual2 = 1;
-        } else {
-            $actual1 = 0.5;
-            $actual2 = 0.5;
-        }
+		$change1 = $result['change1'];
+		$change2 = $result['change2'];
 
-        $kFactor = 24;
+		// Применяем изменения (минимум 1000)
+		$ratingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_1]['current_rating'], $change1);
+		$ratingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_2]['current_rating'], $change1);
+		$ratingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_1]['current_rating'], $change2);
+		$ratingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_2]['current_rating'], $change2);
+	}
 
-        $change1 = round($kFactor * ($actual1 - $expected1));
-        $change2 = round($kFactor * ($actual2 - $expected2));
 
-        // Применяем изменения
-        $ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
-        $ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
-        $ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
-        $ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
-    }
 
-    protected function expectedScore(float $ratingA, float $ratingB): float
-    {
-        return 1 / (1 + pow(10, ($ratingB - $ratingA) / 400));
-    }
 
-    protected function updateLevel($player): void
-    {
-        $rating = $player->rating;
-        
-        $level = match(true) {
-            $rating < 800 => 1.0,
-            $rating < 900 => 1.25,
-            $rating < 1000 => 1.5,
-            $rating < 1100 => 1.75,
-            $rating < 1200 => 2.0,
-            $rating < 1300 => 2.25,
-            $rating < 1400 => 2.5,
-            $rating < 1500 => 2.75,
-            $rating < 1600 => 3.0,
-            $rating < 1700 => 3.25,
-            $rating < 1800 => 3.5,
-            $rating < 1900 => 3.75,
-            $rating < 2000 => 4.0,
-            $rating < 2100 => 4.25,
-            $rating < 2200 => 4.5,
-            $rating < 2300 => 4.75,
-            $rating < 2400 => 5.0,
-            $rating < 2500 => 5.25,
-            $rating < 2600 => 5.5,
-            default => 5.75,
-        };
-
-        $player->update(['level' => $level]);
-    }
 	
 	/**
-	 * Превью расчёта рейтинга (без сохранения)
-	 */
-	public function previewRatingChanges(Tournament $tournament): array
-	{
-		$preview = [];
-		$allRatingChanges = []; // Для плей-офф нужны все игроки
-		
-		foreach ($tournament->groups as $group) {
-			$ratingChanges = [];
-			
-			foreach ($group->players as $player) {
-				$ratingBefore = (int) $player->pivot->rating_before;
-				if ($ratingBefore <= 0) {
-					$ratingBefore = (int) $player->rating;
-				}
-				
-				$ratingChanges[$player->id] = [
-					'name' => $player->full_name,
-					'rating_before' => $ratingBefore,
-					'current_rating' => $ratingBefore,
-					'matches' => [],
-				];
-			}
-			
-			foreach ($group->rounds()->orderBy('round_number')->get() as $round) {
-				foreach ($round->matches as $match) {
-					if (!$match->isCompleted()) continue;
-					
-					$p1_1 = $match->team1_player1_id;
-					$p1_2 = $match->team1_player2_id;
-					$p2_1 = $match->team2_player1_id;
-					$p2_2 = $match->team2_player2_id;
-					
-					$team1RatingBefore = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
-					$team2RatingBefore = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
-					
-					$expected1 = $this->expectedScore($team1RatingBefore, $team2RatingBefore);
-					$expected2 = $this->expectedScore($team2RatingBefore, $team1RatingBefore);
-					
-					if ($match->team1_score > $match->team2_score) {
-						$actual1 = 1;
-						$actual2 = 0;
-					} elseif ($match->team2_score > $match->team1_score) {
-						$actual1 = 0;
-						$actual2 = 1;
-					} else {
-						$actual1 = 0.5;
-						$actual2 = 0.5;
-					}
-					
-					$kFactor = 24;
-					$change1 = round($kFactor * ($actual1 - $expected1));
-					$change2 = round($kFactor * ($actual2 - $expected2));
-					
-					$matchInfo = "Р{$round->round_number}: {$match->team1_score}:{$match->team2_score}";
-					
-					$ratingChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
-					$ratingChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
-					$ratingChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
-					$ratingChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
-					
-					$ratingChanges[$p1_1]['current_rating'] = max(100, $ratingChanges[$p1_1]['current_rating'] + $change1);
-					$ratingChanges[$p1_2]['current_rating'] = max(100, $ratingChanges[$p1_2]['current_rating'] + $change1);
-					$ratingChanges[$p2_1]['current_rating'] = max(100, $ratingChanges[$p2_1]['current_rating'] + $change2);
-					$ratingChanges[$p2_2]['current_rating'] = max(100, $ratingChanges[$p2_2]['current_rating'] + $change2);
-				}
-			}
-			
-			$preview[$group->name] = $ratingChanges;
-			
-			// Сохраняем для плей-офф
-			foreach ($ratingChanges as $playerId => $data) {
-				$allRatingChanges[$playerId] = $data;
-			}
-		}
-		
-		// Добавляем плей-офф матчи
-		if ($tournament->hasPlayoff()) {
-			$playoffMatches = $tournament->playoffMatches()
-				->where('status', 'completed')
-				->orderBy('stage')
-				->orderBy('match_number')
-				->get();
-			
-			if ($playoffMatches->count() > 0) {
-				$playoffChanges = [];
-				
-				foreach ($playoffMatches as $match) {
-					$p1_1 = $match->team1_player1_id;
-					$p1_2 = $match->team1_player2_id;
-					$p2_1 = $match->team2_player1_id;
-					$p2_2 = $match->team2_player2_id;
-					
-					// Инициализируем если нет
-					foreach ([$p1_1, $p1_2, $p2_1, $p2_2] as $pId) {
-						if (!isset($allRatingChanges[$pId])) {
-							$player = \App\Models\User::find($pId);
-							if ($player) {
-								$allRatingChanges[$pId] = [
-									'name' => $player->full_name,
-									'rating_before' => $player->rating,
-									'current_rating' => $player->rating,
-									'matches' => [],
-								];
-							}
-						}
-						if (!isset($playoffChanges[$pId])) {
-							$playoffChanges[$pId] = $allRatingChanges[$pId];
-							$playoffChanges[$pId]['matches'] = []; // Только плей-офф матчи
-						}
-					}
-					
-					$team1RatingBefore = ($allRatingChanges[$p1_1]['current_rating'] + $allRatingChanges[$p1_2]['current_rating']) / 2;
-					$team2RatingBefore = ($allRatingChanges[$p2_1]['current_rating'] + $allRatingChanges[$p2_2]['current_rating']) / 2;
-					
-					$expected1 = $this->expectedScore($team1RatingBefore, $team2RatingBefore);
-					$expected2 = $this->expectedScore($team2RatingBefore, $team1RatingBefore);
-					
-					if ($match->team1_score > $match->team2_score) {
-						$actual1 = 1;
-						$actual2 = 0;
-					} else {
-						$actual1 = 0;
-						$actual2 = 1;
-					}
-					
-					$kFactor = 20; // K-фактор для плей-офф
-					$change1 = round($kFactor * ($actual1 - $expected1));
-					$change2 = round($kFactor * ($actual2 - $expected2));
-					
-					$stageName = $match->stage === 'Полуфинал' ? 'ПФ' : 'Ф';
-					$matchInfo = "{$stageName}{$match->match_number}: {$match->team1_score}:{$match->team2_score}";
-					
-					$playoffChanges[$p1_1]['matches'][] = "{$matchInfo} → {$change1}";
-					$playoffChanges[$p1_2]['matches'][] = "{$matchInfo} → {$change1}";
-					$playoffChanges[$p2_1]['matches'][] = "{$matchInfo} → {$change2}";
-					$playoffChanges[$p2_2]['matches'][] = "{$matchInfo} → {$change2}";
-					
-					// Обновляем текущий рейтинг
-					$allRatingChanges[$p1_1]['current_rating'] += $change1;
-					$allRatingChanges[$p1_2]['current_rating'] += $change1;
-					$allRatingChanges[$p2_1]['current_rating'] += $change2;
-					$allRatingChanges[$p2_2]['current_rating'] += $change2;
-					
-					$playoffChanges[$p1_1]['current_rating'] = $allRatingChanges[$p1_1]['current_rating'];
-					$playoffChanges[$p1_2]['current_rating'] = $allRatingChanges[$p1_2]['current_rating'];
-					$playoffChanges[$p2_1]['current_rating'] = $allRatingChanges[$p2_1]['current_rating'];
-					$playoffChanges[$p2_2]['current_rating'] = $allRatingChanges[$p2_2]['current_rating'];
-				}
-				
-				// Добавляем только тех кто играл в плей-офф
-				$playoffChanges = array_filter($playoffChanges, fn($p) => count($p['matches']) > 0);
-				
-				if (count($playoffChanges) > 0) {
-					$preview['Плей-офф'] = $playoffChanges;
-				}
-			}
-		}
-		
-		return $preview;
-	}
+ * Превью расчёта рейтинга (без сохранения) - ДЕТАЛЬНЫЙ
+ */
+public function previewRatingChanges(Tournament $tournament): array
+{
+    $preview = [];
+    $allRatingChanges = [];
+    
+    foreach ($tournament->groups as $group) {
+        $ratingChanges = [];
+        
+        foreach ($group->players as $player) {
+            $ratingBefore = (int) $player->pivot->rating_before;
+            if ($ratingBefore <= 0) {
+                $ratingBefore = (int) $player->rating;
+            }
+            
+            $ratingChanges[$player->id] = [
+                'name' => $player->full_name,
+                'rating_before' => $ratingBefore,
+                'current_rating' => $ratingBefore,
+                'matches' => [],
+            ];
+        }
+        
+        foreach ($group->rounds()->orderBy('round_number')->get() as $round) {
+            foreach ($round->matches as $match) {
+                if (!$match->isCompleted()) continue;
+                
+                $p1_1 = $match->team1_player1_id;
+                $p1_2 = $match->team1_player2_id;
+                $p2_1 = $match->team2_player1_id;
+                $p2_2 = $match->team2_player2_id;
+                
+                // Рейтинги игроков
+                $r1_1 = $ratingChanges[$p1_1]['current_rating'];
+                $r1_2 = $ratingChanges[$p1_2]['current_rating'];
+                $r2_1 = $ratingChanges[$p2_1]['current_rating'];
+                $r2_2 = $ratingChanges[$p2_2]['current_rating'];
+                
+                // Средние рейтинги команд
+                $team1Rating = ($r1_1 + $r1_2) / 2;
+                $team2Rating = ($r2_1 + $r2_2) / 2;
+                
+                // Расчёт через trait
+                $result = $this->calculateRatingChange(
+                    $team1Rating,
+                    $team2Rating,
+                    $match->team1_score,
+                    $match->team2_score
+                );
+                
+                $change1 = $result['change1'];
+                $change2 = $result['change2'];
+                
+                // Параметры для детального вывода
+                $expected1 = $this->expectedScore($team1Rating, $team2Rating);
+                $kFactor = $this->getMatchKFactor($team1Rating, $team2Rating);
+                $multiplier = $this->getScoreMultiplier($match->team1_score, $match->team2_score);
+                
+                // Детальная строка для команды 1
+                $matchInfo1 = sprintf(
+                    "Р%d: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
+                    $ratingChanges[$p1_1]['name'], $r1_1,
+                    $ratingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $ratingChanges[$p2_1]['name'], $r2_1,
+                    $ratingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $match->team1_score, $match->team2_score,
+                    $kFactor,
+                    $multiplier,
+                    $expected1 * 100,
+                    $change1
+                );
+                
+                // Детальная строка для команды 2
+                $matchInfo2 = sprintf(
+                    "Р%d: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
+                    $ratingChanges[$p2_1]['name'], $r2_1,
+                    $ratingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $ratingChanges[$p1_1]['name'], $r1_1,
+                    $ratingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $match->team2_score, $match->team1_score,
+                    $kFactor,
+                    $multiplier,
+                    (1 - $expected1) * 100,
+                    $change2
+                );
+                
+                $ratingChanges[$p1_1]['matches'][] = $matchInfo1;
+                $ratingChanges[$p1_2]['matches'][] = $matchInfo1;
+                $ratingChanges[$p2_1]['matches'][] = $matchInfo2;
+                $ratingChanges[$p2_2]['matches'][] = $matchInfo2;
+                
+                // Применяем изменения
+                $ratingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($r1_1, $change1);
+                $ratingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($r1_2, $change1);
+                $ratingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($r2_1, $change2);
+                $ratingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($r2_2, $change2);
+            }
+        }
+        
+        $preview[$group->name] = $ratingChanges;
+        
+        foreach ($ratingChanges as $playerId => $data) {
+            $allRatingChanges[$playerId] = $data;
+        }
+    }
+    
+    // Плей-офф
+    if ($tournament->hasPlayoff()) {
+        $playoffMatches = $tournament->playoffMatches()
+            ->where('status', 'completed')
+            ->orderBy('stage')
+            ->orderBy('match_number')
+            ->get();
+        
+        if ($playoffMatches->count() > 0) {
+            $playoffChanges = [];
+            
+            foreach ($playoffMatches as $match) {
+                $p1_1 = $match->team1_player1_id;
+                $p1_2 = $match->team1_player2_id;
+                $p2_1 = $match->team2_player1_id;
+                $p2_2 = $match->team2_player2_id;
+                
+                foreach ([$p1_1, $p1_2, $p2_1, $p2_2] as $pId) {
+                    if (!isset($allRatingChanges[$pId])) {
+                        $player = \App\Models\User::find($pId);
+                        if ($player) {
+                            $allRatingChanges[$pId] = [
+                                'name' => $player->full_name,
+                                'rating_before' => $player->rating,
+                                'current_rating' => $player->rating,
+                                'matches' => [],
+                            ];
+                        }
+                    }
+                    if (!isset($playoffChanges[$pId])) {
+                        $playoffChanges[$pId] = $allRatingChanges[$pId];
+                        $playoffChanges[$pId]['matches'] = [];
+                    }
+                }
+                
+                $r1_1 = $allRatingChanges[$p1_1]['current_rating'];
+                $r1_2 = $allRatingChanges[$p1_2]['current_rating'];
+                $r2_1 = $allRatingChanges[$p2_1]['current_rating'];
+                $r2_2 = $allRatingChanges[$p2_2]['current_rating'];
+                
+                $team1Rating = ($r1_1 + $r1_2) / 2;
+                $team2Rating = ($r2_1 + $r2_2) / 2;
+                
+                $result = $this->calculateRatingChange(
+                    $team1Rating,
+                    $team2Rating,
+                    $match->team1_score,
+                    $match->team2_score
+                );
+                
+                $change1 = $result['change1'];
+                $change2 = $result['change2'];
+                
+                $expected1 = $this->expectedScore($team1Rating, $team2Rating);
+                $kFactor = $this->getMatchKFactor($team1Rating, $team2Rating);
+                $multiplier = $this->getScoreMultiplier($match->team1_score, $match->team2_score);
+                
+                $stageName = $match->stage === 'Полуфинал' ? 'ПФ' : 'Ф';
+                
+                $matchInfo1 = sprintf(
+                    "%s: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $stageName,
+                    $allRatingChanges[$p1_1]['name'], $r1_1,
+                    $allRatingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $allRatingChanges[$p2_1]['name'], $r2_1,
+                    $allRatingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $match->team1_score, $match->team2_score,
+                    $kFactor,
+                    $multiplier,
+                    $expected1 * 100,
+                    $change1
+                );
+                
+                $matchInfo2 = sprintf(
+                    "%s: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $stageName,
+                    $allRatingChanges[$p2_1]['name'], $r2_1,
+                    $allRatingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $allRatingChanges[$p1_1]['name'], $r1_1,
+                    $allRatingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $match->team2_score, $match->team1_score,
+                    $kFactor,
+                    $multiplier,
+                    (1 - $expected1) * 100,
+                    $change2
+                );
+                
+                $playoffChanges[$p1_1]['matches'][] = $matchInfo1;
+                $playoffChanges[$p1_2]['matches'][] = $matchInfo1;
+                $playoffChanges[$p2_1]['matches'][] = $matchInfo2;
+                $playoffChanges[$p2_2]['matches'][] = $matchInfo2;
+                
+                $allRatingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($r1_1, $change1);
+                $allRatingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($r1_2, $change1);
+                $allRatingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($r2_1, $change2);
+                $allRatingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($r2_2, $change2);
+                
+                $playoffChanges[$p1_1]['current_rating'] = $allRatingChanges[$p1_1]['current_rating'];
+                $playoffChanges[$p1_2]['current_rating'] = $allRatingChanges[$p1_2]['current_rating'];
+                $playoffChanges[$p2_1]['current_rating'] = $allRatingChanges[$p2_1]['current_rating'];
+                $playoffChanges[$p2_2]['current_rating'] = $allRatingChanges[$p2_2]['current_rating'];
+            }
+            
+            $playoffChanges = array_filter($playoffChanges, fn($p) => count($p['matches']) > 0);
+            
+            if (count($playoffChanges) > 0) {
+                $preview['Плей-офф'] = $playoffChanges;
+            }
+        }
+    }
+    
+    return $preview;
+}
 	/**
 	 * Можно ли сгенерировать плей-офф
 	 */
@@ -1134,28 +1165,21 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 		$team1Rating = ($ratingChanges[$player1Id]['current_rating'] + $ratingChanges[$player2Id]['current_rating']) / 2;
 		$team2Rating = ($ratingChanges[$player3Id]['current_rating'] + $ratingChanges[$player4Id]['current_rating']) / 2;
 
-		// Определяем победителя
-		$team1Won = $match->team1_score > $match->team2_score;
+		// Используем новую систему расчёта
+		$result = $this->calculateRatingChange(
+			$team1Rating,
+			$team2Rating,
+			$match->team1_score,
+			$match->team2_score
+		);
 
-		// K-фактор для плей-офф (можно сделать выше чем в группах)
-		$kFactor = 20;
+		$change1 = $result['change1'];
+		$change2 = $result['change2'];
 
-		// Ожидаемый результат
-		$expected1 = 1 / (1 + pow(10, ($team2Rating - $team1Rating) / 400));
-		$expected2 = 1 - $expected1;
-
-		// Фактический результат
-		$actual1 = $team1Won ? 1 : 0;
-		$actual2 = $team1Won ? 0 : 1;
-
-		// Изменение рейтинга
-		$change1 = round($kFactor * ($actual1 - $expected1));
-		$change2 = round($kFactor * ($actual2 - $expected2));
-
-		// Применяем изменения
-		$ratingChanges[$player1Id]['current_rating'] += $change1;
-		$ratingChanges[$player2Id]['current_rating'] += $change1;
-		$ratingChanges[$player3Id]['current_rating'] += $change2;
-		$ratingChanges[$player4Id]['current_rating'] += $change2;
+		// Применяем изменения (минимум 1000)
+		$ratingChanges[$player1Id]['current_rating'] = $this->applyRatingChange($ratingChanges[$player1Id]['current_rating'], $change1);
+		$ratingChanges[$player2Id]['current_rating'] = $this->applyRatingChange($ratingChanges[$player2Id]['current_rating'], $change1);
+		$ratingChanges[$player3Id]['current_rating'] = $this->applyRatingChange($ratingChanges[$player3Id]['current_rating'], $change2);
+		$ratingChanges[$player4Id]['current_rating'] = $this->applyRatingChange($ratingChanges[$player4Id]['current_rating'], $change2);
 	}
 }
