@@ -59,7 +59,7 @@ class TelegramMiniAppController extends Controller
         ]);
     }
 
-    /**
+	/**
 	 * Профиль пользователя
 	 */
 	public function profile(Request $request)
@@ -72,15 +72,8 @@ class TelegramMiniAppController extends Controller
 		
 		$stats = $user->getAllMatchesStats();
 		
-		$ratingHistory = $user->ratingHistory()
-			->take(10)
-			->get()
-			->map(fn($h) => [
-				'date' => $h->created_at->format('d.m'),
-				'change' => $h->change,
-				'rating' => $h->rating_after,
-				'tournament' => $h->reason,
-			]);
+		// Детальная история турниров с матчами
+		$tournamentHistory = $user->getTournamentHistory();
 		
 		// Позиция в рейтинге (точный расчёт)
 		$rank = User::where('role', 'player')
@@ -96,7 +89,7 @@ class TelegramMiniAppController extends Controller
 		return response()->json([
 			'user' => $this->formatUser($user),
 			'stats' => $stats,
-			'rating_history' => $ratingHistory,
+			'tournament_history' => $tournamentHistory,
 			'rank' => $rank,
 		]);
 	}

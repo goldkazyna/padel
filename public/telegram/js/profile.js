@@ -13,7 +13,7 @@ async function loadProfile() {
     
     renderProfileHeader();
     renderProfileStats(result.stats);
-    renderRatingHistory(result.rating_history);
+    renderRatingHistory(); // Без параметра - берёт из profileData
 }
 
 /**
@@ -137,36 +137,143 @@ function renderProfileStats(stats) {
 }
 
 /**
- * Рендер истории рейтинга
+ * Рендер истории турниров с матчами
  */
 function renderRatingHistory(history) {
     const container = document.getElementById('rating-history');
     if (!container) return;
     
-    if (!history || history.length === 0) {
+    // Используем tournament_history вместо rating_history
+    const tournaments = profileData?.tournament_history || [];
+    
+    if (!tournaments || tournaments.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-text">История рейтинга пуста</div>
+                <div class="empty-state-text">История турниров пуста</div>
             </div>
         `;
         return;
     }
     
-    container.innerHTML = `
-        <div class="rating-history-list">
-            ${history.map(item => `
-                <div class="rating-history-item">
-                    <div class="rating-history-info">
-                        <div class="rating-history-tournament">${item.tournament}</div>
-                        <div class="rating-history-date">${item.date || ''}</div>
-                    </div>
-                    <div class="rating-history-change ${item.change >= 0 ? 'positive' : 'negative'}">
-                        ${item.change >= 0 ? '+' : ''}${item.change}
+    container.innerHTML = tournaments.map(tournament => renderTournamentItem(tournament)).join('');
+}
+
+/**
+ * Рендер турнира
+ */
+function renderTournamentItem(tournament) {
+    const changeClass = tournament.change >= 0 ? 'positive' : 'negative';
+    const changeText = tournament.change >= 0 ? `+${tournament.change}` : tournament.change;
+    
+    const matchesHtml = tournament.matches && tournament.matches.length > 0
+        ? tournament.matches.map(match => renderMatchItem(match)).join('')
+        : '<div class="empty-state"><div class="empty-state-text">Нет данных о матчах</div></div>';
+    
+    return `
+        <div class="tournament-item">
+            <div class="tournament-header" onclick="toggleTournament(this)">
+                <div class="tournament-info">
+                    <span class="tournament-name">${tournament.name}</span>
+                    <span class="tournament-date">${tournament.date}</span>
+                </div>
+                <div class="tournament-right">
+                    <span class="tournament-points ${changeClass}">${changeText}</span>
+                    <div class="tournament-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
                     </div>
                 </div>
-            `).join('')}
+            </div>
+            <div class="matches-container">
+                <div class="matches-list">
+                    ${matchesHtml}
+                </div>
+            </div>
         </div>
     `;
+}
+
+/**
+ * Рендер матча
+ */
+function renderMatchItem(match) {
+    const resultIcon = match.won
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    
+    const resultClass = match.won ? 'win' : 'lose';
+    
+    return `
+        <div class="match-item">
+            <div class="match-header">
+                <span class="match-round">${match.round}</span>
+                <div class="match-total-score">
+                    <span>${match.my_score} : ${match.opp_score}</span>
+                    <div class="match-result-icon ${resultClass}">
+                        ${resultIcon}
+                    </div>
+                </div>
+            </div>
+            <div class="match-body">
+                <!-- Моя команда -->
+                <div class="team-row your-team">
+                    <div class="team-players">
+                        ${renderPlayerLine(match.me, true)}
+                        ${match.partner ? renderPlayerLine(match.partner, false) : ''}
+                    </div>
+                    <span class="team-score ${match.won ? 'win' : 'lose'}">${match.my_score}</span>
+                </div>
+                
+                <div class="vs-divider">
+                    <span class="vs-text">VS</span>
+                </div>
+                
+                <!-- Соперники -->
+                <div class="team-row">
+                    <div class="team-players">
+                        ${match.opponent1 ? renderPlayerLine(match.opponent1, false, true) : ''}
+                        ${match.opponent2 ? renderPlayerLine(match.opponent2, false, true) : ''}
+                    </div>
+                    <span class="team-score ${match.won ? 'lose' : 'win'}">${match.opp_score}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Рендер строки игрока
+ */
+function renderPlayerLine(player, isMe = false, isOpponent = false) {
+    if (!player) return '';
+    
+    const initial = getInitial(player.name);
+    const avatarClass = isOpponent ? 'player-avatar-small opponent' : 'player-avatar-small';
+    const nameClass = isMe ? 'player-name-small you' : 'player-name-small';
+    const youBadge = isMe ? '<span class="you-badge">ВЫ</span>' : '';
+    
+    return `
+        <div class="player-line">
+            <div class="${avatarClass}">${initial}</div>
+            <div class="player-data">
+                <span class="${nameClass}">${player.name}${youBadge}</span>
+                <div class="player-meta">
+                    <span class="player-level-small">${player.level}</span>
+                    <span>•</span>
+                    <span>${player.rating}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Раскрыть/закрыть турнир
+ */
+function toggleTournament(header) {
+    const item = header.closest('.tournament-item');
+    item.classList.toggle('open');
 }
 
 /**

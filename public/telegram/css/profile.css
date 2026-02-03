@@ -282,3 +282,285 @@
 .modal-buttons .btn {
     flex: 1;
 }
+/* ============================================
+   История турниров с матчами
+   ============================================ */
+
+/* Tournament Item */
+.tournament-item {
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.tournament-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tournament-header:active {
+    background: var(--bg-secondary);
+}
+
+.tournament-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.tournament-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.tournament-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.tournament-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tournament-points {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.tournament-points.positive {
+    color: var(--primary);
+}
+
+.tournament-points.negative {
+    color: #ef4444;
+}
+
+.tournament-arrow {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: transform 0.3s;
+}
+
+.tournament-arrow svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tournament-item.open .tournament-arrow {
+    transform: rotate(180deg);
+}
+
+/* Matches Container */
+.matches-container {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    background: var(--bg-secondary);
+}
+
+.tournament-item.open .matches-container {
+    max-height: 2000px;
+}
+
+.matches-list {
+    padding: 8px;
+}
+
+/* Match Item */
+.match-item {
+    background: var(--bg);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.match-item:last-child {
+    margin-bottom: 0;
+}
+
+.match-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+
+.match-round {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.match-total-score {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.match-result-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.match-result-icon.win {
+    background: var(--primary);
+}
+
+.match-result-icon.lose {
+    background: #ef4444;
+}
+
+.match-result-icon svg {
+    width: 12px;
+    height: 12px;
+    color: white;
+}
+
+/* Match Body */
+.match-body {
+    padding: 10px 12px;
+}
+
+/* Team Row */
+.team-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.team-row.your-team {
+    background: var(--primary-light, #dcfce7);
+    margin: 0 -12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.team-players {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.player-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-avatar-small {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark, #16a34a));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.player-avatar-small.opponent {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.player-data {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.player-name-small {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-name-small.you {
+    color: var(--primary-dark, #16a34a);
+}
+
+.player-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.player-level-small {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.you-badge {
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--primary);
+    color: white;
+    padding: 2px 5px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+/* Team Score */
+.team-score {
+    font-size: 28px;
+    font-weight: 800;
+    min-width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.team-score.win {
+    color: var(--primary);
+}
+
+.team-score.lose {
+    color: var(--text-secondary);
+}
+
+/* VS Divider */
+.vs-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+    margin: 4px 0;
+}
+
+.vs-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
