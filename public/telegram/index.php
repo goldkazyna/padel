@@ -244,7 +244,7 @@
     <!-- JS -->
     <script src="js/api.js?v=12"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
-    <script src="js/home.js?v=149"></script>
+    <script src="js/home.js?v=150"></script>
     <script src="js/tournaments.js?v=149"></script>
     <script src="js/rating.js?v=12"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>

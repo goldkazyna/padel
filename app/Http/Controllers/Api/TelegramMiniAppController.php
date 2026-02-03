@@ -60,39 +60,46 @@ class TelegramMiniAppController extends Controller
     }
 
     /**
-     * Профиль пользователя
-     */
-    public function profile(Request $request)
-    {
-        $user = $this->getUser($request);
-        
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
-
-        $stats = $user->getAllMatchesStats();
-        $ratingHistory = $user->ratingHistory()
-            ->take(10)
-            ->get()
-            ->map(fn($h) => [
-                'date' => $h->created_at->format('d.m'),
-                'change' => $h->change,
-                'rating' => $h->rating_after,
-                'tournament' => $h->reason,
-            ]);
-
-        // Позиция в рейтинге
-        $rank = User::where('role', 'player')
-            ->where('rating', '>', $user->rating)
-            ->count() + 1;
-
-        return response()->json([
-            'user' => $this->formatUser($user),
-            'stats' => $stats,
-            'rating_history' => $ratingHistory,
-            'rank' => $rank,
-        ]);
-    }
+	 * Профиль пользователя
+	 */
+	public function profile(Request $request)
+	{
+		$user = $this->getUser($request);
+		
+		if (!$user) {
+			return response()->json(['error' => 'User not found'], 404);
+		}
+		
+		$stats = $user->getAllMatchesStats();
+		
+		$ratingHistory = $user->ratingHistory()
+			->take(10)
+			->get()
+			->map(fn($h) => [
+				'date' => $h->created_at->format('d.m'),
+				'change' => $h->change,
+				'rating' => $h->rating_after,
+				'tournament' => $h->reason,
+			]);
+		
+		// Позиция в рейтинге (точный расчёт)
+		$rank = User::where('role', 'player')
+			->where(function($q) use ($user) {
+				$q->where('rating', '>', $user->rating)
+				  ->orWhere(function($q2) use ($user) {
+					  $q2->where('rating', '=', $user->rating)
+						 ->where('id', '<', $user->id);
+				  });
+			})
+			->count() + 1;
+		
+		return response()->json([
+			'user' => $this->formatUser($user),
+			'stats' => $stats,
+			'rating_history' => $ratingHistory,
+			'rank' => $rank,
+		]);
+	}
 
     /**
      * Список открытых турниров
