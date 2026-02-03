@@ -70,12 +70,12 @@ class TelegramMiniAppController extends Controller
 			return response()->json(['error' => 'User not found'], 404);
 		}
 		
-		$stats = $user->getAllMatchesStats();
+		// ВРЕМЕННАЯ ОТЛАДКА
+		$debugHistory = $user->ratingHistory()->with('tournament')->get();
 		
-		// Детальная история турниров с матчами
+		$stats = $user->getAllMatchesStats();
 		$tournamentHistory = $user->getTournamentHistory();
 		
-		// Позиция в рейтинге (точный расчёт)
 		$rank = User::where('role', 'player')
 			->where(function($q) use ($user) {
 				$q->where('rating', '>', $user->rating)
@@ -91,6 +91,10 @@ class TelegramMiniAppController extends Controller
 			'stats' => $stats,
 			'tournament_history' => $tournamentHistory,
 			'rank' => $rank,
+			// ОТЛАДКА
+			'debug_user_id' => $user->id,
+			'debug_history_count' => $debugHistory->count(),
+			'debug_history_raw' => $debugHistory->toArray(),
 		]);
 	}
 
