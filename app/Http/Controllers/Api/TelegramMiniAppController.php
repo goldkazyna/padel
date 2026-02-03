@@ -463,14 +463,36 @@ class TelegramMiniAppController extends Controller
 	{
 		$user = $this->getUser($request);
 		$page = (int) $request->input('page', 1);
+		$level = $request->input('level', 'all');
 		$perPage = 20;
 		
-		// Общее количество игроков
-		$total = User::where('role', 'player')->count();
-		$totalPages = ceil($total / $perPage);
+		// Базовый запрос
+		$query = User::where('role', 'player');
+		
+		// Фильтрация по уровню
+		if ($level !== 'all') {
+			switch ($level) {
+				case '1': // L1: уровень 1.0 - 1.75
+					$query->where('level', '>=', 1.0)->where('level', '<', 2.0);
+					break;
+				case '2': // L2: уровень 2.0 - 2.75
+					$query->where('level', '>=', 2.0)->where('level', '<', 3.0);
+					break;
+				case '3': // L3: уровень 3.0 - 3.75
+					$query->where('level', '>=', 3.0)->where('level', '<', 4.0);
+					break;
+				case '4': // L4: уровень 4.0 - 5.75
+					$query->where('level', '>=', 4.0);
+					break;
+			}
+		}
+		
+		// Общее количество игроков (с учётом фильтра)
+		$total = $query->count();
+		$totalPages = max(1, ceil($total / $perPage));
 		
 		// Получаем игроков для текущей страницы
-		$players = User::where('role', 'player')
+		$players = (clone $query)
 			->orderBy('rating', 'desc')
 			->offset(($page - 1) * $perPage)
 			->limit($perPage)
@@ -485,16 +507,18 @@ class TelegramMiniAppController extends Controller
 				];
 			});
 		
-		// Находим позицию текущего пользователя
+		// Находим позицию текущего пользователя (в общем рейтинге)
 		$myRank = null;
 		$myPage = null;
 		$myChange = 0;
 		
 		if ($user) {
+			// Позиция в общем рейтинге (без фильтра)
 			$myRank = User::where('role', 'player')
 				->where('rating', '>', $user->rating)
 				->count() + 1;
 			
+			// Страница на которой находится пользователь (в общем рейтинге)
 			$myPage = ceil($myRank / $perPage);
 		}
 		
@@ -506,6 +530,7 @@ class TelegramMiniAppController extends Controller
 			'page' => $page,
 			'total_pages' => $totalPages,
 			'total' => $total,
+			'level' => $level,
 		]);
 	}
 

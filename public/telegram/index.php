@@ -125,27 +125,47 @@
             </div>
         </div>
 
-        <!-- ============ РЕЙТИНГ ============ -->
-        <div id="rating-screen" class="screen">
-            <div class="screen-header">
-                <h1 class="screen-title">Рейтинг</h1>
-            </div>
-            <div class="screen-content">
-                <!-- Моя позиция -->
-                <div id="my-rank-card" class="my-rank-card">
-                    <!-- Рендерится через JS -->
-                </div>
-
-                <!-- Топ игроков -->
-                <div id="ranking-list">
-                    <!-- Рендерится через JS -->
-                </div>
-				<!-- Пагинация -->
-				<div id="rating-pagination">
+		<!-- ============ РЕЙТИНГ ============ -->
+		<div id="rating-screen" class="screen">
+			<div class="screen-header">
+				<h1 class="screen-title">Рейтинг</h1>
+			</div>
+			<div class="screen-content">
+				<!-- Моя позиция -->
+				<div id="my-rank-card" class="tg-user-card">
 					<!-- Рендерится через JS -->
 				</div>
-            </div>
-        </div>
+
+				<!-- Табы по уровням -->
+				<div class="tg-tabs-wrapper">
+					<div class="tg-tabs" id="rating-tabs">
+						<button class="tg-tab active" data-level="all">Общий</button>
+						<button class="tg-tab l1" data-level="1">
+							<span class="tg-tab-badge"><span class="tg-level-dot"></span>L1</span>
+						</button>
+						<button class="tg-tab l2" data-level="2">
+							<span class="tg-tab-badge"><span class="tg-level-dot"></span>L2</span>
+						</button>
+						<button class="tg-tab l3" data-level="3">
+							<span class="tg-tab-badge"><span class="tg-level-dot"></span>L3</span>
+						</button>
+						<button class="tg-tab l4" data-level="4">
+							<span class="tg-tab-badge"><span class="tg-level-dot"></span>L4</span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Список игроков -->
+				<div id="ranking-list" class="tg-rating-list">
+					<!-- Рендерится через JS -->
+				</div>
+
+				<!-- Пагинация -->
+				<div id="rating-pagination" class="tg-pagination">
+					<!-- Рендерится через JS -->
+				</div>
+			</div>
+		</div>
 
         <!-- ============ ПРОФИЛЬ ============ -->
         <div id="profile-screen" class="screen">

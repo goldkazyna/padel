@@ -110,8 +110,8 @@ async function apiSaveName(name) {
 /**
  * Получить рейтинг
  */
-async function apiRating(page = 1) {
-    return api(`/rating?page=${page}`);
+async function apiRating(page = 1, level = 'all') {
+    return api(`/rating?page=${page}&level=${level}`);
 }
 /**
  * Проверить статус регистрации

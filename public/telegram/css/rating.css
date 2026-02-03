@@ -1,299 +1,269 @@
 /* ============================================
-   RATING.CSS - Страница рейтинга
+   RATING.CSS - Страница рейтинга (новый дизайн)
    ============================================ */
 
-/* ------------ Моя позиция ------------ */
-.my-rank-card {
-    background: var(--primary);
-    color: white;
-    border-radius: var(--radius-lg);
-    padding: 16px;
+/* ------------ User Card ------------ */
+.tg-user-card {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark, #16a34a));
+    margin: 16px;
+    border-radius: 16px;
+    padding: 18px 20px;
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
+    justify-content: space-between;
+    color: white;
 }
 
-.my-rank-position {
-    font-size: 28px;
+.tg-user-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.tg-user-rank {
+    font-size: 32px;
+    font-weight: 800;
+}
+
+.tg-user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.tg-user-label {
+    font-size: 16px;
     font-weight: 700;
 }
 
-.my-rank-info {
-    flex: 1;
-}
-
-.my-rank-name {
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.my-rank-rating {
-    font-size: 13px;
+.tg-user-pts {
+    font-size: 14px;
     opacity: 0.9;
 }
 
-.my-rank-change {
-    font-size: 16px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: var(--radius);
-    background: rgba(255,255,255,0.2);
-}
-
-/* ------------ Список рейтинга ------------ */
-.ranking-list {
-    background: var(--bg);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-}
-
-.ranking-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.ranking-item:last-child {
-    border-bottom: none;
-}
-
-.ranking-position {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-full);
+.tg-find-me-btn {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 13px;
+    cursor: pointer;
+}
+
+.tg-find-me-btn svg {
+    width: 22px;
+    height: 22px;
+    color: white;
+}
+
+/* ------------ Tabs ------------ */
+.tg-tabs-wrapper {
+    background: var(--bg);
+    padding: 0 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.tg-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 4px 0;
+}
+
+.tg-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tg-tab {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
     background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.tg-tab:hover {
+    background: var(--primary-light, #dcfce7);
+    color: var(--primary-dark, #16a34a);
+}
+
+.tg-tab.active {
+    background: var(--primary);
+    color: white;
+}
+
+.tg-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tg-level-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.tg-tab.l1 .tg-level-dot { background: #22c55e; }
+.tg-tab.l2 .tg-level-dot { background: #3b82f6; }
+.tg-tab.l3 .tg-level-dot { background: #f97316; }
+.tg-tab.l4 .tg-level-dot { background: #ef4444; }
+
+/* ------------ Rating List ------------ */
+.tg-rating-list {
+    background: var(--bg);
+}
+
+.tg-rating-item {
+    background: var(--bg);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tg-rating-item:last-child {
+    border-bottom: none;
+}
+
+.tg-rating-item.top-1 {
+    border-left: 4px solid #fbbf24;
+    background: linear-gradient(90deg, #fef9c3 0%, var(--bg) 20%);
+}
+
+.tg-rating-item.top-2 {
+    border-left: 4px solid #9ca3af;
+    background: linear-gradient(90deg, #f3f4f6 0%, var(--bg) 20%);
+}
+
+.tg-rating-item.top-3 {
+    border-left: 4px solid #f97316;
+    background: linear-gradient(90deg, #ffedd5 0%, var(--bg) 20%);
+}
+
+.tg-rating-item.is-me {
+    background: var(--primary-light, #dcfce7);
+}
+
+.tg-position {
+    width: 32px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
     color: var(--text-secondary);
     flex-shrink: 0;
 }
 
-.ranking-item.top-1 .ranking-position {
-    background: #fef3c7;
-    color: #d97706;
-}
+.tg-position.gold { color: #fbbf24; }
+.tg-position.silver { color: #9ca3af; }
+.tg-position.bronze { color: #f97316; }
 
-.ranking-item.top-2 .ranking-position {
-    background: #f1f5f9;
-    color: #64748b;
-}
-
-.ranking-item.top-3 .ranking-position {
-    background: #fed7aa;
-    color: #c2410c;
-}
-
-.ranking-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-full);
-    background: var(--primary-light);
-    color: var(--primary);
+.tg-avatar {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark, #16a34a));
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
     flex-shrink: 0;
 }
 
-.ranking-info {
+.tg-player-info {
     flex: 1;
     min-width: 0;
 }
 
-.ranking-name {
-    font-size: 14px;
-    font-weight: 500;
+.tg-player-name {
+    font-size: 15px;
+    font-weight: 600;
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.ranking-level {
-    font-size: 12px;
-    color: var(--text-muted);
+.tg-player-level {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
-.ranking-rating {
-    font-size: 15px;
-    font-weight: 600;
+.tg-player-rating {
+    font-size: 18px;
+    font-weight: 800;
     color: var(--primary);
     flex-shrink: 0;
 }
 
-/* ------------ Табы периода ------------ */
-.period-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.period-tab {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    border-radius: var(--radius);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s;
-}
-
-.period-tab.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-}
-/* ------------ Моя позиция с кнопкой ------------ */
-.my-rank-card {
-    background: var(--primary);
-    color: white;
-    border-radius: var(--radius-lg);
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
-}
-
-.my-rank-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.find-me-btn {
-    background: rgba(255,255,255,0.2);
-    border: none;
-    border-radius: var(--radius-full);
-    width: 40px;
-    height: 40px;
+/* ------------ Pagination ------------ */
+.tg-pagination {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    color: white;
-    transition: background 0.2s;
+    gap: 6px;
+    padding: 20px 16px;
 }
 
-.find-me-btn:active {
-    background: rgba(255,255,255,0.3);
-}
-
-/* ------------ Подсветка себя ------------ */
-.ranking-item.is-me {
-    background: var(--primary-light);
-}
-
-.ranking-item.highlight {
-    animation: pulse 0.5s ease-in-out 3;
-}
-
-@keyframes pulse {
-    0%, 100% { background: var(--primary-light); }
-    50% { background: var(--primary); color: white; }
-}
-
-.ranking-item.highlight .ranking-rating {
-    color: inherit;
-}
-
-/* ------------ Пагинация ------------ */
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
-    margin-top: 16px;
-    padding: 16px 0;
-}
-
-.pagination-btn {
+.tg-page-btn {
     width: 36px;
     height: 36px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    color: var(--text-secondary);
     transition: all 0.2s;
+    background: var(--bg);
+    color: var(--text-secondary);
 }
 
-.pagination-btn:disabled {
-    opacity: 0.3;
+.tg-page-btn:hover {
+    background: var(--primary-light, #dcfce7);
+    color: var(--primary);
+}
+
+.tg-page-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.tg-page-btn:disabled {
+    opacity: 0.4;
     cursor: not-allowed;
 }
 
-.pagination-btn:not(:disabled):active {
-    background: var(--bg-secondary);
+.tg-page-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
-.pagination-num {
-    min-width: 36px;
-    height: 36px;
-    padding: 0 8px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    border-radius: var(--radius);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.pagination-num.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: white;
-}
-
-.pagination-num:not(.active):active {
-    background: var(--bg-secondary);
-}
-
-.pagination-dots {
+.tg-page-dots {
     padding: 0 4px;
-    color: var(--text-muted);
-}
-.development-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    text-align: center;
+    color: var(--text-secondary);
 }
 
-.development-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
+/* ------------ Highlight animation ------------ */
+.tg-rating-item.highlight {
+    animation: highlight-pulse 2s ease-out;
 }
 
-.development-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 8px;
-}
-
-.development-text {
-    font-size: 14px;
-    color: var(--text-muted);
+@keyframes highlight-pulse {
+    0% { background: var(--primary-light, #dcfce7); }
+    100% { background: var(--bg); }
 }
