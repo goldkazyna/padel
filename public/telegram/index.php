@@ -226,7 +226,7 @@
     <script src="js/app.js?v=<?= time() ?>"></script>
     <script src="js/home.js?v=149"></script>
     <script src="js/tournaments.js?v=149"></script>
-    <script src="js/rating.js?v=<?= time() ?>"></script>
+    <script src="js/rating.js?v=11"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
 	<script src="js/team-registration.js?v=9"></script>
 </body>
