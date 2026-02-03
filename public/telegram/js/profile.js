@@ -139,11 +139,11 @@ function renderProfileStats(stats) {
 /**
  * Рендер истории турниров с матчами
  */
-function renderRatingHistory(history) {
+
+function renderRatingHistory() {
     const container = document.getElementById('rating-history');
     if (!container) return;
     
-    // Используем tournament_history вместо rating_history
     const tournaments = profileData?.tournament_history || [];
     
     if (!tournaments || tournaments.length === 0) {
@@ -170,23 +170,23 @@ function renderTournamentItem(tournament) {
         : '<div class="empty-state"><div class="empty-state-text">Нет данных о матчах</div></div>';
     
     return `
-        <div class="tournament-item">
-            <div class="tournament-header" onclick="toggleTournament(this)">
-                <div class="tournament-info">
-                    <span class="tournament-name">${tournament.name}</span>
-                    <span class="tournament-date">${tournament.date}</span>
+        <div class="th-tournament-item">
+            <div class="th-tournament-header" onclick="toggleTournament(this)">
+                <div class="th-tournament-info">
+                    <span class="th-tournament-name">${tournament.name}</span>
+                    <span class="th-tournament-date">${tournament.date}</span>
                 </div>
-                <div class="tournament-right">
-                    <span class="tournament-points ${changeClass}">${changeText}</span>
-                    <div class="tournament-arrow">
+                <div class="th-tournament-right">
+                    <span class="th-tournament-points ${changeClass}">${changeText}</span>
+                    <div class="th-tournament-arrow">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     </div>
                 </div>
             </div>
-            <div class="matches-container">
-                <div class="matches-list">
+            <div class="th-matches-container">
+                <div class="th-matches-list">
                     ${matchesHtml}
                 </div>
             </div>
@@ -205,37 +205,37 @@ function renderMatchItem(match) {
     const resultClass = match.won ? 'win' : 'lose';
     
     return `
-        <div class="match-item">
-            <div class="match-header">
-                <span class="match-round">${match.round}</span>
-                <div class="match-total-score">
+        <div class="th-match-item">
+            <div class="th-match-header">
+                <span class="th-match-round">${match.round}</span>
+                <div class="th-match-total-score">
                     <span>${match.my_score} : ${match.opp_score}</span>
-                    <div class="match-result-icon ${resultClass}">
+                    <div class="th-match-result-icon ${resultClass}">
                         ${resultIcon}
                     </div>
                 </div>
             </div>
-            <div class="match-body">
+            <div class="th-match-body">
                 <!-- Моя команда -->
-                <div class="team-row your-team">
-                    <div class="team-players">
+                <div class="th-team-row your-team">
+                    <div class="th-team-players">
                         ${renderPlayerLine(match.me, true)}
                         ${match.partner ? renderPlayerLine(match.partner, false) : ''}
                     </div>
-                    <span class="team-score ${match.won ? 'win' : 'lose'}">${match.my_score}</span>
+                    <span class="th-team-score ${match.won ? 'win' : 'lose'}">${match.my_score}</span>
                 </div>
                 
-                <div class="vs-divider">
-                    <span class="vs-text">VS</span>
+                <div class="th-vs-divider">
+                    <span class="th-vs-text">VS</span>
                 </div>
                 
                 <!-- Соперники -->
-                <div class="team-row">
-                    <div class="team-players">
+                <div class="th-team-row">
+                    <div class="th-team-players">
                         ${match.opponent1 ? renderPlayerLine(match.opponent1, false, true) : ''}
                         ${match.opponent2 ? renderPlayerLine(match.opponent2, false, true) : ''}
                     </div>
-                    <span class="team-score ${match.won ? 'lose' : 'win'}">${match.opp_score}</span>
+                    <span class="th-team-score ${match.won ? 'lose' : 'win'}">${match.opp_score}</span>
                 </div>
             </div>
         </div>
@@ -249,17 +249,17 @@ function renderPlayerLine(player, isMe = false, isOpponent = false) {
     if (!player) return '';
     
     const initial = getInitial(player.name);
-    const avatarClass = isOpponent ? 'player-avatar-small opponent' : 'player-avatar-small';
-    const nameClass = isMe ? 'player-name-small you' : 'player-name-small';
-    const youBadge = isMe ? '<span class="you-badge">ВЫ</span>' : '';
+    const avatarClass = isOpponent ? 'th-player-avatar opponent' : 'th-player-avatar';
+    const nameClass = isMe ? 'th-player-name you' : 'th-player-name';
+    const youBadge = isMe ? '<span class="th-you-badge">ВЫ</span>' : '';
     
     return `
-        <div class="player-line">
+        <div class="th-player-line">
             <div class="${avatarClass}">${initial}</div>
-            <div class="player-data">
+            <div class="th-player-data">
                 <span class="${nameClass}">${player.name}${youBadge}</span>
-                <div class="player-meta">
-                    <span class="player-level-small">${player.level}</span>
+                <div class="th-player-meta">
+                    <span class="th-player-level">${player.level}</span>
                     <span>•</span>
                     <span>${player.rating}</span>
                 </div>
@@ -272,7 +272,7 @@ function renderPlayerLine(player, isMe = false, isOpponent = false) {
  * Раскрыть/закрыть турнир
  */
 function toggleTournament(header) {
-    const item = header.closest('.tournament-item');
+    const item = header.closest('.th-tournament-item');
     item.classList.toggle('open');
 }
 
