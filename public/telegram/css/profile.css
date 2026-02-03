@@ -381,16 +381,19 @@
     transform: rotate(180deg);
 }
 
-/* Matches Container */
 .th-matches-container {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out;
     background: var(--tg-bg-secondary, #f8f9fa);
 }
 
+.th-matches-container > .th-matches-list {
+    overflow: hidden;
+}
+
 .th-tournament-item.open .th-matches-container {
-    max-height: 2000px;
+    grid-template-rows: 1fr;
 }
 
 .th-matches-list {
