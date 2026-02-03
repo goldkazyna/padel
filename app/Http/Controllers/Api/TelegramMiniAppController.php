@@ -492,8 +492,10 @@ class TelegramMiniAppController extends Controller
 		$totalPages = max(1, ceil($total / $perPage));
 		
 		// Получаем игроков для текущей страницы
+		// Сортируем по рейтингу, потом по id для стабильного порядка
 		$players = (clone $query)
 			->orderBy('rating', 'desc')
+			->orderBy('id', 'asc')
 			->offset(($page - 1) * $perPage)
 			->limit($perPage)
 			->get()
@@ -513,12 +515,18 @@ class TelegramMiniAppController extends Controller
 		$myChange = 0;
 		
 		if ($user) {
-			// Позиция в общем рейтинге (без фильтра)
+			// Позиция = игроки с большим рейтингом + игроки с таким же рейтингом но меньшим id + 1
 			$myRank = User::where('role', 'player')
-				->where('rating', '>', $user->rating)
+				->where(function($q) use ($user) {
+					$q->where('rating', '>', $user->rating)
+					  ->orWhere(function($q2) use ($user) {
+						  $q2->where('rating', '=', $user->rating)
+							 ->where('id', '<', $user->id);
+					  });
+				})
 				->count() + 1;
 			
-			// Страница на которой находится пользователь (в общем рейтинге)
+			// Страница на которой находится пользователь
 			$myPage = ceil($myRank / $perPage);
 		}
 		
