@@ -70,9 +70,6 @@ class TelegramMiniAppController extends Controller
 			return response()->json(['error' => 'User not found'], 404);
 		}
 		
-		// ВРЕМЕННАЯ ОТЛАДКА
-		$debugHistory = $user->ratingHistory()->with('tournament')->get();
-		
 		$stats = $user->getAllMatchesStats();
 		$tournamentHistory = $user->getTournamentHistory();
 		
@@ -91,10 +88,6 @@ class TelegramMiniAppController extends Controller
 			'stats' => $stats,
 			'tournament_history' => $tournamentHistory,
 			'rank' => $rank,
-			// ОТЛАДКА
-			'debug_user_id' => $user->id,
-			'debug_history_count' => $debugHistory->count(),
-			'debug_history_raw' => $debugHistory->toArray(),
 		]);
 	}
 
