@@ -113,12 +113,12 @@ function renderProfileStats(stats) {
     if (!container || !currentUser) return;
     
     const total = stats?.total || 0;
-    const wins = stats?.wins || 0;
+    const wins = stats?.won || stats?.wins || 0;
     const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
     
     container.innerHTML = `
         <div class="profile-stat">
-            <div class="profile-stat-value">-</div>
+            <div class="profile-stat-value">${currentUser.rating || 1000}</div>
             <div class="profile-stat-label">Рейтинг</div>
         </div>
         <div class="profile-stat">
