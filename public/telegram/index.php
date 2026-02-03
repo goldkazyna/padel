@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="css/nav.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/home.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/tournaments.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="css/rating.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="css/rating.css?v=12">
     <link rel="stylesheet" href="css/profile.css?v=<?= time() ?>">
 	<link rel="stylesheet" href="css/team-registration.css?v=4">
 </head>
@@ -242,11 +242,11 @@
 		</div>
 	</div>
     <!-- JS -->
-    <script src="js/api.js?v=<?= time() ?>"></script>
+    <script src="js/api.js?v=12"></script>
     <script src="js/app.js?v=<?= time() ?>"></script>
     <script src="js/home.js?v=149"></script>
     <script src="js/tournaments.js?v=149"></script>
-    <script src="js/rating.js?v=11"></script>
+    <script src="js/rating.js?v=12"></script>
     <script src="js/profile.js?v=<?= time() ?>"></script>
 	<script src="js/team-registration.js?v=9"></script>
 </body>

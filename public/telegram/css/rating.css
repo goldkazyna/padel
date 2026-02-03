@@ -5,9 +5,9 @@
 /* ------------ User Card ------------ */
 .tg-user-card {
     background: linear-gradient(135deg, var(--primary), var(--primary-dark, #16a34a));
-    margin: 16px;
+    margin-bottom: 10px;
     border-radius: 16px;
-    padding: 18px 20px;
+    padding: 7px 19px;
     display: flex;
     align-items: center;
     justify-content: space-between;
