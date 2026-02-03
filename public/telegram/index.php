@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="css/home.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/tournaments.css?v=<?= time() ?>">
     <link rel="stylesheet" href="css/rating.css?v=12">
-    <link rel="stylesheet" href="css/profile.css?v=18">
+    <link rel="stylesheet" href="css/profile.css?v=19">
 	<link rel="stylesheet" href="css/team-registration.css?v=4">
 </head>
 <body>
