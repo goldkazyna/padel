@@ -123,9 +123,10 @@ class User extends Authenticatable
 			'total' => 0,
 			'won' => 0,
 			'lost' => 0,
+			'draw' => 0,
 		];
-
-		// Американо
+		
+		// Американо - групповые матчи
 		$americanoMatches = \App\Models\AmericanoMatch::where('status', 'completed')
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
@@ -133,19 +134,44 @@ class User extends Authenticatable
 				  ->orWhere('team2_player1_id', $this->id)
 				  ->orWhere('team2_player2_id', $this->id);
 			})->get();
-
+		
 		foreach ($americanoMatches as $match) {
 			$stats['total']++;
 			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
 			
-			if ($match->team1_score > $match->team2_score) {
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
 				$isTeam1 ? $stats['won']++ : $stats['lost']++;
 			} else {
 				$isTeam1 ? $stats['lost']++ : $stats['won']++;
 			}
 		}
-
-		// Мексикано
+		
+		// Американо - плей-офф матчи
+		$americanoPlayoffMatches = \App\Models\AmericanoPlayoffMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+		
+		foreach ($americanoPlayoffMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+			
+			// В плей-офф ничьих не бывает, но на всякий случай
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+		
+		// Мексикано - групповые матчи
 		$mexicanoMatches = \App\Models\MexicanoMatch::where('status', 'completed')
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
@@ -153,23 +179,47 @@ class User extends Authenticatable
 				  ->orWhere('team2_player1_id', $this->id)
 				  ->orWhere('team2_player2_id', $this->id);
 			})->get();
-
+		
 		foreach ($mexicanoMatches as $match) {
 			$stats['total']++;
 			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
 			
-			if ($match->team1_score > $match->team2_score) {
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
 				$isTeam1 ? $stats['won']++ : $stats['lost']++;
 			} else {
 				$isTeam1 ? $stats['lost']++ : $stats['won']++;
 			}
 		}
-
-		// Групповой турнир
+		
+		// Мексикано - плей-офф матчи
+		$mexicanoPlayoffMatches = \App\Models\MexicanoPlayoffMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+		
+		foreach ($mexicanoPlayoffMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+			
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+		
+		// Командный турнир
 		$teamIds = \App\Models\TournamentTeam::where('player1_id', $this->id)
 			->orWhere('player2_id', $this->id)
 			->pluck('id');
-
+		
 		if ($teamIds->count() > 0) {
 			// Групповой этап
 			$groupMatches = \App\Models\TournamentGroupMatch::where('status', 'completed')
@@ -177,37 +227,41 @@ class User extends Authenticatable
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
 				})->get();
-
+			
 			foreach ($groupMatches as $match) {
 				$stats['total']++;
 				$isTeam1 = $teamIds->contains($match->team1_id);
 				
-				if ($match->team1_score > $match->team2_score) {
+				if ($match->team1_score == $match->team2_score) {
+					$stats['draw']++;
+				} elseif ($match->team1_score > $match->team2_score) {
 					$isTeam1 ? $stats['won']++ : $stats['lost']++;
 				} else {
 					$isTeam1 ? $stats['lost']++ : $stats['won']++;
 				}
 			}
-
+			
 			// Плей-офф
 			$playoffMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
 				})->get();
-
+			
 			foreach ($playoffMatches as $match) {
 				$stats['total']++;
 				$isTeam1 = $teamIds->contains($match->team1_id);
 				
-				if ($match->team1_score > $match->team2_score) {
+				if ($match->team1_score == $match->team2_score) {
+					$stats['draw']++;
+				} elseif ($match->team1_score > $match->team2_score) {
 					$isTeam1 ? $stats['won']++ : $stats['lost']++;
 				} else {
 					$isTeam1 ? $stats['lost']++ : $stats['won']++;
 				}
 			}
 		}
-
+		
 		return $stats;
 	}
 
