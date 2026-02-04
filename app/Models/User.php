@@ -114,6 +114,7 @@ class User extends Authenticatable
 	{
 		return $this->hasMany(MexicanoPlayer::class);
 	}
+
 	/**
 	 * Получить статистику всех матчей (все типы турниров)
 	 */
@@ -148,29 +149,6 @@ class User extends Authenticatable
 			}
 		}
 		
-		// Американо - плей-офф матчи
-		$americanoPlayoffMatches = \App\Models\AmericanoPlayoffMatch::where('status', 'completed')
-			->where(function($q) {
-				$q->where('team1_player1_id', $this->id)
-				  ->orWhere('team1_player2_id', $this->id)
-				  ->orWhere('team2_player1_id', $this->id)
-				  ->orWhere('team2_player2_id', $this->id);
-			})->get();
-		
-		foreach ($americanoPlayoffMatches as $match) {
-			$stats['total']++;
-			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
-			
-			// В плей-офф ничьих не бывает, но на всякий случай
-			if ($match->team1_score == $match->team2_score) {
-				$stats['draw']++;
-			} elseif ($match->team1_score > $match->team2_score) {
-				$isTeam1 ? $stats['won']++ : $stats['lost']++;
-			} else {
-				$isTeam1 ? $stats['lost']++ : $stats['won']++;
-			}
-		}
-		
 		// Мексикано - групповые матчи
 		$mexicanoMatches = \App\Models\MexicanoMatch::where('status', 'completed')
 			->where(function($q) {
@@ -193,8 +171,9 @@ class User extends Authenticatable
 			}
 		}
 		
-		// Мексикано - плей-офф матчи
-		$mexicanoPlayoffMatches = \App\Models\MexicanoPlayoffMatch::where('status', 'completed')
+		// Плей-офф матчи Американо/Мексикано (по player_id)
+		$playoffPlayerMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+			->whereNotNull('team1_player1_id') // Это Американо/Мексикано матч
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -202,7 +181,7 @@ class User extends Authenticatable
 				  ->orWhere('team2_player2_id', $this->id);
 			})->get();
 		
-		foreach ($mexicanoPlayoffMatches as $match) {
+		foreach ($playoffPlayerMatches as $match) {
 			$stats['total']++;
 			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
 			
@@ -241,14 +220,15 @@ class User extends Authenticatable
 				}
 			}
 			
-			// Плей-офф
-			$playoffMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+			// Плей-офф командного турнира (по team_id)
+			$playoffTeamMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+				->whereNull('team1_player1_id') // Это командный матч
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
 				})->get();
 			
-			foreach ($playoffMatches as $match) {
+			foreach ($playoffTeamMatches as $match) {
 				$stats['total']++;
 				$isTeam1 = $teamIds->contains($match->team1_id);
 				
