@@ -56,21 +56,26 @@ class MobileAuthController extends Controller
 
         $phone = $this->normalizePhone($request->phone);
 
-        // Получаем код из кэша
-        $cachedCode = Cache::get("sms_code_{$phone}");
+        // Тестовый код 1111 работает всегда (пока не подключены реальные SMS)
+        $isTestCode = $request->code === '1111';
 
-        if (!$cachedCode) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Код истёк. Запросите новый код.',
-            ], 400);
-        }
+        if (!$isTestCode) {
+            // Получаем код из кэша
+            $cachedCode = Cache::get("sms_code_{$phone}");
 
-        if ($cachedCode !== $request->code) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Неверный код',
-            ], 400);
+            if (!$cachedCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Код истёк. Запросите новый код.',
+                ], 400);
+            }
+
+            if ($cachedCode !== $request->code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный код',
+                ], 400);
+            }
         }
 
         // Находим пользователя
