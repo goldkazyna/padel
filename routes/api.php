@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TelegramMiniAppController;
 use App\Http\Controllers\Api\TelegramWebhookController;
+use App\Http\Controllers\Api\MobileAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,4 +30,21 @@ Route::prefix('tg')->middleware('telegram.miniapp')->group(function () {
 	Route::post('/team/search-partner', [TelegramMiniAppController::class, 'searchPartner']);
     Route::post('/team/register', [TelegramMiniAppController::class, 'registerTeam']);
     Route::post('/team/cancel', [TelegramMiniAppController::class, 'cancelTeam']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Mobile App API
+|--------------------------------------------------------------------------
+*/
+Route::prefix('mobile')->group(function () {
+    // Авторизация (без токена)
+    Route::post('/auth/send-code', [MobileAuthController::class, 'sendCode']);
+    Route::post('/auth/verify-code', [MobileAuthController::class, 'verifyCode']);
+
+    // Защищённые роуты (требуют токен)
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
+        Route::get('/auth/user', [MobileAuthController::class, 'user']);
+    });
 });
