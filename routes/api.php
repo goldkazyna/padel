@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TelegramMiniAppController;
 use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileTournamentController;
 
 /*
@@ -47,6 +48,9 @@ Route::prefix('mobile')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
         Route::get('/auth/user', [MobileAuthController::class, 'user']);
+
+        // Главная
+        Route::get('/home', [MobileHomeController::class, 'index']);
 
         // Турниры
         Route::get('/tournaments', [MobileTournamentController::class, 'index']);
