@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\TelegramMiniAppController;
 use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
+use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
 
 /*
@@ -51,6 +52,9 @@ Route::prefix('mobile')->group(function () {
 
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);
+
+        // Рейтинг
+        Route::get('/rating', [MobileRatingController::class, 'index']);
 
         // Турниры
         Route::get('/tournaments', [MobileTournamentController::class, 'index']);
