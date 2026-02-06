@@ -33,6 +33,35 @@
         </form>
     </div>
 
+    <!-- Level Stats -->
+    <div class="level-stats">
+        <div class="level-stat-card level-stat-1">
+            <div class="level-stat-range">1 — 1.75</div>
+            <div class="level-stat-label">Начинающий</div>
+            <div class="level-stat-value">{{ (int) $levelStats->level_1 }}</div>
+        </div>
+        <div class="level-stat-card level-stat-2">
+            <div class="level-stat-range">2 — 2.75</div>
+            <div class="level-stat-label">Любитель</div>
+            <div class="level-stat-value">{{ (int) $levelStats->level_2 }}</div>
+        </div>
+        <div class="level-stat-card level-stat-3">
+            <div class="level-stat-range">3 — 3.75</div>
+            <div class="level-stat-label">Средний</div>
+            <div class="level-stat-value">{{ (int) $levelStats->level_3 }}</div>
+        </div>
+        <div class="level-stat-card level-stat-4">
+            <div class="level-stat-range">4 — 4.75</div>
+            <div class="level-stat-label">Продвинутый</div>
+            <div class="level-stat-value">{{ (int) $levelStats->level_4 }}</div>
+        </div>
+        <div class="level-stat-card level-stat-5">
+            <div class="level-stat-range">5 — 5.75</div>
+            <div class="level-stat-label">Про</div>
+            <div class="level-stat-value">{{ (int) $levelStats->level_5 }}</div>
+        </div>
+    </div>
+
     <!-- Table -->
     <div class="users-table-wrap">
         <table class="users-table">
@@ -351,6 +380,78 @@
         .filter-btn svg {
             width: 18px;
             height: 18px;
+        }
+
+        /* Level Stats */
+        .level-stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .level-stat-card {
+            background: var(--users-bg-secondary);
+            border: 1px solid var(--users-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .level-stat-card:hover {
+            border-color: var(--users-border-light);
+            background: var(--users-card-hover);
+        }
+
+        .level-stat-range {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .level-stat-label {
+            font-size: 12px;
+            color: var(--users-text-muted);
+            margin-bottom: 10px;
+        }
+
+        .level-stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .level-stat-1 .level-stat-range,
+        .level-stat-1 .level-stat-value { color: var(--users-accent); }
+        .level-stat-1 { border-color: rgba(34, 197, 94, 0.2); }
+
+        .level-stat-2 .level-stat-range,
+        .level-stat-2 .level-stat-value { color: var(--users-blue); }
+        .level-stat-2 { border-color: rgba(59, 130, 246, 0.2); }
+
+        .level-stat-3 .level-stat-range,
+        .level-stat-3 .level-stat-value { color: var(--users-orange); }
+        .level-stat-3 { border-color: rgba(249, 115, 22, 0.2); }
+
+        .level-stat-4 .level-stat-range,
+        .level-stat-4 .level-stat-value { color: var(--users-red); }
+        .level-stat-4 { border-color: rgba(239, 68, 68, 0.2); }
+
+        .level-stat-5 .level-stat-range,
+        .level-stat-5 .level-stat-value { color: var(--users-yellow); }
+        .level-stat-5 { border-color: rgba(250, 204, 21, 0.2); }
+
+        @media (max-width: 768px) {
+            .level-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .level-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         /* Table */

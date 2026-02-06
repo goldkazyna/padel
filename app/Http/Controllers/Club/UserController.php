@@ -24,7 +24,18 @@ class UserController extends Controller
 
         $users = $query->paginate(20)->withQueryString();
 
-        return view('club.users.index', compact('users'));
+        // Статистика по уровням
+        $levelStats = User::where('role', 'player')
+            ->selectRaw("
+                SUM(CASE WHEN level >= 1 AND level <= 1.75 THEN 1 ELSE 0 END) as level_1,
+                SUM(CASE WHEN level >= 2 AND level <= 2.75 THEN 1 ELSE 0 END) as level_2,
+                SUM(CASE WHEN level >= 3 AND level <= 3.75 THEN 1 ELSE 0 END) as level_3,
+                SUM(CASE WHEN level >= 4 AND level <= 4.75 THEN 1 ELSE 0 END) as level_4,
+                SUM(CASE WHEN level >= 5 AND level <= 5.75 THEN 1 ELSE 0 END) as level_5
+            ")
+            ->first();
+
+        return view('club.users.index', compact('users', 'levelStats'));
     }
 
     public function update(Request $request, User $user)
