@@ -40,10 +40,17 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        if ((float) $user->level != 1.0) {
+            return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'level' => 'required|numeric|min:1|max:5.75',
         ]);
+
+        $newLevel = (float) $validated['level'];
+        $validated['rating'] = (int) ($newLevel * 1000 + 125);
 
         $user->update($validated);
 
