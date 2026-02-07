@@ -57,11 +57,6 @@
             </x-primary-button>
         </div>
         
-        <div class="mt-4 text-center">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('register') }}">
-                Нет аккаунта? Зарегистрироваться
-            </a>
-        </div>
     </form>
 
     {{-- Telegram Login --}}
