@@ -121,13 +121,13 @@ class MobileTournamentController extends Controller
                     'id' => $t->id,
                     'player1' => [
                         'id' => $t->player1->id,
-                        'name' => $t->player1->first_name . ' ' . $t->player1->last_name,
+                        'name' => $t->player1->name,
                         'level' => $t->player1->level,
                         'rating' => $t->player1->rating,
                     ],
                     'player2' => [
                         'id' => $t->player2->id,
-                        'name' => $t->player2->first_name . ' ' . $t->player2->last_name,
+                        'name' => $t->player2->name,
                         'level' => $t->player2->level,
                         'rating' => $t->player2->rating,
                     ],
@@ -139,7 +139,7 @@ class MobileTournamentController extends Controller
                 ->get()
                 ->map(fn($p) => [
                     'id' => $p->id,
-                    'name' => $p->first_name . ' ' . $p->last_name,
+                    'name' => $p->name,
                     'level' => $p->level,
                     'rating' => $p->rating,
                     'status' => $p->pivot->status,
