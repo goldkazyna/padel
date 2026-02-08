@@ -183,11 +183,12 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
         }
 
-        $tournament->participants()->attach($user->id, ['status' => 'registered']);
+        $tournament->participants()->attach($user->id, ['status' => 'pending']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Вы успешно записаны на турнир',
+            'message' => 'Заявка отправлена на модерацию',
+            'registration_status' => 'pending',
         ]);
     }
 
