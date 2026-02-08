@@ -153,6 +153,80 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Записаться на турнир
+     * POST /api/mobile/tournaments/{id}/register
+     */
+    public function register(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        if ($tournament->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Турнир не открыт для регистрации'], 400);
+        }
+
+        if ($tournament->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Вы уже записаны на этот турнир'], 400);
+        }
+
+        if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        $takenSlots = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending'])
+            ->count();
+
+        if ($takenSlots >= $tournament->max_participants) {
+            return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
+        }
+
+        $tournament->participants()->attach($user->id, ['status' => 'registered']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Вы успешно записаны на турнир',
+        ]);
+    }
+
+    /**
+     * Отменить запись на турнир
+     * POST /api/mobile/tournaments/{id}/cancel
+     */
+    public function cancel(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        $participant = $tournament->participants()->where('user_id', $user->id)->first();
+
+        if (!$participant) {
+            return response()->json(['success' => false, 'message' => 'Вы не записаны на этот турнир'], 400);
+        }
+
+        if (!in_array($tournament->status, ['open'])) {
+            return response()->json(['success' => false, 'message' => 'Нельзя отменить запись — турнир уже начался'], 400);
+        }
+
+        $wasFull = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending'])
+            ->count() >= $tournament->max_participants;
+
+        $tournament->participants()->detach($user->id);
+
+        if ($wasFull) {
+            $channelService = new \App\Services\TelegramChannelService();
+            $channelService->postSlotAvailable($tournament);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Запись на турнир отменена',
+        ]);
+    }
+
+    /**
      * Форматирование турнира для списка
      */
     private function formatTournament(Tournament $t, $user, bool $includeRegistration = false): array
@@ -164,6 +238,8 @@ class MobileTournamentController extends Controller
             'club' => [
                 'id' => $t->club->id ?? null,
                 'name' => $t->club->name ?? 'Клуб',
+                'phone' => $t->club->phone ?? null,
+                'address' => $t->club->address ?? null,
             ],
             'date' => $t->start_date->format('d.m.Y'),
             'time' => $t->start_date->format('H:i'),
@@ -177,6 +253,7 @@ class MobileTournamentController extends Controller
             'price' => (float) $t->price,
             'max_participants' => $t->max_participants,
             'participants_count' => $this->getParticipantsCount($t),
+            'spots_left' => max(0, $t->max_participants - $this->getParticipantsCount($t)),
         ];
 
         if ($user && $includeRegistration) {
