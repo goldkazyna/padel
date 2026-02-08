@@ -38,8 +38,8 @@
                             <div class="match-teams">
                                 <div class="match-team {{ $match->winning_team === 1 ? 'winner' : '' }}">
                                     <div class="team-players">
-                                        <div class="player-line">{{ $match->team1Player1->full_name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
-                                        <div class="player-line">{{ $match->team1Player2->full_name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
+                                        <div class="player-line">{{ $match->team1Player1->name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
+                                        <div class="player-line">{{ $match->team1Player2->name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
                                     </div>
                                     @if($match->isCompleted())
                                         <div class="team-score">{{ $match->team1_score }}</div>
@@ -70,8 +70,8 @@
                                         <div class="team-score">{{ $match->team2_score }}</div>
                                     @endif
                                     <div class="team-players">
-                                        <div class="player-line">{{ $match->team2Player1->full_name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
-                                        <div class="player-line">{{ $match->team2Player2->full_name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
+                                        <div class="player-line">{{ $match->team2Player1->name }} <span class="player-level">{{ $match->team2Player1->level }}</span></div>
+                                        <div class="player-line">{{ $match->team2Player2->name }} <span class="player-level">{{ $match->team2Player2->level }}</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -92,7 +92,7 @@
                                                 <div class="score-input-grid">
                                                     <div class="score-team">
                                                         <div class="score-team-names">
-                                                            {{ $match->team1Player1->first_name }} / {{ $match->team1Player2->first_name }}
+                                                            {{ $match->team1Player1->name }} / {{ $match->team1Player2->name }}
                                                         </div>
                                                         <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
                                                                min="0" max="99" required>
@@ -100,7 +100,7 @@
                                                     <div class="score-separator">:</div>
                                                     <div class="score-team">
                                                         <div class="score-team-names">
-                                                            {{ $match->team2Player1->first_name }} / {{ $match->team2Player2->first_name }}
+                                                            {{ $match->team2Player1->name }} / {{ $match->team2Player2->name }}
                                                         </div>
                                                         <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
                                                                min="0" max="99" required>
@@ -135,7 +135,7 @@
                                                 <div class="score-input-grid">
                                                     <div class="score-team">
                                                         <div class="score-team-names">
-                                                            {{ $match->team1Player1->first_name }} / {{ $match->team1Player2->first_name }}
+                                                            {{ $match->team1Player1->name }} / {{ $match->team1Player2->name }}
                                                         </div>
                                                         <input type="number" name="team1_score" class="form-control form-control-lg text-center" 
                                                                min="0" max="99" required value="{{ $match->team1_score }}">
@@ -143,7 +143,7 @@
                                                     <div class="score-separator">:</div>
                                                     <div class="score-team">
                                                         <div class="score-team-names">
-                                                            {{ $match->team2Player1->first_name }} / {{ $match->team2Player2->first_name }}
+                                                            {{ $match->team2Player1->name }} / {{ $match->team2Player2->name }}
                                                         </div>
                                                         <input type="number" name="team2_score" class="form-control form-control-lg text-center" 
                                                                min="0" max="99" required value="{{ $match->team2_score }}">
