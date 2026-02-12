@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
+use App\Http\Controllers\Api\MobileProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +53,9 @@ Route::prefix('mobile')->group(function () {
 
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);
+
+        // Профиль
+        Route::get('/profile', [MobileProfileController::class, 'index']);
 
         // Рейтинг
         Route::get('/rating', [MobileRatingController::class, 'index']);
