@@ -433,6 +433,7 @@ class MobileTournamentController extends Controller
                 'wins' => $wins,
                 'losses' => $losses,
                 'rating_change' => $ratingHistory->change ?? 0,
+                'place' => $this->getUserPlace($tournament, $userId),
             ],
             'matches' => $userMatches,
         ]);
@@ -772,6 +773,48 @@ class MobileTournamentController extends Controller
                 $oppTeam->player2 ? $this->formatPlayerShort($oppTeam->player2) : null,
             ])),
         ];
+    }
+
+    /**
+     * Место пользователя: 1 — выиграл финал, 2 — проиграл финал, null — нет плей-офф или не в финале
+     */
+    private function getUserPlace(Tournament $tournament, int $userId): ?int
+    {
+        $finalMatch = $tournament->playoffMatches()
+            ->where('stage', 'final')
+            ->where('status', 'completed')
+            ->first();
+
+        if (!$finalMatch) return null;
+
+        // Player-based playoff (americano/mexicano)
+        if ($finalMatch->team1_player1_id) {
+            $inTeam1 = in_array($userId, [$finalMatch->team1_player1_id, $finalMatch->team1_player2_id]);
+            $inTeam2 = in_array($userId, [$finalMatch->team2_player1_id, $finalMatch->team2_player2_id]);
+
+            if (!$inTeam1 && !$inTeam2) return null;
+
+            $team1Won = $finalMatch->team1_score > $finalMatch->team2_score;
+            return ($inTeam1 && $team1Won) || ($inTeam2 && !$team1Won) ? 1 : 2;
+        }
+
+        // Team-based playoff (team)
+        if ($finalMatch->team1_id && $finalMatch->team2_id) {
+            $myTeamIds = TournamentTeam::where('tournament_id', $tournament->id)
+                ->where(function ($q) use ($userId) {
+                    $q->where('player1_id', $userId)->orWhere('player2_id', $userId);
+                })
+                ->pluck('id');
+
+            $inTeam1 = $myTeamIds->contains($finalMatch->team1_id);
+            $inTeam2 = $myTeamIds->contains($finalMatch->team2_id);
+
+            if (!$inTeam1 && !$inTeam2) return null;
+
+            return $finalMatch->winner_id && $myTeamIds->contains($finalMatch->winner_id) ? 1 : 2;
+        }
+
+        return null;
     }
 
     private function formatPlayerShort($player): array
