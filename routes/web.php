@@ -67,19 +67,23 @@ Route::get('/', function () {
 				// Превью рейтинга Team
 		Route::get('/tournaments/{tournament}/preview-rating-team', function (\App\Models\Tournament $tournament) {
 			$service = app(\App\Services\TeamTournamentService::class);
-			$preview = $service->previewRatingChanges($tournament);
-			
+			$preview = $service->previewRatingChangesGrouped($tournament);
+
 			echo "<pre style='background:#1a1a1a;color:#fff;padding:20px;font-family:monospace;'>";
-			echo "<b style='color:#22c55e;'>=== Групповой + Плей-офф: Превью рейтинга ===</b>\n\n";
-			foreach ($preview as $playerId => $data) {
-				$diff = $data['current_rating'] - $data['rating_before'];
-				$sign = $diff >= 0 ? '+' : '';
-				$color = $diff >= 0 ? '#22c55e' : '#ef4444';
-				echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
-				if (!empty($data['matches'])) {
-					echo "  Матчи: " . implode(', ', $data['matches']) . "\n";
+			foreach ($preview as $groupName => $players) {
+				echo "\n<b style='color:#22c55e;'>=== {$groupName} ===</b>\n\n";
+				foreach ($players as $data) {
+					$diff = $data['current_rating'] - $data['rating_before'];
+					$sign = $diff >= 0 ? '+' : '';
+					$color = $diff >= 0 ? '#22c55e' : '#ef4444';
+					echo "<b>{$data['name']}</b>: {$data['rating_before']} → {$data['current_rating']} <span style='color:{$color}'>({$sign}{$diff})</span>\n";
+					if (!empty($data['matches'])) {
+						foreach ($data['matches'] as $matchInfo) {
+							echo "  {$matchInfo}\n";
+						}
+					}
+					echo "\n";
 				}
-				echo "\n";
 			}
 			echo "</pre>";
 		})->name('tournaments.previewRatingTeam');
