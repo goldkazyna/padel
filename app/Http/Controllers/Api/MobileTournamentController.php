@@ -356,39 +356,11 @@ class MobileTournamentController extends Controller
             return null;
         }
 
-        $result = [
+        return [
             'rating_change' => $ratingChange->change,
             'rating_after' => $ratingChange->rating_after,
-            'place' => null,
+            'place' => $this->getUserPlace($t, $user->id),
         ];
-
-        // Определяем место в зависимости от типа турнира
-        if ($t->type === 'mexicano') {
-            $player = $t->mexicanoPlayers()
-                ->where('user_id', $user->id)
-                ->first();
-
-            if ($player) {
-                $place = $t->mexicanoPlayers()
-                    ->where('total_points', '>', $player->total_points)
-                    ->count() + 1;
-                $result['place'] = $place;
-                $result['points'] = $player->total_points;
-            }
-        } elseif ($t->type === 'americano') {
-            // Для американо — место в группе
-            $groupPlayer = \DB::table('tournament_group_players')
-                ->join('tournament_groups', 'tournament_groups.id', '=', 'tournament_group_players.tournament_group_id')
-                ->where('tournament_groups.tournament_id', $t->id)
-                ->where('tournament_group_players.user_id', $user->id)
-                ->first();
-
-            if ($groupPlayer) {
-                $result['points'] = $groupPlayer->total_points ?? 0;
-            }
-        }
-
-        return $result;
     }
 
     /**
