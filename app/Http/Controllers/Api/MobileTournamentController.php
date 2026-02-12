@@ -781,7 +781,7 @@ class MobileTournamentController extends Controller
     private function getUserPlace(Tournament $tournament, int $userId): ?int
     {
         $finalMatch = $tournament->playoffMatches()
-            ->where('stage', 'final')
+            ->whereIn('stage', ['final', 'Финал'])
             ->where('status', 'completed')
             ->first();
 
