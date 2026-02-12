@@ -311,8 +311,8 @@ function setupPlayerSearch(inputId, resultsId, selectedId, hiddenId) {
                 
                 if (players.length > 0) {
                     results.innerHTML = players.map(p => `
-                        <div class="search-result-item" data-id="${p.id}" data-name="${p.first_name} ${p.last_name}">
-                            <div><strong>${p.first_name} ${p.last_name}</strong></div>
+                        <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
+                            <div><strong>${p.name}</strong></div>
                             <div style="font-size: 0.8rem; color: #9ca3af;">
                                 ${p.phone} | Рейтинг: ${p.rating} | Уровень: ${p.level}
                             </div>
