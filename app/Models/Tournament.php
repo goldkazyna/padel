@@ -240,10 +240,24 @@ class Tournament extends Model
     }
 
     /**
+     * Общее количество участников (registered + pending) с учётом типа турнира
+     */
+    public function totalParticipantsCount(): int
+    {
+        if ($this->isTeamBased()) {
+            return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
+        }
+        return $this->participants()->count();
+    }
+
+    /**
      * Количество одобренных
      */
     public function approvedParticipantsCount(): int
     {
+        if ($this->isTeamBased()) {
+            return $this->teams()->where('status', 'approved')->count() * 2;
+        }
         return $this->participants()->wherePivot('status', 'registered')->count();
     }
 
@@ -252,6 +266,9 @@ class Tournament extends Model
      */
     public function pendingParticipantsCount(): int
     {
+        if ($this->isTeamBased()) {
+            return $this->teams()->where('status', 'pending')->count() * 2;
+        }
         return $this->participants()->wherePivot('status', 'pending')->count();
     }
 

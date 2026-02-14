@@ -35,7 +35,7 @@
             </div>
             <div class="tournament-stats d-none d-lg-flex">
                 <div class="tournament-stat">
-                    <div class="tournament-stat-value">{{ $tournament->participants()->count() }}/{{ $tournament->max_participants }}</div>
+                    <div class="tournament-stat-value">{{ $tournament->totalParticipantsCount() }}/{{ $tournament->max_participants }}</div>
                     <div class="tournament-stat-label">Участников</div>
                 </div>
                 <div class="tournament-stat">
