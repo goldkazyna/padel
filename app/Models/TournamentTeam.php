@@ -47,12 +47,12 @@ class TournamentTeam extends Model
     public function getNameAttribute($value)
     {
         if ($value) return $value;
-        return $this->player1->first_name . ' / ' . $this->player2->first_name;
+        return $this->player1->name . ' / ' . $this->player2->name;
     }
 
     public function getFullNameAttribute()
     {
-        return $this->player1->full_name . ' / ' . $this->player2->full_name;
+        return $this->player1->name . ' / ' . $this->player2->name;
     }
 
     public function getPlayersAttribute()
