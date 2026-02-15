@@ -18,6 +18,12 @@ class TelegramMobileWebhookController extends Controller
 
         Log::info('Telegram mobile webhook', $update);
 
+        // Обработка контакта (номер телефона)
+        if (isset($update['message']['contact'])) {
+            $this->handleContact($update['message']);
+            return response()->json(['ok' => true]);
+        }
+
         if (!isset($update['message']['text'])) {
             return response()->json(['ok' => true]);
         }
@@ -52,8 +58,10 @@ class TelegramMobileWebhookController extends Controller
 
         // Ищем или создаём юзера
         $user = User::where('telegram_id', $telegramId)->first();
+        $isNewUser = false;
 
         if (!$user) {
+            $isNewUser = true;
             $user = User::create([
                 'name' => trim($firstName . ' ' . $lastName),
                 'first_name' => $firstName,
@@ -70,9 +78,47 @@ class TelegramMobileWebhookController extends Controller
         // Привязываем юзера к токену
         $authToken->update(['user_id' => $user->id]);
 
-        $this->sendMessage($chatId, '✅ Вы авторизованы! Вернитесь в приложение.');
+        // Ответ в зависимости от статуса юзера
+        if ($isNewUser || !$user->phone) {
+            $message = $isNewUser
+                ? '✅ Вы зарегистрированы! Для завершения поделитесь номером телефона 👇'
+                : '✅ Вы авторизованы! Поделитесь номером телефона для завершения 👇';
+
+            $this->sendMessageWithContactRequest($chatId, $message);
+        } else {
+            $this->sendMessage($chatId, '✅ Вы авторизованы! Вернитесь в приложение Padel-KZ.');
+        }
 
         return response()->json(['ok' => true]);
+    }
+
+    private function handleContact(array $message): void
+    {
+        $contact = $message['contact'];
+        $chatId = $message['chat']['id'];
+        $telegramId = (string) ($contact['user_id'] ?? null);
+
+        if (!$telegramId) {
+            return;
+        }
+
+        $user = User::where('telegram_id', $telegramId)->first();
+
+        if (!$user) {
+            return;
+        }
+
+        // Нормализуем и сохраняем телефон
+        $phone = preg_replace('/[^0-9]/', '', $contact['phone_number']);
+        $user->update(['phone' => $phone]);
+
+        $botToken = config('services.telegram_mobile.bot_token');
+
+        Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+            'chat_id' => $chatId,
+            'text' => '✅ Спасибо! Номер сохранён. Вернитесь в приложение Padel-KZ.',
+            'reply_markup' => json_encode(['remove_keyboard' => true]),
+        ]);
     }
 
     private function sendMessage(string $chatId, string $text): void
@@ -82,6 +128,26 @@ class TelegramMobileWebhookController extends Controller
         Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
             'chat_id' => $chatId,
             'text' => $text,
+        ]);
+    }
+
+    private function sendMessageWithContactRequest(string $chatId, string $text): void
+    {
+        $botToken = config('services.telegram_mobile.bot_token');
+
+        Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'reply_markup' => json_encode([
+                'keyboard' => [[
+                    [
+                        'text' => '📱 Поделиться номером телефона',
+                        'request_contact' => true,
+                    ],
+                ]],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true,
+            ]),
         ]);
     }
 }
