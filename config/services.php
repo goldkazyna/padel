@@ -41,4 +41,9 @@ return [
 		'channel_id' => env('TELEGRAM_CHANNEL_ID'),
 	],
 
+	'telegram_mobile' => [
+		'bot_token' => env('TELEGRAM_MOBILE_BOT_TOKEN'),
+		'bot_username' => env('TELEGRAM_MOBILE_BOT_USERNAME'),
+	],
+
 ];

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\TelegramAuthToken;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class MobileAuthController extends Controller
 {
@@ -142,6 +144,66 @@ class MobileAuthController extends Controller
                 'rating' => $user->rating,
                 'level' => $user->level,
                 'level_name' => $user->level_name,
+            ],
+        ]);
+    }
+
+    /**
+     * Инициализация авторизации через Telegram
+     * POST /api/mobile/auth/telegram/init
+     */
+    public function telegramInit(Request $request)
+    {
+        $token = Str::uuid()->toString();
+
+        TelegramAuthToken::create(['token' => $token]);
+
+        $botUsername = config('services.telegram_mobile.bot_username');
+
+        return response()->json([
+            'token' => $token,
+            'bot_url' => "https://t.me/{$botUsername}?start=auth_{$token}",
+        ]);
+    }
+
+    /**
+     * Проверка статуса авторизации через Telegram
+     * GET /api/mobile/auth/telegram/check?token={token}
+     */
+    public function telegramCheck(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+        ]);
+
+        $authToken = TelegramAuthToken::notExpired()
+            ->whereNotNull('user_id')
+            ->where('token', $request->token)
+            ->first();
+
+        if (!$authToken) {
+            return response()->json(['success' => false]);
+        }
+
+        $user = $authToken->user;
+
+        // Удаляем использованный токен
+        $authToken->delete();
+
+        // Создаём Sanctum токен
+        $sanctumToken = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token' => $sanctumToken,
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
             ],
         ]);
     }

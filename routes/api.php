@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
+use App\Http\Controllers\Api\TelegramMobileWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\MobileMatchController;
 |--------------------------------------------------------------------------
 */
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
+Route::post('/telegram/mobile-webhook', [TelegramMobileWebhookController::class, 'handle']);
 /*
 |--------------------------------------------------------------------------
 | Telegram Mini App API
@@ -46,6 +48,8 @@ Route::prefix('mobile')->group(function () {
     // Авторизация (без токена)
     Route::post('/auth/send-code', [MobileAuthController::class, 'sendCode']);
     Route::post('/auth/verify-code', [MobileAuthController::class, 'verifyCode']);
+    Route::post('/auth/telegram/init', [MobileAuthController::class, 'telegramInit']);
+    Route::get('/auth/telegram/check', [MobileAuthController::class, 'telegramCheck']);
 
     // Защищённые роуты (требуют токен)
     Route::middleware('auth:sanctum')->group(function () {
