@@ -20,13 +20,16 @@
     <!-- Toolbar -->
     <div class="users-toolbar">
         <form method="GET" class="search-box">
+            @if(request('level'))
+                <input type="hidden" name="level" value="{{ request('level') }}">
+            @endif
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input type="text" name="search" class="search-input" placeholder="Поиск по имени или телефону..." value="{{ request('search') }}">
             @if(request('search'))
-                <a href="{{ route('club.users.index') }}" class="search-clear">
+                <a href="{{ route('club.users.index', request('level') ? ['level' => request('level')] : []) }}" class="search-clear">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </a>
             @endif
@@ -34,32 +37,22 @@
     </div>
 
     <!-- Level Stats -->
+    @php $activeLevel = request('level'); @endphp
     <div class="level-stats">
-        <div class="level-stat-card level-stat-1">
-            <div class="level-stat-range">1 — 1.75</div>
-            <div class="level-stat-label">Начинающий</div>
-            <div class="level-stat-value">{{ (int) $levelStats->level_1 }}</div>
-        </div>
-        <div class="level-stat-card level-stat-2">
-            <div class="level-stat-range">2 — 2.75</div>
-            <div class="level-stat-label">Любитель</div>
-            <div class="level-stat-value">{{ (int) $levelStats->level_2 }}</div>
-        </div>
-        <div class="level-stat-card level-stat-3">
-            <div class="level-stat-range">3 — 3.75</div>
-            <div class="level-stat-label">Средний</div>
-            <div class="level-stat-value">{{ (int) $levelStats->level_3 }}</div>
-        </div>
-        <div class="level-stat-card level-stat-4">
-            <div class="level-stat-range">4 — 4.75</div>
-            <div class="level-stat-label">Продвинутый</div>
-            <div class="level-stat-value">{{ (int) $levelStats->level_4 }}</div>
-        </div>
-        <div class="level-stat-card level-stat-5">
-            <div class="level-stat-range">5 — 5.75</div>
-            <div class="level-stat-label">Про</div>
-            <div class="level-stat-value">{{ (int) $levelStats->level_5 }}</div>
-        </div>
+        @foreach([
+            ['key' => '1', 'range' => '1 — 1.75', 'label' => 'Начинающий', 'value' => (int) $levelStats->level_1, 'class' => 'level-stat-1'],
+            ['key' => '2', 'range' => '2 — 2.75', 'label' => 'Любитель', 'value' => (int) $levelStats->level_2, 'class' => 'level-stat-2'],
+            ['key' => '3', 'range' => '3 — 3.75', 'label' => 'Средний', 'value' => (int) $levelStats->level_3, 'class' => 'level-stat-3'],
+            ['key' => '4', 'range' => '4 — 4.75', 'label' => 'Продвинутый', 'value' => (int) $levelStats->level_4, 'class' => 'level-stat-4'],
+            ['key' => '5', 'range' => '5 — 5.75', 'label' => 'Про', 'value' => (int) $levelStats->level_5, 'class' => 'level-stat-5'],
+        ] as $stat)
+            <a href="{{ route('club.users.index', $activeLevel == $stat['key'] ? [] : ['level' => $stat['key']]) }}"
+               class="level-stat-card {{ $stat['class'] }} {{ $activeLevel == $stat['key'] ? 'active' : '' }}">
+                <div class="level-stat-range">{{ $stat['range'] }}</div>
+                <div class="level-stat-label">{{ $stat['label'] }}</div>
+                <div class="level-stat-value">{{ $stat['value'] }}</div>
+            </a>
+        @endforeach
     </div>
 
     <!-- Table -->
@@ -395,16 +388,25 @@
         }
 
         .level-stat-card {
+            display: block;
             background: var(--users-bg-secondary);
             border: 1px solid var(--users-border);
             border-radius: 12px;
             padding: 16px 20px;
             text-align: center;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
             transition: all 0.2s;
         }
 
         .level-stat-card:hover {
             border-color: var(--users-border-light);
+            background: var(--users-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .level-stat-card.active {
             background: var(--users-card-hover);
         }
 
@@ -429,22 +431,27 @@
         .level-stat-1 .level-stat-range,
         .level-stat-1 .level-stat-value { color: var(--users-accent); }
         .level-stat-1 { border-color: rgba(34, 197, 94, 0.2); }
+        .level-stat-1.active { box-shadow: 0 0 0 2px var(--users-accent); }
 
         .level-stat-2 .level-stat-range,
         .level-stat-2 .level-stat-value { color: var(--users-blue); }
         .level-stat-2 { border-color: rgba(59, 130, 246, 0.2); }
+        .level-stat-2.active { box-shadow: 0 0 0 2px var(--users-blue); }
 
         .level-stat-3 .level-stat-range,
         .level-stat-3 .level-stat-value { color: var(--users-orange); }
         .level-stat-3 { border-color: rgba(249, 115, 22, 0.2); }
+        .level-stat-3.active { box-shadow: 0 0 0 2px var(--users-orange); }
 
         .level-stat-4 .level-stat-range,
         .level-stat-4 .level-stat-value { color: var(--users-red); }
         .level-stat-4 { border-color: rgba(239, 68, 68, 0.2); }
+        .level-stat-4.active { box-shadow: 0 0 0 2px var(--users-red); }
 
         .level-stat-5 .level-stat-range,
         .level-stat-5 .level-stat-value { color: var(--users-yellow); }
         .level-stat-5 { border-color: rgba(250, 204, 21, 0.2); }
+        .level-stat-5.active { box-shadow: 0 0 0 2px var(--users-yellow); }
 
         @media (max-width: 768px) {
             .level-stats {

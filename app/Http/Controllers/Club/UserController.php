@@ -22,6 +22,13 @@ class UserController extends Controller
             });
         }
 
+        // Фильтр по уровню
+        if ($level = $request->get('level')) {
+            $min = (float) $level;
+            $max = $min + 0.75;
+            $query->whereBetween('level', [$min, $max]);
+        }
+
         $users = $query->paginate(20)->withQueryString();
 
         // Статистика по уровням
