@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Tournament;
 use App\Models\TournamentTeam;
+use App\Models\User;
 use App\Models\RatingHistory;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
@@ -238,6 +239,174 @@ class MobileTournamentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Запись на турнир отменена',
+        ]);
+    }
+
+    /**
+     * Поиск партнёра по номеру телефона
+     * POST /api/mobile/tournaments/{id}/search-partner
+     */
+    public function searchPartner(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'phone' => 'required|string|min:5',
+        ]);
+
+        $phone = preg_replace('/\D/', '', $request->input('phone'));
+
+        if (strlen($phone) < 5) {
+            return response()->json(['success' => false, 'message' => 'Введите минимум 5 цифр номера'], 400);
+        }
+
+        $partners = User::where('role', 'player')
+            ->where('id', '!=', $user->id)
+            ->where('phone', 'LIKE', "%{$phone}%")
+            ->limit(10)
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'level' => $p->level,
+                'rating' => $p->rating,
+                'phone' => $p->phone,
+            ]);
+
+        if ($partners->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Игроки не найдены'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'partners' => $partners,
+        ]);
+    }
+
+    /**
+     * Записать пару на командный турнир
+     * POST /api/mobile/tournaments/{id}/register-team
+     */
+    public function registerTeam(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'partner_id' => 'required|exists:users,id',
+        ]);
+
+        if ($tournament->type !== 'team') {
+            return response()->json(['success' => false, 'message' => 'Это не командный турнир'], 400);
+        }
+
+        if ($tournament->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Регистрация закрыта'], 400);
+        }
+
+        $partner = User::find($request->input('partner_id'));
+
+        if ($partner->id === $user->id) {
+            return response()->json(['success' => false, 'message' => 'Нельзя выбрать себя в качестве партнёра'], 400);
+        }
+
+        // Проверяем уровни
+        if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        if ($partner->level < $tournament->min_level || $partner->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Уровень партнёра ({$partner->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        // Проверяем, не зарегистрированы ли уже
+        $existingTeam = TournamentTeam::where('tournament_id', $tournament->id)
+            ->where(function($q) use ($user, $partner) {
+                $q->where(function($q2) use ($user) {
+                    $q2->where('player1_id', $user->id)
+                       ->orWhere('player2_id', $user->id);
+                })->orWhere(function($q2) use ($partner) {
+                    $q2->where('player1_id', $partner->id)
+                       ->orWhere('player2_id', $partner->id);
+                });
+            })
+            ->first();
+
+        if ($existingTeam) {
+            return response()->json(['success' => false, 'message' => 'Вы или ваш партнёр уже зарегистрированы'], 400);
+        }
+
+        // Атомарная проверка мест + создание команды (защита от race condition)
+        $team = DB::transaction(function () use ($tournament, $user, $partner) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $maxTeams = $tournament->max_participants / 2;
+            $takenTeams = TournamentTeam::where('tournament_id', $tournament->id)
+                ->whereIn('status', ['approved', 'pending'])
+                ->count();
+
+            if ($takenTeams >= $maxTeams) {
+                return null;
+            }
+
+            return TournamentTeam::create([
+                'tournament_id' => $tournament->id,
+                'player1_id' => $user->id,
+                'player2_id' => $partner->id,
+                'rating_avg' => intval(($user->rating + $partner->rating) / 2),
+                'status' => 'pending',
+            ]);
+        });
+
+        if ($team === null) {
+            return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Заявка отправлена на модерацию',
+            'team' => [
+                'id' => $team->id,
+                'player1' => ['id' => $user->id, 'name' => $user->name],
+                'player2' => ['id' => $partner->id, 'name' => $partner->name],
+                'status' => 'pending',
+            ],
+        ]);
+    }
+
+    /**
+     * Отменить регистрацию пары
+     * POST /api/mobile/tournaments/{id}/cancel-team
+     */
+    public function cancelTeam(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        if ($tournament->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Отмена невозможна — турнир уже начался'], 400);
+        }
+
+        $team = TournamentTeam::where('tournament_id', $tournament->id)
+            ->where(function($q) use ($user) {
+                $q->where('player1_id', $user->id)
+                  ->orWhere('player2_id', $user->id);
+            })
+            ->first();
+
+        if (!$team) {
+            return response()->json(['success' => false, 'message' => 'Вы не зарегистрированы в этом турнире'], 400);
+        }
+
+        $team->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Регистрация пары отменена',
         ]);
     }
 
