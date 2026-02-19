@@ -699,33 +699,37 @@ class TelegramMiniAppController extends Controller
 			return response()->json(['error' => 'Вы или ваш партнер уже зарегистрированы'], 400);
 		}
 
-		// Проверяем количество мест (только approved команды)
-		$maxTeams = $tournament->max_participants / 2;
-		$approvedTeams = TournamentTeam::where('tournament_id', $tournament->id)
-			->where('status', 'approved')
-			->count();
-		$pendingTeams = TournamentTeam::where('tournament_id', $tournament->id)
-			->where('status', 'pending')
-			->count();
+		// Атомарная проверка мест + создание команды (защита от race condition)
+		$result = DB::transaction(function () use ($tournament, $user, $partner) {
+			Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
-		if ($approvedTeams >= $maxTeams) {
+			$maxTeams = $tournament->max_participants / 2;
+			$takenTeams = TournamentTeam::where('tournament_id', $tournament->id)
+				->whereIn('status', ['approved', 'pending'])
+				->count();
+
+			if ($takenTeams >= $maxTeams) {
+				return null;
+			}
+
+			return TournamentTeam::create([
+				'tournament_id' => $tournament->id,
+				'player1_id' => $user->id,
+				'player2_id' => $partner->id,
+				'rating_avg' => ($user->rating + $partner->rating) / 2,
+				'status' => 'pending',
+			]);
+		});
+
+		if ($result === null) {
 			return response()->json(['error' => 'Все места заняты'], 400);
 		}
-
-		// Создаём команду со статусом pending
-		$team = TournamentTeam::create([
-			'tournament_id' => $tournament->id,
-			'player1_id' => $user->id,
-			'player2_id' => $partner->id,
-			'rating_avg' => ($user->rating + $partner->rating) / 2,
-			'status' => 'pending',
-		]);
 
 		return response()->json([
 			'success' => true,
 			'message' => 'Заявка отправлена на модерацию',
 			'team' => [
-				'id' => $team->id,
+				'id' => $result->id,
 				'player1' => $user->name,
 				'player2' => $partner->name,
 				'status' => 'pending',
