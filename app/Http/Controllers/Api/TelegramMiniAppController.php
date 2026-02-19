@@ -213,15 +213,15 @@ class TelegramMiniAppController extends Controller
 				} else {
 					// Проверяем может ли зарегистрироваться
 					$maxTeams = $tournament->max_participants / 2;
-					$approvedTeams = TournamentTeam::where('tournament_id', $tournament->id)
-						->where('status', 'approved')
+					$takenTeams = TournamentTeam::where('tournament_id', $tournament->id)
+						->whereIn('status', ['approved', 'pending'])
 						->count();
-					
+
 					if ($user->level < $tournament->min_level) {
 						$blockReason = "Ваш уровень ({$user->level}) ниже минимального ({$tournament->min_level})";
 					} elseif ($user->level > $tournament->max_level) {
 						$blockReason = "Ваш уровень ({$user->level}) выше максимального ({$tournament->max_level})";
-					} elseif ($approvedTeams >= $maxTeams) {
+					} elseif ($takenTeams >= $maxTeams) {
 						$blockReason = "Все места заняты";
 					} else {
 						$canRegister = true;

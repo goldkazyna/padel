@@ -71,7 +71,18 @@ class Tournament extends Model
 
     public function isFull(): bool
 	{
-		return $this->approvedParticipantsCount() >= $this->max_participants;
+		return $this->takenSlotsCount() >= $this->max_participants;
+	}
+
+	/**
+	 * Количество занятых мест (approved + pending)
+	 */
+	public function takenSlotsCount(): int
+	{
+		if ($this->isTeamBased()) {
+			return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
+		}
+		return $this->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
 	}
 
     public function canRegister(User $user): bool

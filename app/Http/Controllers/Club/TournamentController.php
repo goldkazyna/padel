@@ -589,7 +589,7 @@ class TournamentController extends Controller
 				return 'exists';
 			}
 
-			if ($tournament->approvedParticipantsCount() >= $tournament->max_participants) {
+			if ($tournament->takenSlotsCount() >= $tournament->max_participants) {
 				return 'full';
 			}
 
