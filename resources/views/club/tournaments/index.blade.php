@@ -17,66 +17,7 @@
 </div>
 
 <div class="tournaments-list">
-    @forelse($tournaments as $tournament)
-        <div class="tournament-row {{ $tournament->status }}">
-            <div class="tournament-date-box">
-                <div class="tournament-day">{{ $tournament->start_date->format('d') }}</div>
-                <div class="tournament-month">{{ $tournament->start_date->translatedFormat('M') }}</div>
-            </div>
-            <div class="tournament-info">
-                <div class="tournament-name">{{ $tournament->name }}</div>
-                <div class="tournament-meta">
-                    @if(!$club)
-                        <span><i class="bi bi-building"></i> {{ $tournament->club->name }}</span>
-                    @endif
-                    <span><i class="bi bi-clock"></i> {{ $tournament->start_date->format('H:i') }}</span>
-                    <span><i class="bi bi-bar-chart"></i> {{ $tournament->min_level }}–{{ $tournament->max_level }}</span>
-                </div>
-            </div>
-            <div class="tournament-stats d-none d-lg-flex">
-                <div class="tournament-stat">
-                    <div class="tournament-stat-value">{{ $tournament->totalParticipantsCount() }}/{{ $tournament->max_participants }}</div>
-                    <div class="tournament-stat-label">Участников</div>
-                </div>
-                <div class="tournament-stat">
-                    <div class="tournament-stat-value">{{ $tournament->matches()->count() }}</div>
-                    <div class="tournament-stat-label">Матчей</div>
-                </div>
-            </div>
-            <div class="tournament-status">
-                <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
-            </div>
-            <div class="tournament-actions">
-                <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
-                    <i class="bi bi-eye"></i>
-                </a>
-                @if(!auth()->user()->isClubModerator())
-                <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                @if($tournament->status === 'open')
-                    <form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
-                          onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
-                        @csrf
-                        <button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
-                            <i class="bi bi-telegram"></i>
-                        </button>
-                    </form>
-                @endif
-                @if($tournament->status === 'draft')
-                    <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
-                          onsubmit="return confirm('Удалить турнир?')">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn-danger-custom btn-sm" title="Удалить">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                @endif
-                @endif
-            </div>
-        </div>
-    @empty
+    @if($groupedTournaments->isEmpty())
         <div class="card-dark">
             <div class="card-body text-center py-5">
                 <i class="bi bi-trophy fs-1 text-secondary mb-3"></i>
@@ -88,7 +29,84 @@
                 @endif
             </div>
         </div>
-    @endforelse
+    @else
+        @foreach($groupedTournaments as $monthKey => $tournaments)
+            @php
+                $isCurrentMonth = $monthKey === now()->format('Y-m');
+            @endphp
+            <div class="month-group">
+                <div class="month-header {{ $isCurrentMonth ? 'open' : '' }}" onclick="toggleMonth(this)">
+                    <div class="month-header-left">
+                        <i class="bi bi-chevron-right month-arrow"></i>
+                        <span class="month-title">{{ \Carbon\Carbon::parse($monthKey . '-01')->translatedFormat('F Y') }}</span>
+                        <span class="month-count">{{ $tournaments->count() }}</span>
+                    </div>
+                </div>
+                <div class="month-body" @if(!$isCurrentMonth) style="display: none;" @endif>
+                    @foreach($tournaments as $tournament)
+                        <div class="tournament-row {{ $tournament->status }}">
+                            <div class="tournament-date-box">
+                                <div class="tournament-day">{{ $tournament->start_date->format('d') }}</div>
+                                <div class="tournament-month">{{ $tournament->start_date->translatedFormat('M') }}</div>
+                            </div>
+                            <div class="tournament-info">
+                                <div class="tournament-name">{{ $tournament->name }}</div>
+                                <div class="tournament-meta">
+                                    @if(!$club)
+                                        <span><i class="bi bi-building"></i> {{ $tournament->club->name }}</span>
+                                    @endif
+                                    <span><i class="bi bi-clock"></i> {{ $tournament->start_date->format('H:i') }}</span>
+                                    <span><i class="bi bi-bar-chart"></i> {{ $tournament->min_level }}–{{ $tournament->max_level }}</span>
+                                </div>
+                            </div>
+                            <div class="tournament-stats d-none d-lg-flex">
+                                <div class="tournament-stat">
+                                    <div class="tournament-stat-value">{{ $tournament->totalParticipantsCount() }}/{{ $tournament->max_participants }}</div>
+                                    <div class="tournament-stat-label">Участников</div>
+                                </div>
+                                <div class="tournament-stat">
+                                    <div class="tournament-stat-value">{{ $tournament->matches()->count() }}</div>
+                                    <div class="tournament-stat-label">Матчей</div>
+                                </div>
+                            </div>
+                            <div class="tournament-status">
+                                <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
+                            </div>
+                            <div class="tournament-actions">
+                                <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                @if(!auth()->user()->isClubModerator())
+                                <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                @if($tournament->status === 'open')
+                                    <form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
+                                        @csrf
+                                        <button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
+                                            <i class="bi bi-telegram"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                                @if($tournament->status === 'draft')
+                                    <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Удалить турнир?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="btn-danger-custom btn-sm" title="Удалить">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+    @endif
 </div>
 
 <style>
@@ -249,5 +267,79 @@
     background: #229ED9;
     color: white;
 }
+
+/* Month groups */
+.month-group {
+    margin-bottom: 4px;
+}
+
+.month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.month-header:hover {
+    background: var(--bg-card);
+}
+
+.month-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.month-arrow {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.month-header.open .month-arrow {
+    transform: rotate(90deg);
+}
+
+.month-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-transform: capitalize;
+}
+
+.month-count {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 10px;
+}
+
+.month-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 4px;
+}
 </style>
+
+<script>
+function toggleMonth(header) {
+    const body = header.nextElementSibling;
+    const isOpen = header.classList.contains('open');
+
+    if (isOpen) {
+        body.style.display = 'none';
+        header.classList.remove('open');
+    } else {
+        body.style.display = '';
+        header.classList.add('open');
+    }
+}
+</script>
 @endsection

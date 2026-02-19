@@ -34,23 +34,25 @@ class TournamentController extends Controller
 	{
 		$club = $this->getClub();
 		$user = auth()->user();
-		
+
 		if ($club) {
 			$query = Tournament::where('club_id', $club->id);
-			
+
 			// Модератор видит только открытые турниры
 			if ($user->isClubModerator()) {
 				$query->where('status', 'open');
 			}
-			
-			$tournaments = $query->orderBy('created_at', 'desc')->get();
+
+			$tournaments = $query->orderBy('start_date', 'desc')->get();
 		} else {
 			$tournaments = Tournament::with('club')
-				->orderBy('created_at', 'desc')
+				->orderBy('start_date', 'desc')
 				->get();
 		}
 
-		return view('club.tournaments.index', compact('tournaments', 'club'));
+		$groupedTournaments = $tournaments->groupBy(fn ($t) => $t->start_date->format('Y-m'));
+
+		return view('club.tournaments.index', compact('groupedTournaments', 'club'));
 	}
 
     public function create()
