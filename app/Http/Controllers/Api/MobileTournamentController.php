@@ -8,6 +8,7 @@ use App\Models\TournamentTeam;
 use App\Models\RatingHistory;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MobileTournamentController extends Controller
 {
@@ -178,15 +179,25 @@ class MobileTournamentController extends Controller
             ], 400);
         }
 
-        $takenSlots = $tournament->participants()
-            ->wherePivotIn('status', ['registered', 'pending'])
-            ->count();
+        // Атомарная проверка мест + запись (защита от race condition)
+        $registered = DB::transaction(function () use ($tournament, $user) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
-        if ($takenSlots >= $tournament->max_participants) {
+            $takenSlots = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending'])
+                ->count();
+
+            if ($takenSlots >= $tournament->max_participants) {
+                return false;
+            }
+
+            $tournament->participants()->attach($user->id, ['status' => 'pending']);
+            return true;
+        });
+
+        if (!$registered) {
             return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
         }
-
-        $tournament->participants()->attach($user->id, ['status' => 'pending']);
 
         return response()->json([
             'success' => true,

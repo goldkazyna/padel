@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tournament;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TournamentController extends Controller
 {
@@ -31,11 +32,21 @@ class TournamentController extends Controller
     {
         $user = auth()->user();
 
-        if (!$tournament->canRegister($user)) {
+        // Атомарная проверка + запись (защита от race condition)
+        $registered = DB::transaction(function () use ($tournament, $user) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            if (!$tournament->canRegister($user)) {
+                return false;
+            }
+
+            $tournament->participants()->attach($user->id, ['status' => 'pending']);
+            return true;
+        });
+
+        if (!$registered) {
             return back()->with('error', 'Вы не можете зарегистрироваться на этот турнир');
         }
-
-        $tournament->participants()->attach($user->id, ['status' => 'pending']);
 
         return back()->with('success', 'Заявка отправлена! Ожидайте подтверждения от организатора.');
     }

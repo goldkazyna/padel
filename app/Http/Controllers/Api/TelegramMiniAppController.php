@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tournament;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\TournamentTeam;
 
@@ -329,25 +330,33 @@ class TelegramMiniAppController extends Controller
             ], 400);
         }
 
-		// Проверка мест (учитываем и registered, и pending)
-		$takenSlots = $tournament->participants()
-			->wherePivotIn('status', ['registered', 'pending'])
-			->count();
-		if ($takenSlots >= $tournament->max_participants) {
-			return response()->json(['error' => 'Все места заняты'], 400);
-		}
+        // Атомарная проверка мест + запись (защита от race condition)
+        $result = DB::transaction(function () use ($tournament, $user) {
+            // Блокируем строку турнира для предотвращения одновременной записи
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
-        // Регистрируем (статус pending для модерации или сразу registered)
-        $status = 'pending'; // Или 'registered' если без модерации
-        
-        $tournament->participants()->attach($user->id, ['status' => $status]);
+            $takenSlots = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending'])
+                ->count();
+            if ($takenSlots >= $tournament->max_participants) {
+                return null;
+            }
+
+            $status = 'pending';
+            $tournament->participants()->attach($user->id, ['status' => $status]);
+            return $status;
+        });
+
+        if ($result === null) {
+            return response()->json(['error' => 'Все места заняты'], 400);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $status === 'pending' 
-                ? 'Заявка отправлена на модерацию' 
+            'message' => $result === 'pending'
+                ? 'Заявка отправлена на модерацию'
                 : 'Вы зарегистрированы!',
-            'status' => $status,
+            'status' => $result,
         ]);
     }
 

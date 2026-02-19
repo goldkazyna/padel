@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tournament;
 use App\Models\Club;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Services\AmericanoService;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentParticipant;
@@ -421,13 +422,22 @@ class TournamentController extends Controller
 			return back()->with('error', 'Заявка уже обработана');
 		}
 
-		// Проверяем лимит одобренных участников
-		$approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
-		if ($approvedCount >= $tournament->max_participants) {
+		// Атомарная проверка лимита + одобрение (защита от race condition)
+		$approved = DB::transaction(function () use ($tournament, $userId) {
+			Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+			$approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+			if ($approvedCount >= $tournament->max_participants) {
+				return false;
+			}
+
+			$tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
+			return true;
+		});
+
+		if (!$approved) {
 			return back()->with('error', 'Достигнут лимит участников');
 		}
-
-		$tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
 
 		// Отправляем уведомление в Telegram
 		$user = \App\Models\User::find($userId);
@@ -568,24 +578,34 @@ class TournamentController extends Controller
 			'user_id' => 'required|exists:users,id',
 		]);
 		
-		// Проверяем что игрок ещё не добавлен
-		$exists = $tournament->participants()->where('user_id', $validated['user_id'])->exists();
-		if ($exists) {
+		// Атомарная проверка + добавление (защита от race condition)
+		$user = \App\Models\User::find($validated['user_id']);
+
+		$added = DB::transaction(function () use ($tournament, $validated) {
+			Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+			$exists = $tournament->participants()->where('user_id', $validated['user_id'])->exists();
+			if ($exists) {
+				return 'exists';
+			}
+
+			if ($tournament->approvedParticipantsCount() >= $tournament->max_participants) {
+				return 'full';
+			}
+
+			$tournament->participants()->attach($validated['user_id'], [
+				'status' => 'registered',
+			]);
+			return 'ok';
+		});
+
+		if ($added === 'exists') {
 			return back()->with('error', 'Игрок уже добавлен в турнир');
 		}
-		
-		// Проверяем лимит участников
-		if ($tournament->approvedParticipantsCount() >= $tournament->max_participants) {
+		if ($added === 'full') {
 			return back()->with('error', 'Достигнут лимит участников');
 		}
-		
-		$user = \App\Models\User::find($validated['user_id']);
-		
-		// Добавляем сразу как одобренного
-		$tournament->participants()->attach($validated['user_id'], [
-			'status' => 'registered',
-		]);
-		
+
 		return back()->with('success', "Игрок {$user->full_name} добавлен!");
 	}
 

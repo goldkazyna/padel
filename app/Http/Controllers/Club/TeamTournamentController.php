@@ -7,6 +7,7 @@ use App\Models\Tournament;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
 use App\Services\TeamTournamentService;
@@ -30,37 +31,48 @@ class TeamTournamentController extends Controller
             return back()->with('error', 'Турнир не открыт для регистрации');
         }
 
-        // Проверяем лимит пар (max_participants / 2)
-        $maxTeams = $tournament->max_participants / 2;
-        if ($tournament->teams()->count() >= $maxTeams) {
-            return back()->with('error', "Достигнут лимит пар ({$maxTeams})");
-        }
-
-        // Проверяем что игроки ещё не в турнире
-        $existingPlayers = $tournament->teams()
-            ->where(function($q) use ($validated) {
-                $q->where('player1_id', $validated['player1_id'])
-                  ->orWhere('player2_id', $validated['player1_id'])
-                  ->orWhere('player1_id', $validated['player2_id'])
-                  ->orWhere('player2_id', $validated['player2_id']);
-            })
-            ->exists();
-
-        if ($existingPlayers) {
-            return back()->with('error', 'Один или оба игрока уже зарегистрированы в турнире');
-        }
-
         $player1 = User::find($validated['player1_id']);
         $player2 = User::find($validated['player2_id']);
 
-        // Создаём пару
-        TournamentTeam::create([
-            'tournament_id' => $tournament->id,
-            'player1_id' => $validated['player1_id'],
-            'player2_id' => $validated['player2_id'],
-            'name' => $validated['name'],
-            'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
-        ]);
+        // Атомарная проверка лимита + создание (защита от race condition)
+        $result = DB::transaction(function () use ($tournament, $validated, $player1, $player2) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $maxTeams = $tournament->max_participants / 2;
+            if ($tournament->teams()->count() >= $maxTeams) {
+                return 'full';
+            }
+
+            $existingPlayers = $tournament->teams()
+                ->where(function($q) use ($validated) {
+                    $q->where('player1_id', $validated['player1_id'])
+                      ->orWhere('player2_id', $validated['player1_id'])
+                      ->orWhere('player1_id', $validated['player2_id'])
+                      ->orWhere('player2_id', $validated['player2_id']);
+                })
+                ->exists();
+
+            if ($existingPlayers) {
+                return 'exists';
+            }
+
+            TournamentTeam::create([
+                'tournament_id' => $tournament->id,
+                'player1_id' => $validated['player1_id'],
+                'player2_id' => $validated['player2_id'],
+                'name' => $validated['name'],
+                'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
+            ]);
+            return 'ok';
+        });
+
+        $maxTeams = $tournament->max_participants / 2;
+        if ($result === 'full') {
+            return back()->with('error', "Достигнут лимит пар ({$maxTeams})");
+        }
+        if ($result === 'exists') {
+            return back()->with('error', 'Один или оба игрока уже зарегистрированы в турнире');
+        }
 
         return back()->with('success', "Пара {$player1->first_name} / {$player2->first_name} добавлена!");
     }
