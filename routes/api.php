@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
+use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
 
 /*
@@ -79,5 +80,8 @@ Route::prefix('mobile')->group(function () {
         Route::post('/tournaments/{tournament}/search-partner', [MobileTournamentController::class, 'searchPartner']);
         Route::post('/tournaments/{tournament}/register-team', [MobileTournamentController::class, 'registerTeam']);
         Route::post('/tournaments/{tournament}/cancel-team', [MobileTournamentController::class, 'cancelTeam']);
+
+        // Устройства (FCM)
+        Route::post('/devices/register', [MobileDeviceController::class, 'register']);
     });
 });

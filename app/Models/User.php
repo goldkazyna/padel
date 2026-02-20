@@ -422,6 +422,11 @@ class User extends Authenticatable
 		return $matches;
 	}
 	
+	public function deviceTokens()
+	{
+		return $this->hasMany(DeviceToken::class);
+	}
+
 	public function ratingHistory()
 	{
 		return $this->hasMany(RatingHistory::class)->orderBy('created_at', 'desc');
