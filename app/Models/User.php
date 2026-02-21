@@ -27,6 +27,7 @@ class User extends Authenticatable
         'level',
         'telegram_id',
         'last_played_at',
+        'notify_only_my_level',
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class User extends Authenticatable
         'birth_date' => 'date',
         'last_played_at' => 'datetime',
         'level' => 'decimal:2',
+        'notify_only_my_level' => 'boolean',
     ];
 
     // Связь: клубы где юзер админ

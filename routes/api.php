@@ -83,5 +83,9 @@ Route::prefix('mobile')->group(function () {
 
         // Устройства (FCM)
         Route::post('/devices/register', [MobileDeviceController::class, 'register']);
+
+        // Настройки уведомлений
+        Route::get('/notifications/settings', [MobileDeviceController::class, 'getSettings']);
+        Route::post('/notifications/settings', [MobileDeviceController::class, 'updateSettings']);
     });
 });

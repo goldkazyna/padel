@@ -659,7 +659,16 @@ class TournamentController extends Controller
 		$title = 'Новый турнир!';
 		$body = "{$tournament->name} — {$date}";
 
-		$users = \App\Models\User::whereHas('deviceTokens')->get();
+		$users = \App\Models\User::whereHas('deviceTokens')
+			->where(function ($q) use ($tournament) {
+				$q->where('notify_only_my_level', false)
+				  ->orWhere(function ($q2) use ($tournament) {
+					  $q2->where('notify_only_my_level', true)
+						 ->where('level', '>=', $tournament->min_level)
+						 ->where('level', '<=', $tournament->max_level);
+				  });
+			})
+			->get();
 		$sent = 0;
 
 		foreach ($users as $user) {

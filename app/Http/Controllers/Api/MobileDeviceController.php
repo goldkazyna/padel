@@ -26,4 +26,22 @@ class MobileDeviceController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function getSettings(Request $request): JsonResponse
+    {
+        return response()->json([
+            'notify_only_my_level' => (bool) $request->user()->notify_only_my_level,
+        ]);
+    }
+
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'notify_only_my_level' => 'required|boolean',
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json(['success' => true]);
+    }
 }
