@@ -63,6 +63,7 @@ Route::prefix('mobile')->group(function () {
 
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
+        Route::put('/profile', [MobileProfileController::class, 'update']);
 
         // Матчи
         Route::get('/matches/history', [MobileMatchController::class, 'history']);
