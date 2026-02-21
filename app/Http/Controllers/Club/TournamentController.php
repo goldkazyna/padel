@@ -672,6 +672,14 @@ class TournamentController extends Controller
 		$sent = 0;
 
 		foreach ($users as $user) {
+			\App\Models\Notification::create([
+				'user_id' => $user->id,
+				'title' => $title,
+				'body' => $body,
+				'type' => 'tournament',
+				'data' => ['tournament_id' => $tournament->id],
+			]);
+
 			$result = $fcm->sendToUser($user, $title, $body, [
 				'type' => 'tournament',
 				'tournament_id' => (string) $tournament->id,

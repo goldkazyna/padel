@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
 use App\Http\Controllers\Api\MobileDeviceController;
+use App\Http\Controllers\Api\MobileNotificationController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
 
 /*
@@ -87,5 +88,10 @@ Route::prefix('mobile')->group(function () {
         // Настройки уведомлений
         Route::get('/notifications/settings', [MobileDeviceController::class, 'getSettings']);
         Route::post('/notifications/settings', [MobileDeviceController::class, 'updateSettings']);
+
+        // Уведомления
+        Route::get('/notifications', [MobileNotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [MobileNotificationController::class, 'unreadCount']);
+        Route::post('/notifications/read-all', [MobileNotificationController::class, 'readAll']);
     });
 });
