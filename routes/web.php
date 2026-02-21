@@ -182,6 +182,8 @@ Route::middleware('auth')->group(function () {
             ->name('tournaments.finish');
 		Route::post('/tournaments/{tournament}/publish-channel', [ClubTournamentController::class, 'publishToChannel'])
 			->name('tournaments.publishChannel');
+		Route::post('/tournaments/{tournament}/send-push', [ClubTournamentController::class, 'sendPush'])
+			->name('tournaments.sendPush');
         
         /*
         |----------------------------------------------------------------------

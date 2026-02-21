@@ -88,6 +88,13 @@
                                             <i class="bi bi-telegram"></i>
                                         </button>
                                     </form>
+                                    <form action="{{ route('club.tournaments.sendPush', $tournament) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm('Отправить push-уведомление о турнире?')">
+                                        @csrf
+                                        <button class="btn-outline-custom btn-sm btn-push" title="Отправить Push">
+                                            <i class="bi bi-bell"></i>
+                                        </button>
+                                    </form>
                                 @endif
                                 @if($tournament->status === 'draft')
                                     <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
@@ -265,6 +272,16 @@
 
 .btn-telegram:hover {
     background: #229ED9;
+    color: white;
+}
+
+.btn-push {
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.btn-push:hover {
+    background: #f59e0b;
     color: white;
 }
 

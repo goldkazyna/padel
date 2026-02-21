@@ -644,6 +644,36 @@ class TournamentController extends Controller
 		return back()->with('success', "Участник заменён на {$newUser->full_name}!");
 	}
 	/**
+	 * Отправить push-уведомление о турнире
+	 */
+	public function sendPush(Tournament $tournament)
+	{
+		$club = $this->getClub();
+
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$fcm = app(\App\Services\FCMNotificationService::class);
+		$date = $tournament->start_date->format('d.m.Y H:i');
+		$title = 'Новый турнир!';
+		$body = "{$tournament->name} — {$date}";
+
+		$users = \App\Models\User::whereHas('deviceTokens')->get();
+		$sent = 0;
+
+		foreach ($users as $user) {
+			$result = $fcm->sendToUser($user, $title, $body, [
+				'type' => 'tournament',
+				'tournament_id' => (string) $tournament->id,
+			]);
+			if ($result) $sent++;
+		}
+
+		return back()->with('success', "Push отправлен ({$sent} пользователей)");
+	}
+
+	/**
 	 * Опубликовать турнир в Telegram канал
 	 */
 	public function publishToChannel(Tournament $tournament)
