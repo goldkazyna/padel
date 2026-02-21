@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class MobileProfileController extends Controller
 {
@@ -81,6 +82,34 @@ class MobileProfileController extends Controller
             'success' => true,
             'message' => 'Профиль обновлён',
             'user' => $this->formatUser($user, $place),
+        ]);
+    }
+
+    /**
+     * Загрузка аватара
+     * POST /api/mobile/profile/avatar
+     */
+    public function avatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        // Удалить старый аватар
+        if ($user->avatar) {
+            $oldPath = str_replace('/storage/', '', parse_url($user->avatar, PHP_URL_PATH));
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $user->avatar = url('/storage/' . $path);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'avatar_url' => $user->avatar,
         ]);
     }
 
