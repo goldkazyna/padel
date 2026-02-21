@@ -34,8 +34,13 @@ class FCMNotificationService
         $apns = ApnsConfig::fromArray([
             'payload' => [
                 'aps' => [
+                    'alert' => [
+                        'title' => $title,
+                        'body' => $body,
+                    ],
                     'sound' => 'default',
                     'badge' => 1,
+                    'content-available' => 1,
                 ],
             ],
         ]);
@@ -45,19 +50,32 @@ class FCMNotificationService
             ->withData($data);
 
         try {
+            Log::info('FCM: sending to user', [
+                'user_id' => $user->id,
+                'tokens_count' => count($tokens),
+                'platforms' => $user->deviceTokens()->pluck('platform')->toArray(),
+            ]);
+
             $report = $this->messaging->sendMulticast($message, $tokens);
+
+            Log::info('FCM: multicast result', [
+                'user_id' => $user->id,
+                'successes' => $report->successes()->count(),
+                'failures' => $report->failures()->count(),
+            ]);
 
             if ($report->hasFailures()) {
                 foreach ($report->failures()->getItems() as $failure) {
                     Log::warning('FCM: failed to send', [
                         'user_id' => $user->id,
-                        'token' => $failure->target()->value(),
+                        'token' => substr($failure->target()->value(), 0, 20) . '...',
                         'error' => $failure->error()->getMessage(),
                     ]);
 
                     // Удаляем невалидные токены
                     if ($this->isInvalidTokenError($failure->error()->getMessage())) {
                         $user->deviceTokens()->where('token', $failure->target()->value())->delete();
+                        Log::info('FCM: removed invalid token', ['user_id' => $user->id]);
                     }
                 }
             }
@@ -81,8 +99,13 @@ class FCMNotificationService
         $apns = ApnsConfig::fromArray([
             'payload' => [
                 'aps' => [
+                    'alert' => [
+                        'title' => $title,
+                        'body' => $body,
+                    ],
                     'sound' => 'default',
                     'badge' => 1,
+                    'content-available' => 1,
                 ],
             ],
         ]);
