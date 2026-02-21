@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Contract\Messaging;
+use Kreait\Firebase\Messaging\ApnsConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
 
@@ -30,8 +31,17 @@ class FCMNotificationService
         }
 
         $notification = Notification::create($title, $body);
+        $apns = ApnsConfig::fromArray([
+            'payload' => [
+                'aps' => [
+                    'sound' => 'default',
+                    'badge' => 1,
+                ],
+            ],
+        ]);
         $message = CloudMessage::new()
             ->withNotification($notification)
+            ->withApnsConfig($apns)
             ->withData($data);
 
         try {
@@ -68,8 +78,17 @@ class FCMNotificationService
     public function sendToTopic(string $topic, string $title, string $body, array $data = []): bool
     {
         $notification = Notification::create($title, $body);
+        $apns = ApnsConfig::fromArray([
+            'payload' => [
+                'aps' => [
+                    'sound' => 'default',
+                    'badge' => 1,
+                ],
+            ],
+        ]);
         $message = CloudMessage::withTarget('topic', $topic)
             ->withNotification($notification)
+            ->withApnsConfig($apns)
             ->withData($data);
 
         try {
