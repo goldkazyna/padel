@@ -30,6 +30,8 @@ class FCMNotificationService
             return false;
         }
 
+        $unreadCount = $user->notifications()->whereNull('read_at')->count();
+
         $notification = Notification::create($title, $body);
         $apns = ApnsConfig::fromArray([
             'payload' => [
@@ -39,7 +41,7 @@ class FCMNotificationService
                         'body' => $body,
                     ],
                     'sound' => 'default',
-                    'badge' => 1,
+                    'badge' => $unreadCount,
                     'content-available' => 1,
                 ],
             ],
