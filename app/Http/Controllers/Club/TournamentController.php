@@ -441,11 +441,30 @@ class TournamentController extends Controller
 			return back()->with('error', 'Достигнут лимит участников');
 		}
 
-		// Отправляем уведомление в Telegram
+		// Отправляем уведомления
 		$user = \App\Models\User::find($userId);
 		if ($user) {
 			$notificationService = new \App\Services\TelegramNotificationService();
 			$notificationService->notifyRegistrationApproved($user, $tournament);
+
+			// FCM push
+			$date = $tournament->start_date->format('d.m.Y H:i');
+			$title = 'Заявка одобрена!';
+			$body = "Вы записаны на турнир «{$tournament->name}» — {$date}";
+
+			\App\Models\Notification::create([
+				'user_id' => $user->id,
+				'title' => $title,
+				'body' => $body,
+				'type' => 'registration_approved',
+				'data' => ['tournament_id' => $tournament->id],
+			]);
+
+			$fcm = app(\App\Services\FCMNotificationService::class);
+			$fcm->sendToUser($user, $title, $body, [
+				'type' => 'registration_approved',
+				'tournament_id' => (string) $tournament->id,
+			]);
 		}
 
 		return back()->with('success', 'Заявка одобрена!');
@@ -477,6 +496,24 @@ class TournamentController extends Controller
 		if ($user) {
 			$notificationService = new \App\Services\TelegramNotificationService();
 			$notificationService->notifyRegistrationRejected($user, $tournament);
+
+			// FCM push
+			$title = 'Заявка отклонена';
+			$body = "К сожалению, ваша заявка на турнир «{$tournament->name}» была отклонена";
+
+			\App\Models\Notification::create([
+				'user_id' => $user->id,
+				'title' => $title,
+				'body' => $body,
+				'type' => 'registration_rejected',
+				'data' => ['tournament_id' => $tournament->id],
+			]);
+
+			$fcm = app(\App\Services\FCMNotificationService::class);
+			$fcm->sendToUser($user, $title, $body, [
+				'type' => 'registration_rejected',
+				'tournament_id' => (string) $tournament->id,
+			]);
 		}
 
 		// Если турнир был полным — уведомляем в канал
@@ -526,8 +563,28 @@ class TournamentController extends Controller
 
 		// Отправляем уведомления всем одобренным
 		$notificationService = new \App\Services\TelegramNotificationService();
+		$fcm = app(\App\Services\FCMNotificationService::class);
+		$date = $tournament->start_date->format('d.m.Y H:i');
+
 		foreach ($pendingParticipants as $user) {
 			$notificationService->notifyRegistrationApproved($user, $tournament);
+
+			// FCM push
+			$title = 'Заявка одобрена!';
+			$body = "Вы записаны на турнир «{$tournament->name}» — {$date}";
+
+			\App\Models\Notification::create([
+				'user_id' => $user->id,
+				'title' => $title,
+				'body' => $body,
+				'type' => 'registration_approved',
+				'data' => ['tournament_id' => $tournament->id],
+			]);
+
+			$fcm->sendToUser($user, $title, $body, [
+				'type' => 'registration_approved',
+				'tournament_id' => (string) $tournament->id,
+			]);
 		}
 
 		return back()->with('success', 'Одобрено заявок: ' . count($pendingIds));
