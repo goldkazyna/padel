@@ -92,7 +92,7 @@ class MobileProfileController extends Controller
     public function avatar(Request $request)
     {
         $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png|max:2048',
+            'avatar' => 'required|image|mimes:jpeg,png,webp|max:2048',
         ]);
 
         $user = $request->user();
