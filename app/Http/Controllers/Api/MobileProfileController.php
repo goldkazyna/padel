@@ -49,8 +49,7 @@ class MobileProfileController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'first_name'  => 'nullable|string|max:100',
-            'last_name'   => 'nullable|string|max:100',
+            'name'        => 'nullable|string|max:255',
             'patronymic'  => 'nullable|string|max:100',
             'city'        => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе',
             'gender'      => 'nullable|string|in:male,female',
@@ -61,13 +60,6 @@ class MobileProfileController extends Controller
 
         $user = $request->user();
         $user->fill($validated);
-
-        // Пересобрать name при обновлении имени/фамилии
-        $firstName = $user->first_name;
-        $lastName = $user->last_name;
-        if ($request->has('first_name') || $request->has('last_name')) {
-            $user->name = trim("{$lastName} {$firstName}");
-        }
 
         $user->save();
 
