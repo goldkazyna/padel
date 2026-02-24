@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Moderator;
 use App\Http\Controllers\Controller;
 use App\Models\Tournament;
 use App\Models\User;
+use App\Http\Controllers\Api\MobileTournamentController;
 use Illuminate\Http\Request;
 
 class TournamentController extends Controller
@@ -97,6 +98,12 @@ class TournamentController extends Controller
         // Получаем пользователя до удаления
         $user = \App\Models\User::find($userId);
 
+        // Проверяем был ли турнир полным ДО удаления
+        $takenSlots = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending'])
+            ->count();
+        $wasFull = $takenSlots >= $tournament->max_participants;
+
         $tournament->participants()->detach($userId);
 
         // Отправляем уведомление об отклонении
@@ -122,18 +129,38 @@ class TournamentController extends Controller
             ]);
         }
 
+        // Если турнир был полным — уведомляем в канал и подписчиков
+        if ($wasFull && $tournament->status === 'open') {
+            $channelService = new \App\Services\TelegramChannelService();
+            $channelService->postSlotAvailable($tournament);
+            MobileTournamentController::notifySubscribersSlotAvailable($tournament);
+        }
+
         return back()->with('success', 'Заявка отклонена');
     }
 
     public function removeParticipant(Tournament $tournament, User $user)
     {
         $club = $this->getClub();
-        
+
         if (!$club || $tournament->club_id != $club->id || $tournament->status !== 'open') {
             abort(403);
         }
 
+        // Проверяем был ли турнир полным ДО удаления
+        $takenSlots = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending'])
+            ->count();
+        $wasFull = $takenSlots >= $tournament->max_participants;
+
         $tournament->participants()->detach($user->id);
+
+        // Если турнир был полным — уведомляем в канал и подписчиков
+        if ($wasFull && $tournament->status === 'open') {
+            $channelService = new \App\Services\TelegramChannelService();
+            $channelService->postSlotAvailable($tournament);
+            MobileTournamentController::notifySubscribersSlotAvailable($tournament);
+        }
 
         return back()->with('success', 'Участник удалён');
     }

@@ -390,10 +390,11 @@ class TelegramMiniAppController extends Controller
 
 		$tournament->participants()->detach($user->id);
 
-		// Если турнир был полным — уведомляем в канал
-		if ($wasFull) {
+		// Если турнир был полным — уведомляем в канал и подписчиков
+		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService();
 			$channelService->postSlotAvailable($tournament);
+			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
 		return response()->json([

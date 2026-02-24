@@ -83,6 +83,8 @@ Route::prefix('mobile')->group(function () {
         Route::post('/tournaments/{tournament}/search-partner', [MobileTournamentController::class, 'searchPartner']);
         Route::post('/tournaments/{tournament}/register-team', [MobileTournamentController::class, 'registerTeam']);
         Route::post('/tournaments/{tournament}/cancel-team', [MobileTournamentController::class, 'cancelTeam']);
+        Route::post('/tournaments/{tournament}/subscribe', [MobileTournamentController::class, 'subscribe']);
+        Route::post('/tournaments/{tournament}/unsubscribe', [MobileTournamentController::class, 'unsubscribe']);
 
         // Устройства (FCM)
         Route::post('/devices/register', [MobileDeviceController::class, 'register']);

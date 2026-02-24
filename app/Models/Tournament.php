@@ -368,4 +368,8 @@ class Tournament extends Model
 		return $this->status === 'cancelled';
 	}
 
+	public function subscriptions()
+	{
+		return $this->hasMany(TournamentSubscription::class);
+	}
 }

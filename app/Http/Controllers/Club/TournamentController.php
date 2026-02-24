@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\AmericanoService;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentParticipant;
+use App\Http\Controllers\Api\MobileTournamentController;
 
 
 class TournamentController extends Controller
@@ -259,10 +260,11 @@ class TournamentController extends Controller
 
 		$tournament->participants()->detach($userId);
 
-		// Если турнир был полным и открыт — уведомляем в канал
+		// Если турнир был полным и открыт — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService();
 			$channelService->postSlotAvailable($tournament);
+			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
 		return back()->with('success', 'Участник удалён');
@@ -516,10 +518,11 @@ class TournamentController extends Controller
 			]);
 		}
 
-		// Если турнир был полным — уведомляем в канал
+		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService();
 			$channelService->postSlotAvailable($tournament);
+			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
 		return back()->with('success', 'Заявка отклонена');
@@ -791,10 +794,11 @@ class TournamentController extends Controller
 
 		$tournament->participants()->detach($user->id);
 
-		// Если турнир был полным — уведомляем в канал
+		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService();
 			$channelService->postSlotAvailable($tournament);
+			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
 		return back()->with('success', 'Регистрация отменена');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tournament;
+use App\Models\TournamentSubscription;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use App\Models\RatingHistory;
@@ -116,6 +117,11 @@ class MobileTournamentController extends Controller
 
         $data = $this->formatTournament($tournament, $user, true);
 
+        // Флаг подписки на освободившиеся места
+        $data['is_subscribed'] = TournamentSubscription::where('tournament_id', $tournament->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
         // Добавляем участников/команды
         if ($tournament->type === 'team') {
             $data['teams'] = $tournament->teams()
@@ -200,6 +206,11 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
         }
 
+        // Удаляем подписку — пользователь уже записался
+        TournamentSubscription::where('tournament_id', $tournament->id)
+            ->where('user_id', $user->id)
+            ->delete();
+
         return response()->json([
             'success' => true,
             'message' => 'Заявка отправлена на модерацию',
@@ -231,9 +242,10 @@ class MobileTournamentController extends Controller
 
         $tournament->participants()->detach($user->id);
 
-        if ($wasFull) {
+        if ($wasFull && $tournament->status === 'open') {
             $channelService = new \App\Services\TelegramChannelService();
             $channelService->postSlotAvailable($tournament);
+            $this->notifySubscribersSlotAvailable($tournament);
         }
 
         return response()->json([
@@ -367,6 +379,11 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
         }
 
+        // Удаляем подписки обоих игроков — они уже записались
+        TournamentSubscription::where('tournament_id', $tournament->id)
+            ->whereIn('user_id', [$user->id, $partner->id])
+            ->delete();
+
         return response()->json([
             'success' => true,
             'message' => 'Заявка отправлена на модерацию',
@@ -407,6 +424,51 @@ class MobileTournamentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Регистрация пары отменена',
+        ]);
+    }
+
+    /**
+     * Подписаться на уведомления о свободных местах
+     * POST /api/mobile/tournaments/{id}/subscribe
+     */
+    public function subscribe(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        if ($tournament->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Турнир не открыт для регистрации'], 400);
+        }
+
+        if (TournamentSubscription::where('tournament_id', $tournament->id)->where('user_id', $user->id)->exists()) {
+            return response()->json(['success' => true, 'message' => 'Вы уже подписаны']);
+        }
+
+        TournamentSubscription::create([
+            'tournament_id' => $tournament->id,
+            'user_id' => $user->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Вы подписались на уведомления',
+        ]);
+    }
+
+    /**
+     * Отписаться от уведомлений о свободных местах
+     * POST /api/mobile/tournaments/{id}/unsubscribe
+     */
+    public function unsubscribe(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        TournamentSubscription::where('tournament_id', $tournament->id)
+            ->where('user_id', $user->id)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Подписка отменена',
         ]);
     }
 
@@ -979,5 +1041,43 @@ class MobileTournamentController extends Controller
             'name' => $player->name,
             'initials' => $initials,
         ];
+    }
+
+    /**
+     * Уведомить подписчиков о свободном месте в турнире
+     */
+    public static function notifySubscribersSlotAvailable(Tournament $tournament): void
+    {
+        $subscribers = TournamentSubscription::where('tournament_id', $tournament->id)
+            ->with('user')
+            ->get();
+
+        if ($subscribers->isEmpty()) {
+            return;
+        }
+
+        $date = $tournament->start_date->format('d.m.Y H:i');
+        $title = 'Освободилось место!';
+        $body = "В турнире «{$tournament->name}» ({$date}) освободилось место. Успейте записаться!";
+
+        $fcm = app(\App\Services\FCMNotificationService::class);
+
+        foreach ($subscribers as $subscription) {
+            $user = $subscription->user;
+            if (!$user) continue;
+
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'slot_available',
+                'data' => ['tournament_id' => $tournament->id],
+            ]);
+
+            $fcm->sendToUser($user, $title, $body, [
+                'type' => 'slot_available',
+                'tournament_id' => (string) $tournament->id,
+            ]);
+        }
     }
 }
