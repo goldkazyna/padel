@@ -262,8 +262,8 @@ class TournamentController extends Controller
 
 		// Если турнир был полным и открыт — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
-			// $channelService = new \App\Services\TelegramChannelService();
-			// $channelService->postSlotAvailable($tournament);
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
@@ -520,8 +520,8 @@ class TournamentController extends Controller
 
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
-			// $channelService = new \App\Services\TelegramChannelService();
-			// $channelService->postSlotAvailable($tournament);
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
@@ -796,8 +796,8 @@ class TournamentController extends Controller
 
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
-			// $channelService = new \App\Services\TelegramChannelService();
-			// $channelService->postSlotAvailable($tournament);
+			$channelService = new \App\Services\TelegramChannelService();
+			$channelService->postSlotAvailable($tournament);
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
