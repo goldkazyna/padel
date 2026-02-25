@@ -25,6 +25,10 @@
             <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
                 {{ $slot }}
             </div>
+
+            <div class="mt-4">
+                <a href="/privacy-policy.html" class="text-sm text-gray-500 hover:text-gray-700 underline">Политика конфиденциальности</a>
+            </div>
         </div>
     </body>
 </html>
