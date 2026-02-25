@@ -209,6 +209,29 @@ class MobileAuthController extends Controller
     }
 
     /**
+     * Принятие пользовательского соглашения
+     * POST /api/mobile/auth/accept-terms
+     */
+    public function acceptTerms(Request $request)
+    {
+        $request->validate([
+            'version' => 'sometimes|string|max:20',
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'terms_accepted_at' => now(),
+            'terms_version' => $request->input('version', '1.0'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'terms_accepted_at' => $user->terms_accepted_at->toISOString(),
+            'terms_version' => $user->terms_version,
+        ]);
+    }
+
+    /**
      * Нормализация телефона (убираем всё кроме цифр)
      */
     private function normalizePhone(string $phone): string

@@ -24,6 +24,14 @@ Route::get('/', function () {
     }
     return redirect('/login');
 });
+
+// Юридические документы (чистые URL для App Store / Google Play)
+Route::get('/terms', function () {
+    return response()->file(public_path('terms.html'));
+});
+Route::get('/consent', function () {
+    return response()->file(public_path('consent.html'));
+});
 // Превью рейтинга Американо
         Route::get('/tournaments/{tournament}/preview-rating', function (\App\Models\Tournament $tournament) {
             $service = app(\App\Services\AmericanoService::class);

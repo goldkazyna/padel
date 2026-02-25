@@ -57,6 +57,7 @@ Route::prefix('mobile')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
         Route::get('/auth/user', [MobileAuthController::class, 'user']);
+        Route::post('/auth/accept-terms', [MobileAuthController::class, 'acceptTerms']);
 
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);
