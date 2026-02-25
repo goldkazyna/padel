@@ -28,6 +28,7 @@
 
             <div class="mt-4 flex gap-4">
                 <a href="/terms" class="text-sm text-gray-500 hover:text-gray-700 underline">Пользовательское соглашение</a>
+                <a href="/privacy-policy.html" class="text-sm text-gray-500 hover:text-gray-700 underline">Политика конфиденциальности</a>
                 <a href="/consent" class="text-sm text-gray-500 hover:text-gray-700 underline">Обработка данных</a>
             </div>
         </div>
