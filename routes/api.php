@@ -53,11 +53,18 @@ Route::prefix('mobile')->group(function () {
     Route::post('/auth/telegram/init', [MobileAuthController::class, 'telegramInit']);
     Route::get('/auth/telegram/check', [MobileAuthController::class, 'telegramCheck']);
 
+    // Email авторизация (без токена)
+    Route::post('/auth/register', [MobileAuthController::class, 'register'])->middleware('throttle:10,1');
+    Route::post('/auth/login', [MobileAuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/auth/forgot-password', [MobileAuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
+    Route::post('/auth/reset-password', [MobileAuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+
     // Защищённые роуты (требуют токен)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
         Route::get('/auth/user', [MobileAuthController::class, 'user']);
         Route::post('/auth/accept-terms', [MobileAuthController::class, 'acceptTerms']);
+        Route::delete('/auth/account', [MobileAuthController::class, 'deleteAccount']);
 
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);

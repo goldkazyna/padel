@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\TelegramAuthToken;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules;
 
 class MobileAuthController extends Controller
 {
@@ -228,6 +232,194 @@ class MobileAuthController extends Controller
             'success' => true,
             'terms_accepted_at' => $user->terms_accepted_at->toISOString(),
             'terms_version' => $user->terms_version,
+        ]);
+    }
+
+    /**
+     * Регистрация по email
+     * POST /api/mobile/auth/register
+     */
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        $nameParts = explode(' ', trim($request->name), 2);
+        $firstName = $nameParts[0];
+        $lastName = $nameParts[1] ?? '';
+
+        $user = User::create([
+            'name' => $request->name,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $request->email,
+            'password' => $request->password,
+            'role' => 'player',
+            'rating' => 1000,
+            'level' => 1.00,
+        ]);
+
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
+            ],
+        ], 201);
+    }
+
+    /**
+     * Вход по email
+     * POST /api/mobile/auth/login
+     */
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        // Блокируем placeholder email SMS-пользователей
+        if (str_ends_with($request->email, '@padel.local')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный email или пароль',
+            ], 401);
+        }
+
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный email или пароль',
+            ], 401);
+        }
+
+        $user = Auth::user();
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
+            ],
+        ]);
+    }
+
+    /**
+     * Запрос сброса пароля
+     * POST /api/mobile/auth/forgot-password
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email',
+        ]);
+
+        Password::sendResetLink($request->only('email'));
+
+        // Всегда success (против enumeration)
+        return response()->json([
+            'success' => true,
+            'message' => 'Если аккаунт с таким email существует, мы отправили ссылку для сброса пароля.',
+        ]);
+    }
+
+    /**
+     * Сброс пароля
+     * POST /api/mobile/auth/reset-password
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email',
+            'token' => 'required|string',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                ])->save();
+
+                // Удаляем все токены — пользователь перелогинится
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Пароль успешно изменён.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Не удалось сбросить пароль. Проверьте данные или запросите новую ссылку.',
+        ], 400);
+    }
+
+    /**
+     * Удаление аккаунта (требование Apple)
+     * DELETE /api/mobile/auth/account
+     */
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        // Для email-пользователей (у кого есть пароль) — требуем подтверждение
+        if ($user->password) {
+            $request->validate([
+                'password' => 'required|string',
+            ]);
+
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный пароль',
+                ], 403);
+            }
+        }
+
+        // Анонимизируем данные (не удаляем, чтобы сохранить историю турниров)
+        $user->forceFill([
+            'name' => 'Удалённый пользователь',
+            'first_name' => 'Удалённый',
+            'last_name' => 'пользователь',
+            'email' => 'deleted_' . $user->id . '@padel.local',
+            'phone' => null,
+            'password' => null,
+            'avatar' => null,
+            'telegram_id' => null,
+            'remember_token' => null,
+        ])->save();
+
+        // Удаляем все Sanctum токены
+        $user->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Аккаунт удалён.',
         ]);
     }
 
