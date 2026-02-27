@@ -865,19 +865,22 @@ class TeamTournamentService
 
 	/**
 	 * Сортировка группы команд с равными очками
+	 *
+	 * 2 команды: личная встреча → разница мячей
+	 * 3+ команды: разница мячей → забитые мячи
 	 */
 	protected function sortTeamGroup(array $teams, array $headToHead): array
 	{
 		if (count($teams) <= 1) {
 			return $teams;
 		}
-		
+
 		if (count($teams) === 2) {
 			// Две команды — смотрим личную встречу
 			$team1 = $teams[0];
 			$team2 = $teams[1];
 			$winner = $headToHead[$team1['team_id']][$team2['team_id']] ?? null;
-			
+
 			if ($winner === $team2['team_id']) {
 				return [$team2, $team1];
 			} elseif ($winner === $team1['team_id']) {
@@ -886,27 +889,29 @@ class TeamTournamentService
 				// Ничья или не играли — по разнице мячей
 				$diff1 = $team1['points_for'] - $team1['points_against'];
 				$diff2 = $team2['points_for'] - $team2['points_against'];
-				
-				if ($diff2 > $diff1) {
-					return [$team2, $team1];
+
+				if ($diff1 !== $diff2) {
+					return $diff2 > $diff1 ? [$team2, $team1] : [$team1, $team2];
 				}
-				return [$team1, $team2];
+
+				// Одинаковая разница — по забитым мячам
+				return $team2['points_for'] > $team1['points_for'] ? [$team2, $team1] : [$team1, $team2];
 			}
 		}
-		
-		// 3+ команды — сортируем по разнице мячей
+
+		// 3+ команды — сортируем по разнице мячей, затем по забитым
 		usort($teams, function($a, $b) {
 			$diffA = $a['points_for'] - $a['points_against'];
 			$diffB = $b['points_for'] - $b['points_against'];
-			return $diffB <=> $diffA;
+
+			if ($diffB !== $diffA) {
+				return $diffB <=> $diffA;
+			}
+
+			// Одинаковая разница — по забитым мячам
+			return $b['points_for'] <=> $a['points_for'];
 		});
-		
-		// Берём первого (лучшая разница)
-		$first = array_shift($teams);
-		
-		// Рекурсивно сортируем оставшихся
-		$rest = $this->sortTeamGroup($teams, $headToHead);
-		
-		return array_merge([$first], $rest);
+
+		return $teams;
 	}
 }
