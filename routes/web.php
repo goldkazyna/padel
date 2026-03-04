@@ -12,6 +12,7 @@ use App\Http\Controllers\Club\TeamTournamentController;
 use App\Http\Controllers\RatingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\TelegramAuthController;
+use App\Http\Controllers\Auth\DeleteAccountController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +25,12 @@ Route::get('/', function () {
     }
     return redirect('/login');
 });
+
+// Удаление аккаунта (публичная страница для App Store / Google Play)
+Route::get('/delete-account', [DeleteAccountController::class, 'show'])->name('delete-account');
+Route::post('/delete-account/send-code', [DeleteAccountController::class, 'sendCode'])->name('delete-account.send-code');
+Route::delete('/delete-account', [DeleteAccountController::class, 'destroy'])->name('delete-account.destroy');
+Route::get('/delete-account/done', [DeleteAccountController::class, 'done'])->name('delete-account.done');
 
 // Юридические документы (чистые URL для App Store / Google Play)
 Route::get('/terms', function () {
