@@ -921,6 +921,12 @@
 							<span>Пользователи</span>
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.courts.index') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}">
+							<i class="bi bi-grid-3x3"></i>
+							<span>Корты</span>
+						</a>
+					</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

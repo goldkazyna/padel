@@ -13,6 +13,7 @@ use App\Http\Controllers\RatingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\TelegramAuthController;
 use App\Http\Controllers\Auth\DeleteAccountController;
+use App\Http\Controllers\Club\CourtController;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,6 +146,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
         Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
 		Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
+
+        // Корты
+        Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
+        Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
+        Route::get('/courts/{court}/slots', [CourtController::class, 'slots'])->name('courts.slots');
+        Route::post('/courts/{court}/generate-slots', [CourtController::class, 'generateSlots'])->name('courts.generateSlots');
+        Route::delete('/courts/slots/{slot}', [CourtController::class, 'deleteSlot'])->name('courts.deleteSlot');
+        Route::post('/courts/slots/{slot}/toggle-block', [CourtController::class, 'toggleSlotBlock'])->name('courts.toggleSlotBlock');
+
         /*
         |----------------------------------------------------------------------
         | ВАЖНО: Статические роуты ПЕРЕД динамическими с {tournament}
