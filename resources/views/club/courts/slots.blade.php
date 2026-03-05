@@ -61,7 +61,62 @@
                     <input type="number" name="price" class="form-input" value="5000" min="0" step="100" required>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Цена выходных (₸)</label>
+                    <input type="number" name="weekend_price" class="form-input" placeholder="Как в будни" min="0" step="100">
+                    <small style="color: var(--slots-text-muted); margin-top: 4px;">Сб/Вс. Оставьте пустым — будет как в будни</small>
+                </div>
+                <div class="form-group"></div>
+            </div>
+
+            <!-- Weekday checkboxes -->
+            <div class="form-group">
+                <label class="form-label">Дни недели</label>
+                <div class="weekdays-row">
+                    @php
+                        $dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+                        $dayOrder = [1, 2, 3, 4, 5, 6, 0]; // Пн-Вс
+                    @endphp
+                    @foreach($dayOrder as $day)
+                        <label class="weekday-checkbox">
+                            <input type="checkbox" name="weekdays[]" value="{{ $day }}" checked>
+                            <span class="weekday-label">{{ $dayNames[$day] }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
             <button type="submit" class="btn-generate">Сгенерировать слоты</button>
+        </form>
+    </div>
+
+    <!-- Single Slot Form -->
+    <div class="generate-card">
+        <h2 class="generate-title">Добавить один слот</h2>
+        <form action="{{ route('club.courts.storeSlot', $court) }}" method="POST" class="generate-form">
+            @csrf
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Дата</label>
+                    <input type="date" name="date" class="form-input" value="{{ $date }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Цена (₸)</label>
+                    <input type="number" name="price" class="form-input" value="5000" min="0" step="100" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Начало</label>
+                    <input type="time" name="start_time" class="form-input" value="10:00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Конец</label>
+                    <input type="time" name="end_time" class="form-input" value="11:00" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-generate" style="background: var(--slots-blue);">Добавить слот</button>
         </form>
     </div>
 
@@ -73,11 +128,35 @@
         </form>
     </div>
 
+    <!-- Bulk Actions -->
+    @if($slots->count() > 0)
+    <div class="bulk-actions" id="bulkActions" style="display: none;">
+        <form id="bulkForm" action="{{ route('club.courts.bulkSlots', $court) }}" method="POST">
+            @csrf
+            <div id="bulkSlotInputs"></div>
+            <div class="bulk-actions-bar">
+                <span class="bulk-count" id="bulkCount">Выбрано: 0</span>
+                <button type="submit" name="action" value="delete" class="bulk-btn bulk-delete" onclick="return confirm('Удалить выбранные слоты?')">Удалить</button>
+                <button type="submit" name="action" value="block" class="bulk-btn bulk-block">Заблокировать</button>
+                <button type="submit" name="action" value="unblock" class="bulk-btn bulk-unblock">Разблокировать</button>
+            </div>
+        </form>
+    </div>
+    @endif
+
     <!-- Slots Table -->
     <div class="slots-table-wrap">
         <table class="slots-table">
             <thead>
                 <tr>
+                    @if($slots->count() > 0)
+                    <th style="width: 40px;">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="selectAll">
+                            <span class="checkmark"></span>
+                        </label>
+                    </th>
+                    @endif
                     <th>Время</th>
                     <th>Цена</th>
                     <th>Статус</th>
@@ -87,6 +166,12 @@
             <tbody>
                 @forelse($slots as $slot)
                     <tr>
+                        <td>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" class="slot-checkbox" value="{{ $slot->id }}" {{ $slot->isBooked() ? 'disabled' : '' }}>
+                                <span class="checkmark"></span>
+                            </label>
+                        </td>
                         <td>
                             <span class="slot-time">{{ \Carbon\Carbon::parse($slot->start_time)->format('H:i') }} — {{ \Carbon\Carbon::parse($slot->end_time)->format('H:i') }}</span>
                         </td>
@@ -130,7 +215,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #71717a;">
                             Нет слотов на выбранную дату
                         </td>
                     </tr>
@@ -310,6 +395,146 @@
         transform: translateY(-1px);
     }
 
+    /* Weekdays */
+    .weekdays-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .weekday-checkbox {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .weekday-checkbox input {
+        display: none;
+    }
+
+    .weekday-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 40px;
+        background: var(--slots-card);
+        border: 1px solid var(--slots-border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--slots-text-dim);
+        transition: all 0.2s;
+        user-select: none;
+    }
+
+    .weekday-checkbox input:checked + .weekday-label {
+        background: var(--slots-accent);
+        color: var(--slots-bg);
+        border-color: var(--slots-accent);
+    }
+
+    .weekday-checkbox:hover .weekday-label {
+        border-color: var(--slots-accent);
+    }
+
+    /* Custom Checkbox */
+    .custom-checkbox {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .custom-checkbox input {
+        display: none;
+    }
+
+    .custom-checkbox .checkmark {
+        width: 20px;
+        height: 20px;
+        background: var(--slots-card);
+        border: 1.5px solid var(--slots-border-light);
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .custom-checkbox input:checked + .checkmark {
+        background: var(--slots-accent);
+        border-color: var(--slots-accent);
+    }
+
+    .custom-checkbox input:checked + .checkmark::after {
+        content: '';
+        width: 6px;
+        height: 10px;
+        border: solid var(--slots-bg);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        margin-top: -2px;
+    }
+
+    .custom-checkbox input:disabled + .checkmark {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    /* Bulk Actions */
+    .bulk-actions {
+        margin-bottom: 16px;
+    }
+
+    .bulk-actions-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--slots-bg-secondary);
+        border: 1px solid var(--slots-border);
+        border-radius: 12px;
+        padding: 12px 20px;
+    }
+
+    .bulk-count {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--slots-text-dim);
+        margin-right: auto;
+    }
+
+    .bulk-btn {
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        border: 1px solid var(--slots-border);
+        background: var(--slots-card);
+        color: var(--slots-text-dim);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .bulk-btn:hover {
+        background: var(--slots-card-hover);
+    }
+
+    .bulk-delete:hover {
+        border-color: var(--slots-red);
+        color: var(--slots-red);
+    }
+
+    .bulk-block:hover {
+        border-color: var(--slots-yellow);
+        color: var(--slots-yellow);
+    }
+
+    .bulk-unblock:hover {
+        border-color: var(--slots-accent);
+        color: var(--slots-accent);
+    }
+
     /* Date Filter */
     .date-filter {
         margin-bottom: 24px;
@@ -463,6 +688,57 @@
 
     @media (max-width: 768px) {
         .form-row { grid-template-columns: 1fr; }
+        .bulk-actions-bar { flex-wrap: wrap; }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.slot-checkbox:not(:disabled)');
+    const bulkActions = document.getElementById('bulkActions');
+    const bulkCount = document.getElementById('bulkCount');
+    const bulkSlotInputs = document.getElementById('bulkSlotInputs');
+
+    if (!selectAll || !checkboxes.length) return;
+
+    function updateBulkUI() {
+        const checked = document.querySelectorAll('.slot-checkbox:checked');
+        const count = checked.length;
+
+        if (count > 0) {
+            bulkActions.style.display = 'block';
+            bulkCount.textContent = 'Выбрано: ' + count;
+
+            // Update hidden inputs
+            bulkSlotInputs.innerHTML = '';
+            checked.forEach(function(cb) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'slot_ids[]';
+                input.value = cb.value;
+                bulkSlotInputs.appendChild(input);
+            });
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(function(cb) {
+            cb.checked = selectAll.checked;
+        });
+        updateBulkUI();
+    });
+
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            const allChecked = document.querySelectorAll('.slot-checkbox:not(:disabled)').length ===
+                               document.querySelectorAll('.slot-checkbox:checked').length;
+            selectAll.checked = allChecked;
+            updateBulkUI();
+        });
+    });
+});
+</script>
 @endsection

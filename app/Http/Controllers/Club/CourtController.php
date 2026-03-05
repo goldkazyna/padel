@@ -156,45 +156,67 @@ class CourtController extends Controller
             'time_to' => 'required|date_format:H:i|after:time_from',
             'duration_minutes' => 'required|integer|in:30,60,90',
             'price' => 'required|numeric|min:0',
+            'weekend_price' => 'nullable|numeric|min:0',
+            'weekdays' => 'nullable|array',
+            'weekdays.*' => 'integer|between:0,6',
         ]);
 
         $dateFrom = Carbon::parse($validated['date_from']);
         $dateTo = Carbon::parse($validated['date_to']);
         $duration = (int) $validated['duration_minutes'];
+        $weekdays = $validated['weekdays'] ?? [0, 1, 2, 3, 4, 5, 6];
+        $weekendPrice = $validated['weekend_price'] ?? null;
         $created = 0;
+        $skipped = 0;
 
         for ($date = $dateFrom->copy(); $date->lte($dateTo); $date->addDay()) {
+            // Filter by weekday (0=Sunday, 6=Saturday in Carbon dayOfWeek)
+            if (!in_array($date->dayOfWeek, $weekdays)) {
+                continue;
+            }
+
             $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . $validated['time_from']);
             $endLimit = Carbon::parse($date->format('Y-m-d') . ' ' . $validated['time_to']);
+
+            // Determine price: weekend (Sat=6, Sun=0) or regular
+            $isWeekend = in_array($date->dayOfWeek, [0, 6]);
+            $slotPrice = ($isWeekend && $weekendPrice !== null) ? $weekendPrice : $validated['price'];
 
             while ($startTime->copy()->addMinutes($duration)->lte($endLimit)) {
                 $endTime = $startTime->copy()->addMinutes($duration);
 
-                // Skip if slot already exists
-                $exists = CourtSlot::where('court_id', $court->id)
+                // Check for any overlapping slot (not just exact match)
+                $overlaps = CourtSlot::where('court_id', $court->id)
                     ->where('date', $date->format('Y-m-d'))
-                    ->where('start_time', $startTime->format('H:i:s'))
-                    ->where('end_time', $endTime->format('H:i:s'))
+                    ->where('start_time', '<', $endTime->format('H:i:s'))
+                    ->where('end_time', '>', $startTime->format('H:i:s'))
                     ->exists();
 
-                if (!$exists) {
+                if (!$overlaps) {
                     CourtSlot::create([
                         'court_id' => $court->id,
                         'date' => $date->format('Y-m-d'),
                         'start_time' => $startTime->format('H:i:s'),
                         'end_time' => $endTime->format('H:i:s'),
-                        'price' => $validated['price'],
+                        'price' => $slotPrice,
                         'status' => 'available',
                     ]);
                     $created++;
+                } else {
+                    $skipped++;
                 }
 
                 $startTime->addMinutes($duration);
             }
         }
 
+        $message = "Создано слотов: {$created}";
+        if ($skipped > 0) {
+            $message .= " (пропущено из-за пересечений: {$skipped})";
+        }
+
         return redirect()->route('club.courts.slots', ['court' => $court->id, 'date' => $validated['date_from']])
-            ->with('success', "Создано слотов: {$created}");
+            ->with('success', $message);
     }
 
     public function deleteSlot(CourtSlot $slot)
@@ -233,5 +255,100 @@ class CourtController extends Controller
         ]);
 
         return back()->with('success', $slot->status === 'available' ? 'Слот разблокирован!' : 'Слот заблокирован!');
+    }
+
+    public function storeSlot(Request $request, Court $court)
+    {
+        $club = $this->getClub();
+
+        if (!$club || $court->club_id !== $club->id) {
+            return back()->with('error', 'Нет доступа');
+        }
+
+        $validated = $request->validate([
+            'date' => 'required|date|after_or_equal:today',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        // Check for overlapping slots
+        $overlaps = CourtSlot::where('court_id', $court->id)
+            ->where('date', $validated['date'])
+            ->where('start_time', '<', $validated['end_time'] . ':00')
+            ->where('end_time', '>', $validated['start_time'] . ':00')
+            ->exists();
+
+        if ($overlaps) {
+            return back()->with('error', 'Слот пересекается с существующим')->withInput();
+        }
+
+        CourtSlot::create([
+            'court_id' => $court->id,
+            'date' => $validated['date'],
+            'start_time' => $validated['start_time'] . ':00',
+            'end_time' => $validated['end_time'] . ':00',
+            'price' => $validated['price'],
+            'status' => 'available',
+        ]);
+
+        return redirect()->route('club.courts.slots', ['court' => $court->id, 'date' => $validated['date']])
+            ->with('success', 'Слот создан!');
+    }
+
+    public function bulkAction(Request $request, Court $court)
+    {
+        $club = $this->getClub();
+
+        if (!$club || $court->club_id !== $club->id) {
+            return back()->with('error', 'Нет доступа');
+        }
+
+        $validated = $request->validate([
+            'slot_ids' => 'required|array|min:1',
+            'slot_ids.*' => 'integer|exists:court_slots,id',
+            'action' => 'required|in:delete,block,unblock',
+        ]);
+
+        $slots = CourtSlot::where('court_id', $court->id)
+            ->whereIn('id', $validated['slot_ids'])
+            ->get();
+
+        $processed = 0;
+        $skippedBooked = 0;
+
+        foreach ($slots as $slot) {
+            if ($slot->isBooked()) {
+                $skippedBooked++;
+                continue;
+            }
+
+            switch ($validated['action']) {
+                case 'delete':
+                    $slot->delete();
+                    $processed++;
+                    break;
+                case 'block':
+                    if ($slot->status !== 'blocked') {
+                        $slot->update(['status' => 'blocked']);
+                        $processed++;
+                    }
+                    break;
+                case 'unblock':
+                    if ($slot->status === 'blocked') {
+                        $slot->update(['status' => 'available']);
+                        $processed++;
+                    }
+                    break;
+            }
+        }
+
+        $actionLabels = ['delete' => 'Удалено', 'block' => 'Заблокировано', 'unblock' => 'Разблокировано'];
+        $message = "{$actionLabels[$validated['action']]}: {$processed}";
+        if ($skippedBooked > 0) {
+            $message .= " (пропущено забронированных: {$skippedBooked})";
+        }
+
+        return back()->with('success', $message);
     }
 }

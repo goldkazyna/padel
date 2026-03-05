@@ -152,6 +152,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
         Route::get('/courts/{court}/slots', [CourtController::class, 'slots'])->name('courts.slots');
         Route::post('/courts/{court}/generate-slots', [CourtController::class, 'generateSlots'])->name('courts.generateSlots');
+        Route::post('/courts/{court}/slots', [CourtController::class, 'storeSlot'])->name('courts.storeSlot');
+        Route::post('/courts/{court}/slots/bulk', [CourtController::class, 'bulkAction'])->name('courts.bulkSlots');
         Route::delete('/courts/slots/{slot}', [CourtController::class, 'deleteSlot'])->name('courts.deleteSlot');
         Route::post('/courts/slots/{slot}/toggle-block', [CourtController::class, 'toggleSlotBlock'])->name('courts.toggleSlotBlock');
 
