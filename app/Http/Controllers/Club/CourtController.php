@@ -25,6 +25,62 @@ class CourtController extends Controller
         return $user->adminClubs()->first();
     }
 
+    public function schedule(Request $request)
+    {
+        $club = $this->getClub();
+
+        if (!$club) {
+            return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
+        }
+
+        $courts = Court::where('club_id', $club->id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        if ($courts->isEmpty()) {
+            return redirect()->route('club.courts.index')->with('error', 'Нет активных кортов');
+        }
+
+        // Выбранный корт
+        $currentCourt = $request->has('court_id')
+            ? $courts->firstWhere('id', $request->court_id) ?? $courts->first()
+            : $courts->first();
+
+        // Неделя (понедельник)
+        $weekStart = $request->has('week_start')
+            ? Carbon::parse($request->week_start)->startOfWeek(Carbon::MONDAY)
+            : Carbon::now()->startOfWeek(Carbon::MONDAY);
+
+        $weekEnd = $weekStart->copy()->addDays(6);
+
+        // Слоты за неделю
+        $slots = CourtSlot::where('court_id', $currentCourt->id)
+            ->whereBetween('date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
+        // Группировка по дате
+        $slotsByDate = $slots->groupBy(fn($slot) => $slot->date);
+
+        // Уникальные временные интервалы (для строк таблицы)
+        $timeSlots = $slots
+            ->map(fn($slot) => [
+                'start' => Carbon::parse($slot->start_time)->format('H:i'),
+                'end' => Carbon::parse($slot->end_time)->format('H:i'),
+                'key' => Carbon::parse($slot->start_time)->format('H:i') . '-' . Carbon::parse($slot->end_time)->format('H:i'),
+            ])
+            ->unique('key')
+            ->sortBy('start')
+            ->values();
+
+        return view('club.courts.schedule', compact(
+            'courts', 'currentCourt', 'weekStart', 'weekEnd', 'slotsByDate', 'timeSlots'
+        ));
+    }
+
     public function index()
     {
         $club = $this->getClub();

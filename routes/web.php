@@ -148,6 +148,7 @@ Route::middleware('auth')->group(function () {
 		Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
 
         // Корты
+        Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');
         Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
         Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
         Route::get('/courts/{court}/slots', [CourtController::class, 'slots'])->name('courts.slots');
