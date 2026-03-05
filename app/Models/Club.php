@@ -17,6 +17,7 @@ class Club extends Model
         'logo',
         'description',
         'is_active',
+        'booking_cancel_hours',
     ];
 
     protected $casts = [
@@ -38,6 +39,11 @@ class Club extends Model
     {
         return $query->where('is_active', true);
     }
+	// Корты клуба
+	public function courts()
+	{
+		return $this->hasMany(Court::class);
+	}
 	// Турниры клуба
 	public function tournaments()
 	{

@@ -432,6 +432,11 @@ class User extends Authenticatable
 		return $matches;
 	}
 	
+	public function courtBookings()
+	{
+		return $this->hasMany(CourtBooking::class);
+	}
+
 	public function deviceTokens()
 	{
 		return $this->hasMany(DeviceToken::class);
