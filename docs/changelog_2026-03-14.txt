@@ -1,0 +1,111 @@
+========================================
+CHANGELOG — 14 марта 2026
+========================================
+
+## 1. Карточки турниров — новый дизайн (Flutter)
+- Полностью переработан виджет TournamentCard
+- Верхняя полоска: дата + время слева, название турнира справа
+- Кнопка «Записаться» — яркая зелёная с glow-тенью
+- Кнопка «Мест нет» — красный залитый фон
+- Кнопка «Записан» — зелёная обводка + галочка
+- Тело карточки: бейдж типа + клуб, мета-данные + кнопка действия
+- Файл: padel_app/lib/widgets/tournaments/tournament_card.dart
+
+## 2. Время турнира в списке (Flutter)
+- Добавлено отображение времени в карточках турниров
+- Ранее время не показывалось, хотя API его отдавал
+
+## 3. Веб-совместимость Flutter-приложения
+- Firebase инициализация пропускается на вебе (kIsWeb)
+- FlutterSecureStorage заменён на Map-фоллбэк для веба
+- PushNotificationService: ленивая инициализация FirebaseMessaging
+- dart:io подменяется стабом на вебе через условный импорт
+- Файлы: main.dart, storage_service.dart, push_notification_service.dart, platform_stub.dart
+
+## 4. Отмена заявки на модерации (Flutter + Backend)
+- Кнопка «Заявка на модерации» теперь показывает текст-статус + кнопку «Отменить заявку»
+- Используется существующий API endpoint POST /tournaments/{id}/cancel
+- Backend уже поддерживал отмену pending заявок
+- Файл: padel_app/lib/screens/tournament_detail_screen.dart
+
+## 5. Модальные окна вместо SnackBar (Flutter)
+- Заменены SnackBar на модальные диалоги для результатов действий (регистрация, отмена)
+- Зелёная галочка/красный значок + текст + кнопка ОК
+- Больше не перекрывает кнопки внизу экрана
+- Файл: padel_app/lib/screens/tournament_detail_screen.dart
+
+## 6. Регистрация — новые поля (Flutter + Backend)
+- Добавлено поле «Телефон» с выбором страны (пакет intl_phone_field, по умолчанию KZ)
+- Добавлено поле «Город» — выпадающий список (Алматы, Астана, Шымкент, Караганда, Актобе)
+- Backend: phone и city сохраняются при регистрации
+- Backend: + убирается из номера телефона перед сохранением
+- Backend: проверка уникальности номера телефона
+- Backend: русские сообщения валидации
+- Backend: пароль min:6 вместо Password::defaults()
+- Файлы:
+  - padel_app/lib/screens/auth/email_register_screen.dart
+  - padel_app/lib/services/auth_service.dart
+  - padel_app/lib/providers/auth_provider.dart
+  - padel/app/Http/Controllers/Api/MobileAuthController.php
+
+## 7. Экран входа по Email — исправление overflow (Flutter)
+- Обёрнут в SingleChildScrollView — нет жёлто-чёрных артефактов при открытии клавиатуры
+- Файл: padel_app/lib/screens/auth/email_login_screen.dart
+
+## 8. Подсказка при неактивных кнопках авторизации (Flutter)
+- При нажатии на кнопки Telegram/Email без принятых галочек — модальное окно с подсказкой
+- «Для продолжения необходимо принять пользовательское соглашение...»
+- Файл: padel_app/lib/screens/auth/login_screen.dart
+
+## 9. Профиль — предупреждение о незаполненных данных (Flutter)
+- Оранжевая плашка если не указан город и/или пол
+- При нажатии открывает редактирование профиля
+- Текст динамический: «Укажите город и пол» / «Укажите город» / «Укажите пол»
+- Файл: padel_app/lib/widgets/profile/profile_header.dart
+
+## 10. Модель User — рефакторинг (Flutter)
+- Убраны поля firstName/lastName — всё из поля name
+- Инициалы берутся из name (split по пробелу)
+- Добавлены поля city, gender
+- Геттеры: isProfileIncomplete, genderName, initials
+- Файл: padel_app/lib/models/user.dart
+
+## 11. Рейтинг — аватар/инициалы (Flutter)
+- Модели RatingPlayer и MyRatingCard — убраны firstName/lastName, инициалы из name
+- Если есть аватар — показывается фото, если нет — инициалы
+- Файлы:
+  - padel_app/lib/services/rating_service.dart
+  - padel_app/lib/widgets/rating/player_rating_item.dart
+  - padel_app/lib/widgets/rating/my_rank_card.dart
+
+## 12. Backend — профиль (Laravel)
+- Добавлены first_name и last_name в ответ /profile (formatUser)
+- Файл: padel/app/Http/Controllers/Api/MobileProfileController.php
+
+## 13. Редактирование клуба — город и ссылка на оплату (Backend)
+- Миграция: добавлены поля city и payment_url в таблицу clubs
+- Город — выпадающий список (Алматы, Астана, Шымкент, Караганда, Актобе)
+- Ссылка на оплату — текстовое поле с валидацией URL
+- Обновлены: модель Club, Admin/ClubController, admin/clubs/edit.blade.php
+- Миграция: 2026_03_14_000001_add_city_and_payment_url_to_clubs_table.php
+
+## 14. Кнопка «Оплатить» в деталях турнира (Flutter + Backend)
+- Backend: payment_url клуба добавлен в ответ API (formatTournament → club)
+- Flutter: модель Club — добавлено поле paymentUrl
+- Кнопка «Оплатить» появляется между блоками уровень/стоимость и участниками
+- Показывается только когда заявка на модерации (pending) И у клуба есть ссылка на оплату
+- Открывает ссылку во внешнем браузере через url_launcher
+- Файлы:
+  - padel/app/Http/Controllers/Api/MobileTournamentController.php
+  - padel_app/lib/models/tournament.dart
+  - padel_app/lib/screens/tournament_detail_screen.dart
+
+========================================
+Коммиты в backend (padel):
+========================================
+- feb7bab  feat: добавить phone и city в регистрацию через мобильное API
+- 4368e6f  fix: русские сообщения валидации при регистрации, пароль min:6
+- 3ce7b4f  fix: убирать + из телефона, проверка уникальности номера при регистрации
+- bd157b8  fix: добавить first_name и last_name в ответ /profile
+- 5c0206a  feat: город и ссылка на оплату в редактировании клуба
+- e22bb0e  feat: отдавать payment_url клуба в API турниров
