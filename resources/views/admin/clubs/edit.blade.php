@@ -37,6 +37,20 @@
                     </div>
 
                     <div class="mb-4">
+                        <label class="form-label">Город</label>
+                        <select name="city" class="form-control @error('city') is-invalid @enderror"
+                                style="background-color: var(--bg-secondary); border-color: var(--border); color: var(--text);">
+                            <option value="">— Не указан —</option>
+                            @foreach(['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе'] as $city)
+                                <option value="{{ $city }}" {{ old('city', $club->city) === $city ? 'selected' : '' }}>{{ $city }}</option>
+                            @endforeach
+                        </select>
+                        @error('city')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
                         <label class="form-label">Телефон</label>
                         <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" 
                                value="{{ old('phone', $club->phone) }}">
@@ -61,6 +75,16 @@
                         @error('description')
                             <div class="text-danger mt-2 small">{{ $message }}</div>
                         @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Ссылка на оплату</label>
+                        <input type="url" name="payment_url" class="form-control @error('payment_url') is-invalid @enderror"
+                               value="{{ old('payment_url', $club->payment_url) }}" placeholder="https://kaspi.kz/pay/...">
+                        @error('payment_url')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Ссылка на страницу оплаты (Kaspi, PayBox и др.)</small>
                     </div>
 
                     <div class="mb-4">

@@ -45,9 +45,11 @@ class ClubController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
+            'city' => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
+            'payment_url' => 'nullable|url|max:500',
             'is_active' => 'boolean',
         ]);
 

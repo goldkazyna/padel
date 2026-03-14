@@ -16,8 +16,10 @@ class Club extends Model
         'email',
         'logo',
         'description',
+        'city',
         'is_active',
         'booking_cancel_hours',
+        'payment_url',
     ];
 
     protected $casts = [
