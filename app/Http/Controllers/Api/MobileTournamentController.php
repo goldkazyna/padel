@@ -486,6 +486,7 @@ class MobileTournamentController extends Controller
                 'name' => $t->club->name ?? 'Клуб',
                 'phone' => $t->club->phone ?? null,
                 'address' => $t->club->address ?? null,
+                'payment_url' => $t->club->payment_url ?? null,
             ],
             'date' => $t->start_date->format('d.m.Y'),
             'time' => $t->start_date->format('H:i'),
