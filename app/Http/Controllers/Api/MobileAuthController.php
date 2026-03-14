@@ -244,9 +244,17 @@ class MobileAuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', 'min:6'],
             'phone' => 'nullable|string|max:20',
             'city' => 'nullable|string|max:255',
+        ], [
+            'name.required' => 'Введите ФИО',
+            'email.required' => 'Введите email',
+            'email.email' => 'Введите корректный email',
+            'email.unique' => 'Пользователь с таким email уже существует',
+            'password.required' => 'Введите пароль',
+            'password.confirmed' => 'Пароли не совпадают',
+            'password.min' => 'Пароль должен быть не менее 6 символов',
         ]);
 
         $nameParts = explode(' ', trim($request->name), 2);
