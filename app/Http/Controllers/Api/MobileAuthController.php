@@ -241,11 +241,16 @@ class MobileAuthController extends Controller
      */
     public function register(Request $request)
     {
+        // Убираем + из номера телефона до валидации
+        if ($request->phone) {
+            $request->merge(['phone' => ltrim($request->phone, '+')]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', 'min:6'],
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20|unique:users,phone',
             'city' => 'nullable|string|max:255',
         ], [
             'name.required' => 'Введите ФИО',
@@ -255,6 +260,7 @@ class MobileAuthController extends Controller
             'password.required' => 'Введите пароль',
             'password.confirmed' => 'Пароли не совпадают',
             'password.min' => 'Пароль должен быть не менее 6 символов',
+            'phone.unique' => 'Пользователь с таким номером телефона уже существует',
         ]);
 
         $nameParts = explode(' ', trim($request->name), 2);
