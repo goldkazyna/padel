@@ -245,6 +245,8 @@ class MobileAuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'phone' => 'nullable|string|max:20',
+            'city' => 'nullable|string|max:255',
         ]);
 
         $nameParts = explode(' ', trim($request->name), 2);
@@ -257,6 +259,8 @@ class MobileAuthController extends Controller
             'last_name' => $lastName,
             'email' => $request->email,
             'password' => $request->password,
+            'phone' => $request->phone,
+            'city' => $request->city,
             'role' => 'player',
             'rating' => 1000,
             'level' => 1.00,
