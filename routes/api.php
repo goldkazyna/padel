@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MobileMatchController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileNotificationController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
+use App\Http\Controllers\Api\MobileAppController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +48,9 @@ Route::prefix('tg')->middleware('telegram.miniapp')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('mobile')->group(function () {
+    // Версия приложения (публичный)
+    Route::get('/app/version', [MobileAppController::class, 'version']);
+
     // Авторизация (без токена)
     Route::post('/auth/send-code', [MobileAuthController::class, 'sendCode']);
     Route::post('/auth/verify-code', [MobileAuthController::class, 'verifyCode']);
