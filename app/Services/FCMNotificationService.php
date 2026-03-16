@@ -111,7 +111,8 @@ class FCMNotificationService
                 ],
             ],
         ]);
-        $message = CloudMessage::withTarget('topic', $topic)
+        $message = CloudMessage::new()
+            ->toTopic($topic)
             ->withNotification($notification)
             ->withApnsConfig($apns)
             ->withData($data);
