@@ -719,35 +719,28 @@ class TournamentController extends Controller
 		$title = 'Новый турнир!';
 		$body = "{$tournament->name} — {$date}";
 
-		$users = \App\Models\User::whereHas('deviceTokens')
-			->where(function ($q) use ($tournament) {
-				$q->where('notify_only_my_level', false)
-				  ->orWhere(function ($q2) use ($tournament) {
-					  $q2->where('notify_only_my_level', true)
-						 ->where('level', '>=', $tournament->min_level)
-						 ->where('level', '<=', $tournament->max_level);
-				  });
-			})
-			->get();
-		$sent = 0;
+		// Пуш через топик — все получают моментально
+		$fcm->sendToTopic('all_users', $title, $body, [
+			'type' => 'tournament',
+			'tournament_id' => (string) $tournament->id,
+		]);
 
-		foreach ($users as $user) {
-			\App\Models\Notification::create([
-				'user_id' => $user->id,
-				'title' => $title,
-				'body' => $body,
-				'type' => 'tournament',
-				'data' => ['tournament_id' => $tournament->id],
-			]);
+		// Записи в колокольчик — одним запросом
+		$userIds = \App\Models\User::whereHas('deviceTokens')->pluck('id');
+		$now = now();
+		$notifications = $userIds->map(fn($id) => [
+			'user_id' => $id,
+			'title' => $title,
+			'body' => $body,
+			'type' => 'tournament',
+			'data' => json_encode(['tournament_id' => $tournament->id]),
+			'created_at' => $now,
+			'updated_at' => $now,
+		])->toArray();
 
-			$result = $fcm->sendToUser($user, $title, $body, [
-				'type' => 'tournament',
-				'tournament_id' => (string) $tournament->id,
-			]);
-			if ($result) $sent++;
-		}
+		\App\Models\Notification::insert($notifications);
 
-		return back()->with('success', "Push отправлен ({$sent} пользователей)");
+		return back()->with('success', "Push отправлен ({$userIds->count()} пользователей)");
 	}
 
 	/**

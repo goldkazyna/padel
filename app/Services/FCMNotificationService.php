@@ -129,6 +129,38 @@ class FCMNotificationService
     }
 
     /**
+     * Массовая рассылка: пуш через топик + запись в notifications всем пользователям
+     */
+    public function sendToAll(string $title, string $body, array $data = []): bool
+    {
+        // Пуш через топик — все получают моментально
+        $sent = $this->sendToTopic('all_users', $title, $body, $data);
+
+        // Записи в колокольчик — для всех пользователей с device tokens
+        $users = User::whereHas('deviceTokens')->pluck('id');
+        $now = now();
+        $notifications = $users->map(fn($userId) => [
+            'user_id' => $userId,
+            'title' => $title,
+            'body' => $body,
+            'type' => $data['type'] ?? 'info',
+            'data' => json_encode($data),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->toArray();
+
+        \App\Models\Notification::insert($notifications);
+
+        Log::info('FCM: broadcast sent', [
+            'topic' => 'all_users',
+            'notifications_created' => count($notifications),
+            'fcm_sent' => $sent,
+        ]);
+
+        return $sent;
+    }
+
+    /**
      * Проверяем, является ли ошибка невалидным токеном
      */
     protected function isInvalidTokenError(string $error): bool
