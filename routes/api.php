@@ -114,6 +114,8 @@ Route::prefix('mobile')->group(function () {
         // Поединки
         Route::get('/challenges', [MobileChallengeController::class, 'index']);
         Route::get('/challenges/my', [MobileChallengeController::class, 'my']);
+        Route::get('/challenges/clubs', [MobileChallengeController::class, 'clubs']);
+        Route::post('/challenges/search-player', [MobileChallengeController::class, 'searchPlayer']);
         Route::post('/challenges', [MobileChallengeController::class, 'store']);
         Route::get('/challenges/{challenge}', [MobileChallengeController::class, 'show']);
         Route::post('/challenges/{challenge}/join', [MobileChallengeController::class, 'join']);
@@ -124,7 +126,5 @@ Route::prefix('mobile')->group(function () {
         Route::post('/challenges/{challenge}/score', [MobileChallengeController::class, 'score']);
         Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
         Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
-        Route::get('/challenges/clubs', [MobileChallengeController::class, 'clubs']);
-        Route::post('/challenges/search-player', [MobileChallengeController::class, 'searchPlayer']);
     });
 });
