@@ -462,6 +462,29 @@ class MobileChallengeController extends Controller
     }
 
     /**
+     * Список клубов (фильтр по городу пользователя)
+     */
+    public function clubs(Request $request)
+    {
+        $user = $request->user();
+
+        $query = \App\Models\Club::active()->orderBy('name');
+
+        if ($user->city) {
+            $query->where('city', $user->city);
+        }
+
+        $clubs = $query->get()->map(fn($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'address' => $c->address,
+            'city' => $c->city,
+        ]);
+
+        return response()->json(['success' => true, 'data' => $clubs]);
+    }
+
+    /**
      * Поиск игрока по телефону
      */
     public function searchPlayer(Request $request)

@@ -124,6 +124,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/challenges/{challenge}/score', [MobileChallengeController::class, 'score']);
         Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
         Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
+        Route::get('/challenges/clubs', [MobileChallengeController::class, 'clubs']);
         Route::post('/challenges/search-player', [MobileChallengeController::class, 'searchPlayer']);
     });
 });
