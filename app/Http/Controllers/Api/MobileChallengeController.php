@@ -114,7 +114,7 @@ class MobileChallengeController extends Controller
                 ]);
 
                 $title = 'Приглашение на поединок';
-                $body = "{$user->full_name} приглашает вас на матч";
+                $body = "{$user->name} приглашает вас на матч";
 
                 Notification::create([
                     'user_id' => $invitedUser->id,
@@ -192,7 +192,7 @@ class MobileChallengeController extends Controller
         $this->checkAndUpdateStatus($challenge);
 
         // Уведомляем создателя
-        $this->notifyPlayer($challenge->creator, 'Игрок присоединился', "{$user->full_name} занял место в вашем поединке", 'challenge_joined', $challenge->id);
+        $this->notifyPlayer($challenge->creator, 'Игрок присоединился', "{$user->name} занял место в вашем поединке", 'challenge_joined', $challenge->id);
 
         $challenge->load(['creator', 'club', 'players.user']);
 
@@ -240,7 +240,7 @@ class MobileChallengeController extends Controller
         ]);
 
         $title = 'Приглашение на поединок';
-        $body = "{$user->full_name} приглашает вас на матч";
+        $body = "{$user->name} приглашает вас на матч";
 
         $this->notifyPlayer($invitedUser, $title, $body, 'challenge_invite', $challenge->id);
 
@@ -267,7 +267,7 @@ class MobileChallengeController extends Controller
 
         $this->checkAndUpdateStatus($challenge);
 
-        $this->notifyPlayer($challenge->creator, 'Приглашение принято', "{$user->full_name} принял приглашение на поединок", 'challenge_accepted', $challenge->id);
+        $this->notifyPlayer($challenge->creator, 'Приглашение принято', "{$user->name} принял приглашение на поединок", 'challenge_accepted', $challenge->id);
 
         $challenge->load(['creator', 'club', 'players.user']);
 
@@ -295,7 +295,7 @@ class MobileChallengeController extends Controller
 
         $player->update(['status' => ChallengePlayer::STATUS_DECLINED]);
 
-        $this->notifyPlayer($challenge->creator, 'Приглашение отклонено', "{$user->full_name} отклонил приглашение", 'challenge_declined', $challenge->id);
+        $this->notifyPlayer($challenge->creator, 'Приглашение отклонено', "{$user->name} отклонил приглашение", 'challenge_declined', $challenge->id);
 
         return response()->json(['success' => true, 'message' => 'Приглашение отклонено']);
     }
@@ -423,7 +423,7 @@ class MobileChallengeController extends Controller
         foreach ($challenge->confirmedPlayers as $player) {
             if ($player->user_id === $user->id) continue;
 
-            $this->notifyPlayer($player->user, 'Поединок отменён', "{$user->full_name} отменил поединок", 'challenge_cancelled', $challenge->id);
+            $this->notifyPlayer($player->user, 'Поединок отменён', "{$user->name} отменил поединок", 'challenge_cancelled', $challenge->id);
         }
 
         return response()->json(['success' => true, 'message' => 'Поединок отменён']);
@@ -456,7 +456,7 @@ class MobileChallengeController extends Controller
             $challenge->update(['status' => Challenge::STATUS_OPEN]);
         }
 
-        $this->notifyPlayer($challenge->creator, 'Игрок покинул поединок', "{$user->full_name} покинул ваш поединок", 'challenge_left', $challenge->id);
+        $this->notifyPlayer($challenge->creator, 'Игрок покинул поединок', "{$user->name} покинул ваш поединок", 'challenge_left', $challenge->id);
 
         return response()->json(['success' => true, 'message' => 'Вы покинули поединок']);
     }
@@ -497,18 +497,16 @@ class MobileChallengeController extends Controller
             return response()->json(['success' => false, 'message' => 'Пользователь не найден'], 404);
         }
 
-        $displayName = trim($user->first_name . ' ' . $user->last_name);
-        if (empty($displayName)) {
-            $displayName = $user->name ?? 'Без имени';
-        }
+        $name = $user->name ?? 'Без имени';
+        $parts = explode(' ', $name, 2);
 
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $user->id,
-                'first_name' => $user->first_name ?: explode(' ', $displayName)[0] ?? '',
-                'last_name' => $user->last_name ?: (explode(' ', $displayName)[1] ?? ''),
-                'full_name' => $displayName,
+                'first_name' => $parts[0] ?? '',
+                'last_name' => $parts[1] ?? '',
+                'full_name' => $name,
                 'phone' => $user->phone,
                 'rating' => $user->rating,
                 'level' => (float) $user->level,
@@ -600,18 +598,15 @@ class MobileChallengeController extends Controller
     private function formatChallenge(Challenge $challenge, User $currentUser): array
     {
         $players = $challenge->players->map(function($p) use ($currentUser) {
-            $displayName = trim($p->user->first_name . ' ' . $p->user->last_name);
-            if (empty($displayName)) {
-                $displayName = $p->user->name ?? 'Без имени';
-            }
-            $parts = explode(' ', $displayName, 2);
+            $name = $p->user->name ?? 'Без имени';
+            $parts = explode(' ', $name, 2);
             return [
                 'id' => $p->user->id,
                 'position' => $p->position,
                 'status' => $p->status,
                 'first_name' => $parts[0] ?? '',
                 'last_name' => $parts[1] ?? '',
-                'full_name' => $displayName,
+                'full_name' => $name,
                 'rating' => $p->user->rating,
                 'level' => (float) $p->user->level,
                 'rating_before' => $p->rating_before,
