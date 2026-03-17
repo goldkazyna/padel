@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileNotificationController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
 use App\Http\Controllers\Api\MobileAppController;
+use App\Http\Controllers\Api\MobileChallengeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -109,5 +110,20 @@ Route::prefix('mobile')->group(function () {
         Route::get('/notifications', [MobileNotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [MobileNotificationController::class, 'unreadCount']);
         Route::post('/notifications/read-all', [MobileNotificationController::class, 'readAll']);
+
+        // Поединки
+        Route::get('/challenges', [MobileChallengeController::class, 'index']);
+        Route::get('/challenges/my', [MobileChallengeController::class, 'my']);
+        Route::post('/challenges', [MobileChallengeController::class, 'store']);
+        Route::get('/challenges/{challenge}', [MobileChallengeController::class, 'show']);
+        Route::post('/challenges/{challenge}/join', [MobileChallengeController::class, 'join']);
+        Route::post('/challenges/{challenge}/invite', [MobileChallengeController::class, 'invite']);
+        Route::post('/challenges/{challenge}/accept', [MobileChallengeController::class, 'accept']);
+        Route::post('/challenges/{challenge}/decline', [MobileChallengeController::class, 'decline']);
+        Route::post('/challenges/{challenge}/start', [MobileChallengeController::class, 'start']);
+        Route::post('/challenges/{challenge}/score', [MobileChallengeController::class, 'score']);
+        Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
+        Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
+        Route::post('/challenges/search-player', [MobileChallengeController::class, 'searchPlayer']);
     });
 });
