@@ -489,20 +489,20 @@ class MobileChallengeController extends Controller
      */
     public function searchPlayer(Request $request)
     {
-        $request->validate(['phone' => 'required|string|min:5']);
+        $request->validate(['phone' => 'required|string|min:3']);
 
-        $user = User::where('phone', 'like', '%' . $request->phone . '%')->first();
+        $users = User::where('phone', 'like', '%' . $request->phone . '%')
+            ->limit(10)
+            ->get();
 
-        if (!$user) {
+        if ($users->isEmpty()) {
             return response()->json(['success' => false, 'message' => 'Пользователь не найден'], 404);
         }
 
-        $name = $user->name ?? 'Без имени';
-        $parts = explode(' ', $name, 2);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
+        $data = $users->map(function($user) {
+            $name = $user->name ?? 'Без имени';
+            $parts = explode(' ', $name, 2);
+            return [
                 'id' => $user->id,
                 'first_name' => $parts[0] ?? '',
                 'last_name' => $parts[1] ?? '',
@@ -510,7 +510,12 @@ class MobileChallengeController extends Controller
                 'phone' => $user->phone,
                 'rating' => $user->rating,
                 'level' => (float) $user->level,
-            ],
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
         ]);
     }
 
