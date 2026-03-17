@@ -497,13 +497,18 @@ class MobileChallengeController extends Controller
             return response()->json(['success' => false, 'message' => 'Пользователь не найден'], 404);
         }
 
+        $displayName = trim($user->first_name . ' ' . $user->last_name);
+        if (empty($displayName)) {
+            $displayName = $user->name ?? 'Без имени';
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $user->id,
-                'first_name' => $user->first_name,
-                'last_name' => $user->last_name,
-                'full_name' => $user->full_name,
+                'first_name' => $user->first_name ?: explode(' ', $displayName)[0] ?? '',
+                'last_name' => $user->last_name ?: (explode(' ', $displayName)[1] ?? ''),
+                'full_name' => $displayName,
                 'phone' => $user->phone,
                 'rating' => $user->rating,
                 'level' => (float) $user->level,
@@ -594,20 +599,27 @@ class MobileChallengeController extends Controller
 
     private function formatChallenge(Challenge $challenge, User $currentUser): array
     {
-        $players = $challenge->players->map(fn($p) => [
-            'id' => $p->user->id,
-            'position' => $p->position,
-            'status' => $p->status,
-            'first_name' => $p->user->first_name,
-            'last_name' => $p->user->last_name,
-            'full_name' => $p->user->full_name,
-            'rating' => $p->user->rating,
-            'level' => (float) $p->user->level,
-            'rating_before' => $p->rating_before,
-            'rating_after' => $p->rating_after,
-            'rating_change' => $p->rating_change,
-            'is_me' => $p->user->id === $currentUser->id,
-        ]);
+        $players = $challenge->players->map(function($p) use ($currentUser) {
+            $displayName = trim($p->user->first_name . ' ' . $p->user->last_name);
+            if (empty($displayName)) {
+                $displayName = $p->user->name ?? 'Без имени';
+            }
+            $parts = explode(' ', $displayName, 2);
+            return [
+                'id' => $p->user->id,
+                'position' => $p->position,
+                'status' => $p->status,
+                'first_name' => $parts[0] ?? '',
+                'last_name' => $parts[1] ?? '',
+                'full_name' => $displayName,
+                'rating' => $p->user->rating,
+                'level' => (float) $p->user->level,
+                'rating_before' => $p->rating_before,
+                'rating_after' => $p->rating_after,
+                'rating_change' => $p->rating_change,
+                'is_me' => $p->user->id === $currentUser->id,
+            ];
+        });
 
         $myPlayer = $challenge->players->firstWhere('user_id', $currentUser->id);
 
