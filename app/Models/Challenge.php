@@ -124,7 +124,7 @@ class Challenge extends Model
             self::STATUS_IN_PROGRESS => 'В процессе',
             self::STATUS_COMPLETED => 'Завершён',
             self::STATUS_CANCELLED => 'Отменён',
-            default => $this->status,
+            default => $this->status ?? 'Открыт',
         };
     }
 

@@ -87,7 +87,9 @@ class MobileChallengeController extends Controller
             'type' => $validated['type'],
             'min_level' => $validated['min_level'],
             'max_level' => $validated['max_level'],
+            'status' => Challenge::STATUS_OPEN,
         ]);
+        $challenge->refresh();
 
         // Создатель занимает свою позицию
         ChallengePlayer::create([

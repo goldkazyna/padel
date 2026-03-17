@@ -105,6 +105,7 @@ class MobileAuthController extends Controller
             'token' => $token,
             'user' => [
                 'id' => $user->id,
+                'name' => $user->name,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'phone' => $user->phone,
@@ -141,6 +142,7 @@ class MobileAuthController extends Controller
             'success' => true,
             'user' => [
                 'id' => $user->id,
+                'name' => $user->name,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'phone' => $user->phone,
@@ -202,6 +204,7 @@ class MobileAuthController extends Controller
             'token' => $sanctumToken,
             'user' => [
                 'id' => $user->id,
+                'name' => $user->name,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'phone' => $user->phone,
@@ -287,6 +290,7 @@ class MobileAuthController extends Controller
             'token' => $token,
             'user' => [
                 'id' => $user->id,
+                'name' => $user->name,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'phone' => $user->phone,
@@ -331,6 +335,7 @@ class MobileAuthController extends Controller
             'token' => $token,
             'user' => [
                 'id' => $user->id,
+                'name' => $user->name,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
                 'phone' => $user->phone,
