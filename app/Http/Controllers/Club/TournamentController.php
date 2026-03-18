@@ -763,6 +763,32 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Превью push — показать кому отправится, без реальной отправки
+	 */
+	public function pushPreview(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$users = \App\Models\User::whereHas('deviceTokens')->get(['id', 'name', 'level', 'notify_only_my_level']);
+
+		$recipients = $users->filter(function ($user) use ($tournament) {
+			if (!$user->notify_only_my_level) return true;
+			return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
+		});
+
+		$filtered = $users->diff($recipients);
+
+		return back()->with('success',
+			"Превью push: получат {$recipients->count()} из {$users->count()} пользователей. " .
+			"Отфильтровано по уровню: {$filtered->count()}." .
+			($filtered->count() > 0 ? " Отфильтрованы: " . $filtered->map(fn($u) => "{$u->name} (L{$u->level})")->implode(', ') : "")
+		);
+	}
+
+	/**
 	 * Опубликовать турнир в Telegram канал
 	 */
 	public function publishToChannel(Tournament $tournament)
