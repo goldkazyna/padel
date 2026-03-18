@@ -614,6 +614,7 @@ class MobileChallengeController extends Controller
                 'first_name' => $parts[0] ?? '',
                 'last_name' => $parts[1] ?? '',
                 'full_name' => $name,
+                'avatar' => $p->user->avatar,
                 'rating' => $p->user->rating,
                 'level' => (float) $p->user->level,
                 'rating_before' => $p->rating_before,
