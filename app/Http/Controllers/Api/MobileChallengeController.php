@@ -583,7 +583,8 @@ class MobileChallengeController extends Controller
 
         RatingHistory::create([
             'user_id' => $user->id,
-            'rating' => $after,
+            'rating_before' => $before,
+            'rating_after' => $after,
             'change' => $after - $before,
             'reason' => 'challenge',
         ]);
