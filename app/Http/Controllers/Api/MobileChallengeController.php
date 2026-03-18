@@ -367,32 +367,36 @@ class MobileChallengeController extends Controller
         }
 
         // Уведомления участникам
-        $challenge->load('players.user');
-        $fcm = app(FCMNotificationService::class);
-        $winnerLabel = $teamAWins > $teamBWins ? 'Команда A' : ($teamBWins > $teamAWins ? 'Команда B' : 'Ничья');
+        try {
+            $challenge->load('players.user');
+            $fcm = app(FCMNotificationService::class);
+            $winnerLabel = $teamAWins > $teamBWins ? 'Команда A' : ($teamBWins > $teamAWins ? 'Команда B' : 'Ничья');
 
-        foreach ($challenge->confirmedPlayers as $player) {
-            if ($player->user_id === $user->id) continue;
+            foreach ($challenge->confirmedPlayers as $player) {
+                if ($player->user_id === $user->id) continue;
 
-            $title = 'Поединок завершён';
-            $body = "Результат: {$teamAWins}:{$teamBWins} ({$winnerLabel})";
-            if ($challenge->isRated() && $player->rating_change !== null) {
-                $sign = $player->rating_change >= 0 ? '+' : '';
-                $body .= " · {$sign}{$player->rating_change} ELO";
+                $title = 'Поединок завершён';
+                $body = "Результат: {$teamAWins}:{$teamBWins} ({$winnerLabel})";
+                if ($challenge->isRated() && $player->rating_change !== null) {
+                    $sign = $player->rating_change >= 0 ? '+' : '';
+                    $body .= " · {$sign}{$player->rating_change} ELO";
+                }
+
+                Notification::create([
+                    'user_id' => $player->user_id,
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => 'challenge_result',
+                    'data' => ['challenge_id' => $challenge->id],
+                ]);
+
+                $fcm->sendToUser($player->user, $title, $body, [
+                    'type' => 'challenge_result',
+                    'challenge_id' => (string) $challenge->id,
+                ]);
             }
-
-            Notification::create([
-                'user_id' => $player->user_id,
-                'title' => $title,
-                'body' => $body,
-                'type' => 'challenge_result',
-                'data' => ['challenge_id' => $challenge->id],
-            ]);
-
-            $fcm->sendToUser($player->user, $title, $body, [
-                'type' => 'challenge_result',
-                'challenge_id' => (string) $challenge->id,
-            ]);
+        } catch (\Exception $e) {
+            \Log::error('Challenge score notifications error: ' . $e->getMessage());
         }
 
         $challenge->load(['creator', 'club', 'players.user']);
