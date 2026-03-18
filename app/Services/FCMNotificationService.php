@@ -162,6 +162,63 @@ class FCMNotificationService
     }
 
     /**
+     * Массовая отправка по списку токенов — батчами по 500, все получают одновременно
+     */
+    public function sendMulticastToTokens(array $tokens, string $title, string $body, array $data = []): int
+    {
+        if (empty($tokens)) {
+            return 0;
+        }
+
+        $notification = Notification::create($title, $body);
+        $apns = ApnsConfig::fromArray([
+            'payload' => [
+                'aps' => [
+                    'alert' => [
+                        'title' => $title,
+                        'body' => $body,
+                    ],
+                    'sound' => 'default',
+                    'badge' => 1,
+                    'content-available' => 1,
+                ],
+            ],
+        ]);
+        $message = CloudMessage::new()
+            ->withNotification($notification)
+            ->withApnsConfig($apns)
+            ->withData($data);
+
+        $totalSuccess = 0;
+        // FCM multicast поддерживает до 500 токенов за вызов
+        $chunks = array_chunk($tokens, 500);
+
+        foreach ($chunks as $chunk) {
+            try {
+                $report = $this->messaging->sendMulticast($message, $chunk);
+                $totalSuccess += $report->successes()->count();
+
+                if ($report->hasFailures()) {
+                    foreach ($report->failures()->getItems() as $failure) {
+                        if ($this->isInvalidTokenError($failure->error()->getMessage())) {
+                            \App\Models\DeviceToken::where('token', $failure->target()->value())->delete();
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('FCM: multicast batch error', ['error' => $e->getMessage()]);
+            }
+        }
+
+        Log::info('FCM: multicast to tokens', [
+            'total_tokens' => count($tokens),
+            'successes' => $totalSuccess,
+        ]);
+
+        return $totalSuccess;
+    }
+
+    /**
      * Проверяем, является ли ошибка невалидным токеном
      */
     protected function isInvalidTokenError(string $error): bool

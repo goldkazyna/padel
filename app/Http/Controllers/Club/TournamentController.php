@@ -718,18 +718,33 @@ class TournamentController extends Controller
 		$date = $tournament->start_date->format('d.m.Y H:i');
 		$title = 'Новый турнир!';
 		$body = "{$tournament->name} — {$date}";
-
-		// Пуш через топик — все получают моментально
-		$fcm->sendToTopic('all_users', $title, $body, [
+		$data = [
 			'type' => 'tournament',
 			'tournament_id' => (string) $tournament->id,
-		]);
+		];
+
+		// Фильтруем пользователей с учётом настройки "только мой уровень"
+		$users = \App\Models\User::whereHas('deviceTokens')
+			->with('deviceTokens')
+			->get(['id', 'level', 'notify_only_my_level']);
+
+		$recipients = $users->filter(function ($user) use ($tournament) {
+			if (!$user->notify_only_my_level) {
+				return true;
+			}
+			return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
+		});
+
+		// Собираем все токены отфильтрованных пользователей
+		$tokens = $recipients->flatMap(fn($user) => $user->deviceTokens->pluck('token'))->toArray();
+
+		// Отправляем одним multicast — все получают одновременно
+		$fcm->sendMulticastToTokens($tokens, $title, $body, $data);
 
 		// Записи в колокольчик — одним запросом
-		$userIds = \App\Models\User::whereHas('deviceTokens')->pluck('id');
 		$now = now();
-		$notifications = $userIds->map(fn($id) => [
-			'user_id' => $id,
+		$notifications = $recipients->map(fn($user) => [
+			'user_id' => $user->id,
 			'title' => $title,
 			'body' => $body,
 			'type' => 'tournament',
@@ -740,7 +755,11 @@ class TournamentController extends Controller
 
 		\App\Models\Notification::insert($notifications);
 
-		return back()->with('success', "Push отправлен ({$userIds->count()} пользователей)");
+		$total = $users->count();
+		$sent = $recipients->count();
+		$filtered = $total - $sent;
+
+		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей" . ($filtered ? ", {$filtered} отфильтровано по уровню" : "") . ")");
 	}
 
 	/**
