@@ -88,9 +88,6 @@
                                             <i class="bi bi-telegram"></i>
                                         </button>
                                     </form>
-                                    <a href="{{ route('club.tournaments.pushPreview', $tournament) }}" class="btn-outline-custom btn-sm" title="Превью Push — кому отправится" style="text-decoration:none">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
                                     <form action="{{ route('club.tournaments.sendPush', $tournament) }}" method="POST" class="d-inline"
                                           onsubmit="return confirm('Отправить push-уведомление о турнире?')">
                                         @csrf
