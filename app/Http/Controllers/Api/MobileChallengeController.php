@@ -535,7 +535,7 @@ class MobileChallengeController extends Controller
     // Private helpers
     // =====================
 
-    private function checkAndUpdateStatus(Challenge $challenge): void
+    private function checkAndUpdateStatus(Challenge $challenge, ?int $excludeUserId = null): void
     {
         $challenge->refresh();
         $confirmed = $challenge->confirmedPlayers()->count();
@@ -543,9 +543,9 @@ class MobileChallengeController extends Controller
         if ($confirmed >= 4 && $challenge->isOpen()) {
             $challenge->update(['status' => Challenge::STATUS_READY]);
 
-            // Уведомляем всех — можно начинать
-            $fcm = app(FCMNotificationService::class);
+            // Уведомляем всех кроме того кто только что присоединился (он уже получил пуш)
             foreach ($challenge->confirmedPlayers()->with('user')->get() as $player) {
+                if ($excludeUserId && $player->user_id === $excludeUserId) continue;
                 $this->notifyPlayer($player->user, 'Все игроки собраны!', 'Ваш поединок готов к началу', 'challenge_ready', $challenge->id);
             }
         }
