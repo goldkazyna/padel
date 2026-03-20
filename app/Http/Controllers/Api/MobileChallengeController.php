@@ -295,11 +295,17 @@ class MobileChallengeController extends Controller
             return response()->json(['success' => false, 'message' => 'Приглашение не найдено'], 404);
         }
 
-        $player->update(['status' => ChallengePlayer::STATUS_DECLINED]);
+        $player->delete();
 
         $this->notifyPlayer($challenge->creator, 'Приглашение отклонено', "{$user->name} отклонил приглашение", 'challenge_declined', $challenge->id);
 
-        return response()->json(['success' => true, 'message' => 'Приглашение отклонено']);
+        $challenge->load(['creator', 'club', 'players.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Приглашение отклонено',
+            'data' => $this->formatChallenge($challenge, $user),
+        ]);
     }
 
     /**
