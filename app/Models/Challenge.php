@@ -12,6 +12,7 @@ class Challenge extends Model
     const STATUS_OPEN = 'open';
     const STATUS_READY = 'ready';
     const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_PENDING_CONFIRMATION = 'pending_confirmation';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
 
@@ -122,6 +123,7 @@ class Challenge extends Model
             self::STATUS_OPEN => 'Открыт',
             self::STATUS_READY => 'Готов к игре',
             self::STATUS_IN_PROGRESS => 'В процессе',
+            self::STATUS_PENDING_CONFIRMATION => 'Подтверждение счёта',
             self::STATUS_COMPLETED => 'Завершён',
             self::STATUS_CANCELLED => 'Отменён',
             default => $this->status ?? 'Открыт',

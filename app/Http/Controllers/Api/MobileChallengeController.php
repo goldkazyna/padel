@@ -52,6 +52,7 @@ class MobileChallengeController extends Controller
                 Challenge::STATUS_OPEN,
                 Challenge::STATUS_READY,
                 Challenge::STATUS_IN_PROGRESS,
+                Challenge::STATUS_PENDING_CONFIRMATION,
                 Challenge::STATUS_COMPLETED,
             ])
             ->orderByDesc('scheduled_at')
@@ -329,7 +330,7 @@ class MobileChallengeController extends Controller
     }
 
     /**
-     * Ввести счёт
+     * Ввести счёт — переводит в pending_confirmation
      */
     public function score(Request $request, Challenge $challenge)
     {
@@ -349,57 +350,20 @@ class MobileChallengeController extends Controller
             'sets.*.team_b' => 'required|integer|min:0',
         ]);
 
-        $sets = $validated['sets'];
-        $teamAWins = 0;
-        $teamBWins = 0;
-        $totalScoreA = 0;
-        $totalScoreB = 0;
-
-        foreach ($sets as $set) {
-            $totalScoreA += $set['team_a'];
-            $totalScoreB += $set['team_b'];
-            if ($set['team_a'] > $set['team_b']) $teamAWins++;
-            elseif ($set['team_b'] > $set['team_a']) $teamBWins++;
-        }
-
         $challenge->update([
-            'score' => $sets,
-            'status' => Challenge::STATUS_COMPLETED,
+            'score' => $validated['sets'],
+            'status' => Challenge::STATUS_PENDING_CONFIRMATION,
         ]);
 
-        // Расчёт ELO для рейтинговых
-        if ($challenge->isRated()) {
-            $this->calculateElo($challenge, $totalScoreA, $totalScoreB);
-        }
+        // Создатель автоматически подтверждает
+        $challenge->confirmedPlayers()->where('user_id', $user->id)->update(['score_confirmed' => true]);
 
-        // Уведомления участникам
+        // Уведомления участникам — подтвердите счёт
         try {
-            $challenge->load('players.user');
-            $fcm = app(FCMNotificationService::class);
-            $winnerLabel = $teamAWins > $teamBWins ? 'Команда A' : ($teamBWins > $teamAWins ? 'Команда B' : 'Ничья');
-
-            foreach ($challenge->confirmedPlayers as $player) {
+            foreach ($challenge->confirmedPlayers()->with('user')->get() as $player) {
                 if ($player->user_id === $user->id) continue;
 
-                $title = 'Поединок завершён';
-                $body = "Результат: {$teamAWins}:{$teamBWins} ({$winnerLabel})";
-                if ($challenge->isRated() && $player->rating_change !== null) {
-                    $sign = $player->rating_change >= 0 ? '+' : '';
-                    $body .= " · {$sign}{$player->rating_change} ELO";
-                }
-
-                Notification::create([
-                    'user_id' => $player->user_id,
-                    'title' => $title,
-                    'body' => $body,
-                    'type' => 'challenge_result',
-                    'data' => ['challenge_id' => $challenge->id],
-                ]);
-
-                $fcm->sendToUser($player->user, $title, $body, [
-                    'type' => 'challenge_result',
-                    'challenge_id' => (string) $challenge->id,
-                ]);
+                $this->notifyPlayer($player->user, 'Подтвердите счёт', 'Создатель ввёл результат поединка. Подтвердите счёт.', 'challenge_confirm_score', $challenge->id);
             }
         } catch (\Exception $e) {
             \Log::error('Challenge score notifications error: ' . $e->getMessage());
@@ -409,6 +373,76 @@ class MobileChallengeController extends Controller
 
         return response()->json([
             'success' => true,
+            'data' => $this->formatChallenge($challenge, $user),
+        ]);
+    }
+
+    /**
+     * Подтвердить счёт
+     */
+    public function confirmScore(Request $request, Challenge $challenge)
+    {
+        $user = $request->user();
+
+        if ($challenge->status !== Challenge::STATUS_PENDING_CONFIRMATION) {
+            return response()->json(['success' => false, 'message' => 'Поединок не ожидает подтверждения'], 422);
+        }
+
+        $player = $challenge->confirmedPlayers()->where('user_id', $user->id)->first();
+        if (!$player) {
+            return response()->json(['success' => false, 'message' => 'Вы не участник этого поединка'], 403);
+        }
+
+        $player->update(['score_confirmed' => true]);
+
+        // Проверяем все ли подтвердили
+        $allConfirmed = $challenge->confirmedPlayers()->where('score_confirmed', false)->count() === 0;
+
+        if ($allConfirmed) {
+            // Все подтвердили — завершаем и считаем ELO
+            $challenge->update(['status' => Challenge::STATUS_COMPLETED]);
+
+            $sets = $challenge->score;
+            $totalScoreA = 0;
+            $totalScoreB = 0;
+            $teamAWins = 0;
+            $teamBWins = 0;
+
+            foreach ($sets as $set) {
+                $totalScoreA += $set['team_a'];
+                $totalScoreB += $set['team_b'];
+                if ($set['team_a'] > $set['team_b']) $teamAWins++;
+                elseif ($set['team_b'] > $set['team_a']) $teamBWins++;
+            }
+
+            if ($challenge->isRated()) {
+                $this->calculateElo($challenge, $totalScoreA, $totalScoreB);
+            }
+
+            // Уведомления — поединок завершён
+            try {
+                $challenge->load('confirmedPlayers.user');
+                $winnerLabel = $teamAWins > $teamBWins ? 'Команда A' : ($teamBWins > $teamAWins ? 'Команда B' : 'Ничья');
+
+                foreach ($challenge->confirmedPlayers as $p) {
+                    $title = 'Поединок завершён';
+                    $body = "Результат: {$teamAWins}:{$teamBWins} ({$winnerLabel})";
+                    if ($challenge->isRated() && $p->rating_change !== null) {
+                        $sign = $p->rating_change >= 0 ? '+' : '';
+                        $body .= " · {$sign}{$p->rating_change} ELO";
+                    }
+                    $this->notifyPlayer($p->user, $title, $body, 'challenge_result', $challenge->id);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Challenge complete notifications error: ' . $e->getMessage());
+            }
+        }
+
+        $challenge->load(['creator', 'club', 'players.user']);
+
+        return response()->json([
+            'success' => true,
+            'message' => $allConfirmed ? 'Все подтвердили — поединок завершён!' : 'Счёт подтверждён',
             'data' => $this->formatChallenge($challenge, $user),
         ]);
     }
@@ -631,6 +665,7 @@ class MobileChallengeController extends Controller
                 'rating_before' => $p->rating_before,
                 'rating_after' => $p->rating_after,
                 'rating_change' => $p->rating_change,
+                'score_confirmed' => (bool) $p->score_confirmed,
                 'is_me' => $p->user->id === $currentUser->id,
             ];
         });

@@ -21,6 +21,7 @@ class ChallengePlayer extends Model
         'rating_before',
         'rating_after',
         'rating_change',
+        'score_confirmed',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class ChallengePlayer extends Model
         'rating_before' => 'integer',
         'rating_after' => 'integer',
         'rating_change' => 'integer',
+        'score_confirmed' => 'boolean',
     ];
 
     public function challenge()
