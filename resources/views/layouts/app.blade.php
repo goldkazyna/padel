@@ -1139,5 +1139,6 @@
     </script>
     
     @stack('scripts')
+    @yield('modals')
 </body>
 </html>
