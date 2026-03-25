@@ -9,7 +9,7 @@
             <a href="{{ route('club.courts.schedule') }}" class="back-link" title="Назад к расписанию">&#8249;</a>
             <h1 class="courts-title">Настройки кортов</h1>
         </div>
-        <button class="btn-add" onclick="openModal('createModal')">+ Добавить корт</button>
+        <button class="btn-add" @click="$dispatch('open-create-modal')">+ Добавить корт</button>
     </div>
 
     <!-- Flash Messages -->
@@ -33,7 +33,7 @@
                     @endif
                 </div>
                 <div class="court-card-actions">
-                    <button class="action-btn edit" title="Редактировать" onclick="openModal('editModal{{ $court->id }}')">&#9998;</button>
+                    <button class="action-btn edit" title="Редактировать" @click="$dispatch('open-edit-{{ $court->id }}')">&#9998;</button>
                     <form action="{{ route('club.courts.toggleActive', $court) }}" method="POST" style="display:inline;">
                         @csrf
                         <button type="submit" class="action-btn toggle" title="{{ $court->is_active ? 'Деактивировать' : 'Активировать' }}">&#9673;</button>
@@ -78,124 +78,48 @@
     @empty
         <div class="empty-state">
             <p>Корты не найдены. Добавьте первый корт.</p>
-            <button class="btn-add" onclick="openModal('createModal')">+ Добавить корт</button>
+            <button class="btn-add" @click="$dispatch('open-create-modal')">+ Добавить корт</button>
         </div>
     @endforelse
 </div>
 
 <!-- Create Modal -->
-<div class="modal-overlay" id="createModal"
-     x-data="{
-        ranges: [{ time_from: '08:00', time_to: '22:00', price: '' }],
-        addRange() {
-            let lastTo = this.ranges.length ? this.ranges[this.ranges.length - 1].time_to : '08:00';
-            this.ranges.push({ time_from: lastTo, time_to: '22:00', price: '' });
-        },
-        removeRange(index) {
-            if (this.ranges.length > 1) this.ranges.splice(index, 1);
-        }
-     }">
-    <div class="modal">
-        <div class="modal-header">
-            <h2>Добавить корт</h2>
-            <button class="modal-close" onclick="closeModal('createModal')">&#10005;</button>
-        </div>
-        <form action="{{ route('club.courts.store') }}" method="POST">
-            @csrf
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Название</label>
-                    <input type="text" name="name" class="form-input" placeholder="Например: Корт 1" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Описание</label>
-                    <textarea name="description" class="form-input form-textarea" placeholder="Покрытие, особенности (необязательно)"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Начало работы</label>
-                        <input type="time" name="open_time" class="form-input" value="08:00" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Конец работы</label>
-                        <input type="time" name="close_time" class="form-input" value="22:00" required>
-                    </div>
-                </div>
-
-                <hr class="section-divider">
-
-                <div class="section-title">Ценовые интервалы</div>
-                <div class="price-ranges">
-                    <template x-for="(range, index) in ranges" :key="index">
-                        <div class="price-range-row">
-                            <div class="form-group">
-                                <label class="form-label">С</label>
-                                <input type="time" class="form-input" x-model="range.time_from" :name="'price_ranges[' + index + '][time_from]'" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">До</label>
-                                <input type="time" class="form-input" x-model="range.time_to" :name="'price_ranges[' + index + '][time_to]'" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Цена (₸)</label>
-                                <input type="number" class="form-input" x-model="range.price" :name="'price_ranges[' + index + '][price]'" placeholder="0" required>
-                            </div>
-                            <button type="button" class="remove-btn" title="Удалить" @click="removeRange(index)" x-show="ranges.length > 1">&#10005;</button>
-                        </div>
-                    </template>
-                </div>
-                <button type="button" class="add-range-btn" @click="addRange()">+ Добавить интервал</button>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('createModal')">Отмена</button>
-                <button type="submit" class="btn-save">Сохранить</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Edit Modals -->
-@foreach($courts as $court)
-    <div class="modal-overlay" id="editModal{{ $court->id }}"
-         x-data="{
-            ranges: {{ json_encode($court->priceRanges->map(fn($r) => [
-                'time_from' => \Carbon\Carbon::parse($r->time_from)->format('H:i'),
-                'time_to' => \Carbon\Carbon::parse($r->time_to)->format('H:i'),
-                'price' => $r->price,
-            ])->values()) }},
-            addRange() {
-                let lastTo = this.ranges.length ? this.ranges[this.ranges.length - 1].time_to : '08:00';
-                this.ranges.push({ time_from: lastTo, time_to: '22:00', price: '' });
-            },
-            removeRange(index) {
-                if (this.ranges.length > 1) this.ranges.splice(index, 1);
-            }
-         }">
-        <div class="modal">
+<div x-data="{
+    open: false,
+    ranges: [{ time_from: '08:00', time_to: '22:00', price: '' }],
+    addRange() {
+        let lastTo = this.ranges.length ? this.ranges[this.ranges.length - 1].time_to : '08:00';
+        this.ranges.push({ time_from: lastTo, time_to: '22:00', price: '' });
+    },
+    removeRange(index) {
+        if (this.ranges.length > 1) this.ranges.splice(index, 1);
+    }
+}" x-on:open-create-modal.window="open = true" @keydown.escape.window="open = false">
+    <div class="modal-overlay" x-show="open" x-cloak x-transition.opacity @click.self="open = false">
+        <div class="modal" @click.stop>
             <div class="modal-header">
-                <h2>Редактировать — {{ $court->name }}</h2>
-                <button class="modal-close" onclick="closeModal('editModal{{ $court->id }}')">&#10005;</button>
+                <h2>Добавить корт</h2>
+                <button type="button" class="modal-close" @click="open = false">&#10005;</button>
             </div>
-            <form action="{{ route('club.courts.update', $court) }}" method="POST">
+            <form action="{{ route('club.courts.store') }}" method="POST">
                 @csrf
-                @method('PUT')
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="form-label">Название</label>
-                        <input type="text" name="name" class="form-input" value="{{ $court->name }}" required>
+                        <input type="text" name="name" class="form-input" placeholder="Например: Корт 1" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Описание</label>
-                        <textarea name="description" class="form-input form-textarea" placeholder="Покрытие, особенности (необязательно)">{{ $court->description }}</textarea>
+                        <textarea name="description" class="form-input form-textarea" placeholder="Покрытие, особенности (необязательно)"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Начало работы</label>
-                            <input type="time" name="open_time" class="form-input" value="{{ \Carbon\Carbon::parse($court->open_time)->format('H:i') }}" required>
+                            <input type="time" name="open_time" class="form-input" value="08:00" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Конец работы</label>
-                            <input type="time" name="close_time" class="form-input" value="{{ \Carbon\Carbon::parse($court->close_time)->format('H:i') }}" required>
+                            <input type="time" name="close_time" class="form-input" value="22:00" required>
                         </div>
                     </div>
 
@@ -224,39 +148,93 @@
                     <button type="button" class="add-range-btn" @click="addRange()">+ Добавить интервал</button>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('editModal{{ $court->id }}')">Отмена</button>
+                    <button type="button" class="btn-cancel" @click="open = false">Отмена</button>
                     <button type="submit" class="btn-save">Сохранить</button>
                 </div>
             </form>
         </div>
     </div>
-@endforeach
+</div>
 
-<script>
-    function openModal(id) {
-        document.getElementById(id).classList.add('active');
-    }
-
-    function closeModal(id) {
-        document.getElementById(id).classList.remove('active');
-    }
-
-    document.querySelectorAll('.modal-overlay').forEach(function(modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                this.classList.remove('active');
-            }
-        });
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.active').forEach(function(modal) {
-                modal.classList.remove('active');
-            });
+<!-- Edit Modals -->
+@foreach($courts as $court)
+    <div x-data="{
+        open: false,
+        ranges: {{ json_encode($court->priceRanges->map(fn($r) => [
+            'time_from' => \Carbon\Carbon::parse($r->time_from)->format('H:i'),
+            'time_to' => \Carbon\Carbon::parse($r->time_to)->format('H:i'),
+            'price' => $r->price,
+        ])->values()) }},
+        addRange() {
+            let lastTo = this.ranges.length ? this.ranges[this.ranges.length - 1].time_to : '08:00';
+            this.ranges.push({ time_from: lastTo, time_to: '22:00', price: '' });
+        },
+        removeRange(index) {
+            if (this.ranges.length > 1) this.ranges.splice(index, 1);
         }
-    });
-</script>
+    }" x-on:open-edit-{{ $court->id }}.window="open = true" @keydown.escape.window="open = false">
+        <div class="modal-overlay" x-show="open" x-cloak x-transition.opacity @click.self="open = false">
+            <div class="modal" @click.stop>
+                <div class="modal-header">
+                    <h2>Редактировать — {{ $court->name }}</h2>
+                    <button type="button" class="modal-close" @click="open = false">&#10005;</button>
+                </div>
+                <form action="{{ route('club.courts.update', $court) }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Название</label>
+                            <input type="text" name="name" class="form-input" value="{{ $court->name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Описание</label>
+                            <textarea name="description" class="form-input form-textarea" placeholder="Покрытие, особенности (необязательно)">{{ $court->description }}</textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Начало работы</label>
+                                <input type="time" name="open_time" class="form-input" value="{{ \Carbon\Carbon::parse($court->open_time)->format('H:i') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Конец работы</label>
+                                <input type="time" name="close_time" class="form-input" value="{{ \Carbon\Carbon::parse($court->close_time)->format('H:i') }}" required>
+                            </div>
+                        </div>
+
+                        <hr class="section-divider">
+
+                        <div class="section-title">Ценовые интервалы</div>
+                        <div class="price-ranges">
+                            <template x-for="(range, index) in ranges" :key="index">
+                                <div class="price-range-row">
+                                    <div class="form-group">
+                                        <label class="form-label">С</label>
+                                        <input type="time" class="form-input" x-model="range.time_from" :name="'price_ranges[' + index + '][time_from]'" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">До</label>
+                                        <input type="time" class="form-input" x-model="range.time_to" :name="'price_ranges[' + index + '][time_to]'" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Цена (₸)</label>
+                                        <input type="number" class="form-input" x-model="range.price" :name="'price_ranges[' + index + '][price]'" placeholder="0" required>
+                                    </div>
+                                    <button type="button" class="remove-btn" title="Удалить" @click="removeRange(index)" x-show="ranges.length > 1">&#10005;</button>
+                                </div>
+                            </template>
+                        </div>
+                        <button type="button" class="add-range-btn" @click="addRange()">+ Добавить интервал</button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-cancel" @click="open = false">Отмена</button>
+                        <button type="submit" class="btn-save">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endforeach
 
 <style>
     :root {
@@ -516,6 +494,8 @@
         margin-bottom: 20px;
     }
 
+    [x-cloak] { display: none !important; }
+
     /* Modal */
     .modal-overlay {
         position: fixed;
@@ -526,16 +506,8 @@
         align-items: center;
         justify-content: center;
         z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s;
         overflow-y: auto;
         padding: 40px 16px;
-    }
-
-    .modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
     }
 
     .modal {
@@ -544,12 +516,6 @@
         border-radius: 16px;
         width: 100%;
         max-width: 520px;
-        transform: translateY(20px);
-        transition: transform 0.3s;
-    }
-
-    .modal-overlay.active .modal {
-        transform: translateY(0);
     }
 
     .modal-header {
