@@ -517,8 +517,6 @@
     .schedule-container {
         width: 100%;
         padding: 32px 24px;
-        max-width: 1200px;
-        margin: 0 auto;
     }
 
     /* Header */
