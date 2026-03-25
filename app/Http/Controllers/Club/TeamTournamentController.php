@@ -158,6 +158,50 @@ class TeamTournamentController extends Controller
 	}
 
     /**
+     * Редактировать пару — заменить игроков
+     */
+    public function updateTeam(Request $request, Tournament $tournament, TournamentTeam $team)
+    {
+        $validated = $request->validate([
+            'player1_id' => 'required|exists:users,id',
+            'player2_id' => 'required|exists:users,id|different:player1_id',
+        ]);
+
+        if ($tournament->status !== 'open') {
+            return back()->with('error', 'Турнир не открыт для редактирования');
+        }
+
+        if ($team->tournament_id !== $tournament->id) {
+            return back()->with('error', 'Пара не принадлежит этому турниру');
+        }
+
+        // Проверяем что новые игроки не заняты в других парах этого турнира
+        $conflict = $tournament->teams()
+            ->where('id', '!=', $team->id)
+            ->where(function($q) use ($validated) {
+                $q->where('player1_id', $validated['player1_id'])
+                  ->orWhere('player2_id', $validated['player1_id'])
+                  ->orWhere('player1_id', $validated['player2_id'])
+                  ->orWhere('player2_id', $validated['player2_id']);
+            })->exists();
+
+        if ($conflict) {
+            return back()->with('error', 'Один из игроков уже в другой паре этого турнира');
+        }
+
+        $player1 = User::find($validated['player1_id']);
+        $player2 = User::find($validated['player2_id']);
+
+        $team->update([
+            'player1_id' => $player1->id,
+            'player2_id' => $player2->id,
+            'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
+        ]);
+
+        return back()->with('success', 'Пара обновлена!');
+    }
+
+    /**
      * Поиск игрока для добавления в пару
      */
     public function searchPlayer(Request $request)

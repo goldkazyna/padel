@@ -20,7 +20,7 @@
                 <div class="pair-info-block">
                     <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                     <div class="pair-phones">
-                        <small class="text-muted">
+                        <small style="color: #a1a1aa;">
                             {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
                             / 
                             {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
@@ -70,7 +70,7 @@
                     <div class="pair-info-block">
                         <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                         <div class="pair-phones">
-                            <small class="text-muted">
+                            <small style="color: #a1a1aa;">
                                 {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
                                 / 
                                 {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
@@ -83,6 +83,9 @@
                     </div>
                     @if($tournament->status === 'open')
 						<div class="pair-actions">
+							<button type="button" class="btn btn-outline-light btn-sm" title="Редактировать" data-bs-toggle="modal" data-bs-target="#editTeamModal{{ $team->id }}">
+								<i class="bi bi-pencil"></i>
+							</button>
 							<form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')" class="d-inline">
 								@csrf
 								@method('DELETE')
@@ -102,6 +105,112 @@
         </div>
     @endif
 </section>
+
+{{-- Edit Team Modals --}}
+@if($tournament->status === 'open')
+    @foreach($approvedTeams as $team)
+    <div class="modal fade" id="editTeamModal{{ $team->id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+                <div class="modal-header" style="border-bottom: 1px solid #27272a; padding: 20px 24px;">
+                    <h5 class="modal-title" style="font-weight: 700;">Редактировать пару</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ route('club.tournaments.updateTeam', [$tournament, $team]) }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body" style="padding: 24px;">
+                        <div class="mb-3">
+                            <label style="font-size: 12px; font-weight: 700; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">Игрок 1</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control team-player-search" style="background: #16161a; border: 1px solid #27272a; color: #f4f4f5; border-radius: 10px; padding: 12px 16px;"
+                                       placeholder="Поиск по имени или телефону..."
+                                       data-target="editTeamP1_{{ $team->id }}"
+                                       data-results="editTeamR1_{{ $team->id }}"
+                                       value="{{ $team->player1->name }}"
+                                       autocomplete="off">
+                                <input type="hidden" name="player1_id" id="editTeamP1_{{ $team->id }}" value="{{ $team->player1_id }}">
+                                <div class="search-results" id="editTeamR1_{{ $team->id }}" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1050; background:#16161a; border:1px solid #27272a; border-radius:10px; max-height:200px; overflow-y:auto; margin-top:4px;"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label style="font-size: 12px; font-weight: 700; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">Игрок 2</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control team-player-search" style="background: #16161a; border: 1px solid #27272a; color: #f4f4f5; border-radius: 10px; padding: 12px 16px;"
+                                       placeholder="Поиск по имени или телефону..."
+                                       data-target="editTeamP2_{{ $team->id }}"
+                                       data-results="editTeamR2_{{ $team->id }}"
+                                       value="{{ $team->player2->name }}"
+                                       autocomplete="off">
+                                <input type="hidden" name="player2_id" id="editTeamP2_{{ $team->id }}" value="{{ $team->player2_id }}">
+                                <div class="search-results" id="editTeamR2_{{ $team->id }}" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1050; background:#16161a; border:1px solid #27272a; border-radius:10px; max-height:200px; overflow-y:auto; margin-top:4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn" style="background: #22c55e; color: #000; font-weight: 700;">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endforeach
+@endif
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var searchTimeout;
+    document.querySelectorAll('.team-player-search').forEach(function(input) {
+        var targetId = input.getAttribute('data-target');
+        var resultsId = input.getAttribute('data-results');
+        var resultsDiv = document.getElementById(resultsId);
+
+        input.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            var query = this.value.trim();
+            if (query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            searchTimeout = setTimeout(function() {
+                fetch('{{ route("club.tournaments.searchPlayer") }}?q=' + encodeURIComponent(query))
+                    .then(function(r) { return r.json(); })
+                    .then(function(players) {
+                        if (players.length === 0) {
+                            resultsDiv.innerHTML = '<div style="padding:12px 16px; color:#71717a;">Не найдено</div>';
+                        } else {
+                            resultsDiv.innerHTML = players.map(function(p) {
+                                var phone = p.phone ? '+' + p.phone.replace(/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5') : '';
+                                return '<div class="search-result-item" style="padding:10px 16px; cursor:pointer; border-bottom:1px solid #27272a; transition:background 0.15s;" ' +
+                                    'onmouseover="this.style.background=\'#27272a\'" onmouseout="this.style.background=\'transparent\'" ' +
+                                    'data-id="' + p.id + '" data-name="' + p.name + '">' +
+                                    '<div style="font-weight:600; color:#f4f4f5;">' + p.name + '</div>' +
+                                    '<div style="font-size:12px; color:#a1a1aa;">' + phone + ' · Рейтинг: ' + p.rating + '</div>' +
+                                    '</div>';
+                            }).join('');
+                        }
+                        resultsDiv.style.display = 'block';
+                    });
+            }, 300);
+        });
+
+        resultsDiv.addEventListener('click', function(e) {
+            var item = e.target.closest('.search-result-item');
+            if (item) {
+                document.getElementById(targetId).value = item.getAttribute('data-id');
+                input.value = item.getAttribute('data-name');
+                resultsDiv.style.display = 'none';
+            }
+        });
+
+        input.addEventListener('blur', function() {
+            setTimeout(function() { resultsDiv.style.display = 'none'; }, 200);
+        });
+    });
+});
+</script>
+
 <style>
         :root {
             --bg-primary: #0a0a0b;

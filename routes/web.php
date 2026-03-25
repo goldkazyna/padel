@@ -266,6 +266,8 @@ Route::middleware('auth')->group(function () {
 			->name('tournaments.addTeam');
 		Route::delete('/tournaments/{tournament}/remove-team/{team}', [TeamTournamentController::class, 'removeTeam'])
 			->name('tournaments.removeTeam');
+		Route::put('/tournaments/{tournament}/update-team/{team}', [TeamTournamentController::class, 'updateTeam'])
+			->name('tournaments.updateTeam');
 		Route::post('/tournaments/{tournament}/add-test-teams', [TeamTournamentController::class, 'addTestTeams'])
 			->name('tournaments.addTestTeams');
 		Route::post('/team/group-match/{match}/score', [TeamTournamentController::class, 'saveGroupMatchScore'])
