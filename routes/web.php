@@ -147,16 +147,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
 		Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
 
-        // Корты
+        // Корты — расписание (главный экран)
         Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');
+
+        // Корты — CRUD + настройки
         Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
         Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
-        Route::get('/courts/{court}/slots', [CourtController::class, 'slots'])->name('courts.slots');
-        Route::post('/courts/{court}/generate-slots', [CourtController::class, 'generateSlots'])->name('courts.generateSlots');
-        Route::post('/courts/{court}/slots', [CourtController::class, 'storeSlot'])->name('courts.storeSlot');
-        Route::post('/courts/{court}/slots/bulk', [CourtController::class, 'bulkAction'])->name('courts.bulkSlots');
-        Route::delete('/courts/slots/{slot}', [CourtController::class, 'deleteSlot'])->name('courts.deleteSlot');
-        Route::post('/courts/slots/{slot}/toggle-block', [CourtController::class, 'toggleSlotBlock'])->name('courts.toggleSlotBlock');
+
+        // Бронирования
+        Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');
+        Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
+
+        // Блокировки
+        Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
+        Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
 
         /*
         |----------------------------------------------------------------------
