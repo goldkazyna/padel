@@ -646,6 +646,7 @@
     .schedule-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
     }
 
     .schedule-table th {
@@ -673,6 +674,7 @@
         border-bottom: 1px solid var(--sch-border-light);
         vertical-align: top;
         height: 60px;
+        overflow: hidden;
     }
 
     .schedule-table td.time-cell {
@@ -717,7 +719,7 @@
     .slot-free:hover {
         background: rgba(34, 197, 94, 0.2);
         border-color: var(--sch-accent);
-        transform: scale(1.03);
+        box-shadow: inset 0 0 0 2px var(--sch-accent);
     }
 
     .slot-free .slot-price {
