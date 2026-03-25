@@ -128,13 +128,27 @@ class TournamentController extends Controller
 		if ($reserveCount > 0) {
 			$reserves = \App\Models\User::where('role', 'reserve')
 				->orderBy('id')
-				->limit($reserveCount)
 				->get();
-			
-			foreach ($reserves as $reserve) {
-				$tournament->participants()->attach($reserve->id, [
-					'status' => 'registered',
-				]);
+
+			if ($tournament->type === 'team') {
+				// Для командных турниров создаём резервные пары
+				$needed = $reserveCount * 2;
+				$reservePairs = $reserves->take($needed);
+				for ($i = 0; $i + 1 < $reservePairs->count(); $i += 2) {
+					\App\Models\TournamentTeam::create([
+						'tournament_id' => $tournament->id,
+						'player1_id' => $reservePairs[$i]->id,
+						'player2_id' => $reservePairs[$i + 1]->id,
+						'status' => 'approved',
+					]);
+				}
+			} else {
+				// Для одиночных форматов — как раньше
+				foreach ($reserves->take($reserveCount) as $reserve) {
+					$tournament->participants()->attach($reserve->id, [
+						'status' => 'registered',
+					]);
+				}
 			}
 		}
 

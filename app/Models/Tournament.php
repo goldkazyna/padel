@@ -343,7 +343,22 @@ class Tournament extends Model
 	public function hasReserveParticipants(): bool
 	{
 		$reserveIds = \App\Models\User::where('role', 'reserve')->pluck('id');
-		return $this->participants()->whereIn('user_id', $reserveIds)->exists();
+
+		// Проверяем одиночных участников
+		if ($this->participants()->whereIn('user_id', $reserveIds)->exists()) {
+			return true;
+		}
+
+		// Проверяем командные пары (team турниры)
+		if ($this->teams()
+			->where(function ($q) use ($reserveIds) {
+				$q->whereIn('player1_id', $reserveIds)
+				  ->orWhereIn('player2_id', $reserveIds);
+			})->exists()) {
+			return true;
+		}
+
+		return false;
 	}
 	/**
 	 * Количество кортов (автоматически)
