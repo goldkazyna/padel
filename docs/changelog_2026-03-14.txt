@@ -100,6 +100,26 @@ CHANGELOG — 14 марта 2026
   - padel_app/lib/models/tournament.dart
   - padel_app/lib/screens/tournament_detail_screen.dart
 
+## 15. Проверка обновления приложения (Flutter + Backend)
+- Backend: эндпоинт GET /api/mobile/app/version (публичный, без авторизации)
+- Backend: конфиг config/mobile_app.php (min_version, latest_version, force_update, ссылки на магазины)
+- Управление через .env: APP_LATEST_VERSION, APP_MIN_VERSION, APP_FORCE_UPDATE
+- Flutter: проверка при холодном запуске и при возврате из фона (resumed)
+- Мягкое обновление: диалог с кнопками «Обновить» и «Позже»
+- Принудительное обновление: диалог нельзя закрыть (если версия < min_version)
+- Кнопка «Обновить» открывает App Store / Google Play
+- Файлы:
+  - padel/config/mobile_app.php
+  - padel/app/Http/Controllers/Api/MobileAppController.php
+  - padel/routes/api.php
+  - padel_app/lib/services/version_service.dart
+  - padel_app/lib/app.dart
+
+## 16. Версия приложения 1.1.0
+- Поднята версия с 1.0.0 до 1.1.0 для App Store (train 1.0.0 закрыт)
+- Build number: +2
+- Отправлено на ревью в App Store и Google Play
+
 ========================================
 Коммиты в backend (padel):
 ========================================
@@ -109,3 +129,4 @@ CHANGELOG — 14 марта 2026
 - bd157b8  fix: добавить first_name и last_name в ответ /profile
 - 5c0206a  feat: город и ссылка на оплату в редактировании клуба
 - e22bb0e  feat: отдавать payment_url клуба в API турниров
+- 7d3f257  feat: эндпоинт проверки версии мобильного приложения /app/version

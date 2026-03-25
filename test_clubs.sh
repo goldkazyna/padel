@@ -1,0 +1,1 @@
+TOKEN=$(php artisan tinker --execute='echo \App\Models\User::where("phone","77476504431")->first()->createToken("test")->plainTextToken;') && curl -s -H "Authorization: Bearer $TOKEN" https://padel-p.kz/api/mobile/challenges/clubs

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer require:*)",
+      "Bash(php artisan vendor:publish:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "Bash(php artisan tinker:*)",
+      "Bash(php:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(composer:*)",
+      "Bash(git status:*)",
+      "Bash(ssh:*)",
+      "Bash(cd:*)",
+      "Bash(flutter pub:*)",
+      "Bash(find:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter build:*)",
+      "Bash(xargs grep:*)",
+      "Bash(git -C /c/projects/padel add app/Http/Controllers/Api/MobileChallengeController.php)",
+      "Bash(git -C:*)",
+      "Bash(git -C /c/projects/padel push)",
+      "Bash(git reset:*)"
+    ]
+  }
+}
