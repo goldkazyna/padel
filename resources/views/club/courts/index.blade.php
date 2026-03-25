@@ -9,7 +9,7 @@
             <a href="{{ route('club.courts.schedule') }}" class="back-link" title="Назад к расписанию">&#8249;</a>
             <h1 class="courts-title">Настройки кортов</h1>
         </div>
-        <button class="btn-add" @click="$dispatch('open-create-modal')">+ Добавить корт</button>
+        <button class="btn-add" onclick="window.dispatchEvent(new CustomEvent('open-create-modal'))">+ Добавить корт</button>
     </div>
 
     <!-- Flash Messages -->
@@ -33,7 +33,7 @@
                     @endif
                 </div>
                 <div class="court-card-actions">
-                    <button class="action-btn edit" title="Редактировать" @click="$dispatch('open-edit-{{ $court->id }}')">&#9998;</button>
+                    <button class="action-btn edit" title="Редактировать" onclick="window.dispatchEvent(new CustomEvent('open-edit-{{ $court->id }}'))">&#9998;</button>
                     <form action="{{ route('club.courts.toggleActive', $court) }}" method="POST" style="display:inline;">
                         @csrf
                         <button type="submit" class="action-btn toggle" title="{{ $court->is_active ? 'Деактивировать' : 'Активировать' }}">&#9673;</button>
@@ -78,7 +78,7 @@
     @empty
         <div class="empty-state">
             <p>Корты не найдены. Добавьте первый корт.</p>
-            <button class="btn-add" @click="$dispatch('open-create-modal')">+ Добавить корт</button>
+            <button class="btn-add" onclick="window.dispatchEvent(new CustomEvent('open-create-modal'))">+ Добавить корт</button>
         </div>
     @endforelse
 </div>
