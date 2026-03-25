@@ -76,7 +76,7 @@
     }
 @endphp
 
-<div class="schedule-container" x-data="scheduleApp()">
+<div class="schedule-container">
     <!-- Header -->
     <div class="schedule-header">
         <div class="header-left">
@@ -138,7 +138,7 @@
                             @elseif($slot['status'] === 'free')
                                 <td>
                                     <div class="slot slot-free"
-                                         @click="openBookModal('{{ $court->id }}', '{{ $court->name }}', '{{ $time }}', {{ $slot['price'] }}, {{ $maxFreeSlots[$cellKey] ?? 1 }})">
+                                         onclick="openBookModal('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $time }}', {{ $slot['price'] }}, {{ $maxFreeSlots[$cellKey] ?? 1 }})">
                                         <span class="slot-price">{{ number_format($slot['price'], 0, '', ' ') }} &#8376;</span>
                                     </div>
                                 </td>
@@ -151,15 +151,7 @@
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
                                     <div class="slot {{ $span > 1 ? 'slot-booked-multi' : 'slot-booked' }}"
-                                         @click="openViewModal({
-                                            id: {{ $booking->id }},
-                                            courtName: '{{ addslashes($court->name) }}',
-                                            startTime: '{{ $bStart }}',
-                                            endTime: '{{ $bEnd }}',
-                                            clientName: '{{ addslashes($booking->client_name ?? '') }}',
-                                            clientPhone: '{{ addslashes($booking->client_phone ?? '') }}',
-                                            price: {{ $booking->price ?? 0 }}
-                                         })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }} })">
                                         <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}</span>
                                         @if($span > 1)
                                             <span class="slot-time">{{ $bStart }} &mdash; {{ $bEnd }}</span>
@@ -170,7 +162,7 @@
                             @elseif($slot['status'] === 'blocked')
                                 <td>
                                     <div class="slot slot-blocked"
-                                         @click="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}')">
+                                         onclick="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}')">
                                         <span class="slot-label">Заблокирован</span>
                                     </div>
                                 </td>
@@ -190,59 +182,51 @@
         <div class="legend-item"><span class="legend-dot booked"></span>Забронирован</div>
         <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
     </div>
+</div>
 
-    <!-- Booking Modal -->
-    <div class="modal-overlay" x-show="bookModal" x-cloak
-         x-transition:enter="modal-enter" x-transition:enter-start="modal-enter-start" x-transition:enter-end="modal-enter-end"
-         x-transition:leave="modal-leave" x-transition:leave-start="modal-leave-start" x-transition:leave-end="modal-leave-end"
-         @click.self="bookModal = false" @keydown.escape.window="bookModal = false">
-        <div class="modal">
-            <div class="modal-header">
+<!-- Book Modal (Bootstrap 5) -->
+<div class="modal fade" id="bookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
                 <h2>Бронирование</h2>
-                <button class="modal-close" @click="bookModal = false">&#10005;</button>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <form :action="bookFormAction" method="POST">
+            <form id="bookForm" method="POST">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
-                <input type="hidden" name="start_time" :value="book.time">
-                <input type="hidden" name="slots" :value="book.duration">
-                <div class="modal-body">
-                    <div class="modal-info">
-                        <div class="modal-info-row">
-                            <span class="modal-info-label">Корт</span>
-                            <span class="modal-info-value" x-text="book.courtName"></span>
+                <input type="hidden" name="start_time" id="bookStartTime">
+                <input type="hidden" name="slots" id="bookSlots" value="1">
+                <div class="sch-modal-body">
+                    <div class="sch-modal-info">
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Корт</span>
+                            <span class="sch-modal-info-value" id="bookCourtName"></span>
                         </div>
-                        <div class="modal-info-row">
-                            <span class="modal-info-label">Дата</span>
-                            <span class="modal-info-value">{{ $formattedDate }}</span>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Дата</span>
+                            <span class="sch-modal-info-value">{{ $formattedDate }}</span>
                         </div>
-                        <div class="modal-info-row">
-                            <span class="modal-info-label">Начало</span>
-                            <span class="modal-info-value" x-text="book.time"></span>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Начало</span>
+                            <span class="sch-modal-info-value" id="bookTime"></span>
                         </div>
-                        <div class="modal-info-row">
-                            <span class="modal-info-label">Цена/час</span>
-                            <span class="modal-info-value" x-text="formatPrice(book.price) + ' &#8376;'"></span>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Цена/час</span>
+                            <span class="sch-modal-info-value" id="bookPrice"></span>
                         </div>
                     </div>
 
-                    <hr class="modal-divider">
+                    <hr class="sch-modal-divider">
 
                     <div class="form-group">
                         <label class="form-label">Длительность</label>
-                        <div class="duration-selector">
-                            <template x-for="i in book.maxSlots" :key="i">
-                                <button type="button" class="duration-btn"
-                                        :class="{ 'active': book.duration === i }"
-                                        @click="book.duration = i"
-                                        x-text="i + ' ' + hourLabel(i)"></button>
-                            </template>
-                        </div>
+                        <div class="duration-selector" id="durationSelector"></div>
                     </div>
 
                     <div class="total-price">
                         <span class="total-price-label">Итого</span>
-                        <span class="total-price-value" x-text="formatPrice(totalPrice()) + ' &#8376;'"></span>
+                        <span class="total-price-value" id="bookTotalPrice"></span>
                     </div>
 
                     <div class="form-group">
@@ -255,103 +239,101 @@
                     </div>
 
                     <!-- Block option -->
-                    <hr class="modal-divider">
+                    <hr class="sch-modal-divider">
                     <div style="text-align: center;">
-                        <button type="button" class="btn-block-slot" @click="blockSlot()">Заблокировать слот</button>
+                        <button type="button" class="btn-block-slot" onclick="blockSlot()">Заблокировать слот</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" @click="bookModal = false">Отмена</button>
+                <div class="sch-modal-footer">
+                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn-confirm">Забронировать</button>
                 </div>
             </form>
 
             <!-- Hidden block form -->
-            <form :action="blockFormAction" method="POST" x-ref="blockForm" style="display:none;">
+            <form id="blockForm" method="POST" style="display:none;">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
-                <input type="hidden" name="start_time" :value="book.time">
-                <input type="hidden" name="end_time" :value="blockEndTime()">
+                <input type="hidden" name="start_time" id="blockStartTime">
+                <input type="hidden" name="end_time" id="blockEndTime">
             </form>
         </div>
     </div>
+</div>
 
-    <!-- View Booking Modal -->
-    <div class="modal-overlay" x-show="viewModal" x-cloak
-         x-transition:enter="modal-enter" x-transition:enter-start="modal-enter-start" x-transition:enter-end="modal-enter-end"
-         x-transition:leave="modal-leave" x-transition:leave-start="modal-leave-start" x-transition:leave-end="modal-leave-end"
-         @click.self="viewModal = false" @keydown.escape.window="viewModal = false">
-        <div class="modal">
-            <div class="modal-header">
+<!-- View Booking Modal (Bootstrap 5) -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
                 <h2>Бронирование</h2>
-                <button class="modal-close" @click="viewModal = false">&#10005;</button>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-info">
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Корт</span>
-                        <span class="modal-info-value" x-text="view.courtName"></span>
+            <div class="sch-modal-body">
+                <div class="sch-modal-info">
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Корт</span>
+                        <span class="sch-modal-info-value" id="viewCourtName"></span>
                     </div>
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Дата</span>
-                        <span class="modal-info-value">{{ $formattedDate }}</span>
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Дата</span>
+                        <span class="sch-modal-info-value">{{ $formattedDate }}</span>
                     </div>
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Время</span>
-                        <span class="modal-info-value" x-text="view.startTime + ' — ' + view.endTime"></span>
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Время</span>
+                        <span class="sch-modal-info-value" id="viewTime"></span>
                     </div>
-                    <hr class="modal-divider" style="margin: 0;">
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Клиент</span>
-                        <span class="modal-info-value" x-text="view.clientName || '—'"></span>
+                    <hr class="sch-modal-divider" style="margin: 0;">
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Клиент</span>
+                        <span class="sch-modal-info-value" id="viewClientName"></span>
                     </div>
-                    <div class="modal-info-row" x-show="view.clientPhone">
-                        <span class="modal-info-label">Телефон</span>
-                        <span class="modal-info-value" x-text="view.clientPhone"></span>
+                    <div class="sch-modal-info-row" id="viewPhoneRow">
+                        <span class="sch-modal-info-label">Телефон</span>
+                        <span class="sch-modal-info-value" id="viewClientPhone"></span>
                     </div>
-                    <hr class="modal-divider" style="margin: 0;">
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Цена</span>
-                        <span class="modal-info-value" style="color: #22c55e; font-size: 18px;" x-text="formatPrice(view.price) + ' &#8376;'"></span>
+                    <hr class="sch-modal-divider" style="margin: 0;">
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Цена</span>
+                        <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" @click="viewModal = false">Закрыть</button>
-                <form :action="cancelBookingAction" method="POST" style="flex: 2;">
+            <div class="sch-modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
+                <form id="cancelBookingForm" method="POST" style="flex: 2;">
                     @csrf
                     <button type="submit" class="btn-danger" style="width: 100%;">Отменить бронь</button>
                 </form>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Unblock Confirmation Modal -->
-    <div class="modal-overlay" x-show="unblockModal" x-cloak
-         x-transition:enter="modal-enter" x-transition:enter-start="modal-enter-start" x-transition:enter-end="modal-enter-end"
-         x-transition:leave="modal-leave" x-transition:leave-start="modal-leave-start" x-transition:leave-end="modal-leave-end"
-         @click.self="unblockModal = false" @keydown.escape.window="unblockModal = false">
-        <div class="modal">
-            <div class="modal-header">
+<!-- Unblock Confirmation Modal (Bootstrap 5) -->
+<div class="modal fade" id="unblockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
                 <h2>Разблокировать слот</h2>
-                <button class="modal-close" @click="unblockModal = false">&#10005;</button>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-info">
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Корт</span>
-                        <span class="modal-info-value" x-text="unblock.courtName"></span>
+            <div class="sch-modal-body">
+                <div class="sch-modal-info">
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Корт</span>
+                        <span class="sch-modal-info-value" id="unblockCourtName"></span>
                     </div>
-                    <div class="modal-info-row">
-                        <span class="modal-info-label">Время</span>
-                        <span class="modal-info-value" x-text="unblock.time"></span>
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Время</span>
+                        <span class="sch-modal-info-value" id="unblockTime"></span>
                     </div>
                 </div>
                 <p style="color: #a1a1aa; font-size: 14px; margin-top: 16px;">Вы уверены, что хотите разблокировать этот слот?</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-cancel" @click="unblockModal = false">Отмена</button>
-                <form :action="unblockAction" method="POST" style="flex: 2;">
+            <div class="sch-modal-footer">
+                <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                <form id="unblockForm" method="POST" style="flex: 2;">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn-confirm" style="width: 100%;">Разблокировать</button>
@@ -362,133 +344,161 @@
 </div>
 
 <script>
-    function scheduleApp() {
-        const courtRoutes = {
-            @foreach($courts as $court)
-                '{{ $court->id }}': {
-                    book: '{{ route('club.courts.book', $court) }}',
-                    block: '{{ route('club.courts.blockSlot', $court) }}'
-                },
-            @endforeach
-        };
-
-        // Prices array for calculating totals across multiple slots
-        const freePrices = @json($freePrices);
-
-        // Time slots in order for price lookup
-        const orderedTimes = @json($timeSlots->values()->toArray());
-
-        return {
-            bookModal: false,
-            viewModal: false,
-            unblockModal: false,
-
-            book: {
-                courtId: '',
-                courtName: '',
-                time: '',
-                price: 0,
-                maxSlots: 1,
-                duration: 1
+    const courtRoutes = {
+        @foreach($courts as $court)
+            '{{ $court->id }}': {
+                book: '{{ route('club.courts.book', $court) }}',
+                block: '{{ route('club.courts.blockSlot', $court) }}'
             },
+        @endforeach
+    };
 
-            view: {
-                id: 0,
-                courtName: '',
-                startTime: '',
-                endTime: '',
-                clientName: '',
-                clientPhone: '',
-                price: 0
-            },
+    const freePrices = @json($freePrices);
+    const orderedTimes = @json($timeSlots->values()->toArray());
 
-            unblock: {
-                blockId: 0,
-                courtName: '',
-                time: ''
-            },
+    // Current booking state
+    let currentBook = {
+        courtId: '',
+        courtName: '',
+        time: '',
+        price: 0,
+        maxSlots: 1,
+        duration: 1
+    };
 
-            get bookFormAction() {
-                return courtRoutes[this.book.courtId]?.book || '';
-            },
+    function formatPrice(val) {
+        return Number(val).toLocaleString('ru-RU');
+    }
 
-            get blockFormAction() {
-                return courtRoutes[this.book.courtId]?.block || '';
-            },
+    function hourLabel(n) {
+        if (n === 1) return 'час';
+        if (n >= 2 && n <= 4) return 'часа';
+        return 'часов';
+    }
 
-            get cancelBookingAction() {
-                return '{{ url("club/courts/bookings") }}/' + this.view.id + '/cancel';
-            },
+    function calcTotalPrice() {
+        let total = 0;
+        const startIdx = orderedTimes.indexOf(currentBook.time);
+        if (startIdx === -1) return currentBook.price * currentBook.duration;
+        for (let i = 0; i < currentBook.duration; i++) {
+            const t = orderedTimes[startIdx + i];
+            const key = currentBook.courtId + '-' + t;
+            total += freePrices[key] || currentBook.price;
+        }
+        return total;
+    }
 
-            get unblockAction() {
-                return '{{ url("club/courts/blocks") }}/' + this.unblock.blockId;
-            },
+    function calcBlockEndTime() {
+        const startIdx = orderedTimes.indexOf(currentBook.time);
+        if (startIdx >= 0 && startIdx + 1 < orderedTimes.length) {
+            return orderedTimes[startIdx + 1];
+        }
+        const [h, m] = currentBook.time.split(':').map(Number);
+        const nh = h + 1;
+        return String(nh).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
 
-            openBookModal(courtId, courtName, time, price, maxSlots) {
-                this.book = {
-                    courtId: courtId,
-                    courtName: courtName,
-                    time: time,
-                    price: price,
-                    maxSlots: Math.min(maxSlots, 6),
-                    duration: 1
-                };
-                this.bookModal = true;
-            },
+    function updateBookTotalPrice() {
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(calcTotalPrice()) + ' &#8376;';
+        document.getElementById('bookSlots').value = currentBook.duration;
+    }
 
-            openViewModal(data) {
-                this.view = data;
-                this.viewModal = true;
-            },
-
-            openUnblockModal(blockId, courtName, time) {
-                this.unblock = { blockId, courtName, time };
-                this.unblockModal = true;
-            },
-
-            totalPrice() {
-                let total = 0;
-                const startIdx = orderedTimes.indexOf(this.book.time);
-                if (startIdx === -1) return this.book.price * this.book.duration;
-                for (let i = 0; i < this.book.duration; i++) {
-                    const t = orderedTimes[startIdx + i];
-                    const key = this.book.courtId + '-' + t;
-                    total += freePrices[key] || this.book.price;
-                }
-                return total;
-            },
-
-            blockEndTime() {
-                const startIdx = orderedTimes.indexOf(this.book.time);
-                if (startIdx >= 0 && startIdx + 1 < orderedTimes.length) {
-                    return orderedTimes[startIdx + 1];
-                }
-                // Fallback: add 1 hour
-                const [h, m] = this.book.time.split(':').map(Number);
-                const nh = h + 1;
-                return String(nh).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-            },
-
-            blockSlot() {
-                this.$refs.blockForm.submit();
-            },
-
-            formatPrice(val) {
-                return Number(val).toLocaleString('ru-RU');
-            },
-
-            hourLabel(n) {
-                if (n === 1) return 'час';
-                if (n >= 2 && n <= 4) return 'часа';
-                return 'часов';
+    function setDuration(n) {
+        currentBook.duration = n;
+        // Update active state on buttons
+        document.querySelectorAll('#durationSelector .duration-btn').forEach(function(btn) {
+            const val = parseInt(btn.getAttribute('data-duration'));
+            if (val === n) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
             }
+        });
+        updateBookTotalPrice();
+    }
+
+    function renderDurationButtons(maxSlots) {
+        const container = document.getElementById('durationSelector');
+        container.innerHTML = '';
+        for (let i = 1; i <= maxSlots; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'duration-btn' + (i === 1 ? ' active' : '');
+            btn.setAttribute('data-duration', i);
+            btn.textContent = i + ' ' + hourLabel(i);
+            btn.onclick = function() { setDuration(i); };
+            container.appendChild(btn);
+        }
+    }
+
+    function openBookModal(courtId, courtName, time, price, maxSlots) {
+        currentBook = {
+            courtId: courtId,
+            courtName: courtName,
+            time: time,
+            price: price,
+            maxSlots: Math.min(maxSlots, 6),
+            duration: 1
         };
+
+        document.getElementById('bookForm').action = courtRoutes[courtId].book;
+        document.getElementById('blockForm').action = courtRoutes[courtId].block;
+        document.getElementById('bookStartTime').value = time;
+        document.getElementById('bookSlots').value = 1;
+        document.getElementById('bookCourtName').textContent = courtName;
+        document.getElementById('bookTime').textContent = time;
+        document.getElementById('bookPrice').innerHTML = formatPrice(price) + ' &#8376;';
+        document.getElementById('blockStartTime').value = time;
+        document.getElementById('blockEndTime').value = calcBlockEndTime();
+
+        // Reset form inputs
+        const form = document.getElementById('bookForm');
+        const clientName = form.querySelector('input[name="client_name"]');
+        const clientPhone = form.querySelector('input[name="client_phone"]');
+        if (clientName) clientName.value = '';
+        if (clientPhone) clientPhone.value = '';
+
+        renderDurationButtons(currentBook.maxSlots);
+        updateBookTotalPrice();
+
+        new bootstrap.Modal(document.getElementById('bookModal')).show();
+    }
+
+    function openViewModal(data) {
+        document.getElementById('viewCourtName').textContent = data.courtName;
+        document.getElementById('viewTime').textContent = data.startTime + ' — ' + data.endTime;
+        document.getElementById('viewClientName').textContent = data.clientName || '—';
+
+        const phoneRow = document.getElementById('viewPhoneRow');
+        if (data.clientPhone) {
+            document.getElementById('viewClientPhone').textContent = data.clientPhone;
+            phoneRow.style.display = '';
+        } else {
+            phoneRow.style.display = 'none';
+        }
+
+        document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
+        document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
+
+        new bootstrap.Modal(document.getElementById('viewModal')).show();
+    }
+
+    function openUnblockModal(blockId, courtName, time) {
+        document.getElementById('unblockCourtName').textContent = courtName;
+        document.getElementById('unblockTime').textContent = time;
+        document.getElementById('unblockForm').action = '{{ url("club/courts/blocks") }}/' + blockId;
+
+        new bootstrap.Modal(document.getElementById('unblockModal')).show();
+    }
+
+    function blockSlot() {
+        document.getElementById('blockStartTime').value = currentBook.time;
+        document.getElementById('blockEndTime').value = calcBlockEndTime();
+        document.getElementById('blockForm').submit();
     }
 </script>
 
 <style>
-    [x-cloak] { display: none !important; }
-
     :root {
         --sch-bg: #0a0a0b;
         --sch-card: #111113;
@@ -842,28 +852,14 @@
         border: 1px solid var(--sch-text-muted);
     }
 
-    /* Modal */
-    .modal-overlay {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
+    /* Bootstrap Modal Overrides for dark theme */
+    #bookModal .modal-content,
+    #viewModal .modal-content,
+    #unblockModal .modal-content {
+        overflow: hidden;
     }
 
-    .modal {
-        background: var(--sch-card);
-        border: 1px solid var(--sch-border);
-        border-radius: 16px;
-        width: 100%;
-        max-width: 420px;
-        margin: 16px;
-    }
-
-    .modal-header {
+    .sch-modal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -871,12 +867,14 @@
         border-bottom: 1px solid var(--sch-border);
     }
 
-    .modal-header h2 {
+    .sch-modal-header h2 {
         font-size: 18px;
         font-weight: 700;
+        color: var(--sch-text);
+        margin: 0;
     }
 
-    .modal-close {
+    .sch-modal-close {
         width: 36px; height: 36px;
         display: flex; align-items: center; justify-content: center;
         background: var(--sch-card-alt);
@@ -888,36 +886,36 @@
         transition: all 0.2s;
     }
 
-    .modal-close:hover { border-color: var(--sch-red); color: var(--sch-red); }
+    .sch-modal-close:hover { border-color: var(--sch-red); color: var(--sch-red); }
 
-    .modal-body { padding: 24px; }
+    .sch-modal-body { padding: 24px; }
 
-    .modal-info {
+    .sch-modal-info {
         display: flex;
         flex-direction: column;
         gap: 12px;
         margin-bottom: 20px;
     }
 
-    .modal-info-row {
+    .sch-modal-info-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
-    .modal-info-label {
+    .sch-modal-info-label {
         font-size: 13px;
         color: var(--sch-text-muted);
         font-weight: 600;
     }
 
-    .modal-info-value {
+    .sch-modal-info-value {
         font-size: 14px;
         font-weight: 700;
         color: var(--sch-text);
     }
 
-    .modal-divider {
+    .sch-modal-divider {
         border: none;
         border-top: 1px solid var(--sch-border);
         margin: 16px 0;
@@ -1011,7 +1009,7 @@
         color: var(--sch-accent);
     }
 
-    .modal-footer {
+    .sch-modal-footer {
         display: flex;
         gap: 12px;
         padding: 20px 24px;
