@@ -2,49 +2,36 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class CourtBooking extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'court_slot_id',
-        'user_id',
+        'court_id',
+        'date',
+        'start_time',
+        'end_time',
+        'client_name',
+        'client_phone',
         'status',
-        'payment_status',
         'cancelled_at',
-        'cancel_reason',
+        'booked_by',
+        'price',
     ];
 
     protected $casts = [
+        'date' => 'date',
         'cancelled_at' => 'datetime',
+        'price' => 'decimal:2',
     ];
 
-    public function courtSlot()
+    public function court()
     {
-        return $this->belongsTo(CourtSlot::class);
+        return $this->belongsTo(Court::class);
     }
 
-    public function user()
+    public function bookedByUser()
     {
-        return $this->belongsTo(User::class);
-    }
-
-    public function canCancel(): bool
-    {
-        if ($this->status === 'cancelled') {
-            return false;
-        }
-
-        $slot = $this->courtSlot;
-        $club = $slot->court->club;
-        $cancelHours = $club->booking_cancel_hours;
-
-        $slotStart = Carbon::parse($slot->date->format('Y-m-d') . ' ' . $slot->start_time);
-
-        return now()->diffInHours($slotStart, false) >= $cancelHours;
+        return $this->belongsTo(User::class, 'booked_by');
     }
 }
