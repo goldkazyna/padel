@@ -105,8 +105,8 @@
                             <input type="number" name="price" class="form-control" value="{{ old('price', 0) }}" min="0">
                         </div>
 						<div class="col-md-6 mb-4">
-							<label class="form-label">Забронировать мест</label>
-							<input type="number" name="reserve_count" class="form-control" 
+							<label class="form-label">Забронировать мест <span id="reserveHintPairs" style="display:none; font-weight:400; color:#a1a1aa;">(укажите кол-во пар)</span></label>
+							<input type="number" name="reserve_count" class="form-control"
 								   value="{{ old('reserve_count', 0) }}" min="0" max="10">
 							<small class="text-secondary">Места для знакомых, которых заменишь позже</small>
 						</div>
@@ -308,6 +308,10 @@ function toggleTypeFields() {
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
     
+    // Подсказка "(укажите кол-во пар)" для team турниров
+    var reserveHint = document.getElementById('reserveHintPairs');
+    if (reserveHint) reserveHint.style.display = (type === 'team') ? 'inline' : 'none';
+
     // Скрываем все
     if (americanoFields) americanoFields.style.display = 'none';
     if (mexicanoFields) mexicanoFields.style.display = 'none';
