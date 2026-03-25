@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мокап — Расписание кортов</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        background: #0a0a0b;
+        color: #f4f4f5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px;
+    }
+
+    /* Header */
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .header h1 {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+
+    .settings-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #16161a;
+        border: 1px solid #27272a;
+        padding: 10px 18px;
+        border-radius: 10px;
+        color: #a1a1aa;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .settings-link:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    /* Date Navigation */
+    .date-nav {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .date-btn {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 10px;
+        color: #a1a1aa;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 18px;
+    }
+
+    .date-btn:hover {
+        border-color: #22c55e;
+        color: #22c55e;
+    }
+
+    .date-label {
+        font-size: 17px;
+        font-weight: 700;
+        min-width: 220px;
+        text-align: center;
+    }
+
+    .date-label .day-name {
+        color: #22c55e;
+    }
+
+    .today-btn {
+        padding: 8px 18px;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 10px;
+        color: #a1a1aa;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .today-btn:hover {
+        border-color: #22c55e;
+        color: #22c55e;
+    }
+
+    /* Schedule Grid */
+    .schedule-wrap {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .schedule-table th {
+        padding: 16px 12px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 800;
+        color: #a1a1aa;
+        background: #16161a;
+        border-bottom: 1px solid #27272a;
+    }
+
+    .schedule-table th.time-col {
+        width: 80px;
+        text-align: left;
+        padding-left: 20px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #71717a;
+    }
+
+    .schedule-table td {
+        padding: 4px;
+        border-bottom: 1px solid #1c1c21;
+        vertical-align: top;
+        height: 60px;
+    }
+
+    .schedule-table td.time-cell {
+        padding-left: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #a1a1aa;
+        vertical-align: middle;
+        font-variant-numeric: tabular-nums;
+        border-right: 1px solid #27272a;
+    }
+
+    .schedule-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Slot cells */
+    .slot {
+        width: 100%;
+        height: 100%;
+        min-height: 52px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        border: 1px solid transparent;
+        padding: 4px;
+    }
+
+    .slot-free {
+        background: rgba(34, 197, 94, 0.08);
+        color: #22c55e;
+        border-color: rgba(34, 197, 94, 0.15);
+    }
+
+    .slot-free:hover {
+        background: rgba(34, 197, 94, 0.2);
+        border-color: #22c55e;
+        transform: scale(1.03);
+    }
+
+    .slot-free .slot-price {
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .slot-free .slot-label {
+        font-size: 10px;
+        opacity: 0.6;
+    }
+
+    .slot-booked {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border-color: rgba(59, 130, 246, 0.25);
+    }
+
+    .slot-booked:hover {
+        background: rgba(59, 130, 246, 0.25);
+        border-color: #3b82f6;
+    }
+
+    .slot-booked .client-name {
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .slot-booked .slot-price {
+        font-size: 10px;
+        opacity: 0.7;
+    }
+
+    .slot-booked-multi {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+        border-color: rgba(59, 130, 246, 0.25);
+        min-height: 112px;
+        border-radius: 8px;
+    }
+
+    .slot-booked-multi:hover {
+        background: rgba(59, 130, 246, 0.25);
+        border-color: #3b82f6;
+    }
+
+    .slot-booked-multi .client-name {
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .slot-booked-multi .slot-time {
+        font-size: 11px;
+        opacity: 0.7;
+    }
+
+    .slot-booked-multi .slot-price {
+        font-size: 11px;
+        opacity: 0.7;
+    }
+
+    .slot-blocked {
+        background: rgba(113, 113, 122, 0.15);
+        color: #71717a;
+        border-color: rgba(113, 113, 122, 0.2);
+    }
+
+    .slot-blocked:hover {
+        background: rgba(113, 113, 122, 0.25);
+        border-color: #71717a;
+    }
+
+    .slot-blocked .slot-label {
+        font-size: 11px;
+    }
+
+    .slot-hidden {
+        visibility: hidden;
+    }
+
+    /* Legend */
+    .legend {
+        display: flex;
+        gap: 24px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #a1a1aa;
+    }
+
+    .legend-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+    }
+
+    .legend-dot.free {
+        background: rgba(34, 197, 94, 0.3);
+        border: 1px solid #22c55e;
+    }
+
+    .legend-dot.booked {
+        background: rgba(59, 130, 246, 0.3);
+        border: 1px solid #3b82f6;
+    }
+
+    .legend-dot.blocked {
+        background: rgba(113, 113, 122, 0.3);
+        border: 1px solid #71717a;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal {
+        background: #111113;
+        border: 1px solid #27272a;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 420px;
+        transform: translateY(20px);
+        transition: transform 0.3s;
+    }
+
+    .modal-overlay.active .modal {
+        transform: translateY(0);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid #27272a;
+    }
+
+    .modal-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .modal-close {
+        width: 36px; height: 36px;
+        display: flex; align-items: center; justify-content: center;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #a1a1aa;
+        font-size: 18px;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover { border-color: #ef4444; color: #ef4444; }
+
+    .modal-body { padding: 24px; }
+
+    .modal-info {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .modal-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-info-label {
+        font-size: 13px;
+        color: #71717a;
+        font-weight: 600;
+    }
+
+    .modal-info-value {
+        font-size: 14px;
+        font-weight: 700;
+        color: #f4f4f5;
+    }
+
+    .modal-divider {
+        border: none;
+        border-top: 1px solid #27272a;
+        margin: 16px 0;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #a1a1aa;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-input {
+        width: 100%;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        color: #f4f4f5;
+        font-weight: 500;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .form-input::placeholder { color: #52525b; }
+
+    .duration-selector {
+        display: flex;
+        gap: 8px;
+    }
+
+    .duration-btn {
+        flex: 1;
+        padding: 12px;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 10px;
+        color: #a1a1aa;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .duration-btn.active {
+        background: #22c55e;
+        color: #0a0a0b;
+        border-color: #22c55e;
+    }
+
+    .duration-btn:hover:not(.active) {
+        border-color: #22c55e;
+        color: #22c55e;
+    }
+
+    .total-price {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .total-price-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #a1a1aa;
+    }
+
+    .total-price-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: #22c55e;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 12px;
+        padding: 20px 24px;
+        border-top: 1px solid #27272a;
+    }
+
+    .btn-cancel {
+        flex: 1;
+        padding: 14px;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 10px;
+        color: #a1a1aa;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover { border-color: #3f3f46; color: #f4f4f5; }
+
+    .btn-confirm {
+        flex: 2;
+        padding: 14px;
+        background: #22c55e;
+        border: none;
+        border-radius: 10px;
+        color: #0a0a0b;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-confirm:hover { background: #16a34a; }
+
+    .btn-danger {
+        flex: 2;
+        padding: 14px;
+        background: #ef4444;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-danger:hover { background: #dc2626; }
+
+    /* Annotations */
+    .annotations {
+        margin-top: 40px;
+        padding: 24px;
+        background: #16161a;
+        border: 1px solid #27272a;
+        border-radius: 16px;
+    }
+
+    .annotations h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: #facc15;
+    }
+
+    .annotations ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .annotations li {
+        font-size: 14px;
+        color: #a1a1aa;
+        padding-left: 16px;
+        position: relative;
+    }
+
+    .annotations li::before {
+        content: '→';
+        position: absolute;
+        left: 0;
+        color: #facc15;
+    }
+
+    @media (max-width: 768px) {
+        .header { flex-direction: column; align-items: flex-start; }
+        .schedule-wrap { overflow-x: auto; }
+        .schedule-table { min-width: 600px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <h1>Расписание кортов</h1>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="settings-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                Настройки кортов
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Navigation -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 28px;">
+        <button class="date-btn">&#8249;</button>
+        <div class="date-label"><span class="day-name">Вторник</span>, 25 марта 2026</div>
+        <button class="date-btn">&#8250;</button>
+        <button class="today-btn">Сегодня</button>
+    </div>
+
+    <!-- Schedule Grid -->
+    <div class="schedule-wrap">
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    <th class="time-col">Время</th>
+                    <th>Корт 1</th>
+                    <th>Корт 2</th>
+                    <th>Корт 3</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 08:00 -->
+                <tr>
+                    <td class="time-cell">08:00</td>
+                    <td>
+                        <div class="slot slot-free" onclick="openModal('bookModal')">
+                            <span class="slot-price">3 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">3 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-blocked">
+                            <span class="slot-label">Заблокирован</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 09:00 -->
+                <tr>
+                    <td class="time-cell">09:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">3 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-booked" onclick="openModal('viewModal')">
+                            <span class="client-name">Алексей К.</span>
+                            <span class="slot-price">3 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-blocked">
+                            <span class="slot-label">Заблокирован</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 10:00 -->
+                <tr>
+                    <td class="time-cell">10:00</td>
+                    <td rowspan="2" style="padding: 4px;">
+                        <div class="slot slot-booked-multi" onclick="openModal('viewModal')">
+                            <span class="client-name">Марат Б.</span>
+                            <span class="slot-time">10:00 — 12:00</span>
+                            <span class="slot-price">10 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 11:00 -->
+                <tr>
+                    <td class="time-cell">11:00</td>
+                    <!-- Корт 1 hidden — merged above -->
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 12:00 -->
+                <tr>
+                    <td class="time-cell">12:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-booked">
+                            <span class="client-name">Дана С.</span>
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 13:00 -->
+                <tr>
+                    <td class="time-cell">13:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 14:00 -->
+                <tr>
+                    <td class="time-cell">14:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 15:00 -->
+                <tr>
+                    <td class="time-cell">15:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-booked">
+                            <span class="client-name">Игорь М.</span>
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 16:00 -->
+                <tr>
+                    <td class="time-cell">16:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">5 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 17:00 -->
+                <tr>
+                    <td class="time-cell">17:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td rowspan="2" style="padding: 4px;">
+                        <div class="slot slot-booked-multi">
+                            <span class="client-name">Тимур А.</span>
+                            <span class="slot-time">17:00 — 19:00</span>
+                            <span class="slot-price">16 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 18:00 -->
+                <tr>
+                    <td class="time-cell">18:00</td>
+                    <td>
+                        <div class="slot slot-booked">
+                            <span class="client-name">Ержан К.</span>
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <!-- Корт 3 hidden — merged above -->
+                </tr>
+                <!-- 19:00 -->
+                <tr>
+                    <td class="time-cell">19:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-booked">
+                            <span class="client-name">Асхат Д.</span>
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 20:00 -->
+                <tr>
+                    <td class="time-cell">20:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 21:00 -->
+                <tr>
+                    <td class="time-cell">21:00</td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="slot slot-free">
+                            <span class="slot-price">8 000 ₸</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><span class="legend-dot free"></span>Свободен</div>
+        <div class="legend-item"><span class="legend-dot booked"></span>Забронирован</div>
+        <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
+    </div>
+
+    <!-- Annotations -->
+    <div class="annotations">
+        <h2>Пояснения к мокапу</h2>
+        <ul>
+            <li>Клик по зелёному слоту — открывает модалку бронирования (попробуй кликнуть на 08:00 Корт 1)</li>
+            <li>Клик по синему слоту — открывает модалку просмотра (попробуй кликнуть на 09:00 Корт 2)</li>
+            <li>Бронь на 2 часа (Марат Б. 10:00-12:00 Корт 1) — ячейки объединены</li>
+            <li>Заблокированные слоты (Корт 3, 08:00-09:00) — серые</li>
+            <li>Цены меняются по времени: утро 3000₸, день 5000₸, вечер 8000₸</li>
+            <li>Правый клик для блокировки — не реализован в мокапе, но будет в финальной версии</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Modal: Book Slot -->
+<div class="modal-overlay" id="bookModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Бронирование</h2>
+            <button class="modal-close" onclick="closeModal('bookModal')">&#10005;</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-info">
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Корт</span>
+                    <span class="modal-info-value">Корт 1</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Дата</span>
+                    <span class="modal-info-value">25 марта 2026</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Начало</span>
+                    <span class="modal-info-value">08:00</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Цена/час</span>
+                    <span class="modal-info-value">3 000 ₸</span>
+                </div>
+            </div>
+
+            <hr class="modal-divider">
+
+            <div class="form-group">
+                <label class="form-label">Длительность</label>
+                <div class="duration-selector">
+                    <div class="duration-btn active">1 час</div>
+                    <div class="duration-btn">2 часа</div>
+                    <div class="duration-btn">3 часа</div>
+                    <div class="duration-btn">4 часа</div>
+                </div>
+            </div>
+
+            <div class="total-price">
+                <span class="total-price-label">Итого</span>
+                <span class="total-price-value">3 000 ₸</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Имя клиента</label>
+                <input type="text" class="form-input" placeholder="Введите имя">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Телефон (необязательно)</label>
+                <input type="text" class="form-input" placeholder="+7 (___) ___-__-__">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('bookModal')">Отмена</button>
+            <button class="btn-confirm">Забронировать</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: View Booking -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Бронирование</h2>
+            <button class="modal-close" onclick="closeModal('viewModal')">&#10005;</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-info">
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Корт</span>
+                    <span class="modal-info-value">Корт 2</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Дата</span>
+                    <span class="modal-info-value">25 марта 2026</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Время</span>
+                    <span class="modal-info-value">09:00 — 10:00</span>
+                </div>
+                <hr class="modal-divider" style="margin: 0;">
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Клиент</span>
+                    <span class="modal-info-value">Алексей К.</span>
+                </div>
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Телефон</span>
+                    <span class="modal-info-value">+7 701 234 5678</span>
+                </div>
+                <hr class="modal-divider" style="margin: 0;">
+                <div class="modal-info-row">
+                    <span class="modal-info-label">Цена</span>
+                    <span class="modal-info-value" style="color: #22c55e; font-size: 18px;">3 000 ₸</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('viewModal')">Закрыть</button>
+            <button class="btn-danger">Отменить бронь</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', e => { if (e.target === m) m.classList.remove('active'); });
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+    });
+
+    // Duration selector demo
+    document.querySelectorAll('.duration-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.parentElement.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+</script>
+
+</body>
+</html>
