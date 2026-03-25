@@ -72,29 +72,31 @@
                         <div class="pair-phones">
                             <small style="color: #a1a1aa;">
                                 {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
-                                / 
+                                /
                                 {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
                             </small>
                         </div>
                     </div>
-                    <div class="pair-rating">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        {{ $team->rating_avg }}
+                    <div class="pair-bottom-row">
+                        <div class="pair-rating">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            {{ $team->rating_avg }}
+                        </div>
+                        @if($tournament->status === 'open')
+                            <div class="pair-actions">
+                                <button type="button" class="pair-action-btn edit" title="Редактировать" data-bs-toggle="modal" data-bs-target="#editTeamModal{{ $team->id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')" class="d-inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="pair-action-btn delete" title="Удалить">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
                     </div>
-                    @if($tournament->status === 'open')
-						<div class="pair-actions">
-							<button type="button" class="btn btn-outline-light btn-sm" title="Редактировать" data-bs-toggle="modal" data-bs-target="#editTeamModal{{ $team->id }}">
-								<i class="bi bi-pencil"></i>
-							</button>
-							<form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')" class="d-inline">
-								@csrf
-								@method('DELETE')
-								<button type="submit" class="btn btn-danger btn-sm" title="Удалить">
-									<i class="bi bi-x-lg"></i>
-								</button>
-							</form>
-						</div>
-					@endif
                 </div>
             @endforeach
         </div>
@@ -975,9 +977,43 @@ document.addEventListener('DOMContentLoaded', function() {
     margin-top: 4px;
 }
 
+.pair-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
 .pair-actions {
     display: flex;
-    gap: 4px;
+    gap: 6px;
+}
+
+.pair-action-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.pair-action-btn.edit:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: rgba(59,130,246,0.1);
+}
+
+.pair-action-btn.delete:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239,68,68,0.1);
 }
 .pending-rank {
     background: transparent;
