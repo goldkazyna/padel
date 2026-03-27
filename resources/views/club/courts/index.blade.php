@@ -5,10 +5,12 @@
 <div class="courts-container">
     <div class="courts-header">
         <div class="courts-header-left">
-            <a href="{{ route('club.courts.schedule') }}" class="back-link" title="Назад к расписанию">&#8249;</a>
             <h1 class="courts-title">Настройки кортов</h1>
         </div>
-        <button class="btn-add" data-bs-toggle="modal" data-bs-target="#createModal">+ Добавить корт</button>
+        <div class="courts-header-right">
+            <a href="{{ route('club.courts.schedule') }}" class="btn-schedule"><i class="bi bi-calendar3"></i> Расписание</a>
+            <button class="btn-add" data-bs-toggle="modal" data-bs-target="#createModal">+ Добавить корт</button>
+        </div>
     </div>
 
     @if(session('success'))
@@ -251,6 +253,9 @@ function updateRemoveButtons(container) {
     .back-link { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; text-decoration: none; font-size: 20px; transition: all 0.2s; }
     .back-link:hover { border-color: #22c55e; color: #22c55e; }
     .courts-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .courts-header-right { display: flex; align-items: center; gap: 10px; }
+    .btn-schedule { display: flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+    .btn-schedule:hover { border-color: #3b82f6; color: #3b82f6; }
     .btn-add { display: flex; align-items: center; gap: 8px; background: #22c55e; color: #0a0a0b; border: none; padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-add:hover { background: #16a34a; }
 
