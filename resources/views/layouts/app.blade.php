@@ -894,14 +894,18 @@
 				@endif
                 
                 @if(auth()->user()->isClubModerator())
+					@php($modClub = auth()->user()->moderatorClubs()->first())
 					<li class="nav-section-title">Модератор</li>
+					@if(!$modClub || $modClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
 							<i class="bi bi-trophy"></i>
 							<span>Турниры клуба</span>
 						</a>
 					</li>
+					@endif
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
+					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
 					<li class="nav-section-title">Админ клуба</li>
 					<li class="nav-item">
 						<a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
@@ -909,24 +913,30 @@
 							<span>Мой клуб</span>
 						</a>
 					</li>
+					@if(!$navClub || $navClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
 							<i class="bi bi-trophy"></i>
 							<span>Турниры клуба</span>
 						</a>
 					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('users'))
 					<li class="nav-item">
 						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Пользователи</span>
 						</a>
 					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('courts'))
 					<li class="nav-item">
 						<a href="{{ route('club.courts.index') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}">
 							<i class="bi bi-grid-3x3"></i>
 							<span>Корты</span>
 						</a>
 					</li>
+					@endif
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

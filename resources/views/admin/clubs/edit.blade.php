@@ -90,11 +90,39 @@
                     <div class="mb-4">
                         <label class="form-check">
                             <input type="hidden" name="is_active" value="0">
-                            <input type="checkbox" name="is_active" value="1" class="form-check-input" 
+                            <input type="checkbox" name="is_active" value="1" class="form-check-input"
                                    {{ old('is_active', $club->is_active) ? 'checked' : '' }}
                                    style="background-color: var(--bg-secondary); border-color: var(--border);">
                             <span class="form-check-label">Клуб активен</span>
                         </label>
+                    </div>
+
+                    @php($features = $club->features ?? [])
+                    <div class="mb-4">
+                        <label class="form-label">Доступные модули</label>
+                        <div class="d-flex flex-column gap-2">
+                            <label class="form-check">
+                                <input type="hidden" name="features[tournaments]" value="0">
+                                <input type="checkbox" name="features[tournaments]" value="1" class="form-check-input"
+                                       {{ old('features.tournaments', $features['tournaments'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Турниры</span>
+                            </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[users]" value="0">
+                                <input type="checkbox" name="features[users]" value="1" class="form-check-input"
+                                       {{ old('features.users', $features['users'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Пользователи</span>
+                            </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[courts]" value="0">
+                                <input type="checkbox" name="features[courts]" value="1" class="form-check-input"
+                                       {{ old('features.courts', $features['courts'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Корты</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-3">

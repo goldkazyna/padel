@@ -20,11 +20,19 @@ class Club extends Model
         'is_active',
         'booking_cancel_hours',
         'payment_url',
+        'features',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'features' => 'array',
     ];
+
+    public function hasFeature(string $feature): bool
+    {
+        $features = $this->features ?? [];
+        return ($features[$feature] ?? true) === true;
+    }
 
     // Связь: админы клуба
     public function admins()

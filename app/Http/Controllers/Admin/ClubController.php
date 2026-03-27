@@ -51,7 +51,16 @@ class ClubController extends Controller
             'description' => 'nullable|string',
             'payment_url' => 'nullable|url|max:500',
             'is_active' => 'boolean',
+            'features' => 'nullable|array',
+            'features.*' => 'boolean',
         ]);
+
+        $features = $request->input('features', []);
+        $validated['features'] = [
+            'tournaments' => (bool) ($features['tournaments'] ?? true),
+            'users' => (bool) ($features['users'] ?? true),
+            'courts' => (bool) ($features['courts'] ?? true),
+        ];
 
         $club->update($validated);
 

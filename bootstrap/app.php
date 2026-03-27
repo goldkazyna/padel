@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 		$middleware->alias([
 			'role' => \App\Http\Middleware\RoleMiddleware::class,
 			'telegram.miniapp' => \App\Http\Middleware\TelegramMiniAppAuth::class,
+			'club.feature' => \App\Http\Middleware\CheckClubFeature::class,
 		]);
 	})
     ->withExceptions(function (Exceptions $exceptions): void {

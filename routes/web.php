@@ -141,173 +141,138 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:club_admin,club_moderator,super_admin')->prefix('club')->name('club.')->group(function () {
-        
-        // Dashboard
+
+        // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
-        Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
-		Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
 
-        // Корты — расписание (главный экран)
-        Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');
+        // Пользователи
+        Route::middleware('club.feature:users')->group(function () {
+            Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
+            Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
+        });
 
-        // Корты — CRUD + настройки
-        Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
-        Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
+        // Корты
+        Route::middleware('club.feature:courts')->group(function () {
+            Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');
+            Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
+            Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
+            Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');
+            Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
+            Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
+            Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
+        });
 
-        // Бронирования
-        Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');
-        Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
+        // Турниры
+        Route::middleware('club.feature:tournaments')->group(function () {
+            Route::get('/tournaments/search-player', [TeamTournamentController::class, 'searchPlayer'])
+                ->name('tournaments.searchPlayer');
 
-        // Блокировки
-        Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
-        Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
+            Route::resource('tournaments', ClubTournamentController::class);
 
-        /*
-        |----------------------------------------------------------------------
-        | ВАЖНО: Статические роуты ПЕРЕД динамическими с {tournament}
-        |----------------------------------------------------------------------
-        */
-        Route::get('/tournaments/search-player', [TeamTournamentController::class, 'searchPlayer'])
-            ->name('tournaments.searchPlayer');
-        
-        /*
-        |----------------------------------------------------------------------
-        | Турниры - CRUD
-        |----------------------------------------------------------------------
-        */
-        Route::resource('tournaments', ClubTournamentController::class);
-        
-        /*
-        |----------------------------------------------------------------------
-        | Турниры - Участники
-        |----------------------------------------------------------------------
-        */
-		// Модерация заявок
-		Route::post('/tournaments/{tournament}/participants/{userId}/approve', [ClubTournamentController::class, 'approveParticipant'])
-			->name('tournaments.participants.approve');
+            // Участники
+            Route::post('/tournaments/{tournament}/participants/{userId}/approve', [ClubTournamentController::class, 'approveParticipant'])
+                ->name('tournaments.participants.approve');
+            Route::post('/tournaments/{tournament}/participants/{userId}/reject', [ClubTournamentController::class, 'rejectParticipant'])
+                ->name('tournaments.participants.reject');
+            Route::post('/tournaments/{tournament}/participants/approve-all', [ClubTournamentController::class, 'approveAllParticipants'])
+                ->name('tournaments.participants.approveAll');
+            Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])
+                ->name('tournaments.participants.remove');
+            Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])
+                ->name('tournaments.addTestPlayers');
+            Route::get('/tournaments/{tournament}/search-players', [ClubTournamentController::class, 'searchPlayers'])
+                ->name('tournaments.searchPlayers');
+            Route::post('/tournaments/{tournament}/participants/add', [ClubTournamentController::class, 'addParticipant'])
+                ->name('tournaments.participants.add');
+            Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
+                ->name('tournaments.participants.replace');
+            Route::post('/tournaments/{tournament}/cancel', [ClubTournamentController::class, 'cancel'])
+                ->name('tournaments.cancel');
 
-		Route::post('/tournaments/{tournament}/participants/{userId}/reject', [ClubTournamentController::class, 'rejectParticipant'])
-			->name('tournaments.participants.reject');
+            // Управление
+            Route::post('/tournaments/{tournament}/start', [ClubTournamentController::class, 'start'])
+                ->name('tournaments.start');
+            Route::post('/tournaments/{tournament}/finish', [ClubTournamentController::class, 'finish'])
+                ->name('tournaments.finish');
+            Route::post('/tournaments/{tournament}/publish-channel', [ClubTournamentController::class, 'publishToChannel'])
+                ->name('tournaments.publishChannel');
+            Route::post('/tournaments/{tournament}/send-push', [ClubTournamentController::class, 'sendPush'])
+                ->name('tournaments.sendPush');
+            Route::get('/tournaments/{tournament}/push-preview', [ClubTournamentController::class, 'pushPreview'])
+                ->name('tournaments.pushPreview');
 
-		Route::post('/tournaments/{tournament}/participants/approve-all', [ClubTournamentController::class, 'approveAllParticipants'])
-			->name('tournaments.participants.approveAll');
-        Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])
-            ->name('tournaments.participants.remove');
-        Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])
-            ->name('tournaments.addTestPlayers');
-		Route::get('/tournaments/{tournament}/search-players', [ClubTournamentController::class, 'searchPlayers'])
-			->name('tournaments.searchPlayers');
-		Route::post('/tournaments/{tournament}/participants/add', [ClubTournamentController::class, 'addParticipant'])
-			->name('tournaments.participants.add');
-		Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
-			->name('tournaments.participants.replace');
-		Route::post('/tournaments/{tournament}/cancel', [ClubTournamentController::class, 'cancel'])
-		->name('tournaments.cancel');	
-        /*
-        |----------------------------------------------------------------------
-        | Турниры - Управление
-        |----------------------------------------------------------------------
-        */
-        Route::post('/tournaments/{tournament}/start', [ClubTournamentController::class, 'start'])
-            ->name('tournaments.start');
-        Route::post('/tournaments/{tournament}/finish', [ClubTournamentController::class, 'finish'])
-            ->name('tournaments.finish');
-		Route::post('/tournaments/{tournament}/publish-channel', [ClubTournamentController::class, 'publishToChannel'])
-			->name('tournaments.publishChannel');
-		Route::post('/tournaments/{tournament}/send-push', [ClubTournamentController::class, 'sendPush'])
-			->name('tournaments.sendPush');
-		Route::get('/tournaments/{tournament}/push-preview', [ClubTournamentController::class, 'pushPreview'])
-			->name('tournaments.pushPreview');
-        
-        /*
-        |----------------------------------------------------------------------
-        | Американо
-        |----------------------------------------------------------------------
-        */
-        Route::post('/americano/match/{match}/score', [AmericanoController::class, 'saveScore'])
-            ->name('americano.saveScore');
-        Route::put('/americano/match/{match}/score', [AmericanoController::class, 'updateScore'])
-            ->name('americano.updateScore');
-        Route::post('/americano/tournament/{tournament}/generate-playoff', [AmericanoController::class, 'generatePlayoff'])
-		->name('americano.generatePlayoff');
-		Route::post('/americano/playoff-match/{match}/score', [AmericanoController::class, 'savePlayoffScore'])
-		->name('americano.savePlayoffScore');
-		Route::put('/americano/playoff-match/{match}/score', [AmericanoController::class, 'updatePlayoffScore'])
-		->name('americano.updatePlayoffScore');
-        
-        /*
-        |----------------------------------------------------------------------
-        | Мексикано
-        |----------------------------------------------------------------------
-        */
-        Route::post('/mexicano/match/{match}/score', [MexicanoController::class, 'saveScore'])
-            ->name('mexicano.saveScore');
-        Route::put('/mexicano/match/{match}/score', [MexicanoController::class, 'updateScore'])
-            ->name('mexicano.updateScore');
-        Route::post('/mexicano/tournament/{tournament}/next-round', [MexicanoController::class, 'generateNextRound'])
-            ->name('mexicano.nextRound');
-        
-        // Плей-офф Мексикано
-		Route::post('/mexicano/tournament/{tournament}/generate-playoff', [MexicanoController::class, 'generatePlayoff'])
-			->name('mexicano.generatePlayoff');
-		Route::post('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'savePlayoffScore'])
-			->name('mexicano.savePlayoffScore');
-		Route::put('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'updatePlayoffScore'])
-			->name('mexicano.updatePlayoffScore');
-        
-		
-		
-/*
-		|----------------------------------------------------------------------
-		| Групповой + Плей-офф (Team)
-		|----------------------------------------------------------------------
-		*/
-		Route::post('/tournaments/{tournament}/add-team', [TeamTournamentController::class, 'addTeam'])
-			->name('tournaments.addTeam');
-		Route::delete('/tournaments/{tournament}/remove-team/{team}', [TeamTournamentController::class, 'removeTeam'])
-			->name('tournaments.removeTeam');
-		Route::put('/tournaments/{tournament}/update-team/{team}', [TeamTournamentController::class, 'updateTeam'])
-			->name('tournaments.updateTeam');
-		Route::post('/tournaments/{tournament}/add-test-teams', [TeamTournamentController::class, 'addTestTeams'])
-			->name('tournaments.addTestTeams');
-		Route::post('/team/group-match/{match}/score', [TeamTournamentController::class, 'saveGroupMatchScore'])
-			->name('team.saveGroupMatchScore');
-		Route::put('/team/group-match/{match}/score', [TeamTournamentController::class, 'updateGroupMatchScore'])
-			->name('team.updateGroupMatchScore');
-		Route::post('/tournaments/{tournament}/generate-playoff', [TeamTournamentController::class, 'generatePlayoff'])
-			->name('team.generatePlayoff');
-        Route::post('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'savePlayoffScore'])
-			->name('team.savePlayoffScore');
-		Route::put('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'updatePlayoffScore'])
-			->name('team.updatePlayoffScore');
-        /*
-        |----------------------------------------------------------------------
-        | Матчи (классический турнир)
-        |----------------------------------------------------------------------
-        */
-        Route::get('/tournaments/{tournament}/matches/create', [MatchController::class, 'create'])
-            ->name('matches.create');
-        Route::post('/tournaments/{tournament}/matches', [MatchController::class, 'store'])
-            ->name('matches.store');
-        Route::delete('/tournaments/{tournament}/matches/{match}', [MatchController::class, 'destroy'])
-            ->name('matches.destroy');
-			
-		// Модерация команд
-		Route::post('/tournaments/{tournament}/teams/{team}/approve', [TeamTournamentController::class, 'approveTeam'])
-			->name('tournaments.approveTeam');
-		Route::post('/tournaments/{tournament}/teams/{team}/reject', [TeamTournamentController::class, 'rejectTeam'])
-			->name('tournaments.rejectTeam');
-			// Управление группами (Американо)
-		Route::post('/tournaments/{tournament}/generate-groups', [App\Http\Controllers\Club\GroupController::class, 'generateGroups'])
-			->name('tournaments.generateGroups');
-		Route::post('/tournaments/{tournament}/reset-groups', [App\Http\Controllers\Club\GroupController::class, 'resetGroups'])
-			->name('tournaments.resetGroups');
-		Route::delete('/tournaments/{tournament}/groups/{group}/players/{player}', [App\Http\Controllers\Club\GroupController::class, 'removePlayerFromGroup'])
-			->name('tournaments.groups.removePlayer');
-		Route::post('/tournaments/{tournament}/groups/{group}/players', [App\Http\Controllers\Club\GroupController::class, 'addPlayerToGroup'])
-			->name('tournaments.groups.addPlayer');
-		Route::get('/tournaments/{tournament}/unassigned-players', [App\Http\Controllers\Club\GroupController::class, 'getUnassignedPlayers'])
-			->name('tournaments.unassignedPlayers');
+            // Американо
+            Route::post('/americano/match/{match}/score', [AmericanoController::class, 'saveScore'])
+                ->name('americano.saveScore');
+            Route::put('/americano/match/{match}/score', [AmericanoController::class, 'updateScore'])
+                ->name('americano.updateScore');
+            Route::post('/americano/tournament/{tournament}/generate-playoff', [AmericanoController::class, 'generatePlayoff'])
+                ->name('americano.generatePlayoff');
+            Route::post('/americano/playoff-match/{match}/score', [AmericanoController::class, 'savePlayoffScore'])
+                ->name('americano.savePlayoffScore');
+            Route::put('/americano/playoff-match/{match}/score', [AmericanoController::class, 'updatePlayoffScore'])
+                ->name('americano.updatePlayoffScore');
+
+            // Мексикано
+            Route::post('/mexicano/match/{match}/score', [MexicanoController::class, 'saveScore'])
+                ->name('mexicano.saveScore');
+            Route::put('/mexicano/match/{match}/score', [MexicanoController::class, 'updateScore'])
+                ->name('mexicano.updateScore');
+            Route::post('/mexicano/tournament/{tournament}/next-round', [MexicanoController::class, 'generateNextRound'])
+                ->name('mexicano.nextRound');
+            Route::post('/mexicano/tournament/{tournament}/generate-playoff', [MexicanoController::class, 'generatePlayoff'])
+                ->name('mexicano.generatePlayoff');
+            Route::post('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'savePlayoffScore'])
+                ->name('mexicano.savePlayoffScore');
+            Route::put('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'updatePlayoffScore'])
+                ->name('mexicano.updatePlayoffScore');
+
+            // Групповой + Плей-офф (Team)
+            Route::post('/tournaments/{tournament}/add-team', [TeamTournamentController::class, 'addTeam'])
+                ->name('tournaments.addTeam');
+            Route::delete('/tournaments/{tournament}/remove-team/{team}', [TeamTournamentController::class, 'removeTeam'])
+                ->name('tournaments.removeTeam');
+            Route::put('/tournaments/{tournament}/update-team/{team}', [TeamTournamentController::class, 'updateTeam'])
+                ->name('tournaments.updateTeam');
+            Route::post('/tournaments/{tournament}/add-test-teams', [TeamTournamentController::class, 'addTestTeams'])
+                ->name('tournaments.addTestTeams');
+            Route::post('/team/group-match/{match}/score', [TeamTournamentController::class, 'saveGroupMatchScore'])
+                ->name('team.saveGroupMatchScore');
+            Route::put('/team/group-match/{match}/score', [TeamTournamentController::class, 'updateGroupMatchScore'])
+                ->name('team.updateGroupMatchScore');
+            Route::post('/tournaments/{tournament}/generate-playoff', [TeamTournamentController::class, 'generatePlayoff'])
+                ->name('team.generatePlayoff');
+            Route::post('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'savePlayoffScore'])
+                ->name('team.savePlayoffScore');
+            Route::put('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'updatePlayoffScore'])
+                ->name('team.updatePlayoffScore');
+
+            // Матчи (классический турнир)
+            Route::get('/tournaments/{tournament}/matches/create', [MatchController::class, 'create'])
+                ->name('matches.create');
+            Route::post('/tournaments/{tournament}/matches', [MatchController::class, 'store'])
+                ->name('matches.store');
+            Route::delete('/tournaments/{tournament}/matches/{match}', [MatchController::class, 'destroy'])
+                ->name('matches.destroy');
+
+            // Модерация команд
+            Route::post('/tournaments/{tournament}/teams/{team}/approve', [TeamTournamentController::class, 'approveTeam'])
+                ->name('tournaments.approveTeam');
+            Route::post('/tournaments/{tournament}/teams/{team}/reject', [TeamTournamentController::class, 'rejectTeam'])
+                ->name('tournaments.rejectTeam');
+
+            // Управление группами (Американо)
+            Route::post('/tournaments/{tournament}/generate-groups', [App\Http\Controllers\Club\GroupController::class, 'generateGroups'])
+                ->name('tournaments.generateGroups');
+            Route::post('/tournaments/{tournament}/reset-groups', [App\Http\Controllers\Club\GroupController::class, 'resetGroups'])
+                ->name('tournaments.resetGroups');
+            Route::delete('/tournaments/{tournament}/groups/{group}/players/{player}', [App\Http\Controllers\Club\GroupController::class, 'removePlayerFromGroup'])
+                ->name('tournaments.groups.removePlayer');
+            Route::post('/tournaments/{tournament}/groups/{group}/players', [App\Http\Controllers\Club\GroupController::class, 'addPlayerToGroup'])
+                ->name('tournaments.groups.addPlayer');
+            Route::get('/tournaments/{tournament}/unassigned-players', [App\Http\Controllers\Club\GroupController::class, 'getUnassignedPlayers'])
+                ->name('tournaments.unassignedPlayers');
+        });
     });
     /*
 	|--------------------------------------------------------------------------
