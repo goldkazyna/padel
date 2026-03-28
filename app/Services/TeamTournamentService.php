@@ -527,33 +527,40 @@ class TeamTournamentService
 
 		// Применяем рейтинги
 		foreach ($tournament->teams as $team) {
-			$player1NewRating = (int) $ratingChanges[$team->player1_id]['current_rating'];
-			$player2NewRating = (int) $ratingChanges[$team->player2_id]['current_rating'];
+			$p1CalcFinal = (int) $ratingChanges[$team->player1_id]['current_rating'];
+			$p2CalcFinal = (int) $ratingChanges[$team->player2_id]['current_rating'];
+			$p1Delta = $p1CalcFinal - (int) $ratingChanges[$team->player1_id]['rating_before'];
+			$p2Delta = $p2CalcFinal - (int) $ratingChanges[$team->player2_id]['rating_before'];
+
+			$p1ActualBefore = $team->player1->rating;
+			$p2ActualBefore = $team->player2->rating;
+			$p1ActualAfter = max($this->minRating, $p1ActualBefore + $p1Delta);
+			$p2ActualAfter = max($this->minRating, $p2ActualBefore + $p2Delta);
 
 			$team->update([
-				'rating_after' => intval(($player1NewRating + $player2NewRating) / 2),
+				'rating_after' => intval(($p1ActualAfter + $p2ActualAfter) / 2),
 			]);
 
-			$team->player1->update(['rating' => $player1NewRating]);
-			$team->player2->update(['rating' => $player2NewRating]);
+			$team->player1->update(['rating' => $p1ActualAfter]);
+			$team->player2->update(['rating' => $p2ActualAfter]);
 			$this->updateLevel($team->player1->fresh());
 			$this->updateLevel($team->player2->fresh());
 			// Записываем историю
 			\App\Models\RatingHistory::create([
 				'user_id' => $team->player1_id,
 				'tournament_id' => $tournament->id,
-				'rating_before' => $ratingChanges[$team->player1_id]['rating_before'],
-				'rating_after' => $player1NewRating,
-				'change' => $player1NewRating - $ratingChanges[$team->player1_id]['rating_before'],
+				'rating_before' => $p1ActualBefore,
+				'rating_after' => $p1ActualAfter,
+				'change' => $p1Delta,
 				'reason' => $tournament->name,
 			]);
 
 			\App\Models\RatingHistory::create([
 				'user_id' => $team->player2_id,
 				'tournament_id' => $tournament->id,
-				'rating_before' => $ratingChanges[$team->player2_id]['rating_before'],
-				'rating_after' => $player2NewRating,
-				'change' => $player2NewRating - $ratingChanges[$team->player2_id]['rating_before'],
+				'rating_before' => $p2ActualBefore,
+				'rating_after' => $p2ActualAfter,
+				'change' => $p2Delta,
 				'reason' => $tournament->name,
 			]);
 

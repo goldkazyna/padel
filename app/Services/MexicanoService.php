@@ -448,18 +448,21 @@ class MexicanoService
 
 		// Сохраняем финальные рейтинги
 		foreach ($players as $player) {
-			$newRating = (int) $ratingChanges[$player->user_id]['current_rating'];
-			
-			$player->update(['rating_after' => $newRating]);
-			$player->user->update(['rating' => $newRating]);
+			$calcFinal = (int) $ratingChanges[$player->user_id]['current_rating'];
+			$delta = $calcFinal - (int) $player->rating_before;
+			$actualBefore = $player->user->rating;
+			$actualAfter = max($this->minRating, $actualBefore + $delta);
+
+			$player->update(['rating_after' => $actualAfter]);
+			$player->user->update(['rating' => $actualAfter]);
 			$this->updateLevel($player->user->fresh());
 			// Записываем историю
 			\App\Models\RatingHistory::create([
 				'user_id' => $player->user_id,
 				'tournament_id' => $tournament->id,
-				'rating_before' => (int) $player->rating_before,
-				'rating_after' => $newRating,
-				'change' => $newRating - (int) $player->rating_before,
+				'rating_before' => $actualBefore,
+				'rating_after' => $actualAfter,
+				'change' => $delta,
 				'reason' => $tournament->name,
 			]);
 		}

@@ -513,15 +513,19 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 		foreach ($ratingChanges as $playerId => $data) {
 			$player = \App\Models\User::find($playerId);
 			if ($player) {
-				$player->update(['rating' => $data['current_rating']]);
+				$delta = $data['current_rating'] - $data['rating_before'];
+				$actualBefore = $player->rating;
+				$actualAfter = max($this->minRating, $actualBefore + $delta);
+
+				$player->update(['rating' => $actualAfter]);
 				$this->updateLevel($player->fresh());
 				// Записываем историю
 				\App\Models\RatingHistory::create([
 					'user_id' => $playerId,
 					'tournament_id' => $tournament->id,
-					'rating_before' => $data['rating_before'],
-					'rating_after' => $data['current_rating'],
-					'change' => $data['current_rating'] - $data['rating_before'],
+					'rating_before' => $actualBefore,
+					'rating_after' => $actualAfter,
+					'change' => $delta,
 					'reason' => $tournament->name,
 				]);
 			}
