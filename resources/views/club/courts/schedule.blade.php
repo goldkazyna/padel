@@ -43,9 +43,10 @@
         background: #111113 !important;
     }
     span.flatpickr-weekday {
-        color: #52525b !important;
+        color: #a1a1aa !important;
         font-weight: 700 !important;
         font-size: 12px !important;
+        background: #111113 !important;
     }
     .flatpickr-innerContainer {
         background: #111113 !important;
