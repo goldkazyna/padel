@@ -68,18 +68,33 @@ class CourtController extends Controller
             $d = $weekStart->copy()->addDays($i);
             $dayStr = $d->format('Y-m-d');
 
-            $bookedCount = 0;
+            $occupancy = 0;
             if ($totalSlots > 0) {
-                $bookedCount = \App\Models\CourtBooking::whereIn('court_id', $courts->pluck('id'))
+                $occupiedSlots = 0;
+                $bookings = \App\Models\CourtBooking::whereIn('court_id', $courts->pluck('id'))
                     ->whereDate('date', $dayStr)
                     ->where('status', 'confirmed')
-                    ->count();
-                $blockedCount = \App\Models\CourtBlock::whereIn('court_id', $courts->pluck('id'))
+                    ->get();
+                foreach ($bookings as $b) {
+                    $startMin = Carbon::parse($b->start_time)->hour * 60 + Carbon::parse($b->start_time)->minute;
+                    $endMin = Carbon::parse($b->end_time)->hour * 60 + Carbon::parse($b->end_time)->minute;
+                    if ($endMin <= $startMin) $endMin += 1440;
+                    $court = $courts->firstWhere('id', $b->court_id);
+                    $duration = $court ? $court->slot_duration : 60;
+                    $occupiedSlots += ($endMin - $startMin) / $duration;
+                }
+                $blocks = \App\Models\CourtBlock::whereIn('court_id', $courts->pluck('id'))
                     ->whereDate('date', $dayStr)
-                    ->count();
-                $occupancy = min(100, round(($bookedCount + $blockedCount) / $totalSlots * 100));
-            } else {
-                $occupancy = 0;
+                    ->get();
+                foreach ($blocks as $bl) {
+                    $startMin = Carbon::parse($bl->start_time)->hour * 60 + Carbon::parse($bl->start_time)->minute;
+                    $endMin = Carbon::parse($bl->end_time)->hour * 60 + Carbon::parse($bl->end_time)->minute;
+                    if ($endMin <= $startMin) $endMin += 1440;
+                    $court = $courts->firstWhere('id', $bl->court_id);
+                    $duration = $court ? $court->slot_duration : 60;
+                    $occupiedSlots += ($endMin - $startMin) / $duration;
+                }
+                $occupancy = min(100, round($occupiedSlots / $totalSlots * 100));
             }
 
             $weekDays[] = [
