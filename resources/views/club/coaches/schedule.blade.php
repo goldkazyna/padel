@@ -61,7 +61,7 @@
             <thead>
                 <tr>
                     <th class="time-col">Время</th>
-                    <th>Статус</th>
+                    <th>{{ $clubCoach->user->full_name }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -72,19 +72,15 @@
                         <td>
                             @if($slot['status'] === 'booked')
                                 <div class="slot slot-booked" onclick="viewBooking('{{ addslashes($slot['booking']->court->name ?? '') }}', '{{ \Carbon\Carbon::parse($slot['booking']->start_time)->format('H:i') }}', '{{ \Carbon\Carbon::parse($slot['booking']->end_time)->format('H:i') }}', '{{ addslashes($slot['booking']->client_name ?? '') }}')">
-                                    <span class="slot-main">{{ $slot['booking']->client_name ?? 'Бронь' }}</span>
-                                    <span class="slot-detail">{{ $slot['booking']->court->name ?? '' }} &middot; {{ \Carbon\Carbon::parse($slot['booking']->start_time)->format('H:i') }}–{{ \Carbon\Carbon::parse($slot['booking']->end_time)->format('H:i') }}</span>
+                                    <span class="slot-client">{{ $slot['booking']->client_name ?? 'Бронь' }}</span>
+                                    <span class="slot-court">{{ $slot['booking']->court->name ?? '' }}</span>
                                 </div>
                             @elseif($slot['status'] === 'blocked')
                                 <div class="slot slot-blocked" onclick="openUnblockModal({{ $slot['block']->id }}, '{{ $time }}', '{{ addslashes($slot['block']->reason ?? '') }}')">
-                                    <span class="slot-main">Занят</span>
-                                    @if($slot['block']->reason)
-                                        <span class="slot-detail">{{ $slot['block']->reason }}</span>
-                                    @endif
+                                    <span class="slot-reason">{{ $slot['block']->reason ?? 'Занят' }}</span>
                                 </div>
                             @else
                                 <div class="slot slot-free" onclick="openBlockModal('{{ $time }}')">
-                                    <span class="slot-main">Свободен</span>
                                 </div>
                             @endif
                         </td>
@@ -358,7 +354,7 @@
 </script>
 
 <style>
-    .coach-schedule-container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+    .coach-schedule-container { width: 100%; padding: 32px 24px; }
 
     .coach-schedule-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
     .header-left { display: flex; align-items: center; gap: 14px; }
@@ -395,18 +391,19 @@
 
     /* Schedule Table */
     .schedule-wrap { background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
-    .schedule-table { width: 100%; border-collapse: collapse; }
+    .schedule-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .schedule-table th { padding: 14px 12px; text-align: center; font-size: 13px; font-weight: 800; color: #71717a; background: #16161a; border-bottom: 1px solid #27272a; text-transform: uppercase; letter-spacing: 0.5px; }
     .schedule-table th.time-col { width: 80px; text-align: left; padding-left: 20px; }
     .schedule-table td { padding: 4px; border-bottom: 1px solid #1c1c21; height: 56px; }
     .schedule-table td.time-cell { padding-left: 20px; font-size: 14px; font-weight: 700; color: #a1a1aa; vertical-align: middle; border-right: 1px solid #27272a; }
 
-    .slot { width: 100%; height: 100%; min-height: 48px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; padding: 4px; }
-    .slot-main { font-size: 13px; font-weight: 700; }
-    .slot-detail { font-size: 11px; opacity: 0.7; }
+    .slot { width: 100%; height: 100%; min-height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; padding: 4px; font-size: 12px; font-weight: 600; }
+    .slot-client { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .slot-court { font-size: 10px; opacity: 0.7; }
+    .slot-reason { font-size: 11px; font-weight: 600; }
 
     .slot-free { background: rgba(34,197,94,0.08); color: #22c55e; border-color: rgba(34,197,94,0.15); }
-    .slot-free:hover { background: rgba(34,197,94,0.2); border-color: #22c55e; }
+    .slot-free:hover { background: rgba(34,197,94,0.2); border-color: #22c55e; box-shadow: inset 0 0 0 2px #22c55e; }
     .slot-booked { background: rgba(59,130,246,0.15); color: #3b82f6; border-color: rgba(59,130,246,0.25); }
     .slot-booked:hover { background: rgba(59,130,246,0.25); border-color: #3b82f6; }
     .slot-blocked { background: rgba(251,146,60,0.15); color: #fb923c; border-color: rgba(251,146,60,0.25); }
