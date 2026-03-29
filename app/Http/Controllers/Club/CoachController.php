@@ -93,7 +93,7 @@ class CoachController extends Controller
         $club = $this->getClub();
         if (!$club) return back()->with('error', 'Клуб не найден');
 
-        $coach = ClubCoach::where('club_id', $club->id)
+        $clubCoach = ClubCoach::where('club_id', $club->id)
             ->where('user_id', $user->id)
             ->with(['schedules', 'overrides', 'user'])
             ->firstOrFail();
@@ -108,7 +108,7 @@ class CoachController extends Controller
             7 => 'Воскресенье',
         ];
 
-        return view('club.coaches.schedule', compact('coach', 'dayNames'));
+        return view('club.coaches.schedule', compact('clubCoach', 'dayNames'));
     }
 
     public function updateSchedule(Request $request, User $user)
