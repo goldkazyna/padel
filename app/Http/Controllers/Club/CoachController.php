@@ -24,11 +24,11 @@ class CoachController extends Controller
         $club = $this->getClub();
         if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
 
-        $coaches = ClubCoach::where('club_id', $club->id)
+        $clubCoaches = ClubCoach::where('club_id', $club->id)
             ->with(['user', 'schedules'])
             ->get();
 
-        return view('club.coaches.index', compact('coaches'));
+        return view('club.coaches.index', compact('clubCoaches', 'club'));
     }
 
     public function store(Request $request)
