@@ -81,6 +81,21 @@ class User extends Authenticatable
 	{
 		return $this->role === 'club_moderator';
 	}
+
+    public function isCoach(): bool
+    {
+        return $this->role === 'coach';
+    }
+
+    public function coachClubs()
+    {
+        return $this->belongsToMany(Club::class, 'club_coaches');
+    }
+
+    public function coachProfile()
+    {
+        return $this->hasMany(ClubCoach::class);
+    }
     // Полное имя
     public function getFullNameAttribute(): string
     {

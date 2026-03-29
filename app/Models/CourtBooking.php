@@ -20,6 +20,7 @@ class CourtBooking extends Model
         'payment_method',
         'is_paid',
         'comment',
+        'coach_id',
     ];
 
     protected $casts = [
@@ -37,5 +38,10 @@ class CourtBooking extends Model
     public function bookedByUser()
     {
         return $this->belongsTo(User::class, 'booked_by');
+    }
+
+    public function coach()
+    {
+        return $this->belongsTo(User::class, 'coach_id');
     }
 }

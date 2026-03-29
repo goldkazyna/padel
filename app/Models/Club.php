@@ -44,6 +44,16 @@ class Club extends Model
 	{
 		return $this->belongsToMany(User::class, 'club_moderators');
 	}
+
+    public function coaches()
+    {
+        return $this->belongsToMany(User::class, 'club_coaches')->withPivot('specialization', 'hourly_rate');
+    }
+
+    public function clubCoaches()
+    {
+        return $this->hasMany(ClubCoach::class);
+    }
     // Scope: только активные
     public function scopeActive($query)
     {
