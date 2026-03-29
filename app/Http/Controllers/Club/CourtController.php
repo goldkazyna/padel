@@ -207,6 +207,7 @@ class CourtController extends Controller
             'client_phone' => 'nullable|string|max:50',
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
+            'comment' => 'nullable|string|max:500',
         ]);
 
         $startTime = $validated['start_time'];
@@ -230,6 +231,7 @@ class CourtController extends Controller
             'price' => $price,
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
+            'comment' => $validated['comment'] ?? null,
         ]);
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
@@ -246,6 +248,7 @@ class CourtController extends Controller
             'client_phone' => 'nullable|string|max:50',
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
+            'comment' => 'nullable|string|max:500',
         ]);
 
         $booking->update([
@@ -253,6 +256,7 @@ class CourtController extends Controller
             'client_phone' => $validated['client_phone'] ?? null,
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
+            'comment' => $validated['comment'] ?? null,
         ]);
 
         return back()->with('success', 'Бронирование обновлено');

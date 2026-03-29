@@ -19,6 +19,7 @@ class CourtBooking extends Model
         'price',
         'payment_method',
         'is_paid',
+        'comment',
     ];
 
     protected $casts = [

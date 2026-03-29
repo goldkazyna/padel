@@ -167,7 +167,7 @@
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
                                     <div class="slot {{ $slotClass }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}' })">
                                         <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}</span>
                                         @if($span > 1)
                                             <span class="slot-time">{{ $bStart }} &mdash; {{ $bEnd }}</span>
@@ -278,6 +278,11 @@
                         </div>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Комментарий</label>
+                        <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
+                    </div>
+
                     <!-- Block option -->
                     <hr class="sch-modal-divider">
                     <div style="text-align: center;">
@@ -360,6 +365,11 @@
                             <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
                             <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Комментарий</label>
+                        <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                     </div>
                 </div>
                 <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
@@ -557,6 +567,7 @@
             b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
         });
 
+        document.getElementById('editComment').value = data.comment || '';
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
