@@ -98,6 +98,13 @@
 
     <!-- Week Navigation -->
     <div class="week-nav">
+        <div class="week-nav-bottom">
+            <input type="date" id="datePicker" value="{{ $date }}" class="date-picker-input"
+                   onchange="window.location.href='{{ route('club.courts.schedule') }}?date=' + this.value">
+            @if($date !== now()->format('Y-m-d'))
+                <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
+            @endif
+        </div>
         <div class="week-nav-top">
             <a href="{{ route('club.courts.schedule', ['date' => $prevWeek]) }}" class="date-btn">&#8249;</a>
             <div class="week-days">
@@ -105,7 +112,7 @@
                     <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}"
                        class="week-day-btn{{ $wd['isSelected'] ? ' active' : '' }}{{ $wd['isToday'] ? ' today' : '' }}">
                         <span class="week-day-name">{{ $wd['dayName'] }}</span>
-                        <span class="week-day-num">{{ $wd['dayNum'] }}</span>
+                        <span class="week-day-num">{{ $wd['dayNum'] }} {{ $wd['month'] }}</span>
                         @if($wd['occupancy'] > 0)
                             <span class="week-day-occ" style="color: {{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}">{{ $wd['occupancy'] }}%</span>
                         @endif
@@ -113,13 +120,6 @@
                 @endforeach
             </div>
             <a href="{{ route('club.courts.schedule', ['date' => $nextWeek]) }}" class="date-btn">&#8250;</a>
-        </div>
-        <div class="week-nav-bottom">
-            <input type="date" id="datePicker" value="{{ $date }}" class="date-picker-input"
-                   onchange="window.location.href='{{ route('club.courts.schedule') }}?date=' + this.value">
-            @if($date !== now()->format('Y-m-d'))
-                <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
-            @endif
         </div>
     </div>
 
