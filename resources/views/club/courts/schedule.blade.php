@@ -98,14 +98,14 @@
 
     <!-- Week Navigation -->
     <div class="week-nav">
-        <div class="week-nav-bottom">
+        <div class="week-nav-tools">
             <input type="date" id="datePicker" value="{{ $date }}" class="date-picker-input"
                    onchange="window.location.href='{{ route('club.courts.schedule') }}?date=' + this.value">
             @if($date !== now()->format('Y-m-d'))
                 <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
             @endif
         </div>
-        <div class="week-nav-top">
+        <div class="week-nav-days">
             <a href="{{ route('club.courts.schedule', ['date' => $prevWeek]) }}" class="date-btn">&#8249;</a>
             <div class="week-days">
                 @foreach($weekDays as $wd)
@@ -116,6 +116,7 @@
                         @if($wd['occupancy'] > 0)
                             <span class="week-day-occ" style="color: {{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}">{{ $wd['occupancy'] }}%</span>
                         @endif
+                        <div class="week-day-bar"><div class="week-day-bar-fill" style="width:{{ $wd['occupancy'] }}%;background:{{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}"></div></div>
                     </a>
                 @endforeach
             </div>
@@ -722,17 +723,58 @@
         margin-bottom: 24px;
     }
 
-    .week-nav-top {
+    .week-nav-tools {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+    }
+
+    .date-picker-input {
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        padding: 7px 12px;
+        color: var(--sch-text-dim);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        color-scheme: dark;
+    }
+
+    .date-picker-input:focus {
+        outline: none;
+        border-color: var(--sch-accent);
+    }
+
+    .today-btn {
+        padding: 7px 16px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        color: var(--sch-text-dim);
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+
+    .today-btn:hover {
+        border-color: var(--sch-accent);
+        color: var(--sch-accent);
+    }
+
+    .week-nav-days {
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .date-btn {
-        width: 38px;
-        height: 38px;
-        min-width: 38px;
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -754,7 +796,7 @@
     .week-days {
         display: flex;
         flex: 1;
-        gap: 4px;
+        gap: 6px;
     }
 
     .week-day-btn {
@@ -762,112 +804,95 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px;
-        padding: 8px 4px;
-        background: var(--sch-card-alt);
+        gap: 3px;
+        padding: 10px 4px 8px;
+        background: var(--sch-card);
         border: 1px solid var(--sch-border);
-        border-radius: 10px;
+        border-radius: 14px;
         text-decoration: none;
         transition: all 0.2s;
         position: relative;
-        min-height: 60px;
-        justify-content: center;
-    }
-
-    .week-day-btn .week-day-name {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--sch-text-muted);
-        text-transform: uppercase;
-    }
-
-    .week-day-btn .week-day-num {
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--sch-text-dim);
-    }
-
-    .week-day-btn .week-day-occ {
-        font-size: 9px;
-        font-weight: 700;
-        position: absolute;
-        top: 4px;
-        right: 6px;
+        cursor: pointer;
     }
 
     .week-day-btn:hover {
-        border-color: var(--sch-accent);
+        border-color: #3f3f46;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
     .week-day-btn.active {
-        background: var(--sch-accent);
-        border-color: var(--sch-accent);
-    }
-
-    .week-day-btn.active .week-day-name,
-    .week-day-btn.active .week-day-num {
-        color: var(--sch-bg);
-    }
-
-    .week-day-btn.active .week-day-occ {
-        color: var(--sch-bg) !important;
-        opacity: 0.7;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        border-color: transparent;
+        box-shadow: 0 4px 20px rgba(34,197,94,0.3);
     }
 
     .week-day-btn.today:not(.active) {
         border-color: var(--sch-accent);
     }
 
+    .week-day-btn .week-day-name {
+        font-size: 10px;
+        font-weight: 700;
+        color: #52525b;
+        text-transform: uppercase;
+    }
+
+    .week-day-btn .week-day-num {
+        font-size: 15px;
+        font-weight: 800;
+        color: #d4d4d8;
+        line-height: 1.2;
+    }
+
+    .week-day-btn .week-day-occ {
+        font-size: 8px;
+        font-weight: 700;
+        position: absolute;
+        top: 4px;
+        right: 6px;
+    }
+
+    .week-day-btn .week-day-bar {
+        width: 80%;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--sch-border);
+        overflow: hidden;
+        margin-top: 2px;
+    }
+
+    .week-day-btn .week-day-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+    }
+
+    .week-day-btn.active .week-day-name,
+    .week-day-btn.active .week-day-num {
+        color: #fff;
+    }
+
+    .week-day-btn.active .week-day-occ {
+        color: #fff !important;
+        opacity: 0.7;
+    }
+
+    .week-day-btn.active .week-day-bar {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .week-day-btn.active .week-day-bar-fill {
+        background: #fff !important;
+    }
+
     .week-day-btn.today:not(.active) .week-day-num {
         color: var(--sch-accent);
     }
 
-    .week-nav-bottom {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-    }
-
-    .date-picker-input {
-        background: var(--sch-card-alt);
-        border: 1px solid var(--sch-border);
-        border-radius: 10px;
-        padding: 8px 14px;
-        color: var(--sch-text-dim);
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        color-scheme: dark;
-    }
-
-    .date-picker-input:focus {
-        outline: none;
-        border-color: var(--sch-accent);
-    }
-
-    .today-btn {
-        padding: 8px 18px;
-        background: var(--sch-card-alt);
-        border: 1px solid var(--sch-border);
-        border-radius: 10px;
-        color: var(--sch-text-dim);
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none;
-    }
-
-    .today-btn:hover {
-        border-color: var(--sch-accent);
-        color: var(--sch-accent);
-    }
-
     @media (max-width: 768px) {
-        .week-nav-top { flex-wrap: nowrap; overflow-x: auto; }
-        .week-day-btn { min-width: 48px; padding: 6px 2px; min-height: 52px; }
-        .week-day-btn .week-day-num { font-size: 15px; }
+        .week-nav-days { overflow-x: auto; }
+        .week-day-btn { min-width: 52px; padding: 8px 2px 6px; }
+        .week-day-btn .week-day-num { font-size: 13px; }
     }
 
     /* Schedule Grid */
