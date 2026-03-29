@@ -367,11 +367,11 @@
                         <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn-confirm">Сохранить</button>
                     </div>
-                    <form id="cancelBookingForm" method="POST" style="width: 100;" onsubmit="return confirm('Вы уверены, что хотите отменить бронь?')">
-                        @csrf
-                        <button type="submit" class="btn-danger" style="width: 100%;">Отменить бронь</button>
-                    </form>
+                    <button type="button" class="btn-danger" style="width: 100%;" onclick="cancelBooking()">Отменить бронь</button>
                 </div>
+            </form>
+            <form id="cancelBookingForm" method="POST" style="display:none;">
+                @csrf
             </form>
         </div>
     </div>
@@ -561,6 +561,12 @@
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
+    }
+
+    function cancelBooking() {
+        if (confirm('Вы уверены, что хотите отменить бронь?')) {
+            document.getElementById('cancelBookingForm').submit();
+        }
     }
 
     function selectEditPayment(btn) {
