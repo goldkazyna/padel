@@ -80,7 +80,7 @@ class CourtController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'open_time' => 'required|date_format:H:i',
-            'close_time' => 'required|date_format:H:i|after:open_time',
+            'close_time' => 'required|date_format:H:i',
             'price_ranges' => 'required|array|min:1',
             'price_ranges.*.time_from' => 'required|date_format:H:i',
             'price_ranges.*.time_to' => 'required|date_format:H:i',
@@ -126,7 +126,7 @@ class CourtController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'open_time' => 'required|date_format:H:i',
-            'close_time' => 'required|date_format:H:i|after:open_time',
+            'close_time' => 'required|date_format:H:i',
             'price_ranges' => 'required|array|min:1',
             'price_ranges.*.time_from' => 'required|date_format:H:i',
             'price_ranges.*.time_to' => 'required|date_format:H:i',
@@ -255,17 +255,10 @@ class CourtController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
+            'end_time' => 'required|date_format:H:i',
         ]);
 
-        $hasBooking = CourtBooking::where('court_id', $court->id)
-            ->whereDate('date', $validated['date'])
-            ->where('status', 'confirmed')
-            ->where('start_time', '<', Carbon::parse($validated['end_time'])->format('H:i:s'))
-            ->where('end_time', '>', Carbon::parse($validated['start_time'])->format('H:i:s'))
-            ->exists();
-
-        if ($hasBooking) {
+        if (!$this->scheduleService->canBook($court, $validated['date'], $validated['start_time'], $validated['end_time'])) {
             return back()->with('error', 'Нельзя заблокировать — есть бронирование на это время');
         }
 

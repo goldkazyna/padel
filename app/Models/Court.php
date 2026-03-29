@@ -45,6 +45,11 @@ class Court extends Model
         return $this->hasMany(CourtBlock::class);
     }
 
+    public function crossesMidnight(): bool
+    {
+        return $this->close_time < $this->open_time;
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
