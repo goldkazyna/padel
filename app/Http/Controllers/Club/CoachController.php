@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClubCoach;
+use App\Models\CoachBlock;
 use App\Models\CoachSchedule;
 use App\Models\CoachScheduleOverride;
+use App\Models\CourtBooking;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class CoachController extends Controller
@@ -88,7 +91,7 @@ class CoachController extends Controller
         return back()->with('success', 'Тренер удалён!');
     }
 
-    public function schedule(User $user)
+    public function schedule(Request $request, User $user)
     {
         $club = $this->getClub();
         if (!$club) return back()->with('error', 'Клуб не найден');
@@ -98,17 +101,135 @@ class CoachController extends Controller
             ->with(['schedules', 'overrides', 'user'])
             ->firstOrFail();
 
-        $dayNames = [
-            1 => 'Понедельник',
-            2 => 'Вторник',
-            3 => 'Среда',
-            4 => 'Четверг',
-            5 => 'Пятница',
-            6 => 'Суббота',
-            7 => 'Воскресенье',
-        ];
+        $date = $request->get('date', now()->format('Y-m-d'));
+        $dayOfWeek = Carbon::parse($date)->dayOfWeekIso;
 
-        return view('club.coaches.schedule', compact('clubCoach', 'dayNames'));
+        // Получаем рабочие часы тренера на этот день
+        $override = $clubCoach->overrides()->whereDate('date', $date)->first();
+        $weekSchedule = $clubCoach->schedules()->where('day_of_week', $dayOfWeek)->first();
+
+        $timeSlots = [];
+        $startMin = null;
+        $endMin = null;
+
+        if ($override && !$override->is_available && !$override->start_time) {
+            // Полный выходной — слотов нет
+        } elseif ($override && $override->is_available && $override->start_time) {
+            $startMin = Carbon::parse($override->start_time)->hour * 60 + Carbon::parse($override->start_time)->minute;
+            $endMin = Carbon::parse($override->end_time)->hour * 60 + Carbon::parse($override->end_time)->minute;
+        } elseif ($weekSchedule) {
+            $startMin = Carbon::parse($weekSchedule->start_time)->hour * 60 + Carbon::parse($weekSchedule->start_time)->minute;
+            $endMin = Carbon::parse($weekSchedule->end_time)->hour * 60 + Carbon::parse($weekSchedule->end_time)->minute;
+        }
+
+        if ($startMin !== null && $endMin !== null) {
+            for ($m = $startMin; $m + 60 <= $endMin; $m += 60) {
+                $timeSlots[] = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+            }
+        }
+
+        // Бронирования кортов с этим тренером
+        $bookings = CourtBooking::where('coach_id', $user->id)
+            ->whereDate('date', $date)
+            ->where('status', 'confirmed')
+            ->with('court')
+            ->get();
+
+        // Ручные блокировки
+        $blocks = CoachBlock::where('club_coach_id', $clubCoach->id)
+            ->whereDate('date', $date)
+            ->get();
+
+        // Строим расписание
+        $schedule = [];
+        foreach ($timeSlots as $time) {
+            $slotStart = Carbon::parse($time)->hour * 60 + Carbon::parse($time)->minute;
+
+            // Проверяем бронирование
+            $booking = $bookings->first(function ($b) use ($slotStart) {
+                $bStart = Carbon::parse($b->start_time)->hour * 60 + Carbon::parse($b->start_time)->minute;
+                $bEnd = Carbon::parse($b->end_time)->hour * 60 + Carbon::parse($b->end_time)->minute;
+                if ($bEnd <= $bStart) $bEnd += 1440;
+                return $slotStart >= $bStart && $slotStart < $bEnd;
+            });
+
+            if ($booking) {
+                $schedule[$time] = ['status' => 'booked', 'booking' => $booking];
+                continue;
+            }
+
+            // Проверяем блокировку
+            $block = $blocks->first(function ($bl) use ($slotStart) {
+                $blStart = Carbon::parse($bl->start_time)->hour * 60 + Carbon::parse($bl->start_time)->minute;
+                $blEnd = Carbon::parse($bl->end_time)->hour * 60 + Carbon::parse($bl->end_time)->minute;
+                if ($blEnd <= $blStart) $blEnd += 1440;
+                return $slotStart >= $blStart && $slotStart < $blEnd;
+            });
+
+            if ($block) {
+                $schedule[$time] = ['status' => 'blocked', 'block' => $block];
+                continue;
+            }
+
+            $schedule[$time] = ['status' => 'free'];
+        }
+
+        // Навигация по неделе
+        $selectedDate = Carbon::parse($date);
+        $weekStart = $selectedDate->copy()->startOfWeek(Carbon::MONDAY);
+        $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
+        $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
+
+        $weekDays = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = $weekStart->copy()->addDays($i);
+            $weekDays[] = [
+                'date' => $d->format('Y-m-d'),
+                'dayName' => $d->locale('ru')->isoFormat('dd'),
+                'dayNum' => $d->format('d'),
+                'month' => $d->locale('ru')->isoFormat('MMM'),
+                'isSelected' => $d->format('Y-m-d') === $date,
+                'isToday' => $d->format('Y-m-d') === now()->format('Y-m-d'),
+            ];
+        }
+
+        $dayNames = [1 => 'Понедельник', 2 => 'Вторник', 3 => 'Среда', 4 => 'Четверг', 5 => 'Пятница', 6 => 'Суббота', 7 => 'Воскресенье'];
+
+        return view('club.coaches.schedule', compact(
+            'clubCoach', 'date', 'schedule', 'timeSlots',
+            'weekDays', 'prevWeek', 'nextWeek', 'dayNames'
+        ));
+    }
+
+    public function blockSlot(Request $request, User $user)
+    {
+        $club = $this->getClub();
+        if (!$club) return back()->with('error', 'Клуб не найден');
+
+        $clubCoach = ClubCoach::where('club_id', $club->id)->where('user_id', $user->id)->firstOrFail();
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'reason' => 'nullable|string|max:255',
+        ]);
+
+        CoachBlock::create([
+            'club_coach_id' => $clubCoach->id,
+            'date' => $validated['date'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
+            'reason' => $validated['reason'] ?? null,
+        ]);
+
+        return back()->with('success', 'Слот заблокирован');
+    }
+
+    public function unblockSlot(CoachBlock $block)
+    {
+        $block->delete();
+        return back()->with('success', 'Слот разблокирован');
     }
 
     public function updateSchedule(Request $request, User $user)

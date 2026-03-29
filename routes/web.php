@@ -174,6 +174,8 @@ Route::middleware('auth')->group(function () {
             Route::put('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'updateSchedule'])->name('coaches.updateSchedule');
             Route::post('/coaches/{user}/override', [App\Http\Controllers\Club\CoachController::class, 'addOverride'])->name('coaches.addOverride');
             Route::delete('/coaches/override/{override}', [App\Http\Controllers\Club\CoachController::class, 'deleteOverride'])->name('coaches.deleteOverride');
+            Route::post('/coaches/{user}/block', [App\Http\Controllers\Club\CoachController::class, 'blockSlot'])->name('coaches.blockSlot');
+            Route::delete('/coaches/block/{block}', [App\Http\Controllers\Club\CoachController::class, 'unblockSlot'])->name('coaches.unblockSlot');
         });
 
         // Турниры
