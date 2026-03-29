@@ -162,10 +162,12 @@
                                     $span = $rowspans[$cellKey] ?? 1;
                                     $bStart = \Carbon\Carbon::parse($booking->start_time)->format('H:i');
                                     $bEnd = \Carbon\Carbon::parse($booking->end_time)->format('H:i');
+                                    $paidClass = $booking->is_paid ? '' : ' unpaid';
+                                    $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $paidClass;
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
-                                    <div class="slot {{ $span > 1 ? 'slot-booked-multi' : 'slot-booked' }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }} })">
+                                    <div class="slot {{ $slotClass }}"
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }} })">
                                         <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}</span>
                                         @if($span > 1)
                                             <span class="slot-time">{{ $bStart }} &mdash; {{ $bEnd }}</span>
@@ -193,7 +195,8 @@
     <!-- Legend -->
     <div class="legend">
         <div class="legend-item"><span class="legend-dot free"></span>Свободен</div>
-        <div class="legend-item"><span class="legend-dot booked"></span>Забронирован</div>
+        <div class="legend-item"><span class="legend-dot booked"></span>Оплачено</div>
+        <div class="legend-item"><span class="legend-dot unpaid"></span>Не оплачено</div>
         <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
     </div>
 </div>
@@ -250,6 +253,29 @@
                     <div class="form-group">
                         <label class="form-label">Телефон (необязательно)</label>
                         <input type="text" name="client_phone" class="form-input" placeholder="+7 (___) ___-__-__">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Способ оплаты</label>
+                        <div class="payment-methods" id="paymentMethods">
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)">Kaspi</button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectPayment(this)">Сертификат</button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectPayment(this)">Клубная карта</button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectPayment(this)">Депозит</button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)">Кешбэк</button>
+                        </div>
+                        <input type="hidden" name="payment_method" id="paymentMethodInput">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Статус оплаты</label>
+                        <input type="hidden" name="is_paid" id="isPaidInput" value="0">
+                        <div class="paid-toggle">
+                            <button type="button" class="paid-btn active" data-value="0" onclick="setPaid(this)">Не оплачено</button>
+                            <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
+                        </div>
                     </div>
 
                     <!-- Block option -->
@@ -310,6 +336,14 @@
                     <div class="sch-modal-info-row">
                         <span class="sch-modal-info-label">Цена</span>
                         <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
+                    </div>
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Оплата</span>
+                        <span class="sch-modal-info-value" id="viewPaymentMethod"></span>
+                    </div>
+                    <div class="sch-modal-info-row">
+                        <span class="sch-modal-info-label">Статус</span>
+                        <span class="sch-modal-info-value" id="viewPaidStatus"></span>
                     </div>
                 </div>
             </div>
@@ -439,7 +473,7 @@
             btn.type = 'button';
             btn.className = 'duration-btn' + (i === 1 ? ' active' : '');
             btn.setAttribute('data-duration', i);
-            btn.textContent = i + ' ' + hourLabel(i);
+            btn.innerHTML = i + '<small> ' + hourLabel(i) + '</small>';
             btn.onclick = function() { setDuration(i); };
             container.appendChild(btn);
         }
@@ -471,12 +505,23 @@
         const clientPhone = form.querySelector('input[name="client_phone"]');
         if (clientName) clientName.value = '';
         if (clientPhone) clientPhone.value = '';
+        document.getElementById('paymentMethodInput').value = '';
+        document.getElementById('isPaidInput').value = '0';
+        document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.paid-btn[data-value="0"]').classList.add('active');
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
 
         new bootstrap.Modal(document.getElementById('bookModal')).show();
     }
+
+    const paymentLabels = {
+        'cash': 'Наличные', 'card': 'Карта', 'kaspi': 'Kaspi',
+        'certificate': 'Сертификат', 'club_card': 'Клубная карта',
+        'deposit': 'Депозит', 'cashback': 'Кешбэк'
+    };
 
     function openViewModal(data) {
         document.getElementById('viewCourtName').textContent = data.courtName;
@@ -492,6 +537,19 @@
         }
 
         document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
+
+        const methodEl = document.getElementById('viewPaymentMethod');
+        methodEl.textContent = paymentLabels[data.paymentMethod] || '—';
+
+        const paidEl = document.getElementById('viewPaidStatus');
+        if (data.isPaid) {
+            paidEl.textContent = 'Оплачено';
+            paidEl.style.color = '#22c55e';
+        } else {
+            paidEl.textContent = 'Не оплачено';
+            paidEl.style.color = '#fb923c';
+        }
+
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
@@ -509,6 +567,18 @@
         document.getElementById('blockStartTime').value = currentBook.time;
         document.getElementById('blockEndTime').value = calcBlockEndTime();
         document.getElementById('blockForm').submit();
+    }
+
+    function selectPayment(btn) {
+        document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('paymentMethodInput').value = btn.getAttribute('data-value');
+    }
+
+    function setPaid(btn) {
+        document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
     }
 </script>
 
@@ -779,6 +849,17 @@
         border-color: var(--sch-blue);
     }
 
+    .slot-booked.unpaid {
+        background: rgba(251, 146, 60, 0.15);
+        color: #fb923c;
+        border-color: rgba(251, 146, 60, 0.25);
+    }
+
+    .slot-booked.unpaid:hover {
+        background: rgba(251, 146, 60, 0.25);
+        border-color: #fb923c;
+    }
+
     .slot-booked .client-name {
         font-size: 12px;
         font-weight: 700;
@@ -816,6 +897,17 @@
     .slot-booked-multi:hover {
         background: rgba(59, 130, 246, 0.25);
         border-color: var(--sch-blue);
+    }
+
+    .slot-booked-multi.unpaid {
+        background: rgba(251, 146, 60, 0.15);
+        color: #fb923c;
+        border-color: rgba(251, 146, 60, 0.25);
+    }
+
+    .slot-booked-multi.unpaid:hover {
+        background: rgba(251, 146, 60, 0.25);
+        border-color: #fb923c;
     }
 
     .slot-booked-multi .client-name {
@@ -886,6 +978,11 @@
     .legend-dot.booked {
         background: rgba(59, 130, 246, 0.3);
         border: 1px solid var(--sch-blue);
+    }
+
+    .legend-dot.unpaid {
+        background: rgba(251, 146, 60, 0.3);
+        border: 1px solid #fb923c;
     }
 
     .legend-dot.blocked {
@@ -1002,18 +1099,24 @@
     }
 
     .duration-btn {
-        flex: 1;
-        min-width: 60px;
-        padding: 12px;
+        width: 56px;
+        height: 44px;
+        padding: 0;
         background: var(--sch-card-alt);
         border: 1px solid var(--sch-border);
         border-radius: 10px;
         color: var(--sch-text-dim);
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 700;
         cursor: pointer;
         text-align: center;
         transition: all 0.2s;
+    }
+
+    .duration-btn small {
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.7;
     }
 
     .duration-btn.active {
@@ -1022,9 +1125,76 @@
         border-color: var(--sch-accent);
     }
 
+    .duration-btn.active small { opacity: 0.8; }
+
     .duration-btn:hover:not(.active) {
         border-color: var(--sch-accent);
         color: var(--sch-accent);
+    }
+
+    .payment-methods {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pay-btn {
+        padding: 8px 14px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        color: var(--sch-text-dim);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .pay-btn.active {
+        background: var(--sch-accent);
+        color: var(--sch-bg);
+        border-color: var(--sch-accent);
+    }
+
+    .pay-btn:hover:not(.active) {
+        border-color: var(--sch-accent);
+        color: var(--sch-accent);
+    }
+
+    .paid-toggle {
+        display: flex;
+        gap: 8px;
+    }
+
+    .paid-btn {
+        flex: 1;
+        padding: 10px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        color: var(--sch-text-dim);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .paid-btn.active[data-value="0"] {
+        background: rgba(251, 146, 60, 0.2);
+        color: #fb923c;
+        border-color: #fb923c;
+    }
+
+    .paid-btn.active[data-value="1"] {
+        background: var(--sch-accent);
+        color: var(--sch-bg);
+        border-color: var(--sch-accent);
+    }
+
+    .paid-btn:hover:not(.active) {
+        border-color: #3f3f46;
+        color: var(--sch-text);
     }
 
     .total-price {

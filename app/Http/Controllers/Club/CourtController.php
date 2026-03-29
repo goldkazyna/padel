@@ -205,6 +205,8 @@ class CourtController extends Controller
             'slots' => 'required|integer|min:1|max:8',
             'client_name' => 'required|string|max:255',
             'client_phone' => 'nullable|string|max:50',
+            'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'nullable|boolean',
         ]);
 
         $startTime = $validated['start_time'];
@@ -226,6 +228,8 @@ class CourtController extends Controller
             'client_phone' => $validated['client_phone'] ?? null,
             'booked_by' => auth()->id(),
             'price' => $price,
+            'payment_method' => $validated['payment_method'] ?? null,
+            'is_paid' => $validated['is_paid'] ?? false,
         ]);
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");

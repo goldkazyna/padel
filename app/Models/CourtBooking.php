@@ -17,12 +17,15 @@ class CourtBooking extends Model
         'cancelled_at',
         'booked_by',
         'price',
+        'payment_method',
+        'is_paid',
     ];
 
     protected $casts = [
         'date' => 'date',
         'cancelled_at' => 'datetime',
         'price' => 'decimal:2',
+        'is_paid' => 'boolean',
     ];
 
     public function court()
