@@ -1,6 +1,96 @@
 @extends('layouts.app')
 @section('title', 'Расписание кортов')
+
 @section('content')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+<style>
+    .flatpickr-calendar {
+        background: #111113 !important;
+        border: 1px solid #27272a !important;
+        border-radius: 14px !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+        font-family: inherit !important;
+    }
+    .flatpickr-months {
+        background: #111113 !important;
+        border-radius: 14px 14px 0 0 !important;
+    }
+    .flatpickr-months .flatpickr-month {
+        background: #111113 !important;
+        color: #f4f4f5 !important;
+    }
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        background: #16161a !important;
+        color: #f4f4f5 !important;
+        border: 1px solid #27272a !important;
+        border-radius: 6px !important;
+    }
+    .flatpickr-current-month input.cur-year {
+        color: #f4f4f5 !important;
+    }
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+        color: #a1a1aa !important;
+        fill: #a1a1aa !important;
+    }
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+        color: #22c55e !important;
+        fill: #22c55e !important;
+    }
+    .flatpickr-weekdays {
+        background: #111113 !important;
+    }
+    span.flatpickr-weekday {
+        color: #52525b !important;
+        font-weight: 700 !important;
+        font-size: 12px !important;
+    }
+    .flatpickr-innerContainer {
+        background: #111113 !important;
+        border-bottom: none !important;
+    }
+    .flatpickr-rContainer {
+        background: #111113 !important;
+    }
+    .dayContainer {
+        background: #111113 !important;
+    }
+    .flatpickr-day {
+        color: #a1a1aa !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        border: none !important;
+    }
+    .flatpickr-day:hover {
+        background: #27272a !important;
+        color: #f4f4f5 !important;
+    }
+    .flatpickr-day.today {
+        border: 2px solid #22c55e !important;
+        color: #22c55e !important;
+    }
+    .flatpickr-day.today:hover {
+        background: rgba(34,197,94,0.15) !important;
+        color: #22c55e !important;
+    }
+    .flatpickr-day.selected {
+        background: #22c55e !important;
+        color: #0a0a0b !important;
+        border: none !important;
+    }
+    .flatpickr-day.selected:hover {
+        background: #16a34a !important;
+    }
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+        color: #3f3f46 !important;
+    }
+    .flatpickr-day.flatpickr-disabled {
+        color: #27272a !important;
+    }
+</style>
 
 @php
     $monthNames = ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -99,8 +189,10 @@
     <!-- Week Navigation -->
     <div class="week-nav">
         <div class="week-nav-tools">
-            <input type="date" id="datePicker" value="{{ $date }}" class="date-picker-input"
-                   onchange="window.location.href='{{ route('club.courts.schedule') }}?date=' + this.value">
+            <div class="date-picker-wrap">
+                <i class="bi bi-calendar3" style="color: #a1a1aa; font-size: 14px;"></i>
+                <input type="text" id="datePicker" value="{{ $date }}" class="date-picker-input" readonly placeholder="Выберите дату">
+            </div>
             @if($date !== now()->format('Y-m-d'))
                 <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
             @endif
@@ -639,6 +731,20 @@
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
     }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+<script>
+    flatpickr('#datePicker', {
+        locale: 'ru',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'j F Y',
+        defaultDate: '{{ $date }}',
+        onChange: function(selectedDates, dateStr) {
+            window.location.href = '{{ route('club.courts.schedule') }}?date=' + dateStr;
+        }
+    });
+</script>
 
 <style>
     :root {
@@ -730,21 +836,42 @@
         margin-bottom: 12px;
     }
 
-    .date-picker-input {
+    .date-picker-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         background: var(--sch-card-alt);
         border: 1px solid var(--sch-border);
-        border-radius: 8px;
-        padding: 7px 12px;
-        color: var(--sch-text-dim);
-        font-size: 12px;
-        font-weight: 600;
+        border-radius: 10px;
+        padding: 8px 14px;
         cursor: pointer;
-        color-scheme: dark;
+        transition: all 0.2s;
     }
 
-    .date-picker-input:focus {
-        outline: none;
+    .date-picker-wrap:hover {
         border-color: var(--sch-accent);
+    }
+
+    .date-picker-input,
+    .date-picker-input + .flatpickr-input {
+        background: transparent !important;
+        border: none !important;
+        color: var(--sch-text) !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        outline: none !important;
+        width: auto !important;
+    }
+
+    .flatpickr-input.flatpickr-mobile {
+        background: var(--sch-card-alt) !important;
+        border: 1px solid var(--sch-border) !important;
+        border-radius: 10px !important;
+        padding: 8px 14px !important;
+        color: var(--sch-text) !important;
+        font-size: 14px !important;
     }
 
     .today-btn {
