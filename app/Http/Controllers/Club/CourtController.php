@@ -235,6 +235,29 @@ class CourtController extends Controller
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
     }
 
+    public function updateBooking(Request $request, CourtBooking $booking)
+    {
+        $club = $this->getClub();
+        $court = $booking->court;
+        if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
+
+        $validated = $request->validate([
+            'client_name' => 'required|string|max:255',
+            'client_phone' => 'nullable|string|max:50',
+            'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'nullable|boolean',
+        ]);
+
+        $booking->update([
+            'client_name' => $validated['client_name'],
+            'client_phone' => $validated['client_phone'] ?? null,
+            'payment_method' => $validated['payment_method'] ?? null,
+            'is_paid' => $validated['is_paid'] ?? false,
+        ]);
+
+        return back()->with('success', 'Бронирование обновлено');
+    }
+
     public function cancelBooking(CourtBooking $booking)
     {
         $club = $this->getClub();

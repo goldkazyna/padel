@@ -158,6 +158,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
             Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');
             Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
+            Route::put('/courts/bookings/{booking}', [CourtController::class, 'updateBooking'])->name('courts.updateBooking');
             Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
             Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
         });

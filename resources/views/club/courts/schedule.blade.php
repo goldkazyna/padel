@@ -301,59 +301,78 @@
     </div>
 </div>
 
-<!-- View Booking Modal (Bootstrap 5) -->
+<!-- Edit Booking Modal (Bootstrap 5) -->
 <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
             <div class="sch-modal-header">
-                <h2>Бронирование</h2>
+                <h2>Редактирование брони</h2>
                 <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <div class="sch-modal-body">
-                <div class="sch-modal-info">
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Корт</span>
-                        <span class="sch-modal-info-value" id="viewCourtName"></span>
+            <form id="editBookingForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="sch-modal-body">
+                    <div class="sch-modal-info">
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Корт</span>
+                            <span class="sch-modal-info-value" id="viewCourtName"></span>
+                        </div>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Время</span>
+                            <span class="sch-modal-info-value" id="viewTime"></span>
+                        </div>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Цена</span>
+                            <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
+                        </div>
                     </div>
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Дата</span>
-                        <span class="sch-modal-info-value">{{ $formattedDate }}</span>
+
+                    <hr class="sch-modal-divider">
+
+                    <div class="form-group">
+                        <label class="form-label">Имя клиента *</label>
+                        <input type="text" name="client_name" id="editClientName" class="form-input" required>
                     </div>
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Время</span>
-                        <span class="sch-modal-info-value" id="viewTime"></span>
+                    <div class="form-group">
+                        <label class="form-label">Телефон</label>
+                        <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__">
                     </div>
-                    <hr class="sch-modal-divider" style="margin: 0;">
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Клиент</span>
-                        <span class="sch-modal-info-value" id="viewClientName"></span>
+
+                    <div class="form-group">
+                        <label class="form-label">Способ оплаты</label>
+                        <div class="payment-methods" id="editPaymentMethods">
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)">Сертификат</button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)">Клубная карта</button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)">Депозит</button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
+                        </div>
+                        <input type="hidden" name="payment_method" id="editPaymentMethodInput">
                     </div>
-                    <div class="sch-modal-info-row" id="viewPhoneRow">
-                        <span class="sch-modal-info-label">Телефон</span>
-                        <span class="sch-modal-info-value" id="viewClientPhone"></span>
-                    </div>
-                    <hr class="sch-modal-divider" style="margin: 0;">
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Цена</span>
-                        <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
-                    </div>
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Оплата</span>
-                        <span class="sch-modal-info-value" id="viewPaymentMethod"></span>
-                    </div>
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Статус</span>
-                        <span class="sch-modal-info-value" id="viewPaidStatus"></span>
+
+                    <div class="form-group">
+                        <label class="form-label">Статус оплаты</label>
+                        <input type="hidden" name="is_paid" id="editIsPaidInput" value="0">
+                        <div class="paid-toggle">
+                            <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
+                            <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="sch-modal-footer">
-                <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
-                <form id="cancelBookingForm" method="POST" style="flex: 2;">
-                    @csrf
-                    <button type="submit" class="btn-danger" style="width: 100%;">Отменить бронь</button>
-                </form>
-            </div>
+                <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn-confirm">Сохранить</button>
+                    </div>
+                    <form id="cancelBookingForm" method="POST" style="width: 100;" onsubmit="return confirm('Вы уверены, что хотите отменить бронь?')">
+                        @csrf
+                        <button type="submit" class="btn-danger" style="width: 100%;">Отменить бронь</button>
+                    </form>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -517,42 +536,43 @@
         new bootstrap.Modal(document.getElementById('bookModal')).show();
     }
 
-    const paymentLabels = {
-        'cash': 'Наличные', 'card': 'Карта', 'kaspi': 'Kaspi',
-        'certificate': 'Сертификат', 'club_card': 'Клубная карта',
-        'deposit': 'Депозит', 'cashback': 'Кешбэк'
-    };
-
     function openViewModal(data) {
         document.getElementById('viewCourtName').textContent = data.courtName;
         document.getElementById('viewTime').textContent = data.startTime + ' — ' + data.endTime;
-        document.getElementById('viewClientName').textContent = data.clientName || '—';
-
-        const phoneRow = document.getElementById('viewPhoneRow');
-        if (data.clientPhone) {
-            document.getElementById('viewClientPhone').textContent = data.clientPhone;
-            phoneRow.style.display = '';
-        } else {
-            phoneRow.style.display = 'none';
-        }
-
         document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
 
-        const methodEl = document.getElementById('viewPaymentMethod');
-        methodEl.textContent = paymentLabels[data.paymentMethod] || '—';
+        document.getElementById('editClientName').value = data.clientName || '';
+        document.getElementById('editClientPhone').value = data.clientPhone || '';
 
-        const paidEl = document.getElementById('viewPaidStatus');
-        if (data.isPaid) {
-            paidEl.textContent = 'Оплачено';
-            paidEl.style.color = '#22c55e';
-        } else {
-            paidEl.textContent = 'Не оплачено';
-            paidEl.style.color = '#fb923c';
-        }
+        // Payment method
+        document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
+        document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === data.paymentMethod);
+        });
 
+        // Paid status
+        const paidVal = data.isPaid ? '1' : '0';
+        document.getElementById('editIsPaidInput').value = paidVal;
+        document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
+        });
+
+        document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
+    }
+
+    function selectEditPayment(btn) {
+        document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editPaymentMethodInput').value = btn.getAttribute('data-value');
+    }
+
+    function setEditPaid(btn) {
+        document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editIsPaidInput').value = btn.getAttribute('data-value');
     }
 
     function openUnblockModal(blockId, courtName, time) {
@@ -1094,12 +1114,11 @@
 
     .duration-selector {
         display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
+        gap: 6px;
     }
 
     .duration-btn {
-        width: 56px;
+        flex: 1;
         height: 44px;
         padding: 0;
         background: var(--sch-card-alt);
@@ -1133,21 +1152,26 @@
     }
 
     .payment-methods {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
         gap: 6px;
     }
 
+    .payment-methods .pay-btn:last-child:nth-child(4n - 2) {
+        grid-column: span 1;
+    }
+
     .pay-btn {
-        padding: 8px 14px;
+        padding: 8px 4px;
         background: var(--sch-card-alt);
         border: 1px solid var(--sch-border);
         border-radius: 8px;
         color: var(--sch-text-dim);
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
+        text-align: center;
     }
 
     .pay-btn.active {
