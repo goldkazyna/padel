@@ -37,6 +37,11 @@ class ClubCoach extends Model
         return $this->hasMany(CoachScheduleOverride::class);
     }
 
+    public function blocks()
+    {
+        return $this->hasMany(CoachBlock::class);
+    }
+
     public function isAvailableAt(string $date, string $startTime, string $endTime): bool
     {
         $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeekIso;
