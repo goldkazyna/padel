@@ -118,7 +118,21 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($timeSlots as $time)
+                @foreach($timeSlots as $idx => $time)
+                    @if($idx > 0)
+                        @php
+                            $prevMinutes = intval(substr($timeSlots[$idx - 1], 0, 2)) * 60 + intval(substr($timeSlots[$idx - 1], 3, 2));
+                            $currMinutes = intval(substr($time, 0, 2)) * 60 + intval(substr($time, 3, 2));
+                            $gap = $currMinutes - $prevMinutes;
+                        @endphp
+                        @if($gap > 60)
+                            <tr class="schedule-divider">
+                                <td colspan="{{ $courts->count() + 1 }}">
+                                    <div class="divider-line"><span>Начало дня</span></div>
+                                </td>
+                            </tr>
+                        @endif
+                    @endif
                     <tr>
                         <td class="time-cell">{{ $time }}</td>
                         @foreach($courts as $court)
@@ -675,6 +689,33 @@
         vertical-align: top;
         height: 60px;
         overflow: hidden;
+    }
+
+    .schedule-divider td {
+        padding: 0 !important;
+        height: auto !important;
+        border: none !important;
+    }
+    .divider-line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 20px;
+    }
+    .divider-line::before,
+    .divider-line::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #3f3f46;
+    }
+    .divider-line span {
+        font-size: 11px;
+        font-weight: 700;
+        color: #71717a;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        white-space: nowrap;
     }
 
     .schedule-table td.time-cell {
