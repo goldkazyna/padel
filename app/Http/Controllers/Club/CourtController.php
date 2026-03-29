@@ -114,9 +114,11 @@ class CourtController extends Controller
             ];
         }
 
+        $clubCoaches = $club->clubCoaches()->with('user')->get();
+
         return view('club.courts.schedule', compact(
             'courts', 'schedules', 'timeSlots', 'date',
-            'weekDays', 'prevWeek', 'nextWeek'
+            'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches'
         ));
     }
 
@@ -271,6 +273,7 @@ class CourtController extends Controller
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
+            'coach_id' => 'nullable|exists:users,id',
         ]);
 
         $startTime = $validated['start_time'];
@@ -279,6 +282,15 @@ class CourtController extends Controller
 
         if (!$this->scheduleService->canBook($court, $validated['date'], $startTime, $endTime)) {
             return back()->with('error', 'Выбранное время недоступно');
+        }
+
+        if (!empty($validated['coach_id'])) {
+            $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
+                ->where('user_id', $validated['coach_id'])
+                ->first();
+            if (!$clubCoach || !$clubCoach->isFreeAt($validated['date'], $startTime, $endTime)) {
+                return back()->with('error', 'Тренер недоступен в это время')->withInput();
+            }
         }
 
         $price = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
@@ -295,6 +307,7 @@ class CourtController extends Controller
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
             'comment' => $validated['comment'] ?? null,
+            'coach_id' => $validated['coach_id'] ?? null,
         ]);
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
@@ -312,6 +325,7 @@ class CourtController extends Controller
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
+            'coach_id' => 'nullable',
         ]);
 
         $booking->update([
@@ -320,6 +334,7 @@ class CourtController extends Controller
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
             'comment' => $validated['comment'] ?? null,
+            'coach_id' => $validated['coach_id'] ?: null,
         ]);
 
         return back()->with('success', 'Бронирование обновлено');

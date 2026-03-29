@@ -282,13 +282,16 @@
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
                                     <div class="slot {{ $slotClass }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}' })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }} })">
                                         <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}@if($booking->client_phone) — {{ $booking->client_phone }}@endif</span>
                                         @if($span > 1)
                                             <span class="slot-time">{{ $bStart }} &mdash; {{ $bEnd }}</span>
                                         @endif
                                         @if($booking->comment)
                                             <span class="slot-comment">{{ $booking->comment }}</span>
+                                        @endif
+                                        @if($booking->coach)
+                                            <span class="slot-coach">{{ $booking->coach->first_name }}</span>
                                         @endif
                                         <span class="slot-price">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
                                     </div>
@@ -401,6 +404,16 @@
                         <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Тренер (необязательно)</label>
+                        <select name="coach_id" class="form-input" id="bookCoachId">
+                            <option value="">Без тренера</option>
+                            @foreach($clubCoaches as $cc)
+                                <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}@if($cc->hourly_rate) — {{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸/ч@endif</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- Block option -->
                     <hr class="sch-modal-divider">
                     <div style="text-align: center;">
@@ -488,6 +501,16 @@
                     <div class="form-group">
                         <label class="form-label">Комментарий</label>
                         <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Тренер</label>
+                        <select name="coach_id" class="form-input" id="editCoachId">
+                            <option value="">Без тренера</option>
+                            @foreach($clubCoaches as $cc)
+                                <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}@if($cc->hourly_rate) — {{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸/ч@endif</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
                 <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
@@ -657,6 +680,7 @@
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('.paid-btn[data-value="0"]').classList.add('active');
+        document.getElementById('bookCoachId').value = '';
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
@@ -686,6 +710,7 @@
         });
 
         document.getElementById('editComment').value = data.comment || '';
+        document.getElementById('editCoachId').value = data.coachId || '';
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
@@ -1244,6 +1269,12 @@
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
+    }
+
+    .slot-coach, .slot-booked-multi .slot-coach {
+        font-size: 10px;
+        opacity: 0.8;
+        color: #a78bfa;
     }
 
     .slot-booked-multi .slot-price {

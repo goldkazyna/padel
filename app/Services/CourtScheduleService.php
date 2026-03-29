@@ -52,6 +52,7 @@ class CourtScheduleService
         $bookings = CourtBooking::where('court_id', $court->id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
+            ->with('coach')
             ->get();
 
         $blocks = CourtBlock::where('court_id', $court->id)
