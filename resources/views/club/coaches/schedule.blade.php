@@ -81,6 +81,9 @@
                                 </div>
                             @else
                                 <div class="slot slot-free" onclick="openBlockModal('{{ $time }}')">
+                                    @if($clubCoach->hourly_rate)
+                                        <span class="slot-price">{{ number_format($clubCoach->hourly_rate, 0, '', ' ') }} &#8376;</span>
+                                    @endif
                                 </div>
                             @endif
                         </td>
@@ -400,6 +403,7 @@
     .slot { width: 100%; height: 100%; min-height: 52px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; padding: 4px; font-size: 12px; font-weight: 600; }
     .slot-client { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     .slot-court { font-size: 10px; opacity: 0.7; }
+    .slot-price { font-size: 13px; font-weight: 700; }
     .slot-reason { font-size: 11px; font-weight: 600; }
 
     .slot-free { background: rgba(34,197,94,0.08); color: #22c55e; border-color: rgba(34,197,94,0.15); }
