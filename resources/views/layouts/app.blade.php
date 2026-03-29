@@ -937,6 +937,14 @@
 						</a>
 					</li>
 					@endif
+					@if(!$navClub || $navClub->hasFeature('coaches'))
+					<li class="nav-item">
+						<a href="{{ route('club.coaches.index') }}" class="nav-link {{ request()->routeIs('club.coaches.*') ? 'active' : '' }}">
+							<i class="bi bi-person-badge"></i>
+							<span>Тренеры</span>
+						</a>
+					</li>
+					@endif
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

@@ -60,6 +60,7 @@ class ClubController extends Controller
             'tournaments' => (bool) ($features['tournaments'] ?? true),
             'users' => (bool) ($features['users'] ?? true),
             'courts' => (bool) ($features['courts'] ?? true),
+            'coaches' => (bool) ($features['coaches'] ?? true),
         ];
 
         $club->update($validated);

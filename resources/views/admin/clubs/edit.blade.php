@@ -122,6 +122,13 @@
                                        style="background-color: var(--bg-secondary); border-color: var(--border);">
                                 <span class="form-check-label">Корты</span>
                             </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[coaches]" value="0">
+                                <input type="checkbox" name="features[coaches]" value="1" class="form-check-input"
+                                       {{ old('features.coaches', $features['coaches'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Тренеры</span>
+                            </label>
                         </div>
                     </div>
 

@@ -163,6 +163,19 @@ Route::middleware('auth')->group(function () {
             Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
         });
 
+        // Тренеры
+        Route::middleware('club.feature:coaches')->group(function () {
+            Route::get('/coaches/search-users', [App\Http\Controllers\Club\CoachController::class, 'searchUsers'])->name('coaches.searchUsers');
+            Route::get('/coaches', [App\Http\Controllers\Club\CoachController::class, 'index'])->name('coaches.index');
+            Route::post('/coaches', [App\Http\Controllers\Club\CoachController::class, 'store'])->name('coaches.store');
+            Route::put('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'update'])->name('coaches.update');
+            Route::delete('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'destroy'])->name('coaches.destroy');
+            Route::get('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'schedule'])->name('coaches.schedule');
+            Route::put('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'updateSchedule'])->name('coaches.updateSchedule');
+            Route::post('/coaches/{user}/override', [App\Http\Controllers\Club\CoachController::class, 'addOverride'])->name('coaches.addOverride');
+            Route::delete('/coaches/override/{override}', [App\Http\Controllers\Club\CoachController::class, 'deleteOverride'])->name('coaches.deleteOverride');
+        });
+
         // Турниры
         Route::middleware('club.feature:tournaments')->group(function () {
             Route::get('/tournaments/search-player', [TeamTournamentController::class, 'searchPlayer'])
