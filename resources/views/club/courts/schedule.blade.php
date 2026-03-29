@@ -123,8 +123,12 @@
 
                 if ($times[$i] === $bookingStartTime) {
                     $bookingEndTime = \Carbon\Carbon::parse($booking->end_time)->format('H:i');
+                    $endMinutes = intval(substr($bookingEndTime, 0, 2)) * 60 + intval(substr($bookingEndTime, 3, 2));
+                    if ($endMinutes === 0) $endMinutes = 1440;
                     $span = 0;
-                    for ($j = $i; $j < count($times) && $times[$j] < $bookingEndTime; $j++) {
+                    for ($j = $i; $j < count($times); $j++) {
+                        $slotMinutes = intval(substr($times[$j], 0, 2)) * 60 + intval(substr($times[$j], 3, 2));
+                        if ($slotMinutes >= $endMinutes) break;
                         $span++;
                         if ($j > $i) {
                             $skipCells[$court->id . '-' . $times[$j]] = true;
