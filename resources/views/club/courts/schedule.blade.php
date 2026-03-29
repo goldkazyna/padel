@@ -96,14 +96,31 @@
         <div class="flash-message flash-error">{{ session('error') }}</div>
     @endif
 
-    <!-- Date Navigation -->
-    <div class="date-nav-wrap">
-        <a href="{{ route('club.courts.schedule', ['date' => $prevDate]) }}" class="date-btn">&#8249;</a>
-        <div class="date-label"><span class="day-name">{{ $dayOfWeek }}</span>, {{ $formattedDate }}</div>
-        <a href="{{ route('club.courts.schedule', ['date' => $nextDate]) }}" class="date-btn">&#8250;</a>
-        @if($date !== $today)
-            <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
-        @endif
+    <!-- Week Navigation -->
+    <div class="week-nav">
+        <div class="week-nav-top">
+            <a href="{{ route('club.courts.schedule', ['date' => $prevWeek]) }}" class="date-btn">&#8249;</a>
+            <div class="week-days">
+                @foreach($weekDays as $wd)
+                    <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}"
+                       class="week-day-btn{{ $wd['isSelected'] ? ' active' : '' }}{{ $wd['isToday'] ? ' today' : '' }}">
+                        <span class="week-day-name">{{ $wd['dayName'] }}</span>
+                        <span class="week-day-num">{{ $wd['dayNum'] }}</span>
+                        @if($wd['occupancy'] > 0)
+                            <span class="week-day-occ" style="color: {{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}">{{ $wd['occupancy'] }}%</span>
+                        @endif
+                    </a>
+                @endforeach
+            </div>
+            <a href="{{ route('club.courts.schedule', ['date' => $nextWeek]) }}" class="date-btn">&#8250;</a>
+        </div>
+        <div class="week-nav-bottom">
+            <input type="date" id="datePicker" value="{{ $date }}" class="date-picker-input"
+                   onchange="window.location.href='{{ route('club.courts.schedule') }}?date=' + this.value">
+            @if($date !== now()->format('Y-m-d'))
+                <a href="{{ route('club.courts.schedule') }}" class="today-btn">Сегодня</a>
+            @endif
+        </div>
     </div>
 
     <!-- Schedule Grid -->
@@ -700,18 +717,22 @@
         border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
-    /* Date Navigation */
-    .date-nav-wrap {
+    /* Week Navigation */
+    .week-nav {
+        margin-bottom: 24px;
+    }
+
+    .week-nav-top {
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 12px;
-        margin-bottom: 28px;
+        gap: 8px;
+        margin-bottom: 10px;
     }
 
     .date-btn {
         width: 38px;
         height: 38px;
+        min-width: 38px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -730,15 +751,99 @@
         color: var(--sch-accent);
     }
 
-    .date-label {
-        font-size: 17px;
-        font-weight: 700;
-        min-width: 220px;
-        text-align: center;
+    .week-days {
+        display: flex;
+        flex: 1;
+        gap: 4px;
     }
 
-    .date-label .day-name {
+    .week-day-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 4px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.2s;
+        position: relative;
+        min-height: 60px;
+        justify-content: center;
+    }
+
+    .week-day-btn .week-day-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--sch-text-muted);
+        text-transform: uppercase;
+    }
+
+    .week-day-btn .week-day-num {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--sch-text-dim);
+    }
+
+    .week-day-btn .week-day-occ {
+        font-size: 9px;
+        font-weight: 700;
+        position: absolute;
+        top: 4px;
+        right: 6px;
+    }
+
+    .week-day-btn:hover {
+        border-color: var(--sch-accent);
+    }
+
+    .week-day-btn.active {
+        background: var(--sch-accent);
+        border-color: var(--sch-accent);
+    }
+
+    .week-day-btn.active .week-day-name,
+    .week-day-btn.active .week-day-num {
+        color: var(--sch-bg);
+    }
+
+    .week-day-btn.active .week-day-occ {
+        color: var(--sch-bg) !important;
+        opacity: 0.7;
+    }
+
+    .week-day-btn.today:not(.active) {
+        border-color: var(--sch-accent);
+    }
+
+    .week-day-btn.today:not(.active) .week-day-num {
         color: var(--sch-accent);
+    }
+
+    .week-nav-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .date-picker-input {
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        color: var(--sch-text-dim);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color-scheme: dark;
+    }
+
+    .date-picker-input:focus {
+        outline: none;
+        border-color: var(--sch-accent);
     }
 
     .today-btn {
@@ -757,6 +862,12 @@
     .today-btn:hover {
         border-color: var(--sch-accent);
         color: var(--sch-accent);
+    }
+
+    @media (max-width: 768px) {
+        .week-nav-top { flex-wrap: nowrap; overflow-x: auto; }
+        .week-day-btn { min-width: 48px; padding: 6px 2px; min-height: 52px; }
+        .week-day-btn .week-day-num { font-size: 15px; }
     }
 
     /* Schedule Grid */

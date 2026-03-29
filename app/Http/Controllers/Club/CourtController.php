@@ -54,7 +54,49 @@ class CourtController extends Controller
         }
         $timeSlots = $allTimes->unique()->sort()->values();
 
-        return view('club.courts.schedule', compact('courts', 'schedules', 'timeSlots', 'date'));
+        // Неделя: пн-вс для выбранной даты
+        $selectedDate = Carbon::parse($date);
+        $weekStart = $selectedDate->copy()->startOfWeek(Carbon::MONDAY);
+        $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
+        $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
+
+        $totalSlotsPerCourt = count($allTimes->unique());
+        $totalSlots = $totalSlotsPerCourt * $courts->count();
+
+        $weekDays = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = $weekStart->copy()->addDays($i);
+            $dayStr = $d->format('Y-m-d');
+
+            $bookedCount = 0;
+            if ($totalSlots > 0) {
+                $bookedCount = \App\Models\CourtBooking::whereIn('court_id', $courts->pluck('id'))
+                    ->whereDate('date', $dayStr)
+                    ->where('status', 'confirmed')
+                    ->count();
+                $blockedCount = \App\Models\CourtBlock::whereIn('court_id', $courts->pluck('id'))
+                    ->whereDate('date', $dayStr)
+                    ->count();
+                $occupancy = min(100, round(($bookedCount + $blockedCount) / $totalSlots * 100));
+            } else {
+                $occupancy = 0;
+            }
+
+            $weekDays[] = [
+                'date' => $dayStr,
+                'dayName' => $d->locale('ru')->isoFormat('dd'),
+                'dayNum' => $d->format('d'),
+                'month' => $d->locale('ru')->isoFormat('MMM'),
+                'isSelected' => $dayStr === $date,
+                'isToday' => $dayStr === now()->format('Y-m-d'),
+                'occupancy' => $occupancy,
+            ];
+        }
+
+        return view('club.courts.schedule', compact(
+            'courts', 'schedules', 'timeSlots', 'date',
+            'weekDays', 'prevWeek', 'nextWeek'
+        ));
     }
 
     // === CRUD кортов ===
