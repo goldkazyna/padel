@@ -168,9 +168,12 @@
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
                                     <div class="slot {{ $slotClass }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}' })">
-                                        <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}</span>
+                                        <span class="client-name">{{ $booking->client_name ?? 'Бронь' }}@if($booking->client_phone) — {{ $booking->client_phone }}@endif</span>
                                         @if($span > 1)
                                             <span class="slot-time">{{ $bStart }} &mdash; {{ $bEnd }}</span>
+                                        @endif
+                                        @if($booking->comment)
+                                            <span class="slot-comment">{{ $booking->comment }}</span>
                                         @endif
                                         <span class="slot-price">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
                                     </div>
@@ -906,6 +909,15 @@
         max-width: 100%;
     }
 
+    .slot-booked .slot-comment {
+        font-size: 10px;
+        opacity: 0.6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
     .slot-booked .slot-price {
         font-size: 10px;
         opacity: 0.7;
@@ -955,6 +967,15 @@
     .slot-booked-multi .slot-time {
         font-size: 11px;
         opacity: 0.7;
+    }
+
+    .slot-booked-multi .slot-comment {
+        font-size: 11px;
+        opacity: 0.6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 
     .slot-booked-multi .slot-price {
