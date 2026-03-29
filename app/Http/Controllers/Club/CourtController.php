@@ -60,8 +60,14 @@ class CourtController extends Controller
         $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
         $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
 
-        $totalSlotsPerCourt = count($allTimes->unique());
-        $totalSlots = $totalSlotsPerCourt * $courts->count();
+        // Считаем слоты для каждого корта отдельно
+        $courtSlotCounts = [];
+        $totalSlots = 0;
+        foreach ($courts as $court) {
+            $count = count($this->scheduleService->generateTimeSlots($court));
+            $courtSlotCounts[$court->id] = $count;
+            $totalSlots += $count;
+        }
 
         $weekDays = [];
         for ($i = 0; $i < 7; $i++) {
