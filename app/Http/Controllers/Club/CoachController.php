@@ -70,7 +70,7 @@ class CoachController extends Controller
             'hourly_rate' => 'nullable|numeric|min:0',
             'rates' => 'nullable|array',
             'rates.*.hours' => 'required|integer|min:1|max:8',
-            'rates.*.rate' => 'required|numeric|min:0',
+            'rates.*.rate' => 'nullable|numeric|min:0',
         ]);
 
         $coach->update([
