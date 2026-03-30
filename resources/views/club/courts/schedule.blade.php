@@ -434,6 +434,7 @@
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="start_time" id="blockStartTime">
                 <input type="hidden" name="end_time" id="blockEndTime">
+                <input type="hidden" name="comment" id="blockComment">
             </form>
         </div>
     </div>
@@ -772,6 +773,8 @@
     function blockSlot() {
         document.getElementById('blockStartTime').value = currentBook.time;
         document.getElementById('blockEndTime').value = calcBlockEndTime();
+        var commentField = document.querySelector('#bookForm textarea[name="comment"]');
+        document.getElementById('blockComment').value = commentField ? commentField.value : '';
         document.getElementById('blockForm').submit();
     }
 

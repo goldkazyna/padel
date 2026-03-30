@@ -374,6 +374,7 @@ class CourtController extends Controller
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
+            'comment' => 'nullable|string|max:500',
         ]);
 
         if (!$this->scheduleService->canBook($court, $validated['date'], $validated['start_time'], $validated['end_time'])) {
@@ -385,6 +386,7 @@ class CourtController extends Controller
             'date' => $validated['date'],
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
+            'comment' => $validated['comment'] ?? null,
         ]);
 
         return back()->with('success', 'Слот заблокирован');
