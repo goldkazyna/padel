@@ -51,20 +51,23 @@ class ClubCoach extends Model
      * Получить ставку за указанное кол-во часов.
      * Если точной ставки нет — берёт ближайшую меньшую или hourly_rate * hours.
      */
+    /**
+     * Получить общую стоимость тренера за указанное кол-во часов.
+     * Ставка хранится за час, умножается на кол-во часов.
+     */
     public function getRateForHours(int $hours): float
     {
+        // Ищем ставку за час для этой длительности
         $rate = $this->rates()->where('hours', $hours)->first();
-        if ($rate) return (float) $rate->rate;
+        if ($rate) return (float) $rate->rate * $hours;
 
-        // Ближайшая меньшая ставка
+        // Ближайшая меньшая длительность
         $closest = $this->rates()->where('hours', '<', $hours)->orderByDesc('hours')->first();
         if ($closest) {
-            // Пропорционально: ставка ближайшей + hourly_rate за оставшиеся часы
-            $remaining = $hours - $closest->hours;
-            return (float) $closest->rate + ($this->hourly_rate ?? 0) * $remaining;
+            return (float) $closest->rate * $hours;
         }
 
-        // Fallback на hourly_rate
+        // Fallback на базовую ставку
         return ($this->hourly_rate ?? 0) * $hours;
     }
 
