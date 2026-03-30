@@ -299,8 +299,8 @@
                             @elseif($slot['status'] === 'blocked')
                                 <td>
                                     <div class="slot slot-blocked"
-                                         onclick="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}')">
-                                        <span class="slot-label">Заблокирован</span>
+                                         onclick="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}', '{{ addslashes($slot['block']->comment ?? '') }}')">
+                                        <span class="slot-label">{{ $slot['block']->comment ?? 'Заблокирован' }}</span>
                                     </div>
                                 </td>
                             @else
@@ -537,30 +537,40 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
             <div class="sch-modal-header">
-                <h2>Разблокировать слот</h2>
+                <h2>Заблокированный слот</h2>
                 <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <div class="sch-modal-body">
-                <div class="sch-modal-info">
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Корт</span>
-                        <span class="sch-modal-info-value" id="unblockCourtName"></span>
+            <form id="updateBlockForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="sch-modal-body">
+                    <div class="sch-modal-info">
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Корт</span>
+                            <span class="sch-modal-info-value" id="unblockCourtName"></span>
+                        </div>
+                        <div class="sch-modal-info-row">
+                            <span class="sch-modal-info-label">Время</span>
+                            <span class="sch-modal-info-value" id="unblockTime"></span>
+                        </div>
                     </div>
-                    <div class="sch-modal-info-row">
-                        <span class="sch-modal-info-label">Время</span>
-                        <span class="sch-modal-info-value" id="unblockTime"></span>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label class="form-label">Комментарий</label>
+                        <textarea name="comment" id="blockComment" class="form-input" rows="2" placeholder="Заметка к блокировке"></textarea>
                     </div>
                 </div>
-                <p style="color: #a1a1aa; font-size: 14px; margin-top: 16px;">Вы уверены, что хотите разблокировать этот слот?</p>
-            </div>
-            <div class="sch-modal-footer">
-                <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
-                <form id="unblockForm" method="POST" style="flex: 2;">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-confirm" style="width: 100%;">Разблокировать</button>
-                </form>
-            </div>
+                <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn-confirm">Сохранить</button>
+                    </div>
+                    <button type="button" class="btn-danger" style="width: 100%;" onclick="unblockSlot()">Разблокировать</button>
+                </div>
+            </form>
+            <form id="unblockForm" method="POST" style="display:none;">
+                @csrf
+                @method('DELETE')
+            </form>
         </div>
     </div>
 </div>
@@ -744,12 +754,19 @@
         document.getElementById('editIsPaidInput').value = btn.getAttribute('data-value');
     }
 
-    function openUnblockModal(blockId, courtName, time) {
+    function openUnblockModal(blockId, courtName, time, comment) {
         document.getElementById('unblockCourtName').textContent = courtName;
         document.getElementById('unblockTime').textContent = time;
+        document.getElementById('blockComment').value = comment || '';
+        document.getElementById('updateBlockForm').action = '{{ url("club/courts/blocks") }}/' + blockId;
         document.getElementById('unblockForm').action = '{{ url("club/courts/blocks") }}/' + blockId;
-
         new bootstrap.Modal(document.getElementById('unblockModal')).show();
+    }
+
+    function unblockSlot() {
+        if (confirm('Вы уверены, что хотите разблокировать этот слот?')) {
+            document.getElementById('unblockForm').submit();
+        }
     }
 
     function blockSlot() {

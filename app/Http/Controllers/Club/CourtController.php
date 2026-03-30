@@ -400,4 +400,21 @@ class CourtController extends Controller
 
         return back()->with('success', 'Слот разблокирован');
     }
+
+    public function updateBlock(Request $request, CourtBlock $block)
+    {
+        $club = $this->getClub();
+        $court = $block->court;
+        if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
+
+        $validated = $request->validate([
+            'comment' => 'nullable|string|max:500',
+        ]);
+
+        $block->update([
+            'comment' => $validated['comment'] ?? null,
+        ]);
+
+        return back()->with('success', 'Блокировка обновлена');
+    }
 }

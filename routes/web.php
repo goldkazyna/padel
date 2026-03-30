@@ -161,6 +161,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/courts/bookings/{booking}', [CourtController::class, 'updateBooking'])->name('courts.updateBooking');
             Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
             Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
+            Route::put('/courts/blocks/{block}', [CourtController::class, 'updateBlock'])->name('courts.updateBlock');
         });
 
         // Тренеры
