@@ -114,11 +114,20 @@ class CourtController extends Controller
             ];
         }
 
-        $clubCoaches = $club->clubCoaches()->with('user')->get();
+        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks'])->get();
+
+        // Подготовить доступность тренеров по слотам для JS
+        $coachAvailability = [];
+        foreach ($clubCoaches as $cc) {
+            foreach ($timeSlots as $time) {
+                $endTime = Carbon::parse($time)->addHour()->format('H:i');
+                $coachAvailability[$cc->user_id][$time] = $cc->isFreeAt($date, $time, $endTime);
+            }
+        }
 
         return view('club.courts.schedule', compact(
             'courts', 'schedules', 'timeSlots', 'date',
-            'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches'
+            'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability'
         ));
     }
 

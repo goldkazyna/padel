@@ -404,14 +404,16 @@
                         <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Тренер (необязательно)</label>
-                        <select name="coach_id" class="form-input" id="bookCoachId">
-                            <option value="">Без тренера</option>
+                    <div class="form-group" id="bookCoachGroup">
+                        <label class="form-label">Тренер</label>
+                        <div class="coach-buttons" id="bookCoachButtons">
                             @foreach($clubCoaches as $cc)
-                                <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}@if($cc->hourly_rate) — {{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸/ч@endif</option>
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
                             @endforeach
-                        </select>
+                        </div>
+                        <input type="hidden" name="coach_id" id="bookCoachId" value="">
                     </div>
 
                     <!-- Block option -->
@@ -503,14 +505,16 @@
                         <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="editCoachGroup">
                         <label class="form-label">Тренер</label>
-                        <select name="coach_id" class="form-input" id="editCoachId">
-                            <option value="">Без тренера</option>
+                        <div class="coach-buttons" id="editCoachButtons">
                             @foreach($clubCoaches as $cc)
-                                <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}@if($cc->hourly_rate) — {{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸/ч@endif</option>
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
                             @endforeach
-                        </select>
+                        </div>
+                        <input type="hidden" name="coach_id" id="editCoachId" value="">
                     </div>
                 </div>
                 <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
@@ -681,6 +685,7 @@
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('.paid-btn[data-value="0"]').classList.add('active');
         document.getElementById('bookCoachId').value = '';
+        updateCoachButtons();
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
@@ -711,6 +716,10 @@
 
         document.getElementById('editComment').value = data.comment || '';
         document.getElementById('editCoachId').value = data.coachId || '';
+        // Подсветить выбранного тренера
+        document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-coach-id') == data.coachId);
+        });
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
@@ -759,6 +768,51 @@
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
+    }
+
+    // Тренеры — доступность по слотам
+    const coachAvailability = @json($coachAvailability);
+
+    function updateCoachButtons() {
+        const time = currentBook.time;
+        const container = document.getElementById('bookCoachButtons');
+        if (!container) return;
+        container.querySelectorAll('.coach-btn').forEach(btn => {
+            const coachId = btn.getAttribute('data-coach-id');
+            const available = coachAvailability[coachId] && coachAvailability[coachId][time];
+            btn.classList.remove('active', 'unavailable');
+            if (!available) {
+                btn.classList.add('unavailable');
+            }
+        });
+        document.getElementById('bookCoachId').value = '';
+    }
+
+    function selectBookCoach(btn) {
+        if (btn.classList.contains('unavailable')) return;
+        const coachId = btn.getAttribute('data-coach-id');
+        const input = document.getElementById('bookCoachId');
+        const isActive = btn.classList.contains('active');
+        document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        if (isActive) {
+            input.value = '';
+        } else {
+            btn.classList.add('active');
+            input.value = coachId;
+        }
+    }
+
+    function selectEditCoach(btn) {
+        const coachId = btn.getAttribute('data-coach-id');
+        const input = document.getElementById('editCoachId');
+        const isActive = btn.classList.contains('active');
+        document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        if (isActive) {
+            input.value = '';
+        } else {
+            btn.classList.add('active');
+            input.value = coachId;
+        }
     }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -1520,6 +1574,54 @@
     .pay-btn:hover:not(.active) {
         border-color: var(--sch-accent);
         color: var(--sch-accent);
+    }
+
+    .coach-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .coach-btn {
+        padding: 8px 14px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        color: var(--sch-text-dim);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .coach-btn .coach-rate {
+        color: var(--sch-accent);
+        font-weight: 700;
+        font-size: 12px;
+    }
+
+    .coach-btn.active {
+        background: #a78bfa;
+        color: #0a0a0b;
+        border-color: #a78bfa;
+    }
+
+    .coach-btn.active .coach-rate {
+        color: #0a0a0b;
+    }
+
+    .coach-btn.unavailable {
+        opacity: 0.3;
+        cursor: not-allowed;
+        text-decoration: line-through;
+    }
+
+    .coach-btn:hover:not(.active):not(.unavailable) {
+        border-color: #a78bfa;
+        color: #a78bfa;
     }
 
     .paid-toggle {
