@@ -622,12 +622,13 @@
     }
 
     function calcBlockEndTime() {
+        const slots = parseInt(document.getElementById('bookSlots').value) || 1;
         const startIdx = orderedTimes.indexOf(currentBook.time);
-        if (startIdx >= 0 && startIdx + 1 < orderedTimes.length) {
-            return orderedTimes[startIdx + 1];
+        if (startIdx >= 0 && startIdx + slots < orderedTimes.length) {
+            return orderedTimes[startIdx + slots];
         }
         const [h, m] = currentBook.time.split(':').map(Number);
-        const nh = h + 1;
+        const nh = h + slots;
         return String(nh).padStart(2, '0') + ':' + String(m).padStart(2, '0');
     }
 
