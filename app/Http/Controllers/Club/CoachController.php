@@ -28,7 +28,7 @@ class CoachController extends Controller
         if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
 
         $clubCoaches = ClubCoach::where('club_id', $club->id)
-            ->with(['user', 'schedules'])
+            ->with(['user', 'schedules', 'rates'])
             ->get();
 
         return view('club.coaches.index', compact('clubCoaches', 'club'));
@@ -68,9 +68,29 @@ class CoachController extends Controller
         $validated = $request->validate([
             'specialization' => 'nullable|string|max:255',
             'hourly_rate' => 'nullable|numeric|min:0',
+            'rates' => 'nullable|array',
+            'rates.*.hours' => 'required|integer|min:1|max:8',
+            'rates.*.rate' => 'required|numeric|min:0',
         ]);
 
-        $coach->update($validated);
+        $coach->update([
+            'specialization' => $validated['specialization'] ?? null,
+            'hourly_rate' => $validated['hourly_rate'] ?? null,
+        ]);
+
+        // Обновляем ставки по длительности
+        $coach->rates()->delete();
+        if (!empty($validated['rates'])) {
+            foreach ($validated['rates'] as $r) {
+                if ($r['rate'] > 0) {
+                    \App\Models\CoachRate::create([
+                        'club_coach_id' => $coach->id,
+                        'hours' => $r['hours'],
+                        'rate' => $r['rate'],
+                    ]);
+                }
+            }
+        }
 
         return back()->with('success', 'Тренер обновлён!');
     }

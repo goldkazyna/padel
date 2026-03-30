@@ -303,16 +303,23 @@
                                         <div class="slot-section slot-section-right">
                                             <div class="slot-prices">
                                                 <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
-                                                @if($coachRate)
-                                                    <span class="slot-price-plus">+</span>
+                                                @if($booking->coach_id)
                                                     @php
-                                                        $startMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
-                                                        $endMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
-                                                        if ($endMin <= $startMin) $endMin += 1440;
-                                                        $hours = ($endMin - $startMin) / 60;
-                                                        $coachTotal = $coachRate * $hours;
+                                                        $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
+                                                        if ($ccObj) {
+                                                            $startMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
+                                                            $endMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
+                                                            if ($endMin <= $startMin) $endMin += 1440;
+                                                            $bookingHours = (int)(($endMin - $startMin) / 60);
+                                                            $coachTotal = $ccObj->getRateForHours($bookingHours);
+                                                        } else {
+                                                            $coachTotal = 0;
+                                                        }
                                                     @endphp
-                                                    <span class="slot-price-coach">{{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                    @if($coachTotal > 0)
+                                                        <span class="slot-price-plus">+</span>
+                                                        <span class="slot-price-coach">{{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>

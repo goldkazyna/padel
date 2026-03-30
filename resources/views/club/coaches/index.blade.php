@@ -42,8 +42,11 @@
                     @endif
                     @if($cc->hourly_rate)
                         <div class="detail-group">
-                            <span class="detail-label">Ставка</span>
-                            <span class="detail-value rate-value">{{ number_format($cc->hourly_rate, 0, '', ' ') }} &#8376;/час</span>
+                            <span class="detail-label">Ставки</span>
+                            <span class="detail-value rate-value">1ч: {{ number_format($cc->hourly_rate, 0, '', ' ') }} &#8376;</span>
+                            @foreach($cc->rates->sortBy('hours') as $rate)
+                                <span class="detail-value rate-value">{{ $rate->hours }}ч: {{ number_format($rate->rate, 0, '', ' ') }} &#8376;</span>
+                            @endforeach
                         </div>
                     @endif
                 </div>
@@ -136,8 +139,22 @@
                         <input type="text" name="specialization" class="form-input" value="{{ $cc->specialization }}" placeholder="Например: Начинающие, Продвинутые">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Ставка за час</label>
+                        <label class="form-label">Ставка за 1 час (базовая)</label>
                         <input type="number" name="hourly_rate" class="form-input" value="{{ $cc->hourly_rate ? intval($cc->hourly_rate) : '' }}" placeholder="&#8376;/час" min="0" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ставки по длительности</label>
+                        <div class="rates-grid">
+                            @for($h = 2; $h <= 6; $h++)
+                                @php $existingRate = $cc->rates->firstWhere('hours', $h); @endphp
+                                <div class="rate-row">
+                                    <span class="rate-label">{{ $h }} {{ $h <= 4 ? 'часа' : 'часов' }}</span>
+                                    <input type="hidden" name="rates[{{ $h - 2 }}][hours]" value="{{ $h }}">
+                                    <input type="number" name="rates[{{ $h - 2 }}][rate]" class="form-input rate-input" value="{{ $existingRate ? intval($existingRate->rate) : '' }}" placeholder="&#8376;" min="0" step="100">
+                                </div>
+                            @endfor
+                        </div>
+                        <small style="color: #52525b; font-size: 11px; margin-top: 6px; display: block;">Если не указано — считается по базовой ставке * часы</small>
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
@@ -227,6 +244,10 @@ function clearSelectedUser() {
     .form-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f4f5; font-weight: 500; font-family: inherit; }
     .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
     .form-input::placeholder { color: #52525b; }
+    .rates-grid { display: flex; flex-direction: column; gap: 6px; }
+    .rate-row { display: flex; align-items: center; gap: 10px; }
+    .rate-label { font-size: 13px; font-weight: 600; color: #a1a1aa; min-width: 70px; }
+    .rate-input { width: 140px !important; padding: 8px 12px !important; font-size: 14px !important; }
     .btn-cancel { flex: 1; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
     .btn-save:hover { background: #16a34a; }

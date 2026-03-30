@@ -42,6 +42,32 @@ class ClubCoach extends Model
         return $this->hasMany(CoachBlock::class);
     }
 
+    public function rates()
+    {
+        return $this->hasMany(CoachRate::class);
+    }
+
+    /**
+     * Получить ставку за указанное кол-во часов.
+     * Если точной ставки нет — берёт ближайшую меньшую или hourly_rate * hours.
+     */
+    public function getRateForHours(int $hours): float
+    {
+        $rate = $this->rates()->where('hours', $hours)->first();
+        if ($rate) return (float) $rate->rate;
+
+        // Ближайшая меньшая ставка
+        $closest = $this->rates()->where('hours', '<', $hours)->orderByDesc('hours')->first();
+        if ($closest) {
+            // Пропорционально: ставка ближайшей + hourly_rate за оставшиеся часы
+            $remaining = $hours - $closest->hours;
+            return (float) $closest->rate + ($this->hourly_rate ?? 0) * $remaining;
+        }
+
+        // Fallback на hourly_rate
+        return ($this->hourly_rate ?? 0) * $hours;
+    }
+
     private function toMinutes(string $time): int
     {
         $p = \Carbon\Carbon::parse($time);
