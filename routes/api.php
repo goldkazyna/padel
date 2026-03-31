@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\MobileNotificationController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
 use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MobileChallengeController;
+use App\Http\Controllers\Api\MobileCourtController;
 
 /*
 |--------------------------------------------------------------------------
@@ -127,5 +128,12 @@ Route::prefix('mobile')->group(function () {
         Route::post('/challenges/{challenge}/confirm-score', [MobileChallengeController::class, 'confirmScore']);
         Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
         Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
+
+        // Бронирование кортов
+        Route::get('/courts/clubs', [MobileCourtController::class, 'clubs']);
+        Route::get('/courts/clubs/{club}/schedule', [MobileCourtController::class, 'schedule']);
+        Route::post('/courts/clubs/{club}/book', [MobileCourtController::class, 'book']);
+        Route::get('/courts/my-bookings', [MobileCourtController::class, 'myBookings']);
+        Route::post('/courts/bookings/{booking}/cancel', [MobileCourtController::class, 'cancel']);
     });
 });

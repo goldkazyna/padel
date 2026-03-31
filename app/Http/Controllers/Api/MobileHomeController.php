@@ -24,6 +24,7 @@ class MobileHomeController extends Controller
             'nearest_tournament' => $this->getNearestTournament($user),
             'active_tournament' => $this->getActiveTournament($user),
             'upcoming_tournaments' => $this->getUpcomingTournaments(),
+            'court_booking_available' => \App\Models\Club::active()->whereHas('courts', fn($q) => $q->where('is_active', true))->exists(),
         ]);
     }
 
