@@ -347,4 +347,51 @@ class MobileCourtController extends Controller
             'message' => 'Бронирование успешно отменено',
         ]);
     }
+
+    /**
+     * Загруженность клуба по дням недели
+     */
+    public function weekOccupancy(Request $request, Club $club)
+    {
+        $startDate = $request->get('start_date', now()->startOfWeek(Carbon::MONDAY)->format('Y-m-d'));
+        $courts = $club->courts()->active()->get();
+
+        if ($courts->isEmpty()) {
+            return response()->json(['success' => true, 'occupancy' => []]);
+        }
+
+        $totalSlots = 0;
+        foreach ($courts as $court) {
+            $totalSlots += count($this->scheduleService->generateTimeSlots($court));
+        }
+
+        $occupancy = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = Carbon::parse($startDate)->addDays($i);
+            $dayStr = $d->format('Y-m-d');
+
+            if ($totalSlots > 0) {
+                $occupiedSlots = 0;
+                $bookings = CourtBooking::whereIn('court_id', $courts->pluck('id'))
+                    ->whereDate('date', $dayStr)
+                    ->where('status', 'confirmed')
+                    ->get();
+                foreach ($bookings as $b) {
+                    $startMin = Carbon::parse($b->start_time)->hour * 60 + Carbon::parse($b->start_time)->minute;
+                    $endMin = Carbon::parse($b->end_time)->hour * 60 + Carbon::parse($b->end_time)->minute;
+                    if ($endMin <= $startMin) $endMin += 1440;
+                    $court = $courts->firstWhere('id', $b->court_id);
+                    $duration = $court ? $court->slot_duration : 60;
+                    $occupiedSlots += ($endMin - $startMin) / $duration;
+                }
+                $pct = min(100, round($occupiedSlots / $totalSlots * 100));
+            } else {
+                $pct = 0;
+            }
+
+            $occupancy[$dayStr] = $pct;
+        }
+
+        return response()->json(['success' => true, 'occupancy' => $occupancy]);
+    }
 }

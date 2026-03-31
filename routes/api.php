@@ -132,6 +132,7 @@ Route::prefix('mobile')->group(function () {
         // Бронирование кортов
         Route::get('/courts/clubs', [MobileCourtController::class, 'clubs']);
         Route::get('/courts/clubs/{club}/schedule', [MobileCourtController::class, 'schedule']);
+        Route::get('/courts/clubs/{club}/week-occupancy', [MobileCourtController::class, 'weekOccupancy']);
         Route::post('/courts/clubs/{club}/book', [MobileCourtController::class, 'book']);
         Route::get('/courts/my-bookings', [MobileCourtController::class, 'myBookings']);
         Route::post('/courts/bookings/{booking}/cancel', [MobileCourtController::class, 'cancel']);
