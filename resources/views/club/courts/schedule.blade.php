@@ -286,43 +286,42 @@
                                     }
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
+                                    @php
+                                        $coachTotal = 0;
+                                        if ($booking->coach_id) {
+                                            $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
+                                            if ($ccObj) {
+                                                $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
+                                                $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
+                                                if ($eMin <= $sMin) $eMin += 1440;
+                                                $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
+                                            }
+                                        }
+                                    @endphp
                                     <div class="slot {{ $slotClass }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }} })">
-                                        <div class="slot-section">
-                                            <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
-                                            @if($booking->client_phone)<span class="slot-phone">{{ $booking->client_phone }}</span>@endif
+                                        <div class="slot-row">
+                                            <div class="slot-left">
+                                                <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
+                                                @if($booking->client_phone)<span class="slot-phone">{{ $booking->client_phone }}</span>@endif
+                                            </div>
+                                            <div class="slot-right">
+                                                <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
+                                            </div>
                                         </div>
-                                        @if($booking->coach || $booking->comment)
-                                            <span class="slot-divider"></span>
-                                            <div class="slot-section">
+                                        @if($booking->coach || $booking->comment || $coachTotal > 0)
+                                        <div class="slot-row slot-row-sub">
+                                            <div class="slot-left">
                                                 @if($booking->coach)<span class="slot-coach">{{ $booking->coach->first_name }}</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
-                                        @endif
-                                        <span class="slot-divider"></span>
-                                        <div class="slot-section slot-section-right">
-                                            <div class="slot-prices">
-                                                <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
-                                                @if($booking->coach_id)
-                                                    @php
-                                                        $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
-                                                        if ($ccObj) {
-                                                            $startMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
-                                                            $endMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
-                                                            if ($endMin <= $startMin) $endMin += 1440;
-                                                            $bookingHours = (int)(($endMin - $startMin) / 60);
-                                                            $coachTotal = $ccObj->getRateForHours($bookingHours);
-                                                        } else {
-                                                            $coachTotal = 0;
-                                                        }
-                                                    @endphp
-                                                    @if($coachTotal > 0)
-                                                        <span class="slot-price-plus">+</span>
-                                                        <span class="slot-price-coach">{{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
-                                                    @endif
-                                                @endif
+                                            @if($coachTotal > 0)
+                                            <div class="slot-right">
+                                                <span class="slot-price-coach">+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
                                             </div>
+                                            @endif
                                         </div>
+                                        @endif
                                     </div>
                                 </td>
                             @elseif($slot['status'] === 'blocked')
@@ -1279,9 +1278,10 @@
         background: rgba(59, 130, 246, 0.1);
         color: var(--sch-blue);
         border-color: rgba(59, 130, 246, 0.18);
-        flex-direction: row;
-        padding: 0 14px;
-        gap: 0;
+        flex-direction: column;
+        padding: 4px 12px;
+        gap: 1px;
+        justify-content: center;
     }
 
     .slot-booked:hover {
@@ -1302,17 +1302,15 @@
 
     .slot-booked.unpaid .slot-name { color: #fbbf24; }
 
-    .slot-section { display: flex; align-items: center; gap: 6px; padding: 0 12px; }
-    .slot-section:first-child { padding-left: 0; }
-    .slot-section-right { margin-left: auto; padding-right: 0; }
-    .slot-divider { width: 1px; height: 24px; background: #27272a; flex-shrink: 0; }
+    .slot-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+    .slot-row-sub { opacity: 0.8; }
+    .slot-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .slot-right { flex-shrink: 0; }
 
-    .slot-name { font-size: 13px; font-weight: 700; color: #e4e4e7; white-space: nowrap; }
-    .slot-phone { font-size: 11px; color: #52525b; white-space: nowrap; }
+    .slot-name { font-size: 13px; font-weight: 700; color: #e4e4e7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .slot-phone { font-size: 11px; color: #71717a; white-space: nowrap; }
     .slot-comment-text { font-size: 10px; color: #71717a; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-    .slot-prices { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
     .slot-price-court { font-size: 13px; font-weight: 700; color: #22c55e; }
-    .slot-price-plus { font-size: 11px; color: #52525b; }
     .slot-price-coach { font-size: 12px; font-weight: 700; color: #a78bfa; }
 
     .slot-booked-multi {
@@ -1324,14 +1322,14 @@
         width: 100%;
         height: 100%;
         display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 0;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.15s;
-        padding: 0 14px;
+        padding: 4px 12px;
     }
 
     .slot-booked-multi:hover {
