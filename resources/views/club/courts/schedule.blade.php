@@ -207,13 +207,14 @@
             <div class="week-days">
                 @foreach($weekDays as $wd)
                     <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}"
-                       class="week-day-btn{{ $wd['isSelected'] ? ' active' : '' }}{{ $wd['isToday'] ? ' today' : '' }}">
+                       class="week-day-btn{{ $wd['isSelected'] ? ' active' : '' }}{{ $wd['isToday'] ? ' today' : '' }}" data-date="{{ $wd['date'] }}">
                         <span class="week-day-name">{{ $wd['dayName'] }}</span>
                         <span class="week-day-num">{{ $wd['dayNum'] }} {{ $wd['month'] }}</span>
                         @if($wd['occupancy'] > 0)
                             <span class="week-day-occ" style="color: {{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}">{{ $wd['occupancy'] }}%</span>
                         @endif
                         <div class="week-day-bar"><div class="week-day-bar-fill" style="width:{{ $wd['occupancy'] }}%;background:{{ $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e') }}"></div></div>
+                        <span class="week-day-unprocessed" data-date-badge="{{ $wd['date'] }}" style="display:none;"></span>
                     </a>
                 @endforeach
             </div>
@@ -916,6 +917,28 @@
             window.location.href = '{{ route('club.courts.schedule') }}?date=' + dateStr;
         }
     });
+
+    // Polling необработанных — бейджи на днях
+    function updateDayBadges() {
+        fetch('{{ route("club.unprocessedCount") }}')
+            .then(r => r.json())
+            .then(data => {
+                const byDate = data.by_date || {};
+                document.querySelectorAll('[data-date-badge]').forEach(badge => {
+                    const date = badge.getAttribute('data-date-badge');
+                    const count = byDate[date] || 0;
+                    if (count > 0) {
+                        badge.textContent = count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                });
+            })
+            .catch(() => {});
+    }
+    updateDayBadges();
+    setInterval(updateDayBadges, 30000);
 </script>
 
 <style>
@@ -1150,6 +1173,26 @@
         position: absolute;
         top: 4px;
         right: 6px;
+    }
+
+    .week-day-unprocessed {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        z-index: 2;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
     .week-day-btn .week-day-bar {

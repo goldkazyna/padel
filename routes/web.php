@@ -155,13 +155,19 @@ Route::middleware('auth')->group(function () {
             } else {
                 $club = $user->adminClubs()->first();
             }
-            if (!$club) return response()->json(['count' => 0]);
+            if (!$club) return response()->json(['count' => 0, 'by_date' => []]);
             $courtIds = $club->courts()->pluck('id');
-            $count = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+            $total = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
                 ->where('status', 'confirmed')
                 ->where('is_processed', false)
                 ->count();
-            return response()->json(['count' => $count]);
+            $byDate = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+                ->where('status', 'confirmed')
+                ->where('is_processed', false)
+                ->selectRaw("date, count(*) as cnt")
+                ->groupBy('date')
+                ->pluck('cnt', 'date');
+            return response()->json(['count' => $total, 'by_date' => $byDate]);
         })->name('unprocessedCount');
 
         // Пользователи
