@@ -277,8 +277,8 @@
                                     $span = $rowspans[$cellKey] ?? 1;
                                     $bStart = \Carbon\Carbon::parse($booking->start_time)->format('H:i');
                                     $bEnd = \Carbon\Carbon::parse($booking->end_time)->format('H:i');
-                                    $paidClass = $booking->is_paid ? '' : ' unpaid';
-                                    $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $paidClass;
+                                    $statusClass = !$booking->is_processed ? ' unprocessed' : ($booking->is_paid ? '' : ' unpaid');
+                                    $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $statusClass;
                                     $coachRate = null;
                                     if ($booking->coach_id) {
                                         $cc = $clubCoaches->firstWhere('user_id', $booking->coach_id);
@@ -299,7 +299,7 @@
                                         }
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -346,6 +346,7 @@
         <div class="legend-item"><span class="legend-dot free"></span>Свободен</div>
         <div class="legend-item"><span class="legend-dot booked"></span>Оплачено</div>
         <div class="legend-item"><span class="legend-dot unpaid"></span>Не оплачено</div>
+        <div class="legend-item"><span class="legend-dot unprocessed"></span>Не обработан</div>
         <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
     </div>
 </div>
@@ -526,6 +527,15 @@
                         <div class="paid-toggle">
                             <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
                             <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="editProcessedGroup" style="display:none;">
+                        <label class="form-label">Статус обработки</label>
+                        <input type="hidden" name="is_processed" id="editIsProcessedInput" value="1">
+                        <div class="paid-toggle">
+                            <button type="button" class="processed-btn" data-value="0" onclick="setEditProcessed(this)">Не обработан</button>
+                            <button type="button" class="processed-btn" data-value="1" onclick="setEditProcessed(this)">Обработан</button>
                         </div>
                     </div>
 
@@ -755,6 +765,19 @@
         });
 
         document.getElementById('editComment').value = data.comment || '';
+
+        // Статус обработки — показывать только для необработанных
+        const processedGroup = document.getElementById('editProcessedGroup');
+        const processedVal = data.isProcessed ? '1' : '0';
+        document.getElementById('editIsProcessedInput').value = processedVal;
+        if (!data.isProcessed) {
+            processedGroup.style.display = '';
+        } else {
+            processedGroup.style.display = 'none';
+        }
+        document.querySelectorAll('.processed-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === processedVal);
+        });
         document.getElementById('editCoachId').value = data.coachId || '';
         // Проверить доступность тренеров + подсветить выбранного
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => {
@@ -858,6 +881,12 @@
             btn.classList.add('active');
             input.value = coachId;
         }
+    }
+
+    function setEditProcessed(btn) {
+        document.querySelectorAll('.processed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editIsProcessedInput').value = btn.getAttribute('data-value');
     }
 
     function selectEditCoach(btn) {
@@ -1312,6 +1341,19 @@
 
     .slot-booked.unpaid .slot-name { color: #fbbf24; }
 
+    .slot-booked.unprocessed {
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .slot-booked.unprocessed:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+    }
+
+    .slot-booked.unprocessed .slot-name { color: #fca5a5; }
+
     .slot-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
     .slot-row-sub { opacity: 0.8; }
     .slot-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -1359,6 +1401,19 @@
     }
 
     .slot-booked-multi.unpaid .slot-name { color: #fbbf24; }
+
+    .slot-booked-multi.unprocessed {
+        background: rgba(239, 68, 68, 0.12);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .slot-booked-multi.unprocessed:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+    }
+
+    .slot-booked-multi.unprocessed .slot-name { color: #fca5a5; }
 
     .slot-coach {
         font-size: 11px;
@@ -1420,6 +1475,11 @@
     .legend-dot.booked {
         background: rgba(59, 130, 246, 0.3);
         border: 1px solid var(--sch-blue);
+    }
+
+    .legend-dot.unprocessed {
+        background: rgba(239, 68, 68, 0.3);
+        border: 1px solid #ef4444;
     }
 
     .legend-dot.unpaid {
@@ -1684,6 +1744,37 @@
         background: var(--sch-accent);
         color: var(--sch-bg);
         border-color: var(--sch-accent);
+    }
+
+    .processed-btn {
+        flex: 1;
+        padding: 10px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        color: var(--sch-text-dim);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .processed-btn.active[data-value="0"] {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    .processed-btn.active[data-value="1"] {
+        background: var(--sch-accent);
+        color: var(--sch-bg);
+        border-color: var(--sch-accent);
+    }
+
+    .processed-btn:hover:not(.active) {
+        border-color: #3f3f46;
+        color: var(--sch-text);
     }
 
     .paid-btn:hover:not(.active) {

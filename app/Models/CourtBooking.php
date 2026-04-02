@@ -19,6 +19,7 @@ class CourtBooking extends Model
         'price',
         'payment_method',
         'is_paid',
+        'is_processed',
         'comment',
         'coach_id',
     ];
@@ -28,6 +29,7 @@ class CourtBooking extends Model
         'cancelled_at' => 'datetime',
         'price' => 'decimal:2',
         'is_paid' => 'boolean',
+        'is_processed' => 'boolean',
     ];
 
     public function court()

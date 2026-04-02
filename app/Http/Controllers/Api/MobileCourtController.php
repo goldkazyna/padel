@@ -245,6 +245,7 @@ class MobileCourtController extends Controller
             'booked_by' => $user->id,
             'price' => $courtPrice + $coachPrice,
             'is_paid' => false,
+            'is_processed' => false,
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?? null,
         ]);

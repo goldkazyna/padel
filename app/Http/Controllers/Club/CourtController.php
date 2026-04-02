@@ -114,7 +114,7 @@ class CourtController extends Controller
             ];
         }
 
-        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks'])->get();
+        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])->get();
 
         // Подготовить доступность тренеров по слотам для JS
         $coachAvailability = [];
@@ -333,6 +333,7 @@ class CourtController extends Controller
             'client_phone' => 'nullable|string|max:50',
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
+            'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'coach_id' => 'nullable',
         ]);
@@ -342,6 +343,7 @@ class CourtController extends Controller
             'client_phone' => $validated['client_phone'] ?? null,
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
+            'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?: null,
         ]);
