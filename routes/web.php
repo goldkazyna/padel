@@ -145,6 +145,25 @@ Route::middleware('auth')->group(function () {
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
 
+        // Кол-во необработанных бронирований (для polling)
+        Route::get('/unprocessed-count', function () {
+            $user = auth()->user();
+            if ($user->isSuperAdmin()) {
+                $club = \App\Models\Club::first();
+            } elseif ($user->isClubModerator()) {
+                $club = $user->moderatorClubs()->first();
+            } else {
+                $club = $user->adminClubs()->first();
+            }
+            if (!$club) return response()->json(['count' => 0]);
+            $courtIds = $club->courts()->pluck('id');
+            $count = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+                ->where('status', 'confirmed')
+                ->where('is_processed', false)
+                ->count();
+            return response()->json(['count' => $count]);
+        })->name('unprocessedCount');
+
         // Пользователи
         Route::middleware('club.feature:users')->group(function () {
             Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');

@@ -118,6 +118,24 @@
             width: 24px;
             text-align: center;
         }
+
+        .unprocessed-badge {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
         
         .nav-section-title {
             padding: 20px 16px 10px;
@@ -931,9 +949,10 @@
 					@endif
 					@if(!$navClub || $navClub->hasFeature('courts'))
 					<li class="nav-item">
-						<a href="{{ route('club.courts.index') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}">
+						<a href="{{ route('club.courts.schedule') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-grid-3x3"></i>
 							<span>Корты</span>
+							<span class="unprocessed-badge" id="unprocessedBadge" style="display:none;"></span>
 						</a>
 					</li>
 					@endif
@@ -1154,8 +1173,30 @@
 			applyFontSize(parseInt(savedFontSize));
 		}
 	});
+
+	// Polling необработанных бронирований
+	@if(auth()->check() && (auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin() || auth()->user()->isClubModerator()))
+	function checkUnprocessed() {
+		fetch('{{ route("club.unprocessedCount") }}')
+			.then(r => r.json())
+			.then(data => {
+				const badge = document.getElementById('unprocessedBadge');
+				if (badge) {
+					if (data.count > 0) {
+						badge.textContent = data.count;
+						badge.style.display = 'flex';
+					} else {
+						badge.style.display = 'none';
+					}
+				}
+			})
+			.catch(() => {});
+	}
+	checkUnprocessed();
+	setInterval(checkUnprocessed, 30000);
+	@endif
     </script>
-    
+
     @stack('scripts')
     @yield('modals')
 </body>
