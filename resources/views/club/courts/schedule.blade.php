@@ -927,11 +927,15 @@
                 document.querySelectorAll('[data-date-badge]').forEach(badge => {
                     const date = badge.getAttribute('data-date-badge');
                     const count = byDate[date] || 0;
+                    const btn = badge.closest('.week-day-btn');
                     if (count > 0) {
-                        badge.textContent = count;
-                        badge.style.display = 'flex';
+                        const word = count === 1 ? 'новая' : 'новых';
+                        badge.textContent = count + ' ' + word;
+                        badge.style.display = 'block';
+                        if (btn) btn.classList.add('has-unprocessed');
                     } else {
                         badge.style.display = 'none';
+                        if (btn) btn.classList.remove('has-unprocessed');
                     }
                 });
             })
@@ -1177,22 +1181,26 @@
 
     .week-day-unprocessed {
         position: absolute;
-        top: -4px;
-        left: -4px;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 5px;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 1px 6px;
         background: #ef4444;
         color: #fff;
-        font-size: 10px;
+        font-size: 8px;
         font-weight: 700;
-        border-radius: 9px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
+        border-radius: 4px;
+        white-space: nowrap;
         z-index: 2;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 8px rgba(239,68,68,0.4);
+    }
+
+    .week-day-btn.has-unprocessed {
+        box-shadow: 0 4px 16px rgba(239,68,68,0.4), inset 0 -2px 0 #ef4444;
+    }
+
+    .week-day-btn.active.has-unprocessed {
+        box-shadow: 0 4px 20px rgba(34,197,94,0.3), inset 0 -2px 0 #ef4444;
     }
 
     .week-day-btn .week-day-bar {
