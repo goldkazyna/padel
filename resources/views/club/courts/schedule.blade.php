@@ -1178,7 +1178,7 @@
     .week-day-unprocessed {
         position: absolute;
         top: -4px;
-        right: -4px;
+        left: -4px;
         min-width: 18px;
         height: 18px;
         padding: 0 5px;
