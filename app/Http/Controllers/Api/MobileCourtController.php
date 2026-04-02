@@ -299,8 +299,9 @@ class MobileCourtController extends Controller
                 'end_time' => Carbon::parse($b->end_time)->format('H:i'),
                 'price' => (float) $b->price,
                 'coach' => $b->coach ? ($b->coach->full_name ?? $b->coach->name) : null,
-                'coach_price' => null, // Цена тренера не хранится отдельно
+                'coach_price' => null,
                 'status' => $b->status,
+                'is_processed' => (bool) $b->is_processed,
                 'can_cancel' => $canCancel,
             ];
         };

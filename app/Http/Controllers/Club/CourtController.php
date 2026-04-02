@@ -328,6 +328,8 @@ class CourtController extends Controller
         $court = $booking->court;
         if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
 
+        $wasUnprocessed = !$booking->is_processed;
+
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
             'client_phone' => 'nullable|string|max:50',
@@ -348,6 +350,26 @@ class CourtController extends Controller
             'coach_id' => $validated['coach_id'] ?: null,
         ]);
 
+        // Push-уведомление при обработке (was unprocessed → now processed)
+        if ($wasUnprocessed && $booking->is_processed && $booking->booked_by) {
+            try {
+                $bookedUser = \App\Models\User::find($booking->booked_by);
+                if ($bookedUser) {
+                    $fcm = app(\App\Services\FCMNotificationService::class);
+                    $date = $booking->date->format('d.m.Y');
+                    $time = Carbon::parse($booking->start_time)->format('H:i');
+                    $fcm->sendToUser(
+                        $bookedUser,
+                        'Бронирование подтверждено ✅',
+                        "{$court->name}, {$date} в {$time}",
+                        ['type' => 'booking_confirmed', 'booking_id' => (string) $booking->id]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Push booking confirmed error: ' . $e->getMessage());
+            }
+        }
+
         return back()->with('success', 'Бронирование обновлено');
     }
 
@@ -361,6 +383,26 @@ class CourtController extends Controller
             'status' => 'cancelled',
             'cancelled_at' => now(),
         ]);
+
+        // Push-уведомление об отмене
+        if ($booking->booked_by) {
+            try {
+                $bookedUser = \App\Models\User::find($booking->booked_by);
+                if ($bookedUser) {
+                    $fcm = app(\App\Services\FCMNotificationService::class);
+                    $date = $booking->date->format('d.m.Y');
+                    $time = Carbon::parse($booking->start_time)->format('H:i');
+                    $fcm->sendToUser(
+                        $bookedUser,
+                        'Бронирование отменено ❌',
+                        "{$court->name}, {$date} в {$time}",
+                        ['type' => 'booking_cancelled', 'booking_id' => (string) $booking->id]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Push booking cancelled error: ' . $e->getMessage());
+            }
+        }
 
         return back()->with('success', 'Бронирование отменено');
     }
