@@ -756,9 +756,18 @@
 
         document.getElementById('editComment').value = data.comment || '';
         document.getElementById('editCoachId').value = data.coachId || '';
-        // Подсветить выбранного тренера
+        // Проверить доступность тренеров + подсветить выбранного
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => {
-            b.classList.toggle('active', b.getAttribute('data-coach-id') == data.coachId);
+            const coachId = b.getAttribute('data-coach-id');
+            const isCurrentCoach = coachId == data.coachId;
+            const available = isCurrentCoach || (coachAvailability[coachId] && coachAvailability[coachId][data.startTime]);
+            b.classList.remove('active', 'unavailable');
+            if (!available) {
+                b.classList.add('unavailable');
+            }
+            if (isCurrentCoach && data.coachId) {
+                b.classList.add('active');
+            }
         });
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
@@ -852,6 +861,7 @@
     }
 
     function selectEditCoach(btn) {
+        if (btn.classList.contains('unavailable')) return;
         const coachId = btn.getAttribute('data-coach-id');
         const input = document.getElementById('editCoachId');
         const isActive = btn.classList.contains('active');
