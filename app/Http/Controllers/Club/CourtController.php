@@ -365,6 +365,7 @@ class CourtController extends Controller
                         'title' => $title,
                         'body' => $body,
                         'type' => 'booking_confirmed',
+                        'category' => 'booking',
                         'data' => ['booking_id' => $booking->id],
                     ]);
 
@@ -408,6 +409,7 @@ class CourtController extends Controller
                         'title' => $title,
                         'body' => $body,
                         'type' => 'booking_cancelled',
+                        'category' => 'booking',
                         'data' => ['booking_id' => $booking->id],
                     ]);
 

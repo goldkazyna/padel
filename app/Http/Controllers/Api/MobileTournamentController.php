@@ -1072,6 +1072,7 @@ class MobileTournamentController extends Controller
                 'title' => $title,
                 'body' => $body,
                 'type' => 'slot_available',
+                'category' => 'tournament',
                 'data' => ['tournament_id' => $tournament->id],
             ]);
 

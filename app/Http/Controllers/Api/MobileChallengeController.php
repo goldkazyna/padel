@@ -124,6 +124,7 @@ class MobileChallengeController extends Controller
                     'title' => $title,
                     'body' => $body,
                     'type' => 'challenge_invite',
+                    'category' => 'challenge',
                     'data' => ['challenge_id' => $challenge->id],
                 ]);
 
@@ -637,6 +638,7 @@ class MobileChallengeController extends Controller
             'title' => $title,
             'body' => $body,
             'type' => $type,
+            'category' => 'challenge',
             'data' => ['challenge_id' => $challengeId],
         ]);
 

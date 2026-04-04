@@ -145,6 +145,7 @@ class FCMNotificationService
             'title' => $title,
             'body' => $body,
             'type' => $data['type'] ?? 'info',
+            'category' => $data['category'] ?? 'general',
             'data' => json_encode($data),
             'created_at' => $now,
             'updated_at' => $now,

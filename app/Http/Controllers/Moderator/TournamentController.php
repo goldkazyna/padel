@@ -74,6 +74,7 @@ class TournamentController extends Controller
                 'title' => $title,
                 'body' => $body,
                 'type' => 'registration_approved',
+                'category' => 'tournament',
                 'data' => ['tournament_id' => $tournament->id],
             ]);
 
@@ -119,6 +120,7 @@ class TournamentController extends Controller
                 'title' => $title,
                 'body' => $body,
                 'type' => 'registration_rejected',
+                'category' => 'tournament',
                 'data' => ['tournament_id' => $tournament->id],
             ]);
 

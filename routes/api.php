@@ -108,6 +108,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/notifications/settings', [MobileDeviceController::class, 'updateSettings']);
 
         // Уведомления
+        Route::get('/notifications/categories', [MobileNotificationController::class, 'categories']);
         Route::get('/notifications', [MobileNotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [MobileNotificationController::class, 'unreadCount']);
         Route::post('/notifications/read-all', [MobileNotificationController::class, 'readAll']);
