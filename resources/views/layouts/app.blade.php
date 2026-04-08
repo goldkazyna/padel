@@ -922,6 +922,23 @@
 						</a>
 					</li>
 					@endif
+					@if(!$modClub || $modClub->hasFeature('courts'))
+					<li class="nav-item">
+						<a href="{{ route('club.courts.schedule') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}" style="position:relative;">
+							<i class="bi bi-grid-3x3"></i>
+							<span>Корты</span>
+							<span class="unprocessed-badge" id="unprocessedBadgeMod" style="display:none;"></span>
+						</a>
+					</li>
+					@endif
+					@if(!$modClub || $modClub->hasFeature('coaches'))
+					<li class="nav-item">
+						<a href="{{ route('club.coaches.index') }}" class="nav-link {{ request()->routeIs('club.coaches.*') ? 'active' : '' }}">
+							<i class="bi bi-person-badge"></i>
+							<span>Тренеры</span>
+						</a>
+					</li>
+					@endif
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
 					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
 					<li class="nav-section-title">Админ клуба</li>
@@ -1180,15 +1197,17 @@
 		fetch('{{ route("club.unprocessedCount") }}')
 			.then(r => r.json())
 			.then(data => {
-				const badge = document.getElementById('unprocessedBadge');
-				if (badge) {
-					if (data.count > 0) {
-						badge.textContent = data.count;
-						badge.style.display = 'flex';
-					} else {
-						badge.style.display = 'none';
+				['unprocessedBadge', 'unprocessedBadgeMod'].forEach(id => {
+					const badge = document.getElementById(id);
+					if (badge) {
+						if (data.count > 0) {
+							badge.textContent = data.count;
+							badge.style.display = 'flex';
+						} else {
+							badge.style.display = 'none';
+						}
 					}
-				}
+				});
 			})
 			.catch(() => {});
 	}
