@@ -981,6 +981,12 @@
 						</a>
 					</li>
 					@endif
+					<li class="nav-item">
+						<a href="{{ route('club.moderators.index') }}" class="nav-link {{ request()->routeIs('club.moderators.*') ? 'active' : '' }}">
+							<i class="bi bi-people"></i>
+							<span>Модераторы</span>
+						</a>
+					</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

@@ -145,6 +145,13 @@ Route::middleware('auth')->group(function () {
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
 
+        // Управление модераторами (только admin)
+        Route::middleware('role:club_admin,super_admin')->group(function () {
+            Route::get('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'index'])->name('moderators.index');
+            Route::post('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'store'])->name('moderators.store');
+            Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
+        });
+
         // Кол-во необработанных бронирований (для polling)
         Route::get('/unprocessed-count', function () {
             $user = auth()->user();
