@@ -987,6 +987,12 @@
 							<span>Модераторы</span>
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
+							<i class="bi bi-clock-history"></i>
+							<span>Журнал</span>
+						</a>
+					</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

@@ -309,7 +309,7 @@ class CourtController extends Controller
         $discount = $validated['discount'] ?? 0;
         $price = max(0, $customPrice - $discount);
 
-        CourtBooking::create([
+        $booking = CourtBooking::create([
             'court_id' => $court->id,
             'date' => $validated['date'],
             'start_time' => $startTime,
@@ -324,6 +324,8 @@ class CourtController extends Controller
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?? null,
         ]);
+
+        \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$validated['date']} {$startTime}–{$endTime}");
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
     }
@@ -396,6 +398,8 @@ class CourtController extends Controller
             }
         }
 
+        \App\Models\ActivityLog::log('updated', 'CourtBooking', $booking->id, "Редактирование брони: {$booking->client_name}, {$booking->court->name}", $booking->getChanges());
+
         return back()->with('success', 'Бронирование обновлено');
     }
 
@@ -440,6 +444,8 @@ class CourtController extends Controller
             }
         }
 
+        \App\Models\ActivityLog::log('cancelled', 'CourtBooking', $booking->id, "Отмена брони: {$booking->client_name}, {$court->name}");
+
         return back()->with('success', 'Бронирование отменено');
     }
 
@@ -469,6 +475,8 @@ class CourtController extends Controller
             'comment' => $validated['comment'] ?? null,
         ]);
 
+        \App\Models\ActivityLog::log('blocked', 'CourtBlock', null, "Блокировка: {$court->name}, {$validated['date']} {$validated['start_time']}–{$validated['end_time']}");
+
         return back()->with('success', 'Слот заблокирован');
     }
 
@@ -479,6 +487,8 @@ class CourtController extends Controller
         if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
 
         $block->delete();
+
+        \App\Models\ActivityLog::log('unblocked', 'CourtBlock', $block->id, "Разблокировка: {$court->name}");
 
         return back()->with('success', 'Слот разблокирован');
     }
