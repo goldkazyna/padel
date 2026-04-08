@@ -25,11 +25,41 @@
                 </div>
             </div>
             <div class="mod-card-right">
-                <form action="{{ route('club.moderators.destroy', $mod) }}" method="POST" onsubmit="return confirm('Удалить модератора {{ $mod->name }}?')">
+                <button class="action-btn edit" title="Сменить пароль" data-bs-toggle="modal" data-bs-target="#passModal{{ $mod->id }}"><i class="bi bi-key"></i></button>
+                <form action="{{ route('club.moderators.destroy', $mod) }}" method="POST" style="display:inline;" onsubmit="return confirm('Удалить модератора {{ $mod->name }}?')">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="action-btn delete" title="Удалить">&#10005;</button>
+                    <button type="submit" class="action-btn delete" title="Удалить"><i class="bi bi-trash"></i></button>
                 </form>
+            </div>
+        </div>
+        <!-- Password Modal -->
+        <div class="modal fade" id="passModal{{ $mod->id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+                    <div class="modal-header" style="border-bottom: 1px solid #27272a; padding: 20px 24px;">
+                        <h5 class="modal-title" style="font-weight: 700;">Сменить пароль — {{ $mod->name }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ route('club.moderators.updatePassword', $mod) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-body" style="padding: 24px;">
+                            <div class="form-group">
+                                <label class="form-label">Новый пароль *</label>
+                                <input type="password" name="password" class="form-input" placeholder="Минимум 6 символов" minlength="6" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Подтвердите пароль *</label>
+                                <input type="password" name="password_confirmation" class="form-input" placeholder="Повторите пароль" minlength="6" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
+                            <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn-save">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     @empty
@@ -94,7 +124,9 @@
     .mod-avatar { width: 42px; height: 42px; border-radius: 12px; background: #22c55e; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #0a0a0b; }
     .mod-name { font-size: 15px; font-weight: 700; }
     .mod-email { font-size: 12px; color: #71717a; }
+    .mod-card-right { display: flex; gap: 6px; }
     .action-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 8px; cursor: pointer; color: #71717a; font-size: 16px; transition: all 0.2s; }
+    .action-btn.edit:hover { border-color: #3b82f6; color: #3b82f6; }
     .action-btn.delete:hover { border-color: #ef4444; color: #ef4444; }
 
     .empty-state { text-align: center; padding: 60px 20px; color: #71717a; }

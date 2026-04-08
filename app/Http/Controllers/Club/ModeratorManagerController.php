@@ -71,6 +71,24 @@ class ModeratorManagerController extends Controller
         return back()->with('success', "Модератор {$name} создан и добавлен");
     }
 
+    public function updatePassword(Request $request, User $user)
+    {
+        $club = $this->getClub();
+        if (!$club || !$club->moderators()->where('user_id', $user->id)->exists()) {
+            return back()->with('error', 'Нет доступа');
+        }
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return back()->with('success', "Пароль для {$user->name} обновлён");
+    }
+
     public function destroy(User $user)
     {
         $club = $this->getClub();

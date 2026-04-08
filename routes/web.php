@@ -149,6 +149,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('role:club_admin,super_admin')->group(function () {
             Route::get('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'index'])->name('moderators.index');
             Route::post('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'store'])->name('moderators.store');
+            Route::put('/moderators/{user}/password', [App\Http\Controllers\Club\ModeratorManagerController::class, 'updatePassword'])->name('moderators.updatePassword');
             Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
         });
 
