@@ -18,7 +18,7 @@
     @forelse($moderators as $mod)
         <div class="mod-card">
             <div class="mod-card-left">
-                <div class="mod-avatar">{{ strtoupper(substr($mod->first_name ?? $mod->name, 0, 1)) }}</div>
+                <div class="mod-avatar">{{ mb_strtoupper(mb_substr($mod->first_name ?? $mod->name, 0, 1)) }}</div>
                 <div class="mod-info">
                     <div class="mod-name">{{ $mod->name }}</div>
                     <div class="mod-email">{{ $mod->email }}</div>
