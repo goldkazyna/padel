@@ -984,7 +984,7 @@
 					<li class="nav-item">
 						<a href="{{ route('club.moderators.index') }}" class="nav-link {{ request()->routeIs('club.moderators.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
-							<span>Модераторы</span>
+							<span>Менеджеры / Модераторы</span>
 						</a>
 					</li>
 					<li class="nav-item">
