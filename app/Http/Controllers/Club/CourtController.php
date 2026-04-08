@@ -126,7 +126,7 @@ class CourtController extends Controller
         }
 
         return view('club.courts.schedule', compact(
-            'courts', 'schedules', 'timeSlots', 'date',
+            'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability'
         ));
     }

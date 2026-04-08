@@ -4,7 +4,7 @@
 
 <div class="mod-container">
     <div class="mod-header">
-        <h1 class="mod-title">Модераторы</h1>
+        <h1 class="mod-title">Модераторы — {{ $club->name ?? '' }}</h1>
         <button class="btn-add" data-bs-toggle="modal" data-bs-target="#addModal">+ Добавить модератора</button>
     </div>
 

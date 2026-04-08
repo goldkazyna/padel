@@ -8,7 +8,7 @@
 
 <div class="coaches-container">
     <div class="coaches-header">
-        <h1 class="coaches-title">Тренеры</h1>
+        <h1 class="coaches-title">Тренеры — {{ $club->name ?? '' }}</h1>
         <button class="btn-add" data-bs-toggle="modal" data-bs-target="#addCoachModal">+ Добавить тренера</button>
     </div>
 
