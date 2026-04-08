@@ -36,6 +36,14 @@ class DashboardController extends Controller
 
     public function club()
     {
-        return view('dashboard.club');
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) {
+            $club = \App\Models\Club::first();
+        } elseif ($user->isClubModerator()) {
+            $club = $user->moderatorClubs()->first();
+        } else {
+            $club = $user->adminClubs()->first();
+        }
+        return view('dashboard.club', compact('club'));
     }
 }
