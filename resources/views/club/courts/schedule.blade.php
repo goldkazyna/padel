@@ -300,7 +300,7 @@
                                         }
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -392,6 +392,16 @@
                         <div class="duration-selector" id="durationSelector"></div>
                     </div>
 
+                    <div class="price-edit-row">
+                        <div class="price-edit-group">
+                            <label class="form-label">Цена корта</label>
+                            <input type="number" name="custom_price" id="bookCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                        </div>
+                        <div class="price-edit-group">
+                            <label class="form-label">Скидка</label>
+                            <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                        </div>
+                    </div>
                     <div class="total-price">
                         <span class="total-price-label">Итого</span>
                         <span class="total-price-value" id="bookTotalPrice"></span>
@@ -520,6 +530,17 @@
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
+                    </div>
+
+                    <div class="price-edit-row">
+                        <div class="price-edit-group">
+                            <label class="form-label">Цена</label>
+                            <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
+                        </div>
+                        <div class="price-edit-group">
+                            <label class="form-label">Скидка</label>
+                            <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -672,8 +693,18 @@
     }
 
     function updateBookTotalPrice() {
-        document.getElementById('bookTotalPrice').innerHTML = formatPrice(calcTotalPrice()) + ' &#8376;';
+        const autoPrice = calcTotalPrice();
+        document.getElementById('bookCustomPrice').value = autoPrice;
+        document.getElementById('bookDiscount').value = 0;
+        updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
+    }
+
+    function updateFinalPrice() {
+        const price = parseInt(document.getElementById('bookCustomPrice').value) || 0;
+        const discount = parseInt(document.getElementById('bookDiscount').value) || 0;
+        const final_price = Math.max(0, price - discount);
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(final_price) + ' &#8376;';
     }
 
     function setDuration(n) {
@@ -765,6 +796,8 @@
             b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
         });
 
+        document.getElementById('editCustomPrice').value = Math.round(data.price) || 0;
+        document.getElementById('editDiscount').value = Math.round(data.discount) || 0;
         document.getElementById('editComment').value = data.comment || '';
 
         // Статус обработки — показывать только для необработанных
@@ -1831,6 +1864,22 @@
     .paid-btn:hover:not(.active) {
         border-color: #3f3f46;
         color: var(--sch-text);
+    }
+
+    .price-edit-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .price-edit-group {
+        flex: 1;
+    }
+
+    .price-input {
+        text-align: right;
+        font-weight: 700;
+        font-size: 15px !important;
     }
 
     .total-price {

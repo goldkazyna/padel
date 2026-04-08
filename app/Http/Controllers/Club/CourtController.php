@@ -283,6 +283,8 @@ class CourtController extends Controller
             'is_paid' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'coach_id' => 'nullable|exists:users,id',
+            'custom_price' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
         ]);
 
         $startTime = $validated['start_time'];
@@ -302,7 +304,10 @@ class CourtController extends Controller
             }
         }
 
-        $price = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
+        $autoPrice = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
+        $customPrice = $validated['custom_price'] ?? $autoPrice;
+        $discount = $validated['discount'] ?? 0;
+        $price = max(0, $customPrice - $discount);
 
         CourtBooking::create([
             'court_id' => $court->id,
@@ -313,6 +318,7 @@ class CourtController extends Controller
             'client_phone' => $validated['client_phone'] ?? null,
             'booked_by' => auth()->id(),
             'price' => $price,
+            'discount' => $discount,
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
             'comment' => $validated['comment'] ?? null,
@@ -338,9 +344,11 @@ class CourtController extends Controller
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'coach_id' => 'nullable',
+            'custom_price' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
         ]);
 
-        $booking->update([
+        $updateData = [
             'client_name' => $validated['client_name'],
             'client_phone' => $validated['client_phone'] ?? null,
             'payment_method' => $validated['payment_method'] ?? null,
@@ -348,7 +356,15 @@ class CourtController extends Controller
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?: null,
-        ]);
+        ];
+
+        if (isset($validated['custom_price'])) {
+            $discount = $validated['discount'] ?? 0;
+            $updateData['price'] = max(0, $validated['custom_price'] - $discount);
+            $updateData['discount'] = $discount;
+        }
+
+        $booking->update($updateData);
 
         // Push + уведомление при обработке (was unprocessed → now processed)
         if ($wasUnprocessed && $booking->is_processed && $booking->booked_by) {
