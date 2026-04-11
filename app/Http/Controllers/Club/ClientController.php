@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\ClubClient;
 use Illuminate\Http\Request;
 
@@ -55,6 +56,12 @@ class ClientController extends Controller
 
         $client = ClubClient::create([...$validated, 'club_id' => $club->id]);
 
+        $details = $client->name;
+        if ($client->phone) $details .= ", тел. {$client->phone}";
+        if ($client->gender) $details .= ", " . ($client->gender === 'male' ? 'М' : 'Ж');
+        if ($client->birth_date) $details .= ", д.р. " . $client->birth_date->format('d.m.Y');
+        ActivityLog::log('created', 'ClubClient', $client->id, "Добавлен клиент: {$details}", $validated);
+
         return redirect()->route('club.clients.index', ['selected' => $client->id])
             ->with('success', 'Клиент добавлен');
     }
@@ -72,7 +79,25 @@ class ClientController extends Controller
             'birth_date' => 'nullable|date',
         ]);
 
+        $oldValues = $client->only(array_keys($validated));
         $client->update($validated);
+        $changes = $client->getChanges();
+        unset($changes['updated_at']);
+
+        if ($changes) {
+            $changedFields = [];
+            $fieldNames = ['name' => 'имя', 'phone' => 'телефон', 'gender' => 'пол', 'birth_date' => 'дата рождения', 'note' => 'заметка'];
+            foreach ($changes as $field => $newVal) {
+                $label = $fieldNames[$field] ?? $field;
+                $oldVal = $oldValues[$field] ?? '—';
+                if ($field === 'gender') {
+                    $oldVal = match($oldVal) { 'male' => 'М', 'female' => 'Ж', default => '—' };
+                    $newVal = match($newVal) { 'male' => 'М', 'female' => 'Ж', default => '—' };
+                }
+                $changedFields[] = "{$label}: {$oldVal} → {$newVal}";
+            }
+            ActivityLog::log('updated', 'ClubClient', $client->id, "Редактирование клиента {$client->name}: " . implode(', ', $changedFields), ['old' => $oldValues, 'new' => $changes]);
+        }
 
         return redirect()->route('club.clients.index', ['selected' => $client->id])
             ->with('success', 'Клиент обновлён');
@@ -83,7 +108,14 @@ class ClientController extends Controller
         $club = $this->getClub();
         if (!$club || $client->club_id !== $club->id) abort(403);
 
+        $clientName = $client->name;
+        $clientPhone = $client->phone;
+        $clientData = $client->toArray();
         $client->delete();
+
+        $details = "Удалён клиент: {$clientName}";
+        if ($clientPhone) $details .= ", тел. {$clientPhone}";
+        ActivityLog::log('deleted', 'ClubClient', null, $details, $clientData);
 
         return redirect()->route('club.clients.index')
             ->with('success', 'Клиент удалён');
