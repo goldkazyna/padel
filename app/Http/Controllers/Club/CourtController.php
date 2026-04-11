@@ -422,7 +422,7 @@ class CourtController extends Controller
 
         \App\Models\ActivityLog::log('updated', 'CourtBooking', $booking->id, "Редактирование брони: {$booking->client_name}, {$booking->court->name}", $booking->getChanges());
 
-        return back()->with('success', 'Бронирование обновлено');
+        return redirect()->route('club.courts.schedule', ['date' => $booking->date instanceof \Carbon\Carbon ? $booking->date->format('Y-m-d') : $booking->date])->with('success', 'Бронирование обновлено');
     }
 
     public function cancelBooking(CourtBooking $booking)
