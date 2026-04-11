@@ -366,41 +366,50 @@
                 <input type="hidden" name="start_time" id="bookStartTime">
                 <input type="hidden" name="slots" id="bookSlots" value="1">
 
-                <!-- Info strip -->
-                <div class="sch-modal-strip">
-                    <span class="sch-modal-strip-tag" id="bookCourtName"></span>
-                    <span class="sch-modal-strip-info">{{ $formattedDate }}</span>
-                    <span class="sch-modal-strip-sep">|</span>
-                    <span class="sch-modal-strip-info" id="bookTime"></span>
-                    <span class="sch-modal-strip-sep">|</span>
-                    <span class="sch-modal-strip-info"><span id="bookPrice"></span>/час</span>
-                </div>
+                <div class="modal-two-col">
+                    <!-- Left column: info, duration, price -->
+                    <div class="modal-col-left">
+                        <div class="sch-modal-info">
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Корт</span>
+                                <span class="sch-modal-info-value" id="bookCourtName"></span>
+                            </div>
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Дата</span>
+                                <span class="sch-modal-info-value">{{ $formattedDate }}</span>
+                            </div>
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Начало</span>
+                                <span class="sch-modal-info-value" id="bookTime"></span>
+                            </div>
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Цена/час</span>
+                                <span class="sch-modal-info-value" id="bookPrice"></span>
+                            </div>
+                        </div>
 
-                <div class="sch-modal-body">
-                    <!-- Duration -->
-                    <div class="form-group">
-                        <label class="form-label">Длительность</label>
+                        <div class="modal-section-title">Длительность</div>
                         <div class="duration-selector" id="durationSelector"></div>
+
+                        <div class="modal-section-title">Цена и скидка</div>
+                        <div class="price-edit-row">
+                            <div class="price-edit-group">
+                                <label class="form-label">Цена корта</label>
+                                <input type="number" name="custom_price" id="bookCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                            </div>
+                            <div class="price-edit-group">
+                                <label class="form-label">Скидка</label>
+                                <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                            </div>
+                        </div>
+                        <div class="total-price">
+                            <span class="total-price-label">Итого</span>
+                            <span class="total-price-value" id="bookTotalPrice"></span>
+                        </div>
                     </div>
 
-                    <!-- Price row -->
-                    <div class="modal-grid">
-                        <div class="form-group">
-                            <label class="form-label">Цена корта</label>
-                            <input type="number" name="custom_price" id="bookCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Скидка</label>
-                            <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
-                        </div>
-                    </div>
-                    <div class="total-price">
-                        <span class="total-price-label">Итого</span>
-                        <span class="total-price-value" id="bookTotalPrice"></span>
-                    </div>
-
-                    <!-- Client row -->
-                    <div class="modal-grid">
+                    <!-- Right column: client, payment, coach -->
+                    <div class="modal-col-right">
                         <div class="form-group">
                             <label class="form-label">Имя клиента *</label>
                             <input type="text" name="client_name" class="form-input" placeholder="Введите имя" required>
@@ -409,11 +418,8 @@
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" class="form-input" placeholder="+7 (___) ___-__-__" required>
                         </div>
-                    </div>
 
-                    <!-- Payment -->
-                    <div class="form-group">
-                        <label class="form-label">Способ оплаты</label>
+                        <div class="modal-section-title">Способ оплаты</div>
                         <div class="payment-methods" id="paymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
@@ -424,11 +430,8 @@
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)">Кешбэк</button>
                         </div>
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
-                    </div>
 
-                    <!-- Paid + Comment row -->
-                    <div class="modal-grid">
-                        <div class="form-group">
+                        <div class="form-group" style="margin-top: 14px;">
                             <label class="form-label">Статус оплаты</label>
                             <input type="hidden" name="is_paid" id="isPaidInput" value="0">
                             <div class="paid-toggle">
@@ -436,15 +439,13 @@
                                 <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
                             </div>
                         </div>
+
                         <div class="form-group">
                             <label class="form-label">Комментарий</label>
                             <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                         </div>
-                    </div>
 
-                    <!-- Coach -->
-                    <div class="form-group" id="bookCoachGroup">
-                        <label class="form-label">Тренер</label>
+                        <div class="modal-section-title">Тренер</div>
                         <div class="coach-buttons" id="bookCoachButtons">
                             @foreach($clubCoaches as $cc)
                                 <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
@@ -453,13 +454,13 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
-                    </div>
 
-                    <!-- Block option -->
-                    <div style="text-align: center; margin-top: 8px;">
-                        <button type="button" class="btn-block-slot" onclick="blockSlot()">Заблокировать слот</button>
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button type="button" class="btn-block-slot" onclick="blockSlot()">Заблокировать слот</button>
+                        </div>
                     </div>
                 </div>
+
                 <div class="sch-modal-footer">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn-confirm">Забронировать</button>
@@ -490,56 +491,36 @@
                 @csrf
                 @method('PUT')
 
-                <!-- Info strip -->
-                <div class="sch-modal-strip">
-                    <span class="sch-modal-strip-tag" id="viewCourtName"></span>
-                    <span class="sch-modal-strip-info" id="viewTime"></span>
-                    <span class="sch-modal-strip-sep">|</span>
-                    <span class="sch-modal-strip-info"><span id="viewPrice" style="color: var(--sch-accent); font-weight: 800;"></span></span>
-                </div>
+                <div class="modal-two-col">
+                    <!-- Left column: info, price -->
+                    <div class="modal-col-left">
+                        <div class="sch-modal-info">
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Корт</span>
+                                <span class="sch-modal-info-value" id="viewCourtName"></span>
+                            </div>
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Время</span>
+                                <span class="sch-modal-info-value" id="viewTime"></span>
+                            </div>
+                            <div class="sch-modal-info-row">
+                                <span class="sch-modal-info-label">Цена</span>
+                                <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
+                            </div>
+                        </div>
 
-                <div class="sch-modal-body">
-                    <!-- Client row -->
-                    <div class="modal-grid">
-                        <div class="form-group">
-                            <label class="form-label">Имя клиента *</label>
-                            <input type="text" name="client_name" id="editClientName" class="form-input" required>
+                        <div class="modal-section-title">Цена и скидка</div>
+                        <div class="price-edit-row">
+                            <div class="price-edit-group">
+                                <label class="form-label">Цена</label>
+                                <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
+                            </div>
+                            <div class="price-edit-group">
+                                <label class="form-label">Скидка</label>
+                                <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Телефон *</label>
-                            <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required>
-                        </div>
-                    </div>
 
-                    <!-- Payment -->
-                    <div class="form-group">
-                        <label class="form-label">Способ оплаты</label>
-                        <div class="payment-methods" id="editPaymentMethods">
-                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
-                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
-                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
-                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)">Сертификат</button>
-                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)">Клубная карта</button>
-                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)">Депозит</button>
-                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
-                        </div>
-                        <input type="hidden" name="payment_method" id="editPaymentMethodInput">
-                    </div>
-
-                    <!-- Price + Discount row -->
-                    <div class="modal-grid">
-                        <div class="form-group">
-                            <label class="form-label">Цена</label>
-                            <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Скидка</label>
-                            <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0">
-                        </div>
-                    </div>
-
-                    <!-- Paid + Processed row -->
-                    <div class="modal-grid">
                         <div class="form-group">
                             <label class="form-label">Статус оплаты</label>
                             <input type="hidden" name="is_paid" id="editIsPaidInput" value="0">
@@ -548,6 +529,7 @@
                                 <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
                             </div>
                         </div>
+
                         <div class="form-group" id="editProcessedGroup" style="display:none;">
                             <label class="form-label">Статус обработки</label>
                             <input type="hidden" name="is_processed" id="editIsProcessedInput" value="1">
@@ -558,25 +540,46 @@
                         </div>
                     </div>
 
-                    <!-- Comment + Coach row -->
-                    <div class="modal-grid">
+                    <!-- Right column: client, payment, coach -->
+                    <div class="modal-col-right">
                         <div class="form-group">
+                            <label class="form-label">Имя клиента *</label>
+                            <input type="text" name="client_name" id="editClientName" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Телефон *</label>
+                            <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required>
+                        </div>
+
+                        <div class="modal-section-title">Способ оплаты</div>
+                        <div class="payment-methods" id="editPaymentMethods">
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)">Сертификат</button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)">Клубная карта</button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)">Депозит</button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
+                        </div>
+                        <input type="hidden" name="payment_method" id="editPaymentMethodInput">
+
+                        <div class="form-group" style="margin-top: 14px;">
                             <label class="form-label">Комментарий</label>
                             <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                         </div>
-                        <div class="form-group" id="editCoachGroup">
-                            <label class="form-label">Тренер</label>
-                            <div class="coach-buttons" id="editCoachButtons">
-                                @foreach($clubCoaches as $cc)
-                                    <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
-                                        {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
-                                    </button>
-                                @endforeach
-                            </div>
-                            <input type="hidden" name="coach_id" id="editCoachId" value="">
+
+                        <div class="modal-section-title">Тренер</div>
+                        <div class="coach-buttons" id="editCoachButtons">
+                            @foreach($clubCoaches as $cc)
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
+                            @endforeach
                         </div>
+                        <input type="hidden" name="coach_id" id="editCoachId" value="">
                     </div>
                 </div>
+
                 <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
                     <div style="display: flex; gap: 12px; width: 100%;">
                         <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
@@ -1577,7 +1580,7 @@
 
     /* Bootstrap Modal Overrides for dark theme */
     .modal-wide {
-        max-width: 680px;
+        max-width: 720px;
     }
 
     #bookModal .modal-content,
@@ -1586,44 +1589,28 @@
         overflow: hidden;
     }
 
-    .sch-modal-strip {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 24px;
-        background: var(--sch-card-alt);
-        border-bottom: 1px solid var(--sch-border);
-        flex-wrap: wrap;
-    }
-
-    .sch-modal-strip-tag {
-        padding: 5px 12px;
-        background: rgba(34, 197, 94, 0.12);
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--sch-accent);
-    }
-
-    .sch-modal-strip-info {
-        font-size: 14px;
-        color: var(--sch-text-dim);
-        font-weight: 600;
-    }
-
-    .sch-modal-strip-info b, .sch-modal-strip-info span {
-        color: var(--sch-text);
-        font-weight: 700;
-    }
-
-    .sch-modal-strip-sep {
-        color: var(--sch-border-light);
-    }
-
-    .modal-grid {
+    .modal-two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
+    }
+
+    .modal-col-left {
+        padding: 20px 24px;
+        border-right: 1px solid var(--sch-border);
+    }
+
+    .modal-col-right {
+        padding: 20px 24px;
+    }
+
+    .modal-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--sch-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+        margin-top: 16px;
     }
 
     .sch-modal-header {
