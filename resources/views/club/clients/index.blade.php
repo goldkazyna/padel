@@ -153,7 +153,7 @@
 <div class="modal-overlay" id="addModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 class="modal-title">Добавить к��иента</h2>
+            <h2 class="modal-title">Добавить клиента</h2>
             <button class="modal-close" onclick="closeModal('addModal')">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -162,7 +162,7 @@
             @csrf
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">��мя *</label>
+                    <label class="form-label">Имя *</label>
                     <input type="text" name="name" class="form-input" placeholder="Имя клиента" required>
                 </div>
                 <div class="form-group">
@@ -228,7 +228,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Дата рожден��я</label>
+                        <label class="form-label">Дата рождения</label>
                         <input type="date" name="birth_date" class="form-input" value="{{ $selectedClient->birth_date?->format('Y-m-d') }}">
                     </div>
                 </div>
@@ -238,7 +238,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-cancel" onclick="closeModal('editModal')">Отмен��</button>
+                <button type="button" class="btn-cancel" onclick="closeModal('editModal')">Отмена</button>
                 <button type="submit" class="btn-save">Сохранить</button>
             </div>
         </form>
