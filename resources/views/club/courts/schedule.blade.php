@@ -2358,7 +2358,6 @@ function processBooking(id, url, data) {
             if (r.ok || r.redirected) {
                 const card = document.getElementById('unprocessedCard' + id);
                 if (card) card.style.display = 'none';
-                // Обновить счётчик
                 const remaining = document.querySelectorAll('.unprocessed-card:not([style*="display: none"])').length;
                 const countEl = document.querySelector('.unprocessed-panel-count');
                 const badgeEl = document.querySelector('.unprocessed-panel-badge');
@@ -2368,10 +2367,13 @@ function processBooking(id, url, data) {
                     document.querySelector('.unprocessed-panel-body').innerHTML = '<div class="unprocessed-empty"><i class="bi bi-check-circle"></i><p>Все заявки обработаны</p></div>';
                 }
             } else {
-                alert('Ошибка при обработке');
+                r.text().then(text => {
+                    console.error('processBooking error', r.status, text);
+                    alert('Ошибка ' + r.status + ': ' + (text.substring(0, 300)));
+                });
             }
         })
-        .catch(() => alert('Ошибка сети'));
+        .catch(e => { console.error('processBooking network', e); alert('Ошибка сети: ' + e.message); });
 }
 
 function cancelUnprocessed(id, url, name) {
@@ -2393,10 +2395,13 @@ function cancelUnprocessed(id, url, name) {
                     document.querySelector('.unprocessed-panel-body').innerHTML = '<div class="unprocessed-empty"><i class="bi bi-check-circle"></i><p>Все заявки обработаны</p></div>';
                 }
             } else {
-                alert('Ошибка при отмене');
+                r.text().then(text => {
+                    console.error('cancelBooking error', r.status, text);
+                    alert('Ошибка ' + r.status + ': ' + (text.substring(0, 300)));
+                });
             }
         })
-        .catch(() => alert('Ошибка сети'));
+        .catch(e => { console.error('cancelBooking network', e); alert('Ошибка сети: ' + e.message); });
 }
 
 (function() {
