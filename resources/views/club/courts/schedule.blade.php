@@ -2355,6 +2355,11 @@
     }
 </style>
 <script>
+function toggleUnprocessedPanel() {
+    document.getElementById('unprocessedPanel').classList.toggle('show');
+    document.getElementById('unprocessedOverlay').classList.toggle('show');
+}
+
 (function() {
     const searchUrl = @json(route('club.clients.search'));
     let debounceTimer = null;
@@ -2411,11 +2416,6 @@
     function formatPhone(p) {
         if (!p) return '';
         return '+' + p.replace(/\D/g, '');
-    }
-
-    function toggleUnprocessedPanel() {
-        document.getElementById('unprocessedPanel').classList.toggle('show');
-        document.getElementById('unprocessedOverlay').classList.toggle('show');
     }
 
     // Book modal
