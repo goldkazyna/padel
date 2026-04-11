@@ -379,7 +379,7 @@ class CourtController extends Controller
             'is_paid' => $validated['is_paid'] ?? false,
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
-            'coach_id' => $validated['coach_id'] ?: null,
+            'coach_id' => ($validated['coach_id'] ?? null) ?: null,
         ];
 
         if (isset($validated['custom_price'])) {
