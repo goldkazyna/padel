@@ -2,7 +2,7 @@
 
 ## Суть
 
-Справочник клиентов клуба. Ручной ввод (имя, телефон, заметка, уровень, пол, дата рождения). Без привязки к User. UI: список слева + карточка выбранного клиента справа.
+Справочник клиентов клуба. Ручной ввод (имя, телефон, заметка, пол, дата рождения). Без привязки к User. UI: список слева + карточка выбранного клиента справа.
 
 ## Таблица `club_clients`
 
@@ -13,7 +13,6 @@
 | name | string | Имя клиента (обязательное) |
 | phone | string, nullable | Телефон |
 | note | text, nullable | Заметка |
-| level | decimal(3,2), nullable | Уровень игры (1.00–5.75) |
 | gender | enum('male','female'), nullable | Пол |
 | birth_date | date, nullable | Дата рождения |
 | created_at, updated_at | timestamps | |
@@ -23,8 +22,8 @@ Unique constraint: нет (один клуб может иметь клиент�
 ## Модель `ClubClient`
 
 - `club()` — BelongsTo Club
-- Fillable: name, phone, note, level, gender, birth_date, club_id
-- Cast: birth_date → date, level → decimal
+- Fillable: name, phone, note, gender, birth_date, club_id
+- Cast: birth_date → date
 
 ## Контроллер `Club\ClientController`
 
@@ -35,7 +34,7 @@ Unique constraint: нет (один клуб может иметь клиент�
 - Возвращает view `club.clients.index`
 
 ### `store(Request $request)`
-- Валидация: name (required, max:255), phone (nullable, max:20), note (nullable, max:1000), level (nullable, numeric, min:1, max:5.75), gender (nullable, in:male,female), birth_date (nullable, date)
+- Валидация: name (required, max:255), phone (nullable, max:20), note (nullable, max:1000), gender (nullable, in:male,female), birth_date (nullable, date)
 - Привязка к текущему клубу
 - Redirect back с flash-сообщением
 
@@ -64,18 +63,18 @@ Unique constraint: нет (один клуб может иметь клиент�
 **Основная область — два столбца:**
 
 *Левый столбец (список):*
-- Список клиентов: аватар (инициалы), имя, телефон, бейдж уровня
+- Список клиентов: аватар (инициалы), имя, телефон
 - Выбранный клиент подсвечен (border-left accent + фон)
 - Пагинация внизу
 
 *Правый столбец (панель деталей, sticky):*
 - Аватар (большой), имя, телефон
-- Блок «Информация»: уровень, пол, дата рождения, дата добавления
+- Блок «Информация»: пол, дата рождения, дата добавления
 - Блок «Заметка»
 - Кнопки: «Редактировать», «Удалить»
 
 **Добавление/редактирование:**
-- Модальное окно с полями: имя, телефон, уровень, пол, дата рождения, заметка
+- Модальное окно с полями: имя, телефон, пол, дата рождения, заметка
 
 **Стили:**
 - Тёмная тема, CSS-переменные как в остальных разделах CRM

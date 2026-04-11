@@ -185,6 +185,14 @@ Route::middleware('auth')->group(function () {
             Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
         });
 
+        // Клиенты
+        Route::middleware('club.feature:clients')->group(function () {
+            Route::get('/clients', [App\Http\Controllers\Club\ClientController::class, 'index'])->name('clients.index');
+            Route::post('/clients', [App\Http\Controllers\Club\ClientController::class, 'store'])->name('clients.store');
+            Route::put('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'update'])->name('clients.update');
+            Route::delete('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'destroy'])->name('clients.destroy');
+        });
+
         // Корты
         Route::middleware('club.feature:courts')->group(function () {
             Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');

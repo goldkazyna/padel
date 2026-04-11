@@ -939,6 +939,14 @@
 						</a>
 					</li>
 					@endif
+					@if(!$modClub || $modClub->hasFeature('clients'))
+					<li class="nav-item">
+						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
+							<i class="bi bi-person-lines-fill"></i>
+							<span>Клиенты</span>
+						</a>
+					</li>
+					@endif
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
 					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
 					<li class="nav-section-title">Админ клуба</li>
@@ -961,6 +969,14 @@
 						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Пользователи</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('clients'))
+					<li class="nav-item">
+						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
+							<i class="bi bi-person-lines-fill"></i>
+							<span>Клиенты</span>
 						</a>
 					</li>
 					@endif
