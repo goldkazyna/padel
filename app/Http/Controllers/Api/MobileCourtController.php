@@ -63,7 +63,7 @@ class MobileCourtController extends Controller
             'name' => $club->name,
             'address' => $club->address,
             'city' => $club->city,
-            'logo' => $club->logo,
+            'logo' => $club->logo ? url($club->logo) : null,
             'courts_count' => $club->courts_count,
             'min_price' => isset($minPrices[$club->id]) ? (float) $minPrices[$club->id] : null,
         ]);
