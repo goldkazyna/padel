@@ -1580,7 +1580,7 @@
 
     /* Bootstrap Modal Overrides for dark theme */
     .modal-wide {
-        max-width: 720px;
+        max-width: 1000px;
     }
 
     #bookModal .modal-content,
