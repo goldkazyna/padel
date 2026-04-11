@@ -52,6 +52,7 @@ class ClientController extends Controller
         $query = ClubClient::where('club_id', $club->id);
 
         if ($field === 'phone') {
+            $q = preg_replace('/\D/', '', $q);
             $query->where('phone', 'like', "%{$q}%");
         } else {
             $query->where('name', 'like', "%{$q}%");
