@@ -410,13 +410,15 @@
 
                     <!-- Right column: client, payment, coach -->
                     <div class="modal-col-right">
-                        <div class="form-group">
+                        <div class="form-group autocomplete-wrap">
                             <label class="form-label">Имя клиента *</label>
-                            <input type="text" name="client_name" class="form-input" placeholder="Введите имя" required>
+                            <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Введите имя" required autocomplete="off">
+                            <div class="autocomplete-list" id="bookNameList"></div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group autocomplete-wrap">
                             <label class="form-label">Телефон *</label>
-                            <input type="text" name="client_phone" class="form-input" placeholder="+7 (___) ___-__-__" required>
+                            <input type="text" name="client_phone" id="bookClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
+                            <div class="autocomplete-list" id="bookPhoneList"></div>
                         </div>
 
                         <div class="modal-section-title">Способ оплаты</div>
@@ -542,13 +544,15 @@
 
                     <!-- Right column: client, payment, coach -->
                     <div class="modal-col-right">
-                        <div class="form-group">
+                        <div class="form-group autocomplete-wrap">
                             <label class="form-label">Имя клиента *</label>
-                            <input type="text" name="client_name" id="editClientName" class="form-input" required>
+                            <input type="text" name="client_name" id="editClientName" class="form-input" autocomplete="off" required>
+                            <div class="autocomplete-list" id="editNameList"></div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group autocomplete-wrap">
                             <label class="form-label">Телефон *</label>
-                            <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required>
+                            <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" autocomplete="off" required>
+                            <div class="autocomplete-list" id="editPhoneList"></div>
                         </div>
 
                         <div class="modal-section-title">Способ оплаты</div>
@@ -1613,6 +1617,59 @@
         margin-top: 16px;
     }
 
+    .autocomplete-wrap {
+        position: relative;
+    }
+
+    .autocomplete-list {
+        display: none;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 50;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        margin-top: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .autocomplete-list.show {
+        display: block;
+    }
+
+    .autocomplete-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: background 0.1s;
+        border-bottom: 1px solid var(--sch-border);
+    }
+
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .autocomplete-item:hover {
+        background: rgba(34, 197, 94, 0.1);
+    }
+
+    .autocomplete-item-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--sch-text);
+    }
+
+    .autocomplete-item-phone {
+        font-size: 13px;
+        color: var(--sch-text-muted);
+    }
+
     .sch-modal-header {
         display: flex;
         align-items: center;
@@ -2013,4 +2070,67 @@
         .date-label { min-width: auto; font-size: 15px; }
     }
 </style>
+<script>
+(function() {
+    const searchUrl = @json(route('club.clients.search'));
+    let debounceTimer = null;
+
+    function setupAutocomplete(inputId, listId, field, pairedInputId) {
+        const input = document.getElementById(inputId);
+        const list = document.getElementById(listId);
+        if (!input || !list) return;
+
+        input.addEventListener('input', function() {
+            const q = this.value.trim();
+            clearTimeout(debounceTimer);
+            if (q.length < 1) { list.classList.remove('show'); return; }
+
+            debounceTimer = setTimeout(() => {
+                fetch(searchUrl + '?q=' + encodeURIComponent(q) + '&field=' + field)
+                    .then(r => r.json())
+                    .then(clients => {
+                        if (!clients.length) { list.classList.remove('show'); return; }
+                        list.innerHTML = clients.map(c =>
+                            '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + (c.phone || '').replace(/"/g, '&quot;') + '">' +
+                            '<span class="autocomplete-item-name">' + escHtml(c.name) + '</span>' +
+                            '<span class="autocomplete-item-phone">' + escHtml(c.phone || '') + '</span>' +
+                            '</div>'
+                        ).join('');
+                        list.classList.add('show');
+
+                        list.querySelectorAll('.autocomplete-item').forEach(item => {
+                            item.addEventListener('click', function() {
+                                input.value = this.dataset[field];
+                                const paired = document.getElementById(pairedInputId);
+                                if (paired) {
+                                    const pairedField = field === 'name' ? 'phone' : 'name';
+                                    paired.value = this.dataset[pairedField];
+                                }
+                                list.classList.remove('show');
+                            });
+                        });
+                    });
+            }, 150);
+        });
+
+        input.addEventListener('blur', function() {
+            setTimeout(() => list.classList.remove('show'), 200);
+        });
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    // Book modal
+    setupAutocomplete('bookClientName', 'bookNameList', 'name', 'bookClientPhone');
+    setupAutocomplete('bookClientPhone', 'bookPhoneList', 'phone', 'bookClientName');
+
+    // Edit modal
+    setupAutocomplete('editClientName', 'editNameList', 'name', 'editClientPhone');
+    setupAutocomplete('editClientPhone', 'editPhoneList', 'phone', 'editClientName');
+})();
+</script>
 @endsection

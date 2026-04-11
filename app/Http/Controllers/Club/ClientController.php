@@ -41,6 +41,27 @@ class ClientController extends Controller
         return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient'));
     }
 
+    public function search(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) return response()->json([]);
+
+        $q = $request->get('q', '');
+        $field = $request->get('field', 'name');
+
+        $query = ClubClient::where('club_id', $club->id);
+
+        if ($field === 'phone') {
+            $query->where('phone', 'like', "%{$q}%");
+        } else {
+            $query->where('name', 'like', "%{$q}%");
+        }
+
+        return response()->json(
+            $query->orderBy('name')->limit(10)->get(['id', 'name', 'phone'])
+        );
+    }
+
     public function store(Request $request)
     {
         $club = $this->getClub();
