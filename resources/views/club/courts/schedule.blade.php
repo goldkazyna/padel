@@ -387,27 +387,14 @@
                     <div class="unprocessed-card-comment">{{ $ub->comment }}</div>
                 @endif
                 <div class="unprocessed-card-actions">
-                    <form method="POST" action="{{ route('club.courts.updateBooking', $ub) }}" style="flex:2;">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="client_name" value="{{ $ub->client_name }}">
-                        <input type="hidden" name="client_phone" value="+{{ $ub->client_phone }}">
-                        <input type="hidden" name="is_processed" value="1">
-                        <input type="hidden" name="is_paid" value="{{ $ub->is_paid ? '1' : '0' }}">
-                        @if($ub->payment_method)<input type="hidden" name="payment_method" value="{{ $ub->payment_method }}">@endif
-                        @if($ub->coach_id)<input type="hidden" name="coach_id" value="{{ $ub->coach_id }}">@endif
-                        @if($ub->comment)<input type="hidden" name="comment" value="{{ $ub->comment }}">@endif
-                        <button type="submit" class="unprocessed-btn-process">
-                            <i class="bi bi-check-lg"></i> Обработать
-                        </button>
-                    </form>
-                    <form method="POST" action="{{ route('club.courts.cancelBooking', $ub) }}" style="flex:1;"
-                          onsubmit="return confirm('Отменить бронь {{ $ub->client_name }}?')">
-                        @csrf
-                        <button type="submit" class="unprocessed-btn-cancel">
-                            <i class="bi bi-x-lg"></i> Отменить
-                        </button>
-                    </form>
+                    <button type="button" class="unprocessed-btn-process" style="flex:2;"
+                            onclick="processBooking({{ $ub->id }}, '{{ route('club.courts.updateBooking', $ub) }}', {{ json_encode(['client_name' => $ub->client_name, 'client_phone' => '+' . $ub->client_phone, 'is_processed' => '1', 'is_paid' => $ub->is_paid ? '1' : '0', 'payment_method' => $ub->payment_method, 'coach_id' => $ub->coach_id, 'comment' => $ub->comment]) }})">
+                        <i class="bi bi-check-lg"></i> Обработать
+                    </button>
+                    <button type="button" class="unprocessed-btn-cancel" style="flex:1;"
+                            onclick="cancelUnprocessed({{ $ub->id }}, '{{ route('club.courts.cancelBooking', $ub) }}', '{{ $ub->client_name }}')">
+                        <i class="bi bi-x-lg"></i> Отменить
+                    </button>
                 </div>
             </div>
         @empty
@@ -2358,6 +2345,58 @@
 function toggleUnprocessedPanel() {
     document.getElementById('unprocessedPanel').classList.toggle('show');
     document.getElementById('unprocessedOverlay').classList.toggle('show');
+}
+
+function processBooking(id, url, data) {
+    const formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    formData.append('_method', 'PUT');
+    Object.keys(data).forEach(k => { if (data[k] !== null && data[k] !== undefined) formData.append(k, data[k]); });
+
+    fetch(url, { method: 'POST', body: formData })
+        .then(r => {
+            if (r.ok || r.redirected) {
+                const card = document.getElementById('unprocessedCard' + id);
+                if (card) card.style.display = 'none';
+                // Обновить счётчик
+                const remaining = document.querySelectorAll('.unprocessed-card:not([style*="display: none"])').length;
+                const countEl = document.querySelector('.unprocessed-panel-count');
+                const badgeEl = document.querySelector('.unprocessed-panel-badge');
+                if (countEl) countEl.textContent = remaining;
+                if (badgeEl) badgeEl.textContent = remaining;
+                if (remaining === 0) {
+                    document.querySelector('.unprocessed-panel-body').innerHTML = '<div class="unprocessed-empty"><i class="bi bi-check-circle"></i><p>Все заявки обработаны</p></div>';
+                }
+            } else {
+                alert('Ошибка при обработке');
+            }
+        })
+        .catch(() => alert('Ошибка сети'));
+}
+
+function cancelUnprocessed(id, url, name) {
+    if (!confirm('Отменить бронь ' + name + '?')) return;
+    const formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+
+    fetch(url, { method: 'POST', body: formData })
+        .then(r => {
+            if (r.ok || r.redirected) {
+                const card = document.getElementById('unprocessedCard' + id);
+                if (card) card.style.display = 'none';
+                const remaining = document.querySelectorAll('.unprocessed-card:not([style*="display: none"])').length;
+                const countEl = document.querySelector('.unprocessed-panel-count');
+                const badgeEl = document.querySelector('.unprocessed-panel-badge');
+                if (countEl) countEl.textContent = remaining;
+                if (badgeEl) badgeEl.textContent = remaining;
+                if (remaining === 0) {
+                    document.querySelector('.unprocessed-panel-body').innerHTML = '<div class="unprocessed-empty"><i class="bi bi-check-circle"></i><p>Все заявки обработаны</p></div>';
+                }
+            } else {
+                alert('Ошибка при отмене');
+            }
+        })
+        .catch(() => alert('Ошибка сети'));
 }
 
 (function() {
