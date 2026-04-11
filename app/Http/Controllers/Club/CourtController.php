@@ -327,6 +327,14 @@ class CourtController extends Controller
             'coach_id' => $validated['coach_id'] ?? null,
         ]);
 
+        // Автоматически добавить клиента в справочник если его нет
+        if ($validated['client_phone']) {
+            \App\Models\ClubClient::firstOrCreate(
+                ['club_id' => $club->id, 'phone' => $validated['client_phone']],
+                ['name' => $validated['client_name']]
+            );
+        }
+
         \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$validated['date']} {$startTime}–{$endTime}");
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
