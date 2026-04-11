@@ -304,7 +304,7 @@
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
-                                                @if($booking->client_phone)<span class="slot-phone">{{ $booking->client_phone }}</span>@endif
+                                                @if($booking->client_phone)<span class="slot-phone">+{{ $booking->client_phone }}</span>@endif
                                             </div>
                                             <div class="slot-right">
                                                 <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
@@ -787,7 +787,7 @@
         document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
 
         document.getElementById('editClientName').value = data.clientName || '';
-        document.getElementById('editClientPhone').value = data.clientPhone || '';
+        document.getElementById('editClientPhone').value = data.clientPhone ? '+' + data.clientPhone.replace(/\D/g, '') : '';
 
         // Payment method
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
@@ -2091,9 +2091,9 @@
                     .then(clients => {
                         if (!clients.length) { list.classList.remove('show'); return; }
                         list.innerHTML = clients.map(c =>
-                            '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + (c.phone || '').replace(/"/g, '&quot;') + '">' +
+                            '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + formatPhone(c.phone).replace(/"/g, '&quot;') + '">' +
                             '<span class="autocomplete-item-name">' + escHtml(c.name) + '</span>' +
-                            '<span class="autocomplete-item-phone">' + escHtml(c.phone || '') + '</span>' +
+                            '<span class="autocomplete-item-phone">' + escHtml(formatPhone(c.phone)) + '</span>' +
                             '</div>'
                         ).join('');
                         list.classList.add('show');
@@ -2122,6 +2122,11 @@
         const d = document.createElement('div');
         d.textContent = s;
         return d.innerHTML;
+    }
+
+    function formatPhone(p) {
+        if (!p) return '';
+        return '+' + p.replace(/\D/g, '');
     }
 
     // Book modal

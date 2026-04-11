@@ -287,6 +287,8 @@ class CourtController extends Controller
             'discount' => 'nullable|numeric|min:0',
         ]);
 
+        $validated['client_phone'] = preg_replace('/\D/', '', $validated['client_phone']);
+
         $startTime = $validated['start_time'];
         $totalMinutes = $validated['slots'] * $court->slot_duration;
         $endTime = Carbon::parse($startTime)->addMinutes($totalMinutes)->format('H:i');
@@ -349,6 +351,8 @@ class CourtController extends Controller
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
         ]);
+
+        $validated['client_phone'] = preg_replace('/\D/', '', $validated['client_phone']);
 
         $updateData = [
             'client_name' => $validated['client_name'],
