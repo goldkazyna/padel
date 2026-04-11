@@ -278,7 +278,7 @@ class CourtController extends Controller
             'start_time' => 'required|date_format:H:i',
             'slots' => 'required|integer|min:1|max:8',
             'client_name' => 'required|string|max:255',
-            'client_phone' => 'nullable|string|max:50',
+            'client_phone' => 'required|string|max:50',
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
@@ -315,7 +315,7 @@ class CourtController extends Controller
             'start_time' => $startTime,
             'end_time' => $endTime,
             'client_name' => $validated['client_name'],
-            'client_phone' => $validated['client_phone'] ?? null,
+            'client_phone' => $validated['client_phone'],
             'booked_by' => auth()->id(),
             'price' => $price,
             'discount' => $discount,
@@ -340,7 +340,7 @@ class CourtController extends Controller
 
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
-            'client_phone' => 'nullable|string|max:50',
+            'client_phone' => 'required|string|max:50',
             'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'nullable|boolean',
             'is_processed' => 'nullable|boolean',
@@ -352,7 +352,7 @@ class CourtController extends Controller
 
         $updateData = [
             'client_name' => $validated['client_name'],
-            'client_phone' => $validated['client_phone'] ?? null,
+            'client_phone' => $validated['client_phone'],
             'payment_method' => $validated['payment_method'] ?? null,
             'is_paid' => $validated['is_paid'] ?? false,
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,

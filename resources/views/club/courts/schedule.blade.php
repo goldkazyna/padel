@@ -412,8 +412,8 @@
                         <input type="text" name="client_name" class="form-input" placeholder="Введите имя" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Телефон (необязательно)</label>
-                        <input type="text" name="client_phone" class="form-input" placeholder="+7 (___) ___-__-__">
+                        <label class="form-label">Телефон *</label>
+                        <input type="text" name="client_phone" class="form-input" placeholder="+7 (___) ___-__-__" required>
                     </div>
 
                     <div class="form-group">
@@ -515,7 +515,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Телефон</label>
-                        <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__">
+                        <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required>
                     </div>
 
                     <div class="form-group">
