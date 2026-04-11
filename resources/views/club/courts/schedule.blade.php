@@ -177,6 +177,13 @@
         <div class="header-left">
             <h1>Расписание кортов — {{ $club->name ?? '' }}</h1>
         </div>
+        @if($unprocessedBookings->count() > 0)
+        <button type="button" class="unprocessed-panel-btn" onclick="toggleUnprocessedPanel()">
+            <i class="bi bi-exclamation-circle"></i>
+            Необработанные
+            <span class="unprocessed-panel-badge">{{ $unprocessedBookings->count() }}</span>
+        </button>
+        @endif
         <a href="{{ route('club.courts.index') }}" class="settings-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
             Настройки кортов
@@ -349,6 +356,66 @@
         <div class="legend-item"><span class="legend-dot unpaid"></span>Не оплачено</div>
         <div class="legend-item"><span class="legend-dot unprocessed"></span>Не обработан</div>
         <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
+    </div>
+</div>
+
+<!-- Unprocessed Panel -->
+<div class="unprocessed-overlay" id="unprocessedOverlay" onclick="toggleUnprocessedPanel()"></div>
+<div class="unprocessed-panel" id="unprocessedPanel">
+    <div class="unprocessed-panel-header">
+        <h2><i class="bi bi-exclamation-circle"></i> Необработанные заявки <span class="unprocessed-panel-count">{{ $unprocessedBookings->count() }}</span></h2>
+        <button class="sch-modal-close" onclick="toggleUnprocessedPanel()">&#10005;</button>
+    </div>
+    <div class="unprocessed-panel-body">
+        @forelse($unprocessedBookings as $ub)
+            <div class="unprocessed-card" id="unprocessedCard{{ $ub->id }}">
+                <div class="unprocessed-card-top">
+                    <div class="unprocessed-card-client">
+                        <span class="unprocessed-card-name">{{ $ub->client_name }}</span>
+                        @if($ub->client_phone)
+                            <span class="unprocessed-card-phone">+{{ $ub->client_phone }}</span>
+                        @endif
+                    </div>
+                    <span class="unprocessed-card-price">{{ number_format($ub->price, 0, '', ' ') }} ₸</span>
+                </div>
+                <div class="unprocessed-card-details">
+                    <span><i class="bi bi-grid-3x3"></i> {{ $ub->court->name }}</span>
+                    <span><i class="bi bi-calendar3"></i> {{ \Carbon\Carbon::parse($ub->date)->locale('ru')->isoFormat('D MMM') }}</span>
+                    <span><i class="bi bi-clock"></i> {{ substr($ub->start_time, 0, 5) }}–{{ substr($ub->end_time, 0, 5) }}</span>
+                </div>
+                @if($ub->comment)
+                    <div class="unprocessed-card-comment">{{ $ub->comment }}</div>
+                @endif
+                <div class="unprocessed-card-actions">
+                    <form method="POST" action="{{ route('club.courts.updateBooking', $ub) }}" style="flex:2;">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="client_name" value="{{ $ub->client_name }}">
+                        <input type="hidden" name="client_phone" value="+{{ $ub->client_phone }}">
+                        <input type="hidden" name="is_processed" value="1">
+                        <input type="hidden" name="is_paid" value="{{ $ub->is_paid ? '1' : '0' }}">
+                        @if($ub->payment_method)<input type="hidden" name="payment_method" value="{{ $ub->payment_method }}">@endif
+                        @if($ub->coach_id)<input type="hidden" name="coach_id" value="{{ $ub->coach_id }}">@endif
+                        @if($ub->comment)<input type="hidden" name="comment" value="{{ $ub->comment }}">@endif
+                        <button type="submit" class="unprocessed-btn-process">
+                            <i class="bi bi-check-lg"></i> Обработать
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('club.courts.cancelBooking', $ub) }}" style="flex:1;"
+                          onsubmit="return confirm('Отменить бронь {{ $ub->client_name }}?')">
+                        @csrf
+                        <button type="submit" class="unprocessed-btn-cancel">
+                            <i class="bi bi-x-lg"></i> Отменить
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @empty
+            <div class="unprocessed-empty">
+                <i class="bi bi-check-circle"></i>
+                <p>Все заявки обработаны</p>
+            </div>
+        @endforelse
     </div>
 </div>
 
@@ -1670,6 +1737,223 @@
         color: var(--sch-text-muted);
     }
 
+    /* Unprocessed Panel Button */
+    .unprocessed-panel-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        color: #fca5a5;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .unprocessed-panel-btn:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: var(--sch-red);
+        color: var(--sch-red);
+    }
+
+    .unprocessed-panel-btn i { font-size: 16px; }
+
+    .unprocessed-panel-badge {
+        background: var(--sch-red);
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    /* Slide-in Panel */
+    .unprocessed-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+    }
+
+    .unprocessed-overlay.show { display: block; }
+
+    .unprocessed-panel {
+        position: fixed;
+        top: 0;
+        right: -460px;
+        width: 440px;
+        height: 100vh;
+        background: var(--sch-bg);
+        border-left: 1px solid var(--sch-border);
+        z-index: 1051;
+        display: flex;
+        flex-direction: column;
+        transition: right 0.3s ease;
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .unprocessed-panel.show { right: 0; }
+
+    .unprocessed-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--sch-border);
+        flex-shrink: 0;
+    }
+
+    .unprocessed-panel-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .unprocessed-panel-header h2 i { color: var(--sch-red); }
+
+    .unprocessed-panel-count {
+        background: var(--sch-red);
+        color: #fff;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .unprocessed-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .unprocessed-card {
+        background: var(--sch-card);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .unprocessed-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+
+    .unprocessed-card-client {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .unprocessed-card-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--sch-text);
+    }
+
+    .unprocessed-card-phone {
+        font-size: 13px;
+        color: var(--sch-text-muted);
+    }
+
+    .unprocessed-card-price {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--sch-accent);
+    }
+
+    .unprocessed-card-details {
+        display: flex;
+        gap: 14px;
+        font-size: 13px;
+        color: var(--sch-text-dim);
+        margin-bottom: 10px;
+    }
+
+    .unprocessed-card-details i {
+        font-size: 12px;
+        color: var(--sch-text-muted);
+        margin-right: 4px;
+    }
+
+    .unprocessed-card-comment {
+        font-size: 13px;
+        color: var(--sch-text-muted);
+        padding: 8px 10px;
+        background: rgba(113, 113, 122, 0.1);
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .unprocessed-card-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .unprocessed-btn-process {
+        width: 100%;
+        padding: 10px;
+        background: var(--sch-accent);
+        border: none;
+        border-radius: 8px;
+        color: var(--sch-bg);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .unprocessed-btn-process:hover { background: var(--sch-accent-dark); }
+
+    .unprocessed-btn-cancel {
+        width: 100%;
+        padding: 10px;
+        background: transparent;
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        color: var(--sch-text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .unprocessed-btn-cancel:hover {
+        border-color: var(--sch-red);
+        color: var(--sch-red);
+    }
+
+    .unprocessed-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--sch-text-muted);
+    }
+
+    .unprocessed-empty i {
+        font-size: 40px;
+        color: var(--sch-accent);
+        display: block;
+        margin-bottom: 12px;
+    }
+
     .sch-modal-header {
         display: flex;
         align-items: center;
@@ -2127,6 +2411,11 @@
     function formatPhone(p) {
         if (!p) return '';
         return '+' + p.replace(/\D/g, '');
+    }
+
+    function toggleUnprocessedPanel() {
+        document.getElementById('unprocessedPanel').classList.toggle('show');
+        document.getElementById('unprocessedOverlay').classList.toggle('show');
     }
 
     // Book modal

@@ -125,9 +125,19 @@ class CourtController extends Controller
             }
         }
 
+        // Необработанные заявки
+        $unprocessedBookings = CourtBooking::whereIn('court_id', $courts->pluck('id'))
+            ->where('status', 'confirmed')
+            ->where('is_processed', false)
+            ->with('court')
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
-            'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability'
+            'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
+            'unprocessedBookings'
         ));
     }
 
