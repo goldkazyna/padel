@@ -75,6 +75,10 @@ class ClientController extends Controller
             'birth_date' => 'nullable|date',
         ]);
 
+        if (!empty($validated['phone'])) {
+            $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
+        }
+
         $client = ClubClient::create([...$validated, 'club_id' => $club->id]);
 
         $details = $client->name;
@@ -99,6 +103,10 @@ class ClientController extends Controller
             'gender' => 'nullable|in:male,female',
             'birth_date' => 'nullable|date',
         ]);
+
+        if (!empty($validated['phone'])) {
+            $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
+        }
 
         $oldValues = $client->only(array_keys($validated));
         $client->update($validated);
