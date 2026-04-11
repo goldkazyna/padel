@@ -387,13 +387,23 @@
                     <div class="unprocessed-card-comment">{{ $ub->comment }}</div>
                 @endif
                 <div class="unprocessed-card-actions">
-                    <button type="button" class="unprocessed-btn-process" style="flex:2;"
-                            onclick="processBooking({{ $ub->id }}, '{{ route('club.courts.updateBooking', $ub) }}', {{ json_encode(['client_name' => $ub->client_name, 'client_phone' => '+' . $ub->client_phone, 'is_processed' => '1', 'is_paid' => $ub->is_paid ? '1' : '0', 'payment_method' => $ub->payment_method, 'coach_id' => $ub->coach_id, 'comment' => $ub->comment]) }})">
-                        <i class="bi bi-check-lg"></i> Обработать
-                    </button>
-                    <button type="button" class="unprocessed-btn-cancel" style="flex:1;"
-                            onclick="cancelUnprocessed({{ $ub->id }}, '{{ route('club.courts.cancelBooking', $ub) }}', '{{ $ub->client_name }}')">
-                        <i class="bi bi-x-lg"></i> Отменить
+                    <button type="button" class="unprocessed-btn-view"
+                            onclick="toggleUnprocessedPanel(); openViewModal({{ json_encode([
+                                'id' => $ub->id,
+                                'courtName' => $ub->court->name,
+                                'startTime' => substr($ub->start_time, 0, 5),
+                                'endTime' => substr($ub->end_time, 0, 5),
+                                'price' => $ub->price,
+                                'discount' => $ub->discount ?? 0,
+                                'clientName' => $ub->client_name,
+                                'clientPhone' => $ub->client_phone,
+                                'paymentMethod' => $ub->payment_method,
+                                'isPaid' => $ub->is_paid,
+                                'isProcessed' => $ub->is_processed,
+                                'comment' => $ub->comment,
+                                'coachId' => $ub->coach_id,
+                            ]) }})">
+                        <i class="bi bi-eye"></i> Просмотреть
                     </button>
                 </div>
             </div>
@@ -1887,13 +1897,13 @@
         gap: 8px;
     }
 
-    .unprocessed-btn-process {
+    .unprocessed-btn-view {
         width: 100%;
         padding: 10px;
-        background: var(--sch-accent);
-        border: none;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
         border-radius: 8px;
-        color: var(--sch-bg);
+        color: var(--sch-text-dim);
         font-size: 13px;
         font-weight: 700;
         cursor: pointer;
@@ -1904,28 +1914,9 @@
         transition: all 0.2s;
     }
 
-    .unprocessed-btn-process:hover { background: var(--sch-accent-dark); }
-
-    .unprocessed-btn-cancel {
-        width: 100%;
-        padding: 10px;
-        background: transparent;
-        border: 1px solid var(--sch-border);
-        border-radius: 8px;
-        color: var(--sch-text-muted);
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        transition: all 0.2s;
-    }
-
-    .unprocessed-btn-cancel:hover {
-        border-color: var(--sch-red);
-        color: var(--sch-red);
+    .unprocessed-btn-view:hover {
+        border-color: var(--sch-accent);
+        color: var(--sch-accent);
     }
 
     .unprocessed-empty {
