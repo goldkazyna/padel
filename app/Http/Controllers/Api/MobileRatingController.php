@@ -185,6 +185,93 @@ class MobileRatingController extends Controller
     }
 
     /**
+     * Рост рейтинга
+     * GET /api/mobile/rating/growth
+     *
+     * Query params:
+     *   period — week, month, all (по умолчанию month)
+     *   page   — страница
+     */
+    public function growth(Request $request)
+    {
+        $user = $request->user();
+        $period = $request->input('period', 'month');
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 20;
+
+        $query = \App\Models\RatingHistory::selectRaw('user_id, SUM(change) as total_growth')
+            ->groupBy('user_id')
+            ->having('total_growth', '>', 0);
+
+        if ($period === 'week') {
+            $query->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $query->where('created_at', '>=', now()->subMonth());
+        }
+
+        $total = $query->get()->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $results = (clone $query)
+            ->orderBy('total_growth', 'desc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $userIds = $results->pluck('user_id');
+        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+        $players = [];
+        $position = ($page - 1) * $perPage;
+        foreach ($results as $row) {
+            $position++;
+            $u = $users[$row->user_id] ?? null;
+            if (!$u) continue;
+            $players[] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'position' => $position,
+                'growth' => (int) $row->total_growth,
+                'is_me' => $u->id === $user->id,
+            ];
+        }
+
+        // Мой рост
+        $myGrowthQuery = \App\Models\RatingHistory::where('user_id', $user->id);
+        if ($period === 'week') {
+            $myGrowthQuery->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $myGrowthQuery->where('created_at', '>=', now()->subMonth());
+        }
+        $myGrowth = (int) $myGrowthQuery->sum('change');
+
+        // Моя позиция в росте
+        $myPlaceQuery = \App\Models\RatingHistory::selectRaw('user_id, SUM(change) as total_growth')
+            ->groupBy('user_id')
+            ->having('total_growth', '>', $myGrowth > 0 ? $myGrowth : PHP_INT_MAX);
+        if ($period === 'week') {
+            $myPlaceQuery->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $myPlaceQuery->where('created_at', '>=', now()->subMonth());
+        }
+        $myPlace = $myPlaceQuery->get()->count() + 1;
+
+        return response()->json([
+            'success' => true,
+            'players' => $players,
+            'my_growth' => $myGrowth,
+            'my_place' => $myPlace,
+            'period' => $period,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'total' => $total,
+        ]);
+    }
+
+    /**
      * Фильтрация по уровню
      */
     private function applyLevelFilter($query, string $level): void
