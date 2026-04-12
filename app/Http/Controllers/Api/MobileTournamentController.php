@@ -666,7 +666,109 @@ class MobileTournamentController extends Controller
             ],
             'matches' => $userMatches,
             'participants' => $participants,
+            'leaderboard' => $this->getLeaderboard($tournament),
         ]);
+    }
+
+    /**
+     * Лидерборд турнира (американо/мексикано)
+     */
+    private function getLeaderboard(Tournament $tournament): array
+    {
+        if (!in_array($tournament->type, ['americano', 'mexicano'])) {
+            return [];
+        }
+
+        $playerStats = [];
+
+        if ($tournament->type === 'americano') {
+            $groups = $tournament->groups()->with(['players', 'rounds.matches'])->get();
+
+            foreach ($groups as $group) {
+                foreach ($group->players as $player) {
+                    if (!isset($playerStats[$player->id])) {
+                        $playerStats[$player->id] = [
+                            'id' => $player->id,
+                            'name' => $player->name,
+                            'avatar' => $player->avatar,
+                            'rating' => $player->rating,
+                            'level' => $player->level,
+                            'wins' => 0, 'losses' => 0,
+                            'points_for' => 0, 'points_against' => 0,
+                            'total_points' => (int) ($player->pivot->total_points ?? 0),
+                        ];
+                    } else {
+                        $playerStats[$player->id]['total_points'] += (int) ($player->pivot->total_points ?? 0);
+                    }
+                }
+
+                foreach ($group->rounds as $round) {
+                    foreach ($round->matches as $match) {
+                        if ($match->status !== 'completed') continue;
+                        $this->countMatchStats($playerStats, $match);
+                    }
+                }
+            }
+        } elseif ($tournament->type === 'mexicano') {
+            $mexicanoPlayers = $tournament->mexicanoPlayers()->with('user')->get();
+            foreach ($mexicanoPlayers as $mp) {
+                $user = $mp->user;
+                if (!$user) continue;
+                $playerStats[$user->id] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar,
+                    'rating' => $user->rating,
+                    'level' => $user->level,
+                    'wins' => 0, 'losses' => 0,
+                    'points_for' => 0, 'points_against' => 0,
+                    'total_points' => (int) ($mp->total_points ?? 0),
+                ];
+            }
+
+            $rounds = $tournament->mexicanoRounds()->with('matches')->get();
+            foreach ($rounds as $round) {
+                foreach ($round->matches as $match) {
+                    if ($match->status !== 'completed') continue;
+                    $this->countMatchStats($playerStats, $match);
+                }
+            }
+        }
+
+        usort($playerStats, function ($a, $b) {
+            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+        });
+
+        return array_values(array_map(function ($s, $i) {
+            $totalGames = $s['wins'] + $s['losses'];
+            $s['position'] = $i + 1;
+            $s['win_percent'] = $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0;
+            return $s;
+        }, $playerStats, array_keys($playerStats)));
+    }
+
+    private function countMatchStats(array &$stats, $match): void
+    {
+        $team1 = array_filter([$match->team1_player1_id, $match->team1_player2_id]);
+        $team2 = array_filter([$match->team2_player1_id, $match->team2_player2_id]);
+
+        foreach ($team1 as $pId) {
+            if (!isset($stats[$pId])) continue;
+            $stats[$pId]['points_for'] += (int) $match->team1_score;
+            $stats[$pId]['points_against'] += (int) $match->team2_score;
+            if ($match->team1_score > $match->team2_score) $stats[$pId]['wins']++;
+            elseif ($match->team1_score < $match->team2_score) $stats[$pId]['losses']++;
+        }
+
+        foreach ($team2 as $pId) {
+            if (!isset($stats[$pId])) continue;
+            $stats[$pId]['points_for'] += (int) $match->team2_score;
+            $stats[$pId]['points_against'] += (int) $match->team1_score;
+            if ($match->team2_score > $match->team1_score) $stats[$pId]['wins']++;
+            elseif ($match->team2_score < $match->team1_score) $stats[$pId]['losses']++;
+        }
     }
 
     /**
