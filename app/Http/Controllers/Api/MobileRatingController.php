@@ -433,6 +433,13 @@ class MobileRatingController extends Controller
      */
     private function getTournamentPlace($tournament, int $userId): ?int
     {
+        // Команды игрока (для team-турниров)
+        $myTeamIds = \App\Models\TournamentTeam::where('tournament_id', $tournament->id)
+            ->where(function ($q) use ($userId) {
+                $q->where('player1_id', $userId)->orWhere('player2_id', $userId);
+            })
+            ->pluck('id');
+
         // Проверяем финал
         $finalMatch = $tournament->playoffMatches()
             ->whereIn('stage', ['final', 'Финал'])
@@ -440,6 +447,7 @@ class MobileRatingController extends Controller
             ->first();
 
         if ($finalMatch) {
+            // Player-based (americano/mexicano)
             if ($finalMatch->team1_player1_id) {
                 $inTeam1 = in_array($userId, [$finalMatch->team1_player1_id, $finalMatch->team1_player2_id]);
                 $inTeam2 = in_array($userId, [$finalMatch->team2_player1_id, $finalMatch->team2_player2_id]);
@@ -450,18 +458,35 @@ class MobileRatingController extends Controller
                 }
             }
 
-            // Проверяем полуфинал — если не в финале, значит 3-4 место
+            // Team-based (team)
+            if ($finalMatch->team1_id && $myTeamIds->isNotEmpty()) {
+                $inTeam1 = $myTeamIds->contains($finalMatch->team1_id);
+                $inTeam2 = $myTeamIds->contains($finalMatch->team2_id);
+
+                if ($inTeam1 || $inTeam2) {
+                    if ($finalMatch->winner_id && $myTeamIds->contains($finalMatch->winner_id)) return 1;
+                    return 2;
+                }
+            }
+
+            // Полуфинал — 3-4 место
             $semiMatches = $tournament->playoffMatches()
                 ->whereIn('stage', ['semi', 'Полуфинал'])
                 ->where('status', 'completed')
                 ->get();
 
             foreach ($semiMatches as $semi) {
+                // Player-based
                 $inSemi = in_array($userId, [
                     $semi->team1_player1_id, $semi->team1_player2_id,
                     $semi->team2_player1_id, $semi->team2_player2_id,
                 ]);
                 if ($inSemi) return 3;
+
+                // Team-based
+                if ($myTeamIds->isNotEmpty() && ($myTeamIds->contains($semi->team1_id) || $myTeamIds->contains($semi->team2_id))) {
+                    return 3;
+                }
             }
         }
 
@@ -485,6 +510,17 @@ class MobileRatingController extends Controller
             $sorted = $allPlayers->sortByDesc('total_points')->values();
             $index = $sorted->search(fn($p) => $p['id'] === $userId);
             if ($index !== false) return $index + 1;
+        }
+
+        // Team турнир без плей-офф — место по группе
+        if ($tournament->type === 'team' && $myTeamIds->isNotEmpty()) {
+            $groups = $tournament->groups()->with('teams')->get();
+            foreach ($groups as $group) {
+                $sorted = $group->teams->sortByDesc(fn($t) => $t->pivot->points ?? 0)->values();
+                foreach ($sorted as $i => $team) {
+                    if ($myTeamIds->contains($team->id)) return $i + 1;
+                }
+            }
         }
 
         return null;
