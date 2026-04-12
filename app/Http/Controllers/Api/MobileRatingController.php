@@ -288,22 +288,20 @@ class MobileRatingController extends Controller
             })
             ->count() + 1;
 
-        // Кол-во турниров
-        $tournamentsCount = $user->tournaments()
-            ->whereIn('tournament_participants.status', ['registered', 'confirmed'])
-            ->count();
-
-        // Кол-во игр (записи в rating_history = кол-во турниров с результатами)
-        $gamesCount = \App\Models\RatingHistory::where('user_id', $user->id)->count();
+        // Статистика как в профиле
+        $matchStats = $user->getAllMatchesStats();
+        $tournamentStats = $user->getTournamentStats();
 
         // История рейтинга
         $history = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->with('tournament:id,name')
+            ->with('tournament:id,name,type')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
             ->map(fn($h) => [
+                'tournament_id' => $h->tournament_id,
                 'tournament_name' => $h->tournament?->name ?? $h->reason ?? 'Турнир',
+                'tournament_type' => $h->tournament?->type,
                 'date' => $h->created_at->format('d.m.Y'),
                 'change' => $h->change,
                 'rating_after' => $h->rating_after,
@@ -318,8 +316,13 @@ class MobileRatingController extends Controller
                 'rating' => $user->rating,
                 'level' => $user->level,
                 'place' => $place,
-                'tournaments_count' => $tournamentsCount,
-                'games_count' => $gamesCount,
+                'matches_played' => $matchStats['total'],
+                'wins' => $matchStats['won'],
+                'losses' => $matchStats['lost'],
+                'winrate' => $matchStats['total'] > 0
+                    ? (int) round(($matchStats['won'] / $matchStats['total']) * 100)
+                    : 0,
+                'tournaments_count' => $tournamentStats['total'],
             ],
             'history' => $history,
         ]);
