@@ -294,18 +294,25 @@ class MobileRatingController extends Controller
 
         // История рейтинга
         $history = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->with('tournament:id,name,type')
+            ->with('tournament:id,name,type,has_playoff')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
-            ->map(fn($h) => [
-                'tournament_id' => $h->tournament_id,
-                'tournament_name' => $h->tournament?->name ?? $h->reason ?? 'Турнир',
-                'tournament_type' => $h->tournament?->type,
-                'date' => $h->created_at->format('d.m.Y'),
-                'change' => $h->change,
-                'rating_after' => $h->rating_after,
-            ]);
+            ->map(function($h) use ($user) {
+                $place = null;
+                if ($h->tournament) {
+                    $place = $this->getTournamentPlace($h->tournament, $user->id);
+                }
+                return [
+                    'tournament_id' => $h->tournament_id,
+                    'tournament_name' => $h->tournament?->name ?? $h->reason ?? 'Турнир',
+                    'tournament_type' => $h->tournament?->type,
+                    'date' => $h->created_at->format('d.m.Y'),
+                    'change' => $h->change,
+                    'rating_after' => $h->rating_after,
+                    'place' => $place,
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -419,6 +426,68 @@ class MobileRatingController extends Controller
             'total_pages' => $totalPages,
             'total' => $total,
         ]);
+    }
+
+    /**
+     * Место игрока в турнире
+     */
+    private function getTournamentPlace($tournament, int $userId): ?int
+    {
+        // Проверяем финал
+        $finalMatch = $tournament->playoffMatches()
+            ->whereIn('stage', ['final', 'Финал'])
+            ->where('status', 'completed')
+            ->first();
+
+        if ($finalMatch) {
+            if ($finalMatch->team1_player1_id) {
+                $inTeam1 = in_array($userId, [$finalMatch->team1_player1_id, $finalMatch->team1_player2_id]);
+                $inTeam2 = in_array($userId, [$finalMatch->team2_player1_id, $finalMatch->team2_player2_id]);
+
+                if ($inTeam1 || $inTeam2) {
+                    $team1Won = $finalMatch->team1_score > $finalMatch->team2_score;
+                    return ($inTeam1 && $team1Won) || ($inTeam2 && !$team1Won) ? 1 : 2;
+                }
+            }
+
+            // Проверяем полуфинал — если не в финале, значит 3-4 место
+            $semiMatches = $tournament->playoffMatches()
+                ->whereIn('stage', ['semi', 'Полуфинал'])
+                ->where('status', 'completed')
+                ->get();
+
+            foreach ($semiMatches as $semi) {
+                $inSemi = in_array($userId, [
+                    $semi->team1_player1_id, $semi->team1_player2_id,
+                    $semi->team2_player1_id, $semi->team2_player2_id,
+                ]);
+                if ($inSemi) return 3;
+            }
+        }
+
+        // По лидерборду (позиция в группе по очкам)
+        if (in_array($tournament->type, ['americano', 'mexicano'])) {
+            $groups = $tournament->groups()->with('players')->get();
+            $allPlayers = collect();
+            foreach ($groups as $group) {
+                foreach ($group->players as $player) {
+                    $existing = $allPlayers->firstWhere('id', $player->id);
+                    if ($existing) {
+                        $existing['total_points'] += (int) ($player->pivot->total_points ?? 0);
+                    } else {
+                        $allPlayers->push([
+                            'id' => $player->id,
+                            'total_points' => (int) ($player->pivot->total_points ?? 0),
+                        ]);
+                    }
+                }
+            }
+            $sorted = $allPlayers->sortByDesc('total_points')->values();
+            $index = $sorted->search(fn($p) => $p['id'] === $userId);
+            if ($index !== false) return $index + 1;
+        }
+
+        return null;
     }
 
     /**
