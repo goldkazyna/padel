@@ -329,6 +329,99 @@ class MobileRatingController extends Controller
     }
 
     /**
+     * Активность по турнирам
+     * GET /api/mobile/rating/tournaments
+     *
+     * Query params:
+     *   period — week, month, all (по умолчанию month)
+     *   page   — страница
+     */
+    public function tournaments(Request $request)
+    {
+        $user = $request->user();
+        $period = $request->input('period', 'month');
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 20;
+
+        $query = \App\Models\RatingHistory::selectRaw('user_id, COUNT(DISTINCT tournament_id) as tournaments_count, SUM(`change`) as total_change')
+            ->whereNotNull('tournament_id')
+            ->groupBy('user_id')
+            ->having('tournaments_count', '>', 0);
+
+        if ($period === 'week') {
+            $query->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $query->where('created_at', '>=', now()->subMonth());
+        }
+
+        $total = $query->get()->count();
+        $totalPages = max(1, (int) ceil($total / $perPage));
+
+        $results = (clone $query)
+            ->orderBy('tournaments_count', 'desc')
+            ->orderBy('total_change', 'desc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $userIds = $results->pluck('user_id');
+        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+        $players = [];
+        $position = ($page - 1) * $perPage;
+        foreach ($results as $row) {
+            $position++;
+            $u = $users[$row->user_id] ?? null;
+            if (!$u) continue;
+            $players[] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'position' => $position,
+                'tournaments_count' => (int) $row->tournaments_count,
+                'total_change' => (int) $row->total_change,
+                'is_me' => $u->id === $user->id,
+            ];
+        }
+
+        // Мои данные
+        $myQuery = \App\Models\RatingHistory::where('user_id', $user->id)->whereNotNull('tournament_id');
+        if ($period === 'week') {
+            $myQuery->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $myQuery->where('created_at', '>=', now()->subMonth());
+        }
+        $myTournaments = $myQuery->distinct('tournament_id')->count('tournament_id');
+        $myChange = (int) (clone $myQuery)->sum(\DB::raw('`change`'));
+
+        // Моя позиция
+        $myPlaceQuery = \App\Models\RatingHistory::selectRaw('user_id, COUNT(DISTINCT tournament_id) as tournaments_count')
+            ->whereNotNull('tournament_id')
+            ->groupBy('user_id')
+            ->having('tournaments_count', '>', $myTournaments > 0 ? $myTournaments : PHP_INT_MAX);
+        if ($period === 'week') {
+            $myPlaceQuery->where('created_at', '>=', now()->subWeek());
+        } elseif ($period === 'month') {
+            $myPlaceQuery->where('created_at', '>=', now()->subMonth());
+        }
+        $myPlace = $myPlaceQuery->get()->count() + 1;
+
+        return response()->json([
+            'success' => true,
+            'players' => $players,
+            'my_tournaments' => $myTournaments,
+            'my_change' => $myChange,
+            'my_place' => $myPlace,
+            'period' => $period,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'total' => $total,
+        ]);
+    }
+
+    /**
      * Фильтрация по уровню
      */
     private function applyLevelFilter($query, string $level): void

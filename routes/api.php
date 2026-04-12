@@ -87,6 +87,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/rating', [MobileRatingController::class, 'index']);
         Route::get('/rating/growth', [MobileRatingController::class, 'growth']);
         Route::get('/rating/player/{user}', [MobileRatingController::class, 'player']);
+        Route::get('/rating/tournaments', [MobileRatingController::class, 'tournaments']);
 
         // Турниры
         Route::get('/tournaments', [MobileTournamentController::class, 'index']);
