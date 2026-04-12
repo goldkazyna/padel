@@ -756,7 +756,7 @@ class MobileTournamentController extends Controller
 
         $matches = $tournament->playoffMatches()
             ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2'])
-            ->orderByRaw("FIELD(stage, 'eighth', 'quarter', 'semi', 'third_place', 'final'), match_number")
+            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
             ->get();
 
         if ($matches->isEmpty()) return [];
