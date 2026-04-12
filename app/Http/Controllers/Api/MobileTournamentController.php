@@ -1153,38 +1153,99 @@ class MobileTournamentController extends Controller
      */
     private function getUserPlace(Tournament $tournament, int $userId): ?int
     {
+        $myTeamIds = TournamentTeam::where('tournament_id', $tournament->id)
+            ->where(function ($q) use ($userId) {
+                $q->where('player1_id', $userId)->orWhere('player2_id', $userId);
+            })
+            ->pluck('id');
+
+        // Проверяем финал
         $finalMatch = $tournament->playoffMatches()
             ->whereIn('stage', ['final', 'Финал'])
             ->where('status', 'completed')
             ->first();
 
-        if (!$finalMatch) return null;
+        if ($finalMatch) {
+            // Player-based (americano/mexicano)
+            if ($finalMatch->team1_player1_id) {
+                $inTeam1 = in_array($userId, [$finalMatch->team1_player1_id, $finalMatch->team1_player2_id]);
+                $inTeam2 = in_array($userId, [$finalMatch->team2_player1_id, $finalMatch->team2_player2_id]);
 
-        // Player-based playoff (americano/mexicano)
-        if ($finalMatch->team1_player1_id) {
-            $inTeam1 = in_array($userId, [$finalMatch->team1_player1_id, $finalMatch->team1_player2_id]);
-            $inTeam2 = in_array($userId, [$finalMatch->team2_player1_id, $finalMatch->team2_player2_id]);
+                if ($inTeam1 || $inTeam2) {
+                    $team1Won = $finalMatch->team1_score > $finalMatch->team2_score;
+                    return ($inTeam1 && $team1Won) || ($inTeam2 && !$team1Won) ? 1 : 2;
+                }
+            }
 
-            if (!$inTeam1 && !$inTeam2) return null;
+            // Team-based (team)
+            if ($finalMatch->team1_id && $myTeamIds->isNotEmpty()) {
+                $inTeam1 = $myTeamIds->contains($finalMatch->team1_id);
+                $inTeam2 = $myTeamIds->contains($finalMatch->team2_id);
 
-            $team1Won = $finalMatch->team1_score > $finalMatch->team2_score;
-            return ($inTeam1 && $team1Won) || ($inTeam2 && !$team1Won) ? 1 : 2;
+                if ($inTeam1 || $inTeam2) {
+                    return $finalMatch->winner_id && $myTeamIds->contains($finalMatch->winner_id) ? 1 : 2;
+                }
+            }
+
+            // Полуфинал — 3-4 место
+            $semiMatches = $tournament->playoffMatches()
+                ->whereIn('stage', ['semi', 'Полуфинал'])
+                ->where('status', 'completed')
+                ->get();
+
+            foreach ($semiMatches as $semi) {
+                $inSemi = in_array($userId, [
+                    $semi->team1_player1_id, $semi->team1_player2_id,
+                    $semi->team2_player1_id, $semi->team2_player2_id,
+                ]);
+                if ($inSemi) return 3;
+
+                if ($myTeamIds->isNotEmpty() && ($myTeamIds->contains($semi->team1_id) || $myTeamIds->contains($semi->team2_id))) {
+                    return 3;
+                }
+            }
         }
 
-        // Team-based playoff (team)
-        if ($finalMatch->team1_id && $finalMatch->team2_id) {
-            $myTeamIds = TournamentTeam::where('tournament_id', $tournament->id)
-                ->where(function ($q) use ($userId) {
-                    $q->where('player1_id', $userId)->orWhere('player2_id', $userId);
-                })
-                ->pluck('id');
+        // По лидерборду (americano/mexicano)
+        if (in_array($tournament->type, ['americano', 'mexicano'])) {
+            if ($tournament->type === 'mexicano') {
+                $players = $tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->get();
+                foreach ($players as $i => $mp) {
+                    if ($mp->user_id === $userId) return $i + 1;
+                }
+            } else {
+                $groups = $tournament->groups()->with('players')->get();
+                $allPlayers = collect();
+                foreach ($groups as $group) {
+                    foreach ($group->players as $player) {
+                        $existing = $allPlayers->firstWhere('id', $player->id);
+                        if ($existing) {
+                            $allPlayers = $allPlayers->map(fn($p) => $p['id'] === $player->id
+                                ? array_merge($p, ['total_points' => $p['total_points'] + (int)($player->pivot->total_points ?? 0)])
+                                : $p);
+                        } else {
+                            $allPlayers->push([
+                                'id' => $player->id,
+                                'total_points' => (int) ($player->pivot->total_points ?? 0),
+                            ]);
+                        }
+                    }
+                }
+                $sorted = $allPlayers->sortByDesc('total_points')->values();
+                $index = $sorted->search(fn($p) => $p['id'] === $userId);
+                if ($index !== false) return $index + 1;
+            }
+        }
 
-            $inTeam1 = $myTeamIds->contains($finalMatch->team1_id);
-            $inTeam2 = $myTeamIds->contains($finalMatch->team2_id);
-
-            if (!$inTeam1 && !$inTeam2) return null;
-
-            return $finalMatch->winner_id && $myTeamIds->contains($finalMatch->winner_id) ? 1 : 2;
+        // Team турнир — место по группе
+        if ($tournament->type === 'team' && $myTeamIds->isNotEmpty()) {
+            $groups = $tournament->groups()->with('teams')->get();
+            foreach ($groups as $group) {
+                $sorted = $group->teams->sortByDesc(fn($t) => $t->pivot->points ?? 0)->values();
+                foreach ($sorted as $i => $team) {
+                    if ($myTeamIds->contains($team->id)) return $i + 1;
+                }
+            }
         }
 
         return null;
