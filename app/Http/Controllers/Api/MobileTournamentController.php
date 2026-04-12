@@ -613,7 +613,7 @@ class MobileTournamentController extends Controller
     public function results(Request $request, Tournament $tournament)
     {
         $user = $request->user();
-        $userId = $user->id;
+        $userId = $request->input('player_id', $user->id);
         $tournament->load('club');
 
         // Собираем матчи пользователя с rating_change
