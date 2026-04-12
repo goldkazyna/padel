@@ -196,6 +196,7 @@ class MobileRatingController extends Controller
     {
         $user = $request->user();
         $period = $request->input('period', 'month');
+        $search = $request->input('search');
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 20;
 
@@ -207,6 +208,16 @@ class MobileRatingController extends Controller
             $query->where('created_at', '>=', now()->subWeek());
         } elseif ($period === 'month') {
             $query->where('created_at', '>=', now()->subMonth());
+        }
+
+        if ($search) {
+            $userIds = User::where('role', 'player')
+                ->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%");
+                })->pluck('id');
+            $query->whereIn('user_id', $userIds);
         }
 
         $total = $query->get()->count();
@@ -347,6 +358,7 @@ class MobileRatingController extends Controller
     {
         $user = $request->user();
         $period = $request->input('period', 'month');
+        $search = $request->input('search');
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 20;
 
@@ -359,6 +371,16 @@ class MobileRatingController extends Controller
             $query->where('created_at', '>=', now()->subWeek());
         } elseif ($period === 'month') {
             $query->where('created_at', '>=', now()->subMonth());
+        }
+
+        if ($search) {
+            $userIds = User::where('role', 'player')
+                ->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%");
+                })->pluck('id');
+            $query->whereIn('user_id', $userIds);
         }
 
         $total = $query->get()->count();
