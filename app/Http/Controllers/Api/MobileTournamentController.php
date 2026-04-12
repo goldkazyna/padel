@@ -667,6 +667,7 @@ class MobileTournamentController extends Controller
             'matches' => $userMatches,
             'participants' => $participants,
             'leaderboard' => $this->getLeaderboard($tournament),
+            'playoff' => $this->getPlayoff($tournament),
         ]);
     }
 
@@ -747,6 +748,47 @@ class MobileTournamentController extends Controller
             $s['win_percent'] = $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0;
             return $s;
         }, $playerStats, array_keys($playerStats)));
+    }
+
+    private function getPlayoff(Tournament $tournament): array
+    {
+        if (!$tournament->has_playoff) return [];
+
+        $matches = $tournament->playoffMatches()
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2'])
+            ->orderByRaw("FIELD(stage, 'final', 'third_place', 'semi', 'quarter', 'eighth')")
+            ->orderBy('match_number')
+            ->get();
+
+        if ($matches->isEmpty()) return [];
+
+        $result = [];
+        foreach ($matches as $m) {
+            $stageName = $m->stage_name;
+
+            $team1Players = array_filter([
+                $m->team1Player1 ? ['id' => $m->team1Player1->id, 'name' => $m->team1Player1->name, 'initials' => mb_strtoupper(mb_substr($m->team1Player1->first_name ?? '', 0, 1) . mb_substr($m->team1Player1->last_name ?? '', 0, 1))] : null,
+                $m->team1Player2 ? ['id' => $m->team1Player2->id, 'name' => $m->team1Player2->name, 'initials' => mb_strtoupper(mb_substr($m->team1Player2->first_name ?? '', 0, 1) . mb_substr($m->team1Player2->last_name ?? '', 0, 1))] : null,
+            ]);
+
+            $team2Players = array_filter([
+                $m->team2Player1 ? ['id' => $m->team2Player1->id, 'name' => $m->team2Player1->name, 'initials' => mb_strtoupper(mb_substr($m->team2Player1->first_name ?? '', 0, 1) . mb_substr($m->team2Player1->last_name ?? '', 0, 1))] : null,
+                $m->team2Player2 ? ['id' => $m->team2Player2->id, 'name' => $m->team2Player2->name, 'initials' => mb_strtoupper(mb_substr($m->team2Player2->first_name ?? '', 0, 1) . mb_substr($m->team2Player2->last_name ?? '', 0, 1))] : null,
+            ]);
+
+            $result[] = [
+                'stage' => $m->stage,
+                'stage_name' => $stageName,
+                'match_number' => $m->match_number,
+                'status' => $m->status,
+                'team1_score' => $m->team1_score,
+                'team2_score' => $m->team2_score,
+                'team1_players' => array_values($team1Players),
+                'team2_players' => array_values($team2Players),
+            ];
+        }
+
+        return $result;
     }
 
     private function countMatchStats(array &$stats, $match): void
