@@ -635,15 +635,14 @@ class MobileTournamentController extends Controller
 
         // Участники турнира
         $participants = $tournament->participants()
-            ->where('status', '!=', 'cancelled')
-            ->with('user:id,name,first_name,last_name,rating,level,avatar')
+            ->wherePivot('status', '!=', 'cancelled')
             ->get()
-            ->map(fn($p) => [
-                'id' => $p->user->id ?? 0,
-                'name' => $p->user->name ?? '',
-                'avatar' => $p->user->avatar ?? null,
-                'rating' => $p->user->rating ?? 0,
-                'level' => $p->user->level ?? 0,
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
             ])
             ->sortByDesc('rating')
             ->values();
