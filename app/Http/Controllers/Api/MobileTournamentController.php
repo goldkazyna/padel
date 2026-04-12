@@ -633,6 +633,21 @@ class MobileTournamentController extends Controller
             ->where('tournament_id', $tournament->id)
             ->first();
 
+        // Участники турнира
+        $participants = $tournament->participants()
+            ->where('status', '!=', 'cancelled')
+            ->with('user:id,name,first_name,last_name,rating,level,avatar')
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->user->id ?? 0,
+                'name' => $p->user->name ?? '',
+                'avatar' => $p->user->avatar ?? null,
+                'rating' => $p->user->rating ?? 0,
+                'level' => $p->user->level ?? 0,
+            ])
+            ->sortByDesc('rating')
+            ->values();
+
         return response()->json([
             'success' => true,
             'tournament' => [
@@ -651,6 +666,7 @@ class MobileTournamentController extends Controller
                 'place' => $this->getUserPlace($tournament, $userId),
             ],
             'matches' => $userMatches,
+            'participants' => $participants,
         ]);
     }
 
