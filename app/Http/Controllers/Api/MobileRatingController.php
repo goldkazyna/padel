@@ -199,7 +199,7 @@ class MobileRatingController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 20;
 
-        $query = \App\Models\RatingHistory::selectRaw('user_id, SUM(change) as total_growth')
+        $query = \App\Models\RatingHistory::selectRaw('user_id, SUM(`change`) as total_growth')
             ->groupBy('user_id')
             ->having('total_growth', '>', 0);
 
@@ -249,7 +249,7 @@ class MobileRatingController extends Controller
         $myGrowth = (int) $myGrowthQuery->sum('change');
 
         // Моя позиция в росте
-        $myPlaceQuery = \App\Models\RatingHistory::selectRaw('user_id, SUM(change) as total_growth')
+        $myPlaceQuery = \App\Models\RatingHistory::selectRaw('user_id, SUM(`change`) as total_growth')
             ->groupBy('user_id')
             ->having('total_growth', '>', $myGrowth > 0 ? $myGrowth : PHP_INT_MAX);
         if ($period === 'week') {
