@@ -272,6 +272,60 @@ class MobileRatingController extends Controller
     }
 
     /**
+     * Профиль игрока с историей рейтинга
+     * GET /api/mobile/rating/player/{user}
+     */
+    public function player(User $user)
+    {
+        // Место в рейтинге
+        $place = User::where('role', 'player')
+            ->where(function ($q) use ($user) {
+                $q->where('rating', '>', $user->rating)
+                  ->orWhere(function ($q2) use ($user) {
+                      $q2->where('rating', '=', $user->rating)
+                         ->where('id', '<', $user->id);
+                  });
+            })
+            ->count() + 1;
+
+        // Кол-во турниров
+        $tournamentsCount = $user->tournaments()
+            ->whereIn('tournament_participants.status', ['registered', 'confirmed'])
+            ->count();
+
+        // Кол-во игр (записи в rating_history = кол-во турниров с результатами)
+        $gamesCount = \App\Models\RatingHistory::where('user_id', $user->id)->count();
+
+        // История рейтинга
+        $history = \App\Models\RatingHistory::where('user_id', $user->id)
+            ->with('tournament:id,name')
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(fn($h) => [
+                'tournament_name' => $h->tournament?->name ?? $h->reason ?? 'Турнир',
+                'date' => $h->created_at->format('d.m.Y'),
+                'change' => $h->change,
+                'rating_after' => $h->rating_after,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'player' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
+                'place' => $place,
+                'tournaments_count' => $tournamentsCount,
+                'games_count' => $gamesCount,
+            ],
+            'history' => $history,
+        ]);
+    }
+
+    /**
      * Фильтрация по уровню
      */
     private function applyLevelFilter($query, string $level): void
