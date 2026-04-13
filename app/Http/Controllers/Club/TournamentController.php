@@ -740,8 +740,9 @@ class TournamentController extends Controller
 			'tournament_id' => (string) $tournament->id,
 		];
 
-		// Фильтруем пользователей с учётом настроек уведомлений
+		// ТЕСТ: только user 837
 		$users = \App\Models\User::whereHas('deviceTokens')
+			->where('id', 837)
 			->with('deviceTokens')
 			->get(['id', 'level', 'notify_only_my_level', 'notify_club_ids']);
 
