@@ -28,7 +28,7 @@ class MobileTournamentController extends Controller
             ->orderBy('start_date', 'asc')
             ->with('club')
             ->get()
-            ->map(fn($t) => $this->formatTournament($t, $user));
+            ->map(fn($t) => $this->formatTournament($t, $user, true));
 
         return response()->json([
             'success' => true,
