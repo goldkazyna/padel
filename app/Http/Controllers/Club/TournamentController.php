@@ -740,16 +740,21 @@ class TournamentController extends Controller
 			'tournament_id' => (string) $tournament->id,
 		];
 
-		// Фильтруем пользователей с учётом настройки "только мой уровень"
+		// Фильтруем пользователей с учётом настроек уведомлений
 		$users = \App\Models\User::whereHas('deviceTokens')
 			->with('deviceTokens')
-			->get(['id', 'level', 'notify_only_my_level']);
+			->get(['id', 'level', 'notify_only_my_level', 'notify_club_ids']);
 
 		$recipients = $users->filter(function ($user) use ($tournament) {
-			if (!$user->notify_only_my_level) {
-				return true;
+			// Фильтр по клубам
+			if (!empty($user->notify_club_ids) && !in_array($tournament->club_id, $user->notify_club_ids)) {
+				return false;
 			}
-			return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
+			// Фильтр по уровню
+			if ($user->notify_only_my_level) {
+				return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
+			}
+			return true;
 		});
 
 		// Собираем все токены отфильтрованных пользователей
@@ -777,7 +782,7 @@ class TournamentController extends Controller
 		$sent = $recipients->count();
 		$filtered = $total - $sent;
 
-		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей" . ($filtered ? ", {$filtered} отфильтровано по уровню" : "") . ")");
+		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");
 	}
 
 	/**

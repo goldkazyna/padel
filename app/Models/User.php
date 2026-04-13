@@ -33,6 +33,7 @@ class User extends Authenticatable
         'telegram_id',
         'last_played_at',
         'notify_only_my_level',
+        'notify_club_ids',
         'terms_accepted_at',
         'terms_version',
     ];
@@ -49,6 +50,7 @@ class User extends Authenticatable
         'last_played_at' => 'datetime',
         'level' => 'decimal:2',
         'notify_only_my_level' => 'boolean',
+        'notify_club_ids' => 'array',
         'terms_accepted_at' => 'datetime',
     ];
 
