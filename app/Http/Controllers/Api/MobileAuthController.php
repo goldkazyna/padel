@@ -253,8 +253,8 @@ class MobileAuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', 'min:6'],
-            'phone' => 'nullable|string|max:20|unique:users,phone',
-            'city' => 'nullable|string|max:255',
+            'phone' => 'required|string|max:20|unique:users,phone',
+            'city' => 'required|string|max:255',
         ], [
             'name.required' => 'Введите ФИО',
             'email.required' => 'Введите email',
@@ -263,7 +263,9 @@ class MobileAuthController extends Controller
             'password.required' => 'Введите пароль',
             'password.confirmed' => 'Пароли не совпадают',
             'password.min' => 'Пароль должен быть не менее 6 символов',
+            'phone.required' => 'Введите номер телефона',
             'phone.unique' => 'Пользователь с таким номером телефона уже существует',
+            'city.required' => 'Выберите город',
         ]);
 
         $nameParts = explode(' ', trim($request->name), 2);
