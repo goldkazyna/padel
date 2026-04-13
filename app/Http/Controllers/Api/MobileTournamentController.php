@@ -487,7 +487,7 @@ class MobileTournamentController extends Controller
                 'phone' => $t->club->phone ?? null,
                 'address' => $t->club->address ?? null,
                 'payment_url' => $t->club->payment_url ?? null,
-                'logo' => $t->club->logo ? asset('storage/' . $t->club->logo) : null,
+                'logo' => $t->club->logo ? url($t->club->logo) : null,
             ],
             'date' => $t->start_date->format('d.m.Y'),
             'time' => $t->start_date->format('H:i'),
