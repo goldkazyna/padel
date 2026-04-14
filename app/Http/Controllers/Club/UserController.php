@@ -31,11 +31,15 @@ class UserController extends Controller
         $club = $this->getClub();
         if ($club && $club->city) {
             $clubCity = $club->city;
-            $query->where(function($q) use ($clubCity) {
-                $q->where('city', $clubCity)
-                  ->orWhereNull('city')
-                  ->orWhere('city', '');
-            });
+            if ($clubCity === 'Алматы') {
+                $query->where(function($q) use ($clubCity) {
+                    $q->where('city', $clubCity)
+                      ->orWhereNull('city')
+                      ->orWhere('city', '');
+                });
+            } else {
+                $query->where('city', $clubCity);
+            }
         }
 
         // Поиск
@@ -61,11 +65,15 @@ class UserController extends Controller
         $levelStatsQuery = User::where('role', 'player');
         if ($club && $club->city) {
             $clubCity = $club->city;
-            $levelStatsQuery->where(function($q) use ($clubCity) {
-                $q->where('city', $clubCity)
-                  ->orWhereNull('city')
-                  ->orWhere('city', '');
-            });
+            if ($clubCity === 'Алматы') {
+                $levelStatsQuery->where(function($q) use ($clubCity) {
+                    $q->where('city', $clubCity)
+                      ->orWhereNull('city')
+                      ->orWhere('city', '');
+                });
+            } else {
+                $levelStatsQuery->where('city', $clubCity);
+            }
         }
         $levelStats = $levelStatsQuery
             ->selectRaw("
