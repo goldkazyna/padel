@@ -249,6 +249,7 @@
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
 								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
+									<option value="1" {{ old('groups_count') == 1 ? 'selected' : '' }}>1 группа</option>
 									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
 									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
 								</select>
