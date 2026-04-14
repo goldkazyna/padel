@@ -8,9 +8,35 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    private function getClub()
+    {
+        $user = auth()->user();
+
+        if ($user->isSuperAdmin()) {
+            return null;
+        }
+
+        if ($user->isClubModerator()) {
+            return $user->moderatorClubs()->first();
+        }
+
+        return $user->adminClubs()->first();
+    }
+
     public function index(Request $request)
     {
         $query = User::where('role', 'player')->orderBy('name');
+
+        // Фильтр по городу клуба
+        $club = $this->getClub();
+        if ($club && $club->city) {
+            $clubCity = $club->city;
+            $query->where(function($q) use ($clubCity) {
+                $q->where('city', $clubCity)
+                  ->orWhereNull('city')
+                  ->orWhere('city', '');
+            });
+        }
 
         // Поиск
         if ($search = $request->get('search')) {
@@ -32,7 +58,16 @@ class UserController extends Controller
         $users = $query->paginate(20)->withQueryString();
 
         // Статистика по уровням
-        $levelStats = User::where('role', 'player')
+        $levelStatsQuery = User::where('role', 'player');
+        if ($club && $club->city) {
+            $clubCity = $club->city;
+            $levelStatsQuery->where(function($q) use ($clubCity) {
+                $q->where('city', $clubCity)
+                  ->orWhereNull('city')
+                  ->orWhere('city', '');
+            });
+        }
+        $levelStats = $levelStatsQuery
             ->selectRaw("
                 SUM(CASE WHEN level >= 1 AND level <= 1.75 THEN 1 ELSE 0 END) as level_1,
                 SUM(CASE WHEN level >= 2 AND level <= 2.75 THEN 1 ELSE 0 END) as level_2,
