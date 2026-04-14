@@ -12,17 +12,17 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     padding: 16px;
     min-height: 100vh;
-    max-width: 700px;
+    max-width: 1200px;
     margin: 0 auto;
   }
   .header { margin-bottom: 24px; }
-  .header h1 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .header .subtitle { font-size: 13px; color: #888; }
+  .header h1 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .header .subtitle { font-size: 18px; color: #888; }
 
   .group { margin-bottom: 20px; }
   .group-title {
-    font-size: 14px; font-weight: 700; color: #22c55e;
-    padding: 10px 14px;
+    font-size: 20px; font-weight: 700; color: #22c55e;
+    padding: 12px 18px;
     background: rgba(34,197,94,.08);
     border: 1px solid rgba(34,197,94,.15);
     border-radius: 10px;
@@ -45,25 +45,25 @@
     border-bottom: 1px solid #1f1f23;
   }
   .player-info { flex: 1; }
-  .player-name { font-size: 16px; font-weight: 700; color: #fff; }
-  .player-phone { font-size: 12px; color: #555; margin-top: 2px; }
+  .player-name { font-size: 22px; font-weight: 700; color: #fff; }
+  .player-phone { font-size: 16px; color: #555; margin-top: 3px; }
   .player-stats {
     display: flex;
     align-items: center;
     gap: 12px;
   }
   .player-rating-text {
-    font-size: 13px;
+    font-size: 18px;
     color: #888;
     text-align: right;
   }
   .player-rating-text .val { color: #ccc; font-weight: 600; }
   .player-diff {
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 800;
-    padding: 4px 10px;
+    padding: 6px 14px;
     border-radius: 8px;
-    min-width: 50px;
+    min-width: 60px;
     text-align: center;
   }
   .player-diff.pos { color: #22c55e; background: rgba(34,197,94,.12); }
@@ -80,26 +80,26 @@
   }
   .match-row:last-child { border-bottom: none; }
   .match-round {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     color: #555;
-    min-width: 28px;
+    min-width: 40px;
     flex-shrink: 0;
   }
   .match-teams {
     flex: 1;
-    font-size: 12px;
+    font-size: 16px;
     color: #999;
-    line-height: 1.4;
+    line-height: 1.5;
   }
   .match-teams .team-rating {
     color: #555;
-    font-size: 11px;
+    font-size: 14px;
   }
   .match-score {
-    font-size: 15px;
+    font-size: 24px;
     font-weight: 800;
-    min-width: 50px;
+    min-width: 65px;
     text-align: center;
     letter-spacing: 1px;
   }
@@ -107,9 +107,9 @@
   .match-score .lose { color: #ef4444; }
   .match-score .draw { color: #888; }
   .match-change {
-    font-size: 13px;
+    font-size: 20px;
     font-weight: 700;
-    min-width: 40px;
+    min-width: 55px;
     text-align: right;
     flex-shrink: 0;
   }
@@ -118,9 +118,9 @@
   .match-change.zero { color: #555; }
 
   .match-meta {
-    font-size: 10px;
+    font-size: 14px;
     color: #444;
-    margin-top: 2px;
+    margin-top: 3px;
   }
 </style>
 </head>
