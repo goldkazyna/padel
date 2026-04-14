@@ -585,12 +585,14 @@ class TeamTournamentService
 		foreach ($teams as $team) {
 			$ratingChanges[$team->player1_id] = [
 				'name' => $team->player1->full_name,
+				'phone' => $team->player1->phone,
 				'rating_before' => $team->player1->rating,
 				'current_rating' => $team->player1->rating,
 				'matches' => [],
 			];
 			$ratingChanges[$team->player2_id] = [
 				'name' => $team->player2->full_name,
+				'phone' => $team->player2->phone,
 				'rating_before' => $team->player2->rating,
 				'current_rating' => $team->player2->rating,
 				'matches' => [],

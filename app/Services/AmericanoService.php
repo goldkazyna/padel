@@ -591,6 +591,7 @@ public function previewRatingChanges(Tournament $tournament): array
             
             $ratingChanges[$player->id] = [
                 'name' => $player->full_name,
+                'phone' => $player->phone,
                 'rating_before' => $ratingBefore,
                 'current_rating' => $ratingBefore,
                 'matches' => [],

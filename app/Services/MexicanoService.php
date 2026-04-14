@@ -562,6 +562,7 @@ class MexicanoService
 			$ratingBefore = (int) $player->rating_before;
 			$ratingChanges[$player->user_id] = [
 				'name' => $player->user->full_name,
+				'phone' => $player->user->phone,
 				'rating_before' => $ratingBefore,
 				'current_rating' => $ratingBefore,
 				'matches' => [],
