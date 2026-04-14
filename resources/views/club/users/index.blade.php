@@ -60,21 +60,41 @@
     </div>
 
     <!-- Level Stats -->
-    @php $activeLevel = request('level'); @endphp
+    @php
+        $activeLevel = request('level');
+        $activeExact = request('exact_level');
+        $baseParams = array_filter([
+            'search' => request('search'),
+            'sort' => request('sort'),
+            'dir' => request('dir'),
+            'date_from' => request('date_from'),
+            'date_to' => request('date_to'),
+        ]);
+    @endphp
     <div class="level-stats">
         @foreach([
-            ['key' => '1', 'range' => '1 — 1.75', 'label' => 'Начинающий', 'value' => (int) $levelStats->level_1, 'class' => 'level-stat-1'],
-            ['key' => '2', 'range' => '2 — 2.75', 'label' => 'Любитель', 'value' => (int) $levelStats->level_2, 'class' => 'level-stat-2'],
-            ['key' => '3', 'range' => '3 — 3.75', 'label' => 'Средний', 'value' => (int) $levelStats->level_3, 'class' => 'level-stat-3'],
-            ['key' => '4', 'range' => '4 — 4.75', 'label' => 'Продвинутый', 'value' => (int) $levelStats->level_4, 'class' => 'level-stat-4'],
-            ['key' => '5', 'range' => '5 — 5.75', 'label' => 'Про', 'value' => (int) $levelStats->level_5, 'class' => 'level-stat-5'],
+            ['key' => '1', 'range' => '1 — 1.75', 'label' => 'Начинающий', 'value' => (int) $levelStats->level_1, 'class' => 'level-stat-1', 'subs' => ['1.00', '1.25', '1.50', '1.75']],
+            ['key' => '2', 'range' => '2 — 2.75', 'label' => 'Любитель', 'value' => (int) $levelStats->level_2, 'class' => 'level-stat-2', 'subs' => ['2.00', '2.25', '2.50', '2.75']],
+            ['key' => '3', 'range' => '3 — 3.75', 'label' => 'Средний', 'value' => (int) $levelStats->level_3, 'class' => 'level-stat-3', 'subs' => ['3.00', '3.25', '3.50', '3.75']],
+            ['key' => '4', 'range' => '4 — 4.75', 'label' => 'Продвинутый', 'value' => (int) $levelStats->level_4, 'class' => 'level-stat-4', 'subs' => ['4.00', '4.25', '4.50', '4.75']],
+            ['key' => '5', 'range' => '5 — 5.75', 'label' => 'Про', 'value' => (int) $levelStats->level_5, 'class' => 'level-stat-5', 'subs' => ['5.00', '5.25', '5.50', '5.75']],
         ] as $stat)
-            <a href="{{ route('club.users.index', $activeLevel == $stat['key'] ? [] : ['level' => $stat['key']]) }}"
-               class="level-stat-card {{ $stat['class'] }} {{ $activeLevel == $stat['key'] ? 'active' : '' }}">
-                <div class="level-stat-range">{{ $stat['range'] }}</div>
-                <div class="level-stat-label">{{ $stat['label'] }}</div>
-                <div class="level-stat-value">{{ $stat['value'] }}</div>
-            </a>
+            <div class="level-stat-wrapper">
+                <a href="{{ route('club.users.index', $activeLevel == $stat['key'] && !$activeExact ? $baseParams : array_merge($baseParams, ['level' => $stat['key']])) }}"
+                   class="level-stat-card {{ $stat['class'] }} {{ $activeLevel == $stat['key'] && !$activeExact ? 'active' : '' }}">
+                    <div class="level-stat-range">{{ $stat['range'] }}</div>
+                    <div class="level-stat-label">{{ $stat['label'] }}</div>
+                    <div class="level-stat-value">{{ $stat['value'] }}</div>
+                </a>
+                <div class="level-subs">
+                    @foreach($stat['subs'] as $sub)
+                        <a href="{{ route('club.users.index', $activeExact == $sub ? $baseParams : array_merge($baseParams, ['exact_level' => $sub])) }}"
+                           class="level-sub-btn {{ $stat['class'] }} {{ $activeExact == $sub ? 'active' : '' }}">
+                            {{ $sub }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
         @endforeach
     </div>
 
@@ -526,6 +546,12 @@
             margin-bottom: 24px;
         }
 
+        .level-stat-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
         .level-stat-card {
             display: block;
             background: var(--users-bg-secondary);
@@ -548,6 +574,38 @@
         .level-stat-card.active {
             background: var(--users-card-hover);
         }
+
+        .level-subs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .level-sub-btn {
+            flex: 1;
+            text-align: center;
+            padding: 5px 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--users-text-muted);
+            background: var(--users-bg-secondary);
+            border: 1px solid var(--users-border);
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all .2s;
+            cursor: pointer;
+        }
+        .level-sub-btn:hover {
+            border-color: var(--users-border-light);
+            color: var(--users-text-dim);
+        }
+        .level-sub-btn.active {
+            background: var(--users-card-hover);
+        }
+        .level-sub-btn.level-stat-1.active { border-color: var(--users-accent); color: var(--users-accent); }
+        .level-sub-btn.level-stat-2.active { border-color: var(--users-blue); color: var(--users-blue); }
+        .level-sub-btn.level-stat-3.active { border-color: var(--users-orange); color: var(--users-orange); }
+        .level-sub-btn.level-stat-4.active { border-color: var(--users-red); color: var(--users-red); }
+        .level-sub-btn.level-stat-5.active { border-color: var(--users-yellow); color: var(--users-yellow); }
 
         .level-stat-range {
             font-size: 15px;
