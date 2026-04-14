@@ -101,7 +101,7 @@ class User extends Authenticatable
     // Полное имя
     public function getFullNameAttribute(): string
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->name ?: ($this->first_name . ' ' . $this->last_name);
     }
 
     // Уровень текстом
