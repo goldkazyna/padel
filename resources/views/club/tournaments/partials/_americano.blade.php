@@ -197,7 +197,7 @@
 												<div class="player-line">{{ $match->team1Player1->name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
 												<div class="player-line">{{ $match->team1Player2->name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
 											</div>
-											@if($match->isCompleted() && $tournament->status !== 'completed')
+											@if($match->isCompleted())
 												<div class="team-score">{{ $match->team1_score }}</div>
 											@endif
 										</div>
@@ -222,7 +222,7 @@
 										</div>
 										
 										<div class="match-team {{ $match->winning_team === 2 ? 'winner' : '' }}">
-											@if($match->isCompleted() && $tournament->status !== 'completed')
+											@if($match->isCompleted())
 												<div class="team-score">{{ $match->team2_score }}</div>
 											@endif
 											<div class="team-players">
