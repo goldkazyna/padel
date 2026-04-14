@@ -36,6 +36,29 @@
         </form>
     </div>
 
+    <!-- Date Filter -->
+    <div class="date-filter">
+        <form method="GET" class="date-filter-form">
+            @if(request('search'))<input type="hidden" name="search" value="{{ request('search') }}">@endif
+            @if(request('level'))<input type="hidden" name="level" value="{{ request('level') }}">@endif
+            @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}">@endif
+            @if(request('dir'))<input type="hidden" name="dir" value="{{ request('dir') }}">@endif
+            <label class="date-label">Дата регистрации:</label>
+            <input type="date" name="date_from" class="date-input" value="{{ request('date_from') }}" placeholder="От">
+            <span class="date-sep">—</span>
+            <input type="date" name="date_to" class="date-input" value="{{ request('date_to') }}" placeholder="До">
+            <button type="submit" class="date-btn">Показать</button>
+            @if(request('date_from') || request('date_to'))
+                <a href="{{ route('club.users.index', array_filter([
+                    'search' => request('search'),
+                    'level' => request('level'),
+                    'sort' => request('sort'),
+                    'dir' => request('dir'),
+                ])) }}" class="date-btn date-btn-clear">Сбросить</a>
+            @endif
+        </form>
+    </div>
+
     <!-- Level Stats -->
     @php $activeLevel = request('level'); @endphp
     <div class="level-stats">
@@ -60,10 +83,28 @@
         <table class="users-table">
             <thead>
                 <tr>
-                    <th>Имя</th>
+                    @php
+                        $currentSort = request('sort', 'name');
+                        $currentDir = request('dir', 'asc');
+                        $params = request()->except(['sort', 'dir', 'page']);
+                    @endphp
+                    <th>
+                        <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'name', 'dir' => $currentSort === 'name' && $currentDir === 'asc' ? 'desc' : 'asc'])) }}" class="sort-link {{ $currentSort === 'name' ? 'active' : '' }}">
+                            Имя {!! $currentSort === 'name' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
+                        </a>
+                    </th>
                     <th>Телефон</th>
                     <th>Город</th>
-					<th>Уровень</th>
+					<th>
+                        <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'level', 'dir' => $currentSort === 'level' && $currentDir === 'asc' ? 'desc' : 'asc'])) }}" class="sort-link {{ $currentSort === 'level' ? 'active' : '' }}">
+                            Уровень {!! $currentSort === 'level' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'created_at', 'dir' => $currentSort === 'created_at' && $currentDir === 'desc' ? 'asc' : 'desc'])) }}" class="sort-link {{ $currentSort === 'created_at' ? 'active' : '' }}">
+                            Регистрация {!! $currentSort === 'created_at' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
+                        </a>
+                    </th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -91,6 +132,9 @@
 							<span class="user-level">{{ $user->level }}</span>
 						</td>
                         <td>
+                            <span class="user-date">{{ $user->created_at ? $user->created_at->format('d.m.Y') : '—' }}</span>
+                        </td>
+                        <td>
                             <div class="user-actions">
                                 @if((float) $user->level == 1.0)
                                 <button class="action-btn edit" title="Редактировать" onclick="openModal({{ $user->id }})">
@@ -102,7 +146,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #71717a;">
                             Пользователи не найдены
                         </td>
                     </tr>
@@ -356,6 +400,97 @@
             outline: none;
             border-color: var(--users-accent);
             box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .search-clear svg {
+            width: 18px;
+            height: 18px;
+            color: var(--users-text-muted);
+        }
+
+        /* Date Filter */
+        .date-filter {
+            margin-bottom: 24px;
+        }
+        .date-filter-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .date-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--users-text-dim);
+        }
+        .date-input {
+            background: var(--users-card);
+            border: 1px solid var(--users-border);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 14px;
+            color: var(--users-text);
+            color-scheme: dark;
+        }
+        .date-input:focus {
+            outline: none;
+            border-color: var(--users-accent);
+        }
+        .date-sep {
+            color: var(--users-text-muted);
+            font-size: 14px;
+        }
+        .date-btn {
+            background: var(--users-accent);
+            color: var(--users-bg);
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all .2s;
+        }
+        .date-btn:hover { background: var(--users-accent-dark); }
+        .date-btn-clear {
+            background: var(--users-card);
+            color: var(--users-text-dim);
+            border: 1px solid var(--users-border);
+        }
+        .date-btn-clear:hover {
+            border-color: var(--users-border-light);
+            color: var(--users-text);
+        }
+
+        /* Sort Links */
+        .sort-link {
+            color: var(--users-text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: color .2s;
+        }
+        .sort-link:hover { color: var(--users-text); }
+        .sort-link.active { color: var(--users-accent); }
+
+        /* User Date */
+        .user-date {
+            font-size: 14px;
+            color: var(--users-text-dim);
+            font-variant-numeric: tabular-nums;
+        }
+        .user-city {
+            font-size: 14px;
+            color: var(--users-text-dim);
         }
 
         .filter-btn {

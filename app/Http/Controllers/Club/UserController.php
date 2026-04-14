@@ -25,7 +25,13 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $query = User::where('role', 'player')->orderBy('name');
+        // Сортировка
+        $sort = $request->get('sort', 'name');
+        $direction = $request->get('dir', 'asc');
+        if (!in_array($sort, ['name', 'created_at', 'level'])) $sort = 'name';
+        if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
+
+        $query = User::where('role', 'player')->orderBy($sort, $direction);
 
         // Фильтр по городу клуба
         $club = $this->getClub();
@@ -57,6 +63,14 @@ class UserController extends Controller
             $min = (float) $level;
             $max = $min + 0.75;
             $query->whereBetween('level', [$min, $max]);
+        }
+
+        // Фильтр по дате регистрации
+        if ($dateFrom = $request->get('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo = $request->get('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
         }
 
         $users = $query->paginate(20)->withQueryString();
