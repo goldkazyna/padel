@@ -47,14 +47,14 @@
                                 </div>
                                 
                                 <div class="match-vs">
-                                    @if($match->isCompleted())
+                                    @if($match->isCompleted() && $tournament->status !== 'completed')
                                         <button class="btn-score-edit" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#editScoreModal{{ $match->id }}"
                                                 title="Редактировать счёт">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                    @elseif($round->isInProgress())
+                                    @elseif(!$match->isCompleted() && $round->isInProgress())
                                         <button class="btn-score" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#scoreModal{{ $match->id }}">

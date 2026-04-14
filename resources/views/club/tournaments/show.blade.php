@@ -33,6 +33,7 @@
 
 
 <script>
+const tournamentCompleted = {{ $tournament->status === 'completed' ? 'true' : 'false' }};
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('form[data-ajax-score]').forEach(form => {
         form.addEventListener('submit', async function(e) {
@@ -131,14 +132,18 @@ function updateMatchCard(matchId, matchData) {
     score1.className = 'team-score' + (matchData.winning_team === 1 ? ' text-success' : '');
     score2.className = 'team-score' + (matchData.winning_team === 2 ? ' text-success' : '');
     
-    vsBlock.innerHTML = `
-        <button class="btn-score-edit" 
-                data-bs-toggle="modal" 
-                data-bs-target="#editScoreModal${matchId}"
-                title="Редактировать счёт">
-            <i class="bi bi-pencil"></i>
-        </button>
-    `;
+    if (!tournamentCompleted) {
+        vsBlock.innerHTML = `
+            <button class="btn-score-edit" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#editScoreModal${matchId}"
+                    title="Редактировать счёт">
+                <i class="bi bi-pencil"></i>
+            </button>
+        `;
+    } else {
+        vsBlock.innerHTML = '';
+    }
 }
 
 function updateLeaderboard(groupId, leaderboard) {

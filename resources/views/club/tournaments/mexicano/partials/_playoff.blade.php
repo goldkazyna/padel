@@ -45,7 +45,7 @@
                                             <button class="btn-score-sm" data-bs-toggle="modal" data-bs-target="#mexicanoPlayoffModal{{ $match->id }}">
                                                 <i class="bi bi-pencil-square"></i>
                                             </button>
-                                        @elseif($match->status === 'completed')
+                                        @elseif($match->status === 'completed' && $tournament->status !== 'completed')
                                             <button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editMexicanoPlayoffModal{{ $match->id }}">
                                                 <i class="bi bi-pencil"></i>
                                             </button>

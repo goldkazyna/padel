@@ -118,9 +118,11 @@
                                                 <span class="score-left {{ $team1Wins ? 'winner' : 'loser' }}">{{ $match->team1_score }}</span>
                                                 <span class="score-separator">:</span>
                                                 <span class="score-right {{ $team2Wins ? 'winner' : 'loser' }}">{{ $match->team2_score }}</span>
+                                                @if($tournament->status !== 'completed')
                                                 <button class="btn-score-edit-sm" data-bs-toggle="modal" data-bs-target="#editGroupMatchModal{{ $match->id }}">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
+                                                @endif
                                             @elseif($isInProgress)
                                                 <button class="score-btn" data-bs-toggle="modal" data-bs-target="#groupMatchModal{{ $match->id }}">
                                                     Ввести счёт

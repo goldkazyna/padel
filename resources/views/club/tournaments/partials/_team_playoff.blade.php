@@ -92,9 +92,11 @@
                                     <div class="match-foot">
                                         @if($isCompleted)
                                             <div class="match-state is-done">Завершён</div>
+                                            @if($tournament->status !== 'completed')
                                             <button class="edit-score-btn" data-bs-toggle="modal" data-bs-target="#editPlayoffModal{{ $match->id }}">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                             </button>
+                                            @endif
                                         @elseif($isInProgress && $match->team1_id && $match->team2_id)
                                             <button class="enter-score-btn" data-bs-toggle="modal" data-bs-target="#playoffModal{{ $match->id }}">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

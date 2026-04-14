@@ -170,7 +170,7 @@
                             <div class="round-title">
                                 @if($round->isCompleted())
                                     <i class="bi bi-check-circle-fill text-success"></i>
-                                @elseif($round->status === 'in_progress')
+                                @elseif(!$match->isCompleted() && $round->status === 'in_progress')
                                     <i class="bi bi-play-circle-fill text-primary"></i>
                                 @else
                                     <i class="bi bi-circle text-secondary"></i>
@@ -197,20 +197,20 @@
 												<div class="player-line">{{ $match->team1Player1->name }} <span class="player-level">{{ $match->team1Player1->level }}</span></div>
 												<div class="player-line">{{ $match->team1Player2->name }} <span class="player-level">{{ $match->team1Player2->level }}</span></div>
 											</div>
-											@if($match->isCompleted())
+											@if($match->isCompleted() && $tournament->status !== 'completed')
 												<div class="team-score">{{ $match->team1_score }}</div>
 											@endif
 										</div>
 										
 										<div class="match-vs">
-											@if($match->isCompleted())
+											@if($match->isCompleted() && $tournament->status !== 'completed')
 												<button class="btn-score-edit" 
 														data-bs-toggle="modal" 
 														data-bs-target="#editScoreModal{{ $match->id }}"
 														title="Редактировать счёт">
 													<i class="bi bi-pencil"></i>
 												</button>
-											@elseif($round->status === 'in_progress')
+											@elseif(!$match->isCompleted() && $round->status === 'in_progress')
 												<button class="btn-score" 
 														data-bs-toggle="modal" 
 														data-bs-target="#scoreModal{{ $match->id }}">
@@ -222,7 +222,7 @@
 										</div>
 										
 										<div class="match-team {{ $match->winning_team === 2 ? 'winner' : '' }}">
-											@if($match->isCompleted())
+											@if($match->isCompleted() && $tournament->status !== 'completed')
 												<div class="team-score">{{ $match->team2_score }}</div>
 											@endif
 											<div class="team-players">
