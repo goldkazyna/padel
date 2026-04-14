@@ -90,9 +90,23 @@
   }
   .match-item {
     font-size: 12px;
-    color: #666;
-    padding: 2px 0;
+    color: #888;
+    padding: 3px 0;
+    line-height: 1.5;
   }
+  .score {
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .match-diff {
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .positive { color: #22c55e; }
+  .negative { color: #ef4444; }
+  .zero { color: #888; }
+  .player-rating .positive { color: #22c55e; }
+  .player-rating .negative { color: #ef4444; }
 </style>
 </head>
 <body>
@@ -116,19 +130,27 @@
             <div class="player-diff {{ $class }}">{{ $sign }}{{ $diff }}</div>
           </div>
           <div class="player-rating">
-            <span>{{ $data['rating_before'] }}</span> → <span>{{ $data['current_rating'] }}</span>
+            <span>{{ $data['rating_before'] }}</span> → <span class="{{ $class }}">{{ $data['current_rating'] }}</span>
           </div>
           @if(!empty($data['matches']))
             <div class="player-matches">
-              @if(is_array($data['matches']) && !is_string(reset($data['matches'])))
-                @foreach($data['matches'] as $matchInfo)
-                  <div class="match-item">{{ $matchInfo }}</div>
-                @endforeach
-              @else
-                @foreach($data['matches'] as $matchInfo)
-                  <div class="match-item">{{ $matchInfo }}</div>
-                @endforeach
-              @endif
+              @foreach($data['matches'] as $matchInfo)
+                <div class="match-item">{!! preg_replace_callback(
+                  '/Счёт (\d+):(\d+)|([+-]\d+)$/',
+                  function($m) {
+                    if (!empty($m[1])) {
+                      $s1 = (int)$m[1]; $s2 = (int)$m[2];
+                      $c1 = $s1 > $s2 ? 'positive' : ($s1 < $s2 ? 'negative' : 'zero');
+                      $c2 = $s2 > $s1 ? 'positive' : ($s2 < $s1 ? 'negative' : 'zero');
+                      return "Счёт <span class=\"score $c1\">$s1</span>:<span class=\"score $c2\">$s2</span>";
+                    }
+                    $val = (int)$m[3];
+                    $cls = $val > 0 ? 'positive' : ($val < 0 ? 'negative' : 'zero');
+                    return "<span class=\"match-diff $cls\">$m[3]</span>";
+                  },
+                  e($matchInfo)
+                ) !!}</div>
+              @endforeach
             </div>
           @endif
         </div>
