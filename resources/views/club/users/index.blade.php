@@ -12,7 +12,7 @@
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            <h1 class="users-title">Пользователи</h1>
+            <h1 class="users-title">Пользователи{{ $clubCity ? ' — ' . $clubCity : '' }}</h1>
             <span class="users-count">{{ $users->total() }}</span>
         </div>
     </header>
@@ -62,6 +62,7 @@
                 <tr>
                     <th>Имя</th>
                     <th>Телефон</th>
+                    <th>Город</th>
 					<th>Уровень</th>
                     <th>Действия</th>
                 </tr>
@@ -83,6 +84,9 @@
                                 {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}
                             </span>
                         </td>
+                        <td>
+                            <span class="user-city">{{ $user->city ?: '—' }}</span>
+                        </td>
 						<td>
 							<span class="user-level">{{ $user->level }}</span>
 						</td>
@@ -98,7 +102,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #71717a;">
                             Пользователи не найдены
                         </td>
                     </tr>

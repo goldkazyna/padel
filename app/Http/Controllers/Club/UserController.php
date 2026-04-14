@@ -85,7 +85,8 @@ class UserController extends Controller
             ")
             ->first();
 
-        return view('club.users.index', compact('users', 'levelStats'));
+        $clubCity = $club ? $club->city : null;
+        return view('club.users.index', compact('users', 'levelStats', 'clubCity'));
     }
 
     public function update(Request $request, User $user)
