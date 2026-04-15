@@ -243,7 +243,7 @@ class MobileTournamentController extends Controller
         $tournament->participants()->detach($user->id);
 
         if ($wasFull && $tournament->status === 'open') {
-            $channelService = new \App\Services\TelegramChannelService();
+            $channelService = new \App\Services\TelegramChannelService($tournament->club);
             $channelService->postSlotAvailable($tournament);
             $this->notifySubscribersSlotAvailable($tournament);
         }

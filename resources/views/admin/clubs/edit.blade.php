@@ -97,6 +97,26 @@
                         </label>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label">Telegram — ID канала</label>
+                        <input type="text" name="telegram_channel_id" class="form-control @error('telegram_channel_id') is-invalid @enderror"
+                               value="{{ old('telegram_channel_id', $club->telegram_channel_id) }}" placeholder="@channel или -100123456789">
+                        @error('telegram_channel_id')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">ID канала (@username или числовой ID). Если пусто — используется общий канал.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Telegram — Bot Token</label>
+                        <input type="text" name="telegram_bot_token" class="form-control @error('telegram_bot_token') is-invalid @enderror"
+                               value="{{ old('telegram_bot_token', $club->telegram_bot_token) }}" placeholder="123456:ABC-DEF...">
+                        @error('telegram_bot_token')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Токен бота для этого клуба. Если пусто — используется общий бот.</small>
+                    </div>
+
                     @php($features = $club->features ?? [])
                     <div class="mb-4">
                         <label class="form-label">Доступные модули</label>

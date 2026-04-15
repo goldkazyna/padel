@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Club;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -12,11 +13,11 @@ class TelegramChannelService
     protected string $channelId;
     protected string $botUsername;
 
-    public function __construct()
+    public function __construct(?Club $club = null)
     {
-        $this->botToken = config('services.telegram.bot_token');
+        $this->botToken = ($club->telegram_bot_token ?? null) ?: config('services.telegram.bot_token');
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
-        $this->channelId = config('services.telegram.channel_id');
+        $this->channelId = ($club->telegram_channel_id ?? null) ?: config('services.telegram.channel_id');
         $this->botUsername = config('services.telegram.bot_username', 'add_app_bot');
     }
 
@@ -28,16 +29,16 @@ class TelegramChannelService
 		// Используем start_date (это datetime с датой и временем)
 		$date = $tournament->start_date->format('d.m.Y');
 		$time = $tournament->start_date->format('H:i');
-		
+
 		$price = $tournament->price > 0 ? number_format($tournament->price, 0, '', ' ') . ' ₸' : 'Бесплатно';
-		
+
 		$clubName = $tournament->club->name ?? 'Клуб';
-		
+
 		// Описание (если есть)
-		$description = $tournament->description 
-			? "\n📝 {$tournament->description}\n" 
+		$description = $tournament->description
+			? "\n📝 {$tournament->description}\n"
 			: '';
-		
+
 		$message = "🎾 <b>Новый турнир!</b>\n\n"
 			. "📌 <b>{$tournament->name}</b>\n"
 			. $description
@@ -112,7 +113,7 @@ class TelegramChannelService
 		$date = $tournament->start_date->format('d.m.Y');
 		$time = $tournament->start_date->format('H:i');
 		$clubName = $tournament->club->name ?? 'Клуб';
-		
+
 		$message = "🎉 <b>Освободилось место!</b>\n\n"
 			. "📌 <b>{$tournament->name}</b>\n"
 			. "📅 {$date} в {$time}\n"

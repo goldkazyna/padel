@@ -50,6 +50,8 @@ class ClubController extends Controller
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
             'payment_url' => 'nullable|url|max:500',
+            'telegram_channel_id' => 'nullable|string|max:255',
+            'telegram_bot_token' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'features' => 'nullable|array',
             'features.*' => 'boolean',
