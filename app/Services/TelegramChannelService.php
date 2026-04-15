@@ -15,10 +15,18 @@ class TelegramChannelService
 
     public function __construct(?Club $club = null)
     {
-        $this->botToken = ($club->telegram_bot_token ?? null) ?: config('services.telegram.bot_token');
+        $this->botToken = $club->telegram_bot_token ?? '';
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
-        $this->channelId = ($club->telegram_channel_id ?? null) ?: config('services.telegram.channel_id');
+        $this->channelId = $club->telegram_channel_id ?? '';
         $this->botUsername = config('services.telegram.bot_username', 'add_app_bot');
+    }
+
+    /**
+     * Проверить, настроен ли Telegram для клуба
+     */
+    public function isConfigured(): bool
+    {
+        return !empty($this->botToken) && !empty($this->channelId);
     }
 
 	/**

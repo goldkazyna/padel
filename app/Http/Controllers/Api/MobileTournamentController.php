@@ -244,7 +244,9 @@ class MobileTournamentController extends Controller
 
         if ($wasFull && $tournament->status === 'open') {
             $channelService = new \App\Services\TelegramChannelService($tournament->club);
-            $channelService->postSlotAvailable($tournament);
+            if ($channelService->isConfigured()) {
+                $channelService->postSlotAvailable($tournament);
+            }
             $this->notifySubscribersSlotAvailable($tournament);
         }
 

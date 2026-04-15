@@ -277,7 +277,9 @@ class TournamentController extends Controller
 		// Если турнир был полным и открыт — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
-			$channelService->postSlotAvailable($tournament);
+			if ($channelService->isConfigured()) {
+				$channelService->postSlotAvailable($tournament);
+			}
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
@@ -537,7 +539,9 @@ class TournamentController extends Controller
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
-			$channelService->postSlotAvailable($tournament);
+			if ($channelService->isConfigured()) {
+				$channelService->postSlotAvailable($tournament);
+			}
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
@@ -823,6 +827,11 @@ class TournamentController extends Controller
 		}
 
 		$service = new \App\Services\TelegramChannelService($tournament->club);
+
+		if (!$service->isConfigured()) {
+			return back()->with('error', 'Telegram канал не настроен для этого клуба');
+		}
+
 		$result = $service->postTournament($tournament);
 
 		if ($result) {
@@ -858,7 +867,9 @@ class TournamentController extends Controller
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
-			$channelService->postSlotAvailable($tournament);
+			if ($channelService->isConfigured()) {
+				$channelService->postSlotAvailable($tournament);
+			}
 			MobileTournamentController::notifySubscribersSlotAvailable($tournament);
 		}
 
