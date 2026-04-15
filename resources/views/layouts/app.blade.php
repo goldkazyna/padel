@@ -997,18 +997,22 @@
 						</a>
 					</li>
 					@endif
+					@if(!$navClub || $navClub->hasFeature('moderators'))
 					<li class="nav-item">
 						<a href="{{ route('club.moderators.index') }}" class="nav-link {{ request()->routeIs('club.moderators.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Менеджеры / Модераторы</span>
 						</a>
 					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('activity_log'))
 					<li class="nav-item">
 						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
 							<i class="bi bi-clock-history"></i>
 							<span>Журнал</span>
 						</a>
 					</li>
+					@endif
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())

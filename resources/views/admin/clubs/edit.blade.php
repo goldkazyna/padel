@@ -129,6 +129,27 @@
                                        style="background-color: var(--bg-secondary); border-color: var(--border);">
                                 <span class="form-check-label">Тренеры</span>
                             </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[clients]" value="0">
+                                <input type="checkbox" name="features[clients]" value="1" class="form-check-input"
+                                       {{ old('features.clients', $features['clients'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Клиенты</span>
+                            </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[activity_log]" value="0">
+                                <input type="checkbox" name="features[activity_log]" value="1" class="form-check-input"
+                                       {{ old('features.activity_log', $features['activity_log'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Журнал</span>
+                            </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[moderators]" value="0">
+                                <input type="checkbox" name="features[moderators]" value="1" class="form-check-input"
+                                       {{ old('features.moderators', $features['moderators'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Менеджеры / Модераторы</span>
+                            </label>
                         </div>
                     </div>
 

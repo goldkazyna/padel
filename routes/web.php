@@ -114,11 +114,15 @@ Route::middleware('auth')->group(function () {
 
         // Управление модераторами (только admin)
         Route::middleware('role:club_admin,super_admin')->group(function () {
-            Route::get('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'index'])->name('moderators.index');
-            Route::post('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'store'])->name('moderators.store');
-            Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
-            Route::put('/moderators/{user}/password', [App\Http\Controllers\Club\ModeratorManagerController::class, 'updatePassword'])->name('moderators.updatePassword');
-            Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
+            Route::middleware('club.feature:moderators')->group(function () {
+                Route::get('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'index'])->name('moderators.index');
+                Route::post('/moderators', [App\Http\Controllers\Club\ModeratorManagerController::class, 'store'])->name('moderators.store');
+                Route::put('/moderators/{user}/password', [App\Http\Controllers\Club\ModeratorManagerController::class, 'updatePassword'])->name('moderators.updatePassword');
+                Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
+            });
+            Route::middleware('club.feature:activity_log')->group(function () {
+                Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
+            });
         });
 
         // Кол-во необработанных бронирований (для polling)
