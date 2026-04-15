@@ -30,10 +30,15 @@ class Club extends Model
         'features' => 'array',
     ];
 
+    protected static array $featureDefaults = [
+        'coach_booking' => false,
+    ];
+
     public function hasFeature(string $feature): bool
     {
         $features = $this->features ?? [];
-        return ($features[$feature] ?? true) === true;
+        $default = static::$featureDefaults[$feature] ?? true;
+        return ($features[$feature] ?? $default) === true;
     }
 
     // Связь: админы клуба

@@ -150,6 +150,13 @@
                                 <span class="form-check-label">Тренеры</span>
                             </label>
                             <label class="form-check">
+                                <input type="hidden" name="features[coach_booking]" value="0">
+                                <input type="checkbox" name="features[coach_booking]" value="1" class="form-check-input"
+                                       {{ old('features.coach_booking', $features['coach_booking'] ?? false) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Бронирование тренеров (в приложении)</span>
+                            </label>
+                            <label class="form-check">
                                 <input type="hidden" name="features[clients]" value="0">
                                 <input type="checkbox" name="features[clients]" value="1" class="form-check-input"
                                        {{ old('features.clients', $features['clients'] ?? true) ? 'checked' : '' }}

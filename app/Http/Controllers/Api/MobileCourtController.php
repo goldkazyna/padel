@@ -111,42 +111,46 @@ class MobileCourtController extends Controller
             ];
         });
 
-        // Тренеры клуба
-        $clubCoaches = $club->clubCoaches()
-            ->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])
-            ->get();
+        // Тренеры клуба (только если включена настройка)
+        $coachesData = collect();
 
-        // Собираем все уникальные времена слотов
-        $allTimes = [];
-        foreach ($courtsData as $c) {
-            foreach ($c['slots'] as $s) {
-                $allTimes[$s['time']] = true;
+        if ($club->hasFeature('coach_booking')) {
+            $clubCoaches = $club->clubCoaches()
+                ->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])
+                ->get();
+
+            // Собираем все уникальные времена слотов
+            $allTimes = [];
+            foreach ($courtsData as $c) {
+                foreach ($c['slots'] as $s) {
+                    $allTimes[$s['time']] = true;
+                }
             }
+            $allTimes = array_keys($allTimes);
+            sort($allTimes);
+
+            $coachesData = $clubCoaches->map(function ($coach) use ($date, $allTimes) {
+                // Ставки: {"hours": rate_per_hour}
+                $rates = $coach->rates->pluck('rate', 'hours')
+                    ->map(fn($v) => (float) $v)
+                    ->toArray();
+
+                // Доступность по каждому слоту
+                $availability = [];
+                foreach ($allTimes as $time) {
+                    $endTime = Carbon::parse($time)->addHour()->format('H:i');
+                    $availability[$time] = $coach->isFreeAt($date, $time, $endTime);
+                }
+
+                return [
+                    'id' => $coach->user_id,
+                    'name' => $coach->user->full_name ?? $coach->user->name,
+                    'hourly_rate' => (float) $coach->hourly_rate,
+                    'rates' => (object) $rates,
+                    'availability' => (object) $availability,
+                ];
+            });
         }
-        $allTimes = array_keys($allTimes);
-        sort($allTimes);
-
-        $coachesData = $clubCoaches->map(function ($coach) use ($date, $allTimes) {
-            // Ставки: {"hours": rate_per_hour}
-            $rates = $coach->rates->pluck('rate', 'hours')
-                ->map(fn($v) => (float) $v)
-                ->toArray();
-
-            // Доступность по каждому слоту
-            $availability = [];
-            foreach ($allTimes as $time) {
-                $endTime = Carbon::parse($time)->addHour()->format('H:i');
-                $availability[$time] = $coach->isFreeAt($date, $time, $endTime);
-            }
-
-            return [
-                'id' => $coach->user_id,
-                'name' => $coach->user->full_name ?? $coach->user->name,
-                'hourly_rate' => (float) $coach->hourly_rate,
-                'rates' => (object) $rates,
-                'availability' => (object) $availability,
-            ];
-        });
 
         return response()->json([
             'success' => true,
@@ -154,6 +158,7 @@ class MobileCourtController extends Controller
                 'id' => $club->id,
                 'name' => $club->name,
                 'address' => $club->address,
+                'coach_booking' => $club->hasFeature('coach_booking'),
             ],
             'date' => $date,
             'courts' => $courtsData,

@@ -63,6 +63,7 @@ class ClubController extends Controller
             'users' => (bool) ($features['users'] ?? true),
             'courts' => (bool) ($features['courts'] ?? true),
             'coaches' => (bool) ($features['coaches'] ?? true),
+            'coach_booking' => (bool) ($features['coach_booking'] ?? false),
             'clients' => (bool) ($features['clients'] ?? true),
             'activity_log' => (bool) ($features['activity_log'] ?? true),
             'moderators' => (bool) ($features['moderators'] ?? true),
