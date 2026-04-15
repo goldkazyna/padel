@@ -32,7 +32,35 @@ class ActivityLogController extends Controller
             $query->where('user_id', $request->get('user_id'));
         }
 
+        if ($request->get('subject')) {
+            $query->where('subject_type', $request->get('subject'));
+        }
+
+        if ($request->get('search')) {
+            $query->where('description', 'like', '%' . $request->get('search') . '%');
+        }
+
         $logs = $query->paginate(30);
+
+        // Группировка по дням для view
+        $groupedLogs = $logs->getCollection()->groupBy(fn($log) => $log->created_at->format('Y-m-d'));
+
+        // Статистика (за всё время, без фильтров)
+        $baseQuery = ActivityLog::where('club_id', $club->id);
+        $stats = [
+            'total' => $baseQuery->count(),
+            'created' => (clone $baseQuery)->where('action', 'created')->count(),
+            'updated' => (clone $baseQuery)->where('action', 'updated')->count(),
+            'cancelled' => (clone $baseQuery)->where('action', 'cancelled')->count(),
+            'blocked' => (clone $baseQuery)->whereIn('action', ['blocked', 'unblocked'])->count(),
+        ];
+
+        // Счётчики по типам объектов
+        $subjectCounts = [
+            'CourtBooking' => (clone $baseQuery)->where('subject_type', 'CourtBooking')->count(),
+            'ClubClient' => (clone $baseQuery)->where('subject_type', 'ClubClient')->count(),
+            'CourtBlock' => (clone $baseQuery)->where('subject_type', 'CourtBlock')->count(),
+        ];
 
         // Пользователи клуба для фильтра
         $users = ActivityLog::where('club_id', $club->id)
@@ -43,6 +71,6 @@ class ActivityLogController extends Controller
             ->pluck('user')
             ->filter();
 
-        return view('club.activity-log.index', compact('logs', 'users', 'club'));
+        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'club', 'stats', 'subjectCounts'));
     }
 }
