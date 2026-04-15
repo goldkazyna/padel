@@ -1,6 +1,8 @@
 @extends('layouts.app')
 @section('title', 'Журнал действий')
 @section('content')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
 
 <div class="log-page">
 
@@ -32,6 +34,20 @@
                 <div class="log-stat-label">Блоки</div>
             </div>
         </div>
+    </div>
+
+    <!-- DATE PICKER -->
+    <div class="log-datepicker-row">
+        <div class="log-datepicker-wrap">
+            <i class="bi bi-calendar3"></i>
+            <input type="text" id="logDatePicker" class="log-datepicker-input" readonly
+                   value="{{ $date ? \Carbon\Carbon::parse($date)->translatedFormat('j F Y') : 'Все даты' }}">
+        </div>
+        @if($date)
+            <a href="{{ route('club.activityLog', request()->except(['date', 'page'])) }}" class="log-date-clear">
+                <i class="bi bi-x-lg"></i> Сбросить
+            </a>
+        @endif
     </div>
 
     <!-- TOOLBAR -->
@@ -339,6 +355,51 @@
 .log-empty i { font-size: 56px; }
 .log-empty p { font-size: 18px; margin-top: 16px; color: #3f3f46; }
 
+/* DATE PICKER */
+.log-datepicker-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.log-datepicker-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: #111113; border: 1px solid #1e1e22; border-radius: 10px;
+    padding: 10px 16px; cursor: pointer; transition: border-color 0.15s;
+}
+.log-datepicker-wrap:hover { border-color: #27272a; }
+.log-datepicker-wrap i { color: #22c55e; font-size: 18px; }
+.log-datepicker-input {
+    background: transparent !important; border: none !important;
+    color: #e4e4e7 !important; font-size: 16px !important; font-weight: 700 !important;
+    cursor: pointer !important; padding: 0 !important; outline: none !important;
+    font-family: inherit !important; width: 200px !important;
+}
+.log-date-clear {
+    display: flex; align-items: center; gap: 5px;
+    padding: 10px 16px; border-radius: 10px; border: 1px solid #1e1e22;
+    background: #111113; color: #71717a; font-size: 14px; font-weight: 600;
+    text-decoration: none; transition: all 0.15s;
+}
+.log-date-clear:hover { border-color: #ef4444; color: #ef4444; }
+
+/* Flatpickr dark theme overrides */
+.flatpickr-calendar { background: #111113 !important; border: 1px solid #27272a !important; border-radius: 14px !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important; font-family: inherit !important; }
+.flatpickr-months { background: #111113 !important; border-radius: 14px 14px 0 0 !important; }
+.flatpickr-months .flatpickr-month { background: #111113 !important; color: #f4f4f5 !important; }
+.flatpickr-current-month .flatpickr-monthDropdown-months { background: #16161a !important; color: #f4f4f5 !important; border: 1px solid #27272a !important; border-radius: 6px !important; }
+.flatpickr-current-month input.cur-year { color: #f4f4f5 !important; }
+.flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { color: #a1a1aa !important; fill: #a1a1aa !important; }
+.flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover { color: #22c55e !important; fill: #22c55e !important; }
+.flatpickr-weekdays { background: #111113 !important; }
+span.flatpickr-weekday { color: #a1a1aa !important; font-weight: 700 !important; font-size: 12px !important; background: #111113 !important; }
+.flatpickr-innerContainer { background: #111113 !important; border-bottom: none !important; }
+.flatpickr-rContainer { background: #111113 !important; }
+.dayContainer { background: #111113 !important; }
+.flatpickr-day { color: #a1a1aa !important; border-radius: 8px !important; font-weight: 600 !important; border: none !important; }
+.flatpickr-day:hover { background: #27272a !important; color: #f4f4f5 !important; }
+.flatpickr-day.today { border: 2px solid #22c55e !important; color: #22c55e !important; }
+.flatpickr-day.today:hover { background: rgba(34,197,94,0.15) !important; color: #22c55e !important; }
+.flatpickr-day.selected { background: #22c55e !important; color: #0a0a0b !important; border: none !important; }
+.flatpickr-day.selected:hover { background: #16a34a !important; }
+.flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: #3f3f46 !important; }
+.flatpickr-day.flatpickr-disabled { color: #27272a !important; }
+
 /* PAGINATION */
 .log-pagination-bar {
     display: flex; justify-content: space-between; align-items: center;
@@ -378,5 +439,22 @@ function toggleChanges(row) {
         row.classList.toggle('expanded');
     }
 }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+<script>
+flatpickr('#logDatePicker', {
+    locale: 'ru',
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'j F Y',
+    defaultDate: {!! $date ? "'" . $date . "'" : 'null' !!},
+    onChange: function(selectedDates, dateStr) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('date', dateStr);
+        params.delete('page');
+        window.location.href = '{{ route('club.activityLog') }}?' + params.toString();
+    }
+});
 </script>
 @endsection

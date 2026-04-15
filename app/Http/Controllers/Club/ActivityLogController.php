@@ -40,6 +40,11 @@ class ActivityLogController extends Controller
             $query->where('description', 'like', '%' . $request->get('search') . '%');
         }
 
+        $date = $request->get('date');
+        if ($date) {
+            $query->whereDate('created_at', $date);
+        }
+
         $logs = $query->paginate(30);
 
         // Группировка по дням для view
@@ -71,6 +76,6 @@ class ActivityLogController extends Controller
             ->pluck('user')
             ->filter();
 
-        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'club', 'stats', 'subjectCounts'));
+        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'club', 'stats', 'subjectCounts', 'date'));
     }
 }
