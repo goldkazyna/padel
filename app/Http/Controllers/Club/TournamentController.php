@@ -744,10 +744,15 @@ class TournamentController extends Controller
 			'tournament_id' => (string) $tournament->id,
 		];
 
-		// Фильтруем пользователей с учётом настроек уведомлений
-		$users = \App\Models\User::whereHas('deviceTokens')
-			->with('deviceTokens')
-			->get(['id', 'level', 'notify_only_my_level', 'notify_club_ids']);
+		// Фильтруем пользователей с учётом города клуба и настроек уведомлений
+		$query = \App\Models\User::whereHas('deviceTokens')
+			->with('deviceTokens');
+
+		if ($club && $club->city) {
+			$query->where('city', $club->city);
+		}
+
+		$users = $query->get(['id', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
 
 		$recipients = $users->filter(function ($user) use ($tournament) {
 			// Фильтр по клубам
@@ -786,7 +791,8 @@ class TournamentController extends Controller
 		$sent = $recipients->count();
 		$filtered = $total - $sent;
 
-		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");
+		$cityLabel = ($club && $club->city) ? ", город: {$club->city}" : "";
+		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей{$cityLabel}" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");
 	}
 
 	/**
@@ -799,7 +805,13 @@ class TournamentController extends Controller
 			abort(403);
 		}
 
-		$users = \App\Models\User::whereHas('deviceTokens')->get(['id', 'name', 'level', 'notify_only_my_level']);
+		$query = \App\Models\User::whereHas('deviceTokens');
+
+		if ($club && $club->city) {
+			$query->where('city', $club->city);
+		}
+
+		$users = $query->get(['id', 'name', 'city', 'level', 'notify_only_my_level']);
 
 		$recipients = $users->filter(function ($user) use ($tournament) {
 			if (!$user->notify_only_my_level) return true;
@@ -807,9 +819,10 @@ class TournamentController extends Controller
 		});
 
 		$filtered = $users->diff($recipients);
+		$cityLabel = ($club && $club->city) ? " (город: {$club->city})" : "";
 
 		return back()->with('success',
-			"Превью push: получат {$recipients->count()} из {$users->count()} пользователей. " .
+			"Превью push{$cityLabel}: получат {$recipients->count()} из {$users->count()} пользователей. " .
 			"Отфильтровано по уровню: {$filtered->count()}." .
 			($filtered->count() > 0 ? " Отфильтрованы: " . $filtered->map(fn($u) => "{$u->name} (L{$u->level})")->implode(', ') : "")
 		);
