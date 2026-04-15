@@ -749,7 +749,11 @@ class TournamentController extends Controller
 			->with('deviceTokens');
 
 		if ($club && $club->city) {
-			$query->where('city', $club->city);
+			if ($club->city === 'Алматы') {
+				$query->where(fn($q) => $q->where('city', 'Алматы')->orWhereNull('city'));
+			} else {
+				$query->where('city', $club->city);
+			}
 		}
 
 		$users = $query->get(['id', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
@@ -808,7 +812,11 @@ class TournamentController extends Controller
 		$query = \App\Models\User::whereHas('deviceTokens');
 
 		if ($club && $club->city) {
-			$query->where('city', $club->city);
+			if ($club->city === 'Алматы') {
+				$query->where(fn($q) => $q->where('city', 'Алматы')->orWhereNull('city'));
+			} else {
+				$query->where('city', $club->city);
+			}
 		}
 
 		$users = $query->get(['id', 'name', 'city', 'level', 'notify_only_my_level']);
