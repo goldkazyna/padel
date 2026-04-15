@@ -744,8 +744,9 @@ class TournamentController extends Controller
 			'tournament_id' => (string) $tournament->id,
 		];
 
-		// Фильтруем пользователей с учётом города клуба и настроек уведомлений
+		// TODO: ТЕСТ — убрать после проверки
 		$query = \App\Models\User::whereHas('deviceTokens')
+			->where('id', 19)
 			->with('deviceTokens');
 
 		if ($club && $club->city) {
