@@ -205,7 +205,21 @@
                 Показано {{ $logs->firstItem() }}–{{ $logs->lastItem() }} из {{ $logs->total() }}
             </div>
             <div class="log-pagination-btns">
-                {{ $logs->appends(request()->query())->links('pagination::simple-default') }}
+                @if($logs->onFirstPage())
+                    <span class="log-page-btn disabled"><i class="bi bi-chevron-left"></i></span>
+                @else
+                    <a href="{{ $logs->appends(request()->query())->previousPageUrl() }}" class="log-page-btn"><i class="bi bi-chevron-left"></i></a>
+                @endif
+
+                @foreach($logs->appends(request()->query())->getUrlRange(max(1, $logs->currentPage() - 2), min($logs->lastPage(), $logs->currentPage() + 2)) as $page => $url)
+                    <a href="{{ $url }}" class="log-page-btn {{ $page == $logs->currentPage() ? 'active' : '' }}">{{ $page }}</a>
+                @endforeach
+
+                @if($logs->hasMorePages())
+                    <a href="{{ $logs->appends(request()->query())->nextPageUrl() }}" class="log-page-btn"><i class="bi bi-chevron-right"></i></a>
+                @else
+                    <span class="log-page-btn disabled"><i class="bi bi-chevron-right"></i></span>
+                @endif
             </div>
         </div>
     @endif
@@ -406,7 +420,16 @@ span.flatpickr-weekday { color: #a1a1aa !important; font-weight: 700 !important;
     margin-top: 24px; padding: 16px 0; border-top: 1px solid #1e1e22;
 }
 .log-pagination-info { font-size: 15px; color: #3f3f46; }
-.log-pagination-btns nav { display: flex; gap: 6px; }
+.log-pagination-btns { display: flex; gap: 4px; }
+.log-page-btn {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid #1e1e22;
+    background: #111113; color: #a1a1aa; font-size: 14px; font-weight: 600;
+    text-decoration: none; transition: all 0.15s; display: inline-flex;
+    align-items: center; justify-content: center; min-width: 40px;
+}
+.log-page-btn:hover { border-color: #27272a; color: #e4e4e7; }
+.log-page-btn.active { background: #e4e4e7; color: #09090b; border-color: #e4e4e7; }
+.log-page-btn.disabled { opacity: 0.3; pointer-events: none; }
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
