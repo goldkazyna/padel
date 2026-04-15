@@ -138,12 +138,7 @@
                             <td class="col-action"><span class="action-badge {{ $log->action }}"><span class="dot"></span>{{ $actionLabels[$log->action] ?? $log->action }}</span></td>
                             <td class="col-subject"><span class="subject-tag {{ $subj['class'] }}"><i class="bi {{ $subj['icon'] }}"></i> {{ $subj['label'] }}</span></td>
                             <td class="col-desc">{{ $log->description }}</td>
-                            <td class="col-user">
-                                <div class="user-cell">
-                                    <span class="user-name">{{ $log->user->name ?? 'Система' }}</span>
-                                    <span class="user-avatar" style="background:{{ $ac['bg'] }};color:{{ $ac['color'] }};">{{ $initials }}</span>
-                                </div>
-                            </td>
+                            <td class="col-user">{{ $log->user->name ?? 'Система' }}</td>
                         </tr>
                         @if($hasChanges)
                         <tr class="changes-row">
@@ -318,13 +313,8 @@
 .subject-tag.client { color: #4ade80; border-color: rgba(34,197,94,0.15); background: rgba(34,197,94,0.05); }
 .subject-tag.block { color: #fbbf24; border-color: rgba(245,158,11,0.15); background: rgba(245,158,11,0.05); }
 
-/* USER CELL */
-.user-cell { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
-.user-avatar {
-    width: 30px; height: 30px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
-}
-.user-name { font-size: 15px; color: #71717a; font-weight: 500; text-align: right; }
+/* USER */
+.col-user { font-size: 16px; color: #e4e4e7; font-weight: 700; text-align: right; }
 
 /* CHANGES */
 .log-row.has-changes { cursor: pointer; }
