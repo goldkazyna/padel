@@ -51,6 +51,8 @@ class MobileHomeController extends Controller
             'level' => $user->level,
             'level_name' => $user->level_name,
             'place' => $place,
+            'city' => $user->city,
+            'gender' => $user->gender,
         ];
     }
 
