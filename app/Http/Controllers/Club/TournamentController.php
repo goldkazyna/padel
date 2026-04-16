@@ -462,7 +462,7 @@ class TournamentController extends Controller
 		// Отправляем уведомления
 		$user = \App\Models\User::find($userId);
 		if ($user) {
-			$notificationService = new \App\Services\TelegramNotificationService();
+			$notificationService = new \App\Services\TelegramNotificationService($tournament->club);
 			$notificationService->notifyRegistrationApproved($user, $tournament);
 
 			// FCM push
@@ -513,7 +513,7 @@ class TournamentController extends Controller
 
 		// Отправляем уведомление об отклонении
 		if ($user) {
-			$notificationService = new \App\Services\TelegramNotificationService();
+			$notificationService = new \App\Services\TelegramNotificationService($tournament->club);
 			$notificationService->notifyRegistrationRejected($user, $tournament);
 
 			// FCM push
@@ -585,7 +585,7 @@ class TournamentController extends Controller
 			->update(['tournament_participants.status' => 'registered']);
 
 		// Отправляем уведомления всем одобренным
-		$notificationService = new \App\Services\TelegramNotificationService();
+		$notificationService = new \App\Services\TelegramNotificationService($tournament->club);
 		$fcm = app(\App\Services\FCMNotificationService::class);
 		$date = $tournament->start_date->format('d.m.Y H:i');
 

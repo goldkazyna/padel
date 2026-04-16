@@ -62,7 +62,7 @@ class TournamentController extends Controller
         // Отправляем уведомления
         $user = \App\Models\User::find($userId);
         if ($user) {
-            $telegramService = new \App\Services\TelegramNotificationService();
+            $telegramService = new \App\Services\TelegramNotificationService($tournament->club);
             $telegramService->notifyRegistrationApproved($user, $tournament);
 
             $date = $tournament->start_date->format('d.m.Y H:i');
@@ -109,7 +109,7 @@ class TournamentController extends Controller
 
         // Отправляем уведомление об отклонении
         if ($user) {
-            $telegramService = new \App\Services\TelegramNotificationService();
+            $telegramService = new \App\Services\TelegramNotificationService($tournament->club);
             $telegramService->notifyRegistrationRejected($user, $tournament);
 
             $title = 'Заявка отклонена';

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Club;
 use App\Models\User;
 use App\Models\Tournament;
 use Illuminate\Support\Facades\Http;
@@ -12,9 +13,9 @@ class TelegramNotificationService
     protected string $botToken;
     protected string $apiUrl;
 
-    public function __construct()
+    public function __construct(?Club $club = null)
     {
-        $this->botToken = config('services.telegram.bot_token');
+        $this->botToken = $club->telegram_bot_token ?? '';
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
     }
 
