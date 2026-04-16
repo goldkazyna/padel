@@ -304,29 +304,59 @@ class MobileAuthController extends Controller
     }
 
     /**
-     * Вход по email
+     * Вход по email или телефону
      * POST /api/mobile/auth/login
      */
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|string|email',
+            'login' => 'required_without:email|string',
+            'email' => 'required_without:login|string',
             'password' => 'required|string',
         ]);
 
-        // Блокируем placeholder email SMS-пользователей
-        if (str_ends_with($request->email, '@padel.local')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Неверный email или пароль',
-            ], 401);
-        }
+        $login = trim((string) ($request->input('login') ?? $request->input('email') ?? ''));
+        $isEmail = str_contains($login, '@');
+        $errorMessage = 'Неверный логин или пароль';
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Неверный email или пароль',
-            ], 401);
+        if ($isEmail) {
+            if (str_ends_with($login, '@padel.local')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 401);
+            }
+
+            if (!Auth::attempt(['email' => $login, 'password' => $request->password])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 401);
+            }
+        } else {
+            $phone = $this->normalizePhone($login);
+            if (strlen($phone) === 11 && $phone[0] === '8') {
+                $phone = '7' . substr($phone, 1);
+            } elseif (strlen($phone) === 10) {
+                $phone = '7' . $phone;
+            }
+
+            if (strlen($phone) !== 11 || $phone[0] !== '7') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 401);
+            }
+
+            $user = User::where('phone', $phone)->first();
+            if (!$user || !$user->password || !Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 401);
+            }
+
+            Auth::login($user);
         }
 
         $user = Auth::user();
