@@ -56,9 +56,42 @@ class MobileProfileController extends Controller
             'age'         => 'nullable|integer|min:1|max:99',
             'hand'        => 'nullable|string|in:right,left',
             'position'    => 'nullable|string|in:right,left,any',
+            'phone'       => 'nullable|string|max:20',
         ]);
 
         $user = $request->user();
+
+        // Телефон разрешаем записать только если он ещё не задан у пользователя
+        if (array_key_exists('phone', $validated)) {
+            $rawPhone = $validated['phone'];
+            unset($validated['phone']);
+
+            if (empty($user->phone) && !empty($rawPhone)) {
+                $digits = preg_replace('/[^0-9]/', '', $rawPhone);
+                if (strlen($digits) === 11 && $digits[0] === '8') {
+                    $digits = '7' . substr($digits, 1);
+                } elseif (strlen($digits) === 10) {
+                    $digits = '7' . $digits;
+                }
+
+                if (strlen($digits) !== 11 || $digits[0] !== '7') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Неверный формат телефона',
+                    ], 422);
+                }
+
+                if (User::where('phone', $digits)->where('id', '!=', $user->id)->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Этот телефон уже используется другим аккаунтом',
+                    ], 422);
+                }
+
+                $user->phone = $digits;
+            }
+        }
+
         $user->fill($validated);
 
         $user->save();
