@@ -32,13 +32,21 @@ class ActivityLog extends Model
 
     /**
      * Быстрый метод логирования
+     *
+     * Если $clubId передан явно — используется он (для мобильных/публичных действий).
+     * Иначе clubId определяется по роли текущего пользователя (admin-flow).
      */
-    public static function log(string $action, string $subjectType, ?int $subjectId, ?string $description = null, ?array $changes = null): self
-    {
+    public static function log(
+        string $action,
+        string $subjectType,
+        ?int $subjectId,
+        ?string $description = null,
+        ?array $changes = null,
+        ?int $clubId = null,
+    ): self {
         $user = auth()->user();
-        $clubId = null;
 
-        if ($user) {
+        if ($clubId === null && $user) {
             if ($user->isSuperAdmin()) {
                 $clubId = Club::first()?->id;
             } elseif ($user->isClubModerator()) {

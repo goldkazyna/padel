@@ -259,6 +259,19 @@ class MobileCourtController extends Controller
             'needs_coach' => !empty($validated['needs_coach']),
         ]);
 
+        $logDesc = "Бронь из приложения: {$booking->client_name}, {$court->name}, {$validated['date']} {$startTimeStr}–{$endTimeStr}";
+        if (!empty($validated['needs_coach'])) {
+            $logDesc .= ' · клиент просит тренера';
+        }
+        \App\Models\ActivityLog::log(
+            'created',
+            'CourtBooking',
+            $booking->id,
+            $logDesc,
+            null,
+            $club->id,
+        );
+
         return response()->json([
             'success' => true,
             'booking' => [
@@ -353,6 +366,19 @@ class MobileCourtController extends Controller
             'status' => 'cancelled',
             'cancelled_at' => now(),
         ]);
+
+        $court = $booking->court;
+        $start = \Carbon\Carbon::parse($booking->start_time)->format('H:i');
+        $end = \Carbon\Carbon::parse($booking->end_time)->format('H:i');
+        $date = \Carbon\Carbon::parse($booking->date)->format('Y-m-d');
+        \App\Models\ActivityLog::log(
+            'cancelled',
+            'CourtBooking',
+            $booking->id,
+            "Отмена брони из приложения: {$booking->client_name}, {$court->name}, {$date} {$start}–{$end}",
+            null,
+            $court->club_id,
+        );
 
         return response()->json([
             'success' => true,
