@@ -22,12 +22,18 @@ class MobileTournamentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $hiddenClubIds = $user ? ($user->hidden_club_ids ?? []) : [];
 
-        $tournaments = Tournament::where('status', 'open')
+        $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
-            ->with('club')
-            ->get()
+            ->with('club');
+
+        if (!empty($hiddenClubIds)) {
+            $query->whereNotIn('club_id', $hiddenClubIds);
+        }
+
+        $tournaments = $query->get()
             ->map(fn($t) => $this->formatTournament($t, $user, true));
 
         return response()->json([

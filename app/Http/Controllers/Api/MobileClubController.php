@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\CourtPriceRange;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class MobileClubController extends Controller
 {
@@ -71,6 +72,10 @@ class MobileClubController extends Controller
             })
             ->min('price');
 
+        $user = Auth::user();
+        $hiddenIds = $user ? ($user->hidden_club_ids ?? []) : [];
+        $isHidden = in_array($club->id, $hiddenIds, true);
+
         return response()->json([
             'success' => true,
             'club' => [
@@ -84,7 +89,35 @@ class MobileClubController extends Controller
                 'email' => $club->email,
                 'courts_count' => $courtsCount,
                 'min_price' => $minPrice !== null ? (float) $minPrice : null,
+                'is_hidden' => $isHidden,
             ],
+        ]);
+    }
+
+    /**
+     * Переключить скрытие турниров клуба для пользователя
+     * POST /api/mobile/clubs/{club}/toggle-hide
+     */
+    public function toggleHide(Club $club)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $hidden = $user->hidden_club_ids ?? [];
+        if (in_array($club->id, $hidden, true)) {
+            $hidden = array_values(array_filter($hidden, fn($id) => $id !== $club->id));
+        } else {
+            $hidden[] = $club->id;
+        }
+
+        $user->hidden_club_ids = array_values(array_unique($hidden));
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'is_hidden' => in_array($club->id, $user->hidden_club_ids, true),
         ]);
     }
 }

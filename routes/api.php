@@ -137,6 +137,7 @@ Route::prefix('mobile')->group(function () {
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
         Route::get('/clubs/{club}', [MobileClubController::class, 'show']);
+        Route::post('/clubs/{club}/toggle-hide', [MobileClubController::class, 'toggleHide']);
 
         // Бронирование кортов
         Route::get('/courts/clubs', [MobileCourtController::class, 'clubs']);
