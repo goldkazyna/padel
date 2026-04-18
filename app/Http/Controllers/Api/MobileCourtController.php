@@ -181,6 +181,7 @@ class MobileCourtController extends Controller
             'client_phone' => 'nullable|string|max:50',
             'coach_id' => 'nullable|integer',
             'comment' => 'nullable|string|max:500',
+            'needs_coach' => 'nullable|boolean',
         ]);
 
         // Проверяем что корт принадлежит клубу и активен
@@ -255,6 +256,7 @@ class MobileCourtController extends Controller
             'is_processed' => false,
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?? null,
+            'needs_coach' => !empty($validated['needs_coach']),
         ]);
 
         return response()->json([
@@ -270,6 +272,7 @@ class MobileCourtController extends Controller
                 'coach_price' => $coachPrice,
                 'total_price' => $courtPrice + $coachPrice,
                 'coach' => $clubCoach ? ($clubCoach->user->full_name ?? $clubCoach->user->name) : null,
+                'needs_coach' => $booking->needs_coach,
                 'status' => 'confirmed',
             ],
         ]);

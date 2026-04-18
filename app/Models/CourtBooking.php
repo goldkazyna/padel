@@ -23,6 +23,7 @@ class CourtBooking extends Model
         'is_processed',
         'comment',
         'coach_id',
+        'needs_coach',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class CourtBooking extends Model
         'discount' => 'decimal:2',
         'is_paid' => 'boolean',
         'is_processed' => 'boolean',
+        'needs_coach' => 'boolean',
     ];
 
     public function court()

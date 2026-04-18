@@ -317,10 +317,11 @@
                                                 <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
                                             </div>
                                         </div>
-                                        @if($booking->coach || $booking->comment || $coachTotal > 0)
+                                        @if($booking->coach || $booking->comment || $coachTotal > 0 || $booking->needs_coach)
                                         <div class="slot-row slot-row-sub">
                                             <div class="slot-left">
                                                 @if($booking->coach)<span class="slot-coach">{{ $booking->coach->first_name }}</span>@endif
+                                                @if($booking->needs_coach && !$booking->coach)<span class="slot-needs-coach" title="Клиент запросил тренера">🎾 Нужен тренер</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
                                             @if($coachTotal > 0)
@@ -383,6 +384,11 @@
                     <span><i class="bi bi-calendar3"></i> {{ \Carbon\Carbon::parse($ub->date)->locale('ru')->isoFormat('D MMM') }}</span>
                     <span><i class="bi bi-clock"></i> {{ substr($ub->start_time, 0, 5) }}–{{ substr($ub->end_time, 0, 5) }}</span>
                 </div>
+                @if($ub->needs_coach)
+                    <div class="unprocessed-card-needs-coach" style="background:rgba(168,156,245,0.15);color:#a89cf5;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;margin-top:6px;display:inline-flex;align-items:center;gap:6px;">
+                        <i class="bi bi-person-raised-hand"></i> Клиент просит тренера
+                    </div>
+                @endif
                 @if($ub->comment)
                     <div class="unprocessed-card-comment">{{ $ub->comment }}</div>
                 @endif
@@ -1518,6 +1524,7 @@
     .slot-comment-text { font-size: 10px; color: #71717a; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
     .slot-price-court { font-size: 13px; font-weight: 700; color: #22c55e; }
     .slot-price-coach { font-size: 12px; font-weight: 700; color: #a78bfa; }
+    .slot-needs-coach { font-size: 10px; font-weight: 600; color: #a89cf5; background: rgba(168,156,245,0.15); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
 
     .slot-booked-multi {
         background: rgba(59, 130, 246, 0.1);
