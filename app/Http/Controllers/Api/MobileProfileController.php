@@ -28,10 +28,12 @@ class MobileProfileController extends Controller
         }
 
         // Тренд рейтинга — одно значение на турнир (финальный rating_after),
-        // чтобы совпадал со списком "История турниров"
+        // за последние 6 месяцев, чтобы старые записи со стартовым
+        // рейтингом не ломали масштаб графика.
         $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('tournament_id')
             ->whereNotNull('rating_after')
+            ->where('created_at', '>', now()->subMonths(6))
             ->orderBy('id', 'asc')
             ->get(['tournament_id', 'rating_after'])
             ->groupBy('tournament_id')
