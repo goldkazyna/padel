@@ -118,16 +118,44 @@ class TeamTournamentController extends Controller
 			->flatMap(fn($team) => [$team->player1_id, $team->player2_id])
 			->toArray();
 
-		// Берём тестовых пользователей по email (1@gmail.com - 16@gmail.com)
-		$testPlayers = User::whereIn('email', [
-			'1@gmail.com', '2@gmail.com', '3@gmail.com', '4@gmail.com',
-			'5@gmail.com', '6@gmail.com', '7@gmail.com', '8@gmail.com',
-			'9@gmail.com', '10@gmail.com', '11@gmail.com', '12@gmail.com',
-			'13@gmail.com', '14@gmail.com', '15@gmail.com', '16@gmail.com',
-		])
-		->whereNotIn('id', $playersInTeams)
-		->get()
-		->shuffle();
+		$playersNeeded = $teamsToAdd * 2;
+
+		// Берём всех тестовых пользователей по паттерну email
+		// (1@gmail.com, 2@gmail.com, …, 123@gmail.com и т.д.)
+		$testPlayers = User::where('role', 'player')
+			->whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
+			->whereNotIn('id', $playersInTeams)
+			->get();
+
+		// Если не хватает — создаём недостающих автоматически.
+		if ($testPlayers->count() < $playersNeeded) {
+			$existingEmails = User::whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
+				->pluck('email')
+				->toArray();
+			$existingNumbers = array_map(
+				fn($e) => (int) explode('@', $e)[0],
+				$existingEmails,
+			);
+			$nextN = empty($existingNumbers) ? 1 : (max($existingNumbers) + 1);
+
+			$toCreate = $playersNeeded - $testPlayers->count();
+			for ($i = 0; $i < $toCreate; $i++) {
+				$n = $nextN + $i;
+				$newUser = User::create([
+					'first_name' => 'Тест',
+					'last_name' => "#$n",
+					'name' => "Тест #$n",
+					'email' => "$n@gmail.com",
+					'password' => bcrypt('password'),
+					'role' => 'player',
+					'rating' => rand(1500, 3500),
+					'level' => round(rand(100, 500) / 100, 2),
+				]);
+				$testPlayers->push($newUser);
+			}
+		}
+
+		$testPlayers = $testPlayers->shuffle();
 
 		if ($testPlayers->count() < 2) {
 			return back()->with('error', 'Недостаточно свободных тестовых игроков');
