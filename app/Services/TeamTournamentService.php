@@ -154,9 +154,13 @@ class TeamTournamentService
 	}
 
 	/**
-	 * Жадно распределяет уже созданные матчи группового этапа
-	 * в раунды-волны, чтобы одновременно играло не более courtsCount матчей
-	 * и ни одна пара не играла дважды в одной волне.
+	 * Распределяет уже созданные матчи группового этапа в раунды-волны
+	 * так, чтобы в каждой волне играло максимум по 1 матчу из каждой группы
+	 * (round-robin по группам — когда играет группа A, играет и B, и C,
+	 * а внутри каждой группы оставшиеся пары отдыхают).
+	 *
+	 * Если courtsCount > числа групп — лишние корты пустуют, чтобы сохранить
+	 * «честность» отдыха пар внутри одной группы.
 	 */
 	protected function rebalanceGroupMatchesToCourts(Tournament $tournament, int $courtsCount): void
 	{
@@ -167,34 +171,39 @@ class TeamTournamentService
 			->orderBy('id')
 			->get();
 
-		/** @var array<int,array<int,int>> $waves */
-		$waves = [];
-
+		// Группируем матчи по group_id в отдельные очереди,
+		// порядок внутри очереди — как сгенерировали (по round_number, id)
+		$queues = [];
 		foreach ($matches as $m) {
-			$placed = false;
-			foreach ($waves as $i => $wave) {
-				// Проверяем: в волне ещё есть место и ни одна из команд не играет в этой волне
-				if (count($wave['matches']) >= $courtsCount) continue;
-				$t1 = $m->team1_id;
-				$t2 = $m->team2_id;
-				if (isset($wave['teams'][$t1]) || isset($wave['teams'][$t2])) continue;
+			$queues[$m->group_id][] = $m;
+		}
+		$groupIds = array_keys($queues);
 
-				$waves[$i]['matches'][] = $m;
-				$waves[$i]['teams'][$t1] = true;
-				$waves[$i]['teams'][$t2] = true;
-				$placed = true;
-				break;
+		$waves = [];
+		while (true) {
+			$wave = [];
+			$usedTeams = [];
+			foreach ($groupIds as $gid) {
+				if (count($wave) >= $courtsCount) break;
+				if (empty($queues[$gid])) continue;
+				$next = $queues[$gid][0];
+				// На всякий случай — проверяем что пары не пересекаются
+				// (между группами пары уникальны, но страхуемся).
+				if (isset($usedTeams[$next->team1_id]) || isset($usedTeams[$next->team2_id])) {
+					continue;
+				}
+				array_shift($queues[$gid]);
+				$wave[] = $next;
+				$usedTeams[$next->team1_id] = true;
+				$usedTeams[$next->team2_id] = true;
 			}
-			if (!$placed) {
-				$waves[] = [
-					'matches' => [$m],
-					'teams' => [$m->team1_id => true, $m->team2_id => true],
-				];
-			}
+
+			if (empty($wave)) break;
+			$waves[] = $wave;
 		}
 
 		foreach ($waves as $wIdx => $wave) {
-			foreach ($wave['matches'] as $cIdx => $m) {
+			foreach ($wave as $cIdx => $m) {
 				$m->update([
 					'round_number' => $wIdx + 1,
 					'court_number' => $cIdx + 1,
