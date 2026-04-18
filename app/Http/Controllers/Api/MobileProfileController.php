@@ -54,6 +54,7 @@ class MobileProfileController extends Controller
             'city'        => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе',
             'gender'      => 'nullable|string|in:male,female',
             'age'         => 'nullable|integer|min:1|max:99',
+            'birth_date'  => 'nullable|date|before:today',
             'hand'        => 'nullable|string|in:right,left',
             'position'    => 'nullable|string|in:right,left,any',
             'phone'       => 'nullable|string|max:20',
@@ -155,6 +156,7 @@ class MobileProfileController extends Controller
             'city' => $user->city,
             'gender' => $user->gender,
             'age' => $user->age,
+            'birth_date' => $user->birth_date ? $user->birth_date->format('Y-m-d') : null,
             'hand' => $user->hand,
             'position' => $user->position,
         ];
