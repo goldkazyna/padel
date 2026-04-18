@@ -134,7 +134,8 @@ Route::prefix('mobile')->group(function () {
         Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
         Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
 
-        // Клубы (карточка клуба)
+        // Клубы
+        Route::get('/clubs', [MobileClubController::class, 'index']);
         Route::get('/clubs/{club}', [MobileClubController::class, 'show']);
 
         // Бронирование кортов
