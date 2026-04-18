@@ -38,6 +38,7 @@ class Tournament extends Model
 		'playoff_format',
 		'reserve_count',
 		'courts',
+		'courts_count',
     ];
 
     protected $casts = [

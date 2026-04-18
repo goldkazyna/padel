@@ -86,7 +86,7 @@ class TournamentController extends Controller
 			'status' => 'required|in:draft,open',
 			'type' => 'required|in:classic,americano,mexicano,team',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
-			'groups_count' => 'nullable|integer|in:1,2,4',
+			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
 			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
@@ -95,6 +95,7 @@ class TournamentController extends Controller
 			'reserve_count' => 'nullable|integer|min:0|max:10',
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
+			'courts_count' => 'nullable|integer|min:1|max:32',
 		]);
 
 

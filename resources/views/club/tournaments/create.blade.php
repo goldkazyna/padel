@@ -251,6 +251,7 @@
 								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
 									<option value="1" {{ old('groups_count') == 1 ? 'selected' : '' }}>1 группа</option>
 									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
+									<option value="3" {{ old('groups_count') == 3 ? 'selected' : '' }}>3 группы</option>
 									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
 								</select>
 							</div>
@@ -262,6 +263,15 @@
 									<option value="3" {{ old('teams_advance') == 3 ? 'selected' : '' }}>3 пары</option>
 									<option value="4" {{ old('teams_advance') == 4 ? 'selected' : '' }}>4 пары</option>
 								</select>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Количество кортов</label>
+								<input type="number" name="courts_count" class="form-control"
+									   value="{{ old('courts_count') }}" min="1" max="32"
+									   placeholder="оставьте пустым для авто">
+								<small class="text-muted">Если заполнено — матчи группового этапа пойдут волнами, не более N одновременно.</small>
 							</div>
 						</div>
 						

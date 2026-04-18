@@ -145,6 +145,63 @@ class TeamTournamentService
 			$courtsInGroup = floor($numTeams / 2);
 			$courtOffset += $courtsInGroup;
 		}
+
+		// Если админ ограничил количество кортов — перераспределяем матчи
+		// групповой стадии в волны по courts_count одновременно.
+		if ($tournament->courts_count && $tournament->courts_count > 0) {
+			$this->rebalanceGroupMatchesToCourts($tournament, (int) $tournament->courts_count);
+		}
+	}
+
+	/**
+	 * Жадно распределяет уже созданные матчи группового этапа
+	 * в раунды-волны, чтобы одновременно играло не более courtsCount матчей
+	 * и ни одна пара не играла дважды в одной волне.
+	 */
+	protected function rebalanceGroupMatchesToCourts(Tournament $tournament, int $courtsCount): void
+	{
+		$matches = TournamentGroupMatch::whereHas('group', function ($q) use ($tournament) {
+			$q->where('tournament_id', $tournament->id);
+		})
+			->orderBy('round_number')
+			->orderBy('id')
+			->get();
+
+		/** @var array<int,array<int,int>> $waves */
+		$waves = [];
+
+		foreach ($matches as $m) {
+			$placed = false;
+			foreach ($waves as $i => $wave) {
+				// Проверяем: в волне ещё есть место и ни одна из команд не играет в этой волне
+				if (count($wave['matches']) >= $courtsCount) continue;
+				$t1 = $m->team1_id;
+				$t2 = $m->team2_id;
+				if (isset($wave['teams'][$t1]) || isset($wave['teams'][$t2])) continue;
+
+				$waves[$i]['matches'][] = $m;
+				$waves[$i]['teams'][$t1] = true;
+				$waves[$i]['teams'][$t2] = true;
+				$placed = true;
+				break;
+			}
+			if (!$placed) {
+				$waves[] = [
+					'matches' => [$m],
+					'teams' => [$m->team1_id => true, $m->team2_id => true],
+				];
+			}
+		}
+
+		foreach ($waves as $wIdx => $wave) {
+			foreach ($wave['matches'] as $cIdx => $m) {
+				$m->update([
+					'round_number' => $wIdx + 1,
+					'court_number' => $cIdx + 1,
+					'status' => $wIdx === 0 ? 'in_progress' : 'pending',
+				]);
+			}
+		}
 	}
 
     /**
