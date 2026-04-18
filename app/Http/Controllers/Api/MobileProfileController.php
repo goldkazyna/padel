@@ -27,14 +27,19 @@ class MobileProfileController extends Controller
                 ->count() + 1;
         }
 
+        // Тренд рейтинга — одно значение на турнир (финальный rating_after),
+        // чтобы совпадал со списком "История турниров"
         $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
+            ->whereNotNull('tournament_id')
+            ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
-            ->get(['rating_after'])
-            ->pluck('rating_after')
-            ->filter(fn($v) => $v !== null)
+            ->get(['tournament_id', 'rating_after'])
+            ->groupBy('tournament_id')
+            ->map(fn($group) => $group->last()->rating_after)
             ->values()
             ->toArray();
         $ratingTrend = array_slice($ratingTrend, -10);
+        $ratingTrend = array_map('intval', $ratingTrend);
 
         return response()->json([
             'success' => true,
