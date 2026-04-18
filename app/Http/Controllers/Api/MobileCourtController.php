@@ -306,10 +306,17 @@ class MobileCourtController extends Controller
             ->get();
 
         $today = now()->format('Y-m-d');
+        $cancelMinHours = 12;
 
-        $format = function (CourtBooking $b) use ($today) {
+        $format = function (CourtBooking $b) use ($today, $cancelMinHours) {
             $isFuture = $b->date->format('Y-m-d') >= $today;
-            $canCancel = $isFuture && $b->status === 'confirmed';
+            $startDt = Carbon::parse(
+                $b->date->format('Y-m-d') . ' ' . Carbon::parse($b->start_time)->format('H:i:s')
+            );
+            $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
+            $canCancel = $isFuture
+                && $b->status === 'confirmed'
+                && $hoursUntilStart >= $cancelMinHours;
 
             return [
                 'id' => $b->id,
@@ -324,6 +331,7 @@ class MobileCourtController extends Controller
                 'status' => $b->status,
                 'is_processed' => (bool) $b->is_processed,
                 'can_cancel' => $canCancel,
+                'cancel_min_hours' => $cancelMinHours,
             ];
         };
 
@@ -359,6 +367,18 @@ class MobileCourtController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Бронирование уже отменено',
+            ], 422);
+        }
+
+        $cancelMinHours = 12;
+        $startDt = Carbon::parse(
+            $booking->date->format('Y-m-d') . ' ' . Carbon::parse($booking->start_time)->format('H:i:s')
+        );
+        $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
+        if ($hoursUntilStart < $cancelMinHours) {
+            return response()->json([
+                'success' => false,
+                'message' => "Отмена менее чем за {$cancelMinHours} часов через приложение невозможна. Свяжитесь с клубом.",
             ], 422);
         }
 
