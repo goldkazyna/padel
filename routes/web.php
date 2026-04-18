@@ -123,6 +123,10 @@ Route::middleware('auth')->group(function () {
             Route::middleware('club.feature:activity_log')->group(function () {
                 Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
             });
+
+            // Отчёты
+            Route::get('/reports', [App\Http\Controllers\Club\ReportsController::class, 'index'])->name('reports.index');
+            Route::get('/reports/export', [App\Http\Controllers\Club\ReportsController::class, 'export'])->name('reports.export');
         });
 
         // Кол-во необработанных бронирований (для polling)

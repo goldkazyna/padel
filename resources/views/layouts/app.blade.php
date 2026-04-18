@@ -1013,6 +1013,12 @@
 						</a>
 					</li>
 					@endif
+					<li class="nav-item">
+						<a href="{{ route('club.reports.index') }}" class="nav-link {{ request()->routeIs('club.reports.*') ? 'active' : '' }}">
+							<i class="bi bi-bar-chart-line"></i>
+							<span>Отчёты</span>
+						</a>
+					</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())
