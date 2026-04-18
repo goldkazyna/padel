@@ -375,6 +375,32 @@ class CourtController extends Controller
             );
         }
 
+        // Push юзеру приложения — если бронь привязана к нему
+        if ($linkedUser) {
+            try {
+                $date = Carbon::parse($validated['date'])->format('d.m.Y');
+                $title = 'Вам забронирован корт ✅';
+                $body = "{$club->name} · {$court->name}, {$date} в {$startTime}";
+
+                \App\Models\Notification::create([
+                    'user_id' => $linkedUser->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => 'booking_created',
+                    'category' => 'booking',
+                    'data' => ['booking_id' => $booking->id],
+                ]);
+
+                $fcm = app(\App\Services\FCMNotificationService::class);
+                $fcm->sendToUser($linkedUser, $title, $body, [
+                    'type' => 'booking_created',
+                    'booking_id' => (string) $booking->id,
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Push booking_created error: ' . $e->getMessage());
+            }
+        }
+
         \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$validated['date']} {$startTime}–{$endTime}");
 
         return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
