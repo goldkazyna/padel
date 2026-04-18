@@ -90,6 +90,8 @@ class TournamentController extends Controller
 			'rounds_count' => 'nullable|integer|min:3|max:30',
 			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
+			'has_lower_bracket' => 'nullable|boolean',
+			'has_bronze_match' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
@@ -100,10 +102,14 @@ class TournamentController extends Controller
 
 
 		$validated['has_playoff'] = $request->has('has_playoff');
+		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
+		$validated['has_bronze_match'] = $request->has('has_bronze_match');
 		// Если плей-офф не включен, убираем тип и формат
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
 			$validated['playoff_format'] = null;
+			$validated['has_lower_bracket'] = false;
+			$validated['has_bronze_match'] = false;
 		}
 
 

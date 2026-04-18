@@ -13,6 +13,8 @@ class TournamentPlayoffMatch extends Model
         'tournament_id',
 		'court_number',
         'stage',
+        'bracket',
+        'is_bronze',
         'match_number',
         'team1_id',
         'team2_id',
@@ -26,6 +28,10 @@ class TournamentPlayoffMatch extends Model
 		'team1_player2_id',
 		'team2_player1_id',
 		'team2_player2_id',
+    ];
+
+    protected $casts = [
+        'is_bronze' => 'boolean',
     ];
 
     public function tournament()

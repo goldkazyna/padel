@@ -39,6 +39,8 @@ class Tournament extends Model
 		'reserve_count',
 		'courts',
 		'courts_count',
+		'has_lower_bracket',
+		'has_bronze_match',
     ];
 
     protected $casts = [
@@ -48,6 +50,8 @@ class Tournament extends Model
         'max_level' => 'decimal:2',
         'price' => 'decimal:2',
 		'has_playoff' => 'boolean',
+		'has_lower_bracket' => 'boolean',
+		'has_bronze_match' => 'boolean',
 		'courts' => 'array',
     ];
 

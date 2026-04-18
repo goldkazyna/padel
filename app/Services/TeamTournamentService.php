@@ -347,11 +347,19 @@ class TeamTournamentService
 		if (!$this->isGroupStageCompleted($tournament)) {
 			return false;
 		}
-		
+
 		if ($tournament->playoffMatches()->count() > 0) {
 			return false;
 		}
-		
+
+		// Специальный формат: 3 группы × 2 advance (турнир на 24 пары).
+		// Верхняя сетка: 2 bye (лучшие 1-е) + QF (худшее 1-е + 3 вторых).
+		// Опционально — нижняя сетка (для 3-х и 4-х мест) и матчи за 3-е место.
+		if ((int) $tournament->groups_count === 3 && (int) $tournament->teams_advance === 2) {
+			$this->generatePlayoffForThreeGroups($tournament);
+			return true;
+		}
+
 		$teamsAdvance = $tournament->teams_advance;
 		$groupsCount = $tournament->groups_count;
 		$totalPlayoffTeams = $teamsAdvance * $groupsCount;
@@ -386,6 +394,224 @@ class TeamTournamentService
 		$this->createPlayoffMatches($tournament, $playoffTeams, $stage);
 		
 		return true;
+	}
+
+	/**
+	 * Плей-офф для турнира на 3 группы / 2 advance (24 пары).
+	 *
+	 * Собирает по 3 команды на каждое место, ранжирует между группами
+	 * по разнице геймов и строит:
+	 *   - Верхнюю сетку: SF bye = 2 лучших 1-х, QF = худшее 1-е + 3 вторых.
+	 *   - Нижнюю (опционально): SF bye = 2 лучших 3-х, QF = худшее 3-е + 3 четвёртых.
+	 *   - Матч за 3-е место (опционально) в каждой включённой сетке.
+	 */
+	protected function generatePlayoffForThreeGroups(Tournament $tournament): void
+	{
+		// Сортированные standings всех групп (позиции 1-4 в каждой)
+		$groupStandings = [];
+		foreach ($tournament->teamGroups as $group) {
+			$groupStandings[$group->id] = $this->getSortedStandings($group);
+		}
+
+		// Сборка команд по позициям: position 1..4, по одной команде из каждой группы
+		$byPosition = [1 => [], 2 => [], 3 => [], 4 => []];
+		foreach ($groupStandings as $gid => $sorted) {
+			foreach ($byPosition as $pos => &$_unused) {
+				if (isset($sorted[$pos - 1])) {
+					$byPosition[$pos][] = array_merge($sorted[$pos - 1], ['group_id' => $gid]);
+				}
+			}
+			unset($_unused);
+		}
+
+		// Между группами ранжируем по: очкам → разнице геймов → забитым геймам
+		$rankBetweenGroups = function (array $teams): array {
+			usort($teams, function ($a, $b) {
+				if ($a['points'] !== $b['points']) return $b['points'] - $a['points'];
+				$diffA = $a['points_for'] - $a['points_against'];
+				$diffB = $b['points_for'] - $b['points_against'];
+				if ($diffA !== $diffB) return $diffB - $diffA;
+				return $b['points_for'] - $a['points_for'];
+			});
+			return $teams;
+		};
+
+		$firsts = $rankBetweenGroups($byPosition[1]);   // 0 = лучший, 1 = средний, 2 = худший
+		$seconds = $rankBetweenGroups($byPosition[2]);
+		$thirds  = $rankBetweenGroups($byPosition[3]);
+		$fourths = $rankBetweenGroups($byPosition[4]);
+
+		$upperMatchNumber = 0;
+		$sourceLabel = fn($name) => $name;
+
+		// === Верхняя сетка ===
+		// QF: худшее 1-е vs худшее 2-е; лучшее 2-е vs среднее 2-е
+		$qf1 = TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 1,
+			'stage' => 'quarter',
+			'bracket' => 'upper',
+			'match_number' => ++$upperMatchNumber,
+			'team1_id' => $firsts[2]['team_id'],
+			'team2_id' => $seconds[2]['team_id'],
+			'team1_source' => $sourceLabel('1' . $this->groupLetter($firsts[2]['group_id'], $tournament)),
+			'team2_source' => $sourceLabel('2' . $this->groupLetter($seconds[2]['group_id'], $tournament)),
+			'status' => 'in_progress',
+		]);
+		$qf2 = TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 2,
+			'stage' => 'quarter',
+			'bracket' => 'upper',
+			'match_number' => ++$upperMatchNumber,
+			'team1_id' => $seconds[0]['team_id'],
+			'team2_id' => $seconds[1]['team_id'],
+			'team1_source' => $sourceLabel('2' . $this->groupLetter($seconds[0]['group_id'], $tournament)),
+			'team2_source' => $sourceLabel('2' . $this->groupLetter($seconds[1]['group_id'], $tournament)),
+			'status' => 'in_progress',
+		]);
+
+		// SF: разводим сильнейших — лучший 1-й vs слабейший QF-winner,
+		// 2-й 1-й vs сильнейший QF-winner. Сильнейший QF-winner — тот,
+		// чей QF содержал «лучшее 2-е» (QF2).
+		$sf1 = TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 1,
+			'stage' => 'semi',
+			'bracket' => 'upper',
+			'match_number' => ++$upperMatchNumber,
+			'team1_id' => $firsts[0]['team_id'],
+			'team1_source' => $sourceLabel('1' . $this->groupLetter($firsts[0]['group_id'], $tournament)),
+			'team2_source' => 'W' . $qf1->match_number,
+			'status' => 'pending',
+		]);
+		$sf2 = TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 2,
+			'stage' => 'semi',
+			'bracket' => 'upper',
+			'match_number' => ++$upperMatchNumber,
+			'team1_id' => $firsts[1]['team_id'],
+			'team1_source' => $sourceLabel('1' . $this->groupLetter($firsts[1]['group_id'], $tournament)),
+			'team2_source' => 'W' . $qf2->match_number,
+			'status' => 'pending',
+		]);
+
+		// Финал
+		TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 1,
+			'stage' => 'final',
+			'bracket' => 'upper',
+			'match_number' => ++$upperMatchNumber,
+			'team1_source' => 'W' . $sf1->match_number,
+			'team2_source' => 'W' . $sf2->match_number,
+			'status' => 'pending',
+		]);
+
+		// Матч за 3-е место верхней (лузеры SF)
+		if ($tournament->has_bronze_match) {
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'final',
+				'bracket' => 'upper',
+				'is_bronze' => true,
+				'match_number' => ++$upperMatchNumber,
+				'team1_source' => 'L' . $sf1->match_number,
+				'team2_source' => 'L' . $sf2->match_number,
+				'status' => 'pending',
+			]);
+		}
+
+		// === Нижняя сетка (опционально) ===
+		if ($tournament->has_lower_bracket && count($thirds) >= 3 && count($fourths) >= 3) {
+			$lowerBase = 100; // отдельный счётчик match_number для нижней, чтобы не путать с верхней
+			$lowerMatchNumber = $lowerBase;
+
+			$lqf1 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'quarter',
+				'bracket' => 'lower',
+				'match_number' => ++$lowerMatchNumber,
+				'team1_id' => $thirds[2]['team_id'],
+				'team2_id' => $fourths[2]['team_id'],
+				'team1_source' => '3' . $this->groupLetter($thirds[2]['group_id'], $tournament),
+				'team2_source' => '4' . $this->groupLetter($fourths[2]['group_id'], $tournament),
+				'status' => 'in_progress',
+			]);
+			$lqf2 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'quarter',
+				'bracket' => 'lower',
+				'match_number' => ++$lowerMatchNumber,
+				'team1_id' => $fourths[0]['team_id'],
+				'team2_id' => $fourths[1]['team_id'],
+				'team1_source' => '4' . $this->groupLetter($fourths[0]['group_id'], $tournament),
+				'team2_source' => '4' . $this->groupLetter($fourths[1]['group_id'], $tournament),
+				'status' => 'in_progress',
+			]);
+
+			$lsf1 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'semi',
+				'bracket' => 'lower',
+				'match_number' => ++$lowerMatchNumber,
+				'team1_id' => $thirds[0]['team_id'],
+				'team1_source' => '3' . $this->groupLetter($thirds[0]['group_id'], $tournament),
+				'team2_source' => 'W' . $lqf1->match_number,
+				'status' => 'pending',
+			]);
+			$lsf2 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'semi',
+				'bracket' => 'lower',
+				'match_number' => ++$lowerMatchNumber,
+				'team1_id' => $thirds[1]['team_id'],
+				'team1_source' => '3' . $this->groupLetter($thirds[1]['group_id'], $tournament),
+				'team2_source' => 'W' . $lqf2->match_number,
+				'status' => 'pending',
+			]);
+
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'bracket' => 'lower',
+				'match_number' => ++$lowerMatchNumber,
+				'team1_source' => 'W' . $lsf1->match_number,
+				'team2_source' => 'W' . $lsf2->match_number,
+				'status' => 'pending',
+			]);
+
+			if ($tournament->has_bronze_match) {
+				TournamentPlayoffMatch::create([
+					'tournament_id' => $tournament->id,
+					'court_number' => 2,
+					'stage' => 'final',
+					'bracket' => 'lower',
+					'is_bronze' => true,
+					'match_number' => ++$lowerMatchNumber,
+					'team1_source' => 'L' . $lsf1->match_number,
+					'team2_source' => 'L' . $lsf2->match_number,
+					'status' => 'pending',
+				]);
+			}
+		}
+	}
+
+	/**
+	 * Буква группы по её id внутри турнира (A, B, C, ...).
+	 */
+	protected function groupLetter(int $groupId, Tournament $tournament): string
+	{
+		$ids = $tournament->teamGroups()->orderBy('id')->pluck('id')->toArray();
+		$idx = array_search($groupId, $ids, true);
+		return $idx === false ? '?' : chr(65 + $idx);
 	}
 
     /**
@@ -516,56 +742,54 @@ class TeamTournamentService
     }
 
     /**
-     * Продвинуть победителя в следующий матч
+     * Продвинуть победителя (и проигравшего — для бронзы) в следующий матч.
+     *
+     * Универсальная логика: ищет матчи, у которых team{1,2}_source =
+     * 'W' . match_number (победитель) или 'L' . match_number (проигравший),
+     * и заполняет соответствующие места.
+     *
+     * Для совместимости со старой схемой 8-team турниров, где финал
+     * ссылается на полуфиналы как 'W5'/'W6' — добавлены дополнительные
+     * win-source алиасы 'W' . (4 + match_number) при стадии semi.
      */
     protected function advanceWinner(TournamentPlayoffMatch $match): void
     {
         $tournament = $match->tournament;
         $winnerId = $match->winner_id;
+        $loserId = $match->team1_id === $winnerId ? $match->team2_id : $match->team1_id;
 
-        if ($match->stage === 'quarter') {
-            // Из 1/4 в полуфинал
-            $semiMatch = $tournament->playoffMatches()
-                ->where('stage', 'semi')
-                ->where(function($q) use ($match) {
-                    $q->where('team1_source', 'W' . $match->match_number)
-                      ->orWhere('team2_source', 'W' . $match->match_number);
-                })
-                ->first();
+        $winSrcs = ['W' . $match->match_number];
+        $loseSrcs = ['L' . $match->match_number];
 
-            if ($semiMatch) {
-                if ($semiMatch->team1_source === 'W' . $match->match_number) {
-                    $semiMatch->update(['team1_id' => $winnerId]);
-                } else {
-                    $semiMatch->update(['team2_id' => $winnerId]);
-                }
+        if ($match->stage === 'semi') {
+            $winSrcs[] = 'W' . (4 + $match->match_number); // legacy 8-team
+        }
 
-                // Активируем если обе команды определены
-                if ($semiMatch->team1_id && $semiMatch->team2_id) {
-                    $semiMatch->update(['status' => 'in_progress']);
-                }
+        $all = $tournament->playoffMatches()->get();
+        foreach ($all as $next) {
+            if ($next->id === $match->id) continue;
+            $updated = false;
+
+            if (!$next->team1_id && in_array($next->team1_source, $winSrcs, true)) {
+                $next->team1_id = $winnerId;
+                $updated = true;
+            } elseif (!$next->team2_id && in_array($next->team2_source, $winSrcs, true)) {
+                $next->team2_id = $winnerId;
+                $updated = true;
             }
-        } elseif ($match->stage === 'semi') {
-            // Из полуфинала в финал
-            $finalMatch = $tournament->playoffMatches()
-                ->where('stage', 'final')
-                ->first();
+            if (!$next->team1_id && in_array($next->team1_source, $loseSrcs, true)) {
+                $next->team1_id = $loserId;
+                $updated = true;
+            } elseif (!$next->team2_id && in_array($next->team2_source, $loseSrcs, true)) {
+                $next->team2_id = $loserId;
+                $updated = true;
+            }
 
-            if ($finalMatch) {
-                $sourceKey = 'W' . (4 + $match->match_number); // W5 или W6 для 8 команд
-                if ($tournament->teams_advance * $tournament->groups_count === 4) {
-                    $sourceKey = 'W' . $match->match_number; // W1 или W2 для 4 команд
+            if ($updated) {
+                if ($next->team1_id && $next->team2_id) {
+                    $next->status = 'in_progress';
                 }
-
-                if ($finalMatch->team1_source === $sourceKey || $finalMatch->team1_source === 'W' . $match->match_number) {
-                    $finalMatch->update(['team1_id' => $winnerId]);
-                } else {
-                    $finalMatch->update(['team2_id' => $winnerId]);
-                }
-
-                if ($finalMatch->team1_id && $finalMatch->team2_id) {
-                    $finalMatch->update(['status' => 'in_progress']);
-                }
+                $next->save();
             }
         }
     }
@@ -575,8 +799,14 @@ class TeamTournamentService
      */
     public function canFinishTournament(Tournament $tournament): bool
     {
-        $finalMatch = $tournament->playoffMatches()->where('stage', 'final')->first();
-        return $finalMatch && $finalMatch->isCompleted();
+        // Все финалы (верхней и нижней сеток + опциональные бронзовые матчи)
+        // должны быть завершены.
+        $finalMatches = $tournament->playoffMatches()->where('stage', 'final')->get();
+        if ($finalMatches->isEmpty()) return false;
+        foreach ($finalMatches as $fm) {
+            if (!$fm->isCompleted()) return false;
+        }
+        return true;
     }
 
     /**

@@ -274,6 +274,26 @@
 								<small class="text-muted">Если заполнено — матчи группового этапа пойдут волнами, не более N одновременно.</small>
 							</div>
 						</div>
+						<div class="row">
+							<div class="col-md-6 mb-2">
+								<div class="form-check">
+									<input type="checkbox" name="has_lower_bracket" value="1" id="hasLowerBracket" class="form-check-input"
+										{{ old('has_lower_bracket') ? 'checked' : '' }}>
+									<label for="hasLowerBracket" class="form-check-label">
+										Нижняя сетка <small class="text-muted">(для проигравших в QF)</small>
+									</label>
+								</div>
+							</div>
+							<div class="col-md-6 mb-2">
+								<div class="form-check">
+									<input type="checkbox" name="has_bronze_match" value="1" id="hasBronzeMatch" class="form-check-input"
+										{{ old('has_bronze_match') ? 'checked' : '' }}>
+									<label for="hasBronzeMatch" class="form-check-label">
+										Матч за 3-е место
+									</label>
+								</div>
+							</div>
+						</div>
 						
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>

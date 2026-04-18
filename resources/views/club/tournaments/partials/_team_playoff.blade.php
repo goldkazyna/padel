@@ -13,17 +13,32 @@
     </header>
 
     @php
-        $stages = $tournament->playoffMatches->groupBy('stage');
+        $allMatches = $tournament->playoffMatches;
+        $brackets = [];
+        $upperMain = $allMatches->filter(fn($m) => ($m->bracket ?? 'upper') === 'upper' && !$m->is_bronze);
+        $upperBronze = $allMatches->filter(fn($m) => ($m->bracket ?? 'upper') === 'upper' && $m->is_bronze);
+        $lowerMain = $allMatches->filter(fn($m) => ($m->bracket ?? 'upper') === 'lower' && !$m->is_bronze);
+        $lowerBronze = $allMatches->filter(fn($m) => ($m->bracket ?? 'upper') === 'lower' && $m->is_bronze);
+        if ($upperMain->isNotEmpty()) $brackets[] = ['label' => 'Верхняя сетка', 'matches' => $upperMain, 'bronze' => $upperBronze];
+        if ($lowerMain->isNotEmpty()) $brackets[] = ['label' => 'Нижняя сетка', 'matches' => $lowerMain, 'bronze' => $lowerBronze];
         $stageOrder = ['quarter' => '1/4 финала', 'semi' => 'Полуфинал', 'final' => 'Финал'];
         $stageShortNames = ['quarter' => 'Матч', 'semi' => 'ПФ', 'final' => 'Финал'];
         $matchCounter = [];
     @endphp
 
+    @foreach($brackets as $bracketIdx => $bracketInfo)
+    @if(count($brackets) > 1)
+    <div style="margin: {{ $bracketIdx === 0 ? '0 0 8px' : '20px 0 8px' }}; padding: 8px 14px; background: rgba(255,255,255,0.04); border-radius: 8px; font-size: 13px; font-weight: 700; color: #a0a0a0; letter-spacing: 0.5px; text-transform: uppercase;">
+        {{ $bracketInfo['label'] }}
+    </div>
+    @endif
+    @php $stages = $bracketInfo['matches']->groupBy('stage'); @endphp
     <div class="bracket-wrapper">
         @foreach($stageOrder as $stageKey => $stageName)
             @if(isset($stages[$stageKey]))
-                @php 
-                    $matchCounter[$stageKey] = 0;
+                @php
+                    $counterKey = $bracketIdx . '_' . $stageKey;
+                    $matchCounter[$counterKey] = 0;
                     $isFinal = $stageKey === 'final';
                 @endphp
                 
@@ -32,12 +47,12 @@
                     <div class="round-matches">
                         @foreach($stages[$stageKey] as $match)
                             @php
-                                $matchCounter[$stageKey]++;
+                                $matchCounter[$counterKey]++;
                                 $isCompleted = $match->isCompleted();
                                 $isInProgress = $match->status === 'in_progress';
                                 $team1Wins = $match->winner_id === $match->team1_id;
                                 $team2Wins = $match->winner_id === $match->team2_id;
-                                $matchLabel = $stageShortNames[$stageKey] . ' ' . $matchCounter[$stageKey];
+                                $matchLabel = $stageShortNames[$stageKey] . ' ' . $matchCounter[$counterKey];
                                 if ($isFinal) $matchLabel = 'Финал';
                             @endphp
                             
@@ -196,14 +211,106 @@
         @endforeach
     </div>
 
-    {{-- Победитель --}}
-    @php $finalMatch = $tournament->playoffMatches->where('stage', 'final')->first(); @endphp
-    @if($finalMatch && $finalMatch->isCompleted())
+    @if($bracketInfo['bronze']->isNotEmpty())
+    <div style="margin: 12px 0 0; padding: 10px 14px; background: rgba(234,179,78,0.08); border-left: 3px solid #eab34e; border-radius: 6px; font-size: 12px; font-weight: 700; color: #eab34e; letter-spacing: 0.5px; text-transform: uppercase;">
+        Матч за 3-е место
+    </div>
+    <div class="bracket-wrapper">
+        <div class="bracket-round">
+            <div class="round-matches">
+                @foreach($bracketInfo['bronze'] as $match)
+                    @php
+                        $isCompleted = $match->isCompleted();
+                        $isInProgress = $match->status === 'in_progress';
+                        $team1Wins = $match->winner_id === $match->team1_id;
+                        $team2Wins = $match->winner_id === $match->team2_id;
+                        $matchLabel = 'Бронза';
+                    @endphp
+                    <div>
+                        <div class="bracket-match" data-match-id="{{ $match->id }}">
+                            <div class="match-head">
+                                <div class="match-num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>{{ $matchLabel }}</div>
+                                <div class="match-court {{ $match->court_number ? 'has-court' : '' }}">{{ $match->court_number ? $tournament->getCourtName($match->court_number) : 'Корт TBD' }}</div>
+                            </div>
+                            <div class="match-players">
+                                <div class="player-row">
+                                    <div class="player-data">
+                                        <span class="player-seed">{{ $match->team1 ? ($match->team1->seed ?? '?') : 'L' }}</span>
+                                        <span class="player-label {{ $isCompleted ? ($team1Wins ? 'is-winner' : 'is-loser') : (!$match->team1 ? 'is-pending' : '') }}">{{ $match->team1 ? $match->team1->full_name : $match->team1_source }}</span>
+                                    </div>
+                                    <span class="player-pts {{ $isCompleted ? ($team1Wins ? 'is-winner' : 'is-loser') : '' }}">{{ $isCompleted ? $match->team1_score : '-' }}</span>
+                                </div>
+                                <div class="player-row">
+                                    <div class="player-data">
+                                        <span class="player-seed">{{ $match->team2 ? ($match->team2->seed ?? '?') : 'L' }}</span>
+                                        <span class="player-label {{ $isCompleted ? ($team2Wins ? 'is-winner' : 'is-loser') : (!$match->team2 ? 'is-pending' : '') }}">{{ $match->team2 ? $match->team2->full_name : $match->team2_source }}</span>
+                                    </div>
+                                    <span class="player-pts {{ $isCompleted ? ($team2Wins ? 'is-winner' : 'is-loser') : '' }}">{{ $isCompleted ? $match->team2_score : '-' }}</span>
+                                </div>
+                            </div>
+                            <div class="match-foot">
+                                @if($isCompleted)
+                                    <div class="match-state is-done">Завершён</div>
+                                @elseif($isInProgress && $match->team1_id && $match->team2_id)
+                                    <button class="enter-score-btn" data-bs-toggle="modal" data-bs-target="#playoffModal{{ $match->id }}">Ввести счёт</button>
+                                @else
+                                    <div class="match-state">Ожидание</div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    {{-- Модалка ввода счёта для бронзы --}}
+                    @if($isInProgress && $match->team1_id && $match->team2_id)
+                    <div class="modal fade" id="playoffModal{{ $match->id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content modal-dark">
+                                <div class="modal-header border-0">
+                                    <h5 class="modal-title">{{ $matchLabel }} ({{ $bracketInfo['label'] }})</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ route('club.team.savePlayoffScore', $match) }}" method="POST">
+                                    @csrf
+                                    <div class="modal-body">
+                                        <div class="score-input-grid">
+                                            <div class="score-team">
+                                                <div class="score-team-names">{{ $match->team1->full_name }}</div>
+                                                <input type="number" name="team1_score" class="form-control form-control-lg text-center" min="0" required placeholder="0">
+                                            </div>
+                                            <div class="score-separator">:</div>
+                                            <div class="score-team">
+                                                <div class="score-team-names">{{ $match->team2->full_name }}</div>
+                                                <input type="number" name="team2_score" class="form-control form-control-lg text-center" min="0" required placeholder="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                        <button type="submit" class="btn-primary-custom"><i class="bi bi-check-lg me-1"></i> Сохранить</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+    @endforeach
+
+    {{-- Победитель турнира — победитель верхнего финала (без is_bronze) --}}
+    @php
+        $upperFinal = $tournament->playoffMatches
+            ->filter(fn($m) => $m->stage === 'final' && (($m->bracket ?? 'upper') === 'upper') && !$m->is_bronze)
+            ->first();
+    @endphp
+    @if($upperFinal && $upperFinal->isCompleted())
         <div class="winner-block mt-4">
             <div class="winner-trophy"><i class="bi bi-trophy-fill"></i></div>
             <div class="winner-title">Победитель турнира</div>
-            <div class="winner-name">{{ $finalMatch->winner->name }}</div>
-            <div class="winner-players">{{ $finalMatch->winner->full_name }}</div>
+            <div class="winner-name">{{ $upperFinal->winner->name ?? '' }}</div>
+            <div class="winner-players">{{ $upperFinal->winner->full_name ?? '' }}</div>
         </div>
     @endif
 </div>
