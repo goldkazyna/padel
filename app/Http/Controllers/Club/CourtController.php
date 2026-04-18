@@ -278,6 +278,33 @@ class CourtController extends Controller
 
     // === Бронирование ===
 
+    /**
+     * Нормализует телефон к формату 7XXXXXXXXXX (KZ/RU),
+     * удаляя всё кроме цифр и приводя ведущую 8 к 7.
+     */
+    private function normalizePhone(?string $raw): string
+    {
+        if (!$raw) return '';
+        $digits = preg_replace('/\D/', '', $raw);
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7' . substr($digits, 1);
+        } elseif (strlen($digits) === 10) {
+            $digits = '7' . $digits;
+        }
+        return $digits;
+    }
+
+    /**
+     * Ищет пользователя в таблице users по нормализованному телефону.
+     * Возвращает null если нет или телефон пустой/невалидный.
+     */
+    private function findUserByPhone(?string $phone): ?\App\Models\User
+    {
+        $normalized = $this->normalizePhone($phone);
+        if (strlen($normalized) !== 11) return null;
+        return \App\Models\User::where('phone', $normalized)->first();
+    }
+
     public function book(Request $request, Court $court)
     {
         $club = $this->getClub();
@@ -297,7 +324,8 @@ class CourtController extends Controller
             'discount' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['client_phone'] = preg_replace('/\D/', '', $validated['client_phone']);
+        $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
+        $linkedUser = $this->findUserByPhone($validated['client_phone']);
 
         $startTime = $validated['start_time'];
         $totalMinutes = $validated['slots'] * $court->slot_duration;
@@ -328,7 +356,9 @@ class CourtController extends Controller
             'end_time' => $endTime,
             'client_name' => $validated['client_name'],
             'client_phone' => $validated['client_phone'],
-            'booked_by' => auth()->id(),
+            // Если клиент зарегистрирован в приложении — привязываем бронь к нему,
+            // чтобы она появилась в его «Мои бронирования». Иначе — на админа.
+            'booked_by' => $linkedUser?->id ?? auth()->id(),
             'price' => $price,
             'discount' => $discount,
             'payment_method' => $validated['payment_method'] ?? null,
@@ -370,7 +400,8 @@ class CourtController extends Controller
             'discount' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['client_phone'] = preg_replace('/\D/', '', $validated['client_phone']);
+        $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
+        $linkedUser = $this->findUserByPhone($validated['client_phone']);
 
         $updateData = [
             'client_name' => $validated['client_name'],
@@ -381,6 +412,10 @@ class CourtController extends Controller
             'comment' => $validated['comment'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
         ];
+        // Перепривязка к пользователю приложения если телефон сменился
+        if ($linkedUser) {
+            $updateData['booked_by'] = $linkedUser->id;
+        }
 
         if (isset($validated['custom_price'])) {
             $discount = $validated['discount'] ?? 0;
