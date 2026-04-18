@@ -23,7 +23,7 @@ class MobileHomeController extends Controller
             'user' => $this->getUserData($user),
             'nearest_tournament' => $this->getNearestTournament($user),
             'active_tournament' => $this->getActiveTournament($user),
-            'upcoming_tournaments' => $this->getUpcomingTournaments(),
+            'upcoming_tournaments' => $this->getUpcomingTournaments($user),
             'court_booking_available' => \App\Models\Club::active()->whereHas('courts', fn($q) => $q->where('is_active', true))->exists(),
         ]);
     }
@@ -119,16 +119,21 @@ class MobileHomeController extends Controller
     }
 
     /**
-     * До 3 ближайших открытых турниров
+     * Ближайшие открытые турниры (исключая скрытые клубы)
      */
-    private function getUpcomingTournaments(): array
+    private function getUpcomingTournaments($user = null): array
     {
-        return Tournament::where('status', 'open')
+        $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
-            ->with('club')
-            ->limit(3)
-            ->get()
+            ->with('club');
+
+        $hiddenClubIds = $user ? ($user->hidden_club_ids ?? []) : [];
+        if (!empty($hiddenClubIds)) {
+            $query->whereNotIn('club_id', $hiddenClubIds);
+        }
+
+        return $query->get()
             ->map(fn($t) => $this->formatTournament($t))
             ->toArray();
     }
