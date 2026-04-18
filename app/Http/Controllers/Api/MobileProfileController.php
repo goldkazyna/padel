@@ -27,6 +27,15 @@ class MobileProfileController extends Controller
                 ->count() + 1;
         }
 
+        $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
+            ->orderBy('id', 'asc')
+            ->get(['rating_after'])
+            ->pluck('rating_after')
+            ->filter(fn($v) => $v !== null)
+            ->values()
+            ->toArray();
+        $ratingTrend = array_slice($ratingTrend, -10);
+
         return response()->json([
             'success' => true,
             'user' => $this->formatUser($user, $place),
@@ -38,6 +47,7 @@ class MobileProfileController extends Controller
                     ? (int) round(($matchStats['won'] / $matchStats['total']) * 100)
                     : 0,
                 'tournaments_count' => $tournamentStats['total'],
+                'rating_trend' => array_map('intval', $ratingTrend),
             ],
         ]);
     }
