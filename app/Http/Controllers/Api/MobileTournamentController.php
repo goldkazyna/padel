@@ -141,12 +141,14 @@ class MobileTournamentController extends Controller
                         'name' => $t->player1->name,
                         'level' => $t->player1->level,
                         'rating' => $t->player1->rating,
+                        'level_verified' => (bool) $t->player1->level_verified,
                     ],
                     'player2' => [
                         'id' => $t->player2->id,
                         'name' => $t->player2->name,
                         'level' => $t->player2->level,
                         'rating' => $t->player2->rating,
+                        'level_verified' => (bool) $t->player2->level_verified,
                     ],
                     'status' => $t->status,
                 ]);
@@ -159,6 +161,7 @@ class MobileTournamentController extends Controller
                     'name' => $p->name,
                     'level' => $p->level,
                     'rating' => $p->rating,
+                    'level_verified' => (bool) $p->level_verified,
                     'status' => $p->pivot->status,
                 ]);
         }
