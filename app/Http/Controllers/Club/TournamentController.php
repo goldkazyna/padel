@@ -69,13 +69,6 @@ class TournamentController extends Controller
 
     public function store(Request $request)
     {
-		// TEMP DEBUG — пишем весь POST в отдельный файл
-		file_put_contents(
-			storage_path('logs/debug-tournament-create.log'),
-			"[" . date('Y-m-d H:i:s') . "] " . json_encode($request->all(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\n",
-			FILE_APPEND
-		);
-
 		if (auth()->user()->isClubModerator()) {
 			abort(403, 'Модераторам недоступно создание турниров');
 		}
@@ -108,22 +101,18 @@ class TournamentController extends Controller
 		]);
 
 
-		$validated['has_playoff'] = $request->has('has_playoff');
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
 		$validated['has_bronze_match'] = $request->has('has_bronze_match');
 
-		// TEMP DEBUG — логируем что пришло от формы
-		\Log::info('[TOURNAMENT_CREATE_DEBUG]', [
-			'has_lower_bracket_raw' => $request->input('has_lower_bracket'),
-			'has_bronze_match_raw' => $request->input('has_bronze_match'),
-			'has_lower_bracket_computed' => $validated['has_lower_bracket'],
-			'has_bronze_match_computed' => $validated['has_bronze_match'],
-			'type' => $validated['type'] ?? null,
-			'groups_count' => $validated['groups_count'] ?? null,
-			'teams_advance' => $validated['teams_advance'] ?? null,
-			'all_keys' => array_keys($request->all()),
-		]);
-		// Если плей-офф не включен, убираем тип и формат
+		// Для парного турнира плей-офф всегда включён (парный без него бессмыслен).
+		// Для остальных — по чекбоксу. Также включаем автоматически если
+		// отмечены флаги нижней сетки / матча за 3-е место.
+		$isTeamType = ($validated['type'] ?? null) === 'team';
+		$validated['has_playoff'] = $isTeamType
+			|| $request->has('has_playoff')
+			|| $validated['has_lower_bracket']
+			|| $validated['has_bronze_match'];
+
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
 			$validated['playoff_format'] = null;
