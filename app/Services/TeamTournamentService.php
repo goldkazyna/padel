@@ -355,7 +355,14 @@ class TeamTournamentService
 		// Специальный формат: 3 группы × 2 advance (турнир на 24 пары).
 		// Верхняя сетка: 2 bye (лучшие 1-е) + QF (худшее 1-е + 3 вторых).
 		// Опционально — нижняя сетка (для 3-х и 4-х мест) и матчи за 3-е место.
-		if ((int) $tournament->groups_count === 3 && (int) $tournament->teams_advance === 2) {
+		//
+		// Триггерится при:
+		//   - groups_count === 3 И teams_advance === 2 (классический 3×2 формат), ИЛИ
+		//   - включены чекбоксы «Нижняя сетка» или «Матч за 3-е место» при 3 группах
+		//     (явный признак нового формата даже если teams_advance выставлен иначе).
+		$isThreeGroups = (int) $tournament->groups_count === 3;
+		$newFormatFlags = $tournament->has_lower_bracket || $tournament->has_bronze_match;
+		if ($isThreeGroups && ((int) $tournament->teams_advance === 2 || $newFormatFlags)) {
 			$this->generatePlayoffForThreeGroups($tournament);
 			return true;
 		}
