@@ -54,7 +54,8 @@ class MobileProfileController extends Controller
             'quiz_completed' => true,
             'quiz_answers' => $validated['answers'],
             'level' => $result['level'],
-            'rating' => (int) ($result['level'] * 1000),
+            // Рейтинг = level × 1000 + 125 (консистентно с Club\UserController)
+            'rating' => (int) ($result['level'] * 1000 + 125),
             'level_verified' => false,
         ]);
 
