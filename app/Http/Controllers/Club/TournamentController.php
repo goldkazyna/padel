@@ -104,6 +104,18 @@ class TournamentController extends Controller
 		$validated['has_playoff'] = $request->has('has_playoff');
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
 		$validated['has_bronze_match'] = $request->has('has_bronze_match');
+
+		// TEMP DEBUG — логируем что пришло от формы
+		\Log::info('[TOURNAMENT_CREATE_DEBUG]', [
+			'has_lower_bracket_raw' => $request->input('has_lower_bracket'),
+			'has_bronze_match_raw' => $request->input('has_bronze_match'),
+			'has_lower_bracket_computed' => $validated['has_lower_bracket'],
+			'has_bronze_match_computed' => $validated['has_bronze_match'],
+			'type' => $validated['type'] ?? null,
+			'groups_count' => $validated['groups_count'] ?? null,
+			'teams_advance' => $validated['teams_advance'] ?? null,
+			'all_keys' => array_keys($request->all()),
+		]);
 		// Если плей-офф не включен, убираем тип и формат
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
