@@ -305,6 +305,19 @@ class MobileRatingController extends Controller
         $matchStats = $user->getAllMatchesStats();
         $tournamentStats = $user->getTournamentStats();
 
+        // Тренд рейтинга — одно значение на турнир
+        $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
+            ->whereNotNull('tournament_id')
+            ->whereNotNull('rating_after')
+            ->orderBy('id', 'asc')
+            ->get(['tournament_id', 'rating_after'])
+            ->groupBy('tournament_id')
+            ->map(fn($group) => $group->last()->rating_after)
+            ->values()
+            ->toArray();
+        $ratingTrend = array_slice($ratingTrend, -10);
+        $ratingTrend = array_map('intval', $ratingTrend);
+
         // История рейтинга
         $history = \App\Models\RatingHistory::where('user_id', $user->id)
             ->with('tournament:id,name,type,has_playoff')
@@ -344,6 +357,7 @@ class MobileRatingController extends Controller
                     ? (int) round(($matchStats['won'] / $matchStats['total']) * 100)
                     : 0,
                 'tournaments_count' => $tournamentStats['total'],
+                'rating_trend' => $ratingTrend,
             ],
             'history' => $history,
         ]);
