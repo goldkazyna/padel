@@ -77,12 +77,12 @@ class MobileProfileController extends Controller
 
         $user = $request->user();
 
-        // Телефон — разрешаем менять всегда. Нормализуем и проверяем уникальность.
+        // Телефон разрешаем записать только если он ещё не задан у пользователя
         if (array_key_exists('phone', $validated)) {
             $rawPhone = $validated['phone'];
             unset($validated['phone']);
 
-            if (!empty($rawPhone)) {
+            if (empty($user->phone) && !empty($rawPhone)) {
                 $digits = preg_replace('/[^0-9]/', '', $rawPhone);
                 if (strlen($digits) === 11 && $digits[0] === '8') {
                     $digits = '7' . substr($digits, 1);
