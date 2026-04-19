@@ -674,6 +674,21 @@ class TeamTournamentService
 				'team2_source' => 'W2',
 				'status' => 'pending',
 			]);
+
+			// Матч за 3-е место: лузеры SF
+			if ($tournament->has_bronze_match) {
+				TournamentPlayoffMatch::create([
+					'tournament_id' => $tournament->id,
+					'court_number' => 2,
+					'stage' => 'final',
+					'bracket' => 'upper',
+					'is_bronze' => true,
+					'match_number' => 3,
+					'team1_source' => 'L1',
+					'team2_source' => 'L2',
+					'status' => 'pending',
+				]);
+			}
 		} elseif ($stage === 'quarter') {
 			// 1/4 финала для 8 команд
 			    $matchups = [
@@ -727,6 +742,21 @@ class TeamTournamentService
 				'team2_source' => 'W6',
 				'status' => 'pending',
 			]);
+
+			// Матч за 3-е место: лузеры SF (SF match_number 1 и 2)
+			if ($tournament->has_bronze_match) {
+				TournamentPlayoffMatch::create([
+					'tournament_id' => $tournament->id,
+					'court_number' => 2,
+					'stage' => 'final',
+					'bracket' => 'upper',
+					'is_bronze' => true,
+					'match_number' => 3,
+					'team1_source' => 'L1',
+					'team2_source' => 'L2',
+					'status' => 'pending',
+				]);
+			}
 		}
 	}
 
