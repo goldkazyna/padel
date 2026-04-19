@@ -85,25 +85,25 @@ class MobileTournamentController extends Controller
     {
         $user = $request->user();
 
-        // Турниры где я участник
-        $participantTournamentIds = $user->tournaments()
-            ->where('tournaments.status', 'completed')
-            ->pluck('tournaments.id');
+        // Диапазон дат — по умолчанию последние 7 дней от сегодня
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-        // Турниры где я в команде
-        $teamTournamentIds = TournamentTeam::where(function($q) use ($user) {
-                $q->where('player1_id', $user->id)
-                  ->orWhere('player2_id', $user->id);
-            })
-            ->pluck('tournament_id');
-
-        $allIds = $participantTournamentIds->merge($teamTournamentIds)->unique();
-
-        $tournaments = Tournament::whereIn('id', $allIds)
-            ->where('status', 'completed')
+        $query = Tournament::where('status', 'completed')
             ->orderBy('start_date', 'desc')
-            ->with('club')
-            ->get()
+            ->with('club');
+
+        if ($dateFrom) {
+            $query->where('start_date', '>=', $dateFrom . ' 00:00:00');
+        } else {
+            $query->where('start_date', '>=', now()->subDays(7)->startOfDay());
+        }
+
+        if ($dateTo) {
+            $query->where('start_date', '<=', $dateTo . ' 23:59:59');
+        }
+
+        $tournaments = $query->get()
             ->map(fn($t) => $this->formatArchiveTournament($t, $user));
 
         return response()->json([
@@ -681,6 +681,218 @@ class MobileTournamentController extends Controller
             'leaderboard' => $this->getLeaderboard($tournament),
             'playoff' => $this->getPlayoff($tournament),
         ]);
+    }
+
+    /**
+     * Публичная статистика турнира (для спектатора)
+     * GET /api/mobile/tournaments/{id}/stats
+     */
+    public function stats(Request $request, Tournament $tournament)
+    {
+        $tournament->load('club');
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F Y'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'participants_count' => $this->getParticipantsCount($tournament),
+            ],
+            'leaderboard' => $this->getLeaderboard($tournament),
+            'team_standings' => $tournament->type === 'team' ? $this->getTeamStandings($tournament) : [],
+            'playoff' => $this->getPlayoff($tournament),
+            'matches' => $this->getAllCompletedMatches($tournament),
+        ]);
+    }
+
+    /**
+     * Таблица команд для парного турнира
+     */
+    private function getTeamStandings(Tournament $tournament): array
+    {
+        $teams = $tournament->teams()
+            ->with(['player1', 'player2'])
+            ->where('status', 'approved')
+            ->get();
+
+        $teamStats = [];
+        foreach ($teams as $t) {
+            $teamStats[$t->id] = [
+                'id' => $t->id,
+                'player1' => $t->player1 ? [
+                    'id' => $t->player1->id,
+                    'name' => $t->player1->name,
+                    'level_verified' => (bool) $t->player1->level_verified,
+                ] : null,
+                'player2' => $t->player2 ? [
+                    'id' => $t->player2->id,
+                    'name' => $t->player2->name,
+                    'level_verified' => (bool) $t->player2->level_verified,
+                ] : null,
+                'wins' => 0, 'losses' => 0,
+                'points_for' => 0, 'points_against' => 0,
+            ];
+        }
+
+        // Собираем статы по групповым матчам
+        foreach ($tournament->teamGroups()->with('matches')->get() as $group) {
+            foreach ($group->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                if (!isset($teamStats[$m->team1_id]) || !isset($teamStats[$m->team2_id])) continue;
+
+                $teamStats[$m->team1_id]['points_for'] += (int) $m->team1_score;
+                $teamStats[$m->team1_id]['points_against'] += (int) $m->team2_score;
+                $teamStats[$m->team2_id]['points_for'] += (int) $m->team2_score;
+                $teamStats[$m->team2_id]['points_against'] += (int) $m->team1_score;
+
+                if ($m->team1_score > $m->team2_score) {
+                    $teamStats[$m->team1_id]['wins']++;
+                    $teamStats[$m->team2_id]['losses']++;
+                } elseif ($m->team2_score > $m->team1_score) {
+                    $teamStats[$m->team2_id]['wins']++;
+                    $teamStats[$m->team1_id]['losses']++;
+                }
+            }
+        }
+
+        usort($teamStats, function ($a, $b) {
+            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+        });
+
+        return array_values(array_map(function ($s, $i) {
+            $s['position'] = $i + 1;
+            return $s;
+        }, $teamStats, array_keys($teamStats)));
+    }
+
+    /**
+     * Все сыгранные матчи турнира (групповые + плей-офф)
+     */
+    private function getAllCompletedMatches(Tournament $tournament): array
+    {
+        $result = [];
+
+        // Групповые раунды americano
+        if ($tournament->type === 'americano') {
+            foreach ($tournament->groups()->with(['rounds.matches'])->get() as $group) {
+                foreach ($group->rounds as $round) {
+                    foreach ($round->matches as $m) {
+                        if ($m->status !== 'completed') continue;
+                        $result[] = [
+                            'stage' => 'Группа ' . ($group->name ?? ''),
+                            'round' => $round->round_number,
+                            'team1_players' => $this->matchPlayersNames($m, 'team1'),
+                            'team2_players' => $this->matchPlayersNames($m, 'team2'),
+                            'team1_score' => (int) $m->team1_score,
+                            'team2_score' => (int) $m->team2_score,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Mexicano
+        if ($tournament->type === 'mexicano') {
+            foreach ($tournament->mexicanoRounds()->with('matches')->get() as $round) {
+                foreach ($round->matches as $m) {
+                    if ($m->status !== 'completed') continue;
+                    $result[] = [
+                        'stage' => 'Раунд ' . $round->round_number,
+                        'round' => $round->round_number,
+                        'team1_players' => $this->matchPlayersNames($m, 'team1'),
+                        'team2_players' => $this->matchPlayersNames($m, 'team2'),
+                        'team1_score' => (int) $m->team1_score,
+                        'team2_score' => (int) $m->team2_score,
+                    ];
+                }
+            }
+        }
+
+        // Team tournament — групповые матчи по командам
+        if ($tournament->type === 'team') {
+            $teams = $tournament->teams()->with(['player1', 'player2'])->get()->keyBy('id');
+            foreach ($tournament->teamGroups()->with('matches')->get() as $group) {
+                foreach ($group->matches as $m) {
+                    if ($m->status !== 'completed') continue;
+                    $t1 = $teams[$m->team1_id] ?? null;
+                    $t2 = $teams[$m->team2_id] ?? null;
+                    $result[] = [
+                        'stage' => 'Группа ' . ($group->name ?? ''),
+                        'round' => $m->round_number,
+                        'team1_players' => $t1 ? $this->teamPlayersNames($t1) : [],
+                        'team2_players' => $t2 ? $this->teamPlayersNames($t2) : [],
+                        'team1_score' => (int) $m->team1_score,
+                        'team2_score' => (int) $m->team2_score,
+                    ];
+                }
+            }
+        }
+
+        // Плей-офф
+        foreach ($tournament->playoffMatches()
+            ->where('status', 'completed')
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2'])
+            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
+            ->get() as $m) {
+
+            // Для team-based плей-офф: игроки берутся из команды
+            if (!$m->team1Player1 && $m->team1_id && $tournament->type === 'team') {
+                $t1 = TournamentTeam::with(['player1', 'player2'])->find($m->team1_id);
+                $t2 = TournamentTeam::with(['player1', 'player2'])->find($m->team2_id);
+                $team1Names = $t1 ? $this->teamPlayersNames($t1) : [];
+                $team2Names = $t2 ? $this->teamPlayersNames($t2) : [];
+            } else {
+                $team1Names = array_values(array_filter([
+                    $m->team1Player1 ? ['id' => $m->team1Player1->id, 'name' => $m->team1Player1->name] : null,
+                    $m->team1Player2 ? ['id' => $m->team1Player2->id, 'name' => $m->team1Player2->name] : null,
+                ]));
+                $team2Names = array_values(array_filter([
+                    $m->team2Player1 ? ['id' => $m->team2Player1->id, 'name' => $m->team2Player1->name] : null,
+                    $m->team2Player2 ? ['id' => $m->team2Player2->id, 'name' => $m->team2Player2->name] : null,
+                ]));
+            }
+
+            $result[] = [
+                'stage' => $m->stage_name ?? $m->stage,
+                'round' => null,
+                'team1_players' => $team1Names,
+                'team2_players' => $team2Names,
+                'team1_score' => (int) $m->team1_score,
+                'team2_score' => (int) $m->team2_score,
+            ];
+        }
+
+        return $result;
+    }
+
+    private function matchPlayersNames($match, string $prefix): array
+    {
+        $p1Field = "{$prefix}_player1_id";
+        $p2Field = "{$prefix}_player2_id";
+        $ids = array_filter([$match->$p1Field, $match->$p2Field]);
+        if (empty($ids)) return [];
+
+        $users = \App\Models\User::whereIn('id', $ids)->get(['id', 'name']);
+        return $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name])->values()->toArray();
+    }
+
+    private function teamPlayersNames($team): array
+    {
+        $result = [];
+        if ($team->player1) {
+            $result[] = ['id' => $team->player1->id, 'name' => $team->player1->name];
+        }
+        if ($team->player2) {
+            $result[] = ['id' => $team->player2->id, 'name' => $team->player2->name];
+        }
+        return $result;
     }
 
     /**
