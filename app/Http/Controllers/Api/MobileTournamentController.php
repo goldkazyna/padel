@@ -85,7 +85,40 @@ class MobileTournamentController extends Controller
     {
         $user = $request->user();
 
-        // Диапазон дат — по умолчанию последние 7 дней от сегодня
+        // Турниры где я участник
+        $participantTournamentIds = $user->tournaments()
+            ->where('tournaments.status', 'completed')
+            ->pluck('tournaments.id');
+
+        // Турниры где я в команде
+        $teamTournamentIds = TournamentTeam::where(function($q) use ($user) {
+                $q->where('player1_id', $user->id)
+                  ->orWhere('player2_id', $user->id);
+            })
+            ->pluck('tournament_id');
+
+        $allIds = $participantTournamentIds->merge($teamTournamentIds)->unique();
+
+        $tournaments = Tournament::whereIn('id', $allIds)
+            ->where('status', 'completed')
+            ->orderBy('start_date', 'desc')
+            ->with('club')
+            ->get()
+            ->map(fn($t) => $this->formatArchiveTournament($t, $user));
+
+        return response()->json([
+            'success' => true,
+            'tournaments' => $tournaments,
+        ]);
+    }
+
+    /**
+     * Все завершённые турниры (спектаторский архив)
+     * GET /api/mobile/tournaments/completed
+     */
+    public function completed(Request $request)
+    {
+        $user = $request->user();
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
@@ -104,7 +137,7 @@ class MobileTournamentController extends Controller
         }
 
         $tournaments = $query->get()
-            ->map(fn($t) => $this->formatArchiveTournament($t, $user));
+            ->map(fn($t) => $this->formatTournament($t, $user));
 
         return response()->json([
             'success' => true,
