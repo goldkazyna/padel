@@ -107,19 +107,56 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        if ((float) $user->level != 1.0) {
-            return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'level' => 'required|numeric|min:1|max:5.75',
+            'level' => 'nullable|numeric|min:1|max:5.75',
+            'phone' => 'nullable|string|max:20',
         ]);
 
-        $newLevel = (float) $validated['level'];
-        $validated['rating'] = (int) ($newLevel * 1000 + 125);
+        $update = ['name' => $validated['name']];
 
-        $user->update($validated);
+        // Телефон (нормализуем к 7XXXXXXXXXX и проверяем уникальность)
+        if (array_key_exists('phone', $validated)) {
+            $raw = $validated['phone'];
+            if ($raw === null || $raw === '') {
+                $update['phone'] = null;
+            } else {
+                $digits = preg_replace('/\D/', '', $raw);
+                if (strlen($digits) === 11 && $digits[0] === '8') {
+                    $digits = '7' . substr($digits, 1);
+                } elseif (strlen($digits) === 10) {
+                    $digits = '7' . $digits;
+                }
+                if (strlen($digits) !== 11 || $digits[0] !== '7') {
+                    return back()->with('error', 'Неверный формат телефона');
+                }
+                $existing = User::where('phone', $digits)->where('id', '!=', $user->id)->first();
+                if ($existing) {
+                    return back()->with('error', 'Этот телефон уже используется другим пользователем (ID ' . $existing->id . ')');
+                }
+                $update['phone'] = $digits;
+            }
+        }
+
+        // Уровень можно менять только новичкам (сохраняем старое правило)
+        if (array_key_exists('level', $validated) && $validated['level'] !== null) {
+            if ((float) $user->level != 1.0) {
+                return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
+            }
+            $newLevel = (float) $validated['level'];
+            $update['level'] = $newLevel;
+            $update['rating'] = (int) ($newLevel * 1000 + 125);
+        }
+
+        $user->update($update);
+
+        \App\Models\ActivityLog::log(
+            'updated',
+            'User',
+            $user->id,
+            "Редактирование пользователя: {$user->name}",
+            $user->getChanges()
+        );
 
         return back()->with('success', 'Пользователь обновлён!');
     }

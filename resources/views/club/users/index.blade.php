@@ -239,11 +239,15 @@
                     <input type="text" name="name" class="form-input" value="{{ $user->name }}" placeholder="Введите имя" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Уровень</label>
-                    <input type="number" name="level" class="form-input" value="{{ $user->level }}" min="1" max="5.75" step="0.25" required>
+                    <label class="form-label">Телефон</label>
+                    <input type="text" name="phone" class="form-input" value="{{ $user->phone }}" placeholder="7XXXXXXXXXX">
+                    <small style="color:#888;font-size:11px;">11 цифр, формат 7XXXXXXXXXX. Оставьте пустым чтобы удалить.</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Уровень {{ (float)$user->level != 1.0 ? '(только для новичков)' : '' }}</label>
+                    <input type="number" name="level" class="form-input" value="{{ $user->level }}" min="1" max="5.75" step="0.25" {{ (float)$user->level != 1.0 ? 'disabled' : '' }}>
                 </div>
                 <div class="form-info">
-                    <span>Телефон: {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}</span>
                     <span>Рейтинг: {{ $user->rating }}</span>
                 </div>
             </div>
