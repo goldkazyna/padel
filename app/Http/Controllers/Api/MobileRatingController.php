@@ -592,6 +592,7 @@ class MobileRatingController extends Controller
             'avatar' => $player->avatar,
             'rating' => $player->rating,
             'level' => $player->level,
+            'level_verified' => (bool) $player->level_verified,
             'position' => $position,
         ];
     }
