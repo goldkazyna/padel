@@ -50,6 +50,7 @@ class MobileHomeController extends Controller
             'rating' => $user->rating,
             'level' => $user->level,
             'level_name' => $user->level_name,
+            'level_verified' => (bool) $user->level_verified,
             'place' => $place,
             'city' => $user->city,
             'gender' => $user->gender,

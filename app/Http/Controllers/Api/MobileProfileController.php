@@ -167,6 +167,7 @@ class MobileProfileController extends Controller
             'level' => $user->level,
             'level_name' => $user->level_name,
             'place' => $place,
+            'level_verified' => (bool) $user->level_verified,
             'patronymic' => $user->patronymic,
             'city' => $user->city,
             'gender' => $user->gender,

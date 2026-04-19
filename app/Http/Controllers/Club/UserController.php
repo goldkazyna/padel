@@ -107,19 +107,27 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        if ((float) $user->level != 1.0) {
-            return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'level' => 'required|numeric|min:1|max:5.75',
+            'level' => 'nullable|numeric|min:1|max:5.75',
         ]);
 
-        $newLevel = (float) $validated['level'];
-        $validated['rating'] = (int) ($newLevel * 1000 + 125);
+        $update = ['name' => $validated['name']];
 
-        $user->update($validated);
+        // Флаг верификации уровня — чекбокс, доступен всегда
+        $update['level_verified'] = $request->boolean('level_verified');
+
+        // Уровень меняется только если юзер новичок (сохраняем старое правило)
+        if (array_key_exists('level', $validated) && $validated['level'] !== null) {
+            if ((float) $user->level != 1.0) {
+                return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
+            }
+            $newLevel = (float) $validated['level'];
+            $update['level'] = $newLevel;
+            $update['rating'] = (int) ($newLevel * 1000 + 125);
+        }
+
+        $user->update($update);
 
         return back()->with('success', 'Пользователь обновлён!');
     }

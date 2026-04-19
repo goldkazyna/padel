@@ -120,6 +120,7 @@
                             Уровень {!! $currentSort === 'level' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
                         </a>
                     </th>
+                    <th>Верификация</th>
                     <th>
                         <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'created_at', 'dir' => $currentSort === 'created_at' && $currentDir === 'desc' ? 'asc' : 'desc'])) }}" class="sort-link {{ $currentSort === 'created_at' ? 'active' : '' }}">
                             Регистрация {!! $currentSort === 'created_at' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
@@ -152,21 +153,29 @@
 							<span class="user-level">{{ $user->level }}</span>
 						</td>
                         <td>
+                            @if($user->level_verified)
+                                <span style="display:inline-flex;align-items:center;gap:4px;color:#22c47a;font-size:12px;font-weight:600;background:rgba(34,196,122,0.1);padding:3px 8px;border-radius:6px;" title="Уровень подтверждён">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c47a"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                                    Верифицирован
+                                </span>
+                            @else
+                                <span style="color:#71717a;font-size:12px;">Не верифицирован</span>
+                            @endif
+                        </td>
+                        <td>
                             <span class="user-date">{{ $user->created_at ? $user->created_at->format('d.m.Y') : '—' }}</span>
                         </td>
                         <td>
                             <div class="user-actions">
-                                @if((float) $user->level == 1.0)
                                 <button class="action-btn edit" title="Редактировать" onclick="openModal({{ $user->id }})">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
-                                @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #71717a;">
                             Пользователи не найдены
                         </td>
                     </tr>
@@ -221,7 +230,6 @@
 
 <!-- Edit Modals -->
 @foreach($users as $user)
-@if((float) $user->level == 1.0)
 <div class="modal-overlay" id="editModal{{ $user->id }}">
     <div class="modal-content">
         <div class="modal-header">
@@ -239,8 +247,24 @@
                     <input type="text" name="name" class="form-input" value="{{ $user->name }}" placeholder="Введите имя" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Уровень</label>
-                    <input type="number" name="level" class="form-input" value="{{ $user->level }}" min="1" max="5.75" step="0.25" required>
+                    <label class="form-label">
+                        Уровень
+                        @if((float) $user->level != 1.0)
+                            <small style="color:#888;font-size:11px;">(меняется только у новичков)</small>
+                        @endif
+                    </label>
+                    <input type="number" name="level" class="form-input" value="{{ $user->level }}"
+                           min="1" max="5.75" step="0.25"
+                           {{ (float) $user->level != 1.0 ? 'disabled' : '' }}>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="level_verified" value="1"
+                               {{ $user->level_verified ? 'checked' : '' }}
+                               style="width:18px;height:18px;margin:0;cursor:pointer;">
+                        Уровень верифицирован
+                    </label>
+                    <small style="color:#888;font-size:11px;">Отмечайте если вы лично подтвердили уровень игрока.</small>
                 </div>
                 <div class="form-info">
                     <span>Телефон: {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}</span>
@@ -254,7 +278,6 @@
         </form>
     </div>
 </div>
-@endif
 @endforeach
 
 <script>
