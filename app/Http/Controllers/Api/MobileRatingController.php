@@ -411,6 +411,7 @@ class MobileRatingController extends Controller
                 'avatar' => $u->avatar,
                 'rating' => $u->rating,
                 'level' => $u->level,
+                'level_verified' => (bool) $u->level_verified,
                 'position' => $position,
                 'tournaments_count' => (int) $row->tournaments_count,
                 'total_change' => (int) $row->total_change,
