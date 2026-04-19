@@ -724,6 +724,20 @@ class MobileTournamentController extends Controller
     {
         $tournament->load('club');
 
+        $participants = $tournament->participants()
+            ->wherePivot('status', '!=', 'cancelled')
+            ->get()
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'level_verified' => (bool) $u->level_verified,
+            ])
+            ->sortByDesc('rating')
+            ->values();
+
         return response()->json([
             'success' => true,
             'tournament' => [
@@ -737,6 +751,7 @@ class MobileTournamentController extends Controller
                 'status' => $tournament->status,
                 'participants_count' => $this->getParticipantsCount($tournament),
             ],
+            'participants' => $participants,
             'leaderboard' => $this->getLeaderboard($tournament),
             'team_standings' => $tournament->type === 'team' ? $this->getTeamStandings($tournament) : [],
             'playoff' => $this->getPlayoff($tournament),
