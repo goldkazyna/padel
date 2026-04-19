@@ -69,6 +69,13 @@ class TournamentController extends Controller
 
     public function store(Request $request)
     {
+		// TEMP DEBUG — пишем весь POST в отдельный файл
+		file_put_contents(
+			storage_path('logs/debug-tournament-create.log'),
+			"[" . date('Y-m-d H:i:s') . "] " . json_encode($request->all(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n\n",
+			FILE_APPEND
+		);
+
 		if (auth()->user()->isClubModerator()) {
 			abort(403, 'Модераторам недоступно создание турниров');
 		}
