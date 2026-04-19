@@ -112,6 +112,8 @@ class MobileAuthController extends Controller
                 'avatar' => $user->avatar,
                 'rating' => $user->rating,
                 'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
             ],
         ]);
     }
@@ -149,6 +151,8 @@ class MobileAuthController extends Controller
                 'avatar' => $user->avatar,
                 'rating' => $user->rating,
                 'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
                 'level_name' => $user->level_name,
             ],
         ]);
@@ -211,6 +215,8 @@ class MobileAuthController extends Controller
                 'avatar' => $user->avatar,
                 'rating' => $user->rating,
                 'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
             ],
         ]);
     }
@@ -299,6 +305,8 @@ class MobileAuthController extends Controller
                 'avatar' => $user->avatar,
                 'rating' => $user->rating,
                 'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
             ],
         ], 201);
     }
@@ -374,6 +382,8 @@ class MobileAuthController extends Controller
                 'avatar' => $user->avatar,
                 'rating' => $user->rating,
                 'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
             ],
         ]);
     }

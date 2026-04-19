@@ -80,6 +80,8 @@ Route::prefix('mobile')->group(function () {
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);
         Route::post('/profile/avatar', [MobileProfileController::class, 'avatar']);
+        Route::get('/profile/quiz', [MobileProfileController::class, 'quizQuestions']);
+        Route::post('/profile/quiz', [MobileProfileController::class, 'submitQuiz']);
 
         // Матчи
         Route::get('/matches/history', [MobileMatchController::class, 'history']);

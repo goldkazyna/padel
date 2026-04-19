@@ -4,11 +4,69 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\LevelQuizService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class MobileProfileController extends Controller
 {
+    /**
+     * Вопросы опросника (для показа на фронте).
+     * GET /api/mobile/profile/quiz
+     */
+    public function quizQuestions()
+    {
+        return response()->json([
+            'success' => true,
+            'questions' => LevelQuizService::questions(),
+        ]);
+    }
+
+    /**
+     * Приём ответов опросника — вычисляет уровень, сохраняет.
+     * POST /api/mobile/profile/quiz
+     */
+    public function submitQuiz(Request $request, LevelQuizService $service)
+    {
+        $user = $request->user();
+
+        if ($user->quiz_completed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Опросник уже пройден',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'answers' => 'required|array|size:5',
+            'answers.*' => 'required|integer|min:0|max:5',
+        ]);
+
+        $result = $service->evaluate($validated['answers']);
+        if (empty($result['valid'])) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['error'] ?? 'Ошибка',
+            ], 422);
+        }
+
+        $user->update([
+            'quiz_completed' => true,
+            'quiz_answers' => $validated['answers'],
+            'level' => $result['level'],
+            'rating' => (int) ($result['level'] * 1000),
+            'level_verified' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'level' => $result['level'],
+            'score' => $result['score'],
+            'max_score' => $result['max_score'],
+            'category' => $result['category'],
+        ]);
+    }
+
     /**
      * Профиль текущего пользователя
      * GET /api/mobile/profile
@@ -168,6 +226,7 @@ class MobileProfileController extends Controller
             'level_name' => $user->level_name,
             'place' => $place,
             'level_verified' => (bool) $user->level_verified,
+            'quiz_completed' => (bool) $user->quiz_completed,
             'patronymic' => $user->patronymic,
             'city' => $user->city,
             'gender' => $user->gender,
