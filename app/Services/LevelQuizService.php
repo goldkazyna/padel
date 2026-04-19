@@ -8,14 +8,15 @@ namespace App\Services;
  * 5 вопросов. Вопрос 2 имеет только 5 вариантов (0..4), остальные — 6 (0..5).
  * Максимум баллов = 5 + 4 + 5 + 5 + 5 = 24.
  *
- * Формула уровня: L = 1.0 + (S / 24) × 2.5, округление до 0.25.
- * Максимум с опросника = 3.5 (выше — только через верификацию клубом).
+ * Формула уровня: L = 1.0 + (S / 24) × (MAX_LEVEL_FROM_QUIZ - MIN_LEVEL),
+ * округление до 0.25.
+ * Максимум с опросника = 4.0 (выше — только через верификацию клубом).
  */
 class LevelQuizService
 {
     private const MAX_SCORE = 24;
     private const MIN_LEVEL = 1.0;
-    private const MAX_LEVEL_FROM_QUIZ = 3.5;
+    private const MAX_LEVEL_FROM_QUIZ = 4.0;
 
     /**
      * Вопросы и варианты. Индекс ответа = число баллов (0..N).
@@ -136,6 +137,7 @@ class LevelQuizService
         if ($level < 1.5) return 'Начинающий';
         if ($level < 2.5) return 'Ниже среднего';
         if ($level < 3.5) return 'Средний';
-        return 'Выше среднего';
+        if ($level < 4.5) return 'Выше среднего';
+        return 'Продвинутый';
     }
 }
