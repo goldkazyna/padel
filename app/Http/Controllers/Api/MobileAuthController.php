@@ -655,20 +655,28 @@ class MobileAuthController extends Controller
             'last_name' => 'nullable|string|max:100',
         ]);
 
-        // 1) Получаем JWK-ключи Apple (с кешем на 24 часа).
+        // 1) Получаем JWK-ключи Apple (кешируем СЫРОЙ JSON — объекты
+        //    Firebase\JWT\Key содержат OpenSSLAsymmetricKey и не сериализуются).
         try {
-            $keys = Cache::remember('apple_auth_jwks', now()->addDay(), function () {
+            $jwksJson = Cache::remember('apple_auth_jwks_json', now()->addDay(), function () {
                 $response = Http::timeout(10)->get('https://appleid.apple.com/auth/keys');
                 if (!$response->ok()) {
-                    throw new \RuntimeException('Apple JWKs fetch failed: ' . $response->status());
+                    throw new \RuntimeException('Apple JWKs HTTP ' . $response->status());
                 }
-                return JWK::parseKeySet($response->json());
+                $data = $response->json();
+                if (!is_array($data) || empty($data['keys'] ?? null)) {
+                    throw new \RuntimeException('Apple JWKs invalid format');
+                }
+                return $data;
             });
+            $keys = JWK::parseKeySet($jwksJson);
         } catch (\Throwable $e) {
             Log::warning('Apple JWKs fetch failed', ['error' => $e->getMessage()]);
+            // Не кешируем упавший ответ.
+            Cache::forget('apple_auth_jwks_json');
             return response()->json([
                 'success' => false,
-                'message' => 'Не удалось получить ключи Apple. Попробуйте позже.',
+                'message' => 'Не удалось получить ключи Apple: ' . $e->getMessage(),
             ], 503);
         }
 
@@ -679,7 +687,7 @@ class MobileAuthController extends Controller
             Log::info('Apple identity_token decode failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Неверный токен Apple',
+                'message' => 'Неверный токен Apple: ' . $e->getMessage(),
             ], 401);
         }
 
