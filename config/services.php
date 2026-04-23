@@ -46,4 +46,10 @@ return [
 		'bot_username' => env('TELEGRAM_MOBILE_BOT_USERNAME'),
 	],
 
+	'google' => [
+		// OAuth Web client ID (берётся из Firebase → Project settings → OAuth 2.0 Client IDs → Web client).
+		// Android-приложение выдаёт id_token с aud = Web client ID, поэтому сравниваем именно с ним.
+		'client_id' => env('GOOGLE_CLIENT_ID'),
+	],
+
 ];

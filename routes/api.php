@@ -66,6 +66,9 @@ Route::prefix('mobile')->group(function () {
     Route::post('/auth/forgot-password', [MobileAuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
     Route::post('/auth/reset-password', [MobileAuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 
+    // Google Sign-In (без токена)
+    Route::post('/auth/google', [MobileAuthController::class, 'googleSignIn'])->middleware('throttle:10,1');
+
     // Защищённые роуты (требуют токен)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);

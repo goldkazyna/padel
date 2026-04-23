@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
@@ -485,6 +487,149 @@ class MobileAuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Аккаунт удалён.',
+        ]);
+    }
+
+    /**
+     * Авторизация через Google (Sign In with Google)
+     * POST /api/mobile/auth/google
+     *
+     * Принимает id_token от Google Sign-In SDK на клиенте, проверяет его через
+     * Google tokeninfo endpoint, находит/создаёт юзера и выдаёт Sanctum токен.
+     * - Ищем по google_id → если есть, логиним.
+     * - Иначе по email → если есть, линкуем google_id к существующему юзеру.
+     * - Иначе создаём нового (без телефона — юзер дозаполнит в профиле).
+     */
+    public function googleSignIn(Request $request)
+    {
+        $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        // Проверяем токен через Google (верификация подписи + срока + audience).
+        try {
+            $response = Http::timeout(10)
+                ->get('https://oauth2.googleapis.com/tokeninfo', [
+                    'id_token' => $request->id_token,
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('Google tokeninfo request failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось проверить токен Google. Попробуйте позже.',
+            ], 503);
+        }
+
+        if (!$response->ok()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный токен Google',
+            ], 401);
+        }
+
+        $payload = $response->json();
+
+        // Проверяем issuer.
+        $iss = $payload['iss'] ?? '';
+        if (!in_array($iss, ['accounts.google.com', 'https://accounts.google.com'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный issuer токена',
+            ], 401);
+        }
+
+        // Проверяем aud: должен совпадать с нашим Web-client ID.
+        $expectedAud = config('services.google.client_id');
+        if ($expectedAud && ($payload['aud'] ?? null) !== $expectedAud) {
+            Log::warning('Google id_token aud mismatch', [
+                'expected' => $expectedAud,
+                'got' => $payload['aud'] ?? null,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Токен не для этого приложения',
+            ], 401);
+        }
+
+        // Проверяем срок действия.
+        if (isset($payload['exp']) && (int) $payload['exp'] < time()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Токен Google истёк',
+            ], 401);
+        }
+
+        $googleId = $payload['sub'] ?? null;
+        $email = $payload['email'] ?? null;
+        $emailVerified = filter_var($payload['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $name = trim($payload['name'] ?? '');
+        $givenName = trim($payload['given_name'] ?? '');
+        $familyName = trim($payload['family_name'] ?? '');
+        $picture = $payload['picture'] ?? null;
+
+        if (!$googleId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Google не вернул идентификатор пользователя',
+            ], 401);
+        }
+
+        // 1) Ищем по google_id.
+        $user = User::where('google_id', $googleId)->first();
+
+        // 2) Иначе по email (линкуем к существующему).
+        if (!$user && $email && $emailVerified) {
+            $user = User::where('email', $email)->first();
+            if ($user) {
+                $user->google_id = $googleId;
+                if (!$user->avatar && $picture) {
+                    $user->avatar = $picture;
+                }
+                $user->save();
+            }
+        }
+
+        // 3) Иначе создаём нового (без телефона и пароля).
+        if (!$user) {
+            $fallbackName = $name !== '' ? $name : trim("$givenName $familyName");
+            if ($fallbackName === '' && $email) {
+                $fallbackName = strstr($email, '@', true);
+            }
+            if ($fallbackName === '') {
+                $fallbackName = 'Игрок';
+            }
+
+            $user = User::create([
+                'name' => $fallbackName,
+                'first_name' => $givenName ?: $fallbackName,
+                'last_name' => $familyName ?: '',
+                'email' => $email,
+                'google_id' => $googleId,
+                'avatar' => $picture,
+                'role' => 'player',
+                'rating' => 1000,
+                'level' => 1.00,
+            ]);
+        }
+
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
+                'level_name' => $user->level_name,
+            ],
         ]);
     }
 
