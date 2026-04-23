@@ -52,4 +52,10 @@ return [
 		'client_id' => env('GOOGLE_CLIENT_ID'),
 	],
 
+	'apple' => [
+		// Bundle ID iOS-приложения. Apple identity_token имеет aud = этому значению.
+		// Для нескольких клиентов можно передать через запятую: "com.a.b,com.c.d".
+		'bundle_id' => env('APPLE_BUNDLE_ID', 'com.padelkz.app'),
+	],
+
 ];

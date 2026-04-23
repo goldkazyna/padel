@@ -35,6 +35,7 @@ class User extends Authenticatable
         'quiz_answers',
         'telegram_id',
         'google_id',
+        'apple_id',
         'last_played_at',
         'notify_only_my_level',
         'notify_club_ids',

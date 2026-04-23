@@ -69,6 +69,9 @@ Route::prefix('mobile')->group(function () {
     // Google Sign-In (без токена)
     Route::post('/auth/google', [MobileAuthController::class, 'googleSignIn'])->middleware('throttle:10,1');
 
+    // Apple Sign-In (без токена)
+    Route::post('/auth/apple', [MobileAuthController::class, 'appleSignIn'])->middleware('throttle:10,1');
+
     // Защищённые роуты (требуют токен)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);

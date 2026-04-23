@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\TelegramAuthToken;
 use App\Models\User;
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -606,6 +608,153 @@ class MobileAuthController extends Controller
                 'email' => $email,
                 'google_id' => $googleId,
                 'avatar' => $picture,
+                'role' => 'player',
+                'rating' => 1000,
+                'level' => 1.00,
+            ]);
+        }
+
+        $token = $user->createToken('mobile-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'rating' => $user->rating,
+                'level' => $user->level,
+                'level_verified' => (bool) $user->level_verified,
+                'quiz_completed' => (bool) $user->quiz_completed,
+                'level_name' => $user->level_name,
+            ],
+        ]);
+    }
+
+    /**
+     * Авторизация через Apple (Sign In with Apple)
+     * POST /api/mobile/auth/apple
+     *
+     * Принимает identity_token от Apple SDK (JWT RS256, подписан приватным
+     * ключом Apple), опционально first_name/last_name (Apple отдаёт их только
+     * при ПЕРВОМ логине — мы сохраняем их тогда и больше не получим).
+     *
+     * Верификация: скачиваем публичные ключи Apple (кешируем на сутки),
+     * проверяем подпись JWT, iss, aud, exp. Ищем юзера по apple_id → email
+     * → создаём нового.
+     */
+    public function appleSignIn(Request $request)
+    {
+        $request->validate([
+            'identity_token' => 'required|string',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+        ]);
+
+        // 1) Получаем JWK-ключи Apple (с кешем на 24 часа).
+        try {
+            $keys = Cache::remember('apple_auth_jwks', now()->addDay(), function () {
+                $response = Http::timeout(10)->get('https://appleid.apple.com/auth/keys');
+                if (!$response->ok()) {
+                    throw new \RuntimeException('Apple JWKs fetch failed: ' . $response->status());
+                }
+                return JWK::parseKeySet($response->json());
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Apple JWKs fetch failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось получить ключи Apple. Попробуйте позже.',
+            ], 503);
+        }
+
+        // 2) Декодируем и верифицируем JWT.
+        try {
+            $payload = JWT::decode($request->identity_token, $keys);
+        } catch (\Throwable $e) {
+            Log::info('Apple identity_token decode failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный токен Apple',
+            ], 401);
+        }
+
+        // 3) Проверяем iss.
+        if (($payload->iss ?? '') !== 'https://appleid.apple.com') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Неверный issuer токена Apple',
+            ], 401);
+        }
+
+        // 4) Проверяем aud (bundle_id).
+        $allowedAuds = array_filter(array_map('trim', explode(',', (string) config('services.apple.bundle_id', ''))));
+        if (!empty($allowedAuds) && !in_array($payload->aud ?? '', $allowedAuds, true)) {
+            Log::warning('Apple identity_token aud mismatch', [
+                'expected' => $allowedAuds,
+                'got' => $payload->aud ?? null,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Токен не для этого приложения',
+            ], 401);
+        }
+
+        // 5) Срок действия.
+        if (isset($payload->exp) && (int) $payload->exp < time()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Токен Apple истёк',
+            ], 401);
+        }
+
+        $appleId = $payload->sub ?? null;
+        $email = $payload->email ?? null;
+        $emailVerified = filter_var($payload->email_verified ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if (!$appleId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Apple не вернул идентификатор пользователя',
+            ], 401);
+        }
+
+        // Имя из тела запроса (iOS отдаёт его только при первом логине).
+        $firstName = trim((string) $request->input('first_name', ''));
+        $lastName = trim((string) $request->input('last_name', ''));
+
+        // 1) Ищем по apple_id.
+        $user = User::where('apple_id', $appleId)->first();
+
+        // 2) Иначе по email (линкуем).
+        if (!$user && $email && $emailVerified) {
+            $user = User::where('email', $email)->first();
+            if ($user) {
+                $user->apple_id = $appleId;
+                $user->save();
+            }
+        }
+
+        // 3) Иначе создаём нового.
+        if (!$user) {
+            $fullName = trim("$firstName $lastName");
+            if ($fullName === '' && $email) {
+                $fullName = strstr($email, '@', true);
+            }
+            if ($fullName === '') {
+                $fullName = 'Игрок';
+            }
+
+            $user = User::create([
+                'name' => $fullName,
+                'first_name' => $firstName ?: $fullName,
+                'last_name' => $lastName ?: '',
+                'email' => $email,
+                'apple_id' => $appleId,
                 'role' => 'player',
                 'rating' => 1000,
                 'level' => 1.00,
