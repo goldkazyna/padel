@@ -1573,4 +1573,163 @@ class MobileTournamentController extends Controller
             ]);
         }
     }
+
+    /**
+     * Live-данные турнира для экрана «Идёт сейчас»: группы, таблицы
+     * лидеров, раунды и матчи. Только чтение — счёт не редактируется.
+     * GET /api/mobile/tournaments/{id}/live
+     */
+    public function live(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+        $tournament->load('club');
+
+        // Пока поддерживаем только Американо
+        if ($tournament->type !== 'americano') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Live-режим пока доступен только для Американо',
+            ], 400);
+        }
+
+        $groups = [];
+        $tournamentGroups = $tournament->groups()
+            ->with(['players', 'rounds.matches'])
+            ->orderBy('id')
+            ->get();
+
+        foreach ($tournamentGroups as $group) {
+            // Статистика игроков группы
+            $playerStats = [];
+            foreach ($group->players as $p) {
+                $playerStats[$p->id] = [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'avatar' => $p->avatar,
+                    'rating' => $p->rating,
+                    'level' => $p->level,
+                    'wins' => 0,
+                    'losses' => 0,
+                    'draws' => 0,
+                    'points_for' => 0,
+                    'points_against' => 0,
+                    'total_points' => (int) ($p->pivot->total_points ?? 0),
+                ];
+            }
+
+            // Считаем по завершённым матчам
+            foreach ($group->rounds as $round) {
+                foreach ($round->matches as $match) {
+                    if ($match->status !== 'completed') continue;
+                    $this->countMatchStats($playerStats, $match);
+                    // Ничьи отдельно
+                    if ((int) $match->team1_score === (int) $match->team2_score) {
+                        foreach ([$match->team1_player1_id, $match->team1_player2_id, $match->team2_player1_id, $match->team2_player2_id] as $pId) {
+                            if (isset($playerStats[$pId])) $playerStats[$pId]['draws']++;
+                        }
+                    }
+                }
+            }
+
+            // Сортируем: очки → победы → разница мячей
+            uasort($playerStats, function ($a, $b) {
+                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            });
+
+            $position = 1;
+            $leaderboard = [];
+            foreach ($playerStats as $s) {
+                $totalGames = $s['wins'] + $s['losses'] + $s['draws'];
+                $diff = $s['points_for'] - $s['points_against'];
+                $leaderboard[] = array_merge($s, [
+                    'position' => $position++,
+                    'games_played' => $totalGames,
+                    'point_diff' => $diff,
+                    'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                    'is_me' => $user && (int) $s['id'] === (int) $user->id,
+                ]);
+            }
+
+            // Раунды + матчи
+            $rounds = [];
+            foreach ($group->rounds as $round) {
+                $matches = [];
+                foreach ($round->matches as $m) {
+                    $matches[] = [
+                        'id' => $m->id,
+                        'court_number' => $m->court_number,
+                        'status' => $m->status,
+                        'team1' => [
+                            'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
+                            'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
+                            'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                        ],
+                        'team2' => [
+                            'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
+                            'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
+                            'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                        ],
+                        // Содержит ли этот матч текущего юзера
+                        'has_me' => $user && in_array((int) $user->id, [
+                            (int) $m->team1_player1_id,
+                            (int) $m->team1_player2_id,
+                            (int) $m->team2_player1_id,
+                            (int) $m->team2_player2_id,
+                        ], true),
+                    ];
+                }
+                $rounds[] = [
+                    'id' => $round->id,
+                    'round_number' => $round->round_number,
+                    'matches' => $matches,
+                ];
+            }
+
+            $groups[] = [
+                'id' => $group->id,
+                'name' => $group->name,
+                'leaderboard' => array_values($leaderboard),
+                'rounds' => $rounds,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'has_playoff' => (bool) $tournament->has_playoff,
+            ],
+            'groups' => $groups,
+        ]);
+    }
+
+    /**
+     * Хелпер: данные игрока для live-матча
+     */
+    private function formatPlayerForLive(?int $playerId, array $playerStats, Tournament $tournament): ?array
+    {
+        if (!$playerId) return null;
+        if (isset($playerStats[$playerId])) {
+            return [
+                'id' => $playerStats[$playerId]['id'],
+                'name' => $playerStats[$playerId]['name'],
+                'avatar' => $playerStats[$playerId]['avatar'],
+            ];
+        }
+        // Игрок из другой группы — подгрузим из participants
+        $p = $tournament->participants()->where('users.id', $playerId)->first();
+        if ($p) {
+            return ['id' => $p->id, 'name' => $p->name, 'avatar' => $p->avatar];
+        }
+        return ['id' => $playerId, 'name' => '?', 'avatar' => null];
+    }
 }

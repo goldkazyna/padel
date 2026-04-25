@@ -106,6 +106,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/tournaments/{tournament}', [MobileTournamentController::class, 'show']);
         Route::get('/tournaments/{tournament}/results', [MobileTournamentController::class, 'results']);
         Route::get('/tournaments/{tournament}/stats', [MobileTournamentController::class, 'stats']);
+        Route::get('/tournaments/{tournament}/live', [MobileTournamentController::class, 'live']);
         Route::post('/tournaments/{tournament}/register', [MobileTournamentController::class, 'register']);
         Route::post('/tournaments/{tournament}/cancel', [MobileTournamentController::class, 'cancel']);
         Route::post('/tournaments/{tournament}/search-partner', [MobileTournamentController::class, 'searchPartner']);
