@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Турниры — clearer mockup</title>
+<style>
+  :root {
+    --bg: #0F0F0F;
+    --card: #1C1C21;
+    --card-soft: #16161B;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text: #F3F3F5;
+    --muted: #A2A2AB;
+    --dim: #6A6A73;
+    --accent: #22C47A;
+    --accent-soft: rgba(34,196,122,0.14);
+    --amber: #EAB34E;
+    --blue: #4A8BF5;
+    --red: #F0554D;
+    --purple: #A89CF5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    padding: 0;
+  }
+
+  .phone {
+    max-width: 414px;
+    margin: 0 auto;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 16px 16px 80px;
+  }
+
+  /* Header */
+  h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin: 16px 0 20px;
+    letter-spacing: -0.5px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+    padding-bottom: 4px;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    padding: 8px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: transparent;
+  }
+
+  /* Section header */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 8px 0 12px;
+  }
+  .section-head .title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .section-head .level-badge {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .section-head .count {
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .others-divider {
+    text-align: center;
+    color: var(--dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 32px 0 16px;
+    font-weight: 600;
+  }
+
+  /* Club header (грouping) */
+  .club-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 12px;
+    background: var(--card-soft);
+    border-radius: 14px 14px 0 0;
+    margin-bottom: 0;
+    border: 1px solid var(--border);
+    border-bottom: 0;
+  }
+  .club-head .logo {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2A4D7E, #1B3057);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .club-head .name { flex: 1; font-weight: 700; font-size: 15px; }
+  .club-head .right { display: flex; align-items: baseline; gap: 4px; }
+  .club-head .right .num { font-weight: 800; font-size: 16px; color: var(--accent); }
+  .club-head .right .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .club-tournaments {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-top: 0;
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  /* === Tournament card === */
+  .tcard {
+    background: var(--card);
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tcard:last-child { border-bottom: 0; }
+
+  /* Top: date/time + register button */
+  .tcard-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .tcard-when {
+    display: flex; align-items: baseline; gap: 8px;
+    flex-wrap: wrap;
+  }
+  .tcard-when .date {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .tcard-when .day {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .tcard-when .time {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .tcard-btn {
+    padding: 9px 18px;
+    border-radius: 100px;
+    background: var(--accent);
+    color: #0a0a0d;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tcard-btn:hover { filter: brightness(0.95); }
+  .tcard-btn.disabled {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .tcard-btn.in {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  /* Title + format/price strip */
+  .tcard-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .tcard-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .tcard-meta .format {
+    color: var(--purple);
+    font-weight: 600;
+  }
+  .tcard-meta .dot { opacity: 0.5; }
+  .tcard-meta .price {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* Level fit indicator — single clean line */
+  .level-fit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .level-fit.ok {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .level-fit.notok {
+    background: rgba(240,85,77,0.12);
+    color: #fca7a2;
+  }
+  .level-fit .icon {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+    stroke: currentColor; stroke-width: 2;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .level-fit .your {
+    color: var(--text);
+    font-weight: 700;
+    margin-left: auto;
+  }
+  .level-fit.notok .your { color: #fff; }
+
+  /* Spots indicator — only shown when there's something to show */
+  .spots {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .spots .bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .spots .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .3s;
+  }
+  .spots .bar-fill.low { background: var(--amber); }
+  .spots .bar-fill.normal { background: var(--accent); }
+  .spots .bar-fill.full { background: var(--red); }
+  .spots .text { white-space: nowrap; }
+  .spots .text.urgent { color: var(--amber); font-weight: 700; }
+  .spots .text.gone { color: var(--red); font-weight: 700; }
+
+  /* Bottom nav (mock) */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    max-width: 414px; margin: 0 auto;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    height: 68px;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    color: var(--muted);
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .icon { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Highlight wrapper for "Для вас" */
+  .you-section {
+    margin-bottom: 24px;
+  }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <h1>Турниры</h1>
+
+    <div class="tabs">
+      <span class="tab active">Открытые</span>
+      <span class="tab">Мои</span>
+      <span class="tab">Архив</span>
+    </div>
+
+    <div class="filters">
+      <span class="chip active">Все</span>
+      <span class="chip">Уровень</span>
+      <span class="chip">Формат</span>
+      <span class="chip">Дата</span>
+      <span class="chip">Клуб</span>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- Section: Для вас -->
+    <!-- ========================================== -->
+    <div class="you-section">
+      <div class="section-head">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="title">Для вас</span>
+          <span class="level-badge">Уровень 2.50</span>
+        </div>
+        <span class="count">2</span>
+      </div>
+
+      <!-- Club: ADD Padel Almaty -->
+      <div class="club-head">
+        <div class="logo">ADD</div>
+        <div class="name">ADD Padel Almaty</div>
+        <div class="right">
+          <span class="num">2</span>
+          <span class="label">подходит</span>
+        </div>
+      </div>
+      <div class="club-tournaments">
+
+        <!-- Card 1: low spots, fits level -->
+        <div class="tcard">
+          <div class="tcard-top">
+            <div class="tcard-when">
+              <span class="date">26 апр</span>
+              <span class="day">Вс</span>
+              <span class="time">11:00</span>
+            </div>
+            <button class="tcard-btn">Записаться</button>
+          </div>
+
+          <div class="tcard-title">Женский — Воскресенье</div>
+          <div class="tcard-meta">
+            <span class="format">Американо</span>
+            <span class="dot">·</span>
+            <span class="price">18 000 ₸</span>
+          </div>
+
+          <div class="level-fit ok">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            Подходит — уровень 1.25–3.50
+            <span class="your">вы 2.50</span>
+          </div>
+
+          <div class="spots">
+            <div class="bar"><div class="bar-fill low" style="width: 87.5%;"></div></div>
+            <span class="text urgent">⚠ 2 из 16</span>
+          </div>
+        </div>
+
+        <!-- Card 2: more spots, fits level -->
+        <div class="tcard">
+          <div class="tcard-top">
+            <div class="tcard-when">
+              <span class="date">26 апр</span>
+              <span class="day">Вс</span>
+              <span class="time">16:30</span>
+            </div>
+            <button class="tcard-btn">Записаться</button>
+          </div>
+
+          <div class="tcard-title">L2.50 – L3.50</div>
+          <div class="tcard-meta">
+            <span class="format">Американо</span>
+            <span class="dot">·</span>
+            <span class="price">18 000 ₸</span>
+          </div>
+
+          <div class="level-fit ok">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            Подходит — уровень 2.50–3.50
+            <span class="your">вы 2.50</span>
+          </div>
+
+          <div class="spots">
+            <div class="bar"><div class="bar-fill normal" style="width: 75%;"></div></div>
+            <span class="text">12 из 16 · ещё 4 места</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="others-divider">— Остальные турниры —</div>
+
+    <!-- ========================================== -->
+    <!-- Section: Остальные (другой клуб) -->
+    <!-- ========================================== -->
+    <div class="club-head">
+      <div class="logo">ADD</div>
+      <div class="name">ADD Padel Almaty</div>
+      <div class="right">
+        <span class="num">1</span><span style="color:var(--dim); font-size:14px;">/2</span>
+        <span class="label" style="margin-left:4px;">открыто</span>
+      </div>
+    </div>
+    <div class="club-tournaments">
+
+      <!-- Card: doesn't fit your level -->
+      <div class="tcard">
+        <div class="tcard-top">
+          <div class="tcard-when">
+            <span class="date">28 апр</span>
+            <span class="day">Вт</span>
+            <span class="time">13:30</span>
+          </div>
+          <button class="tcard-btn disabled">Не ваш уровень</button>
+        </div>
+
+        <div class="tcard-title">L3 – L4 Americano</div>
+        <div class="tcard-meta">
+          <span class="format">Американо</span>
+          <span class="dot">·</span>
+          <span class="price">22 000 ₸</span>
+        </div>
+
+        <div class="level-fit notok">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6"/><circle cx="12" cy="16.5" r="1" fill="currentColor"/></svg>
+          Не подходит — уровень 3.00–4.00
+          <span class="your">вы 2.50</span>
+        </div>
+
+        <div class="spots">
+          <div class="bar"><div class="bar-fill normal" style="width: 68.75%;"></div></div>
+          <span class="text">11 из 16</span>
+        </div>
+      </div>
+
+      <!-- Card: full -->
+      <div class="tcard">
+        <div class="tcard-top">
+          <div class="tcard-when">
+            <span class="date">29 апр</span>
+            <span class="day">Ср</span>
+            <span class="time">19:00</span>
+          </div>
+          <button class="tcard-btn disabled">Мест нет</button>
+        </div>
+
+        <div class="tcard-title">Открытый — Среда</div>
+        <div class="tcard-meta">
+          <span class="format">Американо</span>
+          <span class="dot">·</span>
+          <span class="price">15 000 ₸</span>
+        </div>
+
+        <div class="level-fit ok">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          Подходит — уровень 1.50–3.00
+          <span class="your">вы 2.50</span>
+        </div>
+
+        <div class="spots">
+          <div class="bar"><div class="bar-fill full" style="width: 100%;"></div></div>
+          <span class="text gone">мест нет · можно подписаться</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Another club -->
+    <div class="club-head" style="margin-top: 8px;">
+      <div class="logo" style="background: linear-gradient(135deg, #5C2A7E, #3B1B57);">PP</div>
+      <div class="name">Pulse Padel Club</div>
+      <div class="right">
+        <span class="num">1</span><span style="color:var(--dim); font-size:14px;">/3</span>
+        <span class="label" style="margin-left:4px;">открыто</span>
+      </div>
+    </div>
+    <div class="club-tournaments">
+      <div class="tcard">
+        <div class="tcard-top">
+          <div class="tcard-when">
+            <span class="date">30 апр</span>
+            <span class="day">Чт</span>
+            <span class="time">20:00</span>
+          </div>
+          <button class="tcard-btn in">Вы участвуете</button>
+        </div>
+
+        <div class="tcard-title">Парный — Четверг</div>
+        <div class="tcard-meta">
+          <span class="format">Парный</span>
+          <span class="dot">·</span>
+          <span class="price">28 000 ₸ за пару</span>
+        </div>
+
+        <div class="level-fit ok">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          Подходит — уровень 2.00–3.50
+          <span class="your">вы 2.50</span>
+        </div>
+
+        <div class="spots">
+          <div class="bar"><div class="bar-fill normal" style="width: 50%;"></div></div>
+          <span class="text">6 из 12 пар</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="nav">
+    <a class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
+      <span>Главная</span>
+    </a>
+    <a class="nav-item active">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M6 9V4h12v5a6 6 0 0 1-12 0zM4 6h2M18 6h2M9 19h6M12 15v4"/></svg>
+      <span>Турниры</span>
+    </a>
+    <a class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+      <span>Бронирование</span>
+    </a>
+    <a class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 21V10M9 21V4M15 21V14M21 21V8"/></svg>
+      <span>Рейтинг</span>
+    </a>
+    <a class="nav-item">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+      <span>Профиль</span>
+    </a>
+  </div>
+
+</body>
+</html>
