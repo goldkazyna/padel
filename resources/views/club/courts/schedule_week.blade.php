@@ -1297,6 +1297,7 @@
             if (ctx && ctx.state === 'suspended') ctx.resume();
         }, { capture: true });
 
+        // Громкий двойной "пинг" — на НОВУЮ заявку
         function playDingNow(ctx) {
             const now = ctx.currentTime;
             [880, 1320].forEach((freq, i) => {
@@ -1315,15 +1316,35 @@
             });
         }
 
-        function playDing() {
+        // Тихий одиночный "пик" — напоминание, что есть необработанные
+        function playReminderNow(ctx) {
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 700;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.10, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.20);
+        }
+
+        function playSound(kind) {
             const ctx = ensureAudioContext();
             if (!ctx) return;
+            const fn = kind === 'reminder' ? playReminderNow : playDingNow;
             if (ctx.state === 'suspended') {
-                ctx.resume().then(() => playDingNow(ctx)).catch(() => {});
+                ctx.resume().then(() => fn(ctx)).catch(() => {});
             } else {
-                playDingNow(ctx);
+                fn(ctx);
             }
         }
+
+        function playDing() { playSound('new'); }
+        function playReminder() { playSound('reminder'); }
 
         // Флэш заголовка вкладки — надёжный визуальный фолбэк, работает ВСЕГДА.
         // Пользователь видит "(2) Расписание..." даже если звук заблокирован браузером.
@@ -1396,17 +1417,22 @@
                     // Обновляем общую кнопку (сумма по всему клубу из API)
                     updateTopButton(parseInt(data.count) || 0);
 
+                    const totalCount = parseInt(data.count) || 0;
+
                     if (hasNew) {
+                        // Громкий звук + флэш + reload только если есть НОВАЯ заявка
                         playDing();
-                        flashTitle(parseInt(data.count) || 0);
+                        flashTitle(totalCount);
 
                         const modalOpen = document.querySelector('.modal.show');
                         if (modalOpen) {
                             pendingReload = true;
                         } else {
-                            // Небольшая задержка чтобы юзер успел услышать звук и заметить бейдж
                             setTimeout(() => window.location.reload(), 1200);
                         }
+                    } else if (totalCount > 0) {
+                        // Новых нет, но есть висящие необработанные — тихий "пик" напоминание
+                        playReminder();
                     }
                 })
                 .catch(() => {});
