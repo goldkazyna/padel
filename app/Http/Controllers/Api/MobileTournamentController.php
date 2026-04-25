@@ -1683,6 +1683,7 @@ class MobileTournamentController extends Controller
                 $rounds[] = [
                     'id' => $round->id,
                     'round_number' => $round->round_number,
+                    'status' => $round->status, // pending / in_progress / completed
                     'matches' => $matches,
                 ];
             }
