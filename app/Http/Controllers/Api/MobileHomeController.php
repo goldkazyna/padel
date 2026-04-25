@@ -62,24 +62,44 @@ class MobileHomeController extends Controller
      */
     private function getNearestTournament($user): ?array
     {
+        $hiddenClubIds = $this->normalizeHiddenClubIds($user);
+
         $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
             ->with('club');
 
-        // Исключаем скрытые юзером клубы (как в /tournaments и /home/upcoming)
-        $hiddenClubIds = $user ? ($user->hidden_club_ids ?? []) : [];
         if (!empty($hiddenClubIds)) {
             $query->whereNotIn('club_id', $hiddenClubIds);
         }
 
         foreach ($query->get() as $t) {
+            // Доп. защитная проверка на случай если cast не отработал
+            if (in_array((int) $t->club_id, $hiddenClubIds, true)) {
+                continue;
+            }
             if ($t->canRegister($user)) {
                 return $this->formatTournament($t);
             }
         }
 
         return null;
+    }
+
+    /**
+     * Нормализуем hidden_club_ids: поддерживаем массив и JSON-строку,
+     * приводим к int, отфильтровываем пустые значения.
+     */
+    private function normalizeHiddenClubIds($user): array
+    {
+        if (!$user) return [];
+        $raw = $user->hidden_club_ids ?? [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($raw)) return [];
+        return array_values(array_filter(array_map('intval', $raw)));
     }
 
     /**
@@ -134,13 +154,15 @@ class MobileHomeController extends Controller
             ->orderBy('start_date', 'asc')
             ->with('club');
 
-        $hiddenClubIds = $user ? ($user->hidden_club_ids ?? []) : [];
+        $hiddenClubIds = $this->normalizeHiddenClubIds($user);
         if (!empty($hiddenClubIds)) {
             $query->whereNotIn('club_id', $hiddenClubIds);
         }
 
         return $query->get()
+            ->filter(fn($t) => !in_array((int) $t->club_id, $hiddenClubIds, true))
             ->map(fn($t) => $this->formatTournament($t))
+            ->values()
             ->toArray();
     }
 
