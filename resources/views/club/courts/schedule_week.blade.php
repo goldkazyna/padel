@@ -193,7 +193,7 @@
         align-items: center;
         gap: 8px;
     }
-    .ws-day-head .unprocessed-badge {
+    .ws-day-head .ws-day-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -524,7 +524,7 @@
                 <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" style="color: inherit; text-decoration: none;">
                     <span class="day-num-row">
                         <span class="day-num">{{ $wd['dayNumLabel'] }}</span>
-                        <span class="unprocessed-badge" data-unprocessed-badge="{{ $wd['date'] }}"
+                        <span class="ws-day-badge" data-unprocessed-badge="{{ $wd['date'] }}"
                               title="Необработанных заявок"
                               style="{{ ($wd['unprocessed'] ?? 0) > 0 ? '' : 'display:none;' }}">
                             <span class="badge-count">{{ $wd['unprocessed'] ?? 0 }}</span>
