@@ -62,13 +62,18 @@ class MobileHomeController extends Controller
      */
     private function getNearestTournament($user): ?array
     {
-        $tournaments = Tournament::where('status', 'open')
+        $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
-            ->with('club')
-            ->get();
+            ->with('club');
 
-        foreach ($tournaments as $t) {
+        // Исключаем скрытые юзером клубы (как в /tournaments и /home/upcoming)
+        $hiddenClubIds = $user ? ($user->hidden_club_ids ?? []) : [];
+        if (!empty($hiddenClubIds)) {
+            $query->whereNotIn('club_id', $hiddenClubIds);
+        }
+
+        foreach ($query->get() as $t) {
             if ($t->canRegister($user)) {
                 return $this->formatTournament($t);
             }
