@@ -254,36 +254,95 @@
     font-weight: 700;
   }
 
-  /* Level fit indicator — single clean line */
+  /* Level fit indicator — с визуальной шкалой */
   .level-fit {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
+    padding: 10px 12px;
     border-radius: 10px;
-    font-size: 13px;
     margin-bottom: 8px;
+    font-size: 12px;
   }
   .level-fit.ok {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: rgba(34,196,122,0.08);
+    border: 1px solid rgba(34,196,122,0.18);
   }
   .level-fit.notok {
-    background: rgba(240,85,77,0.12);
-    color: #fca7a2;
+    background: rgba(240,85,77,0.08);
+    border: 1px solid rgba(240,85,77,0.18);
   }
-  .level-fit .icon {
-    width: 16px; height: 16px;
-    flex-shrink: 0;
-    stroke: currentColor; stroke-width: 2;
+  .level-fit-head {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .level-fit-head .label {
+    color: var(--muted);
+    font-weight: 500;
+    flex: 1;
+  }
+  .level-fit-head .status {
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .level-fit.ok .level-fit-head .status { color: var(--accent); }
+  .level-fit.notok .level-fit-head .status { color: #fca7a2; }
+  .level-fit-head .status svg {
+    width: 14px; height: 14px;
+    stroke: currentColor; stroke-width: 2.2;
     fill: none; stroke-linecap: round; stroke-linejoin: round;
   }
-  .level-fit .your {
+
+  /* Шкала 1.0 — 5.0 */
+  .level-scale {
+    position: relative;
+    height: 8px;
+    margin: 0 6px 4px;
+  }
+  .level-scale .track {
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    transform: translateY(-50%);
+  }
+  .level-scale .range {
+    position: absolute;
+    top: 50%;
+    height: 6px;
+    border-radius: 3px;
+    transform: translateY(-50%);
+  }
+  .level-fit.ok .level-scale .range { background: var(--accent); }
+  .level-fit.notok .level-scale .range { background: rgba(255,255,255,0.18); }
+
+  .level-scale .marker {
+    position: absolute;
+    top: 50%;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--bg);
+    z-index: 2;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.10);
+  }
+  .level-fit.ok .level-scale .marker { background: #fff; }
+  .level-fit.notok .level-scale .marker { background: var(--red); }
+
+  .level-numbers {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 6px;
+    font-size: 11px;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  .level-numbers .your {
     color: var(--text);
     font-weight: 700;
-    margin-left: auto;
   }
-  .level-fit.notok .your { color: #fff; }
+  .level-fit.notok .level-numbers .your { color: #fca7a2; }
 
   /* Spots indicator — only shown when there's something to show */
   .spots {
@@ -399,9 +458,27 @@
           </div>
 
           <div class="level-fit ok">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-            Подходит — уровень 1.25–3.50
-            <span class="your">вы 2.50</span>
+            <div class="level-fit-head">
+              <span class="label">Уровень турнира</span>
+              <span class="status">
+                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                Подходит
+              </span>
+            </div>
+            <div class="level-scale">
+              <div class="track"></div>
+              {{-- 1.25 → 3.50 на шкале 1.0–5.0:
+                   left = (1.25-1)/4 * 100 = 6.25%
+                   width = (3.50-1.25)/4 * 100 = 56.25%
+                   marker = (2.50-1)/4 * 100 = 37.5% --}}
+              <div class="range" style="left: 6.25%; width: 56.25%;"></div>
+              <div class="marker" style="left: 37.5%;"></div>
+            </div>
+            <div class="level-numbers">
+              <span>1.25</span>
+              <span class="your">вы 2.50</span>
+              <span>3.50</span>
+            </div>
           </div>
 
           <div class="spots">
@@ -429,9 +506,24 @@
           </div>
 
           <div class="level-fit ok">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-            Подходит — уровень 2.50–3.50
-            <span class="your">вы 2.50</span>
+            <div class="level-fit-head">
+              <span class="label">Уровень турнира</span>
+              <span class="status">
+                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                Подходит
+              </span>
+            </div>
+            <div class="level-scale">
+              <div class="track"></div>
+              {{-- 2.50→3.50: left=37.5%, width=25%, marker=37.5% (на левой границе) --}}
+              <div class="range" style="left: 37.5%; width: 25%;"></div>
+              <div class="marker" style="left: 37.5%;"></div>
+            </div>
+            <div class="level-numbers">
+              <span>2.50</span>
+              <span class="your">вы 2.50</span>
+              <span>3.50</span>
+            </div>
           </div>
 
           <div class="spots">
@@ -478,9 +570,23 @@
         </div>
 
         <div class="level-fit notok">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6"/><circle cx="12" cy="16.5" r="1" fill="currentColor"/></svg>
-          Не подходит — уровень 3.00–4.00
-          <span class="your">вы 2.50</span>
+          <div class="level-fit-head">
+            <span class="label">Уровень турнира</span>
+            <span class="status">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6"/><circle cx="12" cy="16.5" r="1" fill="currentColor"/></svg>
+              Не подходит
+            </span>
+          </div>
+          <div class="level-scale">
+            <div class="track"></div>
+            {{-- 3.00→4.00: left=50%, width=25%, marker=37.5% (вы 2.50 — слева от диапазона) --}}
+            <div class="range" style="left: 50%; width: 25%;"></div>
+            <div class="marker" style="left: 37.5%;"></div>
+          </div>
+          <div class="level-numbers">
+            <span class="your">вы 2.50</span>
+            <span style="color: var(--muted); font-weight: 600;">3.00 — 4.00</span>
+          </div>
         </div>
 
         <div class="spots">
@@ -508,9 +614,24 @@
         </div>
 
         <div class="level-fit ok">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          Подходит — уровень 1.50–3.00
-          <span class="your">вы 2.50</span>
+          <div class="level-fit-head">
+            <span class="label">Уровень турнира</span>
+            <span class="status">
+              <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+              Подходит
+            </span>
+          </div>
+          <div class="level-scale">
+            <div class="track"></div>
+            {{-- 1.50→3.00: left=12.5%, width=37.5%, marker=37.5% --}}
+            <div class="range" style="left: 12.5%; width: 37.5%;"></div>
+            <div class="marker" style="left: 37.5%;"></div>
+          </div>
+          <div class="level-numbers">
+            <span>1.50</span>
+            <span class="your">вы 2.50</span>
+            <span>3.00</span>
+          </div>
         </div>
 
         <div class="spots">
@@ -549,9 +670,24 @@
         </div>
 
         <div class="level-fit ok">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          Подходит — уровень 2.00–3.50
-          <span class="your">вы 2.50</span>
+          <div class="level-fit-head">
+            <span class="label">Уровень турнира</span>
+            <span class="status">
+              <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+              Подходит
+            </span>
+          </div>
+          <div class="level-scale">
+            <div class="track"></div>
+            {{-- 2.00→3.50: left=25%, width=37.5%, marker=37.5% --}}
+            <div class="range" style="left: 25%; width: 37.5%;"></div>
+            <div class="marker" style="left: 37.5%;"></div>
+          </div>
+          <div class="level-numbers">
+            <span>2.00</span>
+            <span class="your">вы 2.50</span>
+            <span>3.50</span>
+          </div>
         </div>
 
         <div class="spots">
