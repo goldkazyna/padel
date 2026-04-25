@@ -13,7 +13,7 @@ class TeamTournamentService
 {
 	use \App\Traits\RatingCalculator;
     /**
-     * Запустить турнир
+     * Запустить турнир (авто-распределение змейкой по рейтингу)
      */
     public function startTournament(Tournament $tournament): bool
     {
@@ -44,6 +44,82 @@ class TeamTournamentService
         $tournament->update(['status' => 'in_progress']);
 
         return true;
+    }
+
+    /**
+     * Запустить турнир с РУЧНЫМ распределением: $assignments = [team_id => group_index (0..N-1)]
+     * Возвращает [success: bool, message: string].
+     */
+    public function startTournamentWithAssignments(Tournament $tournament, array $assignments): array
+    {
+        $teams = $tournament->teams()->orderBy('rating_avg', 'desc')->get();
+        $maxTeams = $tournament->max_participants / 2;
+        $groupsCount = (int) $tournament->groups_count;
+        $perGroup = $maxTeams / $groupsCount;
+
+        if ($teams->count() !== $maxTeams) {
+            return [false, 'Не все пары зарегистрированы.'];
+        }
+        if ($tournament->teamGroups()->count() > 0) {
+            return [false, 'Группы уже созданы.'];
+        }
+
+        // Валидация: все команды распределены
+        $teamIds = $teams->pluck('id')->all();
+        foreach ($teamIds as $tid) {
+            if (!isset($assignments[$tid]) || $assignments[$tid] === null || $assignments[$tid] === '') {
+                return [false, 'Не все пары распределены по группам.'];
+            }
+            $gi = (int) $assignments[$tid];
+            if ($gi < 0 || $gi >= $groupsCount) {
+                return [false, 'Неверный номер группы.'];
+            }
+        }
+
+        // Валидация: равномерность
+        $countsPerGroup = array_fill(0, $groupsCount, 0);
+        foreach ($assignments as $tid => $gi) {
+            if (!in_array((int) $tid, $teamIds, true)) continue;
+            $countsPerGroup[(int) $gi]++;
+        }
+        foreach ($countsPerGroup as $idx => $cnt) {
+            if ($cnt !== (int) $perGroup) {
+                return [false, "В группе " . chr(65 + $idx) . " {$cnt} пар, ожидалось {$perGroup}."];
+            }
+        }
+
+        // Сохраняем рейтинг и сид
+        foreach ($teams as $idx => $team) {
+            $team->update([
+                'rating_before' => $team->rating_avg,
+                'seed' => $idx + 1,
+            ]);
+        }
+
+        // Создаём группы
+        $groups = [];
+        for ($i = 0; $i < $groupsCount; $i++) {
+            $groups[] = TournamentTeamGroup::create([
+                'tournament_id' => $tournament->id,
+                'name' => 'Группа ' . chr(65 + $i),
+            ]);
+        }
+
+        // Раскладываем по группам согласно ручному маппингу
+        foreach ($teams as $team) {
+            $gi = (int) $assignments[$team->id];
+            TournamentTeamStanding::create([
+                'group_id' => $groups[$gi]->id,
+                'team_id' => $team->id,
+            ]);
+        }
+
+        // Генерим матчи как обычно
+        $this->generateGroupMatches($tournament);
+
+        $tournament->update(['status' => 'in_progress']);
+
+        return [true, 'Турнир начался!'];
     }
 
     /**

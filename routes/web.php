@@ -228,6 +228,10 @@ Route::middleware('auth')->group(function () {
             // Управление
             Route::post('/tournaments/{tournament}/start', [ClubTournamentController::class, 'start'])
                 ->name('tournaments.start');
+            Route::get('/tournaments/{tournament}/distribute', [ClubTournamentController::class, 'distribute'])
+                ->name('tournaments.distribute');
+            Route::post('/tournaments/{tournament}/start-with-groups', [ClubTournamentController::class, 'startWithGroups'])
+                ->name('tournaments.startWithGroups');
             Route::post('/tournaments/{tournament}/finish', [ClubTournamentController::class, 'finish'])
                 ->name('tournaments.finish');
             Route::post('/tournaments/{tournament}/publish-channel', [ClubTournamentController::class, 'publishToChannel'])

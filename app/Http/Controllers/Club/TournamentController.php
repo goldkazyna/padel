@@ -328,6 +328,76 @@ class TournamentController extends Controller
 
 		return back()->with('error', 'Не удалось начать турнир. Проверьте количество участников/пар.');
 	}
+
+	/**
+	 * Экран ручного распределения пар по группам (только для team-турниров)
+	 */
+	public function distribute(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) abort(403);
+
+		if (!$tournament->isTeamBased()) {
+			return redirect()->route('club.tournaments.show', $tournament)
+				->with('error', 'Ручное распределение доступно только для командных турниров');
+		}
+
+		if ($tournament->status !== 'pending') {
+			return redirect()->route('club.tournaments.show', $tournament)
+				->with('error', 'Турнир уже запущен');
+		}
+
+		$teams = $tournament->teams()
+			->with(['player1', 'player2'])
+			->orderBy('rating_avg', 'desc')
+			->get();
+		$maxTeams = $tournament->max_participants / 2;
+		if ($teams->count() !== $maxTeams) {
+			return redirect()->route('club.tournaments.show', $tournament)
+				->with('error', "Зарегистрировано {$teams->count()} пар из {$maxTeams}");
+		}
+
+		$groupsCount = (int) $tournament->groups_count;
+		$perGroup = $maxTeams / $groupsCount;
+
+		$groupNames = [];
+		for ($i = 0; $i < $groupsCount; $i++) {
+			$groupNames[] = 'Группа ' . chr(65 + $i);
+		}
+
+		return view('club.tournaments.distribute', compact('tournament', 'teams', 'groupsCount', 'groupNames', 'perGroup'));
+	}
+
+	/**
+	 * Старт турнира с ручным распределением
+	 */
+	public function startWithGroups(Request $request, Tournament $tournament, \App\Services\TeamTournamentService $teamTournamentService)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) abort(403);
+
+		if (!$tournament->isTeamBased()) {
+			return back()->with('error', 'Доступно только для командных турниров');
+		}
+
+		// assignments[team_id] = group_index
+		$assignments = $request->input('assignments', []);
+		if (!is_array($assignments)) $assignments = [];
+
+		// Приводим ключи и значения к int
+		$normalized = [];
+		foreach ($assignments as $teamId => $groupIdx) {
+			$normalized[(int) $teamId] = (int) $groupIdx;
+		}
+
+		[$success, $message] = $teamTournamentService->startTournamentWithAssignments($tournament, $normalized);
+
+		if ($success) {
+			return redirect()->route('club.tournaments.show', $tournament)->with('success', $message);
+		}
+		return back()->with('error', $message)->withInput();
+	}
+
 	/**
 	 * Добавить тестовых игроков
 	 */

@@ -63,11 +63,14 @@
                         </button>
                     </form>
                 @elseif($tournament->isTeamBased() && $tournament->teams->count() === $tournament->max_participants / 2)
-                    <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST" 
-                          onsubmit="return confirm('Начать турнир? Группы и матчи будут сгенерированы автоматически.')">
+                    <a href="{{ route('club.tournaments.distribute', $tournament) }}" class="btn-outline-custom" style="margin-right:8px;">
+                        <i class="bi bi-grid-3x3-gap"></i> Распределить вручную
+                    </a>
+                    <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST"
+                          onsubmit="return confirm('Начать турнир? Группы и матчи будут сгенерированы автоматически (по рейтингу змейкой).')">
                         @csrf
                         <button type="submit" class="btn-primary-custom">
-                            <i class="bi bi-play-fill"></i> Начать турнир
+                            <i class="bi bi-play-fill"></i> Начать (авто)
                         </button>
                     </form>
                 @endif
