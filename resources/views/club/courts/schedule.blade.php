@@ -288,6 +288,7 @@
                             @elseif($slot['status'] === 'free')
                                 <td>
                                     <div class="slot slot-free"
+                                         id="slot-free-{{ $court->id }}-{{ $time }}"
                                          onclick="openBookModal('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $time }}', {{ $slot['price'] }}, {{ $maxFreeSlots[$cellKey] ?? 1 }})">
                                         <span class="slot-price">{{ number_format($slot['price'], 0, '', ' ') }} &#8376;</span>
                                     </div>
@@ -320,6 +321,7 @@
                                         }
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
+                                         id="slot-booking-{{ $booking->id }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
@@ -349,6 +351,7 @@
                             @elseif($slot['status'] === 'blocked')
                                 <td>
                                     <div class="slot slot-blocked"
+                                         id="slot-block-{{ $slot['block']->id ?? 0 }}"
                                          onclick="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}', '{{ addslashes($slot['block']->comment ?? '') }}')">
                                         <span class="slot-label">{{ $slot['block']->comment ?? 'Заблокирован' }}</span>
                                     </div>
@@ -1025,6 +1028,41 @@
             input.value = coachId;
         }
     }
+
+    // Авто-открытие модалки по URL-параметрам (приходит из недельного вида)
+    function autoOpenFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const open = params.get('open');
+        if (!open) return;
+
+        const cleanUrl = () => {
+            const u = new URL(window.location);
+            ['open', 'courtId', 'courtName', 'time', 'price', 'maxSlots', 'bookingId', 'blockId'].forEach(p => u.searchParams.delete(p));
+            window.history.replaceState({}, '', u.toString());
+        };
+
+        if (open === 'book') {
+            const courtId = params.get('courtId');
+            const courtName = params.get('courtName') || '';
+            const time = params.get('time');
+            const price = parseInt(params.get('price')) || 0;
+            const maxSlots = parseInt(params.get('maxSlots')) || 1;
+            if (courtId && time) {
+                openBookModal(courtId, courtName, time, price, maxSlots);
+            }
+        } else if (open === 'view') {
+            const bookingId = params.get('bookingId');
+            const el = bookingId && document.getElementById('slot-booking-' + bookingId);
+            if (el) el.click();
+        } else if (open === 'unblock') {
+            const blockId = params.get('blockId');
+            const el = blockId && document.getElementById('slot-block-' + blockId);
+            if (el) el.click();
+        }
+
+        cleanUrl();
+    }
+    document.addEventListener('DOMContentLoaded', autoOpenFromUrl);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>

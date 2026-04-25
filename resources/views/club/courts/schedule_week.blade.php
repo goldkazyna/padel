@@ -404,7 +404,19 @@
                         @if(!$slot)
                             <div class="ws-card empty"><div class="left"><span class="name">—</span></div><span class="court-num">{{ $court->name }}</span></div>
                         @elseif($slot['status'] === 'free')
-                            <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" class="ws-card free">
+                            @php
+                                $maxSlots = $wd['maxFreeSlots'][$court->id . '-' . $time] ?? 1;
+                                $bookUrl = route('club.courts.schedule', [
+                                    'date' => $wd['date'],
+                                    'open' => 'book',
+                                    'courtId' => $court->id,
+                                    'courtName' => $court->name,
+                                    'time' => $time,
+                                    'price' => $slot['price'],
+                                    'maxSlots' => $maxSlots,
+                                ]);
+                            @endphp
+                            <a href="{{ $bookUrl }}" class="ws-card free">
                                 <div class="left">
                                     <span class="name">{{ number_format($slot['price'], 0, '', ' ') }} ₸</span>
                                 </div>
@@ -414,8 +426,13 @@
                             @php
                                 $b = $slot['booking'];
                                 $cls = !$b->is_processed ? 'unprocessed' : ($b->is_paid ? 'paid' : 'unpaid');
+                                $viewUrl = route('club.courts.schedule', [
+                                    'date' => $wd['date'],
+                                    'open' => 'view',
+                                    'bookingId' => $b->id,
+                                ]);
                             @endphp
-                            <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" class="ws-card {{ $cls }}">
+                            <a href="{{ $viewUrl }}" class="ws-card {{ $cls }}">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -429,7 +446,14 @@
                                 <span class="court-num">{{ $court->name }}</span>
                             </a>
                         @elseif($slot['status'] === 'blocked')
-                            <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" class="ws-card blocked">
+                            @php
+                                $unblockUrl = route('club.courts.schedule', [
+                                    'date' => $wd['date'],
+                                    'open' => 'unblock',
+                                    'blockId' => $slot['block']->id ?? 0,
+                                ]);
+                            @endphp
+                            <a href="{{ $unblockUrl }}" class="ws-card blocked">
                                 <div class="left">
                                     <span class="name">{{ $slot['block']->comment ?? 'Заблок.' }}</span>
                                 </div>
@@ -452,7 +476,7 @@
         <div class="ws-legend-item"><span class="ws-legend-dot unprocessed"></span>Не обработана</div>
         <div class="ws-legend-item"><span class="ws-legend-dot blocked"></span>Заблокирован</div>
         <div class="ws-legend-item" style="margin-left: auto; color: var(--sch-text-muted);">
-            Тап по карточке открывает день в виде «По кортам»
+            Тап по карточке открывает модалку этого слота
         </div>
     </div>
 

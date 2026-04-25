@@ -181,13 +181,17 @@ class CourtController extends Controller
             $dayStr = $d->format('Y-m-d');
 
             $courtSchedules = [];
+            $maxFreeSlotsByCell = [];
             $occupiedSlots = 0;
             foreach ($courts as $court) {
                 $sched = $this->scheduleService->buildSchedule($court, $dayStr);
                 $courtSchedules[$court->id] = $sched;
-                foreach ($sched as $slot) {
+                foreach ($sched as $time => $slot) {
                     if (in_array($slot['status'], ['booked', 'blocked'], true)) {
                         $occupiedSlots++;
+                    }
+                    if ($slot['status'] === 'free') {
+                        $maxFreeSlotsByCell[$court->id . '-' . $time] = $this->scheduleService->maxConsecutiveFreeSlots($court, $dayStr, $time);
                     }
                 }
             }
@@ -204,6 +208,7 @@ class CourtController extends Controller
                 'isToday' => $dayStr === now()->format('Y-m-d'),
                 'occupancy' => $occupancy,
                 'schedules' => $courtSchedules,
+                'maxFreeSlots' => $maxFreeSlotsByCell,
             ];
         }
 
