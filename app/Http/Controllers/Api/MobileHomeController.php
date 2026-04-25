@@ -107,12 +107,12 @@ class MobileHomeController extends Controller
      */
     private function getActiveTournament($user): ?array
     {
-        // Обычные турниры (americano/mexicano/classic)
+        // Обычные турниры (americano/mexicano/classic) — только идущие сейчас
         $tournament = Tournament::whereHas('participants', function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                   ->where('status', 'registered');
             })
-            ->whereIn('status', ['open', 'closed', 'in_progress'])
+            ->where('status', 'in_progress')
             ->orderBy('start_date', 'asc')
             ->with('club')
             ->first();
@@ -121,7 +121,7 @@ class MobileHomeController extends Controller
             return $this->formatTournament($tournament);
         }
 
-        // Командные турниры (team)
+        // Командные турниры (team) — только идущие сейчас
         $teamTournamentId = TournamentTeam::where(function ($q) use ($user) {
                 $q->where('player1_id', $user->id)
                   ->orWhere('player2_id', $user->id);
@@ -132,7 +132,7 @@ class MobileHomeController extends Controller
 
         if ($teamTournamentId) {
             $tournament = Tournament::where('id', $teamTournamentId)
-                ->whereIn('status', ['open', 'closed', 'in_progress'])
+                ->where('status', 'in_progress')
                 ->with('club')
                 ->first();
 
