@@ -1643,11 +1643,17 @@ class MobileTournamentController extends Controller
             foreach ($playerStats as $s) {
                 $totalGames = $s['wins'] + $s['losses'] + $s['draws'];
                 $diff = $s['points_for'] - $s['points_against'];
+                // % мячей: забитых от всех мячей в матчах игрока (как в админке)
+                $totalBalls = $s['points_for'] + $s['points_against'];
+                $ballPercent = $totalBalls > 0
+                    ? (int) round($s['points_for'] / $totalBalls * 100)
+                    : 0;
                 $leaderboard[] = array_merge($s, [
                     'position' => $position++,
                     'games_played' => $totalGames,
                     'point_diff' => $diff,
                     'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                    'ball_percent' => $ballPercent,
                     'is_me' => $user && (int) $s['id'] === (int) $user->id,
                 ]);
             }
