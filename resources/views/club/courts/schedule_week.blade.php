@@ -1278,30 +1278,77 @@
         let lastByDate = initialUnprocessed;
         let pendingReload = false;
 
-        // Звук "ding" через Web Audio API — без файлов
+        // Звук "ding" — AudioContext создаём ОДИН раз, разблокируем
+        // на первом клике пользователя по странице (autoplay policy браузеров).
+        let audioCtx = null;
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) { return null; }
+            }
+            return audioCtx;
+        }
+
+        // Любой клик на странице снимает блокировку аудио
+        document.addEventListener('click', function unlockAudio() {
+            const ctx = ensureAudioContext();
+            if (ctx && ctx.state === 'suspended') ctx.resume();
+        }, { capture: true });
+
+        function playDingNow(ctx) {
+            const now = ctx.currentTime;
+            [880, 1320].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const start = now + i * 0.12;
+                gain.gain.setValueAtTime(0, start);
+                gain.gain.linearRampToValueAtTime(0.30, start + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.30);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(start);
+                osc.stop(start + 0.32);
+            });
+        }
+
         function playDing() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const now = ctx.currentTime;
+            const ctx = ensureAudioContext();
+            if (!ctx) return;
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(() => playDingNow(ctx)).catch(() => {});
+            } else {
+                playDingNow(ctx);
+            }
+        }
 
-                // Двойной "пинг" — два тона подряд
-                [880, 1320].forEach((freq, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.value = freq;
+        // Флэш заголовка вкладки — надёжный визуальный фолбэк, работает ВСЕГДА.
+        // Пользователь видит "(2) Расписание..." даже если звук заблокирован браузером.
+        const originalTitle = document.title;
+        let titleFlashTimer = null;
+        function flashTitle(count) {
+            clearInterval(titleFlashTimer);
+            const flashed = `(${count}) 🔔 Новая заявка!`;
+            let toggle = false;
+            document.title = flashed;
+            titleFlashTimer = setInterval(() => {
+                document.title = toggle ? flashed : originalTitle;
+                toggle = !toggle;
+            }, 1200);
 
-                    const start = now + i * 0.12;
-                    gain.gain.setValueAtTime(0, start);
-                    gain.gain.linearRampToValueAtTime(0.25, start + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.30);
-
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(start);
-                    osc.stop(start + 0.32);
-                });
-            } catch (e) { /* браузер заблокировал — игнор */ }
+            // Останавливаем мигание при возврате на вкладку
+            const onFocus = () => {
+                clearInterval(titleFlashTimer);
+                document.title = originalTitle;
+                window.removeEventListener('focus', onFocus);
+                document.removeEventListener('visibilitychange', onVis);
+            };
+            const onVis = () => { if (!document.hidden) onFocus(); };
+            window.addEventListener('focus', onFocus);
+            document.addEventListener('visibilitychange', onVis);
         }
 
         // Обновить бейдж конкретного дня
@@ -1351,6 +1398,7 @@
 
                     if (hasNew) {
                         playDing();
+                        flashTitle(parseInt(data.count) || 0);
 
                         const modalOpen = document.querySelector('.modal.show');
                         if (modalOpen) {
