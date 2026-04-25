@@ -226,6 +226,16 @@
     background: var(--accent-soft);
     color: var(--accent);
   }
+  .tcard-btn.subscribe {
+    background: rgba(74,139,245,0.14);
+    color: var(--blue);
+    display: inline-flex;
+    align-items: center;
+  }
+  .tcard-btn.subscribe:hover {
+    background: rgba(74,139,245,0.22);
+    filter: none;
+  }
 
   /* Title + format/price strip */
   .tcard-title {
@@ -425,7 +435,7 @@
           <span class="title">Для вас</span>
           <span class="level-badge">Уровень 2.50</span>
         </div>
-        <span class="count">2</span>
+        <span class="count">3</span>
       </div>
 
       <!-- Club: ADD Padel Almaty -->
@@ -433,7 +443,7 @@
         <div class="logo">ADD</div>
         <div class="name">ADD Padel Almaty</div>
         <div class="right">
-          <span class="num">2</span>
+          <span class="num">3</span>
           <span class="label">подходит</span>
         </div>
       </div>
@@ -529,6 +539,54 @@
           </div>
         </div>
 
+        <!-- Card 3: full but level fits — can subscribe for notification -->
+        <div class="tcard">
+          <div class="tcard-top">
+            <div class="tcard-when">
+              <span class="date">29 апр</span>
+              <span class="day">Ср</span>
+              <span class="time">19:00</span>
+            </div>
+            <button class="tcard-btn subscribe">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Уведомить
+            </button>
+          </div>
+
+          <div class="tcard-title">Открытый — Среда</div>
+          <div class="tcard-meta">
+            <span class="format">Американо</span>
+            <span class="dot">·</span>
+            <span class="price">15 000 ₸</span>
+          </div>
+
+          <div class="level-fit ok">
+            <div class="level-fit-head">
+              <span class="label">Уровень турнира</span>
+              <span class="status">
+                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                Подходит
+              </span>
+            </div>
+            <div class="level-scale">
+              <div class="track"></div>
+              <!-- 1.50→3.00: left=12.5%, width=37.5%, marker=37.5% -->
+              <div class="range" style="left: 12.5%; width: 37.5%;"></div>
+              <div class="marker" style="left: 37.5%;"></div>
+            </div>
+            <div class="level-numbers">
+              <span>1.50</span>
+              <span class="your">вы 2.50</span>
+              <span>3.00</span>
+            </div>
+          </div>
+
+          <div class="spots">
+            <div class="bar"><div class="bar-fill full" style="width: 100%;"></div></div>
+            <span class="text gone">⚠ мест нет — пришлём пуш когда освободится</span>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -589,51 +647,6 @@
         <div class="spots">
           <div class="bar"><div class="bar-fill normal" style="width: 68.75%;"></div></div>
           <span class="text">11 из 16</span>
-        </div>
-      </div>
-
-      <!-- Card: full -->
-      <div class="tcard">
-        <div class="tcard-top">
-          <div class="tcard-when">
-            <span class="date">29 апр</span>
-            <span class="day">Ср</span>
-            <span class="time">19:00</span>
-          </div>
-          <button class="tcard-btn disabled">Мест нет</button>
-        </div>
-
-        <div class="tcard-title">Открытый — Среда</div>
-        <div class="tcard-meta">
-          <span class="format">Американо</span>
-          <span class="dot">·</span>
-          <span class="price">15 000 ₸</span>
-        </div>
-
-        <div class="level-fit ok">
-          <div class="level-fit-head">
-            <span class="label">Уровень турнира</span>
-            <span class="status">
-              <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-              Подходит
-            </span>
-          </div>
-          <div class="level-scale">
-            <div class="track"></div>
-            <!-- 1.50→3.00: left=12.5%, width=37.5%, marker=37.5% -->
-            <div class="range" style="left: 12.5%; width: 37.5%;"></div>
-            <div class="marker" style="left: 37.5%;"></div>
-          </div>
-          <div class="level-numbers">
-            <span>1.50</span>
-            <span class="your">вы 2.50</span>
-            <span>3.00</span>
-          </div>
-        </div>
-
-        <div class="spots">
-          <div class="bar"><div class="bar-fill full" style="width: 100%;"></div></div>
-          <span class="text gone">мест нет · можно подписаться</span>
         </div>
       </div>
 
