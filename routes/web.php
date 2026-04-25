@@ -172,6 +172,7 @@ Route::middleware('auth')->group(function () {
         // Корты
         Route::middleware('club.feature:courts')->group(function () {
             Route::get('/courts/schedule', [CourtController::class, 'schedule'])->name('courts.schedule');
+            Route::get('/courts/schedule/week', [CourtController::class, 'scheduleWeek'])->name('courts.scheduleWeek');
             Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
             Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
             Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');

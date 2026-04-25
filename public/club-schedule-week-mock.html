@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Расписание кортов · Неделя — Pulse Padel Club</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0F0F0F;
+      color: #F3F3F5;
+      font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 24px;
+    }
+
+    /* === Header === */
+    .top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .top-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .top-header h1 .club {
+      color: #A2A2AB;
+      font-weight: 400;
+    }
+    .settings-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: #F3F3F5;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      gap: 16px;
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-add {
+      background: #22C47A;
+      color: #0A0A0D;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #F3F3F5;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .week-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .week-nav button {
+      width: 36px;
+      height: 36px;
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: #F3F3F5;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .week-range {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin: 0 8px;
+    }
+    .toolbar-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .view-tabs-label {
+      font-size: 11px;
+      color: #6A6A73;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .view-tabs {
+      display: flex;
+      gap: 2px;
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .view-tabs button {
+      padding: 7px 14px;
+      background: transparent;
+      border: 0;
+      border-radius: 8px;
+      color: #A2A2AB;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .view-tabs button.active {
+      background: rgba(34,196,122,0.14);
+      color: #22C47A;
+    }
+
+    /* === Grid === */
+    .week-grid {
+      display: grid;
+      grid-template-columns: 70px repeat(7, 1fr);
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .day-head {
+      padding: 12px 12px 14px;
+      border-left: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: #16161B;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .day-head:first-child { grid-column: 1; border-left: 0; }
+    .day-head .day-name {
+      font-size: 11px;
+      color: #6A6A73;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .day-head .day-num {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .day-head .occupancy-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: auto;
+    }
+    .day-head .occupancy-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+    .day-head .occupancy-pct {
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .day-head.today {
+      background: rgba(34,196,122,0.06);
+    }
+    .day-head.today .day-num {
+      color: #22C47A;
+    }
+
+    .time-col {
+      padding: 8px 0 0;
+      text-align: center;
+      font-size: 11px;
+      color: #6A6A73;
+      font-weight: 500;
+      border-right: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      background: #131317;
+      position: sticky;
+      left: 0;
+    }
+    .day-cell {
+      padding: 4px 4px;
+      border-left: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .day-cell.today {
+      background: rgba(34,196,122,0.025);
+    }
+
+    /* === Court mini-card === */
+    .court-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 7px;
+      font-size: 11px;
+      line-height: 1.25;
+      cursor: pointer;
+      min-height: 26px;
+      border: 1px solid transparent;
+    }
+    .court-card .left {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .court-card .name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .court-card .meta {
+      font-size: 10px;
+      opacity: 0.7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .court-card .court-num {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+
+    /* Status colors */
+    .court-card.free {
+      background: rgba(34,196,122,0.08);
+      border-color: rgba(34,196,122,0.20);
+      color: #22C47A;
+    }
+    .court-card.free .court-num {
+      background: rgba(34,196,122,0.18);
+      color: #22C47A;
+    }
+    .court-card.paid {
+      background: rgba(74,139,245,0.10);
+      border-color: rgba(74,139,245,0.25);
+      color: #C5D6F7;
+    }
+    .court-card.paid .court-num {
+      background: rgba(74,139,245,0.25);
+      color: #6FA0F8;
+    }
+    .court-card.unpaid {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.10);
+      color: #D4D4D9;
+    }
+    .court-card.unpaid .court-num {
+      background: rgba(255,255,255,0.08);
+      color: #A2A2AB;
+    }
+    .court-card.unprocessed {
+      background: rgba(234,179,78,0.10);
+      border-color: rgba(234,179,78,0.30);
+      color: #EAB34E;
+    }
+    .court-card.unprocessed .court-num {
+      background: rgba(234,179,78,0.20);
+      color: #EAB34E;
+    }
+    .court-card.blocked {
+      background: rgba(120,80,40,0.18);
+      border-color: rgba(160,100,50,0.30);
+      color: #C2A47A;
+    }
+    .court-card.blocked .court-num {
+      background: rgba(160,100,50,0.25);
+      color: #C2A47A;
+    }
+    .court-card:hover {
+      filter: brightness(1.15);
+    }
+
+    /* === Legend === */
+    .legend {
+      display: flex;
+      gap: 18px;
+      margin-top: 18px;
+      padding: 12px 16px;
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      font-size: 12px;
+      color: #A2A2AB;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      border: 1px solid;
+    }
+    .legend-dot.free      { background: rgba(34,196,122,0.20);  border-color: rgba(34,196,122,0.40); }
+    .legend-dot.paid      { background: rgba(74,139,245,0.25);  border-color: rgba(74,139,245,0.50); }
+    .legend-dot.unpaid    { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.20); }
+    .legend-dot.unprocessed { background: rgba(234,179,78,0.20); border-color: rgba(234,179,78,0.45); }
+    .legend-dot.blocked   { background: rgba(160,100,50,0.30);  border-color: rgba(160,100,50,0.50); }
+
+    /* Note */
+    .note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(74,139,245,0.06);
+      border: 1px solid rgba(74,139,245,0.20);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #C5D6F7;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-header">
+    <h1>Расписание кортов <span class="club">— Pulse Padel Club</span></h1>
+    <a href="#" class="settings-link">⚙ Настройки кортов</a>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="btn-add">＋ Бронирование</button>
+      <button class="btn-secondary">Скопировать неделю</button>
+    </div>
+    <div class="week-nav">
+      <button>‹</button>
+      <button class="btn-secondary">Сегодня</button>
+      <button>›</button>
+      <span class="week-range">20 — 26 апреля 2026</span>
+    </div>
+    <div class="toolbar-right">
+      <span class="view-tabs-label">Отображение</span>
+      <div class="view-tabs">
+        <button class="active">По дням</button>
+        <button>По тренерам</button>
+        <button>По кортам</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="week-grid">
+    <!-- Header row -->
+    <div class="day-head"><span class="day-name">&nbsp;</span></div>
+    <div class="day-head">
+      <span class="day-name">Пн</span>
+      <span class="day-num">20 апр</span>
+      <span class="occupancy-pct" style="color:#fb923c;">54%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:54%; background:#fb923c;"></div></div>
+    </div>
+    <div class="day-head">
+      <span class="day-name">Вт</span>
+      <span class="day-num">21 апр</span>
+      <span class="occupancy-pct" style="color:#ef4444;">91%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:91%; background:#ef4444;"></div></div>
+    </div>
+    <div class="day-head">
+      <span class="day-name">Ср</span>
+      <span class="day-num">22 апр</span>
+      <span class="occupancy-pct" style="color:#fb923c;">61%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:61%; background:#fb923c;"></div></div>
+    </div>
+    <div class="day-head">
+      <span class="day-name">Чт</span>
+      <span class="day-num">23 апр</span>
+      <span class="occupancy-pct" style="color:#fb923c;">72%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:72%; background:#fb923c;"></div></div>
+    </div>
+    <div class="day-head">
+      <span class="day-name">Пт</span>
+      <span class="day-num">24 апр</span>
+      <span class="occupancy-pct" style="color:#fb923c;">70%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:70%; background:#fb923c;"></div></div>
+    </div>
+    <div class="day-head today">
+      <span class="day-name" style="color:#22C47A;">Сб · Сегодня</span>
+      <span class="day-num">25 апр</span>
+      <span class="occupancy-pct" style="color:#fb923c;">74%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:74%; background:#fb923c;"></div></div>
+    </div>
+    <div class="day-head">
+      <span class="day-name">Вс</span>
+      <span class="day-num">26 апр</span>
+      <span class="occupancy-pct" style="color:#ef4444;">88%</span>
+      <div class="occupancy-bar"><div class="occupancy-fill" style="width:88%; background:#ef4444;"></div></div>
+    </div>
+
+    <!-- 07:00 -->
+    <div class="time-col">07:00</div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Жасулан</span><span class="meta">+7 701 333 36 21 · 64 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно · 32 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 08:00 -->
+    <div class="time-col">08:00</div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card unprocessed"><div class="left"><span class="name">Заявка · Аскар</span><span class="meta">не обработано</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айдар</span><span class="meta">+7 707 111 22 33</span></div><span class="court-num">К1</span></div>
+      <div class="court-card unpaid"><div class="left"><span class="name">Дина</span><span class="meta">не оплачено</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Группа Анастасии</span><span class="meta">тренер · 1ч</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Группа · Динмухаммед</span><span class="meta">тренер · 3/8</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card unpaid"><div class="left"><span class="name">Алина</span><span class="meta">не оплачено</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Акылбек</span><span class="meta">+7 701 775 56 68</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Жанат</span><span class="meta">тренер</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Айбек</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Камила</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 09:00 -->
+    <div class="time-col">09:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Жасулан</span><span class="meta">+7 701 333 36 21</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Наталья · Кирилл</span><span class="meta">+ 12 000 ₸</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Акылбек</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бибикова Ксения</span><span class="meta">инд. занятие</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Анастасия Иванова</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бибикова Ксения</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Жасулан</span><span class="meta">оплачивают Артёму</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Наталья · Кирилл</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Акылбек</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Группа · Бибикова</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Аян</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алишер</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 10:00 -->
+    <div class="time-col">10:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Сырым</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Сырым</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Анна Хасина · Кирилл</span><span class="meta">+ 20 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Эмира</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Канат</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Эльдар</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бибикова Ксения</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бибикова Ксения</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Аскар</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card unprocessed"><div class="left"><span class="name">Заявка · Дамир</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Сырым</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Андрей Тимофеев</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Анна Хасина · Кирилл</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Олжас</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Дина</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Малика</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 11:00 -->
+    <div class="time-col">11:00</div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айгуль</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Серик</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Сабина · Анастасия</span><span class="meta">инд.</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Сабина · Анастасия</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Сырым</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Андрей Тимофеев</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Максим · Артём</span><span class="meta">+ 18 000 ₸</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айдос</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алуа</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Ержан</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 12:00 -->
+    <div class="time-col">12:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Владислав · Кирилл</span><span class="meta">с двумя Кириллами</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Андрей Тимофеев</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Юлия</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Арман</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Камиля</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Тимур</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Сабина · Анастасия</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Аян</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Лейла</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Игорь</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Полина</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Владислав</span><span class="meta">+ 24 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Андрей Тимофеев</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Юлия</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айгерим</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Бекзат</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Дамир</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 13:00 -->
+    <div class="time-col">13:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Владислав</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алан</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Джамиля</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Арман</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Камиля</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Тимур</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Жасулан</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алан</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Джамиля</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Дина</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Олжас</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Малика</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 14:00 — пример Проам / турнир -->
+    <div class="time-col">14:00</div>
+    <div class="day-cell">
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span><span class="meta">турнир</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span><span class="meta">турнир</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span><span class="meta">турнир</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 15:00 -->
+    <div class="time-col">15:00</div>
+    <div class="day-cell">
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Проам</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К1</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К2</span></div>
+      <div class="court-card blocked"><div class="left"><span class="name">Турнир</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 18:00 — Just Padel It -->
+    <div class="time-col">18:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span><span class="meta">192 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айдар</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Серик</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Жанат</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Рустам</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алуа</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Камиля</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бекзат</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Дина</span></div><span class="court-num">К2</span></div>
+      <div class="court-card unpaid"><div class="left"><span class="name">Айдос</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Олжас</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Лейла</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Тимур</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span><span class="meta">192 000 ₸</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Александр</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Малика</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Дамир</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 19:00 -->
+    <div class="time-col">19:00</div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Игорь</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Полина</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Аян</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Эмира</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Канат</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Эльдар</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Нурлан</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Гульнара</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Бахыт</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Динара</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Айгуль</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Серик</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Just Padel It</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Бекзат</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Малика</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Тимур</span></div><span class="court-num">К3</span></div>
+    </div>
+
+    <!-- 20:00 -->
+    <div class="time-col">20:00</div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Аян</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алишер</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Айгерим</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Дамир</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Алуа</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Тимур</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Малика</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Игорь</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell today">
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К1</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К2</span></div>
+      <div class="court-card free"><div class="left"><span class="name">Свободно</span></div><span class="court-num">К3</span></div>
+    </div>
+    <div class="day-cell">
+      <div class="court-card paid"><div class="left"><span class="name">Айдар</span></div><span class="court-num">К1</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Бекзат</span></div><span class="court-num">К2</span></div>
+      <div class="court-card paid"><div class="left"><span class="name">Жанат</span></div><span class="court-num">К3</span></div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot free"></span>Свободен</div>
+    <div class="legend-item"><span class="legend-dot paid"></span>Оплачено</div>
+    <div class="legend-item"><span class="legend-dot unpaid"></span>Не оплачено</div>
+    <div class="legend-item"><span class="legend-dot unprocessed"></span>Не обработана</div>
+    <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
+  </div>
+
+  <div class="note">
+    <b>Как читать ячейку:</b> в каждой клетке часа стопкой 3 мини-карточки кортов (К1 / К2 / К3). Имя клиента или «Свободно» — слева, ярлык корта — справа. Тап по любой карточке откроет ту же модалку, что и в дневном виде. Сверху над неделей — переключатель «По дням / По тренерам / По кортам».
+  </div>
+
+</body>
+</html>

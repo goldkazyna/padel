@@ -141,6 +141,79 @@ class CourtController extends Controller
         ));
     }
 
+    // === Недельное расписание (вид «По дням») ===
+
+    public function scheduleWeek(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
+
+        $courts = Court::where('club_id', $club->id)->active()->orderBy('sort_order')->orderBy('name')->get();
+        if ($courts->isEmpty()) return redirect()->route('club.courts.index')->with('error', 'Нет активных кортов. Добавьте корт в настройках.');
+
+        $date = $request->get('date', now()->format('Y-m-d'));
+        $selectedDate = Carbon::parse($date);
+        $weekStart = $selectedDate->copy()->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+
+        $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
+        $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
+
+        // Объединение всех временных слотов всех кортов (один корт может работать с другим расписанием)
+        $allTimes = collect();
+        foreach ($courts as $court) {
+            foreach ($this->scheduleService->generateTimeSlots($court) as $slot) {
+                $allTimes->push($slot['time']);
+            }
+        }
+        $timeSlots = $allTimes->unique()->sort()->values();
+
+        // Сколько всего слотов в дне (для % загрузки)
+        $totalSlotsPerDay = 0;
+        foreach ($courts as $court) {
+            $totalSlotsPerDay += count($this->scheduleService->generateTimeSlots($court));
+        }
+
+        // Данные по 7 дням
+        $weekDays = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = $weekStart->copy()->addDays($i);
+            $dayStr = $d->format('Y-m-d');
+
+            $courtSchedules = [];
+            $occupiedSlots = 0;
+            foreach ($courts as $court) {
+                $sched = $this->scheduleService->buildSchedule($court, $dayStr);
+                $courtSchedules[$court->id] = $sched;
+                foreach ($sched as $slot) {
+                    if (in_array($slot['status'], ['booked', 'blocked'], true)) {
+                        $occupiedSlots++;
+                    }
+                }
+            }
+
+            $occupancy = $totalSlotsPerDay > 0
+                ? min(100, round($occupiedSlots / $totalSlotsPerDay * 100))
+                : 0;
+
+            $weekDays[] = [
+                'date' => $dayStr,
+                'dayName' => $d->locale('ru')->isoFormat('dd'),
+                'dayNumLabel' => $d->locale('ru')->isoFormat('D MMM'),
+                'isSelected' => $dayStr === $date,
+                'isToday' => $dayStr === now()->format('Y-m-d'),
+                'occupancy' => $occupancy,
+                'schedules' => $courtSchedules,
+            ];
+        }
+
+        $weekRangeLabel = $weekStart->locale('ru')->isoFormat('D MMMM') . ' — ' . $weekEnd->locale('ru')->isoFormat('D MMMM YYYY');
+
+        return view('club.courts.schedule_week', compact(
+            'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek', 'weekRangeLabel'
+        ));
+    }
+
     // === CRUD кортов ===
 
     public function index()

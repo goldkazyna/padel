@@ -229,6 +229,19 @@
         </div>
     </div>
 
+    <!-- View tabs: По кортам (этот) / По дням (недельный) -->
+    <div style="display:flex; justify-content:flex-end; margin: 12px 0 8px;">
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+            <span style="font-size:11px; color: var(--sch-text-muted, #71717a); text-transform:uppercase; letter-spacing:0.4px;">Отображение</span>
+            <div style="display:flex; gap:2px; background: var(--sch-card, #111113); border:1px solid var(--sch-border, #27272a); border-radius:10px; padding:3px;">
+                <a href="{{ route('club.courts.schedule', ['date' => $date]) }}"
+                   style="padding:7px 14px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none; background: rgba(34,197,94,0.14); color: var(--sch-accent, #22c55e);">По кортам</a>
+                <a href="{{ route('club.courts.scheduleWeek', ['date' => $date]) }}"
+                   style="padding:7px 14px; border-radius:8px; font-size:13px; font-weight:500; text-decoration:none; color: var(--sch-text-dim, #a1a1aa);">По дням</a>
+            </div>
+        </div>
+    </div>
+
     <!-- Schedule Grid -->
     <div class="schedule-wrap">
         <table class="schedule-table">
