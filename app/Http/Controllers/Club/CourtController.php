@@ -214,8 +214,32 @@ class CourtController extends Controller
 
         $weekRangeLabel = $weekStart->locale('ru')->isoFormat('D MMMM') . ' — ' . $weekEnd->locale('ru')->isoFormat('D MMMM YYYY');
 
+        // freePrices = [court_id-time => price] (цены не зависят от даты — берём из любого дня)
+        $freePrices = [];
+        if (!empty($weekDays)) {
+            foreach ($courts as $court) {
+                $sched = $weekDays[0]['schedules'][$court->id] ?? [];
+                foreach ($sched as $time => $slot) {
+                    $freePrices[$court->id . '-' . $time] = $slot['price'];
+                }
+            }
+        }
+
+        // coachAvailability = [date => [coach_id => [time => bool]]]
+        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])->get();
+        $coachAvailability = [];
+        foreach ($weekDays as $wd) {
+            foreach ($clubCoaches as $cc) {
+                foreach ($timeSlots as $time) {
+                    $endTime = Carbon::parse($time)->addHour()->format('H:i');
+                    $coachAvailability[$wd['date']][$cc->user_id][$time] = $cc->isFreeAt($wd['date'], $time, $endTime);
+                }
+            }
+        }
+
         return view('club.courts.schedule_week', compact(
-            'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek', 'weekRangeLabel'
+            'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
+            'weekRangeLabel', 'freePrices', 'coachAvailability', 'clubCoaches'
         ));
     }
 

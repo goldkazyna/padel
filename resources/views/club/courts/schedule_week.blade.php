@@ -404,35 +404,23 @@
                         @if(!$slot)
                             <div class="ws-card empty"><div class="left"><span class="name">—</span></div><span class="court-num">{{ $court->name }}</span></div>
                         @elseif($slot['status'] === 'free')
-                            @php
-                                $maxSlots = $wd['maxFreeSlots'][$court->id . '-' . $time] ?? 1;
-                                $bookUrl = route('club.courts.schedule', [
-                                    'date' => $wd['date'],
-                                    'open' => 'book',
-                                    'courtId' => $court->id,
-                                    'courtName' => $court->name,
-                                    'time' => $time,
-                                    'price' => $slot['price'],
-                                    'maxSlots' => $maxSlots,
-                                ]);
-                            @endphp
-                            <a href="{{ $bookUrl }}" class="ws-card free">
+                            @php $maxSlots = $wd['maxFreeSlots'][$court->id . '-' . $time] ?? 1; @endphp
+                            <div class="ws-card free"
+                                 onclick="openBookModal('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $time }}', {{ $slot['price'] }}, {{ $maxSlots }}, '{{ $wd['date'] }}')">
                                 <div class="left">
                                     <span class="name">{{ number_format($slot['price'], 0, '', ' ') }} ₸</span>
                                 </div>
                                 <span class="court-num">{{ $court->name }}</span>
-                            </a>
+                            </div>
                         @elseif($slot['status'] === 'booked' && $slot['booking'])
                             @php
                                 $b = $slot['booking'];
                                 $cls = !$b->is_processed ? 'unprocessed' : ($b->is_paid ? 'paid' : 'unpaid');
-                                $viewUrl = route('club.courts.schedule', [
-                                    'date' => $wd['date'],
-                                    'open' => 'view',
-                                    'bookingId' => $b->id,
-                                ]);
+                                $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
+                                $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                             @endphp
-                            <a href="{{ $viewUrl }}" class="ws-card {{ $cls }}">
+                            <div class="ws-card {{ $cls }}"
+                                 onclick="openViewModal({ id: {{ $b->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -444,21 +432,15 @@
                                     @endif
                                 </div>
                                 <span class="court-num">{{ $court->name }}</span>
-                            </a>
+                            </div>
                         @elseif($slot['status'] === 'blocked')
-                            @php
-                                $unblockUrl = route('club.courts.schedule', [
-                                    'date' => $wd['date'],
-                                    'open' => 'unblock',
-                                    'blockId' => $slot['block']->id ?? 0,
-                                ]);
-                            @endphp
-                            <a href="{{ $unblockUrl }}" class="ws-card blocked">
+                            <div class="ws-card blocked"
+                                 onclick="openUnblockModal({{ $slot['block']->id ?? 0 }}, '{{ addslashes($court->name) }}', '{{ $time }}', '{{ addslashes($slot['block']->comment ?? '') }}')">
                                 <div class="left">
                                     <span class="name">{{ $slot['block']->comment ?? 'Заблок.' }}</span>
                                 </div>
                                 <span class="court-num">{{ $court->name }}</span>
-                            </a>
+                            </div>
                         @else
                             <div class="ws-card empty"><div class="left"><span class="name">—</span></div><span class="court-num">{{ $court->name }}</span></div>
                         @endif
@@ -475,11 +457,642 @@
         <div class="ws-legend-item"><span class="ws-legend-dot unpaid"></span>Не оплачено</div>
         <div class="ws-legend-item"><span class="ws-legend-dot unprocessed"></span>Не обработана</div>
         <div class="ws-legend-item"><span class="ws-legend-dot blocked"></span>Заблокирован</div>
-        <div class="ws-legend-item" style="margin-left: auto; color: var(--sch-text-muted);">
-            Тап по карточке открывает модалку этого слота
-        </div>
     </div>
 
 </div>
+
+{{-- =================== Modal styles + HTML + JS (взято из дневного view, JS адаптирован под мульти-дату) =================== --}}
+
+<style>
+    .modal-wide { max-width: 1000px; }
+    #bookModal .modal-content, #viewModal .modal-content, #unblockModal .modal-content { overflow: hidden; }
+    .modal-two-col { display: grid; grid-template-columns: 1fr 1fr; }
+    .modal-col-left { padding: 20px 24px; border-right: 1px solid #27272a; }
+    .modal-col-right { padding: 20px 24px; }
+    .modal-section-title { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; margin-top: 16px; }
+
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list { display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 50; background: #16161a; border: 1px solid #27272a; border-radius: 10px; margin-top: 4px; max-height: 200px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .autocomplete-list.show { display: block; }
+    .autocomplete-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #27272a; }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .autocomplete-item:hover { background: rgba(34, 197, 94, 0.10); }
+    .autocomplete-item-name { font-size: 14px; font-weight: 600; color: #f4f4f5; }
+    .autocomplete-item-phone { font-size: 13px; color: #71717a; }
+
+    .sch-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #27272a; }
+    .sch-modal-header h2 { font-size: 18px; font-weight: 700; color: #f4f4f5; margin: 0; }
+    .sch-modal-close { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 8px; cursor: pointer; color: #a1a1aa; font-size: 18px; }
+    .sch-modal-close:hover { border-color: #ef4444; color: #ef4444; }
+    .sch-modal-body { padding: 24px; }
+    .sch-modal-info { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .sch-modal-info-row { display: flex; justify-content: space-between; align-items: center; }
+    .sch-modal-info-label { font-size: 13px; color: #71717a; font-weight: 600; }
+    .sch-modal-info-value { font-size: 14px; font-weight: 700; color: #f4f4f5; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; color: #a1a1aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f4f5; font-weight: 500; }
+    .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }
+    .form-input::placeholder { color: #52525b; }
+
+    .duration-selector { display: flex; gap: 6px; }
+    .duration-btn { flex: 1; height: 44px; padding: 0; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; }
+    .duration-btn small { font-size: 10px; font-weight: 600; opacity: 0.7; }
+    .duration-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+    .duration-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
+
+    .payment-methods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .pay-btn { padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
+    .pay-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+    .pay-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
+
+    .coach-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+    .coach-btn { padding: 8px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .coach-btn .coach-rate { color: #22c55e; font-weight: 700; font-size: 12px; }
+    .coach-btn.active { background: #a78bfa; color: #0a0a0b; border-color: #a78bfa; }
+    .coach-btn.active .coach-rate { color: #0a0a0b; }
+    .coach-btn.unavailable { opacity: 0.3; cursor: not-allowed; text-decoration: line-through; }
+    .coach-btn:hover:not(.active):not(.unavailable) { border-color: #a78bfa; color: #a78bfa; }
+
+    .paid-toggle { display: flex; gap: 8px; }
+    .paid-btn { flex: 1; padding: 10px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; }
+    .paid-btn.active[data-value="0"] { background: rgba(251, 146, 60, 0.20); color: #fb923c; border-color: #fb923c; }
+    .paid-btn.active[data-value="1"] { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+
+    .processed-btn { flex: 1; padding: 10px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; }
+    .processed-btn.active[data-value="0"] { background: rgba(239, 68, 68, 0.20); color: #ef4444; border-color: #ef4444; }
+    .processed-btn.active[data-value="1"] { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+
+    .price-edit-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .price-edit-group { flex: 1; }
+    .price-input { text-align: right; font-weight: 700; font-size: 15px !important; }
+
+    .total-price { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.20); border-radius: 10px; margin-bottom: 20px; }
+    .total-price-label { font-size: 14px; font-weight: 600; color: #a1a1aa; }
+    .total-price-value { font-size: 20px; font-weight: 800; color: #22c55e; }
+
+    .sch-modal-footer { display: flex; gap: 12px; padding: 20px 24px; border-top: 1px solid #27272a; }
+    .btn-cancel { flex: 1; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-confirm { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .btn-confirm:hover { background: #16a34a; }
+    .btn-danger { padding: 14px; background: #ef4444; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-block-slot { padding: 10px 20px; background: transparent; border: 1px solid #27272a; border-radius: 10px; color: #71717a; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-block-slot:hover { border-color: #71717a; color: #a1a1aa; }
+</style>
+
+<!-- Book Modal -->
+<div class="modal fade" id="bookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-wide">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
+                <h2>Бронирование</h2>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
+            </div>
+            <form id="bookForm" method="POST">
+                @csrf
+                <input type="hidden" name="date" id="bookDate" value="">
+                <input type="hidden" name="start_time" id="bookStartTime">
+                <input type="hidden" name="slots" id="bookSlots" value="1">
+
+                <div class="modal-two-col">
+                    <div class="modal-col-left">
+                        <div class="sch-modal-info">
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Корт</span><span class="sch-modal-info-value" id="bookCourtName"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Дата</span><span class="sch-modal-info-value" id="bookDateLabel"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Начало</span><span class="sch-modal-info-value" id="bookTime"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Цена/час</span><span class="sch-modal-info-value" id="bookPrice"></span></div>
+                        </div>
+
+                        <div class="modal-section-title">Длительность</div>
+                        <div class="duration-selector" id="durationSelector"></div>
+
+                        <div class="modal-section-title">Цена и скидка</div>
+                        <div class="price-edit-row">
+                            <div class="price-edit-group">
+                                <label class="form-label">Цена корта</label>
+                                <input type="number" name="custom_price" id="bookCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                            </div>
+                            <div class="price-edit-group">
+                                <label class="form-label">Скидка</label>
+                                <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
+                            </div>
+                        </div>
+                        <div class="total-price">
+                            <span class="total-price-label">Итого</span>
+                            <span class="total-price-value" id="bookTotalPrice"></span>
+                        </div>
+                    </div>
+
+                    <div class="modal-col-right">
+                        <div class="form-group autocomplete-wrap">
+                            <label class="form-label">Имя клиента *</label>
+                            <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Введите имя" required autocomplete="off">
+                            <div class="autocomplete-list" id="bookNameList"></div>
+                        </div>
+                        <div class="form-group autocomplete-wrap">
+                            <label class="form-label">Телефон *</label>
+                            <input type="text" name="client_phone" id="bookClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
+                            <div class="autocomplete-list" id="bookPhoneList"></div>
+                        </div>
+
+                        <div class="modal-section-title">Способ оплаты</div>
+                        <div class="payment-methods" id="paymentMethods">
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)">Kaspi</button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectPayment(this)">Сертификат</button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectPayment(this)">Клубная карта</button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectPayment(this)">Депозит</button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)">Кешбэк</button>
+                        </div>
+                        <input type="hidden" name="payment_method" id="paymentMethodInput">
+
+                        <div class="form-group" style="margin-top: 14px;">
+                            <label class="form-label">Статус оплаты</label>
+                            <input type="hidden" name="is_paid" id="isPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn active" data-value="0" onclick="setPaid(this)">Не оплачено</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Комментарий</label>
+                            <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
+                        </div>
+
+                        <div class="modal-section-title">Тренер</div>
+                        <div class="coach-buttons" id="bookCoachButtons">
+                            @foreach($clubCoaches as $cc)
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="coach_id" id="bookCoachId" value="">
+
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button type="button" class="btn-block-slot" onclick="blockSlot()">Заблокировать слот</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sch-modal-footer">
+                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn-confirm">Забронировать</button>
+                </div>
+            </form>
+
+            <form id="blockForm" method="POST" style="display:none;">
+                @csrf
+                <input type="hidden" name="date" id="blockDate" value="">
+                <input type="hidden" name="start_time" id="blockStartTime">
+                <input type="hidden" name="end_time" id="blockEndTime">
+                <input type="hidden" name="comment" id="newBlockComment">
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Booking Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-wide">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
+                <h2>Редактирование брони</h2>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
+            </div>
+            <form id="editBookingForm" method="POST">
+                @csrf
+                @method('PUT')
+
+                <div class="modal-two-col">
+                    <div class="modal-col-left">
+                        <div class="sch-modal-info">
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Корт</span><span class="sch-modal-info-value" id="viewCourtName"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Дата</span><span class="sch-modal-info-value" id="viewDate"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Время</span><span class="sch-modal-info-value" id="viewTime"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Цена</span><span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span></div>
+                        </div>
+
+                        <div class="modal-section-title">Цена и скидка</div>
+                        <div class="price-edit-row">
+                            <div class="price-edit-group">
+                                <label class="form-label">Цена</label>
+                                <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
+                            </div>
+                            <div class="price-edit-group">
+                                <label class="form-label">Скидка</label>
+                                <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Статус оплаты</label>
+                            <input type="hidden" name="is_paid" id="editIsPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="editProcessedGroup" style="display:none;">
+                            <label class="form-label">Статус обработки</label>
+                            <input type="hidden" name="is_processed" id="editIsProcessedInput" value="1">
+                            <div class="paid-toggle">
+                                <button type="button" class="processed-btn" data-value="0" onclick="setEditProcessed(this)">Не обработан</button>
+                                <button type="button" class="processed-btn" data-value="1" onclick="setEditProcessed(this)">Обработан</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-col-right">
+                        <div class="form-group autocomplete-wrap">
+                            <label class="form-label">Имя клиента *</label>
+                            <input type="text" name="client_name" id="editClientName" class="form-input" autocomplete="off" required>
+                            <div class="autocomplete-list" id="editNameList"></div>
+                        </div>
+                        <div class="form-group autocomplete-wrap">
+                            <label class="form-label">Телефон *</label>
+                            <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" autocomplete="off" required>
+                            <div class="autocomplete-list" id="editPhoneList"></div>
+                        </div>
+
+                        <div class="modal-section-title">Способ оплаты</div>
+                        <div class="payment-methods" id="editPaymentMethods">
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)">Сертификат</button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)">Клубная карта</button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)">Депозит</button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
+                        </div>
+                        <input type="hidden" name="payment_method" id="editPaymentMethodInput">
+
+                        <div class="form-group" style="margin-top: 14px;">
+                            <label class="form-label">Комментарий</label>
+                            <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
+                        </div>
+
+                        <div class="modal-section-title">Тренер</div>
+                        <div class="coach-buttons" id="editCoachButtons">
+                            @foreach($clubCoaches as $cc)
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="coach_id" id="editCoachId" value="">
+                    </div>
+                </div>
+
+                <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn-confirm">Сохранить</button>
+                    </div>
+                    <button type="button" class="btn-danger" style="width: 100%;" onclick="cancelBooking()">Отменить бронь</button>
+                </div>
+            </form>
+            <form id="cancelBookingForm" method="POST" style="display:none;">@csrf</form>
+        </div>
+    </div>
+</div>
+
+<!-- Unblock Modal -->
+<div class="modal fade" id="unblockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+            <div class="sch-modal-header">
+                <h2>Заблокированный слот</h2>
+                <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
+            </div>
+            <form id="updateBlockForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="sch-modal-body">
+                    <div class="sch-modal-info">
+                        <div class="sch-modal-info-row"><span class="sch-modal-info-label">Корт</span><span class="sch-modal-info-value" id="unblockCourtName"></span></div>
+                        <div class="sch-modal-info-row"><span class="sch-modal-info-label">Время</span><span class="sch-modal-info-value" id="unblockTime"></span></div>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label class="form-label">Комментарий</label>
+                        <textarea name="comment" id="blockComment" class="form-input" rows="2" placeholder="Заметка к блокировке"></textarea>
+                    </div>
+                </div>
+                <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn-confirm">Сохранить</button>
+                    </div>
+                    <button type="button" class="btn-danger" style="width: 100%;" onclick="unblockSlot()">Разблокировать</button>
+                </div>
+            </form>
+            <form id="unblockForm" method="POST" style="display:none;">@csrf @method('DELETE')</form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const courtRoutes = {
+        @foreach($courts as $court)
+            '{{ $court->id }}': {
+                book: '{{ route('club.courts.book', $court) }}',
+                block: '{{ route('club.courts.blockSlot', $court) }}'
+            },
+        @endforeach
+    };
+    const freePrices = @json($freePrices);
+    const orderedTimes = @json($timeSlots->values()->toArray());
+    const coachAvailability = @json($coachAvailability); // {date: {coachId: {time: bool}}}
+
+    let currentBook = { courtId: '', courtName: '', time: '', date: '', price: 0, maxSlots: 1, duration: 1 };
+
+    function formatPrice(val) { return Number(val).toLocaleString('ru-RU'); }
+    function hourLabel(n) { if (n === 1) return 'час'; if (n >= 2 && n <= 4) return 'часа'; return 'часов'; }
+
+    function calcTotalPrice() {
+        let total = 0;
+        const startIdx = orderedTimes.indexOf(currentBook.time);
+        if (startIdx === -1) return currentBook.price * currentBook.duration;
+        for (let i = 0; i < currentBook.duration; i++) {
+            const t = orderedTimes[startIdx + i];
+            const key = currentBook.courtId + '-' + t;
+            total += freePrices[key] || currentBook.price;
+        }
+        return total;
+    }
+
+    function calcBlockEndTime() {
+        const slots = parseInt(document.getElementById('bookSlots').value) || 1;
+        const startIdx = orderedTimes.indexOf(currentBook.time);
+        if (startIdx >= 0 && startIdx + slots < orderedTimes.length) return orderedTimes[startIdx + slots];
+        const [h, m] = currentBook.time.split(':').map(Number);
+        const nh = h + slots;
+        return String(nh).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function updateBookTotalPrice() {
+        const autoPrice = calcTotalPrice();
+        document.getElementById('bookCustomPrice').value = autoPrice;
+        document.getElementById('bookDiscount').value = 0;
+        updateFinalPrice();
+        document.getElementById('bookSlots').value = currentBook.duration;
+    }
+
+    function updateFinalPrice() {
+        const price = parseInt(document.getElementById('bookCustomPrice').value) || 0;
+        const discount = parseInt(document.getElementById('bookDiscount').value) || 0;
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(Math.max(0, price - discount)) + ' &#8376;';
+    }
+
+    function setDuration(n) {
+        currentBook.duration = n;
+        document.querySelectorAll('#durationSelector .duration-btn').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.getAttribute('data-duration')) === n);
+        });
+        updateBookTotalPrice();
+    }
+
+    function renderDurationButtons(maxSlots) {
+        const container = document.getElementById('durationSelector');
+        container.innerHTML = '';
+        for (let i = 1; i <= maxSlots; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'duration-btn' + (i === 1 ? ' active' : '');
+            btn.setAttribute('data-duration', i);
+            btn.innerHTML = i + '<small> ' + hourLabel(i) + '</small>';
+            btn.onclick = () => setDuration(i);
+            container.appendChild(btn);
+        }
+    }
+
+    function formatDateLabel(dateStr) {
+        const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return d + ' ' + months[m - 1] + ' ' + y;
+    }
+
+    function openBookModal(courtId, courtName, time, price, maxSlots, date) {
+        currentBook = { courtId, courtName, time, date, price, maxSlots: Math.min(maxSlots, 6), duration: 1 };
+
+        document.getElementById('bookForm').action = courtRoutes[courtId].book;
+        document.getElementById('blockForm').action = courtRoutes[courtId].block;
+        document.getElementById('bookDate').value = date;
+        document.getElementById('blockDate').value = date;
+        document.getElementById('bookStartTime').value = time;
+        document.getElementById('bookSlots').value = 1;
+        document.getElementById('bookCourtName').textContent = courtName;
+        document.getElementById('bookDateLabel').textContent = formatDateLabel(date);
+        document.getElementById('bookTime').textContent = time;
+        document.getElementById('bookPrice').innerHTML = formatPrice(price) + ' &#8376;';
+        document.getElementById('blockStartTime').value = time;
+        document.getElementById('blockEndTime').value = calcBlockEndTime();
+
+        const form = document.getElementById('bookForm');
+        form.querySelector('input[name="client_name"]').value = '';
+        form.querySelector('input[name="client_phone"]').value = '';
+        form.querySelector('textarea[name="comment"]').value = '';
+        document.getElementById('paymentMethodInput').value = '';
+        document.getElementById('isPaidInput').value = '0';
+        document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('#bookModal .paid-btn[data-value="0"]').classList.add('active');
+        document.getElementById('bookCoachId').value = '';
+        updateCoachButtons();
+
+        renderDurationButtons(currentBook.maxSlots);
+        updateBookTotalPrice();
+
+        new bootstrap.Modal(document.getElementById('bookModal')).show();
+    }
+
+    function openViewModal(data) {
+        document.getElementById('viewCourtName').textContent = data.courtName;
+        document.getElementById('viewDate').textContent = formatDateLabel(data.date);
+        document.getElementById('viewTime').textContent = data.startTime + ' — ' + data.endTime;
+        document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
+
+        document.getElementById('editClientName').value = data.clientName || '';
+        document.getElementById('editClientPhone').value = data.clientPhone ? '+' + data.clientPhone.replace(/\D/g, '') : '';
+
+        document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
+        document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === data.paymentMethod);
+        });
+
+        const paidVal = data.isPaid ? '1' : '0';
+        document.getElementById('editIsPaidInput').value = paidVal;
+        document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
+        });
+
+        document.getElementById('editCustomPrice').value = Math.round(data.price) || 0;
+        document.getElementById('editDiscount').value = Math.round(data.discount) || 0;
+        document.getElementById('editComment').value = data.comment || '';
+
+        const processedGroup = document.getElementById('editProcessedGroup');
+        const processedVal = data.isProcessed ? '1' : '0';
+        document.getElementById('editIsProcessedInput').value = processedVal;
+        processedGroup.style.display = data.isProcessed ? 'none' : '';
+        document.querySelectorAll('.processed-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === processedVal);
+        });
+
+        document.getElementById('editCoachId').value = data.coachId || '';
+        const dayCoaches = (coachAvailability[data.date] || {});
+        document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => {
+            const coachId = b.getAttribute('data-coach-id');
+            const isCurrentCoach = coachId == data.coachId;
+            const available = isCurrentCoach || (dayCoaches[coachId] && dayCoaches[coachId][data.startTime]);
+            b.classList.remove('active', 'unavailable');
+            if (!available) b.classList.add('unavailable');
+            if (isCurrentCoach && data.coachId) b.classList.add('active');
+        });
+        document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
+        document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
+
+        new bootstrap.Modal(document.getElementById('viewModal')).show();
+    }
+
+    function cancelBooking() {
+        if (confirm('Вы уверены, что хотите отменить бронь?')) document.getElementById('cancelBookingForm').submit();
+    }
+
+    function selectEditPayment(btn) {
+        document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editPaymentMethodInput').value = btn.getAttribute('data-value');
+    }
+
+    function setEditPaid(btn) {
+        document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editIsPaidInput').value = btn.getAttribute('data-value');
+    }
+
+    function setEditProcessed(btn) {
+        document.querySelectorAll('.processed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editIsProcessedInput').value = btn.getAttribute('data-value');
+    }
+
+    function openUnblockModal(blockId, courtName, time, comment) {
+        document.getElementById('unblockCourtName').textContent = courtName;
+        document.getElementById('unblockTime').textContent = time;
+        document.getElementById('blockComment').value = comment || '';
+        document.getElementById('updateBlockForm').action = '{{ url("club/courts/blocks") }}/' + blockId;
+        document.getElementById('unblockForm').action = '{{ url("club/courts/blocks") }}/' + blockId;
+        new bootstrap.Modal(document.getElementById('unblockModal')).show();
+    }
+
+    function unblockSlot() {
+        if (confirm('Вы уверены, что хотите разблокировать этот слот?')) document.getElementById('unblockForm').submit();
+    }
+
+    function blockSlot() {
+        document.getElementById('blockStartTime').value = currentBook.time;
+        document.getElementById('blockEndTime').value = calcBlockEndTime();
+        const commentField = document.querySelector('#bookForm textarea[name="comment"]');
+        document.getElementById('newBlockComment').value = commentField ? commentField.value : '';
+        document.getElementById('blockForm').submit();
+    }
+
+    function selectPayment(btn) {
+        document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('paymentMethodInput').value = btn.getAttribute('data-value');
+    }
+
+    function setPaid(btn) {
+        document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
+    }
+
+    function updateCoachButtons() {
+        const dayCoaches = (coachAvailability[currentBook.date] || {});
+        document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(btn => {
+            const coachId = btn.getAttribute('data-coach-id');
+            const available = dayCoaches[coachId] && dayCoaches[coachId][currentBook.time];
+            btn.classList.remove('active', 'unavailable');
+            if (!available) btn.classList.add('unavailable');
+        });
+        document.getElementById('bookCoachId').value = '';
+    }
+
+    function selectBookCoach(btn) {
+        if (btn.classList.contains('unavailable')) return;
+        const coachId = btn.getAttribute('data-coach-id');
+        const input = document.getElementById('bookCoachId');
+        const isActive = btn.classList.contains('active');
+        document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        if (isActive) input.value = '';
+        else { btn.classList.add('active'); input.value = coachId; }
+    }
+
+    function selectEditCoach(btn) {
+        if (btn.classList.contains('unavailable')) return;
+        const coachId = btn.getAttribute('data-coach-id');
+        const input = document.getElementById('editCoachId');
+        const isActive = btn.classList.contains('active');
+        document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        if (isActive) input.value = '';
+        else { btn.classList.add('active'); input.value = coachId; }
+    }
+
+    // Autocomplete (имя/телефон клиентов)
+    (function() {
+        const searchUrl = @json(route('club.clients.search'));
+        let debounceTimer = null;
+
+        function setupAutocomplete(inputId, listId, field, pairedInputId) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            if (!input || !list) return;
+
+            input.addEventListener('input', function() {
+                const q = this.value.trim();
+                clearTimeout(debounceTimer);
+                if (q.length < 1) { list.classList.remove('show'); return; }
+                debounceTimer = setTimeout(() => {
+                    fetch(searchUrl + '?q=' + encodeURIComponent(q) + '&field=' + field)
+                        .then(r => r.json())
+                        .then(clients => {
+                            if (!clients.length) { list.classList.remove('show'); return; }
+                            list.innerHTML = clients.map(c =>
+                                '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + formatPhone(c.phone).replace(/"/g, '&quot;') + '">' +
+                                '<span class="autocomplete-item-name">' + escHtml(c.name) + '</span>' +
+                                '<span class="autocomplete-item-phone">' + escHtml(formatPhone(c.phone)) + '</span>' +
+                                '</div>'
+                            ).join('');
+                            list.classList.add('show');
+                            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                                item.addEventListener('click', function() {
+                                    input.value = this.dataset[field];
+                                    const paired = document.getElementById(pairedInputId);
+                                    if (paired) paired.value = this.dataset[field === 'name' ? 'phone' : 'name'];
+                                    list.classList.remove('show');
+                                });
+                            });
+                        });
+                }, 150);
+            });
+            input.addEventListener('blur', () => setTimeout(() => list.classList.remove('show'), 200));
+        }
+
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function formatPhone(p) { return p ? '+' + p.replace(/\D/g, '') : ''; }
+
+        setupAutocomplete('bookClientName', 'bookNameList', 'name', 'bookClientPhone');
+        setupAutocomplete('bookClientPhone', 'bookPhoneList', 'phone', 'bookClientName');
+        setupAutocomplete('editClientName', 'editNameList', 'name', 'editClientPhone');
+        setupAutocomplete('editClientPhone', 'editPhoneList', 'phone', 'editClientName');
+    })();
+</script>
 
 @endsection
