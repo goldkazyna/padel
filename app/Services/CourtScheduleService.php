@@ -44,20 +44,26 @@ class CourtScheduleService
 
     /**
      * Строит расписание корта на дату.
+     * $bookings/$blocks — опционально, для batch-режима (недельный вид).
+     * Если не переданы, делаются отдельные запросы на дату.
      */
-    public function buildSchedule(Court $court, string $date): array
+    public function buildSchedule(Court $court, string $date, $bookings = null, $blocks = null): array
     {
         $timeSlots = $this->generateTimeSlots($court);
 
-        $bookings = CourtBooking::where('court_id', $court->id)
-            ->whereDate('date', $date)
-            ->where('status', 'confirmed')
-            ->with('coach')
-            ->get();
+        if ($bookings === null) {
+            $bookings = CourtBooking::where('court_id', $court->id)
+                ->whereDate('date', $date)
+                ->where('status', 'confirmed')
+                ->with('coach')
+                ->get();
+        }
 
-        $blocks = CourtBlock::where('court_id', $court->id)
-            ->whereDate('date', $date)
-            ->get();
+        if ($blocks === null) {
+            $blocks = CourtBlock::where('court_id', $court->id)
+                ->whereDate('date', $date)
+                ->get();
+        }
 
         $schedule = [];
 

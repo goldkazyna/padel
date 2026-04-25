@@ -159,22 +159,57 @@ class CourtController extends Controller
         $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
         $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
 
-        // Объединение всех временных слотов всех кортов (один корт может работать с другим расписанием)
+        // Сетка времени и сколько всего слотов в дне (один проход по кортам)
         $allTimes = collect();
+        $courtSlotCounts = [];
+        $courtTimeSlots = [];
         foreach ($courts as $court) {
-            foreach ($this->scheduleService->generateTimeSlots($court) as $slot) {
+            $slots = $this->scheduleService->generateTimeSlots($court);
+            $courtTimeSlots[$court->id] = $slots;
+            $courtSlotCounts[$court->id] = count($slots);
+            foreach ($slots as $slot) {
                 $allTimes->push($slot['time']);
             }
         }
         $timeSlots = $allTimes->unique()->sort()->values();
+        $totalSlotsPerDay = array_sum($courtSlotCounts);
 
-        // Сколько всего слотов в дне (для % загрузки)
-        $totalSlotsPerDay = 0;
-        foreach ($courts as $court) {
-            $totalSlotsPerDay += count($this->scheduleService->generateTimeSlots($court));
-        }
+        // === BATCH FETCH (1 запрос на все бронирования недели + 1 на все блоки) ===
+        $courtIds = $courts->pluck('id');
+        $weekStartStr = $weekStart->format('Y-m-d');
+        $weekEndStr = $weekEnd->format('Y-m-d');
 
-        // Данные по 7 дням
+        $allBookings = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->where('status', 'confirmed')
+            ->with('coach')
+            ->get()
+            ->groupBy(fn($b) => $b->court_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
+
+        $allBlocks = \App\Models\CourtBlock::whereIn('court_id', $courtIds)
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->get()
+            ->groupBy(fn($b) => $b->court_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
+
+        // Тренеры — один раз с eager-load всех нужных relations
+        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])->get();
+        $coachUserIds = $clubCoaches->pluck('user_id')->filter()->unique();
+        $clubCoachIds = $clubCoaches->pluck('id');
+
+        // Брони, где этот юзер — тренер (для проверки занятости)
+        $coachBookings = $coachUserIds->isEmpty() ? collect() : \App\Models\CourtBooking::whereIn('coach_id', $coachUserIds)
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->where('status', 'confirmed')
+            ->get()
+            ->groupBy(fn($b) => $b->coach_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
+
+        // Ручные блокировки тренеров
+        $coachManualBlocks = $clubCoachIds->isEmpty() ? collect() : \App\Models\CoachBlock::whereIn('club_coach_id', $clubCoachIds)
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->get()
+            ->groupBy(fn($b) => $b->club_coach_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
+
+        // === Сборка данных по 7 дням ===
         $weekDays = [];
         for ($i = 0; $i < 7; $i++) {
             $d = $weekStart->copy()->addDays($i);
@@ -183,15 +218,31 @@ class CourtController extends Controller
             $courtSchedules = [];
             $maxFreeSlotsByCell = [];
             $occupiedSlots = 0;
+
             foreach ($courts as $court) {
-                $sched = $this->scheduleService->buildSchedule($court, $dayStr);
+                $key = $court->id . '|' . $dayStr;
+                $sched = $this->scheduleService->buildSchedule(
+                    $court,
+                    $dayStr,
+                    $allBookings->get($key, collect()),
+                    $allBlocks->get($key, collect())
+                );
                 $courtSchedules[$court->id] = $sched;
-                foreach ($sched as $time => $slot) {
-                    if (in_array($slot['status'], ['booked', 'blocked'], true)) {
+
+                // Inline подсчёт занятых + max consecutive free (без повторных запросов)
+                $times = array_keys($sched);
+                $cnt = count($times);
+                foreach ($times as $idx => $time) {
+                    $status = $sched[$time]['status'];
+                    if ($status === 'booked' || $status === 'blocked') {
                         $occupiedSlots++;
-                    }
-                    if ($slot['status'] === 'free') {
-                        $maxFreeSlotsByCell[$court->id . '-' . $time] = $this->scheduleService->maxConsecutiveFreeSlots($court, $dayStr, $time);
+                    } elseif ($status === 'free') {
+                        $consecutive = 0;
+                        for ($j = $idx; $j < $cnt; $j++) {
+                            if ($sched[$times[$j]]['status'] === 'free') $consecutive++;
+                            else break;
+                        }
+                        $maxFreeSlotsByCell[$court->id . '-' . $time] = $consecutive;
                     }
                 }
             }
@@ -214,7 +265,7 @@ class CourtController extends Controller
 
         $weekRangeLabel = $weekStart->locale('ru')->isoFormat('D MMMM') . ' — ' . $weekEnd->locale('ru')->isoFormat('D MMMM YYYY');
 
-        // freePrices = [court_id-time => price] (цены не зависят от даты — берём из любого дня)
+        // freePrices = [court_id-time => price] (цены не зависят от даты)
         $freePrices = [];
         if (!empty($weekDays)) {
             foreach ($courts as $court) {
@@ -225,14 +276,14 @@ class CourtController extends Controller
             }
         }
 
-        // coachAvailability = [date => [coach_id => [time => bool]]]
-        $clubCoaches = $club->clubCoaches()->with(['user', 'schedules', 'overrides', 'blocks', 'rates'])->get();
+        // coachAvailability — собираем in-memory из подгруженных коллекций
         $coachAvailability = [];
         foreach ($weekDays as $wd) {
             foreach ($clubCoaches as $cc) {
                 foreach ($timeSlots as $time) {
                     $endTime = Carbon::parse($time)->addHour()->format('H:i');
-                    $coachAvailability[$wd['date']][$cc->user_id][$time] = $cc->isFreeAt($wd['date'], $time, $endTime);
+                    $coachAvailability[$wd['date']][$cc->user_id][$time] =
+                        $this->isCoachFreeFromCache($cc, $wd['date'], $time, $endTime, $coachBookings, $coachManualBlocks);
                 }
             }
         }
@@ -241,6 +292,65 @@ class CourtController extends Controller
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'coachAvailability', 'clubCoaches'
         ));
+    }
+
+    /**
+     * In-memory проверка свободен ли тренер (использует уже загруженные коллекции,
+     * не дёргает БД повторно). Логика повторяет ClubCoach::isAvailableAt + isFreeAt.
+     */
+    private function isCoachFreeFromCache(
+        \App\Models\ClubCoach $cc,
+        string $date,
+        string $startTime,
+        string $endTime,
+        $coachBookings,
+        $coachManualBlocks
+    ): bool {
+        $startMin = Carbon::parse($startTime)->hour * 60 + Carbon::parse($startTime)->minute;
+        $endMin = Carbon::parse($endTime)->hour * 60 + Carbon::parse($endTime)->minute;
+        $dayOfWeek = Carbon::parse($date)->dayOfWeekIso;
+
+        // 1) overrides на конкретную дату (используем уже подгруженную коллекцию)
+        $override = $cc->overrides->firstWhere(fn($o) => Carbon::parse($o->date)->format('Y-m-d') === $date);
+        if ($override) {
+            if (!$override->is_available) {
+                if (!$override->start_time) return false;
+                $ovStart = Carbon::parse($override->start_time)->hour * 60 + Carbon::parse($override->start_time)->minute;
+                $ovEnd = Carbon::parse($override->end_time)->hour * 60 + Carbon::parse($override->end_time)->minute;
+                if ($startMin < $ovEnd && $endMin > $ovStart) return false;
+            } else {
+                if ($override->start_time && $override->end_time) {
+                    $ovStart = Carbon::parse($override->start_time)->hour * 60 + Carbon::parse($override->start_time)->minute;
+                    $ovEnd = Carbon::parse($override->end_time)->hour * 60 + Carbon::parse($override->end_time)->minute;
+                    if (!($startMin >= $ovStart && $endMin <= $ovEnd)) return false;
+                }
+            }
+        } else {
+            // 2) обычное расписание дня недели
+            $schedule = $cc->schedules->firstWhere('day_of_week', $dayOfWeek);
+            if (!$schedule) return false;
+            $schStart = Carbon::parse($schedule->start_time)->hour * 60 + Carbon::parse($schedule->start_time)->minute;
+            $schEnd = Carbon::parse($schedule->end_time)->hour * 60 + Carbon::parse($schedule->end_time)->minute;
+            if (!($startMin >= $schStart && $endMin <= $schEnd)) return false;
+        }
+
+        // 3) брони этого тренера (из подгруженной коллекции)
+        $bookingKey = $cc->user_id . '|' . $date;
+        $startFmt = Carbon::parse($startTime)->format('H:i:s');
+        $endFmt = Carbon::parse($endTime)->format('H:i:s');
+        foreach ($coachBookings->get($bookingKey, collect()) as $b) {
+            if ($b->start_time < $endFmt && $b->end_time > $startFmt) return false;
+        }
+
+        // 4) ручные блокировки тренера (из подгруженной коллекции)
+        $blockKey = $cc->id . '|' . $date;
+        foreach ($coachManualBlocks->get($blockKey, collect()) as $bl) {
+            $blStart = Carbon::parse($bl->start_time)->hour * 60 + Carbon::parse($bl->start_time)->minute;
+            $blEnd = Carbon::parse($bl->end_time)->hour * 60 + Carbon::parse($bl->end_time)->minute;
+            if ($startMin < $blEnd && $endMin > $blStart) return false;
+        }
+
+        return true;
     }
 
     // === CRUD кортов ===
@@ -477,30 +587,41 @@ class CourtController extends Controller
             );
         }
 
-        // Push юзеру приложения — если бронь привязана к нему
+        // Push юзеру приложения — отложено до момента ПОСЛЕ ответа клиенту,
+        // чтобы синхронный сетевой вызов FCM не блокировал возврат в админку
         if ($linkedUser) {
-            try {
-                $date = Carbon::parse($validated['date'])->format('d.m.Y');
-                $title = 'Вам забронирован корт ✅';
-                $body = "{$club->name} · {$court->name}, {$date} в {$startTime}";
+            $linkedUserId = $linkedUser->id;
+            $bookingId = $booking->id;
+            $clubName = $club->name;
+            $courtName = $court->name;
+            $dateLabel = Carbon::parse($validated['date'])->format('d.m.Y');
+            $startTimeLabel = $startTime;
 
-                \App\Models\Notification::create([
-                    'user_id' => $linkedUser->id,
-                    'title' => $title,
-                    'body' => $body,
-                    'type' => 'booking_created',
-                    'category' => 'booking',
-                    'data' => ['booking_id' => $booking->id],
-                ]);
+            app()->terminating(function () use ($linkedUserId, $bookingId, $clubName, $courtName, $dateLabel, $startTimeLabel) {
+                try {
+                    $title = 'Вам забронирован корт ✅';
+                    $body = "{$clubName} · {$courtName}, {$dateLabel} в {$startTimeLabel}";
 
-                $fcm = app(\App\Services\FCMNotificationService::class);
-                $fcm->sendToUser($linkedUser, $title, $body, [
-                    'type' => 'booking_created',
-                    'booking_id' => (string) $booking->id,
-                ]);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Push booking_created error: ' . $e->getMessage());
-            }
+                    \App\Models\Notification::create([
+                        'user_id' => $linkedUserId,
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => 'booking_created',
+                        'category' => 'booking',
+                        'data' => ['booking_id' => $bookingId],
+                    ]);
+
+                    $user = \App\Models\User::find($linkedUserId);
+                    if ($user) {
+                        app(\App\Services\FCMNotificationService::class)->sendToUser($user, $title, $body, [
+                            'type' => 'booking_created',
+                            'booking_id' => (string) $bookingId,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Push booking_created error: ' . $e->getMessage());
+                }
+            });
         }
 
         \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$validated['date']} {$startTime}–{$endTime}");
@@ -553,15 +674,21 @@ class CourtController extends Controller
 
         $booking->update($updateData);
 
-        // Push + уведомление при обработке (was unprocessed → now processed)
+        // Push + уведомление при обработке (was unprocessed → now processed) — отложено
         if ($wasUnprocessed && $booking->is_processed && $booking->booked_by) {
-            try {
-                $bookedUser = \App\Models\User::find($booking->booked_by);
-                if ($bookedUser) {
-                    $date = $booking->date->format('d.m.Y');
-                    $time = Carbon::parse($booking->start_time)->format('H:i');
+            $bookedUserId = $booking->booked_by;
+            $bookingId = $booking->id;
+            $courtName = $court->name;
+            $dateLabel = $booking->date->format('d.m.Y');
+            $timeLabel = Carbon::parse($booking->start_time)->format('H:i');
+
+            app()->terminating(function () use ($bookedUserId, $bookingId, $courtName, $dateLabel, $timeLabel) {
+                try {
+                    $bookedUser = \App\Models\User::find($bookedUserId);
+                    if (!$bookedUser) return;
+
                     $title = 'Бронирование подтверждено ✅';
-                    $body = "{$court->name}, {$date} в {$time}";
+                    $body = "{$courtName}, {$dateLabel} в {$timeLabel}";
 
                     \App\Models\Notification::create([
                         'user_id' => $bookedUser->id,
@@ -569,18 +696,17 @@ class CourtController extends Controller
                         'body' => $body,
                         'type' => 'booking_confirmed',
                         'category' => 'booking',
-                        'data' => ['booking_id' => $booking->id],
+                        'data' => ['booking_id' => $bookingId],
                     ]);
 
-                    $fcm = app(\App\Services\FCMNotificationService::class);
-                    $fcm->sendToUser($bookedUser, $title, $body, [
+                    app(\App\Services\FCMNotificationService::class)->sendToUser($bookedUser, $title, $body, [
                         'type' => 'booking_confirmed',
-                        'booking_id' => (string) $booking->id,
+                        'booking_id' => (string) $bookingId,
                     ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Push booking confirmed error: ' . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Push booking confirmed error: ' . $e->getMessage());
-            }
+            });
         }
 
         \App\Models\ActivityLog::log('updated', 'CourtBooking', $booking->id, "Редактирование брони: {$booking->client_name}, {$booking->court->name}", $booking->getChanges());
@@ -599,15 +725,21 @@ class CourtController extends Controller
             'cancelled_at' => now(),
         ]);
 
-        // Push + уведомление об отмене
+        // Push + уведомление об отмене — отложено
         if ($booking->booked_by) {
-            try {
-                $bookedUser = \App\Models\User::find($booking->booked_by);
-                if ($bookedUser) {
-                    $date = $booking->date->format('d.m.Y');
-                    $time = Carbon::parse($booking->start_time)->format('H:i');
+            $bookedUserId = $booking->booked_by;
+            $bookingId = $booking->id;
+            $courtName = $court->name;
+            $dateLabel = $booking->date->format('d.m.Y');
+            $timeLabel = Carbon::parse($booking->start_time)->format('H:i');
+
+            app()->terminating(function () use ($bookedUserId, $bookingId, $courtName, $dateLabel, $timeLabel) {
+                try {
+                    $bookedUser = \App\Models\User::find($bookedUserId);
+                    if (!$bookedUser) return;
+
                     $title = 'Бронирование отменено ❌';
-                    $body = "{$court->name}, {$date} в {$time}";
+                    $body = "{$courtName}, {$dateLabel} в {$timeLabel}";
 
                     \App\Models\Notification::create([
                         'user_id' => $bookedUser->id,
@@ -615,18 +747,17 @@ class CourtController extends Controller
                         'body' => $body,
                         'type' => 'booking_cancelled',
                         'category' => 'booking',
-                        'data' => ['booking_id' => $booking->id],
+                        'data' => ['booking_id' => $bookingId],
                     ]);
 
-                    $fcm = app(\App\Services\FCMNotificationService::class);
-                    $fcm->sendToUser($bookedUser, $title, $body, [
+                    app(\App\Services\FCMNotificationService::class)->sendToUser($bookedUser, $title, $body, [
                         'type' => 'booking_cancelled',
-                        'booking_id' => (string) $booking->id,
+                        'booking_id' => (string) $bookingId,
                     ]);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Push booking cancelled error: ' . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Push booking cancelled error: ' . $e->getMessage());
-            }
+            });
         }
 
         \App\Models\ActivityLog::log('cancelled', 'CourtBooking', $booking->id, "Отмена брони: {$booking->client_name}, {$court->name}");
