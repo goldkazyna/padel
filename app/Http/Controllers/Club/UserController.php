@@ -127,11 +127,8 @@ class UserController extends Controller
         // Флаг верификации уровня — чекбокс, доступен всегда
         $update['level_verified'] = $request->boolean('level_verified');
 
-        // Уровень меняется только если юзер новичок (сохраняем старое правило)
+        // Уровень можно менять любому игроку. Рейтинг пересчитывается как level * 1000 + 125.
         if (array_key_exists('level', $validated) && $validated['level'] !== null) {
-            if ((float) $user->level != 1.0) {
-                return back()->with('error', 'Можно менять уровень только новичкам (уровень 1.0)');
-            }
             $newLevel = (float) $validated['level'];
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);

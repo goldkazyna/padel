@@ -277,15 +277,10 @@
                     <input type="text" name="name" class="form-input" value="{{ $user->name }}" placeholder="Введите имя" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">
-                        Уровень
-                        @if((float) $user->level != 1.0)
-                            <small style="color:#888;font-size:11px;">(меняется только у новичков)</small>
-                        @endif
-                    </label>
+                    <label class="form-label">Уровень</label>
                     <input type="number" name="level" class="form-input" value="{{ $user->level }}"
-                           min="1" max="5.75" step="0.25"
-                           {{ (float) $user->level != 1.0 ? 'disabled' : '' }}>
+                           min="1" max="5.75" step="0.25">
+                    <small style="color:#888;font-size:11px;">Рейтинг пересчитается автоматически (уровень × 1000 + 125).</small>
                 </div>
                 <div class="form-group">
                     <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
