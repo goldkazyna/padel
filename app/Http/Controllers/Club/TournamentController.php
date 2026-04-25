@@ -342,9 +342,9 @@ class TournamentController extends Controller
 				->with('error', 'Ручное распределение доступно только для командных турниров');
 		}
 
-		if ($tournament->status !== 'pending') {
+		if ($tournament->status !== 'open') {
 			return redirect()->route('club.tournaments.show', $tournament)
-				->with('error', 'Турнир уже запущен');
+				->with('error', 'Турнир уже запущен или завершён');
 		}
 
 		$teams = $tournament->teams()
