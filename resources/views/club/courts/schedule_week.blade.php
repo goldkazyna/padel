@@ -1045,6 +1045,60 @@
         else { btn.classList.add('active'); input.value = coachId; }
     }
 
+    // === Polling новых заявок ===
+    // Каждые 30 сек дёргаем /unprocessed-count. Если для любой даты текущей
+    // недели появилась НОВАЯ необработанная заявка — перезагружаем страницу,
+    // чтобы карточки в сетке обновились. Reload откладывается пока открыта
+    // любая модалка (чтобы не сломать поток редактирования).
+    (function() {
+        const weekDates = @json(collect($weekDays)->pluck('date'));
+        let lastByDate = null;
+        let pendingReload = false;
+
+        function pollNew() {
+            fetch('{{ route("club.unprocessedCount") }}', { cache: 'no-store' })
+                .then(r => r.json())
+                .then(data => {
+                    const byDate = data.by_date || {};
+
+                    // Первый вызов — просто запоминаем стартовое состояние
+                    if (lastByDate === null) {
+                        lastByDate = byDate;
+                        return;
+                    }
+
+                    let hasNew = false;
+                    for (const d of weekDates) {
+                        const cur = byDate[d] || 0;
+                        const prev = lastByDate[d] || 0;
+                        if (cur > prev) { hasNew = true; break; }
+                    }
+                    lastByDate = byDate;
+
+                    if (hasNew) {
+                        const modalOpen = document.querySelector('.modal.show');
+                        if (modalOpen) {
+                            // Отложить — обновим как только закроется последняя модалка
+                            pendingReload = true;
+                        } else {
+                            window.location.reload();
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // Если модалка закрылась и был отложенный reload — выполнить его
+        document.addEventListener('hidden.bs.modal', function() {
+            if (pendingReload && !document.querySelector('.modal.show')) {
+                window.location.reload();
+            }
+        });
+
+        pollNew();
+        setInterval(pollNew, 30000);
+    })();
+
     // Autocomplete (имя/телефон клиентов)
     (function() {
         const searchUrl = @json(route('club.clients.search'));
