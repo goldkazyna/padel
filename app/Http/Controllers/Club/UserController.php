@@ -75,6 +75,16 @@ class UserController extends Controller
             $query->whereDate('created_at', '<=', $dateTo);
         }
 
+        // Фильтр по верификации уровня
+        $verified = $request->get('verified');
+        if ($verified === 'unverified') {
+            $query->where(function($q) {
+                $q->where('level_verified', false)->orWhereNull('level_verified');
+            });
+        } elseif ($verified === 'verified') {
+            $query->where('level_verified', true);
+        }
+
         $users = $query->paginate(20)->withQueryString();
 
         // Статистика по уровням

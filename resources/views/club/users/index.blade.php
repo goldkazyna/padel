@@ -43,6 +43,7 @@
             @if(request('level'))<input type="hidden" name="level" value="{{ request('level') }}">@endif
             @if(request('sort'))<input type="hidden" name="sort" value="{{ request('sort') }}">@endif
             @if(request('dir'))<input type="hidden" name="dir" value="{{ request('dir') }}">@endif
+            @if(request('verified'))<input type="hidden" name="verified" value="{{ request('verified') }}">@endif
             <label class="date-label">Дата регистрации:</label>
             <input type="date" name="date_from" class="date-input" value="{{ request('date_from') }}" placeholder="От">
             <span class="date-sep">—</span>
@@ -54,9 +55,37 @@
                     'level' => request('level'),
                     'sort' => request('sort'),
                     'dir' => request('dir'),
+                    'verified' => request('verified'),
                 ])) }}" class="date-btn date-btn-clear">Сбросить</a>
             @endif
         </form>
+    </div>
+
+    <!-- Verification Filter -->
+    @php
+        $vCurrent = request('verified');
+        $vBase = array_filter([
+            'search' => request('search'),
+            'level' => request('level'),
+            'exact_level' => request('exact_level'),
+            'sort' => request('sort'),
+            'dir' => request('dir'),
+            'date_from' => request('date_from'),
+            'date_to' => request('date_to'),
+        ]);
+    @endphp
+    <div class="verified-filter">
+        <span class="verified-filter-label">Верификация уровня:</span>
+        <a href="{{ route('club.users.index', $vBase) }}"
+           class="verified-pill {{ !$vCurrent ? 'active' : '' }}">Все</a>
+        <a href="{{ route('club.users.index', array_merge($vBase, ['verified' => 'verified'])) }}"
+           class="verified-pill verified-pill-ok {{ $vCurrent === 'verified' ? 'active' : '' }}">
+            ✓ Верифицирован
+        </a>
+        <a href="{{ route('club.users.index', array_merge($vBase, ['verified' => 'unverified'])) }}"
+           class="verified-pill verified-pill-warn {{ $vCurrent === 'unverified' ? 'active' : '' }}">
+            ⚠ Не верифицирован
+        </a>
     </div>
 
     <!-- Level Stats -->
@@ -69,6 +98,7 @@
             'dir' => request('dir'),
             'date_from' => request('date_from'),
             'date_to' => request('date_to'),
+            'verified' => request('verified'),
         ]);
     @endphp
     <div class="level-stats">
@@ -455,6 +485,54 @@
             width: 18px;
             height: 18px;
             color: var(--users-text-muted);
+        }
+
+        /* Verification Filter */
+        .verified-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .verified-filter-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--users-text-dim);
+            margin-right: 4px;
+        }
+        .verified-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 14px;
+            background: var(--users-card);
+            border: 1px solid var(--users-border);
+            border-radius: 100px;
+            color: var(--users-text-dim);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .verified-pill:hover {
+            border-color: var(--users-text);
+            color: var(--users-text);
+        }
+        .verified-pill.active {
+            background: rgba(34, 196, 122, 0.14);
+            border-color: rgba(34, 196, 122, 0.40);
+            color: #22c47a;
+        }
+        .verified-pill-ok.active {
+            background: rgba(34, 196, 122, 0.14);
+            border-color: rgba(34, 196, 122, 0.40);
+            color: #22c47a;
+        }
+        .verified-pill-warn.active {
+            background: rgba(234, 179, 78, 0.14);
+            border-color: rgba(234, 179, 78, 0.40);
+            color: #eab34e;
         }
 
         /* Date Filter */
