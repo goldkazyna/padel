@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карточка матча — варианты</title>
+<style>
+  :root {
+    --bg: #0F0F0F;
+    --card: #1C1C21;
+    --card-alt: #16161A;
+    --card-raised: #23232A;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text: #F3F3F5;
+    --muted: #A2A2AB;
+    --dim: #6A6A73;
+    --accent: #22C47A;
+    --accent-soft: rgba(34,196,122,0.14);
+    --amber: #EAB34E;
+    --error: #F0554D;
+    --purple: #A89CF5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0b;
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    font-size: 13px;
+    padding: 24px;
+  }
+
+  h1.section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 36px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h1.section-title:first-child { margin-top: 0; }
+  h1.section-title .num {
+    background: var(--accent);
+    color: #0a0a0b;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  h1.section-title .desc {
+    color: var(--dim);
+    font-weight: 400;
+    font-size: 13px;
+  }
+
+  .frame {
+    max-width: 414px;
+    margin: 0 auto 24px;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* Round header — общая для всех вариантов */
+  .round-card {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-color: rgba(34,196,122,0.4);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .round-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+  }
+  .round-head .name {
+    font-weight: 700; font-size: 14px;
+  }
+  .round-head .progress {
+    color: var(--dim); font-size: 12px;
+  }
+  .round-head .pill {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: rgba(34,196,122,0.20);
+    color: var(--accent);
+    font-size: 11px; font-weight: 700;
+  }
+  .round-head .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .court-block + .court-block {
+    border-top: 1px solid var(--border);
+  }
+  .court-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px 6px;
+  }
+  .court-head .court-tag {
+    padding: 2px 8px;
+    background: var(--card-raised);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 11px; color: var(--muted); font-weight: 600;
+  }
+  .court-head .me-tag {
+    padding: 2px 8px;
+    background: var(--accent-soft);
+    border-radius: 5px;
+    color: var(--accent); font-size: 11px; font-weight: 700;
+  }
+
+  /* Avatar */
+  .ava {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--card-raised);
+    color: var(--muted);
+    font-size: 9px; font-weight: 800;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     V1 — Versus side-by-side (две команды слева/справа от счёта)
+     ============================================================ */
+  .v1-match {
+    padding: 12px 14px;
+  }
+  .v1-match + .v1-match {
+    border-top: 1px solid var(--border);
+  }
+  .v1-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+  }
+  .v1-team {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .v1-team.right { align-items: flex-end; }
+  .v1-team .player {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--text); font-weight: 600;
+  }
+  .v1-team.right .player { flex-direction: row-reverse; }
+  .v1-team .player .name {
+    max-width: 110px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v1-team.win .player .name { color: var(--accent); font-weight: 700; }
+  .v1-team.lose .player .name { color: var(--muted); font-weight: 600; }
+  .v1-score {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 18px; font-weight: 800;
+    font-feature-settings: 'tnum';
+  }
+  .v1-score .a { color: var(--accent); }
+  .v1-score .sep { color: var(--dim); font-size: 14px; }
+  .v1-score .b { color: var(--muted); }
+  .v1-score.draw .a, .v1-score.draw .b { color: var(--text); }
+  .v1-score.empty {
+    color: var(--dim);
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+  }
+
+  /* ============================================================
+     V2 — Stacked teams with side score (компактно сверху-вниз)
+     ============================================================ */
+  .v2-match {
+    padding: 12px 14px;
+  }
+  .v2-match + .v2-match { border-top: 1px solid var(--border); }
+  .v2-team {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+  }
+  .v2-team .players {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 3px;
+    min-width: 0;
+  }
+  .v2-team .player-line {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text); font-weight: 600;
+  }
+  .v2-team .player-line .name {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2-team.win .player-line .name { color: var(--accent); font-weight: 700; }
+  .v2-team.lose .player-line .name { color: var(--muted); font-weight: 600; }
+  .v2-score {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800;
+    background: var(--card-raised);
+    color: var(--text);
+    flex-shrink: 0;
+    font-feature-settings: 'tnum';
+  }
+  .v2-score.win {
+    background: var(--accent);
+    color: #0a0a0b;
+  }
+  .v2-score.empty {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+    color: var(--dim);
+  }
+  .v2-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* ============================================================
+     V3 — Two-block with shared accent (большой акцент на победителе)
+     ============================================================ */
+  .v3-match { padding: 12px 14px; }
+  .v3-match + .v3-match { border-top: 1px solid var(--border); }
+  .v3-team-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--card-alt);
+  }
+  .v3-team-card.win {
+    background: rgba(34,196,122,0.10);
+    border: 1px solid rgba(34,196,122,0.25);
+  }
+  .v3-team-card.empty {
+    background: transparent;
+    border: 1px dashed var(--border-strong);
+  }
+  .v3-team-card + .v3-team-card { margin-top: 6px; }
+  .v3-avas {
+    display: flex;
+  }
+  .v3-avas .ava + .ava {
+    margin-left: -6px;
+    border: 2px solid var(--card);
+  }
+  .v3-team-card.win .v3-avas .ava + .ava { border-color: rgba(20,40,28,1); }
+  .v3-names {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 1px;
+    min-width: 0;
+  }
+  .v3-names .pname {
+    font-size: 13px; color: var(--text); font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .v3-team-card.win .v3-names .pname { color: var(--accent); font-weight: 700; }
+  .v3-team-card.lose .v3-names .pname { color: var(--muted); }
+  .v3-score {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800;
+    color: var(--text);
+    border-radius: 8px;
+    background: var(--card-raised);
+    flex-shrink: 0;
+    font-feature-settings: 'tnum';
+  }
+  .v3-team-card.win .v3-score {
+    background: var(--accent); color: #0a0a0b;
+  }
+  .v3-team-card.lose .v3-score { background: transparent; color: var(--muted); }
+  .v3-team-card.empty .v3-score {
+    background: transparent;
+    color: var(--dim);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== V1 ====== -->
+<h1 class="section-title"><span class="num">1</span> Versus side-by-side <span class="desc">— классический «match-up»: команды слева/справа, счёт по центру</span></h1>
+
+<div class="frame">
+  <div class="round-card">
+    <div class="round-head">
+      <span class="name">Раунд 3</span>
+      <span class="progress">2 / 4 матчей</span>
+      <span class="pill"><span class="dot"></span> идёт</span>
+    </div>
+
+    <!-- Корт 4 — Вы играете -->
+    <div class="court-block">
+      <div class="court-head">
+        <span class="court-tag">Корт 4</span>
+        <span class="me-tag">Вы играете</span>
+      </div>
+      <div class="v1-match">
+        <div class="v1-row">
+          <div class="v1-team win">
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #14</span></div>
+            <div class="player"><span class="ava">АК</span><span class="name">Андрей Кузнецов</span></div>
+          </div>
+          <div class="v1-score"><span class="a">6</span><span class="sep">:</span><span class="b">4</span></div>
+          <div class="v1-team right lose">
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #11</span></div>
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #21</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Корт 3 — пустой счёт -->
+    <div class="court-block">
+      <div class="court-head"><span class="court-tag">Корт 3</span></div>
+      <div class="v1-match">
+        <div class="v1-row">
+          <div class="v1-team">
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #20</span></div>
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #23</span></div>
+          </div>
+          <div class="v1-score empty">— : —</div>
+          <div class="v1-team right">
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #9</span></div>
+            <div class="player"><span class="ava">Т</span><span class="name">Тест #13</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ====== V2 ====== -->
+<h1 class="section-title"><span class="num">2</span> Stacked + side score <span class="desc">— команды друг под другом, счёт каждой команды справа на её строке</span></h1>
+
+<div class="frame">
+  <div class="round-card">
+    <div class="round-head">
+      <span class="name">Раунд 3</span>
+      <span class="progress">2 / 4 матчей</span>
+      <span class="pill"><span class="dot"></span> идёт</span>
+    </div>
+
+    <div class="court-block">
+      <div class="court-head">
+        <span class="court-tag">Корт 4</span>
+        <span class="me-tag">Вы играете</span>
+      </div>
+      <div class="v2-match">
+        <div class="v2-team win">
+          <div class="players">
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #14</span></div>
+            <div class="player-line"><span class="ava">АК</span><span class="name">Андрей Кузнецов</span></div>
+          </div>
+          <div class="v2-score win">6</div>
+        </div>
+        <div class="v2-divider"></div>
+        <div class="v2-team lose">
+          <div class="players">
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #11</span></div>
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #21</span></div>
+          </div>
+          <div class="v2-score">4</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="court-block">
+      <div class="court-head"><span class="court-tag">Корт 3</span></div>
+      <div class="v2-match">
+        <div class="v2-team">
+          <div class="players">
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #20</span></div>
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #23</span></div>
+          </div>
+          <div class="v2-score empty">—</div>
+        </div>
+        <div class="v2-divider"></div>
+        <div class="v2-team">
+          <div class="players">
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #9</span></div>
+            <div class="player-line"><span class="ava">Т</span><span class="name">Тест #13</span></div>
+          </div>
+          <div class="v2-score empty">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ====== V3 ====== -->
+<h1 class="section-title"><span class="num">3</span> Team cards (победитель акцентом) <span class="desc">— каждая команда — мини-карточка, аватары наложены, победитель залит зелёным</span></h1>
+
+<div class="frame">
+  <div class="round-card">
+    <div class="round-head">
+      <span class="name">Раунд 3</span>
+      <span class="progress">2 / 4 матчей</span>
+      <span class="pill"><span class="dot"></span> идёт</span>
+    </div>
+
+    <div class="court-block">
+      <div class="court-head">
+        <span class="court-tag">Корт 4</span>
+        <span class="me-tag">Вы играете</span>
+      </div>
+      <div class="v3-match">
+        <div class="v3-team-card win">
+          <div class="v3-avas">
+            <span class="ava">Т</span>
+            <span class="ava">АК</span>
+          </div>
+          <div class="v3-names">
+            <span class="pname">Тест #14</span>
+            <span class="pname">Андрей Кузнецов</span>
+          </div>
+          <div class="v3-score">6</div>
+        </div>
+        <div class="v3-team-card lose">
+          <div class="v3-avas">
+            <span class="ava">Т</span>
+            <span class="ava">Т</span>
+          </div>
+          <div class="v3-names">
+            <span class="pname">Тест #11</span>
+            <span class="pname">Тест #21</span>
+          </div>
+          <div class="v3-score">4</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="court-block">
+      <div class="court-head"><span class="court-tag">Корт 3</span></div>
+      <div class="v3-match">
+        <div class="v3-team-card empty">
+          <div class="v3-avas">
+            <span class="ava">Т</span>
+            <span class="ava">Т</span>
+          </div>
+          <div class="v3-names">
+            <span class="pname">Тест #20</span>
+            <span class="pname">Тест #23</span>
+          </div>
+          <div class="v3-score">—</div>
+        </div>
+        <div class="v3-team-card empty">
+          <div class="v3-avas">
+            <span class="ava">Т</span>
+            <span class="ava">Т</span>
+          </div>
+          <div class="v3-names">
+            <span class="pname">Тест #9</span>
+            <span class="pname">Тест #13</span>
+          </div>
+          <div class="v3-score">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width: 540px; margin: 30px auto 50px; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--muted); line-height: 1.5;">
+  <b style="color: var(--text);">Сравнение:</b><br>
+  <b style="color: var(--accent);">V1 — versus</b> · красиво если ФИО короткие. Длинные сжимаются в колонках, могут обрезаться.<br>
+  <b style="color: var(--accent);">V2 — stacked + side score</b> · ⭐ сбалансированно, каждая команда=строка с аватарами+именами+счётом справа. Длинные ФИО получают всю ширину минус счёт.<br>
+  <b style="color: var(--accent);">V3 — team cards</b> · самое крупное и заметное, две карточки команд. Победитель сразу выделяется зелёной заливкой. Чуть выше карточка по высоте.
+</div>
+
+</body>
+</html>
