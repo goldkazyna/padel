@@ -1,4 +1,4 @@
-@extends('layouts.club')
+@extends('layouts.app')
 
 @section('title', 'Расписание кортов · Неделя')
 
