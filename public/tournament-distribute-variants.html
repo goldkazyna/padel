@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Распределение пар — варианты дизайна</title>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --card: #111113;
+    --card-alt: #16161a;
+    --border: #27272a;
+    --border-light: #1c1c21;
+    --text: #f4f4f5;
+    --text-dim: #a1a1aa;
+    --text-muted: #71717a;
+    --accent: #22c55e;
+    --accent-dark: #16a34a;
+    --blue: #3b82f6;
+    --purple: #a78bfa;
+    --amber: #fb923c;
+    --red: #ef4444;
+
+    /* Group tints — очень мягкие */
+    --gA-bg: rgba(59,130,246,0.08);
+    --gA-border: rgba(59,130,246,0.30);
+    --gA-text: #93b9fa;
+    --gB-bg: rgba(167,139,250,0.08);
+    --gB-border: rgba(167,139,250,0.30);
+    --gB-text: #c4b1f8;
+    --gC-bg: rgba(251,146,60,0.08);
+    --gC-border: rgba(251,146,60,0.30);
+    --gC-text: #fbbb84;
+    --gD-bg: rgba(34,197,94,0.08);
+    --gD-border: rgba(34,197,94,0.30);
+    --gD-text: #6ee5a3;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    font-size: 13px;
+    padding: 24px;
+  }
+  h1.section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 36px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h1.section-title .num {
+    background: var(--accent);
+    color: var(--bg);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  h1.section-title .desc {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 8px;
+  }
+
+  /* === Common header === */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .toolbar .status {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .toolbar .status .ok { color: var(--accent); font-weight: 700; }
+  .toolbar .status .pending { color: var(--amber); font-weight: 700; }
+  .toolbar .actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 8px 14px;
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .btn.primary:hover { background: var(--accent-dark); color: var(--bg); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* === Icons (monochrome stroked SVG) === */
+  .icon {
+    width: 14px; height: 14px;
+    stroke: currentColor; stroke-width: 1.8;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* ============================================
+     VARIANT 1 — Compact Cards
+     ============================================ */
+  .v1-grid {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(3, 1fr);
+    gap: 12px;
+  }
+  .v1-col {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    min-height: 200px;
+  }
+  .v1-col.unassigned { border-color: rgba(251,146,60,0.20); }
+  .v1-col.gA { background: var(--gA-bg); border-color: var(--gA-border); }
+  .v1-col.gB { background: var(--gB-bg); border-color: var(--gB-border); }
+  .v1-col.gC { background: var(--gC-bg); border-color: var(--gC-border); }
+
+  .v1-col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .v1-col-head .title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--text);
+  }
+  .v1-col.unassigned .title { color: var(--amber); }
+  .v1-col.gA .title { color: var(--gA-text); }
+  .v1-col.gB .title { color: var(--gB-text); }
+  .v1-col.gC .title { color: var(--gC-text); }
+  .v1-col-head .count {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-dim);
+  }
+  .v1-col-head .count.full { background: rgba(34,197,94,0.18); color: var(--accent); }
+
+  .v1-col .body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .v1-col.unassigned .body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .v1-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--card-alt);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .v1-card:hover { border-color: var(--accent); background: rgba(34,197,94,0.04); }
+  .v1-card .seed {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v1-card .info { flex: 1; min-width: 0; }
+  .v1-card .name {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.25;
+  }
+  .v1-card .rating {
+    font-size: 10px; color: var(--text-muted);
+    line-height: 1.1;
+  }
+  .v1-card .arrow {
+    color: var(--text-muted);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .v1-card.in-group { background: rgba(255,255,255,0.02); }
+
+  /* ============================================
+     VARIANT 2 — Inline Rows (group buttons always visible)
+     ============================================ */
+  .v2-wrap {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr);
+    gap: 12px;
+  }
+  .v2-col {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    min-height: 200px;
+  }
+  .v2-col.gA { background: var(--gA-bg); border-color: var(--gA-border); }
+  .v2-col.gB { background: var(--gB-bg); border-color: var(--gB-border); }
+  .v2-col.gC { background: var(--gC-bg); border-color: var(--gC-border); }
+  .v2-col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .v2-col-head .title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
+  .v2-col-head .count { font-size: 11px; font-weight: 700; color: var(--text-dim); padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+  .v2-col-head .count.full { background: rgba(34,197,94,0.18); color: var(--accent); }
+  .v2-col.unassigned .v2-col-head .title { color: var(--amber); }
+  .v2-col.gA .v2-col-head .title { color: var(--gA-text); }
+  .v2-col.gB .v2-col-head .title { color: var(--gB-text); }
+  .v2-col.gC .v2-col-head .title { color: var(--gC-text); }
+
+  .v2-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .v2-row:last-child { border-bottom: 0; }
+  .v2-row:hover { background: rgba(255,255,255,0.02); }
+  .v2-row .seed {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+    font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .v2-row .info { flex: 1; min-width: 0; }
+  .v2-row .name {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .v2-row .rating {
+    font-size: 10px; color: var(--text-muted);
+  }
+  .v2-row .group-btns {
+    display: flex; gap: 3px;
+    flex-shrink: 0;
+  }
+  .v2-row .group-btns button {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 800;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .v2-row .group-btns button:hover { border-color: var(--text-dim); color: var(--text); }
+  .v2-row .group-btns button.active.gA { background: var(--blue); color: white; border-color: var(--blue); }
+  .v2-row .group-btns button.active.gB { background: var(--purple); color: var(--bg); border-color: var(--purple); }
+  .v2-row .group-btns button.active.gC { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+
+  /* В группах правее — компактные строки без кнопок (просто список) */
+  .v2-col:not(.unassigned) .v2-row .group-btns { display: none; }
+  .v2-col:not(.unassigned) .v2-row .info .rating { display: none; }
+  .v2-col:not(.unassigned) .v2-row .name { font-size: 12px; }
+
+  /* ============================================
+     VARIANT 3 — Pills / Chips (max density)
+     ============================================ */
+  .v3-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .v3-col {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 160px;
+  }
+  .v3-col.unassigned { border-color: rgba(251,146,60,0.25); }
+  .v3-col.gA { background: var(--gA-bg); border-color: var(--gA-border); }
+  .v3-col.gB { background: var(--gB-bg); border-color: var(--gB-border); }
+  .v3-col.gC { background: var(--gC-bg); border-color: var(--gC-border); }
+  .v3-col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .v3-col-head .title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .v3-col.unassigned .title { color: var(--amber); }
+  .v3-col.gA .title { color: var(--gA-text); }
+  .v3-col.gB .title { color: var(--gB-text); }
+  .v3-col.gC .title { color: var(--gC-text); }
+  .v3-col-head .count {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-dim);
+  }
+  .v3-col-head .count.full { background: rgba(34,197,94,0.18); color: var(--accent); }
+
+  .v3-pills {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .v3-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border-radius: 16px;
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .v3-pill:hover { border-color: var(--accent); background: rgba(34,197,94,0.06); }
+  .v3-pill .seed {
+    font-size: 10px; font-weight: 800; color: var(--text-muted);
+  }
+  .v3-pill .name {
+    max-width: 140px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  .v3-pill.in-group {
+    border-color: transparent;
+    background: rgba(255,255,255,0.04);
+  }
+  .v3-pill.gA { background: rgba(59,130,246,0.18); color: var(--gA-text); border-color: rgba(59,130,246,0.30); }
+  .v3-pill.gB { background: rgba(167,139,250,0.18); color: var(--gB-text); border-color: rgba(167,139,250,0.30); }
+  .v3-pill.gC { background: rgba(251,146,60,0.18); color: var(--gC-text); border-color: rgba(251,146,60,0.30); }
+
+  /* hint */
+  .v3-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    font-style: italic;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================
+     VARIANT 1 — Compact Cards
+     ============================================ -->
+<h1 class="section-title">
+  <span class="num">1</span>
+  Compact Cards
+  <span class="desc">— карточки с сидом-кружком, незанятые в 2 колонки. Тап разворачивает 3 кнопки выбора группы.</span>
+</h1>
+
+<div class="toolbar">
+  <div class="status">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+    Распределено <span class="pending">1</span> / 12 · в каждой группе <span class="ok">4</span> пар
+  </div>
+  <div class="actions">
+    <button class="btn">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/></svg>
+      Авто (по рейтингу)
+    </button>
+    <button class="btn">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      Сбросить
+    </button>
+    <button class="btn primary" disabled>
+      <svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 4l14 8-14 8z"/></svg>
+      Начать турнир
+    </button>
+  </div>
+</div>
+
+<div class="v1-grid">
+  <div class="v1-col unassigned">
+    <div class="v1-col-head">
+      <span class="title">Не распределено</span>
+      <span class="count">11</span>
+    </div>
+    <div class="body">
+      <div class="v1-card"><div class="seed">2</div><div class="info"><div class="name">Тест #21 / Тест #10</div><div class="rating">Рейтинг 2000</div></div></div>
+      <div class="v1-card"><div class="seed">3</div><div class="info"><div class="name">Тест #11 / Тест #7</div><div class="rating">Рейтинг 1875</div></div></div>
+      <div class="v1-card"><div class="seed">4</div><div class="info"><div class="name">Тест #3 / Тест #8</div><div class="rating">Рейтинг 1875</div></div></div>
+      <div class="v1-card"><div class="seed">5</div><div class="info"><div class="name">Тест #13 / Тест #12</div><div class="rating">Рейтинг 1750</div></div></div>
+      <div class="v1-card"><div class="seed">6</div><div class="info"><div class="name">Тест #4 / Тест #23</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">7</div><div class="info"><div class="name">Тест #14 / Тест #20</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">8</div><div class="info"><div class="name">Тест #22 / Тест #16</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">9</div><div class="info"><div class="name">Тест #18 / Тест #2</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">10</div><div class="info"><div class="name">Тест #19 / Тест #15</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">11</div><div class="info"><div class="name">Тест #25 / Тест #5</div><div class="rating">Рейтинг 1125</div></div></div>
+      <div class="v1-card"><div class="seed">12</div><div class="info"><div class="name">Тест #6 / Тест #17</div><div class="rating">Рейтинг 1125</div></div></div>
+    </div>
+  </div>
+  <div class="v1-col gA">
+    <div class="v1-col-head"><span class="title">Группа A</span><span class="count">1</span></div>
+    <div class="body">
+      <div class="v1-card in-group"><div class="seed">1</div><div class="info"><div class="name">Тест #9 / Тест #24</div><div class="rating">Рейтинг 2125</div></div></div>
+    </div>
+  </div>
+  <div class="v1-col gB">
+    <div class="v1-col-head"><span class="title">Группа B</span><span class="count">0</span></div>
+    <div class="body"></div>
+  </div>
+  <div class="v1-col gC">
+    <div class="v1-col-head"><span class="title">Группа C</span><span class="count">0</span></div>
+    <div class="body"></div>
+  </div>
+</div>
+
+<!-- ============================================
+     VARIANT 2 — Inline Rows (group buttons always visible)
+     ============================================ -->
+<h1 class="section-title">
+  <span class="num">2</span>
+  Inline Rows
+  <span class="desc">— одна пара = одна строка, кнопки A/B/C справа всегда видны. Один клик = присвоено.</span>
+</h1>
+
+<div class="toolbar">
+  <div class="status">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+    Распределено <span class="ok">5</span> / 12 · в каждой группе <span class="ok">4</span> пар
+  </div>
+  <div class="actions">
+    <button class="btn"><svg class="icon" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/></svg> Авто (по рейтингу)</button>
+    <button class="btn"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Сбросить</button>
+    <button class="btn primary" disabled><svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 4l14 8-14 8z"/></svg> Начать турнир</button>
+  </div>
+</div>
+
+<div class="v2-wrap">
+  <div class="v2-col unassigned">
+    <div class="v2-col-head"><span class="title">Не распределено</span><span class="count">7</span></div>
+    <div class="v2-row">
+      <div class="seed">2</div>
+      <div class="info"><div class="name">Тест #21 / Тест #10</div><div class="rating">2000</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">3</div>
+      <div class="info"><div class="name">Тест #11 / Тест #7</div><div class="rating">1875</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">4</div>
+      <div class="info"><div class="name">Тест #3 / Тест #8</div><div class="rating">1875</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">5</div>
+      <div class="info"><div class="name">Тест #13 / Тест #12</div><div class="rating">1750</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">8</div>
+      <div class="info"><div class="name">Тест #22 / Тест #16</div><div class="rating">1125</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">11</div>
+      <div class="info"><div class="name">Тест #25 / Тест #5</div><div class="rating">1125</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+    <div class="v2-row">
+      <div class="seed">12</div>
+      <div class="info"><div class="name">Тест #6 / Тест #17</div><div class="rating">1125</div></div>
+      <div class="group-btns">
+        <button>A</button><button>B</button><button>C</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="v2-col gA">
+    <div class="v2-col-head"><span class="title">Группа A</span><span class="count">2</span></div>
+    <div class="v2-row"><div class="seed">1</div><div class="info"><div class="name">Тест #9 / Тест #24</div></div></div>
+    <div class="v2-row"><div class="seed">6</div><div class="info"><div class="name">Тест #4 / Тест #23</div></div></div>
+  </div>
+  <div class="v2-col gB">
+    <div class="v2-col-head"><span class="title">Группа B</span><span class="count">2</span></div>
+    <div class="v2-row"><div class="seed">7</div><div class="info"><div class="name">Тест #14 / Тест #20</div></div></div>
+    <div class="v2-row"><div class="seed">9</div><div class="info"><div class="name">Тест #18 / Тест #2</div></div></div>
+  </div>
+  <div class="v2-col gC">
+    <div class="v2-col-head"><span class="title">Группа C</span><span class="count full">1</span></div>
+    <div class="v2-row"><div class="seed">10</div><div class="info"><div class="name">Тест #19 / Тест #15</div></div></div>
+  </div>
+</div>
+
+<!-- ============================================
+     VARIANT 3 — Pills / Chips
+     ============================================ -->
+<h1 class="section-title">
+  <span class="num">3</span>
+  Pills/Chips
+  <span class="desc">— максимум плотности, пара = чип. Тап циклит группу: → A → B → C → не распределено.</span>
+</h1>
+
+<div class="toolbar">
+  <div class="status">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+    Распределено <span class="ok">12</span> / 12 · все группы заполнены
+  </div>
+  <div class="actions">
+    <button class="btn"><svg class="icon" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z"/></svg> Авто (по рейтингу)</button>
+    <button class="btn"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> Сбросить</button>
+    <button class="btn primary"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 4l14 8-14 8z"/></svg> Начать турнир</button>
+  </div>
+</div>
+
+<div class="v3-grid">
+  <div class="v3-col unassigned">
+    <div class="v3-col-head"><span class="title">Не распределено</span><span class="count full">0</span></div>
+    <div class="v3-pills"></div>
+    <div class="v3-hint">Тап по чипу циклит: A → B → C → сюда</div>
+  </div>
+  <div class="v3-col gA">
+    <div class="v3-col-head"><span class="title">Группа A</span><span class="count full">4</span></div>
+    <div class="v3-pills">
+      <span class="v3-pill gA"><span class="seed">#1</span><span class="name">Тест 9 / 24</span></span>
+      <span class="v3-pill gA"><span class="seed">#6</span><span class="name">Тест 4 / 23</span></span>
+      <span class="v3-pill gA"><span class="seed">#7</span><span class="name">Тест 14 / 20</span></span>
+      <span class="v3-pill gA"><span class="seed">#12</span><span class="name">Тест 6 / 17</span></span>
+    </div>
+  </div>
+  <div class="v3-col gB">
+    <div class="v3-col-head"><span class="title">Группа B</span><span class="count full">4</span></div>
+    <div class="v3-pills">
+      <span class="v3-pill gB"><span class="seed">#2</span><span class="name">Тест 21 / 10</span></span>
+      <span class="v3-pill gB"><span class="seed">#5</span><span class="name">Тест 13 / 12</span></span>
+      <span class="v3-pill gB"><span class="seed">#8</span><span class="name">Тест 22 / 16</span></span>
+      <span class="v3-pill gB"><span class="seed">#11</span><span class="name">Тест 25 / 5</span></span>
+    </div>
+  </div>
+  <div class="v3-col gC">
+    <div class="v3-col-head"><span class="title">Группа C</span><span class="count full">4</span></div>
+    <div class="v3-pills">
+      <span class="v3-pill gC"><span class="seed">#3</span><span class="name">Тест 11 / 7</span></span>
+      <span class="v3-pill gC"><span class="seed">#4</span><span class="name">Тест 3 / 8</span></span>
+      <span class="v3-pill gC"><span class="seed">#9</span><span class="name">Тест 18 / 2</span></span>
+      <span class="v3-pill gC"><span class="seed">#10</span><span class="name">Тест 19 / 15</span></span>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 60px; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--text-dim);">
+  <b style="color: var(--text);">Сравнение:</b><br>
+  <b style="color: var(--gA-text);">V1 — Compact Cards</b> · аккуратные карточки, незанятые в 2 колонки → меньше скролла. Клик = выбор группы (всплывают кнопки внутри карточки)<br>
+  <b style="color: var(--gB-text);">V2 — Inline Rows</b> · одна пара = одна строка с кнопками A/B/C справа, всегда видными. <b>1 клик = присвоено</b>, минимум действий. Группы справа — компактные списки без кнопок.<br>
+  <b style="color: var(--gC-text);">V3 — Pills/Chips</b> · максимальная плотность, всё видно сразу. Чип циклит: каждый клик = переключение в следующую группу. Самое лаконичное.
+</div>
+
+</body>
+</html>
