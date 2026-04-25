@@ -1708,6 +1708,10 @@ class MobileTournamentController extends Controller
             ];
         }
 
+        $playoff = $tournament->has_playoff
+            ? $this->getPlayoffForLive($tournament, $user)
+            : [];
+
         return response()->json([
             'success' => true,
             'tournament' => [
@@ -1722,7 +1726,78 @@ class MobileTournamentController extends Controller
                 'has_playoff' => (bool) $tournament->has_playoff,
             ],
             'groups' => $groups,
+            'playoff' => $playoff,
         ]);
+    }
+
+    /**
+     * Плей-офф для live: матчи группированные по stages, с has_me/avatar.
+     */
+    private function getPlayoffForLive(Tournament $tournament, $user): array
+    {
+        $userId = $user ? (int) $user->id : null;
+
+        $matches = $tournament->playoffMatches()
+            ->with([
+                'team1Player1', 'team1Player2',
+                'team2Player1', 'team2Player2',
+            ])
+            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
+            ->get();
+
+        if ($matches->isEmpty()) return [];
+
+        $stages = [];
+        foreach ($matches as $m) {
+            $stageKey = $m->stage_name ?: ($m->stage ?? '—');
+
+            $t1HasMe = $userId !== null && in_array($userId, [
+                (int) $m->team1_player1_id,
+                (int) $m->team1_player2_id,
+            ], true);
+            $t2HasMe = $userId !== null && in_array($userId, [
+                (int) $m->team2_player1_id,
+                (int) $m->team2_player2_id,
+            ], true);
+
+            $fmtP = function ($p) {
+                if (!$p) return null;
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'avatar' => $p->avatar,
+                ];
+            };
+
+            $stages[$stageKey][] = [
+                'id' => $m->id,
+                'court_number' => $m->court_number,
+                'status' => $m->status,
+                'match_number' => $m->match_number,
+                'team1' => [
+                    'player1' => $fmtP($m->team1Player1),
+                    'player2' => $fmtP($m->team1Player2),
+                    'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                    'has_me' => $t1HasMe,
+                ],
+                'team2' => [
+                    'player1' => $fmtP($m->team2Player1),
+                    'player2' => $fmtP($m->team2Player2),
+                    'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                    'has_me' => $t2HasMe,
+                ],
+                'has_me' => $t1HasMe || $t2HasMe,
+            ];
+        }
+
+        $out = [];
+        foreach ($stages as $name => $list) {
+            $out[] = [
+                'stage' => $name,
+                'matches' => $list,
+            ];
+        }
+        return $out;
     }
 
     /**
