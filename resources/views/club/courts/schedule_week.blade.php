@@ -362,6 +362,112 @@
     .ws-legend-dot.unpaid    { background: rgba(251, 146, 60, 0.22); border-color: rgba(251, 146, 60, 0.45); }
     .ws-legend-dot.unprocessed { background: rgba(239, 68, 68, 0.22); border-color: rgba(239, 68, 68, 0.45); }
     .ws-legend-dot.blocked   { background: rgba(113, 113, 122, 0.30); border-color: rgba(113, 113, 122, 0.50); }
+
+    /* Unprocessed button и панель */
+    .ws-unprocessed-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 10px;
+        color: #fca5a5;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .ws-unprocessed-btn:hover { background: rgba(239, 68, 68, 0.20); border-color: #ef4444; color: #ef4444; }
+    .ws-unprocessed-btn .dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #ef4444;
+        animation: pulse-red 1.6s infinite;
+    }
+    .ws-unprocessed-btn-badge {
+        background: #ef4444; color: #fff;
+        padding: 2px 8px; border-radius: 10px;
+        font-size: 12px; font-weight: 800;
+    }
+
+    .unprocessed-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+    }
+    .unprocessed-overlay.show { display: block; }
+    .unprocessed-panel {
+        position: fixed;
+        top: 0; right: -460px;
+        width: 440px; height: 100vh;
+        background: #0a0a0b;
+        border-left: 1px solid #27272a;
+        z-index: 1051;
+        display: flex;
+        flex-direction: column;
+        transition: right 0.3s ease;
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
+    }
+    .unprocessed-panel.show { right: 0; }
+    .unprocessed-panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 20px 24px; border-bottom: 1px solid #27272a; flex-shrink: 0;
+    }
+    .unprocessed-panel-header h2 {
+        font-size: 18px; font-weight: 700; color: #f4f4f5;
+        display: flex; align-items: center; gap: 10px; margin: 0;
+    }
+    .unprocessed-panel-header h2 i { color: #ef4444; }
+    .unprocessed-panel-count {
+        background: #ef4444; color: #fff;
+        padding: 2px 10px; border-radius: 10px;
+        font-size: 13px; font-weight: 800;
+    }
+    .unprocessed-panel-body {
+        flex: 1; overflow-y: auto; padding: 16px;
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    .unprocessed-card {
+        background: #111113;
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: 12px;
+        padding: 16px;
+    }
+    .unprocessed-card-top {
+        display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;
+    }
+    .unprocessed-card-name { font-size: 16px; font-weight: 700; color: #f4f4f5; display:block; }
+    .unprocessed-card-phone { font-size: 13px; color: #71717a; }
+    .unprocessed-card-price { font-size: 16px; font-weight: 800; color: #22c55e; }
+    .unprocessed-card-details {
+        display: flex; gap: 14px; flex-wrap: wrap;
+        font-size: 13px; color: #a1a1aa; margin-bottom: 10px;
+    }
+    .unprocessed-card-details i { font-size: 12px; color: #71717a; margin-right: 4px; }
+    .unprocessed-card-needs-coach {
+        background: rgba(168, 156, 245, 0.15); color: #a89cf5;
+        padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+        margin-top: 6px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .unprocessed-card-comment {
+        font-size: 13px; color: #71717a;
+        padding: 8px 10px; background: rgba(113, 113, 122, 0.10);
+        border-radius: 6px; margin-bottom: 10px;
+    }
+    .unprocessed-card-actions { display: flex; gap: 8px; }
+    .unprocessed-btn-view {
+        width: 100%; padding: 10px;
+        background: #16161a; border: 1px solid #27272a;
+        border-radius: 8px; color: #a1a1aa;
+        font-size: 13px; font-weight: 700;
+        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .unprocessed-btn-view:hover { border-color: #22c55e; color: #22c55e; }
+    .unprocessed-empty {
+        text-align: center; padding: 60px 20px; color: #71717a;
+    }
+    .unprocessed-empty i { font-size: 40px; color: #22c55e; display: block; margin-bottom: 12px; }
 </style>
 
 <div class="ws-page">
@@ -369,10 +475,19 @@
     <!-- Header -->
     <div class="ws-header">
         <h1>Расписание кортов <span class="club">— {{ $club->name ?? '' }}</span></h1>
-        <a href="{{ route('club.courts.index') }}" class="ws-settings-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-            Настройки кортов
-        </a>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button type="button" id="unprocessedPanelBtn" class="ws-unprocessed-btn"
+                    onclick="toggleUnprocessedPanel()"
+                    style="{{ $unprocessedBookings->count() > 0 ? '' : 'display:none;' }}">
+                <span class="dot"></span>
+                Необработанные
+                <span class="ws-unprocessed-btn-badge" id="unprocessedBtnCount">{{ $unprocessedBookings->count() }}</span>
+            </button>
+            <a href="{{ route('club.courts.index') }}" class="ws-settings-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                Настройки кортов
+            </a>
+        </div>
     </div>
 
     <!-- Flash -->
@@ -491,6 +606,82 @@
     </div>
 
 </div>
+
+{{-- =================== Unprocessed Panel (выезжает справа) =================== --}}
+<div class="unprocessed-overlay" id="unprocessedOverlay" onclick="toggleUnprocessedPanel()"></div>
+<div class="unprocessed-panel" id="unprocessedPanel">
+    <div class="unprocessed-panel-header">
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
+            Необработанные заявки
+            <span class="unprocessed-panel-count" id="unprocessedPanelCount">{{ $unprocessedBookings->count() }}</span>
+        </h2>
+        <button class="sch-modal-close" onclick="toggleUnprocessedPanel()">&#10005;</button>
+    </div>
+    <div class="unprocessed-panel-body" id="unprocessedPanelBody">
+        @forelse($unprocessedBookings as $ub)
+            @php
+                $ubDate = \Carbon\Carbon::parse($ub->date)->format('Y-m-d');
+                $bStart = substr($ub->start_time, 0, 5);
+                $bEnd = substr($ub->end_time, 0, 5);
+                $viewData = [
+                    'id' => $ub->id,
+                    'date' => $ubDate,
+                    'courtName' => $ub->court->name,
+                    'startTime' => $bStart,
+                    'endTime' => $bEnd,
+                    'price' => (float) $ub->price,
+                    'discount' => (float) ($ub->discount ?? 0),
+                    'clientName' => $ub->client_name,
+                    'clientPhone' => $ub->client_phone,
+                    'paymentMethod' => $ub->payment_method,
+                    'isPaid' => (bool) $ub->is_paid,
+                    'isProcessed' => (bool) $ub->is_processed,
+                    'comment' => $ub->comment,
+                    'coachId' => $ub->coach_id,
+                ];
+            @endphp
+            <div class="unprocessed-card" id="unprocessedCard{{ $ub->id }}">
+                <div class="unprocessed-card-top">
+                    <div>
+                        <span class="unprocessed-card-name">{{ $ub->client_name }}</span>
+                        @if($ub->client_phone)<span class="unprocessed-card-phone">+{{ $ub->client_phone }}</span>@endif
+                    </div>
+                    <span class="unprocessed-card-price">{{ number_format($ub->price, 0, '', ' ') }} ₸</span>
+                </div>
+                <div class="unprocessed-card-details">
+                    <span>🎾 {{ $ub->court->name }}</span>
+                    <span>📅 {{ \Carbon\Carbon::parse($ub->date)->locale('ru')->isoFormat('D MMM') }}</span>
+                    <span>⏰ {{ $bStart }}–{{ $bEnd }}</span>
+                </div>
+                @if($ub->needs_coach)
+                    <div class="unprocessed-card-needs-coach">🎾 Клиент просит тренера</div>
+                @endif
+                @if($ub->comment)
+                    <div class="unprocessed-card-comment">{{ $ub->comment }}</div>
+                @endif
+                <div class="unprocessed-card-actions">
+                    <button type="button" class="unprocessed-btn-view"
+                            onclick='toggleUnprocessedPanel(); openViewModal(@json($viewData))'>
+                        Просмотреть и обработать →
+                    </button>
+                </div>
+            </div>
+        @empty
+            <div class="unprocessed-empty">
+                <span style="font-size:48px;">✓</span>
+                <p>Все заявки обработаны</p>
+            </div>
+        @endforelse
+    </div>
+</div>
+
+<script>
+    function toggleUnprocessedPanel() {
+        document.getElementById('unprocessedPanel').classList.toggle('show');
+        document.getElementById('unprocessedOverlay').classList.toggle('show');
+    }
+</script>
 
 {{-- =================== Modal styles + HTML + JS (взято из дневного view, JS адаптирован под мульти-дату) =================== --}}
 
@@ -1123,6 +1314,19 @@
             }
         }
 
+        // Обновить счётчик на верхней кнопке «Необработанные»
+        function updateTopButton(total) {
+            const btn = document.getElementById('unprocessedPanelBtn');
+            const cnt = document.getElementById('unprocessedBtnCount');
+            if (!btn || !cnt) return;
+            if (total > 0) {
+                cnt.textContent = total;
+                btn.style.display = '';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
         function pollNew() {
             fetch('{{ route("club.unprocessedCount") }}', { cache: 'no-store' })
                 .then(r => r.json())
@@ -1138,6 +1342,9 @@
                         updateDayBadge(d, cur);
                     }
                     lastByDate = byDate;
+
+                    // Обновляем общую кнопку (сумма по всему клубу из API)
+                    updateTopButton(parseInt(data.count) || 0);
 
                     if (hasNew) {
                         playDing();

@@ -277,6 +277,15 @@ class CourtController extends Controller
 
         $weekRangeLabel = $weekStart->locale('ru')->isoFormat('D MMMM') . ' — ' . $weekEnd->locale('ru')->isoFormat('D MMMM YYYY');
 
+        // Все необработанные заявки клуба (для панели)
+        $unprocessedBookings = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+            ->where('status', 'confirmed')
+            ->where('is_processed', false)
+            ->with('court')
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
         // freePrices = [court_id-time => price] (цены не зависят от даты)
         $freePrices = [];
         if (!empty($weekDays)) {
@@ -302,7 +311,8 @@ class CourtController extends Controller
 
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
-            'weekRangeLabel', 'freePrices', 'coachAvailability', 'clubCoaches'
+            'weekRangeLabel', 'freePrices', 'coachAvailability', 'clubCoaches',
+            'unprocessedBookings'
         ));
     }
 
