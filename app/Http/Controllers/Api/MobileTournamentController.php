@@ -1657,6 +1657,16 @@ class MobileTournamentController extends Controller
             foreach ($group->rounds as $round) {
                 $matches = [];
                 foreach ($round->matches as $m) {
+                    $userId = $user ? (int) $user->id : null;
+                    $t1HasMe = $userId !== null && in_array($userId, [
+                        (int) $m->team1_player1_id,
+                        (int) $m->team1_player2_id,
+                    ], true);
+                    $t2HasMe = $userId !== null && in_array($userId, [
+                        (int) $m->team2_player1_id,
+                        (int) $m->team2_player2_id,
+                    ], true);
+
                     $matches[] = [
                         'id' => $m->id,
                         'court_number' => $m->court_number,
@@ -1665,19 +1675,15 @@ class MobileTournamentController extends Controller
                             'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
                             'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
                             'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                            'has_me' => $t1HasMe,
                         ],
                         'team2' => [
                             'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
                             'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
                             'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                            'has_me' => $t2HasMe,
                         ],
-                        // Содержит ли этот матч текущего юзера
-                        'has_me' => $user && in_array((int) $user->id, [
-                            (int) $m->team1_player1_id,
-                            (int) $m->team1_player2_id,
-                            (int) $m->team2_player1_id,
-                            (int) $m->team2_player2_id,
-                        ], true),
+                        'has_me' => $t1HasMe || $t2HasMe,
                     ];
                 }
                 $rounds[] = [
