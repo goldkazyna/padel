@@ -186,6 +186,17 @@ class CourtController extends Controller
             ->get()
             ->groupBy(fn($b) => $b->court_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
 
+        // Кол-во необработанных заявок по датам недели — для бейджей в шапке дня
+        $unprocessedByDate = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->where('status', 'confirmed')
+            ->where('is_processed', false)
+            ->selectRaw('date, COUNT(*) as cnt')
+            ->groupBy('date')
+            ->pluck('cnt', 'date')
+            ->mapWithKeys(fn($v, $k) => [Carbon::parse($k)->format('Y-m-d') => (int) $v])
+            ->all();
+
         $allBlocks = \App\Models\CourtBlock::whereIn('court_id', $courtIds)
             ->whereBetween('date', [$weekStartStr, $weekEndStr])
             ->get()
@@ -260,6 +271,7 @@ class CourtController extends Controller
                 'occupancy' => $occupancy,
                 'schedules' => $courtSchedules,
                 'maxFreeSlots' => $maxFreeSlotsByCell,
+                'unprocessed' => $unprocessedByDate[$dayStr] ?? 0,
             ];
         }
 

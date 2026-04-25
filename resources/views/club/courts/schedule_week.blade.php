@@ -187,6 +187,33 @@
     .ws-day-head.today .day-num { color: var(--sch-accent); }
     .ws-day-head.today .day-name { color: var(--sch-accent); }
 
+    /* Бейдж необработанных на заголовке дня */
+    .ws-day-head .unprocessed-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        border-radius: 6px;
+        color: #fca5a5;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        align-self: flex-start;
+    }
+    .ws-day-head .unprocessed-badge .pulse-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #ef4444;
+        animation: pulse-red 1.6s infinite;
+    }
+    @keyframes pulse-red {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
     .ws-time-col {
         padding: 8px 0 0;
         text-align: center;
@@ -377,11 +404,15 @@
             @php
                 $occColor = $wd['occupancy'] >= 80 ? '#ef4444' : ($wd['occupancy'] >= 40 ? '#fb923c' : '#22c55e');
             @endphp
-            <div class="ws-day-head{{ $wd['isToday'] ? ' today' : '' }}">
+            <div class="ws-day-head{{ $wd['isToday'] ? ' today' : '' }}" data-date="{{ $wd['date'] }}">
                 <span class="day-name">{{ $wd['dayName'] }}{{ $wd['isToday'] ? ' · Сегодня' : '' }}</span>
                 <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" style="color: inherit; text-decoration: none;">
                     <span class="day-num">{{ $wd['dayNumLabel'] }}</span>
                 </a>
+                <span class="unprocessed-badge" data-unprocessed-badge="{{ $wd['date'] }}" style="{{ ($wd['unprocessed'] ?? 0) > 0 ? '' : 'display:none;' }}">
+                    <span class="pulse-dot"></span>
+                    <span class="badge-count">{{ $wd['unprocessed'] ?? 0 }}</span> новых
+                </span>
                 @if($wd['occupancy'] > 0)
                     <span class="occupancy-pct" style="color: {{ $occColor }};">{{ $wd['occupancy'] }}%</span>
                 @endif
@@ -1045,15 +1076,52 @@
         else { btn.classList.add('active'); input.value = coachId; }
     }
 
-    // === Polling новых заявок ===
-    // Каждые 30 сек дёргаем /unprocessed-count. Если для любой даты текущей
-    // недели появилась НОВАЯ необработанная заявка — перезагружаем страницу,
-    // чтобы карточки в сетке обновились. Reload откладывается пока открыта
-    // любая модалка (чтобы не сломать поток редактирования).
+    // === Polling новых заявок + звуковой сигнал + live-бейджи ===
     (function() {
         const weekDates = @json(collect($weekDays)->pluck('date'));
-        let lastByDate = null;
+        // Стартовое состояние из server-side render (сразу можно сравнивать)
+        const initialUnprocessed = @json(collect($weekDays)->mapWithKeys(fn($wd) => [$wd['date'] => (int) ($wd['unprocessed'] ?? 0)]));
+        let lastByDate = initialUnprocessed;
         let pendingReload = false;
+
+        // Звук "ding" через Web Audio API — без файлов
+        function playDing() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+
+                // Двойной "пинг" — два тона подряд
+                [880, 1320].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    const start = now + i * 0.12;
+                    gain.gain.setValueAtTime(0, start);
+                    gain.gain.linearRampToValueAtTime(0.25, start + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.30);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + 0.32);
+                });
+            } catch (e) { /* браузер заблокировал — игнор */ }
+        }
+
+        // Обновить бейдж конкретного дня
+        function updateDayBadge(date, count) {
+            const badge = document.querySelector(`[data-unprocessed-badge="${date}"]`);
+            if (!badge) return;
+            const counter = badge.querySelector('.badge-count');
+            if (count > 0) {
+                if (counter) counter.textContent = count;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
 
         function pollNew() {
             fetch('{{ route("club.unprocessedCount") }}', { cache: 'no-store' })
@@ -1061,27 +1129,25 @@
                 .then(data => {
                     const byDate = data.by_date || {};
 
-                    // Первый вызов — просто запоминаем стартовое состояние
-                    if (lastByDate === null) {
-                        lastByDate = byDate;
-                        return;
-                    }
-
                     let hasNew = false;
                     for (const d of weekDates) {
                         const cur = byDate[d] || 0;
                         const prev = lastByDate[d] || 0;
-                        if (cur > prev) { hasNew = true; break; }
+                        if (cur > prev) hasNew = true;
+                        // Live-обновление бейджа без перезагрузки
+                        updateDayBadge(d, cur);
                     }
                     lastByDate = byDate;
 
                     if (hasNew) {
+                        playDing();
+
                         const modalOpen = document.querySelector('.modal.show');
                         if (modalOpen) {
-                            // Отложить — обновим как только закроется последняя модалка
                             pendingReload = true;
                         } else {
-                            window.location.reload();
+                            // Небольшая задержка чтобы юзер успел услышать звук и заметить бейдж
+                            setTimeout(() => window.location.reload(), 1200);
                         }
                     }
                 })
@@ -1095,7 +1161,6 @@
             }
         });
 
-        pollNew();
         setInterval(pollNew, 30000);
     })();
 
