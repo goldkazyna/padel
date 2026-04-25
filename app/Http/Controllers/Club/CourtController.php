@@ -711,7 +711,14 @@ class CourtController extends Controller
 
         \App\Models\ActivityLog::log('updated', 'CourtBooking', $booking->id, "Редактирование брони: {$booking->client_name}, {$booking->court->name}", $booking->getChanges());
 
-        return redirect()->route('club.courts.schedule', ['date' => $booking->date instanceof \Carbon\Carbon ? $booking->date->format('Y-m-d') : $booking->date])->with('success', 'Бронирование обновлено');
+        // Возвращаемся туда, откуда пришли (дневной или недельный вид).
+        // Если referer не подходит — fallback на дневной вид.
+        $bookingDate = $booking->date instanceof \Carbon\Carbon ? $booking->date->format('Y-m-d') : $booking->date;
+        $referer = (string) $request->headers->get('referer', '');
+        if (str_contains($referer, '/courts/schedule/week')) {
+            return redirect()->route('club.courts.scheduleWeek', ['date' => $bookingDate])->with('success', 'Бронирование обновлено');
+        }
+        return redirect()->route('club.courts.schedule', ['date' => $bookingDate])->with('success', 'Бронирование обновлено');
     }
 
     public function cancelBooking(CourtBooking $booking)
