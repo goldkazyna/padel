@@ -187,31 +187,31 @@
     .ws-day-head.today .day-num { color: var(--sch-accent); }
     .ws-day-head.today .day-name { color: var(--sch-accent); }
 
-    /* Бейдж необработанных на заголовке дня */
+    /* Бейдж необработанных рядом с датой дня */
+    .ws-day-head .day-num-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
     .ws-day-head .unprocessed-badge {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 3px 8px;
-        background: rgba(239, 68, 68, 0.15);
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        border-radius: 6px;
-        color: #fca5a5;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1;
-        align-self: flex-start;
-    }
-    .ws-day-head .unprocessed-badge .pulse-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
         background: #ef4444;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
         animation: pulse-red 1.6s infinite;
     }
     @keyframes pulse-red {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.4; transform: scale(0.7); }
+        0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18); }
+        50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.08); }
     }
 
     .ws-time-col {
@@ -522,12 +522,15 @@
             <div class="ws-day-head{{ $wd['isToday'] ? ' today' : '' }}" data-date="{{ $wd['date'] }}">
                 <span class="day-name">{{ $wd['dayName'] }}{{ $wd['isToday'] ? ' · Сегодня' : '' }}</span>
                 <a href="{{ route('club.courts.schedule', ['date' => $wd['date']]) }}" style="color: inherit; text-decoration: none;">
-                    <span class="day-num">{{ $wd['dayNumLabel'] }}</span>
+                    <span class="day-num-row">
+                        <span class="day-num">{{ $wd['dayNumLabel'] }}</span>
+                        <span class="unprocessed-badge" data-unprocessed-badge="{{ $wd['date'] }}"
+                              title="Необработанных заявок"
+                              style="{{ ($wd['unprocessed'] ?? 0) > 0 ? '' : 'display:none;' }}">
+                            <span class="badge-count">{{ $wd['unprocessed'] ?? 0 }}</span>
+                        </span>
+                    </span>
                 </a>
-                <span class="unprocessed-badge" data-unprocessed-badge="{{ $wd['date'] }}" style="{{ ($wd['unprocessed'] ?? 0) > 0 ? '' : 'display:none;' }}">
-                    <span class="pulse-dot"></span>
-                    <span class="badge-count">{{ $wd['unprocessed'] ?? 0 }}</span> новых
-                </span>
                 @if($wd['occupancy'] > 0)
                     <span class="occupancy-pct" style="color: {{ $occColor }};">{{ $wd['occupancy'] }}%</span>
                 @endif

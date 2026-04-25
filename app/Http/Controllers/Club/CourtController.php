@@ -265,7 +265,7 @@ class CourtController extends Controller
             $weekDays[] = [
                 'date' => $dayStr,
                 'dayName' => $d->locale('ru')->isoFormat('dd'),
-                'dayNumLabel' => $d->locale('ru')->isoFormat('D MMM'),
+                'dayNumLabel' => $d->locale('ru')->isoFormat('D MMMM'),
                 'isSelected' => $dayStr === $date,
                 'isToday' => $dayStr === now()->format('Y-m-d'),
                 'occupancy' => $occupancy,
