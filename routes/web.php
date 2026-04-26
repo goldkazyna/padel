@@ -28,6 +28,21 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
+// Лендинг турнира — для шаринга. Открывает deep-link «padelp://tournament/{id}»
+// или редиректит в магазин если приложения нет.
+Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
+    $tournament->load('club');
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+    $storeUrl = $isIOS
+        ? config('mobile_app.store_url_ios')
+        : config('mobile_app.store_url_android');
+    return view('tournament-share', [
+        'tournament' => $tournament,
+        'storeUrl' => $storeUrl,
+    ]);
+})->name('tournament.share');
+
 // Удаление аккаунта (публичная страница для App Store / Google Play)
 Route::get('/delete-account', [DeleteAccountController::class, 'show'])->name('delete-account');
 Route::post('/delete-account/send-code', [DeleteAccountController::class, 'sendCode'])->name('delete-account.send-code');
