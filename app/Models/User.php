@@ -209,6 +209,28 @@ class User extends Authenticatable
 			}
 		}
 		
+		// Король корта — все матчи всех раундов
+		$kocMatches = \App\Models\KingOfCourtMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+
+		foreach ($kocMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+
 		// Плей-офф матчи Американо/Мексикано (по player_id)
 		$playoffPlayerMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
 			->whereNotNull('team1_player1_id') // Это Американо/Мексикано матч
@@ -514,6 +536,26 @@ class User extends Authenticatable
 			
 			// Проверяем 1-е место
 			$winner = $tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->first();
+			if ($winner && $winner->user_id === $this->id) {
+				$stats['wins']++;
+			}
+		}
+
+		// Король корта
+		$kocTournaments = \App\Models\Tournament::where('type', 'king_of_court')
+			->where('status', 'completed')
+			->whereHas('kingOfCourtPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($kocTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['king_of_court'] = ($stats['by_type']['king_of_court'] ?? 0) + 1;
+
+			// 1-е место по total_points (как в лидерборде KOC)
+			$winner = $tournament->kingOfCourtPlayers()
+				->orderBy('total_points', 'desc')
+				->first();
 			if ($winner && $winner->user_id === $this->id) {
 				$stats['wins']++;
 			}

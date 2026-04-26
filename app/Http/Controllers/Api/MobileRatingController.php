@@ -552,6 +552,17 @@ class MobileRatingController extends Controller
             if ($index !== false) return $index + 1;
         }
 
+        // Король корта — место по лидерборду
+        if ($tournament->type === 'king_of_court') {
+            $players = $tournament->kingOfCourtPlayers()
+                ->orderByDesc('total_points')
+                ->orderByDesc('wins')
+                ->get();
+            foreach ($players as $i => $player) {
+                if ($player->user_id === $userId) return $i + 1;
+            }
+        }
+
         // Team турнир без плей-офф — место по группе
         if ($tournament->type === 'team' && $myTeamIds->isNotEmpty()) {
             $groups = $tournament->groups()->with('teams')->get();
