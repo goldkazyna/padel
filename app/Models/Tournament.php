@@ -11,6 +11,18 @@ use App\Models\TournamentPlayoffMatch;
 class Tournament extends Model
 {
     use HasFactory;
+
+    /**
+     * При удалении турнира зачищаем связанные RatingHistory-записи,
+     * чтобы они не висели и не светились в карточках игроков.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $tournament) {
+            \App\Models\RatingHistory::where('tournament_id', $tournament->id)->delete();
+        });
+    }
+
 	    // Форматы плей-офф
     const PLAYOFF_FORMAT_MIX = 'mix';
     const PLAYOFF_FORMAT_GROUP_VS = 'group_vs';
