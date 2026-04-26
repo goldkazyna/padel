@@ -192,12 +192,28 @@ class Tournament extends Model
 			'mexicano' => 'Мексикано',
 			'team' => 'Групповой + Плей-офф',
 			'classic' => 'Классический',
+			'king_of_court' => 'Король корта',
 			default => $this->type,
 		};
 	}
 	public function isMexicano(): bool
 	{
 		return $this->type === 'mexicano';
+	}
+
+	public function isKingOfCourt(): bool
+	{
+		return $this->type === 'king_of_court';
+	}
+
+	public function kingOfCourtPlayers()
+	{
+		return $this->hasMany(KingOfCourtPlayer::class);
+	}
+
+	public function kingOfCourtRounds()
+	{
+		return $this->hasMany(KingOfCourtRound::class)->orderBy('round_number');
 	}
 
 	public function mexicanoPlayers()
