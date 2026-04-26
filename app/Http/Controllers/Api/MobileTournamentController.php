@@ -291,6 +291,15 @@ class MobileTournamentController extends Controller
 
         $tournament->participants()->detach($user->id);
 
+        \App\Models\ActivityLog::log(
+            'unregistered',
+            'Tournament',
+            $tournament->id,
+            "{$user->name} снялся с турнира «{$tournament->name}»",
+            ['user_id' => $user->id, 'user_name' => $user->name],
+            $tournament->club_id,
+        );
+
         if ($wasFull && $tournament->status === 'open') {
             $channelService = new \App\Services\TelegramChannelService($tournament->club);
             if ($channelService->isConfigured()) {
@@ -470,7 +479,26 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Вы не зарегистрированы в этом турнире'], 400);
         }
 
+        $team->load(['player1', 'player2']);
+        $partner = $team->player1_id === $user->id ? $team->player2 : $team->player1;
+        $partnerName = $partner->name ?? '—';
+
         $team->delete();
+
+        \App\Models\ActivityLog::log(
+            'unregistered',
+            'Tournament',
+            $tournament->id,
+            "Пара {$user->name} + {$partnerName} снялась с турнира «{$tournament->name}»",
+            [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'partner_id' => $partner->id ?? null,
+                'partner_name' => $partnerName,
+                'team_id' => $team->id,
+            ],
+            $tournament->club_id,
+        );
 
         return response()->json([
             'success' => true,
