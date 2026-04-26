@@ -113,7 +113,15 @@ class Challenge extends Model
 
     public function getAvailablePositions(): array
     {
-        $taken = $this->confirmedPlayers()->pluck('position')->toArray();
+        // Позиция занята если на ней confirmed или invited игрок.
+        // Declined — позиция освобождается.
+        $taken = $this->players()
+            ->whereIn('status', [
+                ChallengePlayer::STATUS_CONFIRMED,
+                ChallengePlayer::STATUS_INVITED,
+            ])
+            ->pluck('position')
+            ->toArray();
         return array_values(array_diff([1, 2, 3, 4], $taken));
     }
 
