@@ -102,7 +102,7 @@ class KingOfCourtService
         if ($tournament->status !== 'in_progress') return false;
 
         $lastRound = $tournament->kingOfCourtRounds()
-            ->orderByDesc('round_number')
+            ->reorder('round_number', 'desc')
             ->first();
 
         return $lastRound && $lastRound->status === 'completed';
@@ -116,7 +116,7 @@ class KingOfCourtService
         if (!$this->canGenerateNextRound($tournament)) return false;
 
         $lastRound = $tournament->kingOfCourtRounds()
-            ->orderByDesc('round_number')
+            ->reorder('round_number', 'desc')
             ->with('matches')
             ->first();
 
@@ -190,7 +190,7 @@ class KingOfCourtService
         if ($tournament->status !== 'in_progress') return false;
 
         $lastRound = $tournament->kingOfCourtRounds()
-            ->orderByDesc('round_number')
+            ->reorder('round_number', 'desc')
             ->first();
 
         return $lastRound && $lastRound->status === 'completed';
