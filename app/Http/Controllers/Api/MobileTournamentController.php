@@ -1997,8 +1997,13 @@ class MobileTournamentController extends Controller
     {
         $userId = $user ? (int) $user->id : null;
 
+        // Если в запросе пришёл player_id — считаем дельту рейтинга для него
+        // (нужно когда смотрим из чужого профиля). Иначе — для текущего юзера.
+        $targetId = (int) (request()->query('player_id') ?: $userId);
+
         $kocPlayers = $tournament->kingOfCourtPlayers()->with('user')->get();
         $playerStats = [];
+        $ratingEvolve = [];
         foreach ($kocPlayers as $kp) {
             $u = $kp->user;
             if (!$u) continue;
@@ -2015,6 +2020,7 @@ class MobileTournamentController extends Controller
                 'points_against' => (int) $kp->points_against,
                 'total_points' => (int) $kp->total_points,
             ];
+            $ratingEvolve[$u->id] = ['current_rating' => (int) $kp->rating_before];
         }
 
         $rounds = $tournament->kingOfCourtRounds()
@@ -2023,6 +2029,21 @@ class MobileTournamentController extends Controller
             }])
             ->orderBy('round_number')
             ->get();
+
+        // Считаем дельту рейтинга для целевого игрока в каждом раунде.
+        // Эволюционируем рейтинги ВСЕХ игроков по матчам в порядке раундов
+        // (так же как finishTournament), запоминаем pre/post для targetId.
+        $kocService = app(\App\Services\KingOfCourtService::class);
+        $roundDeltas = [];
+        foreach ($rounds as $r) {
+            $pre = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            foreach ($r->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $kocService->calculateEloForMatch($m, $ratingEvolve);
+            }
+            $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
+        }
 
         $roundsOut = [];
         foreach ($rounds as $r) {
@@ -2074,6 +2095,7 @@ class MobileTournamentController extends Controller
                 'round_number' => $r->round_number,
                 'status' => $r->status,
                 'matches' => $matchesOut,
+                'my_rating_change' => $roundDeltas[$r->id] ?? null,
             ];
         }
 

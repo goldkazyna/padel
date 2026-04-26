@@ -359,8 +359,10 @@ class KingOfCourtService
 
     /**
      * ELO для одного матча KOC: 2v2, средние рейтинги команд → дельта.
+     * Public — используется снаружи (например, MobileTournamentController::live)
+     * чтобы прокручивать эволюцию рейтингов без записи в БД.
      */
-    protected function calculateEloForMatch(KingOfCourtMatch $match, array &$ratingChanges): void
+    public function calculateEloForMatch(KingOfCourtMatch $match, array &$ratingChanges): void
     {
         $p1_1 = $match->team1_player1_id;
         $p1_2 = $match->team1_player2_id;
