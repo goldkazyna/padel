@@ -309,20 +309,82 @@ class KingOfCourtService
 
     /**
      * Завершить турнир.
+     * Применяем ELO ко всем матчам, сохраняем rating_after, обновляем
+     * рейтинг пользователя и пишем запись в RatingHistory.
      */
     public function finishTournament(Tournament $tournament): bool
     {
         if (!$this->canFinishTournament($tournament)) return false;
 
-        // Сохраняем итоговый рейтинг (rating_after) — пока просто = before, ELO позже
-        foreach ($tournament->kingOfCourtPlayers as $kp) {
-            if ($kp->rating_after === null) {
-                $kp->update(['rating_after' => $kp->user->rating ?? $kp->rating_before]);
+        $players = $tournament->kingOfCourtPlayers()->with('user')->get();
+        $ratingChanges = [];
+
+        foreach ($players as $player) {
+            $ratingChanges[$player->user_id] = [
+                'rating_before' => (int) $player->rating_before,
+                'current_rating' => (int) $player->rating_before,
+            ];
+        }
+
+        foreach ($tournament->kingOfCourtRounds()->orderBy('round_number')->get() as $round) {
+            foreach ($round->matches as $match) {
+                if ($match->status !== 'completed') continue;
+                $this->calculateEloForMatch($match, $ratingChanges);
             }
+        }
+
+        foreach ($players as $player) {
+            $calcFinal = (int) $ratingChanges[$player->user_id]['current_rating'];
+            $delta = $calcFinal - (int) $player->rating_before;
+            $actualBefore = (int) ($player->user->rating ?? $player->rating_before);
+            $actualAfter = max($this->minRating, $actualBefore + $delta);
+
+            $player->update(['rating_after' => $actualAfter]);
+            $player->user->update(['rating' => $actualAfter]);
+            $this->updateLevel($player->user->fresh());
+
+            \App\Models\RatingHistory::create([
+                'user_id' => $player->user_id,
+                'tournament_id' => $tournament->id,
+                'rating_before' => $actualBefore,
+                'rating_after' => $actualAfter,
+                'change' => $delta,
+                'reason' => $tournament->name,
+            ]);
         }
 
         $tournament->update(['status' => 'completed']);
         return true;
+    }
+
+    /**
+     * ELO для одного матча KOC: 2v2, средние рейтинги команд → дельта.
+     */
+    protected function calculateEloForMatch(KingOfCourtMatch $match, array &$ratingChanges): void
+    {
+        $p1_1 = $match->team1_player1_id;
+        $p1_2 = $match->team1_player2_id;
+        $p2_1 = $match->team2_player1_id;
+        $p2_2 = $match->team2_player2_id;
+
+        if (!isset($ratingChanges[$p1_1], $ratingChanges[$p1_2], $ratingChanges[$p2_1], $ratingChanges[$p2_2])) {
+            return;
+        }
+
+        $team1Rating = ($ratingChanges[$p1_1]['current_rating'] + $ratingChanges[$p1_2]['current_rating']) / 2;
+        $team2Rating = ($ratingChanges[$p2_1]['current_rating'] + $ratingChanges[$p2_2]['current_rating']) / 2;
+
+        $result = $this->calculateRatingChange(
+            $team1Rating,
+            $team2Rating,
+            $match->team1_score,
+            $match->team2_score
+        );
+
+        $ratingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_1]['current_rating'], $result['change1']);
+        $ratingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p1_2]['current_rating'], $result['change1']);
+        $ratingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_1]['current_rating'], $result['change2']);
+        $ratingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($ratingChanges[$p2_2]['current_rating'], $result['change2']);
     }
 
     // ===== Internal =====
