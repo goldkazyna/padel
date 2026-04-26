@@ -1590,10 +1590,13 @@ class MobileTournamentController extends Controller
         if ($tournament->type === 'team') {
             return $this->liveTeam($tournament, $user);
         }
+        if ($tournament->type === 'king_of_court') {
+            return $this->liveKingOfCourt($tournament, $user);
+        }
         if ($tournament->type !== 'americano') {
             return response()->json([
                 'success' => false,
-                'message' => 'Live-режим пока доступен только для Американо/Мексикано/Группового',
+                'message' => 'Live-режим пока доступен только для Американо/Мексикано/Группового/Король корта',
             ], 400);
         }
 
@@ -1982,6 +1985,142 @@ class MobileTournamentController extends Controller
             'leaderboard' => array_values($leaderboard),
             'rounds' => $roundsOut,
             'playoff' => $playoff,
+        ]);
+    }
+
+    /**
+     * Live для турнира «Король корта».
+     * Корты упорядочены 1..N: 1 = «Топ», N = «Дно», середина — «Среднее».
+     * Лидерборд — по KingOfCourtPlayer.total_points/wins/diff.
+     */
+    private function liveKingOfCourt(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+
+        $kocPlayers = $tournament->kingOfCourtPlayers()->with('user')->get();
+        $playerStats = [];
+        foreach ($kocPlayers as $kp) {
+            $u = $kp->user;
+            if (!$u) continue;
+            $playerStats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'wins' => (int) $kp->wins,
+                'losses' => (int) $kp->losses,
+                'draws' => 0,
+                'points_for' => (int) $kp->points_for,
+                'points_against' => (int) $kp->points_against,
+                'total_points' => (int) $kp->total_points,
+            ];
+        }
+
+        $rounds = $tournament->kingOfCourtRounds()
+            ->with(['matches' => function ($q) {
+                $q->orderBy('court_number');
+            }])
+            ->orderBy('round_number')
+            ->get();
+
+        $roundsOut = [];
+        foreach ($rounds as $r) {
+            $courtsTotal = $r->matches->count();
+            $matchesOut = [];
+            foreach ($r->matches as $m) {
+                $courtIdx = (int) $m->court_number;
+                if ($courtIdx === 1) {
+                    $courtTier = 'top';
+                    $courtLabel = 'Корт 1 · Топ';
+                } elseif ($courtIdx === $courtsTotal) {
+                    $courtTier = 'bottom';
+                    $courtLabel = "Корт {$courtIdx} · Дно";
+                } else {
+                    $courtTier = 'middle';
+                    $courtLabel = "Корт {$courtIdx}";
+                }
+
+                $t1HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team1_player1_id,
+                    (int) $m->team1_player2_id,
+                ], true);
+                $t2HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team2_player1_id,
+                    (int) $m->team2_player2_id,
+                ], true);
+
+                $matchesOut[] = [
+                    'id' => $m->id,
+                    'court_number' => $courtIdx,
+                    'court_tier' => $courtTier,
+                    'court_label' => $courtLabel,
+                    'status' => $m->status,
+                    'team1' => [
+                        'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                        'has_me' => $t1HasMe,
+                    ],
+                    'team2' => [
+                        'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                        'has_me' => $t2HasMe,
+                    ],
+                    'has_me' => $t1HasMe || $t2HasMe,
+                ];
+            }
+            $roundsOut[] = [
+                'id' => $r->id,
+                'round_number' => $r->round_number,
+                'status' => $r->status,
+                'matches' => $matchesOut,
+            ];
+        }
+
+        uasort($playerStats, function ($a, $b) {
+            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+        });
+
+        $position = 1;
+        $leaderboard = [];
+        foreach ($playerStats as $s) {
+            $totalGames = $s['wins'] + $s['losses'];
+            $diff = $s['points_for'] - $s['points_against'];
+            $totalBalls = $s['points_for'] + $s['points_against'];
+            $ballPercent = $totalBalls > 0
+                ? (int) round($s['points_for'] / $totalBalls * 100)
+                : 0;
+            $leaderboard[] = array_merge($s, [
+                'position' => $position++,
+                'games_played' => $totalGames,
+                'point_diff' => $diff,
+                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                'ball_percent' => $ballPercent,
+                'is_me' => $userId && (int) $s['id'] === $userId,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'has_playoff' => false,
+                'courts_count' => (int) ($tournament->max_participants / 4),
+            ],
+            'leaderboard' => array_values($leaderboard),
+            'rounds' => $roundsOut,
+            'playoff' => [],
         ]);
     }
 
