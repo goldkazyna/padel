@@ -2005,6 +2005,9 @@ class MobileTournamentController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Сервис нужен для правильной сортировки (учитывает личную встречу)
+        $teamService = app(\App\Services\TeamTournamentService::class);
+
         // Чтобы определить has_me для команды — соберём id моих команд
         $myTeamIds = [];
         if ($userId) {
@@ -2035,32 +2038,40 @@ class MobileTournamentController extends Controller
 
         $groupsOut = [];
         foreach ($teamGroups as $group) {
-            // Standings — отсортированы запросом
+            // Standings — берём через сервис чтобы учитывалась личная встреча
+            // при равных очках (как в админке).
+            $sortedStandings = $teamService->getSortedStandings($group);
+
             $standings = [];
             $position = 1;
-            foreach ($group->standings as $s) {
-                $team = $s->team;
+            foreach ($sortedStandings as $row) {
+                $teamId = (int) $row['team_id'];
+                // Получаем команду из подгруженных standings (для аватаров)
+                $standingObj = $group->standings->firstWhere('team_id', $teamId);
+                $team = $standingObj?->team;
                 if (!$team) continue;
-                $diff = (int) $s->points_for - (int) $s->points_against;
-                $totalBalls = (int) $s->points_for + (int) $s->points_against;
+
+                $diff = (int) $row['points_for'] - (int) $row['points_against'];
+                $totalBalls = (int) $row['points_for'] + (int) $row['points_against'];
                 $ballPercent = $totalBalls > 0
-                    ? (int) round((int) $s->points_for / $totalBalls * 100)
+                    ? (int) round((int) $row['points_for'] / $totalBalls * 100)
                     : 0;
+
                 $standings[] = [
                     'position' => $position++,
                     'team_id' => $team->id,
                     'team_name' => $team->name,
                     'player1' => $fmtPlayer($team->player1),
                     'player2' => $fmtPlayer($team->player2),
-                    'played' => (int) $s->played,
-                    'won' => (int) $s->won,
-                    'lost' => (int) $s->lost,
-                    'draws' => max(0, (int) $s->played - (int) $s->won - (int) $s->lost),
-                    'points_for' => (int) $s->points_for,
-                    'points_against' => (int) $s->points_against,
+                    'played' => (int) $row['played'],
+                    'won' => (int) $row['won'],
+                    'lost' => (int) $row['lost'],
+                    'draws' => max(0, (int) $row['played'] - (int) $row['won'] - (int) $row['lost']),
+                    'points_for' => (int) $row['points_for'],
+                    'points_against' => (int) $row['points_against'],
                     'point_diff' => $diff,
                     'ball_percent' => $ballPercent,
-                    'points' => (int) $s->points,
+                    'points' => (int) $row['points'],
                     'has_me' => in_array((int) $team->id, $myTeamIds, true),
                 ];
             }
