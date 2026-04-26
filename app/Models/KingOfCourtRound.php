@@ -24,7 +24,7 @@ class KingOfCourtRound extends Model
 
     public function matches()
     {
-        return $this->hasMany(KingOfCourtMatch::class)->orderBy('court_number');
+        return $this->hasMany(KingOfCourtMatch::class, 'kingofcourt_round_id')->orderBy('court_number');
     }
 
     public function isCompleted(): bool
