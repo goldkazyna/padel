@@ -71,6 +71,16 @@ Route::get('/consent', function () {
                 'type' => 'grouped',
             ]));
         })->name('tournaments.previewRatingTeam');
+
+        Route::get('/tournaments/{tournament}/preview-rating-kingofcourt', function (\App\Models\Tournament $tournament) {
+            $service = app(\App\Services\KingOfCourtService::class);
+            $preview = $service->previewRatingChanges($tournament);
+            return response(view('preview-rating', [
+                'tournament' => $tournament,
+                'preview' => ['Король корта' => $preview],
+                'type' => 'grouped',
+            ]));
+        })->name('tournaments.previewRatingKingOfCourt');
         /*
 /*
 |--------------------------------------------------------------------------

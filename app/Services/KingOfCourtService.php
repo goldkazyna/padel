@@ -19,6 +19,117 @@ use App\Models\Tournament;
  */
 class KingOfCourtService
 {
+    use \App\Traits\RatingCalculator;
+
+    /**
+     * Превью изменений рейтинга по матчам KOC.
+     * Структура такая же, как у MexicanoService::previewRatingChanges.
+     */
+    public function previewRatingChanges(Tournament $tournament): array
+    {
+        $players = $tournament->kingOfCourtPlayers()->with('user')->get();
+        $ratingChanges = [];
+
+        foreach ($players as $player) {
+            $ratingBefore = (int) $player->rating_before;
+            $ratingChanges[$player->user_id] = [
+                'name' => $player->user->name,
+                'phone' => $player->user->phone,
+                'rating_before' => $ratingBefore,
+                'current_rating' => $ratingBefore,
+                'matches' => [],
+            ];
+        }
+
+        foreach ($tournament->kingOfCourtRounds()->orderBy('round_number')->get() as $round) {
+            foreach ($round->matches as $match) {
+                if (!$match->isCompleted()) continue;
+
+                $p1_1 = $match->team1_player1_id;
+                $p1_2 = $match->team1_player2_id;
+                $p2_1 = $match->team2_player1_id;
+                $p2_2 = $match->team2_player2_id;
+
+                if (!isset($ratingChanges[$p1_1], $ratingChanges[$p1_2], $ratingChanges[$p2_1], $ratingChanges[$p2_2])) {
+                    continue;
+                }
+
+                $r1_1 = $ratingChanges[$p1_1]['current_rating'];
+                $r1_2 = $ratingChanges[$p1_2]['current_rating'];
+                $r2_1 = $ratingChanges[$p2_1]['current_rating'];
+                $r2_2 = $ratingChanges[$p2_2]['current_rating'];
+
+                $team1Rating = ($r1_1 + $r1_2) / 2;
+                $team2Rating = ($r2_1 + $r2_2) / 2;
+
+                $result = $this->calculateRatingChange(
+                    $team1Rating,
+                    $team2Rating,
+                    $match->team1_score,
+                    $match->team2_score
+                );
+                $change1 = $result['change1'];
+                $change2 = $result['change2'];
+
+                $expected1 = $this->expectedScore($team1Rating, $team2Rating);
+                $kFactor = $this->getMatchKFactor($team1Rating, $team2Rating);
+                $multiplier = $this->getScoreMultiplier($match->team1_score, $match->team2_score);
+
+                $courtTotal = $round->matches->count();
+                $courtIdx = (int) $match->court_number;
+                $courtTag = $courtIdx === 1
+                    ? "К{$courtIdx}↑"
+                    : ($courtIdx === $courtTotal ? "К{$courtIdx}↓" : "К{$courtIdx}");
+
+                $matchInfo1 = sprintf(
+                    "Р%d %s: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
+                    $courtTag,
+                    $ratingChanges[$p1_1]['name'], $r1_1,
+                    $ratingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $ratingChanges[$p2_1]['name'], $r2_1,
+                    $ratingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $match->team1_score, $match->team2_score,
+                    $kFactor,
+                    $multiplier,
+                    $expected1 * 100,
+                    $change1
+                );
+
+                $matchInfo2 = sprintf(
+                    "Р%d %s: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
+                    $courtTag,
+                    $ratingChanges[$p2_1]['name'], $r2_1,
+                    $ratingChanges[$p2_2]['name'], $r2_2,
+                    round($team2Rating),
+                    $ratingChanges[$p1_1]['name'], $r1_1,
+                    $ratingChanges[$p1_2]['name'], $r1_2,
+                    round($team1Rating),
+                    $match->team2_score, $match->team1_score,
+                    $kFactor,
+                    $multiplier,
+                    (1 - $expected1) * 100,
+                    $change2
+                );
+
+                $ratingChanges[$p1_1]['matches'][] = $matchInfo1;
+                $ratingChanges[$p1_2]['matches'][] = $matchInfo1;
+                $ratingChanges[$p2_1]['matches'][] = $matchInfo2;
+                $ratingChanges[$p2_2]['matches'][] = $matchInfo2;
+
+                $ratingChanges[$p1_1]['current_rating'] = $this->applyRatingChange($r1_1, $change1);
+                $ratingChanges[$p1_2]['current_rating'] = $this->applyRatingChange($r1_2, $change1);
+                $ratingChanges[$p2_1]['current_rating'] = $this->applyRatingChange($r2_1, $change2);
+                $ratingChanges[$p2_2]['current_rating'] = $this->applyRatingChange($r2_2, $change2);
+            }
+        }
+
+        return $ratingChanges;
+    }
+
     /**
      * Запустить турнир: создаём KOC-игроков, генерим первый раунд (рандомно).
      */
