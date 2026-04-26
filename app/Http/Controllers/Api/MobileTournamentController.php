@@ -1744,35 +1744,52 @@ class MobileTournamentController extends Controller
 
         $matches = $tournament->playoffMatches()
             ->with([
+                // Американо: игроки напрямую
                 'team1Player1', 'team1Player2',
                 'team2Player1', 'team2Player2',
+                // Team: игроки через команды
+                'team1.player1', 'team1.player2',
+                'team2.player1', 'team2.player2',
             ])
             ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
             ->get();
 
         if ($matches->isEmpty()) return [];
 
+        $fmtP = function ($p) {
+            if (!$p) return null;
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'avatar' => $p->avatar,
+            ];
+        };
+
         $stages = [];
         foreach ($matches as $m) {
             $stageKey = $m->stage_name ?: ($m->stage ?? '—');
 
-            $t1HasMe = $userId !== null && in_array($userId, [
-                (int) $m->team1_player1_id,
-                (int) $m->team1_player2_id,
-            ], true);
-            $t2HasMe = $userId !== null && in_array($userId, [
-                (int) $m->team2_player1_id,
-                (int) $m->team2_player2_id,
-            ], true);
+            // Игроки команды берём в зависимости от типа матча:
+            // - Американо: team1_player1_id / team1_player2_id напрямую
+            // - Team: через relationship team1->player1/player2
+            $isAmericano = $m->team1_player1_id !== null;
 
-            $fmtP = function ($p) {
-                if (!$p) return null;
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'avatar' => $p->avatar,
-                ];
-            };
+            $t1P1 = $isAmericano ? $m->team1Player1 : ($m->team1->player1 ?? null);
+            $t1P2 = $isAmericano ? $m->team1Player2 : ($m->team1->player2 ?? null);
+            $t2P1 = $isAmericano ? $m->team2Player1 : ($m->team2->player1 ?? null);
+            $t2P2 = $isAmericano ? $m->team2Player2 : ($m->team2->player2 ?? null);
+
+            $t1Ids = array_filter([
+                $t1P1?->id ? (int) $t1P1->id : null,
+                $t1P2?->id ? (int) $t1P2->id : null,
+            ]);
+            $t2Ids = array_filter([
+                $t2P1?->id ? (int) $t2P1->id : null,
+                $t2P2?->id ? (int) $t2P2->id : null,
+            ]);
+
+            $t1HasMe = $userId !== null && in_array($userId, $t1Ids, true);
+            $t2HasMe = $userId !== null && in_array($userId, $t2Ids, true);
 
             $stages[$stageKey][] = [
                 'id' => $m->id,
@@ -1780,14 +1797,14 @@ class MobileTournamentController extends Controller
                 'status' => $m->status,
                 'match_number' => $m->match_number,
                 'team1' => [
-                    'player1' => $fmtP($m->team1Player1),
-                    'player2' => $fmtP($m->team1Player2),
+                    'player1' => $fmtP($t1P1),
+                    'player2' => $fmtP($t1P2),
                     'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
                     'has_me' => $t1HasMe,
                 ],
                 'team2' => [
-                    'player1' => $fmtP($m->team2Player1),
-                    'player2' => $fmtP($m->team2Player2),
+                    'player1' => $fmtP($t2P1),
+                    'player2' => $fmtP($t2P2),
                     'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
                     'has_me' => $t2HasMe,
                 ],
