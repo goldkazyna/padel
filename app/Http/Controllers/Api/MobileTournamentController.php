@@ -1744,17 +1744,24 @@ class MobileTournamentController extends Controller
 
         $matches = $tournament->playoffMatches()
             ->with([
-                // Американо: игроки напрямую
                 'team1Player1', 'team1Player2',
                 'team2Player1', 'team2Player2',
-                // Team: игроки через команды
                 'team1.player1', 'team1.player2',
                 'team2.player1', 'team2.player2',
             ])
-            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
+            ->orderBy('match_number')
             ->get();
 
         if ($matches->isEmpty()) return [];
+
+        // Логический порядок стадий: 1/8 → 1/4 → Полуфинал → За 3-е место → Финал
+        $stageOrder = [
+            '1/8 финала' => 1,
+            '1/4 финала' => 2,
+            'Полуфинал' => 3,
+            'За 3-е место' => 4,
+            'Финал' => 5,
+        ];
 
         $fmtP = function ($p) {
             if (!$p) return null;
@@ -1767,7 +1774,16 @@ class MobileTournamentController extends Controller
 
         $stages = [];
         foreach ($matches as $m) {
-            $stageKey = $m->stage_name ?: ($m->stage ?? '—');
+            // Bronze-матч идёт под отдельным заголовком «За 3-е место»,
+            // даже если в БД его stage='final'
+            $stageKey = $m->is_bronze
+                ? 'За 3-е место'
+                : ($m->stage_name ?: ($m->stage ?? '—'));
+
+            // Для нижней сетки (групповой 24-парный) добавим маркер
+            if ($m->bracket === 'lower') {
+                $stageKey .= ' (нижняя сетка)';
+            }
 
             // Игроки команды берём в зависимости от типа матча:
             // - Американо: team1_player1_id / team1_player2_id напрямую
@@ -1812,11 +1828,26 @@ class MobileTournamentController extends Controller
             ];
         }
 
+        // Сортируем стадии в логическом порядке
+        $stageList = array_keys($stages);
+        usort($stageList, function ($a, $b) use ($stageOrder) {
+            // У lower bracket берём базовое имя без " (нижняя сетка)"
+            $baseA = preg_replace('/\s*\(нижняя сетка\)$/u', '', $a);
+            $baseB = preg_replace('/\s*\(нижняя сетка\)$/u', '', $b);
+            $orderA = $stageOrder[$baseA] ?? 99;
+            $orderB = $stageOrder[$baseB] ?? 99;
+            if ($orderA !== $orderB) return $orderA <=> $orderB;
+            // Lower bracket после upper в той же стадии
+            $aLower = str_contains($a, 'нижняя') ? 1 : 0;
+            $bLower = str_contains($b, 'нижняя') ? 1 : 0;
+            return $aLower <=> $bLower;
+        });
+
         $out = [];
-        foreach ($stages as $name => $list) {
+        foreach ($stageList as $name) {
             $out[] = [
                 'stage' => $name,
-                'matches' => $list,
+                'matches' => $stages[$name],
             ];
         }
         return $out;
