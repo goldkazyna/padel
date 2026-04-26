@@ -37,9 +37,18 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     $storeUrl = $isIOS
         ? config('mobile_app.store_url_ios')
         : config('mobile_app.store_url_android');
+
+    // Картинка для OG-превью: лого клуба → fallback общая картинка.
+    $logo = $tournament->club->logo ?? null;
+    if ($logo && !preg_match('#^https?://#', $logo)) {
+        $logo = asset('logos/' . ltrim($logo, '/'));
+    }
+    $ogImage = $logo ?: asset('logos/add-padel-almaty.jpg');
+
     return view('tournament-share', [
         'tournament' => $tournament,
         'storeUrl' => $storeUrl,
+        'ogImage' => $ogImage,
     ]);
 })->name('tournament.share');
 

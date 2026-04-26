@@ -3,16 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $tournament->name }} — Padel KZ</title>
+    <title>Открыть турнир «{{ $tournament->name }}» — Padel KZ</title>
 
-    <meta property="og:title" content="{{ $tournament->name }}">
-    <meta property="og:description" content="{{ $tournament->club->name ?? 'Padel-турнир' }} · {{ $tournament->start_date->translatedFormat('j F Y, H:i') }}">
+    @php
+        $clubName = $tournament->club->name ?? 'Padel KZ';
+        $dateStr = $tournament->start_date->translatedFormat('j F Y, H:i');
+        $levelStr = trim((string) $tournament->min_level) === trim((string) $tournament->max_level)
+            ? 'Уровень ' . $tournament->min_level
+            : 'Уровень ' . $tournament->min_level . '–' . $tournament->max_level;
+        $price = $tournament->price > 0 ? number_format((float) $tournament->price, 0, '.', ' ') . ' ₸' : 'Бесплатно';
+        $ogDescription = "{$clubName} · {$dateStr}\n{$levelStr} · {$price}";
+    @endphp
+
+    <meta property="og:site_name" content="Padel KZ">
+    <meta property="og:title" content="Открыть турнир «{{ $tournament->name }}»">
+    <meta property="og:description" content="{{ $ogDescription }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url('/t/'.$tournament->id) }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
 
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{{ $tournament->name }}">
-    <meta name="twitter:description" content="{{ $tournament->club->name ?? 'Padel-турнир' }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Открыть турнир «{{ $tournament->name }}»">
+    <meta name="twitter:description" content="{{ $ogDescription }}">
+    <meta name="twitter:image" content="{{ $ogImage }}">
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
