@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\KingOfCourtMatch;
+use App\Models\Notification;
 use App\Models\Tournament;
+use App\Models\User;
+use App\Services\FCMNotificationService;
 use App\Services\KingOfCourtService;
 use Illuminate\Http\Request;
 
@@ -73,10 +76,71 @@ class KingOfCourtController extends Controller
 
         $ok = $service->generateNextRound($tournament);
 
-        if ($ok) {
-            return back()->with('success', 'Следующий раунд сгенерирован!');
+        if (!$ok) {
+            return back()->with('error', 'Ошибка генерации раунда');
         }
 
-        return back()->with('error', 'Ошибка генерации раунда');
+        $newRoundNumber = $tournament->kingOfCourtRounds()->max('round_number');
+        $tournamentId = $tournament->id;
+        $tournamentName = $tournament->name;
+
+        // Отложенная отправка пушей — не блокируем редирект
+        app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
+            self::notifyKocParticipants(
+                $tournamentId,
+                "Раунд {$newRoundNumber} сгенерирован",
+                "{$tournamentName} — открой приложение, чтобы увидеть свой корт",
+                [
+                    'type' => 'tournament',
+                    'category' => 'tournament',
+                    'subtype' => 'koc_round_generated',
+                    'tournament_id' => (string) $tournamentId,
+                    'round_number' => (string) $newRoundNumber,
+                ]
+            );
+        });
+
+        return back()->with('success', "Раунд {$newRoundNumber} сгенерирован! Игрокам отправлено уведомление.");
+    }
+
+    /**
+     * Отправить пуш всем зарегистрированным участникам KOC-турнира +
+     * записать в колокольчик. Используется через app()->terminating().
+     */
+    protected static function notifyKocParticipants(int $tournamentId, string $title, string $body, array $data = []): int
+    {
+        $userIds = \App\Models\KingOfCourtPlayer::where('tournament_id', $tournamentId)
+            ->pluck('user_id')
+            ->all();
+
+        if (empty($userIds)) return 0;
+
+        $users = User::whereIn('id', $userIds)
+            ->whereHas('deviceTokens')
+            ->with('deviceTokens')
+            ->get();
+
+        if ($users->isEmpty()) return 0;
+
+        $tokens = $users->flatMap(fn($u) => $u->deviceTokens->pluck('token'))->all();
+
+        $fcm = app(FCMNotificationService::class);
+        $sent = $fcm->sendMulticastToTokens($tokens, $title, $body, $data);
+
+        $now = now();
+        $records = $users->map(fn($u) => [
+            'user_id' => $u->id,
+            'title' => $title,
+            'body' => $body,
+            'type' => $data['type'] ?? 'info',
+            'category' => $data['category'] ?? 'tournament',
+            'data' => json_encode($data),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        Notification::insert($records);
+
+        return $sent;
     }
 }
