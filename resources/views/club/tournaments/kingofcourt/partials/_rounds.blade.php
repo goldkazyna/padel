@@ -32,14 +32,12 @@
                     @foreach($round->matches as $match)
                         @php
                             $courtIdx = $match->court_number;
+                            $courtLabel = "Корт {$courtIdx}";
                             if ($courtIdx === 1) {
-                                $courtLabel = 'Корт 1 · Топ';
                                 $courtBadgeClass = 'court-top';
                             } elseif ($courtIdx === $courtsTotal) {
-                                $courtLabel = "Корт {$courtIdx} · Дно";
                                 $courtBadgeClass = 'court-bottom';
                             } else {
-                                $courtLabel = "Корт {$courtIdx}";
                                 $courtBadgeClass = 'court-middle';
                             }
                         @endphp

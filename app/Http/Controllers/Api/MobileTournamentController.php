@@ -2032,14 +2032,12 @@ class MobileTournamentController extends Controller
                 $courtIdx = (int) $m->court_number;
                 if ($courtIdx === 1) {
                     $courtTier = 'top';
-                    $courtLabel = 'Корт 1 · Топ';
                 } elseif ($courtIdx === $courtsTotal) {
                     $courtTier = 'bottom';
-                    $courtLabel = "Корт {$courtIdx} · Дно";
                 } else {
                     $courtTier = 'middle';
-                    $courtLabel = "Корт {$courtIdx}";
                 }
+                $courtLabel = "Корт {$courtIdx}";
 
                 $t1HasMe = $userId !== null && in_array($userId, [
                     (int) $m->team1_player1_id,
