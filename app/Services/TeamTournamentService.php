@@ -751,7 +751,8 @@ class TeamTournamentService
 				'status' => 'pending',
 			]);
 
-			// Матч за 3-е место: лузеры SF
+			// Матч за 3-е место: лузеры SF (используем 'L5'/'L6' для совместимости
+			// с QF-форматом — см. advanceWinner legacy alias)
 			if ($tournament->has_bronze_match) {
 				TournamentPlayoffMatch::create([
 					'tournament_id' => $tournament->id,
@@ -760,8 +761,8 @@ class TeamTournamentService
 					'bracket' => 'upper',
 					'is_bronze' => true,
 					'match_number' => 3,
-					'team1_source' => 'L1',
-					'team2_source' => 'L2',
+					'team1_source' => 'L5',
+					'team2_source' => 'L6',
 					'status' => 'pending',
 				]);
 			}
@@ -819,7 +820,11 @@ class TeamTournamentService
 				'status' => 'pending',
 			]);
 
-			// Матч за 3-е место: лузеры SF (SF match_number 1 и 2)
+			// Матч за 3-е место: лузеры SF.
+			// Используем 'L5'/'L6' (а не 'L1'/'L2'), потому что match_number 1,2
+			// также есть у QF — иначе advanceWinner после QF неправильно
+			// заполнит bronze квартером-проигравшим. SF match_number 1,2 —
+			// при разрешении мы расширяем loseSrcs до 'L'.(4+match#) (см. advanceWinner).
 			if ($tournament->has_bronze_match) {
 				TournamentPlayoffMatch::create([
 					'tournament_id' => $tournament->id,
@@ -828,8 +833,8 @@ class TeamTournamentService
 					'bracket' => 'upper',
 					'is_bronze' => true,
 					'match_number' => 3,
-					'team1_source' => 'L1',
-					'team2_source' => 'L2',
+					'team1_source' => 'L5',
+					'team2_source' => 'L6',
 					'status' => 'pending',
 				]);
 			}
@@ -875,7 +880,10 @@ class TeamTournamentService
         $loseSrcs = ['L' . $match->match_number];
 
         if ($match->stage === 'semi') {
-            $winSrcs[] = 'W' . (4 + $match->match_number); // legacy 8-team
+            // Legacy 8-team: SF имеет match_number 1,2 — но Final ожидает 'W5'/'W6'
+            // и Bronze — 'L5'/'L6'. Добавляем алиасы.
+            $winSrcs[] = 'W' . (4 + $match->match_number);
+            $loseSrcs[] = 'L' . (4 + $match->match_number);
         }
 
         $all = $tournament->playoffMatches()->get();
@@ -883,6 +891,12 @@ class TeamTournamentService
             if ($next->id === $match->id) continue;
             $updated = false;
 
+            // Для bronze-матча после semi разрешаем перезапись team_id
+            // (защита от случая, когда bronze был ошибочно заполнен ранее
+            // quarter-проигравшим из-за коллизии match_number QF vs SF).
+            $bronzeOverwrite = $next->is_bronze && $match->stage === 'semi';
+
+            // Победитель → следующий матч
             if (!$next->team1_id && in_array($next->team1_source, $winSrcs, true)) {
                 $next->team1_id = $winnerId;
                 $updated = true;
@@ -890,10 +904,13 @@ class TeamTournamentService
                 $next->team2_id = $winnerId;
                 $updated = true;
             }
-            if (!$next->team1_id && in_array($next->team1_source, $loseSrcs, true)) {
+            // Проигравший → bronze (с overwrite если это semi-источник)
+            if ((!$next->team1_id || $bronzeOverwrite)
+                && in_array($next->team1_source, $loseSrcs, true)) {
                 $next->team1_id = $loserId;
                 $updated = true;
-            } elseif (!$next->team2_id && in_array($next->team2_source, $loseSrcs, true)) {
+            } elseif ((!$next->team2_id || $bronzeOverwrite)
+                && in_array($next->team2_source, $loseSrcs, true)) {
                 $next->team2_id = $loserId;
                 $updated = true;
             }
