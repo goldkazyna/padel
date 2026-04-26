@@ -136,41 +136,42 @@ class KingOfCourtService
             $courtResults[] = ['winners' => $winners, 'losers' => $losers];
         }
 
-        // Применяем ротацию — собираем игроков для каждого следующего корта
+        // Применяем ротацию — собираем игроков для каждого следующего корта.
         // По индексу корта (0-based):
         //   0       (top): прошлые W корта 0 + W корта 1
         //   middle (i):    прошлые L корта (i-1) + W корта (i+1)
         //   N-1   (bot):   прошлые L корта (N-2) + L корта (N-1)
+        // Гарантируем, что новые пары МИКСУЮТСЯ: один игрок из pairA + один из pairB,
+        // т.е. ни одна старая пара не повторяется.
         $newCourts = [];
         for ($i = 0; $i < $courtsCount; $i++) {
-            $players = [];
+            $pairA = [];
+            $pairB = [];
 
             if ($i === 0) {
-                // Топ: победители корта 0 остаются + победители корта 1 поднимаются
-                $players = array_merge(
-                    $courtResults[0]['winners'],
-                    $courtResults[1]['winners'] ?? []
-                );
+                $pairA = $courtResults[0]['winners'];
+                $pairB = $courtResults[1]['winners'] ?? [];
             } elseif ($i === $courtsCount - 1) {
-                // Дно: проигравшие корта (N-2) спускаются + проигравшие корта (N-1) остаются
-                $players = array_merge(
-                    $courtResults[$courtsCount - 2]['losers'] ?? [],
-                    $courtResults[$courtsCount - 1]['losers']
-                );
+                $pairA = $courtResults[$courtsCount - 2]['losers'] ?? [];
+                $pairB = $courtResults[$courtsCount - 1]['losers'];
             } else {
-                // Середина: проигравшие сверху + победители снизу
-                $players = array_merge(
-                    $courtResults[$i - 1]['losers'],
-                    $courtResults[$i + 1]['winners']
-                );
+                $pairA = $courtResults[$i - 1]['losers'];
+                $pairB = $courtResults[$i + 1]['winners'];
             }
 
-            // Защита: если по какой-то причине не 4 игрока — пропускаем
-            if (count($players) !== 4) continue;
+            if (count($pairA) !== 2 || count($pairB) !== 2) continue;
 
-            // Перемешиваем — важно для King of the Court чтобы пары менялись
-            shuffle($players);
-            $newCourts[] = $players;
+            // Случайный порядок внутри каждой пары + случайно меняем pairA и pairB местами.
+            shuffle($pairA);
+            shuffle($pairB);
+            if (random_int(0, 1) === 1) {
+                [$pairA, $pairB] = [$pairB, $pairA];
+            }
+
+            // createRoundFromCourts формирует пары как (idx 0 + idx 2) vs (idx 1 + idx 3).
+            // Раскладка [pairA[0], pairA[1], pairB[0], pairB[1]] даёт:
+            //   team1 = pairA[0] + pairB[0], team2 = pairA[1] + pairB[1] — всегда mixed.
+            $newCourts[] = [$pairA[0], $pairA[1], $pairB[0], $pairB[1]];
         }
 
         if (empty($newCourts)) return false;
