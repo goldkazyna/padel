@@ -126,15 +126,22 @@ class MobileTournamentController extends Controller
             ->orderBy('start_date', 'desc')
             ->with('club');
 
-        if ($dateFrom) {
-            $query->where('start_date', '>=', $dateFrom . ' 00:00:00');
-        } else {
-            $query->where('start_date', '>=', now()->subDays(7)->startOfDay());
-        }
+        // Турнир попадает в период если в диапазон попадает start_date ИЛИ
+        // updated_at (т.е. дата фактического завершения). Это нужно потому
+        // что админ может поставить start_date в будущем, а закончить турнир
+        // раньше — без OR-условия такие турниры пропадают из архива.
+        $from = $dateFrom ? $dateFrom . ' 00:00:00' : now()->subDays(7)->startOfDay();
+        $to = $dateTo ? $dateTo . ' 23:59:59' : null;
 
-        if ($dateTo) {
-            $query->where('start_date', '<=', $dateTo . ' 23:59:59');
-        }
+        $query->where(function ($q) use ($from, $to) {
+            $q->where(function ($qq) use ($from, $to) {
+                $qq->where('start_date', '>=', $from);
+                if ($to) $qq->where('start_date', '<=', $to);
+            })->orWhere(function ($qq) use ($from, $to) {
+                $qq->where('updated_at', '>=', $from);
+                if ($to) $qq->where('updated_at', '<=', $to);
+            });
+        });
 
         $tournaments = $query->get()
             ->map(fn($t) => $this->formatTournament($t, $user));
