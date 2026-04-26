@@ -56,7 +56,8 @@ class ActivityLogController extends Controller
             'total' => $baseQuery->count(),
             'created' => (clone $baseQuery)->where('action', 'created')->count(),
             'updated' => (clone $baseQuery)->where('action', 'updated')->count(),
-            'cancelled' => (clone $baseQuery)->where('action', 'cancelled')->count(),
+            // В «Отменено» включаем и админскую отмену брони, и самоотмену с турнира
+            'cancelled' => (clone $baseQuery)->whereIn('action', ['cancelled', 'unregistered'])->count(),
             'blocked' => (clone $baseQuery)->whereIn('action', ['blocked', 'unblocked'])->count(),
         ];
 
@@ -65,6 +66,7 @@ class ActivityLogController extends Controller
             'CourtBooking' => (clone $baseQuery)->where('subject_type', 'CourtBooking')->count(),
             'ClubClient' => (clone $baseQuery)->where('subject_type', 'ClubClient')->count(),
             'CourtBlock' => (clone $baseQuery)->where('subject_type', 'CourtBlock')->count(),
+            'Tournament' => (clone $baseQuery)->where('subject_type', 'Tournament')->count(),
         ];
 
         // Пользователи клуба для фильтра

@@ -65,12 +65,15 @@
                class="log-chip {{ request('subject') === 'ClubClient' ? 'active' : '' }}"><i class="bi bi-person"></i> Клиенты <span class="log-chip-cnt">{{ $subjectCounts['ClubClient'] }}</span></a>
             <a href="{{ route('club.activityLog', array_merge(request()->except('page'), ['subject' => 'CourtBlock'])) }}"
                class="log-chip {{ request('subject') === 'CourtBlock' ? 'active' : '' }}"><i class="bi bi-lock"></i> Блоки <span class="log-chip-cnt">{{ $subjectCounts['CourtBlock'] }}</span></a>
+            <a href="{{ route('club.activityLog', array_merge(request()->except('page'), ['subject' => 'Tournament'])) }}"
+               class="log-chip {{ request('subject') === 'Tournament' ? 'active' : '' }}"><i class="bi bi-trophy"></i> Турниры <span class="log-chip-cnt">{{ $subjectCounts['Tournament'] }}</span></a>
         </div>
         <select name="action" class="log-filter-select" onchange="document.getElementById('logForm').submit()">
             <option value="">Все действия</option>
             <option value="created" {{ request('action') === 'created' ? 'selected' : '' }}>Создание</option>
             <option value="updated" {{ request('action') === 'updated' ? 'selected' : '' }}>Изменение</option>
             <option value="cancelled" {{ request('action') === 'cancelled' ? 'selected' : '' }}>Отмена</option>
+            <option value="unregistered" {{ request('action') === 'unregistered' ? 'selected' : '' }}>Снятие с турнира</option>
             <option value="blocked" {{ request('action') === 'blocked' ? 'selected' : '' }}>Блокировка</option>
             <option value="unblocked" {{ request('action') === 'unblocked' ? 'selected' : '' }}>Разблокировка</option>
             <option value="deleted" {{ request('action') === 'deleted' ? 'selected' : '' }}>Удаление</option>
@@ -124,6 +127,7 @@
                                 'created' => 'Создание',
                                 'updated' => 'Изменение',
                                 'cancelled' => 'Отмена',
+                                'unregistered' => 'Снятие с турнира',
                                 'blocked' => 'Блокировка',
                                 'unblocked' => 'Разблокировка',
                                 'deleted' => 'Удаление',
@@ -132,6 +136,7 @@
                                 'CourtBooking' => ['label' => 'Бронь', 'class' => 'booking', 'icon' => 'bi-calendar-check'],
                                 'ClubClient' => ['label' => 'Клиент', 'class' => 'client', 'icon' => 'bi-person'],
                                 'CourtBlock' => ['label' => 'Блок', 'class' => 'block', 'icon' => 'bi-lock'],
+                                'Tournament' => ['label' => 'Турнир', 'class' => 'tournament', 'icon' => 'bi-trophy'],
                             ];
                             $subj = $subjectLabels[$log->subject_type] ?? ['label' => $log->subject_type, 'class' => '', 'icon' => 'bi-circle'];
                             $initials = '';
@@ -143,6 +148,7 @@
                                 'created' => ['bg' => '#22c55e', 'color' => '#000'],
                                 'updated' => ['bg' => '#3b82f6', 'color' => '#fff'],
                                 'cancelled' => ['bg' => '#ef4444', 'color' => '#fff'],
+                                'unregistered' => ['bg' => '#ef4444', 'color' => '#fff'],
                                 'blocked' => ['bg' => '#f59e0b', 'color' => '#000'],
                                 'unblocked' => ['bg' => '#a78bfa', 'color' => '#fff'],
                                 'deleted' => ['bg' => '#ef4444', 'color' => '#fff'],
@@ -332,6 +338,8 @@
 .action-badge.unblocked .dot { background: #a78bfa; }
 .action-badge.deleted { background: rgba(239,68,68,0.08); color: #ef4444; }
 .action-badge.deleted .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.action-badge.unregistered { background: rgba(239,68,68,0.08); color: #ef4444; }
+.action-badge.unregistered .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
 
 /* SUBJECT TAG */
 .subject-tag {
@@ -342,6 +350,7 @@
 .subject-tag.booking { color: #60a5fa; border-color: rgba(59,130,246,0.15); background: rgba(59,130,246,0.05); }
 .subject-tag.client { color: #4ade80; border-color: rgba(34,197,94,0.15); background: rgba(34,197,94,0.05); }
 .subject-tag.block { color: #fbbf24; border-color: rgba(245,158,11,0.15); background: rgba(245,158,11,0.05); }
+.subject-tag.tournament { color: #f97316; border-color: rgba(249,115,22,0.15); background: rgba(249,115,22,0.05); }
 
 /* USER */
 .col-user { font-size: 16px; color: #e4e4e7; font-weight: 700; text-align: right; }
