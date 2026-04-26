@@ -318,27 +318,31 @@ class MobileRatingController extends Controller
         $ratingTrend = array_slice($ratingTrend, -10);
         $ratingTrend = array_map('intval', $ratingTrend);
 
-        // История рейтинга — только записи у которых турнир ещё существует
-        // (если турнир удалили из БД, прячем запись, чтобы не было «битых» строк
-        // в карточке игрока с неоткрывающейся детализацией).
+        // История рейтинга. Записи у которых турнир был физически удалён —
+        // отсеиваем на стороне маппинга, чтобы не падать на null relation
+        // и не показывать «битые» строки.
         $history = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->whereHas('tournament')
             ->with('tournament:id,name,type,has_playoff')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
+            ->filter(fn($h) => $h->tournament_id === null || $h->tournament !== null)
             ->map(function($h) use ($user) {
-                $place = $this->getTournamentPlace($h->tournament, $user->id);
+                $place = null;
+                if ($h->tournament) {
+                    $place = $this->getTournamentPlace($h->tournament, $user->id);
+                }
                 return [
                     'tournament_id' => $h->tournament_id,
-                    'tournament_name' => $h->tournament->name,
-                    'tournament_type' => $h->tournament->type,
+                    'tournament_name' => $h->tournament?->name ?? $h->reason ?? 'Турнир',
+                    'tournament_type' => $h->tournament?->type,
                     'date' => $h->created_at->format('d.m.Y'),
                     'change' => $h->change,
                     'rating_after' => $h->rating_after,
                     'place' => $place,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
