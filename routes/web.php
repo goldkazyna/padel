@@ -8,6 +8,7 @@ use App\Http\Controllers\Club\TournamentController as ClubTournamentController;
 use App\Http\Controllers\Club\MatchController;
 use App\Http\Controllers\Club\AmericanoController;
 use App\Http\Controllers\Club\MexicanoController;
+use App\Http\Controllers\Club\KingOfCourtController;
 use App\Http\Controllers\Club\TeamTournamentController;
 use App\Http\Controllers\RatingController;
 use Illuminate\Support\Facades\Route;
@@ -266,6 +267,14 @@ Route::middleware('auth')->group(function () {
                 ->name('mexicano.savePlayoffScore');
             Route::put('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'updatePlayoffScore'])
                 ->name('mexicano.updatePlayoffScore');
+
+            // Король корта
+            Route::post('/kingofcourt/match/{match}/score', [KingOfCourtController::class, 'saveScore'])
+                ->name('kingofcourt.saveScore');
+            Route::put('/kingofcourt/match/{match}/score', [KingOfCourtController::class, 'updateScore'])
+                ->name('kingofcourt.updateScore');
+            Route::post('/kingofcourt/tournament/{tournament}/next-round', [KingOfCourtController::class, 'generateNextRound'])
+                ->name('kingofcourt.nextRound');
 
             // Групповой + Плей-офф (Team)
             Route::post('/tournaments/{tournament}/add-team', [TeamTournamentController::class, 'addTeam'])

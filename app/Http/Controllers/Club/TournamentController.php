@@ -84,7 +84,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:classic,americano,mexicano,team',
+			'type' => 'required|in:classic,americano,mexicano,team,king_of_court',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
@@ -181,6 +181,11 @@ class TournamentController extends Controller
 		// Мексикано — отдельный контроллер
 		if ($tournament->isMexicano()) {
 			return app(\App\Http\Controllers\Club\MexicanoController::class)->show($tournament);
+		}
+
+		// Король корта — отдельный контроллер
+		if ($tournament->isKingOfCourt()) {
+			return app(\App\Http\Controllers\Club\KingOfCourtController::class)->show($tournament);
 		}
 
 		$tournament->load(['club', 'participants']);
@@ -303,10 +308,10 @@ class TournamentController extends Controller
 	/**
 	 * Запустить турнир Американо
 	 */
-	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService)
+	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService)
 	{
 		$club = $this->getClub();
-		
+
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
 		}
@@ -317,6 +322,8 @@ class TournamentController extends Controller
 			$result = $mexicanoService->startTournament($tournament);
 		} elseif ($tournament->isTeamBased()) {
 			$result = $teamTournamentService->startTournament($tournament);
+		} elseif ($tournament->isKingOfCourt()) {
+			$result = $kingOfCourtService->startTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}
@@ -439,10 +446,10 @@ class TournamentController extends Controller
 	/**
 	 * Завершить турнир и начислить рейтинг
 	 */
-	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService)
+	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService)
 	{
 		$club = $this->getClub();
-		
+
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
 		}
@@ -462,6 +469,11 @@ class TournamentController extends Controller
 				return back()->with('error', 'Финал не сыгран');
 			}
 			$result = $teamTournamentService->finishTournament($tournament);
+		} elseif ($tournament->isKingOfCourt()) {
+			if (!$kingOfCourtService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Доиграйте текущий раунд');
+			}
+			$result = $kingOfCourtService->finishTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}

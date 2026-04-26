@@ -45,6 +45,7 @@
 							<option value="americano" {{ old('type') === 'americano' ? 'selected' : '' }}>Американо</option>
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
+							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -302,6 +303,17 @@
 							Лучшие выходят в плей-офф (на вылет).
 						</div>
 					</div>
+
+					<div id="kingOfCourtFields" style="display: none;">
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Король корта:</strong> Игроков должно быть кратно 4 (минимум 8). Кортов = игроков ÷ 4.
+							После каждого раунда: победители корта 1 остаются, проигравшие последнего корта остаются,
+							остальные двигаются вверх/вниз. Пары перемешиваются каждый раунд.
+							Раундов столько, сколько решит админ — кнопка «Завершить турнир» появляется,
+							когда последний раунд доигран.
+						</div>
+					</div>
 					
 					
 					
@@ -338,6 +350,7 @@ function toggleTypeFields() {
     const americanoFields = document.getElementById('americanoFields');
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
+    const kingOfCourtFields = document.getElementById('kingOfCourtFields');
     
     // Подсказка "(укажите кол-во пар)" для team турниров
     var reserveHint = document.getElementById('reserveHintPairs');
@@ -347,6 +360,7 @@ function toggleTypeFields() {
     if (americanoFields) americanoFields.style.display = 'none';
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
+    if (kingOfCourtFields) kingOfCourtFields.style.display = 'none';
     
     // Отключаем все playoff_format селекты
     const playoffFormat = document.getElementById('playoffFormat');
@@ -392,6 +406,9 @@ function toggleTypeFields() {
         if (document.getElementById('americanoGroupsCount')) {
             document.getElementById('americanoGroupsCount').disabled = true;
         }
+        generateCourtsInputs();
+    } else if (type === 'king_of_court' && kingOfCourtFields) {
+        kingOfCourtFields.style.display = 'block';
         generateCourtsInputs();
     }
 }
