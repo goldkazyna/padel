@@ -1520,6 +1520,17 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Король корта — место по лидерборду
+        if ($tournament->type === 'king_of_court') {
+            $players = $tournament->kingOfCourtPlayers()
+                ->orderByDesc('total_points')
+                ->orderByDesc('wins')
+                ->get();
+            foreach ($players as $i => $kp) {
+                if ($kp->user_id === $userId) return $i + 1;
+            }
+        }
+
         return null;
     }
 
