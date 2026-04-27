@@ -146,7 +146,7 @@
     /* === Grid === */
     .ws-grid {
         display: grid;
-        grid-template-columns: 70px repeat(7, 1fr);
+        grid-template-columns: 70px repeat(7, minmax(0, 1fr));
         background: var(--sch-card);
         border: 1px solid var(--sch-border);
         border-radius: 14px;
