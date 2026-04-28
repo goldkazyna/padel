@@ -12,6 +12,7 @@ class TelegramChannelService
     protected string $apiUrl;
     protected string $channelId;
     protected string $botUsername;
+    protected bool $isTestClub = false;
 
     public function __construct(?Club $club = null)
     {
@@ -19,13 +20,16 @@ class TelegramChannelService
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
         $this->channelId = $club->telegram_channel_id ?? '';
         $this->botUsername = config('services.telegram.bot_username', 'add_app_bot');
+        $this->isTestClub = (bool) ($club->is_test ?? false);
     }
 
     /**
-     * Проверить, настроен ли Telegram для клуба
+     * Проверить, настроен ли Telegram для клуба.
+     * Для тестовых клубов всегда возвращает false — никаких рассылок наружу.
      */
     public function isConfigured(): bool
     {
+        if ($this->isTestClub) return false;
         return !empty($this->botToken) && !empty($this->channelId);
     }
 

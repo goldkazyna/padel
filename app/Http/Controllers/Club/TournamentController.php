@@ -832,6 +832,13 @@ class TournamentController extends Controller
 			abort(403);
 		}
 
+		// Для тестовых клубов push не рассылается — иначе они засветятся
+		// у обычных пользователей.
+		$tournament->loadMissing('club');
+		if ($tournament->club && $tournament->club->is_test) {
+			return back()->with('error', 'Push не отправляется для тестовых клубов');
+		}
+
 		$fcm = app(\App\Services\FCMNotificationService::class);
 		$date = $tournament->start_date->format('d.m.Y H:i');
 		$title = 'Новый турнир!';

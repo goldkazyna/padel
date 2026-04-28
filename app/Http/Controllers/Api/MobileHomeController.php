@@ -66,6 +66,7 @@ class MobileHomeController extends Controller
 
         $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
+            ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
             ->with('club');
 
@@ -151,6 +152,7 @@ class MobileHomeController extends Controller
     {
         $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
+            ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
             ->with('club');
 

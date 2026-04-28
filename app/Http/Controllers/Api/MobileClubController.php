@@ -16,7 +16,7 @@ class MobileClubController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Club::active();
+        $query = Club::active()->notTest();
 
         if ($request->filled('city')) {
             $query->where('city', $request->city);

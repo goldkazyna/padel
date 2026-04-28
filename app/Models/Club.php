@@ -18,6 +18,7 @@ class Club extends Model
         'description',
         'city',
         'is_active',
+        'is_test',
         'booking_cancel_hours',
         'payment_url',
         'features',
@@ -27,6 +28,7 @@ class Club extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_test' => 'boolean',
         'features' => 'array',
     ];
 
@@ -65,6 +67,12 @@ class Club extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    // Scope: исключить тестовые клубы (для публичных списков)
+    public function scopeNotTest($query)
+    {
+        return $query->where('is_test', false);
     }
 	// Корты клуба
 	public function courts()

@@ -26,6 +26,7 @@ class MobileTournamentController extends Controller
 
         $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
+            ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
             ->with('club');
 
@@ -123,6 +124,7 @@ class MobileTournamentController extends Controller
         $dateTo = $request->input('date_to');
 
         $query = Tournament::where('status', 'completed')
+            ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'desc')
             ->with('club');
 
