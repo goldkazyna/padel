@@ -215,6 +215,11 @@ class MobileProfileController extends Controller
 
     private function formatUser(User $user, ?int $place): array
     {
+        $isClubAdmin = $user->isClubAdmin();
+        $adminClubs = $isClubAdmin
+            ? $user->adminClubs()->select('clubs.id', 'clubs.name')->get()->toArray()
+            : [];
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -235,6 +240,9 @@ class MobileProfileController extends Controller
             'birth_date' => $user->birth_date ? $user->birth_date->format('Y-m-d') : null,
             'hand' => $user->hand,
             'position' => $user->position,
+            'role' => $user->role,
+            'is_club_admin' => $isClubAdmin,
+            'admin_clubs' => $adminClubs,
         ];
     }
 }

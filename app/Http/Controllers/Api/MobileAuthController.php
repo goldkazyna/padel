@@ -143,6 +143,10 @@ class MobileAuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
+        $isClubAdmin = $user->isClubAdmin();
+        $adminClubs = $isClubAdmin
+            ? $user->adminClubs()->select('clubs.id', 'clubs.name')->get()->toArray()
+            : [];
 
         return response()->json([
             'success' => true,
@@ -158,6 +162,9 @@ class MobileAuthController extends Controller
                 'level_verified' => (bool) $user->level_verified,
                 'quiz_completed' => (bool) $user->quiz_completed,
                 'level_name' => $user->level_name,
+                'role' => $user->role,
+                'is_club_admin' => $isClubAdmin,
+                'admin_clubs' => $adminClubs,
             ],
         ]);
     }
