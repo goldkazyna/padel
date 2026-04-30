@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MobileChallengeController;
 use App\Http\Controllers\Api\MobileCourtController;
 use App\Http\Controllers\Api\MobileClubController;
 use App\Http\Controllers\Api\MobileAdminTournamentController;
+use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 
 /*
 |--------------------------------------------------------------------------
@@ -85,6 +86,12 @@ Route::prefix('mobile')->group(function () {
 
         // Админка клуба (только для club_admin данного клуба или super_admin)
         Route::get('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'index']);
+
+        // Управление существующим турниром (Этап 3a)
+        Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
+        Route::put('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'update']);
+        Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
+        Route::delete('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'destroy']);
 
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
