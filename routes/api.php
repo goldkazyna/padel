@@ -93,6 +93,18 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
         Route::delete('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'destroy']);
 
+        // Участники / команды турнира (Этап 3b)
+        Route::get('/admin/tournaments/{tournament}/participants', [MobileAdminTournamentDetailController::class, 'participants']);
+        Route::post('/admin/tournaments/{tournament}/participants', [MobileAdminTournamentDetailController::class, 'addParticipant']);
+        Route::post('/admin/tournaments/{tournament}/participants/{user}/approve', [MobileAdminTournamentDetailController::class, 'approveParticipant']);
+        Route::post('/admin/tournaments/{tournament}/participants/{user}/reject', [MobileAdminTournamentDetailController::class, 'rejectParticipant']);
+        Route::put('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'replaceParticipant']);
+        Route::delete('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'removeParticipant']);
+        Route::get('/admin/tournaments/{tournament}/players/search', [MobileAdminTournamentDetailController::class, 'searchPlayers']);
+        Route::post('/admin/tournaments/{tournament}/teams/{team}/approve', [MobileAdminTournamentDetailController::class, 'approveTeam']);
+        Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
+        Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);
+
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);
