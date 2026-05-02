@@ -112,6 +112,10 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoPlayoffScore']);
         Route::put('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'updateAmericanoPlayoffScore']);
 
+        // Этап 3d — генерация плей-офф и завершение турнира
+        Route::post('/admin/tournaments/{tournament}/playoff/generate', [MobileAdminTournamentDetailController::class, 'generatePlayoff']);
+        Route::post('/admin/tournaments/{tournament}/finish', [MobileAdminTournamentDetailController::class, 'finish']);
+
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);

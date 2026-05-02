@@ -1058,4 +1058,84 @@ class MobileAdminTournamentDetailController extends Controller
             mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1)
         );
     }
+
+    // -------------------------------------------------------------------------
+    // 3d-Americano — генерация плей-офф и завершение турнира
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/playoff/generate
+     */
+    public function generatePlayoff(
+        Request $request,
+        Tournament $tournament,
+        AmericanoService $americano
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (!$tournament->isAmericano()) {
+            return $this->error(
+                'Генерация плей-офф из мобилы пока поддерживается только для Американо'
+            );
+        }
+
+        if (!$americano->canGeneratePlayoff($tournament)) {
+            return $this->error(
+                'Невозможно сгенерировать плей-офф. Не все групповые матчи сыграны.'
+            );
+        }
+
+        $ok = $americano->generatePlayoff($tournament);
+        if (!$ok) {
+            return $this->error('Не удалось сгенерировать плей-офф');
+        }
+
+        $tournament->refresh();
+        return response()->json($this->buildAmericanoMatches($tournament));
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/finish
+     */
+    public function finish(
+        Request $request,
+        Tournament $tournament,
+        AmericanoService $americano,
+        MexicanoService $mexicano,
+        TeamTournamentService $team,
+        KingOfCourtService $king
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ($tournament->status !== 'in_progress') {
+            return $this->error('Можно завершить только идущий турнир');
+        }
+
+        if ($tournament->isAmericano()) {
+            if (!$americano->canFinishTournament($tournament)) {
+                return $this->error(
+                    'Не все матчи сыграны (включая плей-офф)'
+                );
+            }
+            $ok = $americano->finishTournament($tournament);
+        } else {
+            return $this->error(
+                'Завершение из мобилы пока поддерживается только для Американо'
+            );
+        }
+
+        if (!$ok) {
+            return $this->error('Не удалось завершить турнир');
+        }
+
+        $tournament->refresh()->loadMissing('club');
+        return response()->json([
+            'success' => true,
+            'tournament' => $this->formatDetail($tournament),
+        ]);
+    }
 }
