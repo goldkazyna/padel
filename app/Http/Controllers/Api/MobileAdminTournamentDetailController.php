@@ -875,17 +875,7 @@ class MobileAdminTournamentDetailController extends Controller
                 ];
             });
 
-            $leaderboard = $group->players()
-                ->orderByPivot('total_points', 'desc')
-                ->get()
-                ->map(fn($p) => [
-                    'id' => $p->id,
-                    'name' => $p->full_name ?? $p->name,
-                    'initials' => $this->initials($p->full_name ?? $p->name),
-                    'points' => (int) ($p->pivot->total_points ?? 0),
-                    'rating' => (int) ($p->rating ?? 0),
-                ])
-                ->values();
+            $leaderboard = $this->buildAmericanoLeaderboard($group);
 
             return [
                 'id' => $group->id,
@@ -919,6 +909,73 @@ class MobileAdminTournamentDetailController extends Controller
                 'can_generate_playoff' => app(AmericanoService::class)->canGeneratePlayoff($tournament),
             ],
         ];
+    }
+
+    private function buildAmericanoLeaderboard($group): array
+    {
+        $stats = [];
+        foreach ($group->players as $p) {
+            $stats[$p->id] = [
+                'id' => $p->id,
+                'name' => $p->full_name ?? $p->name,
+                'avatar' => $p->avatar ? asset('storage/' . $p->avatar) : null,
+                'rating' => (int) ($p->rating ?? 0),
+                'wins' => 0,
+                'losses' => 0,
+                'draws' => 0,
+                'points_for' => 0,
+                'points_against' => 0,
+                'total_points' => (int) ($p->pivot->total_points ?? 0),
+            ];
+        }
+
+        foreach ($group->rounds as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                foreach ([$m->team1_player1_id, $m->team1_player2_id] as $pId) {
+                    if (!isset($stats[$pId])) continue;
+                    $stats[$pId]['points_for'] += (int) $m->team1_score;
+                    $stats[$pId]['points_against'] += (int) $m->team2_score;
+                    if ($m->team1_score > $m->team2_score) $stats[$pId]['wins']++;
+                    elseif ($m->team1_score < $m->team2_score) $stats[$pId]['losses']++;
+                }
+                foreach ([$m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                    if (!isset($stats[$pId])) continue;
+                    $stats[$pId]['points_for'] += (int) $m->team2_score;
+                    $stats[$pId]['points_against'] += (int) $m->team1_score;
+                    if ($m->team2_score > $m->team1_score) $stats[$pId]['wins']++;
+                    elseif ($m->team2_score < $m->team1_score) $stats[$pId]['losses']++;
+                }
+                if ((int) $m->team1_score === (int) $m->team2_score) {
+                    foreach ([$m->team1_player1_id, $m->team1_player2_id, $m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                        if (isset($stats[$pId])) $stats[$pId]['draws']++;
+                    }
+                }
+            }
+        }
+
+        uasort($stats, function ($a, $b) {
+            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+        });
+
+        $position = 1;
+        $rows = [];
+        foreach ($stats as $s) {
+            $totalGames = $s['wins'] + $s['losses'] + $s['draws'];
+            $diff = $s['points_for'] - $s['points_against'];
+            $totalBalls = $s['points_for'] + $s['points_against'];
+            $ballPercent = $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0;
+            $rows[] = array_merge($s, [
+                'position' => $position++,
+                'games_played' => $totalGames,
+                'point_diff' => $diff,
+                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                'ball_percent' => $ballPercent,
+            ]);
+        }
+        return $rows;
     }
 
     private function formatAmericanoMatch(AmericanoMatch $m): array
