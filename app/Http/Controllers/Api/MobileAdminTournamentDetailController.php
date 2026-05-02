@@ -857,7 +857,7 @@ class MobileAdminTournamentDetailController extends Controller
         $matchesTotal = 0;
         $matchesPlayed = 0;
 
-        $groups = $tournament->groups->map(function ($group) use (&$matchesTotal, &$matchesPlayed) {
+        $groups = $tournament->groups->sortBy('id')->values()->map(function ($group) use (&$matchesTotal, &$matchesPlayed) {
             $rounds = $group->rounds->sortBy('round_number')->values()->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
                 $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
                     $matchesTotal++;
