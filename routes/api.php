@@ -105,6 +105,13 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
         Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);
 
+        // Матчи турнира (Этап 3c-1: Американо)
+        Route::get('/admin/tournaments/{tournament}/matches', [MobileAdminTournamentDetailController::class, 'matches']);
+        Route::post('/admin/tournaments/{tournament}/americano/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoScore']);
+        Route::put('/admin/tournaments/{tournament}/americano/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'updateAmericanoScore']);
+        Route::post('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoPlayoffScore']);
+        Route::put('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'updateAmericanoPlayoffScore']);
+
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);

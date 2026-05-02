@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AmericanoMatch;
 use App\Models\Tournament;
+use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use App\Services\AmericanoService;
@@ -19,6 +21,7 @@ use Illuminate\Support\Facades\Validator;
  * Управление существующим турниром из мобилы (админ клуба).
  * Этап 3a: инфо-таб, редактирование, запуск, удаление.
  * Этап 3b: участники — модерация, добавление, удаление, замена.
+ * Этап 3c-1: матчи Американо (групповые + плей-офф) — просмотр и ввод счёта.
  */
 class MobileAdminTournamentDetailController extends Controller
 {
@@ -645,5 +648,357 @@ class MobileAdminTournamentDetailController extends Controller
         } catch (\Throwable $e) {
             // ignore
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // 3c-1 — Матчи (Американо)
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/matches
+     */
+    public function matches(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ($tournament->isAmericano()) {
+            return response()->json($this->buildAmericanoMatches($tournament));
+        }
+
+        // Для KOC / Mexicano / Team — пока заглушка, добавим на этапах 3c-2/3/4
+        return response()->json([
+            'success' => true,
+            'type' => $tournament->type,
+            'unsupported' => true,
+            'message' => 'Тип турнира пока не поддерживается в мобильной админке',
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/americano/matches/{match}/score
+     */
+    public function saveAmericanoScore(
+        Request $request,
+        Tournament $tournament,
+        AmericanoMatch $match,
+        AmericanoService $service
+    ): JsonResponse {
+        return $this->handleAmericanoScore($request, $tournament, $match, $service, isUpdate: false);
+    }
+
+    /**
+     * PUT /api/mobile/admin/tournaments/{tournament}/americano/matches/{match}/score
+     */
+    public function updateAmericanoScore(
+        Request $request,
+        Tournament $tournament,
+        AmericanoMatch $match,
+        AmericanoService $service
+    ): JsonResponse {
+        return $this->handleAmericanoScore($request, $tournament, $match, $service, isUpdate: true);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/americano/playoff/{match}/score
+     */
+    public function saveAmericanoPlayoffScore(
+        Request $request,
+        Tournament $tournament,
+        TournamentPlayoffMatch $match,
+        AmericanoService $service
+    ): JsonResponse {
+        return $this->handleAmericanoPlayoffScore($request, $tournament, $match, $service, isUpdate: false);
+    }
+
+    /**
+     * PUT /api/mobile/admin/tournaments/{tournament}/americano/playoff/{match}/score
+     */
+    public function updateAmericanoPlayoffScore(
+        Request $request,
+        Tournament $tournament,
+        TournamentPlayoffMatch $match,
+        AmericanoService $service
+    ): JsonResponse {
+        return $this->handleAmericanoPlayoffScore($request, $tournament, $match, $service, isUpdate: true);
+    }
+
+    // -------------------------------------------------------------------------
+    // helpers 3c-1
+    // -------------------------------------------------------------------------
+
+    private function handleAmericanoScore(
+        Request $request,
+        Tournament $tournament,
+        AmericanoMatch $match,
+        AmericanoService $service,
+        bool $isUpdate
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round.group');
+        if (!$match->round || !$match->round->group ||
+            (int) $match->round->group->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+        $s1 = (int) $request->input('team1_score');
+        $s2 = (int) $request->input('team2_score');
+
+        if ($isUpdate) {
+            if ($match->status !== 'completed') {
+                return $this->error('Матч ещё не сыгран — используйте сохранение, а не обновление');
+            }
+            $service->updateMatchResult($match, $s1, $s2);
+        } else {
+            if ($match->status === 'completed') {
+                return $this->error('Матч уже сыгран — используйте обновление счёта');
+            }
+            $service->saveMatchResult($match, $s1, $s2);
+        }
+
+        $match->refresh();
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $match->winning_team,
+            ],
+        ]);
+    }
+
+    private function handleAmericanoPlayoffScore(
+        Request $request,
+        Tournament $tournament,
+        TournamentPlayoffMatch $match,
+        AmericanoService $service,
+        bool $isUpdate
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ((int) $match->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99|different:team1_score',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+        $s1 = (int) $request->input('team1_score');
+        $s2 = (int) $request->input('team2_score');
+
+        if (!$isUpdate && $match->status === 'completed') {
+            return $this->error('Матч уже сыгран — используйте обновление счёта');
+        }
+        if ($isUpdate && $match->status !== 'completed') {
+            return $this->error('Матч ещё не сыгран — используйте сохранение, а не обновление');
+        }
+
+        $match->update([
+            'team1_score' => $s1,
+            'team2_score' => $s2,
+            'status' => 'completed',
+        ]);
+
+        if ($match->stage === 'Полуфинал') {
+            $service->updateFinalAfterSemifinal($match);
+        }
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null) {
+            $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    private function buildAmericanoMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'groups.rounds.matches.team1Player1',
+            'groups.rounds.matches.team1Player2',
+            'groups.rounds.matches.team2Player1',
+            'groups.rounds.matches.team2Player2',
+            'groups.players',
+            'playoffMatches.team1Player1',
+            'playoffMatches.team1Player2',
+            'playoffMatches.team2Player1',
+            'playoffMatches.team2Player2',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $groups = $tournament->groups->map(function ($group) use (&$matchesTotal, &$matchesPlayed) {
+            $rounds = $group->rounds->sortBy('round_number')->values()->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                    $matchesTotal++;
+                    if ($m->status === 'completed') {
+                        $matchesPlayed++;
+                    }
+                    return $this->formatAmericanoMatch($m);
+                });
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+            $leaderboard = $group->players()
+                ->orderByPivot('total_points', 'desc')
+                ->get()
+                ->map(fn($p) => [
+                    'id' => $p->id,
+                    'name' => $p->full_name ?? $p->name,
+                    'initials' => $this->initials($p->full_name ?? $p->name),
+                    'points' => (int) ($p->pivot->total_points ?? 0),
+                    'rating' => (int) ($p->rating ?? 0),
+                ])
+                ->values();
+
+            return [
+                'id' => $group->id,
+                'name' => $group->name,
+                'rounds' => $rounds,
+                'leaderboard' => $leaderboard,
+            ];
+        });
+
+        // Плей-офф
+        $playoffMatches = $tournament->playoffMatches
+            ->filter(fn($m) => $m->isAmericanoMatch())
+            ->values();
+
+        $playoff = [
+            'has_playoff' => (bool) $tournament->has_playoff,
+            'is_generated' => $playoffMatches->count() > 0,
+            'matches' => $playoffMatches->map(fn($m) => $this->formatPlayoffMatch($m))->values(),
+        ];
+
+        return [
+            'success' => true,
+            'type' => 'americano',
+            'groups' => $groups,
+            'playoff' => $playoff,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => app(AmericanoService::class)->canFinishTournament($tournament),
+                'can_generate_playoff' => app(AmericanoService::class)->canGeneratePlayoff($tournament),
+            ],
+        ];
+    }
+
+    private function formatAmericanoMatch(AmericanoMatch $m): array
+    {
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $m->winning_team,
+        ];
+    }
+
+    private function formatPlayoffMatch(TournamentPlayoffMatch $m): array
+    {
+        $winner = null;
+        if ($m->status === 'completed' &&
+            $m->team1_score !== null && $m->team2_score !== null &&
+            $m->team1_score !== $m->team2_score) {
+            $winner = $m->team1_score > $m->team2_score ? 1 : 2;
+        }
+
+        return [
+            'id' => $m->id,
+            'stage' => $m->stage,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $winner,
+        ];
+    }
+
+    private function formatMatchPlayer($user): ?array
+    {
+        if (!$user) return null;
+        $name = $user->full_name ?? $user->name;
+        return [
+            'id' => $user->id,
+            'name' => $name,
+            'initials' => $this->initials($name),
+            'avatar_url' => $user->avatar ? asset('storage/' . $user->avatar) : null,
+        ];
+    }
+
+    private function initials(?string $name): string
+    {
+        if (!$name) return '?';
+        $parts = preg_split('/\s+/u', trim($name));
+        if (empty($parts)) return '?';
+        if (count($parts) === 1) {
+            return mb_strtoupper(mb_substr($parts[0], 0, 1));
+        }
+        return mb_strtoupper(
+            mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1)
+        );
     }
 }
