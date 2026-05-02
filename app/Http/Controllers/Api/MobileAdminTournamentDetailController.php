@@ -896,6 +896,8 @@ class MobileAdminTournamentDetailController extends Controller
             'matches' => $playoffMatches->map(fn($m) => $this->formatPlayoffMatch($m))->values(),
         ];
 
+        $isLive = $tournament->status === 'in_progress';
+
         return [
             'success' => true,
             'type' => 'americano',
@@ -905,8 +907,11 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
-                'can_finish' => app(AmericanoService::class)->canFinishTournament($tournament),
-                'can_generate_playoff' => app(AmericanoService::class)->canGeneratePlayoff($tournament),
+                // Действия доступны только пока турнир идёт.
+                'can_finish' => $isLive
+                    && app(AmericanoService::class)->canFinishTournament($tournament),
+                'can_generate_playoff' => $isLive
+                    && app(AmericanoService::class)->canGeneratePlayoff($tournament),
             ],
         ];
     }
