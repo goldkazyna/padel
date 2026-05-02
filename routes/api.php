@@ -116,6 +116,10 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/playoff/generate', [MobileAdminTournamentDetailController::class, 'generatePlayoff']);
         Route::post('/admin/tournaments/{tournament}/finish', [MobileAdminTournamentDetailController::class, 'finish']);
 
+        // KOC — ввод счёта и генерация следующего раунда
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/kingofcourt/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveKingOfCourtScore']);
+        Route::post('/admin/tournaments/{tournament}/next-round', [MobileAdminTournamentDetailController::class, 'nextRound']);
+
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);

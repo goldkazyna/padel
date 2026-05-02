@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AmericanoMatch;
+use App\Models\KingOfCourtMatch;
 use App\Models\Tournament;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
@@ -667,7 +668,11 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildAmericanoMatches($tournament));
         }
 
-        // Для KOC / Mexicano / Team — пока заглушка, добавим на этапах 3c-2/3/4
+        if ($tournament->isKingOfCourt()) {
+            return response()->json($this->buildKingOfCourtMatches($tournament));
+        }
+
+        // Для Mexicano / Team — пока заглушка, добавим на этапах 3c-3/3c-4
         return response()->json([
             'success' => true,
             'type' => $tournament->type,
@@ -1127,9 +1132,14 @@ class MobileAdminTournamentDetailController extends Controller
                 );
             }
             $ok = $americano->finishTournament($tournament);
+        } elseif ($tournament->isKingOfCourt()) {
+            if (!$king->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте текущий раунд');
+            }
+            $ok = $king->finishTournament($tournament);
         } else {
             return $this->error(
-                'Завершение из мобилы пока поддерживается только для Американо'
+                'Завершение из мобилы пока поддерживается только для Американо и Король корта'
             );
         }
 
@@ -1142,5 +1152,228 @@ class MobileAdminTournamentDetailController extends Controller
             'success' => true,
             'tournament' => $this->formatDetail($tournament),
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // KOC — ввод счёта и генерация следующего раунда
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/kingofcourt/matches/{match}/score
+     * KOC использует один и тот же метод и для save, и для update —
+     * KingOfCourtService::saveMatchResult сам откатит старые stat если матч
+     * уже completed.
+     */
+    public function saveKingOfCourtScore(
+        Request $request,
+        Tournament $tournament,
+        KingOfCourtMatch $match,
+        KingOfCourtService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round');
+        if (!$match->round ||
+            (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99|different:team1_score',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null) {
+            $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/next-round
+     * Сейчас работает только для KOC (Mexicano добавим в 3c-3).
+     */
+    public function nextRound(
+        Request $request,
+        Tournament $tournament,
+        KingOfCourtService $king
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (!$tournament->isKingOfCourt()) {
+            return $this->error(
+                'Генерация следующего раунда из мобилы пока поддерживается только для Король корта'
+            );
+        }
+
+        if (!$king->canGenerateNextRound($tournament)) {
+            return $this->error('Текущий раунд ещё не завершён');
+        }
+
+        $ok = $king->generateNextRound($tournament);
+        if (!$ok) {
+            return $this->error('Не удалось сгенерировать следующий раунд');
+        }
+
+        $tournament->refresh();
+        return response()->json($this->buildKingOfCourtMatches($tournament));
+    }
+
+    // -------------------------------------------------------------------------
+    // KOC — формирование ответа /matches
+    // -------------------------------------------------------------------------
+
+    private function buildKingOfCourtMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'kingOfCourtRounds.matches.team1Player1',
+            'kingOfCourtRounds.matches.team1Player2',
+            'kingOfCourtRounds.matches.team2Player1',
+            'kingOfCourtRounds.matches.team2Player2',
+            'kingOfCourtPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->kingOfCourtRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                    $matchesTotal++;
+                    if ($m->status === 'completed') {
+                        $matchesPlayed++;
+                    }
+                    return $this->formatKingOfCourtMatch($m);
+                });
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $leaderboard = $this->buildKingOfCourtLeaderboard($tournament);
+
+        // Заворачиваем в одну виртуальную «группу» — это даёт фронту
+        // переиспользовать готовый рендер «группа → раунды → таблица».
+        $virtualGroup = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $leaderboard,
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+        $king = app(KingOfCourtService::class);
+
+        return [
+            'success' => true,
+            'type' => 'king_of_court',
+            'groups' => [$virtualGroup],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $king->canFinishTournament($tournament),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $isLive && $king->canGenerateNextRound($tournament),
+            ],
+        ];
+    }
+
+    private function formatKingOfCourtMatch(KingOfCourtMatch $m): array
+    {
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $this->kingOfCourtMatchWinner($m),
+        ];
+    }
+
+    private function kingOfCourtMatchWinner(KingOfCourtMatch $m): ?int
+    {
+        if ($m->status !== 'completed') return null;
+        if ($m->team1_score === null || $m->team2_score === null) return null;
+        if ($m->team1_score === $m->team2_score) return null;
+        return $m->team1_score > $m->team2_score ? 1 : 2;
+    }
+
+    private function buildKingOfCourtLeaderboard(Tournament $tournament): array
+    {
+        $players = $tournament->kingOfCourtPlayers
+            ->sortByDesc('total_points')
+            ->values();
+
+        $rows = [];
+        $position = 1;
+        foreach ($players as $kp) {
+            $u = $kp->user;
+            if (!$u) continue;
+            $totalGames = (int) $kp->wins + (int) $kp->losses;
+            $totalBalls = (int) $kp->points_for + (int) $kp->points_against;
+            $rows[] = [
+                'position' => $position++,
+                'id' => $u->id,
+                'name' => $u->full_name ?? $u->name,
+                'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'rating' => (int) ($u->rating ?? 0),
+                'wins' => (int) $kp->wins,
+                'losses' => (int) $kp->losses,
+                'draws' => 0,
+                'points_for' => (int) $kp->points_for,
+                'points_against' => (int) $kp->points_against,
+                'total_points' => (int) $kp->total_points,
+                'games_played' => $totalGames,
+                'point_diff' => (int) $kp->points_for - (int) $kp->points_against,
+                'win_percent' => $totalGames > 0 ? (int) round($kp->wins / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($kp->points_for / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
     }
 }
