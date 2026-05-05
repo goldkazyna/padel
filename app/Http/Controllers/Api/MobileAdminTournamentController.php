@@ -188,6 +188,11 @@ class MobileAdminTournamentController extends Controller
         $validated = $validator->validated();
         $validated['club_id'] = $club->id;
 
+        // price в БД NOT NULL — если не передали, ставим 0.
+        if (!isset($validated['price']) || $validated['price'] === null) {
+            $validated['price'] = 0;
+        }
+
         // Нормализация плей-офф (копия из Web Club\TournamentController::store)
         $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
         $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
