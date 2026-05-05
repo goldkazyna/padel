@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -122,19 +123,56 @@ class UserController extends Controller
             'level' => 'nullable|numeric|min:1|max:5.75',
         ]);
 
+        $oldName = $user->name;
+        $oldLevel = $user->level !== null ? (float) $user->level : null;
+        $oldVerified = (bool) $user->level_verified;
+
         $update = ['name' => $validated['name']];
 
-        // Флаг верификации уровня — чекбокс, доступен всегда
-        $update['level_verified'] = $request->boolean('level_verified');
-
         // Уровень можно менять любому игроку. Рейтинг пересчитывается как level * 1000 + 125.
+        // При сохранении формы уровень всегда считается подтверждённым админом
+        // клуба — выставляем level_verified = true автоматически.
+        $newLevel = null;
         if (array_key_exists('level', $validated) && $validated['level'] !== null) {
             $newLevel = (float) $validated['level'];
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
+        $update['level_verified'] = true;
 
         $user->update($update);
+
+        // Логируем изменения, чтобы потом можно было понять кто/когда/что менял.
+        $changes = [];
+        if ($oldName !== $validated['name']) {
+            $changes['name'] = ['from' => $oldName, 'to' => $validated['name']];
+        }
+        if ($newLevel !== null && $oldLevel !== $newLevel) {
+            $changes['level'] = ['from' => $oldLevel, 'to' => $newLevel];
+        }
+        if ($oldVerified !== true) {
+            $changes['level_verified'] = ['from' => $oldVerified, 'to' => true];
+        }
+
+        if (!empty($changes)) {
+            $action = isset($changes['level']) ? 'level_changed' : 'updated';
+            $description = isset($changes['level'])
+                ? sprintf(
+                    'Уровень %s изменён с %s на %s',
+                    $user->name,
+                    $oldLevel !== null ? rtrim(rtrim(number_format($oldLevel, 2, '.', ''), '0'), '.') : '—',
+                    rtrim(rtrim(number_format($newLevel, 2, '.', ''), '0'), '.')
+                )
+                : 'Профиль ' . $user->name . ' обновлён';
+
+            ActivityLog::log(
+                action: $action,
+                subjectType: 'User',
+                subjectId: $user->id,
+                description: $description,
+                changes: $changes,
+            );
+        }
 
         return back()->with('success', 'Пользователь обновлён!');
     }

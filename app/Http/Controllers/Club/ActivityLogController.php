@@ -67,6 +67,7 @@ class ActivityLogController extends Controller
             'ClubClient' => (clone $baseQuery)->where('subject_type', 'ClubClient')->count(),
             'CourtBlock' => (clone $baseQuery)->where('subject_type', 'CourtBlock')->count(),
             'Tournament' => (clone $baseQuery)->where('subject_type', 'Tournament')->count(),
+            'User' => (clone $baseQuery)->where('subject_type', 'User')->count(),
         ];
 
         // Пользователи клуба для фильтра

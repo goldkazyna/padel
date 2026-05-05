@@ -67,6 +67,8 @@
                class="log-chip {{ request('subject') === 'CourtBlock' ? 'active' : '' }}"><i class="bi bi-lock"></i> Блоки <span class="log-chip-cnt">{{ $subjectCounts['CourtBlock'] }}</span></a>
             <a href="{{ route('club.activityLog', array_merge(request()->except('page'), ['subject' => 'Tournament'])) }}"
                class="log-chip {{ request('subject') === 'Tournament' ? 'active' : '' }}"><i class="bi bi-trophy"></i> Турниры <span class="log-chip-cnt">{{ $subjectCounts['Tournament'] }}</span></a>
+            <a href="{{ route('club.activityLog', array_merge(request()->except('page'), ['subject' => 'User'])) }}"
+               class="log-chip {{ request('subject') === 'User' ? 'active' : '' }}"><i class="bi bi-person-badge"></i> Игроки <span class="log-chip-cnt">{{ $subjectCounts['User'] }}</span></a>
         </div>
         <select name="action" class="log-filter-select" onchange="document.getElementById('logForm').submit()">
             <option value="">Все действия</option>
@@ -77,6 +79,7 @@
             <option value="blocked" {{ request('action') === 'blocked' ? 'selected' : '' }}>Блокировка</option>
             <option value="unblocked" {{ request('action') === 'unblocked' ? 'selected' : '' }}>Разблокировка</option>
             <option value="deleted" {{ request('action') === 'deleted' ? 'selected' : '' }}>Удаление</option>
+            <option value="level_changed" {{ request('action') === 'level_changed' ? 'selected' : '' }}>Изменение уровня</option>
         </select>
         <select name="user_id" class="log-filter-select" onchange="document.getElementById('logForm').submit()">
             <option value="">Все пользователи</option>
@@ -131,12 +134,14 @@
                                 'blocked' => 'Блокировка',
                                 'unblocked' => 'Разблокировка',
                                 'deleted' => 'Удаление',
+                                'level_changed' => 'Изменение уровня',
                             ];
                             $subjectLabels = [
                                 'CourtBooking' => ['label' => 'Бронь', 'class' => 'booking', 'icon' => 'bi-calendar-check'],
                                 'ClubClient' => ['label' => 'Клиент', 'class' => 'client', 'icon' => 'bi-person'],
                                 'CourtBlock' => ['label' => 'Блок', 'class' => 'block', 'icon' => 'bi-lock'],
                                 'Tournament' => ['label' => 'Турнир', 'class' => 'tournament', 'icon' => 'bi-trophy'],
+                                'User' => ['label' => 'Игрок', 'class' => 'client', 'icon' => 'bi-person-badge'],
                             ];
                             $subj = $subjectLabels[$log->subject_type] ?? ['label' => $log->subject_type, 'class' => '', 'icon' => 'bi-circle'];
                             $initials = '';
@@ -152,6 +157,7 @@
                                 'blocked' => ['bg' => '#f59e0b', 'color' => '#000'],
                                 'unblocked' => ['bg' => '#a78bfa', 'color' => '#fff'],
                                 'deleted' => ['bg' => '#ef4444', 'color' => '#fff'],
+                                'level_changed' => ['bg' => '#3b82f6', 'color' => '#fff'],
                             ];
                             $ac = $avatarColors[$log->action] ?? ['bg' => '#3f3f46', 'color' => '#fff'];
                         @endphp
@@ -340,6 +346,8 @@
 .action-badge.deleted .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
 .action-badge.unregistered { background: rgba(239,68,68,0.08); color: #ef4444; }
 .action-badge.unregistered .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.action-badge.level_changed { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.action-badge.level_changed .dot { background: #3b82f6; box-shadow: 0 0 6px rgba(59,130,246,0.5); }
 
 /* SUBJECT TAG */
 .subject-tag {

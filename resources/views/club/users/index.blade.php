@@ -283,13 +283,11 @@
                     <small style="color:#888;font-size:11px;">Рейтинг пересчитается автоматически (уровень × 1000 + 125).</small>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                        <input type="checkbox" name="level_verified" value="1"
-                               {{ $user->level_verified ? 'checked' : '' }}
-                               style="width:18px;height:18px;margin:0;cursor:pointer;">
-                        Уровень верифицирован
-                    </label>
-                    <small style="color:#888;font-size:11px;">Отмечайте если вы лично подтвердили уровень игрока.</small>
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f2d1f;border:1px solid #22c55e44;border-radius:6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                        <span style="color:#22c55e;font-size:12px;font-weight:600;">Уровень будет автоматически отмечен как верифицированный</span>
+                    </div>
+                    <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Раз вы вручную меняете уровень — значит подтверждаете его.</small>
                 </div>
                 <div class="form-info">
                     <span>Телефон: {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}</span>
