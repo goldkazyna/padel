@@ -135,6 +135,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/rating', [MobileRatingController::class, 'index']);
         Route::get('/rating/growth', [MobileRatingController::class, 'growth']);
         Route::get('/rating/player/{user}', [MobileRatingController::class, 'player']);
+        Route::get('/rating/player/{user}/verification', [MobileRatingController::class, 'verification']);
         Route::get('/rating/tournaments', [MobileRatingController::class, 'tournaments']);
 
         // Турниры

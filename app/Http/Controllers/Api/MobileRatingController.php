@@ -365,6 +365,21 @@ class MobileRatingController extends Controller
     }
 
     /**
+     * GET /api/mobile/rating/player/{user}/verification
+     * Лёгкий эндпоинт: только level_verification, без статистики и истории.
+     * Используется для всплывающей модалки в рейтинге/мой-карточке.
+     */
+    public function verification(User $user)
+    {
+        return response()->json([
+            'success' => true,
+            'level' => $user->level !== null ? (float) $user->level : null,
+            'level_verified' => (bool) $user->level_verified,
+            'level_verification' => $this->lastLevelVerification($user),
+        ]);
+    }
+
+    /**
      * Последняя запись из user_level_history где new_verified=true.
      * Если игрока ни разу не верифицировали — null.
      */
