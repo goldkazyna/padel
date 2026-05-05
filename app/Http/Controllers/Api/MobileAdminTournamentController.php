@@ -8,6 +8,7 @@ use App\Models\Tournament;
 use App\Models\TournamentTeam;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class MobileAdminTournamentController extends Controller
 {
@@ -104,5 +105,80 @@ class MobileAdminTournamentController extends Controller
         return $t->participants()
             ->wherePivot('status', 'pending')
             ->count();
+    }
+
+    /**
+     * POST /api/mobile/admin/clubs/{club}/tournaments
+     * Создать турнир (Этап 4). Пока поддерживается только Король корта;
+     * остальные типы добавим, когда понадобятся.
+     */
+    public function store(Request $request, Club $club): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->canManageClub($user, $club)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет доступа к этому клубу',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'type' => 'required|in:king_of_court',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'start_date' => 'required|date|after:now',
+            'min_level' => 'required|numeric|min:1|max:5.75',
+            'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
+            'max_participants' => 'required|integer|min:4|max:32',
+            'price' => 'nullable|numeric|min:0',
+            'status' => 'required|in:draft,open',
+            'courts' => 'nullable|array',
+            'courts.*' => 'nullable|string|max:50',
+            'courts_count' => 'nullable|integer|min:1|max:8',
+            'reserve_count' => 'nullable|integer|min:0|max:10',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $validated['club_id'] = $club->id;
+
+        // Названия кортов — пустые слоты обнуляем, если массив целиком пустой — null
+        if (isset($validated['courts'])) {
+            $validated['courts'] = array_map(
+                fn($c) => $c ?: null,
+                $validated['courts']
+            );
+            if (empty(array_filter($validated['courts']))) {
+                $validated['courts'] = null;
+            }
+        }
+
+        $tournament = Tournament::create($validated);
+
+        // Резервные игроки (для KOC — обычные одиночки, как в Web для не-team)
+        $reserveCount = (int) ($validated['reserve_count'] ?? 0);
+        if ($reserveCount > 0) {
+            $reserves = \App\Models\User::where('role', 'reserve')
+                ->orderBy('id')
+                ->limit($reserveCount)
+                ->get();
+            foreach ($reserves as $reserve) {
+                $tournament->participants()->attach($reserve->id, [
+                    'status' => 'registered',
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament_id' => $tournament->id,
+        ]);
     }
 }

@@ -86,6 +86,7 @@ Route::prefix('mobile')->group(function () {
 
         // Админка клуба (только для club_admin данного клуба или super_admin)
         Route::get('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'index']);
+        Route::post('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'store']);
 
         // Управление существующим турниром (Этап 3a)
         Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
