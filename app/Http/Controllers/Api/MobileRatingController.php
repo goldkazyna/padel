@@ -349,6 +349,7 @@ class MobileRatingController extends Controller
                 'rating' => $user->rating,
                 'level' => $user->level,
                 'level_verified' => (bool) $user->level_verified,
+                'level_verification' => $this->lastLevelVerification($user),
                 'place' => $place,
                 'matches_played' => $matchStats['total'],
                 'wins' => $matchStats['won'],
@@ -361,6 +362,36 @@ class MobileRatingController extends Controller
             ],
             'history' => $history,
         ]);
+    }
+
+    /**
+     * Последняя запись из user_level_history где new_verified=true.
+     * Если игрока ни разу не верифицировали — null.
+     */
+    private function lastLevelVerification(User $user): ?array
+    {
+        $row = \App\Models\UserLevelHistory::where('user_id', $user->id)
+            ->where('new_verified', true)
+            ->orderBy('created_at', 'desc')
+            ->with(['changedBy:id,name,avatar', 'club:id,name'])
+            ->first();
+
+        if (!$row) return null;
+
+        return [
+            'verified_by' => $row->changedBy ? [
+                'id' => $row->changedBy->id,
+                'name' => $row->changedBy->name,
+                'avatar_url' => $row->changedBy->avatar
+                    ? asset('storage/' . $row->changedBy->avatar) : null,
+            ] : null,
+            'club' => $row->club ? [
+                'id' => $row->club->id,
+                'name' => $row->club->name,
+            ] : null,
+            'verified_at' => $row->created_at?->toIso8601String(),
+            'level_set_to' => $row->new_level !== null ? (float) $row->new_level : null,
+        ];
     }
 
     /**

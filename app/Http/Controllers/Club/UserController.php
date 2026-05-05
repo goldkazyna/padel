@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Club;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Models\UserLevelHistory;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -172,6 +173,31 @@ class UserController extends Controller
                 description: $description,
                 changes: $changes,
             );
+        }
+
+        // Отдельная история уровня — публичная инфа «кто верифицировал».
+        // Пишем когда менялся уровень или флаг верификации.
+        if (isset($changes['level']) || isset($changes['level_verified'])) {
+            $actor = auth()->user();
+            $clubId = null;
+            if ($actor) {
+                if ($actor->isClubModerator()) {
+                    $clubId = $actor->moderatorClubs()->first()?->id;
+                } elseif ($actor->isClubAdmin()) {
+                    $clubId = $actor->adminClubs()->first()?->id;
+                }
+            }
+
+            UserLevelHistory::create([
+                'user_id' => $user->id,
+                'changed_by_user_id' => $actor?->id,
+                'club_id' => $clubId,
+                'old_level' => $oldLevel,
+                'new_level' => $newLevel ?? $oldLevel,
+                'old_verified' => $oldVerified,
+                'new_verified' => true,
+                'created_at' => now(),
+            ]);
         }
 
         return back()->with('success', 'Пользователь обновлён!');
