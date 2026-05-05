@@ -51,7 +51,8 @@ class Club extends Model
 	// Связь: модераторы клуба
 	public function moderators()
 	{
-		return $this->belongsToMany(User::class, 'club_moderators');
+		return $this->belongsToMany(User::class, 'club_moderators')
+			->withPivot('tournaments_full_access');
 	}
 
     public function coaches()
