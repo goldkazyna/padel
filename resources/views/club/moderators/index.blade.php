@@ -16,21 +16,58 @@
     @endif
 
     @forelse($moderators as $mod)
+        @php $fullAccess = (bool)($mod->pivot->tournaments_full_access ?? false); @endphp
         <div class="mod-card">
             <div class="mod-card-left">
                 <div class="mod-avatar">{{ mb_strtoupper(mb_substr($mod->first_name ?? $mod->name, 0, 1)) }}</div>
                 <div class="mod-info">
                     <div class="mod-name">{{ $mod->name }}</div>
                     <div class="mod-email">{{ $mod->email }}</div>
+                    <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+                        @if($fullAccess)
+                            <span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">Полный доступ</span>
+                        @else
+                            <span style="background:rgba(113,113,122,0.15);color:#a1a1aa;border:1px solid rgba(113,113,122,0.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">Только модерация</span>
+                        @endif
+                    </div>
                 </div>
             </div>
             <div class="mod-card-right">
+                <button class="action-btn edit" title="Права на турниры" data-bs-toggle="modal" data-bs-target="#permModal{{ $mod->id }}"><i class="bi bi-shield-check"></i></button>
                 <button class="action-btn edit" title="Сменить пароль" data-bs-toggle="modal" data-bs-target="#passModal{{ $mod->id }}"><i class="bi bi-key"></i></button>
                 <form action="{{ route('club.moderators.destroy', $mod) }}" method="POST" style="display:inline;" onsubmit="return confirm('Удалить модератора {{ $mod->name }}?')">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="action-btn delete" title="Удалить"><i class="bi bi-trash"></i></button>
                 </form>
+            </div>
+        </div>
+        <!-- Permissions Modal -->
+        <div class="modal fade" id="permModal{{ $mod->id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background:#111113;border:1px solid #27272a;border-radius:16px;">
+                    <div class="modal-header" style="border-bottom:1px solid #27272a;padding:20px 24px;">
+                        <h5 class="modal-title" style="font-weight:700;">Права — {{ $mod->name }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ route('club.moderators.updatePermissions', $mod) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-body" style="padding:24px;">
+                            <div class="form-group">
+                                <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                    <input type="checkbox" name="tournaments_full_access" value="1" {{ $fullAccess ? 'checked' : '' }} style="width:18px;height:18px;margin:0;cursor:pointer;">
+                                    Полный доступ к турнирам
+                                </label>
+                                <small style="color:#888;font-size:11px;">Без галочки — только модерация заявок и ввод счёта. С галочкой — может создавать, редактировать и удалять турниры (как админ клуба).</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top:1px solid #27272a;padding:20px 24px;">
+                            <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn-save">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
         <!-- Password Modal -->
@@ -96,6 +133,13 @@
                     <div class="form-group">
                         <label class="form-label">Пароль *</label>
                         <input type="password" name="password" class="form-input" placeholder="Минимум 6 символов" minlength="6" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="tournaments_full_access" value="1" style="width:18px;height:18px;margin:0;cursor:pointer;">
+                            Полный доступ к турнирам
+                        </label>
+                        <small style="color:#888;font-size:11px;">Без галочки — только модерация заявок и ввод счёта (как сейчас). С галочкой — может создавать, редактировать и удалять турниры (как админ).</small>
                     </div>
                     <small style="color: #52525b; font-size: 11px;">Модератор сможет входить по email и паролю и управлять расписанием кортов</small>
                 </div>

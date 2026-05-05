@@ -48,8 +48,12 @@ class MobileAdminTournamentDetailController extends Controller
      */
     public function update(Request $request, Tournament $tournament): JsonResponse
     {
-        if (!$this->canManageTournament($request->user(), $tournament)) {
+        $user = $request->user();
+        if (!$this->canManageTournament($user, $tournament)) {
             return $this->forbidden();
+        }
+        if (!$this->hasTournamentsFullAccess($user, $tournament)) {
+            return $this->noPermission('Нет прав на редактирование турниров');
         }
 
         if (!in_array($tournament->status, ['draft', 'open'], true)) {
@@ -154,8 +158,12 @@ class MobileAdminTournamentDetailController extends Controller
      */
     public function destroy(Request $request, Tournament $tournament): JsonResponse
     {
-        if (!$this->canManageTournament($request->user(), $tournament)) {
+        $user = $request->user();
+        if (!$this->canManageTournament($user, $tournament)) {
             return $this->forbidden();
+        }
+        if (!$this->hasTournamentsFullAccess($user, $tournament)) {
+            return $this->noPermission('Нет прав на удаление турниров');
         }
 
         if ($tournament->status !== 'draft') {
@@ -172,11 +180,31 @@ class MobileAdminTournamentDetailController extends Controller
         ]);
     }
 
+    /**
+     * Любой доступ к турниру — админ или модератор клуба (любой).
+     * Используется для всех «провести турнир»-действий: модерация, ввод
+     * счёта, генерация раундов/плей-офф, запуск, завершение.
+     */
     private function canManageTournament($user, Tournament $tournament): bool
     {
         if (!$user) return false;
         if ($user->isSuperAdmin()) return true;
-        return $user->adminClubs()->where('clubs.id', $tournament->club_id)->exists();
+        $clubId = $tournament->club_id;
+        if ($user->adminClubs()->where('clubs.id', $clubId)->exists()) {
+            return true;
+        }
+        return $user->moderatorClubs()->where('clubs.id', $clubId)->exists();
+    }
+
+    /**
+     * Полные права (правка/удаление) — только админ или full-access модератор.
+     */
+    private function hasTournamentsFullAccess($user, Tournament $tournament): bool
+    {
+        if (!$user) return false;
+        $club = $tournament->club ?? \App\Models\Club::find($tournament->club_id);
+        if (!$club) return false;
+        return $user->hasTournamentsFullAccess($club);
     }
 
     private function forbidden(): JsonResponse
@@ -187,13 +215,27 @@ class MobileAdminTournamentDetailController extends Controller
         ], 403);
     }
 
-    private function formatDetail(Tournament $t): array
+    private function noPermission(string $message = 'Нет прав на это действие'): JsonResponse
     {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+        ], 403);
+    }
+
+    private function formatDetail(Tournament $t, $user = null): array
+    {
+        $user = $user ?? auth()->user();
         $taken = $this->getParticipantsCount($t);
         $minRequired = $t->isTeamBased() ? 4 : 4; // минимум для запуска
+        $hasFullAccess = $user
+            ? $this->hasTournamentsFullAccess($user, $t)
+            : false;
         $canStart = $t->status === 'open' && $taken >= $minRequired;
-        $canEdit = in_array($t->status, ['draft', 'open'], true);
-        $canDelete = $t->status === 'draft';
+        // Редактировать/удалять — только с полными правами.
+        $canEdit = $hasFullAccess
+            && in_array($t->status, ['draft', 'open'], true);
+        $canDelete = $hasFullAccess && $t->status === 'draft';
 
         return [
             'id' => $t->id,
@@ -221,6 +263,7 @@ class MobileAdminTournamentDetailController extends Controller
             'can_edit' => $canEdit,
             'can_start' => $canStart,
             'can_delete' => $canDelete,
+            'tournaments_full_access' => $hasFullAccess,
         ];
     }
 

@@ -39,8 +39,9 @@ class TournamentController extends Controller
 		if ($club) {
 			$query = Tournament::where('club_id', $club->id);
 
-			// Модератор видит только открытые турниры
-			if ($user->isClubModerator()) {
+			// Обычный модератор видит только открытые турниры; full-access
+			// модератор видит все статусы (как админ).
+			if ($user->isClubModerator() && !$user->hasTournamentsFullAccess($club)) {
 				$query->where('status', 'open');
 			}
 
@@ -58,8 +59,12 @@ class TournamentController extends Controller
 
     public function create()
     {
-		if (auth()->user()->isClubModerator()) {
-			abort(403, 'Модераторам недоступно создание турниров');
+		$user = auth()->user();
+		if ($user->isClubModerator()) {
+			$accessClub = $this->getClub();
+			if (!$accessClub || !$user->hasTournamentsFullAccess($accessClub)) {
+				abort(403, 'У вас нет прав на это действие. Обратитесь к админу клуба.');
+			}
 		}
         $club = $this->getClub();
         $clubs = auth()->user()->isSuperAdmin() ? Club::active()->get() : collect([$club]);
@@ -69,8 +74,12 @@ class TournamentController extends Controller
 
     public function store(Request $request)
     {
-		if (auth()->user()->isClubModerator()) {
-			abort(403, 'Модераторам недоступно создание турниров');
+		$user = auth()->user();
+		if ($user->isClubModerator()) {
+			$accessClub = $this->getClub();
+			if (!$accessClub || !$user->hasTournamentsFullAccess($accessClub)) {
+				abort(403, 'У вас нет прав на это действие. Обратитесь к админу клуба.');
+			}
 		}
         $club = $this->getClub();
         
@@ -194,8 +203,12 @@ class TournamentController extends Controller
 
     public function edit(Tournament $tournament)
     {
-		if (auth()->user()->isClubModerator()) {
-			abort(403, 'Модераторам недоступно создание турниров');
+		$user = auth()->user();
+		if ($user->isClubModerator()) {
+			$accessClub = $this->getClub();
+			if (!$accessClub || !$user->hasTournamentsFullAccess($accessClub)) {
+				abort(403, 'У вас нет прав на это действие. Обратитесь к админу клуба.');
+			}
 		}
         $club = $this->getClub();
         
@@ -210,8 +223,12 @@ class TournamentController extends Controller
 
     public function update(Request $request, Tournament $tournament)
 	{
-		if (auth()->user()->isClubModerator()) {
-			abort(403, 'Модераторам недоступно создание турниров');
+		$user = auth()->user();
+		if ($user->isClubModerator()) {
+			$accessClub = $this->getClub();
+			if (!$accessClub || !$user->hasTournamentsFullAccess($accessClub)) {
+				abort(403, 'У вас нет прав на это действие. Обратитесь к админу клуба.');
+			}
 		}
 		$club = $this->getClub();
 		
@@ -253,8 +270,12 @@ class TournamentController extends Controller
 
     public function destroy(Tournament $tournament)
     {
-		if (auth()->user()->isClubModerator()) {
-			abort(403, 'Модераторам недоступно создание турниров');
+		$user = auth()->user();
+		if ($user->isClubModerator()) {
+			$accessClub = $this->getClub();
+			if (!$accessClub || !$user->hasTournamentsFullAccess($accessClub)) {
+				abort(403, 'У вас нет прав на это действие. Обратитесь к админу клуба.');
+			}
 		}
         $club = $this->getClub();
         

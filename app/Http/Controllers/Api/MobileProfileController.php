@@ -216,6 +216,7 @@ class MobileProfileController extends Controller
     private function formatUser(User $user, ?int $place): array
     {
         $isClubAdmin = $user->isClubAdmin();
+        $isClubModerator = $user->isClubModerator();
         $adminClubs = $isClubAdmin
             ? $user->adminClubs()
                 ->select('clubs.id', 'clubs.name', 'clubs.features')
@@ -224,6 +225,19 @@ class MobileProfileController extends Controller
                     'id' => $c->id,
                     'name' => $c->name,
                     'features' => $c->features ?? [],
+                ])
+                ->toArray()
+            : [];
+        $moderatorClubs = $isClubModerator
+            ? $user->moderatorClubs()
+                ->select('clubs.id', 'clubs.name', 'clubs.features')
+                ->get()
+                ->map(fn($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'features' => $c->features ?? [],
+                    'tournaments_full_access' =>
+                        (bool) ($c->pivot->tournaments_full_access ?? false),
                 ])
                 ->toArray()
             : [];
@@ -251,6 +265,8 @@ class MobileProfileController extends Controller
             'role' => $user->role,
             'is_club_admin' => $isClubAdmin,
             'admin_clubs' => $adminClubs,
+            'is_club_moderator' => $isClubModerator,
+            'moderator_clubs' => $moderatorClubs,
         ];
     }
 }

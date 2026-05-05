@@ -39,6 +39,9 @@ class ModeratorManagerController extends Controller
             'password' => 'required|string|min:6',
         ]);
 
+        $fullAccess = $request->boolean('tournaments_full_access');
+        $pivotData = ['tournaments_full_access' => $fullAccess];
+
         // Проверяем есть ли уже пользователь с таким email
         $user = User::where('email', $validated['email'])->first();
 
@@ -50,7 +53,7 @@ class ModeratorManagerController extends Controller
 
             // Обновляем роль и привязываем
             $user->update(['role' => 'club_moderator']);
-            $club->moderators()->syncWithoutDetaching([$user->id]);
+            $club->moderators()->syncWithoutDetaching([$user->id => $pivotData]);
 
             return back()->with('success', "Модератор {$user->name} добавлен");
         }
@@ -66,9 +69,26 @@ class ModeratorManagerController extends Controller
             'role' => 'club_moderator',
         ]);
 
-        $club->moderators()->syncWithoutDetaching([$user->id]);
+        $club->moderators()->syncWithoutDetaching([$user->id => $pivotData]);
 
         return back()->with('success', "Модератор {$name} создан и добавлен");
+    }
+
+    /**
+     * Переключить доступ модератора к турнирам (full / только модерация).
+     */
+    public function updatePermissions(Request $request, User $user)
+    {
+        $club = $this->getClub();
+        if (!$club || !$club->moderators()->where('user_id', $user->id)->exists()) {
+            return back()->with('error', 'Нет доступа');
+        }
+
+        $club->moderators()->updateExistingPivot($user->id, [
+            'tournaments_full_access' => $request->boolean('tournaments_full_access'),
+        ]);
+
+        return back()->with('success', "Права для {$user->name} обновлены");
     }
 
     public function updatePassword(Request $request, User $user)

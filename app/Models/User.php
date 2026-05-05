@@ -72,7 +72,32 @@ class User extends Authenticatable
 	// Связь: клубы где юзер модератор
 	public function moderatorClubs()
 	{
-		return $this->belongsToMany(Club::class, 'club_moderators');
+		return $this->belongsToMany(Club::class, 'club_moderators')
+			->withPivot('tournaments_full_access');
+	}
+
+	/**
+	 * Полный доступ к турнирам клуба (создание/правка/удаление).
+	 * Есть у:
+	 *  - super_admin
+	 *  - club_admin данного клуба
+	 *  - club_moderator данного клуба с флагом tournaments_full_access
+	 */
+	public function hasTournamentsFullAccess(Club $club): bool
+	{
+		if ($this->isSuperAdmin()) return true;
+		if ($this->isClubAdmin()
+			&& $this->adminClubs()->where('clubs.id', $club->id)->exists()) {
+			return true;
+		}
+		if ($this->isClubModerator()) {
+			$mod = $this->moderatorClubs()
+				->where('clubs.id', $club->id)
+				->first();
+			return $mod !== null
+				&& (bool) $mod->pivot->tournaments_full_access;
+		}
+		return false;
 	}
     // Проверки ролей
     public function isPlayer(): bool

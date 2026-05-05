@@ -28,7 +28,13 @@ class MobileAdminTournamentController extends Controller
             ], 403);
         }
 
-        $tournaments = Tournament::where('club_id', $club->id)
+        $query = Tournament::where('club_id', $club->id);
+        // Обычный модератор видит только открытые турниры (как в Web).
+        // Full-access модератор и админ — все статусы.
+        if (!$this->hasTournamentsFullAccess($user, $club)) {
+            $query->where('status', 'open');
+        }
+        $tournaments = $query
             ->orderBy('start_date', 'desc')
             ->get()
             ->map(fn($t) => $this->formatSummary($t));
@@ -40,17 +46,36 @@ class MobileAdminTournamentController extends Controller
                 'name' => $club->name,
             ],
             'tournaments' => $tournaments,
+            'tournaments_full_access' =>
+                $this->hasTournamentsFullAccess($user, $club),
         ]);
     }
 
     /**
-     * Может ли пользователь управлять клубом (он club_admin этого клуба).
+     * Может ли пользователь управлять клубом (читать его данные).
+     * Доступ есть у:
+     *  - super_admin
+     *  - club_admin данного клуба
+     *  - club_moderator данного клуба (любой — обычный или с full access)
      */
     private function canManageClub($user, Club $club): bool
     {
         if (!$user) return false;
         if ($user->isSuperAdmin()) return true;
-        return $user->adminClubs()->where('clubs.id', $club->id)->exists();
+        if ($user->adminClubs()->where('clubs.id', $club->id)->exists()) {
+            return true;
+        }
+        return $user->moderatorClubs()->where('clubs.id', $club->id)->exists();
+    }
+
+    /**
+     * Полные права на управление турнирами клуба
+     * (создание/правка/удаление). Только админы или full-access модераторы.
+     */
+    private function hasTournamentsFullAccess($user, Club $club): bool
+    {
+        if (!$user) return false;
+        return $user->hasTournamentsFullAccess($club);
     }
 
     /**
@@ -119,6 +144,12 @@ class MobileAdminTournamentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Нет доступа к этому клубу',
+            ], 403);
+        }
+        if (!$this->hasTournamentsFullAccess($user, $club)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет прав на создание турниров. Обратитесь к админу клуба.',
             ], 403);
         }
 
