@@ -17,7 +17,7 @@
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        @if(!auth()->user()->isClubModerator())
+        @if(auth()->user()->isSuperAdmin() || auth()->user()->hasTournamentsFullAccess($tournament->club))
             @if($tournament->status === 'open')
                 @if($tournament->approvedParticipantsCount() < $tournament->max_participants)
                     <form action="{{ route('club.tournaments.addTestPlayers', $tournament) }}" method="POST">

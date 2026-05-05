@@ -8,7 +8,7 @@
         <h2>Турниры {{ $club ? '— ' . $club->name : '' }}</h2>
         <p>Управление турнирами клуба</p>
     </div>
-    @if(!auth()->user()->isClubModerator())
+    @if(auth()->user()->isSuperAdmin() || ($club && auth()->user()->hasTournamentsFullAccess($club)))
     <a href="{{ route('club.tournaments.create') }}" class="btn-primary-custom">
         <i class="bi bi-plus-circle"></i>
         <span>Создать турнир</span>
@@ -22,7 +22,7 @@
             <div class="card-body text-center py-5">
                 <i class="bi bi-trophy fs-1 text-secondary mb-3"></i>
                 <p class="text-secondary mb-3">Турниров пока нет</p>
-                @if(!auth()->user()->isClubModerator())
+                @if(auth()->user()->isSuperAdmin() || ($club && auth()->user()->hasTournamentsFullAccess($club)))
                 <a href="{{ route('club.tournaments.create') }}" class="btn-primary-custom">
                     <i class="bi bi-plus-circle"></i> Создать первый турнир
                 </a>
@@ -76,7 +76,7 @@
                                 <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom btn-sm" title="Просмотр">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                @if(!auth()->user()->isClubModerator())
+                                @if(auth()->user()->isSuperAdmin() || ($club && auth()->user()->hasTournamentsFullAccess($club)))
                                 <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
                                     <i class="bi bi-pencil"></i>
                                 </a>
