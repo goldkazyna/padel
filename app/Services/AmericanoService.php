@@ -451,12 +451,22 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 			$final = $tournament->playoffMatches()
 				->where('stage', 'Финал')
 				->first();
-			
+
 			if (!$final || $final->status !== 'completed') {
 				return false;
 			}
+
+			// Если есть матч за 3-е место — он тоже должен быть сыгран
+			if ($tournament->has_bronze_match) {
+				$bronze = $tournament->playoffMatches()
+					->where('is_bronze', true)
+					->first();
+				if (!$bronze || $bronze->status !== 'completed') {
+					return false;
+				}
+			}
 		}
-		
+
 		return true;
 	}
 
@@ -1093,6 +1103,18 @@ public function previewRatingChanges(Tournament $tournament): array
 			'match_number' => 1,
 			'status' => 'pending',
 		]);
+
+		// Матч за 3-е место (опционально) — пустой, заполнится проигравшими
+		// полуфиналов в updateFinalAfterSemifinal.
+		if ($tournament->has_bronze_match) {
+			\App\Models\TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'stage' => 'Матч за 3-е место',
+				'match_number' => 1,
+				'is_bronze' => true,
+				'status' => 'pending',
+			]);
+		}
 	}
 	/**
 	 * Обновить финал после полуфинала
@@ -1112,27 +1134,36 @@ public function previewRatingChanges(Tournament $tournament): array
 			return;
 		}
 		
-		// Получаем победителей полуфиналов
+		// Получаем победителей и проигравших полуфиналов
 		$winners = [];
+		$losers = [];
 		foreach ($semifinals as $semi) {
 			if ($semi->team1_score > $semi->team2_score) {
 				$winners[] = [
 					'player1_id' => $semi->team1_player1_id,
 					'player2_id' => $semi->team1_player2_id,
 				];
+				$losers[] = [
+					'player1_id' => $semi->team2_player1_id,
+					'player2_id' => $semi->team2_player2_id,
+				];
 			} else {
 				$winners[] = [
 					'player1_id' => $semi->team2_player1_id,
 					'player2_id' => $semi->team2_player2_id,
 				];
+				$losers[] = [
+					'player1_id' => $semi->team1_player1_id,
+					'player2_id' => $semi->team1_player2_id,
+				];
 			}
 		}
-		
+
 		// Обновляем финал
 		$final = $tournament->playoffMatches()
 			->where('stage', 'Финал')
 			->first();
-		
+
 		if ($final && count($winners) >= 2) {
 			$final->update([
 				'team1_player1_id' => $winners[0]['player1_id'],
@@ -1141,6 +1172,22 @@ public function previewRatingChanges(Tournament $tournament): array
 				'team2_player2_id' => $winners[1]['player2_id'],
 				'status' => 'pending',
 			]);
+		}
+
+		// Обновляем матч за 3-е место (если включён) — заполняем проигравшими
+		if ($tournament->has_bronze_match && count($losers) >= 2) {
+			$bronze = $tournament->playoffMatches()
+				->where('is_bronze', true)
+				->first();
+			if ($bronze) {
+				$bronze->update([
+					'team1_player1_id' => $losers[0]['player1_id'],
+					'team1_player2_id' => $losers[0]['player2_id'],
+					'team2_player1_id' => $losers[1]['player1_id'],
+					'team2_player2_id' => $losers[1]['player2_id'],
+					'status' => 'pending',
+				]);
+			}
 		}
 	}
 	/**
