@@ -154,19 +154,27 @@ class MobileAdminTournamentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:king_of_court',
+            'type' => 'required|in:king_of_court,americano',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',
             'min_level' => 'required|numeric|min:1|max:5.75',
             'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
-            'max_participants' => 'required|integer|min:4|max:32',
+            'max_participants' => 'required|integer|min:2|max:128',
             'price' => 'nullable|numeric|min:0',
             'status' => 'required|in:draft,open',
             'courts' => 'nullable|array',
             'courts.*' => 'nullable|string|max:50',
-            'courts_count' => 'nullable|integer|min:1|max:8',
+            'courts_count' => 'nullable|integer|min:1|max:32',
             'reserve_count' => 'nullable|integer|min:0|max:10',
+            // Поля Американо
+            'groups_count' => 'nullable|integer|in:1,2,3,4',
+            'rounds_count' => 'nullable|integer|min:1|max:30',
+            'has_playoff' => 'nullable|boolean',
+            'has_lower_bracket' => 'nullable|boolean',
+            'has_bronze_match' => 'nullable|boolean',
+            'playoff_type' => 'nullable|in:final_only,semifinal_final',
+            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
         ]);
 
         if ($validator->fails()) {
@@ -179,6 +187,19 @@ class MobileAdminTournamentController extends Controller
 
         $validated = $validator->validated();
         $validated['club_id'] = $club->id;
+
+        // Нормализация плей-офф (копия из Web Club\TournamentController::store)
+        $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
+        $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
+        $validated['has_playoff'] = $request->boolean('has_playoff')
+            || $validated['has_lower_bracket']
+            || $validated['has_bronze_match'];
+        if (!$validated['has_playoff']) {
+            $validated['playoff_type'] = null;
+            $validated['playoff_format'] = null;
+            $validated['has_lower_bracket'] = false;
+            $validated['has_bronze_match'] = false;
+        }
 
         // Названия кортов — пустые слоты обнуляем, если массив целиком пустой — null
         if (isset($validated['courts'])) {
