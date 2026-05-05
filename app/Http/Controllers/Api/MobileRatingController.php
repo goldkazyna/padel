@@ -371,42 +371,56 @@ class MobileRatingController extends Controller
      */
     public function verification(User $user)
     {
+        $history = $this->levelVerificationHistory($user);
+
         return response()->json([
             'success' => true,
             'level' => $user->level !== null ? (float) $user->level : null,
             'level_verified' => (bool) $user->level_verified,
-            'level_verification' => $this->lastLevelVerification($user),
+            // Последняя запись (для обратной совместимости и плашки в профиле).
+            'level_verification' => $history[0] ?? null,
+            // Полная история — для модалки.
+            'level_verifications' => $history,
         ]);
     }
 
     /**
-     * Последняя запись из user_level_history где new_verified=true.
-     * Если игрока ни разу не верифицировали — null.
+     * Все записи из user_level_history где new_verified=true,
+     * отсортированные по дате убывания (новые сверху).
      */
-    private function lastLevelVerification(User $user): ?array
+    private function levelVerificationHistory(User $user): array
     {
-        $row = \App\Models\UserLevelHistory::where('user_id', $user->id)
+        return \App\Models\UserLevelHistory::where('user_id', $user->id)
             ->where('new_verified', true)
             ->orderBy('created_at', 'desc')
             ->with(['changedBy:id,name,avatar', 'club:id,name'])
-            ->first();
+            ->get()
+            ->map(fn($row) => [
+                'verified_by' => $row->changedBy ? [
+                    'id' => $row->changedBy->id,
+                    'name' => $row->changedBy->name,
+                    'avatar_url' => $row->changedBy->avatar
+                        ? asset('storage/' . $row->changedBy->avatar) : null,
+                ] : null,
+                'club' => $row->club ? [
+                    'id' => $row->club->id,
+                    'name' => $row->club->name,
+                ] : null,
+                'verified_at' => $row->created_at?->toIso8601String(),
+                'level_set_to' => $row->new_level !== null
+                    ? (float) $row->new_level : null,
+            ])
+            ->toArray();
+    }
 
-        if (!$row) return null;
-
-        return [
-            'verified_by' => $row->changedBy ? [
-                'id' => $row->changedBy->id,
-                'name' => $row->changedBy->name,
-                'avatar_url' => $row->changedBy->avatar
-                    ? asset('storage/' . $row->changedBy->avatar) : null,
-            ] : null,
-            'club' => $row->club ? [
-                'id' => $row->club->id,
-                'name' => $row->club->name,
-            ] : null,
-            'verified_at' => $row->created_at?->toIso8601String(),
-            'level_set_to' => $row->new_level !== null ? (float) $row->new_level : null,
-        ];
+    /**
+     * Последняя запись из user_level_history где new_verified=true.
+     * Используется в подробном /rating/player/{user} эндпоинте.
+     */
+    private function lastLevelVerification(User $user): ?array
+    {
+        $history = $this->levelVerificationHistory($user);
+        return $history[0] ?? null;
     }
 
     /**
