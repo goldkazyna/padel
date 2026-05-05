@@ -217,7 +217,15 @@ class MobileProfileController extends Controller
     {
         $isClubAdmin = $user->isClubAdmin();
         $adminClubs = $isClubAdmin
-            ? $user->adminClubs()->select('clubs.id', 'clubs.name')->get()->toArray()
+            ? $user->adminClubs()
+                ->select('clubs.id', 'clubs.name', 'clubs.features')
+                ->get()
+                ->map(fn($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'features' => $c->features ?? [],
+                ])
+                ->toArray()
             : [];
 
         return [
