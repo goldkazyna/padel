@@ -18,6 +18,17 @@ class MobileClubController extends Controller
     {
         $query = Club::active()->notTest();
 
+        // type: 'club' (default) — без флага сообществ; 'community' — только
+        // комьюнити; 'all' — без фильтра.
+        $type = $request->get('type', 'club');
+        if ($type === 'community') {
+            $query->where('is_community', true);
+        } elseif ($type === 'club') {
+            $query->where(function ($q) {
+                $q->where('is_community', false)->orWhereNull('is_community');
+            });
+        }
+
         if ($request->filled('city')) {
             $query->where('city', $request->city);
         }
@@ -41,6 +52,7 @@ class MobileClubController extends Controller
             'logo' => $club->logo ? url($club->logo) : null,
             'description' => $club->description,
             'phone' => $club->phone,
+            'is_community' => (bool) $club->is_community,
         ]);
 
         $cities = $clubs->pluck('city')->filter()->unique()->sort()->values();
