@@ -53,6 +53,7 @@ class Tournament extends Model
 		'courts_count',
 		'has_lower_bracket',
 		'has_bronze_match',
+		'telegram_registration_url',
     ];
 
     protected $casts = [

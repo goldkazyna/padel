@@ -562,6 +562,7 @@ class MobileTournamentController extends Controller
             'id' => $t->id,
             'name' => $t->name,
             'description' => $t->description,
+            'telegram_registration_url' => $t->telegram_registration_url,
             'club' => [
                 'id' => $t->club->id ?? null,
                 'name' => $t->club->name ?? 'Клуб',

@@ -256,6 +256,7 @@ class MobileAdminTournamentDetailController extends Controller
             'participants_count' => $taken,
             'pending_count' => $this->getPendingCount($t),
             'price' => $t->price !== null ? (float) $t->price : null,
+            'telegram_registration_url' => $t->telegram_registration_url,
             'has_playoff' => (bool) $t->has_playoff,
             'has_lower_bracket' => (bool) $t->has_lower_bracket,
             'has_bronze_match' => (bool) $t->has_bronze_match,

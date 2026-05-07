@@ -175,6 +175,7 @@ class MobileAdminTournamentController extends Controller
             'has_bronze_match' => 'nullable|boolean',
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
             'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
+            'telegram_registration_url' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
