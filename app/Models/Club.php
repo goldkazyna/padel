@@ -19,6 +19,7 @@ class Club extends Model
         'city',
         'is_active',
         'is_test',
+        'is_community',
         'booking_cancel_hours',
         'payment_url',
         'features',
@@ -29,6 +30,7 @@ class Club extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_test' => 'boolean',
+        'is_community' => 'boolean',
         'features' => 'array',
     ];
 
