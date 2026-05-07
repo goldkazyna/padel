@@ -168,10 +168,12 @@ class MobileAdminUserController extends Controller
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
+        // Ручная правка уровня админом = уровень верифицирован.
+        // Баннер «поставьте аватарку / сыграйте турнир» всё равно покажется
+        // пользователю — он не зависит от level_verified.
+        $update['level_verified'] = true;
 
         $target->update($update);
-        // Пересчитываем верификацию по правилам (аватар + сыгранный турнир)
-        $target->recomputeLevelVerified();
         $target->refresh();
         $newVerified = (bool) $target->level_verified;
 

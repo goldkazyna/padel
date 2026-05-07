@@ -137,10 +137,13 @@ class UserController extends Controller
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
+        // Ручная правка уровня админом = уровень верифицирован.
+        // Баннер «поставьте аватарку / сыграйте турнир» всё равно покажется
+        // пользователю — он не зависит от level_verified, а вычисляется по
+        // verificationBlockers().
+        $update['level_verified'] = true;
 
         $user->update($update);
-        // level_verified теперь пересчитываем по правилам: аватар + хотя бы один сыгранный турнир.
-        $user->recomputeLevelVerified();
         $user->refresh();
 
         $newVerified = (bool) $user->level_verified;
