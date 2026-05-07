@@ -39,7 +39,7 @@ class MobileAdminUserController extends Controller
             ], 403);
         }
 
-        $query = User::where('role', 'player')->orderBy('name');
+        $query = User::human()->orderBy('name');
 
         // Фильтр по городу клуба — как в Web
         if ($club->city) {
@@ -89,7 +89,7 @@ class MobileAdminUserController extends Controller
         $paginator = $query->paginate($perPage)->withQueryString();
 
         // Статистика по уровням (без фильтров поиска/уровня — глобально по городу)
-        $statsQuery = User::where('role', 'player');
+        $statsQuery = User::human();
         if ($club->city) {
             $clubCity = $club->city;
             if ($clubCity === 'Алматы') {

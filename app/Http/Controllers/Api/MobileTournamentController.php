@@ -334,7 +334,7 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Введите минимум 5 цифр номера'], 400);
         }
 
-        $partners = User::where('role', 'player')
+        $partners = User::human()
             ->where('id', '!=', $user->id)
             ->where('phone', 'LIKE', "%{$phone}%")
             ->limit(10)

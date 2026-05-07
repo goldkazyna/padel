@@ -17,7 +17,7 @@ class PlayerController extends Controller
         $ratingHistory = $player->ratingHistory()->take(20)->get();
         
         // Позиция в рейтинге
-        $rank = User::where('role', 'player')
+        $rank = User::human()
             ->where('rating', '>', $player->rating)
             ->count() + 1;
 

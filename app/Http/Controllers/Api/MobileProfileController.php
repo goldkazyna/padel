@@ -81,7 +81,7 @@ class MobileProfileController extends Controller
 
         $place = null;
         if ($user->rating) {
-            $place = User::where('role', 'player')
+            $place = User::human()
                 ->where('rating', '>', $user->rating)
                 ->count() + 1;
         }
@@ -173,7 +173,7 @@ class MobileProfileController extends Controller
 
         $place = null;
         if ($user->rating) {
-            $place = User::where('role', 'player')
+            $place = User::human()
                 ->where('rating', '>', $user->rating)
                 ->count() + 1;
         }

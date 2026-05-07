@@ -26,7 +26,7 @@ class MobileRatingController extends Controller
         $perPage = 20;
 
         // Базовый запрос с фильтрами
-        $query = User::where('role', 'player');
+        $query = User::human();
         $this->applyLevelFilter($query, $level);
         $this->applySearch($query, $search);
 
@@ -72,7 +72,7 @@ class MobileRatingController extends Controller
     private function getMyCard($user, string $level, ?string $search, int $totalFiltered): array
     {
         // Место в общем рейтинге (без фильтров)
-        $globalPlace = User::where('role', 'player')
+        $globalPlace = User::human()
             ->where(function ($q) use ($user) {
                 $q->where('rating', '>', $user->rating)
                   ->orWhere(function ($q2) use ($user) {
@@ -82,12 +82,12 @@ class MobileRatingController extends Controller
             })
             ->count() + 1;
 
-        $totalPlayers = User::where('role', 'player')->count();
+        $totalPlayers = User::human()->count();
 
         // Место с учётом текущего фильтра
         $filteredPlace = null;
         if ($level !== 'all' || $search) {
-            $filteredQuery = User::where('role', 'player');
+            $filteredQuery = User::human();
             $this->applyLevelFilter($filteredQuery, $level);
             $this->applySearch($filteredQuery, $search);
 
@@ -124,7 +124,7 @@ class MobileRatingController extends Controller
     private function getNeighbors($user): array
     {
         // Игроки выше (рейтинг больше или равный, но id меньше при равном рейтинге)
-        $above = User::where('role', 'player')
+        $above = User::human()
             ->where(function ($q) use ($user) {
                 $q->where('rating', '>', $user->rating)
                   ->orWhere(function ($q2) use ($user) {
@@ -140,7 +140,7 @@ class MobileRatingController extends Controller
             ->values();
 
         // Игроки ниже (рейтинг меньше или равный, но id больше при равном рейтинге)
-        $below = User::where('role', 'player')
+        $below = User::human()
             ->where(function ($q) use ($user) {
                 $q->where('rating', '<', $user->rating)
                   ->orWhere(function ($q2) use ($user) {
@@ -154,7 +154,7 @@ class MobileRatingController extends Controller
             ->get();
 
         // Считаем позицию текущего пользователя
-        $myPlace = User::where('role', 'player')
+        $myPlace = User::human()
             ->where(function ($q) use ($user) {
                 $q->where('rating', '>', $user->rating)
                   ->orWhere(function ($q2) use ($user) {
@@ -212,7 +212,7 @@ class MobileRatingController extends Controller
         }
 
         if ($search) {
-            $userIds = User::where('role', 'player')
+            $userIds = User::human()
                 ->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                       ->orWhere('first_name', 'like', "%{$search}%")
@@ -291,7 +291,7 @@ class MobileRatingController extends Controller
     public function player(User $user)
     {
         // Место в рейтинге
-        $place = User::where('role', 'player')
+        $place = User::human()
             ->where(function ($q) use ($user) {
                 $q->where('rating', '>', $user->rating)
                   ->orWhere(function ($q2) use ($user) {
@@ -451,7 +451,7 @@ class MobileRatingController extends Controller
         }
 
         if ($search) {
-            $userIds = User::where('role', 'player')
+            $userIds = User::human()
                 ->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                       ->orWhere('first_name', 'like', "%{$search}%")

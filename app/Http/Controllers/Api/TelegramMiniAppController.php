@@ -74,7 +74,7 @@ class TelegramMiniAppController extends Controller
 		$stats = $user->getAllMatchesStats();
 		$tournamentHistory = $user->getTournamentHistory();
 		
-		$rank = User::where('role', 'player')
+		$rank = User::human()
 			->where(function($q) use ($user) {
 				$q->where('rating', '>', $user->rating)
 				  ->orWhere(function($q2) use ($user) {
@@ -476,7 +476,7 @@ class TelegramMiniAppController extends Controller
 		$perPage = 20;
 		
 		// Базовый запрос
-		$query = User::where('role', 'player');
+		$query = User::human();
 		
 		// Фильтрация по уровню
 		if ($level !== 'all') {
@@ -525,7 +525,7 @@ class TelegramMiniAppController extends Controller
 		
 		if ($user) {
 			// Позиция = игроки с большим рейтингом + игроки с таким же рейтингом но меньшим id + 1
-			$myRank = User::where('role', 'player')
+			$myRank = User::human()
 				->where(function($q) use ($user) {
 					$q->where('rating', '>', $user->rating)
 					  ->orWhere(function($q2) use ($user) {
@@ -620,7 +620,7 @@ class TelegramMiniAppController extends Controller
 		}
 
 		// Ищем игроков
-		$partners = User::where('role', 'player')
+		$partners = User::human()
 			->where('id', '!=', $user->id)
 			->where('phone', 'LIKE', "%{$phone}%")
 			->limit(10)

@@ -33,7 +33,7 @@ class UserController extends Controller
         if (!in_array($sort, ['name', 'created_at', 'level'])) $sort = 'name';
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
 
-        $query = User::where('role', 'player')->orderBy($sort, $direction);
+        $query = User::human()->orderBy($sort, $direction);
 
         // Фильтр по городу клуба
         $club = $this->getClub();
@@ -90,7 +90,7 @@ class UserController extends Controller
         $users = $query->paginate(20)->withQueryString();
 
         // Статистика по уровням
-        $levelStatsQuery = User::where('role', 'player');
+        $levelStatsQuery = User::human();
         if ($club && $club->city) {
             $clubCity = $club->city;
             if ($clubCity === 'Алматы') {

@@ -529,7 +529,7 @@ class MobileAdminTournamentDetailController extends Controller
             $excluded = $tournament->participants()->pluck('users.id')->toArray();
         }
 
-        $players = User::where('role', 'player')
+        $players = User::human()
             ->where(function ($qq) use ($q) {
                 $qq->where('phone', 'like', "%{$q}%")
                     ->orWhere('name', 'like', "%{$q}%");

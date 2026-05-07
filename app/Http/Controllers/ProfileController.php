@@ -36,11 +36,11 @@ class ProfileController extends Controller
 		$matchHistory = array_slice($user->getMatchHistory(), 0, 5);
 		
 		// Место в рейтинге
-		$rank = \App\Models\User::where('role', 'player')
+		$rank = \App\Models\User::human()
 			->where('rating', '>', $user->rating)
 			->count() + 1;
 		
-		$totalPlayers = \App\Models\User::where('role', 'player')->count();
+		$totalPlayers = \App\Models\User::human()->count();
 
 		return view('profile.show', compact(
 			'user', 'stats', 'ratingHistory', 'tournamentStats',

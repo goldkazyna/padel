@@ -99,6 +99,17 @@ class User extends Authenticatable
 		}
 		return false;
 	}
+    /**
+     * Scope «реальные люди»: исключаем плейсхолдеры (`reserve`)
+     * и системную учётку (`super_admin`). Используется в любых
+     * списках/поиске/рейтинге чтобы показывать всех живых юзеров,
+     * а не только role=player.
+     */
+    public function scopeHuman($query)
+    {
+        return $query->whereNotIn('role', ['reserve', 'super_admin']);
+    }
+
     // Проверки ролей
     public function isPlayer(): bool
     {

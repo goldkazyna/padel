@@ -240,7 +240,7 @@ class TeamTournamentController extends Controller
             return response()->json([]);
         }
 
-        $players = User::where('role', 'player')
+        $players = User::human()
 			->where(function($q) use ($query) {
 				$q->where('phone', 'like', "%{$query}%")
 				  ->orWhere('name', 'like', "%{$query}%");

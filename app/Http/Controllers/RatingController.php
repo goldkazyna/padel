@@ -9,8 +9,7 @@ class RatingController extends Controller
 {
     public function index()
     {
-        $players = User::where('role', 'player')
-                       ->orWhere('role', 'club_admin')
+        $players = User::human()
                        ->orderBy('rating', 'desc')
                        ->paginate(50);
 

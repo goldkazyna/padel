@@ -745,12 +745,12 @@ class TournamentController extends Controller
 		// Получаем ID уже добавленных участников
 		$existingIds = $tournament->participants()->pluck('user_id')->toArray();
 		
-		$players = \App\Models\User::where(function ($q) use ($query) {
+		$players = \App\Models\User::human()
+			->where(function ($q) use ($query) {
 				$q->where('phone', 'LIKE', "%{$query}%")
 				  ->orWhere('name', 'LIKE', "%{$query}%");
 			})
 			->whereNotIn('id', $existingIds)
-			->where('role', 'player')
 			->limit(10)
 			->get(['id', 'name', 'phone', 'level', 'rating']);
 		
