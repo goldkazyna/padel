@@ -51,6 +51,7 @@ class MobileHomeController extends Controller
             'level' => $user->level,
             'level_name' => $user->level_name,
             'level_verified' => (bool) $user->level_verified,
+            'verification_blockers' => $user->verificationBlockers(),
             'place' => $place,
             'city' => $user->city,
             'gender' => $user->gender,

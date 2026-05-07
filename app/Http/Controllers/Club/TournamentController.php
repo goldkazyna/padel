@@ -500,6 +500,8 @@ class TournamentController extends Controller
 		}
 
 		if ($result) {
+			// Триггер #5 верификации — пересчитать level_verified у участников
+			$tournament->recalculateParticipantsVerification(auth()->id(), $tournament->club_id);
 			return redirect()->route('club.tournaments.show', $tournament)
 							->with('success', 'Турнир завершён!');
 		}

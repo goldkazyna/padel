@@ -182,6 +182,7 @@ class MobileAuthController extends Controller
                 'rating' => $user->rating,
                 'level' => $user->level,
                 'level_verified' => (bool) $user->level_verified,
+                'verification_blockers' => $user->verificationBlockers(),
                 'quiz_completed' => (bool) $user->quiz_completed,
                 'level_name' => $user->level_name,
                 'role' => $user->role,

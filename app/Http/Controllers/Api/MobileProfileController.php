@@ -207,6 +207,9 @@ class MobileProfileController extends Controller
         $user->avatar = url('/storage/' . $path);
         $user->save();
 
+        // Триггер верификации: появился аватар → пересчитать level_verified
+        $user->recomputeLevelVerified();
+
         return response()->json([
             'success' => true,
             'avatar_url' => $user->avatar,
@@ -254,6 +257,7 @@ class MobileProfileController extends Controller
             'level_name' => $user->level_name,
             'place' => $place,
             'level_verified' => (bool) $user->level_verified,
+            'verification_blockers' => $user->verificationBlockers(),
             'quiz_completed' => (bool) $user->quiz_completed,
             'patronymic' => $user->patronymic,
             'city' => $user->city,

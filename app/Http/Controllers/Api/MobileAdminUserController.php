@@ -168,9 +168,12 @@ class MobileAdminUserController extends Controller
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
-        $update['level_verified'] = true;
 
         $target->update($update);
+        // Пересчитываем верификацию по правилам (аватар + сыгранный турнир)
+        $target->recomputeLevelVerified();
+        $target->refresh();
+        $newVerified = (bool) $target->level_verified;
 
         // Сборка changes
         $changes = [];
@@ -180,8 +183,8 @@ class MobileAdminUserController extends Controller
         if ($newLevel !== null && $oldLevel !== $newLevel) {
             $changes['level'] = ['from' => $oldLevel, 'to' => $newLevel];
         }
-        if ($oldVerified !== true) {
-            $changes['level_verified'] = ['from' => $oldVerified, 'to' => true];
+        if ($oldVerified !== $newVerified) {
+            $changes['level_verified'] = ['from' => $oldVerified, 'to' => $newVerified];
         }
 
         if (!empty($changes)) {
@@ -213,7 +216,7 @@ class MobileAdminUserController extends Controller
                 'old_level' => $oldLevel,
                 'new_level' => $newLevel ?? $oldLevel,
                 'old_verified' => $oldVerified,
-                'new_verified' => true,
+                'new_verified' => $newVerified,
                 'created_at' => now(),
             ]);
         }

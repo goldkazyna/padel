@@ -131,17 +131,19 @@ class UserController extends Controller
         $update = ['name' => $validated['name']];
 
         // Уровень можно менять любому игроку. Рейтинг пересчитывается как level * 1000 + 125.
-        // При сохранении формы уровень всегда считается подтверждённым админом
-        // клуба — выставляем level_verified = true автоматически.
         $newLevel = null;
         if (array_key_exists('level', $validated) && $validated['level'] !== null) {
             $newLevel = (float) $validated['level'];
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
-        $update['level_verified'] = true;
 
         $user->update($update);
+        // level_verified теперь пересчитываем по правилам: аватар + хотя бы один сыгранный турнир.
+        $user->recomputeLevelVerified();
+        $user->refresh();
+
+        $newVerified = (bool) $user->level_verified;
 
         // Логируем изменения, чтобы потом можно было понять кто/когда/что менял.
         $changes = [];
@@ -151,8 +153,8 @@ class UserController extends Controller
         if ($newLevel !== null && $oldLevel !== $newLevel) {
             $changes['level'] = ['from' => $oldLevel, 'to' => $newLevel];
         }
-        if ($oldVerified !== true) {
-            $changes['level_verified'] = ['from' => $oldVerified, 'to' => true];
+        if ($oldVerified !== $newVerified) {
+            $changes['level_verified'] = ['from' => $oldVerified, 'to' => $newVerified];
         }
 
         if (!empty($changes)) {
@@ -195,7 +197,7 @@ class UserController extends Controller
                 'old_level' => $oldLevel,
                 'new_level' => $newLevel ?? $oldLevel,
                 'old_verified' => $oldVerified,
-                'new_verified' => true,
+                'new_verified' => $newVerified,
                 'created_at' => now(),
             ]);
         }

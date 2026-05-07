@@ -1191,6 +1191,12 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Не удалось завершить турнир');
         }
 
+        // Триггер #5 верификации — пересчитать level_verified у участников
+        $tournament->recalculateParticipantsVerification(
+            $request->user()?->id,
+            $tournament->club_id
+        );
+
         $tournament->refresh()->loadMissing('club');
         return response()->json([
             'success' => true,

@@ -110,6 +110,67 @@ class User extends Authenticatable
         return $query->whereNotIn('role', ['reserve', 'super_admin']);
     }
 
+    /**
+     * Сыграл ли юзер хотя бы в одном завершённом турнире (одиночка или
+     * в составе команды). Используется для верификации рейтинга.
+     */
+    public function hasPlayedTournament(): bool
+    {
+        // Одиночные форматы — pivot tournament_participants
+        $asPlayer = \DB::table('tournament_participants')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_participants.tournament_id')
+            ->where('tournament_participants.user_id', $this->id)
+            ->whereIn('tournament_participants.status', ['registered', 'approved'])
+            ->where('tournaments.status', 'completed')
+            ->exists();
+        if ($asPlayer) return true;
+
+        // Парные турниры — tournament_teams
+        return \DB::table('tournament_teams')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
+            ->where('tournament_teams.status', 'approved')
+            ->where(function ($q) {
+                $q->where('tournament_teams.player1_id', $this->id)
+                  ->orWhere('tournament_teams.player2_id', $this->id);
+            })
+            ->where('tournaments.status', 'completed')
+            ->exists();
+    }
+
+    /**
+     * Список причин почему юзер пока не верифицирован.
+     * Пустой массив → должен быть verified.
+     *
+     * Возвращаемые ключи:
+     *   - 'no_avatar' — нет аватара
+     *   - 'no_tournaments' — не играл в завершённых турнирах
+     */
+    public function verificationBlockers(): array
+    {
+        $blockers = [];
+        if (empty($this->avatar)) {
+            $blockers[] = 'no_avatar';
+        }
+        if (!$this->hasPlayedTournament()) {
+            $blockers[] = 'no_tournaments';
+        }
+        return $blockers;
+    }
+
+    /**
+     * Пересчитать `level_verified` по правилам (есть аватар + сыграл в турнире).
+     * Возвращает true, если флаг изменился (нужно для логирования).
+     */
+    public function recomputeLevelVerified(): bool
+    {
+        $shouldBe = empty($this->verificationBlockers());
+        $current = (bool) $this->level_verified;
+        if ($shouldBe === $current) return false;
+        $this->level_verified = $shouldBe;
+        $this->save();
+        return true;
+    }
+
     // Проверки ролей
     public function isPlayer(): bool
     {

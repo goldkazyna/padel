@@ -112,6 +112,7 @@ class MobileRatingController extends Controller
             'level' => $user->level,
             'level_name' => $user->level_name,
             'level_verified' => (bool) $user->level_verified,
+            'verification_blockers' => $user->verificationBlockers(),
             'place' => $globalPlace,
             'filtered_place' => $filteredPlace,
             'total_players' => $totalPlayers,
@@ -349,6 +350,7 @@ class MobileRatingController extends Controller
                 'rating' => $user->rating,
                 'level' => $user->level,
                 'level_verified' => (bool) $user->level_verified,
+                'verification_blockers' => $user->verificationBlockers(),
                 'level_verification' => $this->lastLevelVerification($user),
                 'place' => $place,
                 'matches_played' => $matchStats['total'],
@@ -377,6 +379,7 @@ class MobileRatingController extends Controller
             'success' => true,
             'level' => $user->level !== null ? (float) $user->level : null,
             'level_verified' => (bool) $user->level_verified,
+            'verification_blockers' => $user->verificationBlockers(),
             // Последняя запись (для обратной совместимости и плашки в профиле).
             'level_verification' => $history[0] ?? null,
             // Полная история — для модалки.

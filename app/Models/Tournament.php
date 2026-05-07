@@ -23,6 +23,52 @@ class Tournament extends Model
         });
     }
 
+    /**
+     * Триггер #5 верификации: после завершения турнира пересчитать
+     * level_verified у всех его участников. Если у юзера флаг
+     * изменился — пишем запись в user_level_history (admin = $actorId).
+     */
+    public function recalculateParticipantsVerification(?int $actorId, ?int $clubId = null): void
+    {
+        $clubId = $clubId ?? $this->club_id;
+
+        if ($this->type === 'team') {
+            $playerIds = \App\Models\TournamentTeam::where('tournament_id', $this->id)
+                ->where('status', 'approved')
+                ->get(['player1_id', 'player2_id'])
+                ->flatMap(fn($t) => [$t->player1_id, $t->player2_id])
+                ->filter()
+                ->unique()
+                ->values();
+        } else {
+            $playerIds = $this->participants()
+                ->wherePivotIn('status', ['registered', 'approved'])
+                ->pluck('users.id')
+                ->unique()
+                ->values();
+        }
+
+        foreach ($playerIds as $userId) {
+            $user = User::find($userId);
+            if (!$user) continue;
+
+            $oldLevel = $user->level !== null ? (float) $user->level : null;
+            $oldVerified = (bool) $user->level_verified;
+            if ($user->recomputeLevelVerified()) {
+                \App\Models\UserLevelHistory::create([
+                    'user_id' => $user->id,
+                    'changed_by_user_id' => $actorId,
+                    'club_id' => $clubId,
+                    'old_level' => $oldLevel,
+                    'new_level' => $oldLevel,
+                    'old_verified' => $oldVerified,
+                    'new_verified' => (bool) $user->level_verified,
+                    'created_at' => now(),
+                ]);
+            }
+        }
+    }
+
 	    // Форматы плей-офф
     const PLAYOFF_FORMAT_MIX = 'mix';
     const PLAYOFF_FORMAT_GROUP_VS = 'group_vs';
