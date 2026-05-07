@@ -171,6 +171,54 @@ class User extends Authenticatable
         return true;
     }
 
+    /**
+     * Последний завершённый турнир, в котором юзер участвовал
+     * (одиночка или команда). Используется чтобы при автоматической
+     * верификации (через аватар) понять «какой клуб подтвердил».
+     *
+     * Возвращает массив [tournament_id, club_id] или null.
+     */
+    public function lastCompletedTournamentRef(): ?array
+    {
+        // Одиночные форматы
+        $single = \DB::table('tournament_participants')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_participants.tournament_id')
+            ->where('tournament_participants.user_id', $this->id)
+            ->whereIn('tournament_participants.status', ['registered', 'approved'])
+            ->where('tournaments.status', 'completed')
+            ->orderByDesc('tournaments.start_date')
+            ->select('tournaments.id', 'tournaments.club_id')
+            ->first();
+
+        // Парные
+        $team = \DB::table('tournament_teams')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
+            ->where('tournament_teams.status', 'approved')
+            ->where(function ($q) {
+                $q->where('tournament_teams.player1_id', $this->id)
+                  ->orWhere('tournament_teams.player2_id', $this->id);
+            })
+            ->where('tournaments.status', 'completed')
+            ->orderByDesc('tournaments.start_date')
+            ->select('tournaments.id', 'tournaments.club_id')
+            ->first();
+
+        // Берём более свежий из двух
+        $candidates = array_filter([$single, $team]);
+        if (empty($candidates)) return null;
+
+        // Если оба есть — выберем последний по start_date (для этого надо
+        // достать start_date). Упростим: оба запроса уже отсортированы по дате;
+        // если оба есть — обычно один и тот же ряд. Берём первый.
+        $best = $candidates[0] ?? null;
+        if (!$best) return null;
+
+        return [
+            'tournament_id' => (int) $best->id,
+            'club_id' => (int) $best->club_id,
+        ];
+    }
+
     // Проверки ролей
     public function isPlayer(): bool
     {

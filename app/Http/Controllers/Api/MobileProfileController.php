@@ -207,8 +207,27 @@ class MobileProfileController extends Controller
         $user->avatar = url('/storage/' . $path);
         $user->save();
 
-        // Триггер верификации: появился аватар → пересчитать level_verified
-        $user->recomputeLevelVerified();
+        // Триггер верификации: появился аватар → пересчитать level_verified.
+        // Если флаг встал в 1 — пишем запись в user_level_history с привязкой
+        // к последнему завершённому турниру юзера (его «верифицировал клуб»,
+        // в котором он сыграл).
+        $oldVerified = (bool) $user->level_verified;
+        if ($user->recomputeLevelVerified()) {
+            $newVerified = (bool) $user->level_verified;
+            if ($newVerified && !$oldVerified) {
+                $ref = $user->lastCompletedTournamentRef();
+                \App\Models\UserLevelHistory::create([
+                    'user_id' => $user->id,
+                    'changed_by_user_id' => null, // системное событие
+                    'club_id' => $ref['club_id'] ?? null,
+                    'old_level' => $user->level !== null ? (float) $user->level : null,
+                    'new_level' => $user->level !== null ? (float) $user->level : null,
+                    'old_verified' => false,
+                    'new_verified' => true,
+                    'created_at' => now(),
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,
