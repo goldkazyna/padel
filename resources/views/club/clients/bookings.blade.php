@@ -245,13 +245,22 @@
 
 @media print {
     @page { margin: 14mm; }
-    body { background: #fff !important; }
-    /* Скрываем layout (sidebar/header/footer) — оставляем только контент */
-    body > *:not(.cb-page),
-    body > * > *:not(.cb-page),
+    /* Через visibility — родители видны, но содержимое не печатается;
+       .cb-page и её потомки восстанавливаются и позиционируются на лист. */
+    html, body { background: #fff !important; }
+    body * { visibility: hidden !important; }
+    .cb-page, .cb-page * { visibility: visible !important; }
+    .cb-page {
+        position: absolute !important;
+        left: 0; top: 0; right: 0;
+        max-width: 100%;
+        padding: 0;
+        background: #fff !important;
+        color: #000 !important;
+    }
+    .cb-page * { color: #000 !important; background: #fff !important; }
+    /* Прячем элементы управления */
     .cb-back, .cb-copy, .cb-periods, .cb-custom { display: none !important; }
-    .cb-page, .cb-page * { color: #000 !important; background: #fff !important; }
-    .cb-page { max-width: 100%; padding: 0; }
     .cb-title { font-size: 18px; margin-bottom: 4px; }
     .cb-subtitle { color: #444 !important; font-size: 12px; }
     .cb-stats {
