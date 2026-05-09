@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Club;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\ClubClient;
+use App\Models\CourtBooking;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ClientController extends Controller
@@ -38,7 +40,57 @@ class ClientController extends Controller
             ? ClubClient::where('club_id', $club->id)->find($selectedId)
             : $clients->first();
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient'));
+        // Бронирования выбранного клиента — для сводки в правой колонке
+        $bookingPeriod = $request->get('booking_period', 'current_month');
+        $clientBookings = collect();
+        $bookingStats = ['count' => 0, 'hours' => 0, 'amount' => 0];
+
+        if ($selectedClient && $selectedClient->phone) {
+            [$from, $to] = $this->resolveBookingPeriod($bookingPeriod, $request);
+            $bookingQuery = CourtBooking::with('court')
+                ->whereHas('court', fn($q) => $q->where('club_id', $club->id))
+                ->where('client_phone', $selectedClient->phone)
+                ->where('status', 'confirmed')
+                ->orderBy('date', 'desc')
+                ->orderBy('start_time', 'desc');
+            if ($from) $bookingQuery->whereDate('date', '>=', $from);
+            if ($to) $bookingQuery->whereDate('date', '<=', $to);
+
+            $clientBookings = $bookingQuery->get();
+
+            foreach ($clientBookings as $b) {
+                $bookingStats['count']++;
+                $startMin = Carbon::parse($b->start_time)->hour * 60 + Carbon::parse($b->start_time)->minute;
+                $endMin = Carbon::parse($b->end_time)->hour * 60 + Carbon::parse($b->end_time)->minute;
+                if ($endMin <= $startMin) $endMin += 24 * 60;
+                $bookingStats['hours'] += ($endMin - $startMin) / 60;
+                $bookingStats['amount'] += (float) $b->price;
+            }
+        }
+
+        return view('club.clients.index', compact(
+            'clients', 'totalCount', 'selectedClient',
+            'clientBookings', 'bookingStats', 'bookingPeriod'
+        ));
+    }
+
+    /**
+     * Возвращает [from, to] (Carbon|null) для фильтра бронирований клиента.
+     */
+    private function resolveBookingPeriod(string $period, Request $request): array
+    {
+        $now = Carbon::now();
+        return match ($period) {
+            'current_month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'previous_month' => [$now->copy()->subMonthNoOverflow()->startOfMonth(), $now->copy()->subMonthNoOverflow()->endOfMonth()],
+            'last_3_months' => [$now->copy()->subMonthsNoOverflow(2)->startOfMonth(), $now->copy()->endOfMonth()],
+            'all' => [null, null],
+            'custom' => [
+                $request->filled('booking_from') ? Carbon::parse($request->get('booking_from'))->startOfDay() : null,
+                $request->filled('booking_to') ? Carbon::parse($request->get('booking_to'))->endOfDay() : null,
+            ],
+            default => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+        };
     }
 
     public function search(Request $request)

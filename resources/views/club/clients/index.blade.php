@@ -138,6 +138,13 @@
                         </button>
                     </form>
                 </div>
+
+                @include('club.clients._bookings_section', [
+                    'selectedClient' => $selectedClient,
+                    'clientBookings' => $clientBookings ?? collect(),
+                    'bookingStats' => $bookingStats ?? ['count' => 0, 'hours' => 0, 'amount' => 0],
+                    'bookingPeriod' => $bookingPeriod ?? 'current_month',
+                ])
             </div>
             @else
             <div class="client-detail-empty">
