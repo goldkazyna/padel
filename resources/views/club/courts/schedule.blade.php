@@ -169,6 +169,17 @@
             }
         }
     }
+
+    // Карта свободных слотов по датам — для расчёта максимума и цены при
+    // редактировании длительности существующей брони.
+    $freeSlotsByDate = [$date => []];
+    foreach ($courts as $court) {
+        foreach ($schedules[$court->id] ?? [] as $time => $slot) {
+            if (($slot['status'] ?? '') === 'free') {
+                $freeSlotsByDate[$date][$court->id . '-' . $time] = $slot['price'];
+            }
+        }
+    }
 @endphp
 
 <div class="schedule-container">
@@ -322,7 +333,7 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -412,6 +423,8 @@
                     <button type="button" class="unprocessed-btn-view"
                             onclick="toggleUnprocessedPanel(); openViewModal({{ json_encode([
                                 'id' => $ub->id,
+                                'courtId' => $ub->court->id,
+                                'date' => $ub->date instanceof \Carbon\Carbon ? $ub->date->format('Y-m-d') : (string) $ub->date,
                                 'courtName' => $ub->court->name,
                                 'startTime' => substr($ub->start_time, 0, 5),
                                 'endTime' => substr($ub->end_time, 0, 5),
@@ -747,6 +760,8 @@
 
     const freePrices = @json($freePrices);
     const orderedTimes = @json($timeSlots->values()->toArray());
+    const freeSlotsByDate = @json($freeSlotsByDate);
+    const pageDate = @json($date);
 
     // Current booking state
     let currentBook = {
@@ -936,18 +951,35 @@
         new bootstrap.Modal(document.getElementById('viewModal')).show();
     }
 
+    // Контекст текущей редактируемой брони — для калькулятора цены
+    let currentEdit = null;
+
     function renderEditDurationButtons(data) {
         const slotDur = data.slotDuration || 60;
         const startMin = parseTimeToMinutes(data.startTime);
         let endMin = parseTimeToMinutes(data.endTime);
         if (endMin <= startMin) endMin += 24 * 60;
         const currentSlots = Math.max(1, Math.round((endMin - startMin) / slotDur));
+        const date = data.date || pageDate;
+        const courtId = data.courtId;
+        const maxSlots = computeMaxEditSlots(courtId, date, data.startTime, currentSlots);
+
+        const pricePerSlot = currentSlots > 0 ? (Number(data.price) / currentSlots) : 0;
+        currentEdit = {
+            id: data.id,
+            courtId: courtId,
+            date: date,
+            startTime: data.startTime,
+            slotDuration: slotDur,
+            originalSlots: currentSlots,
+            originalPricePerSlot: pricePerSlot,
+        };
 
         document.getElementById('editSlots').value = currentSlots;
         const container = document.getElementById('editDurationSelector');
         if (!container) return;
         container.innerHTML = '';
-        for (let i = 1; i <= 6; i++) {
+        for (let i = 1; i <= maxSlots; i++) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'duration-btn' + (i === currentSlots ? ' active' : '');
@@ -957,9 +989,56 @@
                 document.querySelectorAll('#editDurationSelector .duration-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('editSlots').value = i;
+                applyEditPriceForSlots(i);
             };
             container.appendChild(btn);
         }
+    }
+
+    function computeMaxEditSlots(courtId, date, startTime, currentSlots) {
+        const startIdx = orderedTimes.indexOf(startTime);
+        if (startIdx === -1) return currentSlots;
+        const dateMap = (freeSlotsByDate || {})[date] || {};
+        let max = currentSlots;
+        let i = startIdx + currentSlots;
+        while (i < orderedTimes.length && max < 8) {
+            const key = courtId + '-' + orderedTimes[i];
+            if (dateMap[key] !== undefined) {
+                max++;
+                i++;
+            } else {
+                break;
+            }
+        }
+        return max;
+    }
+
+    function calcEditTotalPrice(slots) {
+        if (!currentEdit) return 0;
+        const startIdx = orderedTimes.indexOf(currentEdit.startTime);
+        if (startIdx === -1) return currentEdit.originalPricePerSlot * slots;
+        const dateMap = (freeSlotsByDate || {})[currentEdit.date] || {};
+        let total = 0;
+        for (let i = 0; i < slots; i++) {
+            const t = orderedTimes[startIdx + i];
+            if (!t) break;
+            const key = currentEdit.courtId + '-' + t;
+            if (dateMap[key] !== undefined) {
+                total += Number(dateMap[key]);
+            } else {
+                // Слот относится к самой брони — берём её per-slot цену
+                total += currentEdit.originalPricePerSlot;
+            }
+        }
+        return Math.round(total);
+    }
+
+    function applyEditPriceForSlots(slots) {
+        const total = calcEditTotalPrice(slots);
+        const priceInput = document.getElementById('editCustomPrice');
+        const discountInput = document.getElementById('editDiscount');
+        if (priceInput) priceInput.value = total;
+        if (discountInput) discountInput.value = 0;
     }
 
     function parseTimeToMinutes(t) {

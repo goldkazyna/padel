@@ -297,6 +297,20 @@ class CourtController extends Controller
             }
         }
 
+        // freeSlotsByDate = [date => [court_id-time => price]] — только свободные
+        // слоты, нужны для расчёта максимума и цены при редактировании брони.
+        $freeSlotsByDate = [];
+        foreach ($weekDays as $wd) {
+            $freeSlotsByDate[$wd['date']] = [];
+            foreach ($courts as $court) {
+                foreach (($wd['schedules'][$court->id] ?? []) as $time => $slot) {
+                    if (($slot['status'] ?? '') === 'free') {
+                        $freeSlotsByDate[$wd['date']][$court->id . '-' . $time] = $slot['price'];
+                    }
+                }
+            }
+        }
+
         // coachAvailability — собираем in-memory из подгруженных коллекций
         $coachAvailability = [];
         foreach ($weekDays as $wd) {
@@ -311,7 +325,7 @@ class CourtController extends Controller
 
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
-            'weekRangeLabel', 'freePrices', 'coachAvailability', 'clubCoaches',
+            'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
             'unprocessedBookings'
         ));
     }

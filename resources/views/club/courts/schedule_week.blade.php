@@ -569,7 +569,7 @@
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                             @endphp
                             <div class="ws-card {{ $cls }}"
-                                 onclick="openViewModal({ id: {{ $b->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -629,6 +629,7 @@
                 $bEnd = substr($ub->end_time, 0, 5);
                 $viewData = [
                     'id' => $ub->id,
+                    'courtId' => $ub->court->id,
                     'date' => $ubDate,
                     'courtName' => $ub->court->name,
                     'startTime' => $bStart,
@@ -1039,6 +1040,7 @@
     };
     const freePrices = @json($freePrices);
     const orderedTimes = @json($timeSlots->values()->toArray());
+    const freeSlotsByDate = @json($freeSlotsByDate);
     const coachAvailability = @json($coachAvailability); // {date: {coachId: {time: bool}}}
 
     let currentBook = { courtId: '', courtName: '', time: '', date: '', price: 0, maxSlots: 1, duration: 1 };
@@ -1195,18 +1197,34 @@
         new bootstrap.Modal(document.getElementById('viewModal')).show();
     }
 
+    let currentEdit = null;
+
     function renderEditDurationButtons(data) {
         const slotDur = data.slotDuration || 60;
         const startMin = parseTimeToMinutes(data.startTime);
         let endMin = parseTimeToMinutes(data.endTime);
         if (endMin <= startMin) endMin += 24 * 60;
         const currentSlots = Math.max(1, Math.round((endMin - startMin) / slotDur));
+        const date = data.date;
+        const courtId = data.courtId;
+        const maxSlots = computeMaxEditSlots(courtId, date, data.startTime, currentSlots);
+
+        const pricePerSlot = currentSlots > 0 ? (Number(data.price) / currentSlots) : 0;
+        currentEdit = {
+            id: data.id,
+            courtId: courtId,
+            date: date,
+            startTime: data.startTime,
+            slotDuration: slotDur,
+            originalSlots: currentSlots,
+            originalPricePerSlot: pricePerSlot,
+        };
 
         document.getElementById('editSlots').value = currentSlots;
         const container = document.getElementById('editDurationSelector');
         if (!container) return;
         container.innerHTML = '';
-        for (let i = 1; i <= 6; i++) {
+        for (let i = 1; i <= maxSlots; i++) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'duration-btn' + (i === currentSlots ? ' active' : '');
@@ -1216,9 +1234,55 @@
                 document.querySelectorAll('#editDurationSelector .duration-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById('editSlots').value = i;
+                applyEditPriceForSlots(i);
             };
             container.appendChild(btn);
         }
+    }
+
+    function computeMaxEditSlots(courtId, date, startTime, currentSlots) {
+        const startIdx = orderedTimes.indexOf(startTime);
+        if (startIdx === -1) return currentSlots;
+        const dateMap = (freeSlotsByDate || {})[date] || {};
+        let max = currentSlots;
+        let i = startIdx + currentSlots;
+        while (i < orderedTimes.length && max < 8) {
+            const key = courtId + '-' + orderedTimes[i];
+            if (dateMap[key] !== undefined) {
+                max++;
+                i++;
+            } else {
+                break;
+            }
+        }
+        return max;
+    }
+
+    function calcEditTotalPrice(slots) {
+        if (!currentEdit) return 0;
+        const startIdx = orderedTimes.indexOf(currentEdit.startTime);
+        if (startIdx === -1) return currentEdit.originalPricePerSlot * slots;
+        const dateMap = (freeSlotsByDate || {})[currentEdit.date] || {};
+        let total = 0;
+        for (let i = 0; i < slots; i++) {
+            const t = orderedTimes[startIdx + i];
+            if (!t) break;
+            const key = currentEdit.courtId + '-' + t;
+            if (dateMap[key] !== undefined) {
+                total += Number(dateMap[key]);
+            } else {
+                total += currentEdit.originalPricePerSlot;
+            }
+        }
+        return Math.round(total);
+    }
+
+    function applyEditPriceForSlots(slots) {
+        const total = calcEditTotalPrice(slots);
+        const priceInput = document.getElementById('editCustomPrice');
+        const discountInput = document.getElementById('editDiscount');
+        if (priceInput) priceInput.value = total;
+        if (discountInput) discountInput.value = 0;
     }
 
     function parseTimeToMinutes(t) {
