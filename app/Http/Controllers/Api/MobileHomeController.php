@@ -181,6 +181,7 @@ class MobileHomeController extends Controller
             'club' => [
                 'id' => $t->club->id ?? null,
                 'name' => $t->club->name ?? 'Клуб',
+                'logo' => $t->club->logo ? url($t->club->logo) : null,
             ],
             'date' => $t->start_date->format('d.m.Y'),
             'time' => $t->start_date->format('H:i'),
