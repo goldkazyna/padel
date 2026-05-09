@@ -57,9 +57,13 @@ class ClientController extends Controller
 
         $bookings = collect();
         if ($client->phone) {
+            // У клиента телефон может храниться с/без ведущей 7, у бронирования —
+            // в любом виде. Собираем все варианты для надёжного матчинга.
+            $phoneVariants = $this->phoneVariants($client->phone);
+
             $bq = CourtBooking::with('court')
                 ->whereHas('court', fn($q) => $q->where('club_id', $club->id))
-                ->where('client_phone', $client->phone)
+                ->whereIn('client_phone', $phoneVariants)
                 ->where('status', 'confirmed')
                 ->orderBy('date', 'desc')
                 ->orderBy('start_time', 'desc');
@@ -88,6 +92,27 @@ class ClientController extends Controller
             'from' => $from,
             'to' => $to,
         ]);
+    }
+
+    /**
+     * Возвращает все возможные варианты записи телефона:
+     * - как есть (нормализованный, только цифры)
+     * - с ведущей 7 (если 10 цифр)
+     * - без ведущей 7 (если 11 цифр и начинается с 7)
+     * Нужно для матчинга, потому что в БД телефон у клиента и у брони мог
+     * быть сохранён в разном виде.
+     */
+    private function phoneVariants(?string $phone): array
+    {
+        if (!$phone) return [];
+        $digits = preg_replace('/\D/', '', $phone);
+        $variants = [$digits];
+        if (strlen($digits) === 10) {
+            $variants[] = '7' . $digits;
+        } elseif (strlen($digits) === 11 && $digits[0] === '7') {
+            $variants[] = substr($digits, 1);
+        }
+        return array_values(array_unique($variants));
     }
 
     /**
