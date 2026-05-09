@@ -200,6 +200,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('club.feature:clients')->group(function () {
             Route::get('/clients/search', [App\Http\Controllers\Club\ClientController::class, 'search'])->name('clients.search');
             Route::get('/clients', [App\Http\Controllers\Club\ClientController::class, 'index'])->name('clients.index');
+            Route::get('/clients/{client}/bookings', [App\Http\Controllers\Club\ClientController::class, 'bookings'])->name('clients.bookings');
             Route::post('/clients', [App\Http\Controllers\Club\ClientController::class, 'store'])->name('clients.store');
             Route::put('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'update'])->name('clients.update');
             Route::delete('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'destroy'])->name('clients.destroy');

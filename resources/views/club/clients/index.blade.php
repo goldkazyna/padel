@@ -125,6 +125,10 @@
                 @endif
 
                 <div class="client-detail-actions">
+                    <a href="{{ route('club.clients.bookings', $selectedClient) }}" class="btn-bookings">
+                        <i class="bi bi-calendar-week"></i>
+                        Брони
+                    </a>
                     <button class="btn-edit" onclick="openEditModal()">
                         <i class="bi bi-pencil"></i>
                         Редактировать
@@ -138,13 +142,6 @@
                         </button>
                     </form>
                 </div>
-
-                @include('club.clients._bookings_section', [
-                    'selectedClient' => $selectedClient,
-                    'clientBookings' => $clientBookings ?? collect(),
-                    'bookingStats' => $bookingStats ?? ['count' => 0, 'hours' => 0, 'amount' => 0],
-                    'bookingPeriod' => $bookingPeriod ?? 'current_month',
-                ])
             </div>
             @else
             <div class="client-detail-empty">
@@ -608,6 +605,24 @@ document.addEventListener('keydown', function(e) {
     transition: all 0.2s;
 }
 .btn-edit:hover { border-color: var(--cl-blue); color: var(--cl-blue); }
+.btn-bookings {
+    flex: 1;
+    padding: 12px;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.4);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #22c55e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.btn-bookings:hover { background: rgba(34,197,94,0.2); color: #22c55e; }
 .btn-delete {
     padding: 12px 16px;
     background: var(--cl-card);
