@@ -46,7 +46,7 @@
                 <div class="cb-subtitle">+{{ $client->phone }}</div>
             @endif
         </div>
-        <button type="button" class="cb-copy" onclick="window.print()">
+        <button type="button" class="cb-copy" onclick="printBookings()">
             <i class="bi bi-file-earmark-pdf"></i>
             Скачать PDF
         </button>
@@ -243,43 +243,6 @@
     .cb-row-paid { grid-column: 1 / -1; order: 4; text-align: left; }
 }
 
-@media print {
-    @page { margin: 14mm; }
-    /* Через visibility — родители видны, но содержимое не печатается;
-       .cb-page и её потомки восстанавливаются и позиционируются на лист. */
-    html, body { background: #fff !important; }
-    body * { visibility: hidden !important; }
-    .cb-page, .cb-page * { visibility: visible !important; }
-    .cb-page {
-        position: absolute !important;
-        left: 0; top: 0; right: 0;
-        max-width: 100%;
-        padding: 0;
-        background: #fff !important;
-        color: #000 !important;
-    }
-    .cb-page * { color: #000 !important; background: #fff !important; }
-    /* Прячем элементы управления */
-    .cb-back, .cb-copy, .cb-periods, .cb-custom { display: none !important; }
-    .cb-title { font-size: 18px; margin-bottom: 4px; }
-    .cb-subtitle { color: #444 !important; font-size: 12px; }
-    .cb-stats {
-        grid-template-columns: repeat(4, 1fr); gap: 10px;
-        margin: 12px 0 16px;
-    }
-    .cb-stat { background: #fff !important; border: 1px solid #ccc !important; padding: 8px; }
-    .cb-stat-num { color: #000 !important; font-size: 16px; }
-    .cb-stat-lbl { color: #666 !important; font-size: 9px; }
-    .cb-day-header { color: #000 !important; }
-    .cb-day-num { color: #000 !important; }
-    .cb-day-dow { color: #555 !important; }
-    .cb-row { background: #fff !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
-    .cb-row-time, .cb-row-price { color: #000 !important; }
-    .cb-row-court { color: #444 !important; }
-    .cb-row-paid.paid { color: #176c2f !important; }
-    .cb-row-paid.unpaid { color: #a05a00 !important; }
-    .cb-empty { display: none; }
-}
 </style>
 
 <script>
@@ -287,6 +250,108 @@ function toggleCustomRange() {
     const el = document.getElementById('cbCustom');
     if (!el) return;
     el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function printBookings() {
+    const list = document.getElementById('cbList');
+    const clientName = @json($client->name);
+    const clientPhone = @json($client->phone);
+    const periodLabel = @json($title);
+    const sCount = @json($stats['count']);
+    const sHours = @json($hoursStr);
+    const sAmount = @json($amountStr);
+    const sPaid = @json($stats['paid']);
+    const sUnpaid = @json($stats['unpaid']);
+
+    let listHtml = '';
+    if (list) {
+        const days = list.querySelectorAll('.cb-day');
+        days.forEach(day => {
+            const num = day.querySelector('.cb-day-num')?.innerText || '';
+            const dow = day.querySelector('.cb-day-dow')?.innerText || '';
+            let rowsHtml = '';
+            day.querySelectorAll('.cb-row').forEach(r => {
+                const t = r.dataset.time || '';
+                const c = r.dataset.court || '';
+                const p = r.dataset.price || '';
+                const paid = r.dataset.paid || '';
+                const isPaid = paid === 'оплачено';
+                rowsHtml += `<tr>
+                    <td class="pd-time">${t}</td>
+                    <td class="pd-court">${c}</td>
+                    <td class="pd-price">${p} ₸</td>
+                    <td class="pd-paid ${isPaid ? 'paid' : 'unpaid'}">${paid}</td>
+                </tr>`;
+            });
+            listHtml += `<div class="pd-day">
+                <div class="pd-day-h"><span class="pd-day-num">${num}</span><span class="pd-day-dow">${dow}</span></div>
+                <table class="pd-rows"><tbody>${rowsHtml}</tbody></table>
+            </div>`;
+        });
+    } else {
+        listHtml = '<div class="pd-empty">Нет бронирований за выбранный период</div>';
+    }
+
+    const docCss = `
+.print-doc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #000; padding: 24px 28px; }
+.print-doc h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.4px; margin: 0 0 4px; }
+.print-doc .pd-sub { color: #555; font-size: 13px; margin-bottom: 4px; }
+.print-doc .pd-period { color: #666; font-size: 12px; margin-bottom: 18px; }
+.print-doc .pd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 22px; }
+.print-doc .pd-stat { border: 1px solid #d4d4d8; border-radius: 8px; padding: 10px; text-align: center; }
+.print-doc .pd-stat-num { font-size: 18px; font-weight: 800; color: #000; line-height: 1.1; }
+.print-doc .pd-stat-lbl { font-size: 10px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+.print-doc .pd-day { margin-bottom: 14px; page-break-inside: avoid; }
+.print-doc .pd-day-h { display: flex; align-items: baseline; gap: 8px; padding: 4px 0 6px; border-bottom: 1px solid #e5e5e5; margin-bottom: 6px; }
+.print-doc .pd-day-num { font-size: 14px; font-weight: 800; color: #000; letter-spacing: -0.2px; }
+.print-doc .pd-day-dow { color: #888; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.print-doc table.pd-rows { width: 100%; border-collapse: collapse; }
+.print-doc table.pd-rows td { padding: 6px 8px; font-size: 12.5px; vertical-align: middle; border-bottom: 1px solid #f0f0f0; }
+.print-doc .pd-time { font-weight: 700; width: 110px; }
+.print-doc .pd-court { color: #555; }
+.print-doc .pd-price { text-align: right; font-weight: 700; width: 100px; }
+.print-doc .pd-paid { text-align: right; width: 110px; font-size: 11px; font-weight: 700; }
+.print-doc .pd-paid.paid { color: #176c2f; }
+.print-doc .pd-paid.unpaid { color: #a05a00; }
+.print-doc .pd-empty { padding: 40px; text-align: center; color: #888; border: 1px dashed #ccc; border-radius: 8px; }
+.print-doc .pd-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e5e5; color: #777; font-size: 11px; }
+`;
+
+    const html = `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Брони — ${clientName}</title>
+<style>
+@page { margin: 14mm; }
+body { margin: 0; }
+${docCss}
+</style>
+</head>
+<body>
+<div class="print-doc">
+    <h1>Брони — ${clientName}</h1>
+    ${clientPhone ? `<div class="pd-sub">+${clientPhone}</div>` : ''}
+    ${periodLabel ? `<div class="pd-period">Период: ${periodLabel}</div>` : ''}
+    <div class="pd-stats">
+        <div class="pd-stat"><div class="pd-stat-num">${sCount}</div><div class="pd-stat-lbl">броней</div></div>
+        <div class="pd-stat"><div class="pd-stat-num">${sHours}</div><div class="pd-stat-lbl">часов</div></div>
+        <div class="pd-stat"><div class="pd-stat-num">${sAmount} ₸</div><div class="pd-stat-lbl">сумма</div></div>
+        <div class="pd-stat"><div class="pd-stat-num"><span style="color:#176c2f">${sPaid}</span> / <span style="color:#a05a00">${sUnpaid}</span></div><div class="pd-stat-lbl">оплачено / нет</div></div>
+    </div>
+    ${listHtml}
+    <div class="pd-footer">Сгенерировано ${new Date().toLocaleDateString('ru-RU')} в ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+</div>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { alert('Разрешите всплывающие окна для печати PDF'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 300);
 }
 </script>
 @endsection
