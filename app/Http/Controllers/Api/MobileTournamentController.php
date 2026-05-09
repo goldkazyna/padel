@@ -114,6 +114,37 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Отменённые турниры пользователя.
+     * Турниры, где юзер был участником (одиночка или команда) и которые
+     * получили статус cancelled.
+     * GET /api/mobile/tournaments/cancelled
+     */
+    public function cancelled(Request $request)
+    {
+        $user = $request->user();
+
+        $participantTournamentIds = $user->tournaments()->pluck('tournaments.id');
+        $teamTournamentIds = TournamentTeam::where(function ($q) use ($user) {
+                $q->where('player1_id', $user->id)
+                  ->orWhere('player2_id', $user->id);
+            })
+            ->pluck('tournament_id');
+        $allIds = $participantTournamentIds->merge($teamTournamentIds)->unique();
+
+        $tournaments = Tournament::whereIn('id', $allIds)
+            ->where('status', 'cancelled')
+            ->orderBy('start_date', 'desc')
+            ->with('club')
+            ->get()
+            ->map(fn($t) => $this->formatTournament($t, $user));
+
+        return response()->json([
+            'success' => true,
+            'tournaments' => $tournaments,
+        ]);
+    }
+
+    /**
      * Все завершённые турниры (спектаторский архив)
      * GET /api/mobile/tournaments/completed
      */
