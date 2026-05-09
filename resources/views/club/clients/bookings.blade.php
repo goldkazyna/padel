@@ -28,6 +28,10 @@
     if ($period === 'custom' && ($from || $to)) {
         $title .= ': ' . ($from ? $from->format('d.m.Y') : '...') . ' – ' . ($to ? $to->format('d.m.Y') : '...');
     }
+
+    // Заранее форматируем строки для JS (чтобы не вкладывать в @json лишнего)
+    $hoursStr = rtrim(rtrim(number_format($stats['hours'], 1, '.', ''), '0'), '.');
+    $amountStr = number_format($stats['amount'], 0, '', ' ');
 @endphp
 
 <div class="cb-page">
@@ -275,7 +279,10 @@ function copyBookingsList() {
         text += 'Нет бронирований за выбранный период\n';
     }
 
-    text += `Итого: ${@json($stats['count'])} броней, ${@json(rtrim(rtrim(number_format($stats['hours'], 1, '.', ''), '0'), '.'))} ч, ${@json(number_format($stats['amount'], 0, '', ' '))} ₸\n`;
+    const __sCount = @json($stats['count']);
+    const __sHours = @json($hoursStr);
+    const __sAmount = @json($amountStr);
+    text += 'Итого: ' + __sCount + ' броней, ' + __sHours + ' ч, ' + __sAmount + ' ₸\n';
 
     const onCopied = () => {
         const btn = document.querySelector('.cb-copy');
