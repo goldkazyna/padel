@@ -322,7 +322,7 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -424,6 +424,7 @@
                                 'isProcessed' => $ub->is_processed,
                                 'comment' => $ub->comment,
                                 'coachId' => $ub->coach_id,
+                                'slotDuration' => $ub->court->slot_duration ?? 60,
                             ]) }})">
                         <i class="bi bi-eye"></i> Просмотреть
                     </button>
@@ -598,6 +599,10 @@
                                 <span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span>
                             </div>
                         </div>
+
+                        <div class="modal-section-title">Длительность</div>
+                        <input type="hidden" name="slots" id="editSlots" value="">
+                        <div class="duration-selector" id="editDurationSelector"></div>
 
                         <div class="modal-section-title">Цена и скидка</div>
                         <div class="price-edit-row">
@@ -925,7 +930,50 @@
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
+        // Длительность — кнопки 1..6, текущая = (end-start)/slotDuration
+        renderEditDurationButtons(data);
+
         new bootstrap.Modal(document.getElementById('viewModal')).show();
+    }
+
+    function renderEditDurationButtons(data) {
+        const slotDur = data.slotDuration || 60;
+        const startMin = parseTimeToMinutes(data.startTime);
+        let endMin = parseTimeToMinutes(data.endTime);
+        if (endMin <= startMin) endMin += 24 * 60;
+        const currentSlots = Math.max(1, Math.round((endMin - startMin) / slotDur));
+
+        document.getElementById('editSlots').value = currentSlots;
+        const container = document.getElementById('editDurationSelector');
+        if (!container) return;
+        container.innerHTML = '';
+        for (let i = 1; i <= 6; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'duration-btn' + (i === currentSlots ? ' active' : '');
+            btn.dataset.slots = i;
+            btn.textContent = formatDuration(i * slotDur);
+            btn.onclick = function() {
+                document.querySelectorAll('#editDurationSelector .duration-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('editSlots').value = i;
+            };
+            container.appendChild(btn);
+        }
+    }
+
+    function parseTimeToMinutes(t) {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + (m || 0);
+    }
+
+    function formatDuration(min) {
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        if (m === 0) return h + 'ч';
+        if (h === 0) return m + 'м';
+        return h + 'ч ' + m + 'м';
     }
 
     function cancelBooking() {

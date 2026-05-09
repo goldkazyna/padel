@@ -167,7 +167,7 @@ class CourtScheduleService
     /**
      * Можно ли забронировать диапазон.
      */
-    public function canBook(Court $court, string $date, string $startTime, string $endTime): bool
+    public function canBook(Court $court, string $date, string $startTime, string $endTime, ?int $excludeBookingId = null): bool
     {
         $startMin = $this->timeToMinutes($startTime);
         $endMin = $this->timeToMinutes($endTime);
@@ -176,6 +176,7 @@ class CourtScheduleService
         $bookings = CourtBooking::where('court_id', $court->id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
+            ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
             ->get();
 
         foreach ($bookings as $b) {

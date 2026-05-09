@@ -754,6 +754,7 @@ class CourtController extends Controller
             'coach_id' => 'nullable',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'slots' => 'nullable|integer|min:1|max:8',
         ]);
 
         $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
@@ -771,6 +772,41 @@ class CourtController extends Controller
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {
             $updateData['booked_by'] = $linkedUser->id;
+        }
+
+        // Изменение длительности — пересчёт end_time + проверка свободного слота
+        if (!empty($validated['slots'])) {
+            $newEndTime = Carbon::parse($booking->start_time)
+                ->addMinutes($validated['slots'] * $court->slot_duration)
+                ->format('H:i');
+            $newStart = Carbon::parse($booking->start_time)->format('H:i');
+            $bookingDate = $booking->date instanceof \Carbon\Carbon
+                ? $booking->date->format('Y-m-d')
+                : (string) $booking->date;
+
+            if (!$this->scheduleService->canBook($court, $bookingDate, $newStart, $newEndTime, $booking->id)) {
+                return back()->with('error', 'Новая длительность пересекается с другой бронью или блокировкой');
+            }
+
+            // Проверка тренера на расширенный интервал (если он привязан)
+            $coachIdToCheck = $updateData['coach_id'] ?? null;
+            if ($coachIdToCheck) {
+                $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
+                    ->where('user_id', $coachIdToCheck)
+                    ->first();
+                if (!$clubCoach || !$clubCoach->isFreeAt($bookingDate, $newStart, $newEndTime, $booking->id)) {
+                    return back()->with('error', 'Тренер недоступен на новый интервал');
+                }
+            }
+
+            $updateData['end_time'] = $newEndTime;
+
+            // Если кастомная цена не передана, пересчитаем по тарифу клуба
+            if (!isset($validated['custom_price'])) {
+                $autoPrice = $this->scheduleService->calculatePrice($court, $newStart, $newEndTime);
+                $discount = $booking->discount ?? 0;
+                $updateData['price'] = max(0, $autoPrice - $discount);
+            }
         }
 
         if (isset($validated['custom_price'])) {

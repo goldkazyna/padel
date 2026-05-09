@@ -111,7 +111,7 @@ class ClubCoach extends Model
         return $startMin >= $schStart && $endMin <= $schEnd;
     }
 
-    public function isFreeAt(string $date, string $startTime, string $endTime): bool
+    public function isFreeAt(string $date, string $startTime, string $endTime, ?int $excludeBookingId = null): bool
     {
         if (!$this->isAvailableAt($date, $startTime, $endTime)) {
             return false;
@@ -123,6 +123,7 @@ class ClubCoach extends Model
         $hasBooking = CourtBooking::where('coach_id', $this->user_id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
+            ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
             ->where(function ($q) use ($startFormatted, $endFormatted) {
                 $q->where('start_time', '<', $endFormatted)
                   ->where('end_time', '>', $startFormatted);
