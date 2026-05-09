@@ -864,6 +864,8 @@
                     </div>
                 </div>
 
+                @include('club.courts.partials._book_repeat')
+
                 <div class="sch-modal-footer">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn-confirm">Забронировать</button>
@@ -1132,6 +1134,8 @@
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
+
+        if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
 
         new bootstrap.Modal(document.getElementById('bookModal')).show();
     }

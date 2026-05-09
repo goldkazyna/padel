@@ -556,6 +556,8 @@ class CourtController extends Controller
             'coach_id' => 'nullable|exists:users,id',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
+            'repeat_until' => 'nullable|in:week,two_weeks,month',
         ]);
 
         $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
@@ -565,41 +567,67 @@ class CourtController extends Controller
         $totalMinutes = $validated['slots'] * $court->slot_duration;
         $endTime = Carbon::parse($startTime)->addMinutes($totalMinutes)->format('H:i');
 
-        if (!$this->scheduleService->canBook($court, $validated['date'], $startTime, $endTime)) {
-            return back()->with('error', 'Выбранное время недоступно');
-        }
+        $repeat = $validated['repeat'] ?? 'none';
+        $repeatUntil = $validated['repeat_until'] ?? 'month';
 
-        if (!empty($validated['coach_id'])) {
-            $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
-                ->where('user_id', $validated['coach_id'])
-                ->first();
-            if (!$clubCoach || !$clubCoach->isFreeAt($validated['date'], $startTime, $endTime)) {
-                return back()->with('error', 'Тренер недоступен в это время')->withInput();
-            }
-        }
+        // Список дат для бронирования (одна или несколько при повторе)
+        $dates = $this->expandRepeatDates($validated['date'], $repeat, $repeatUntil);
 
         $autoPrice = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
         $customPrice = $validated['custom_price'] ?? $autoPrice;
         $discount = $validated['discount'] ?? 0;
         $price = max(0, $customPrice - $discount);
 
-        $booking = CourtBooking::create([
-            'court_id' => $court->id,
-            'date' => $validated['date'],
-            'start_time' => $startTime,
-            'end_time' => $endTime,
-            'client_name' => $validated['client_name'],
-            'client_phone' => $validated['client_phone'],
-            // Если клиент зарегистрирован в приложении — привязываем бронь к нему,
-            // чтобы она появилась в его «Мои бронирования». Иначе — на админа.
-            'booked_by' => $linkedUser?->id ?? auth()->id(),
-            'price' => $price,
-            'discount' => $discount,
-            'payment_method' => $validated['payment_method'] ?? null,
-            'is_paid' => $validated['is_paid'] ?? false,
-            'comment' => $validated['comment'] ?? null,
-            'coach_id' => $validated['coach_id'] ?? null,
-        ]);
+        $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
+        $skipped = [];   // ['Y-m-d' => 'причина']
+        $firstBooking = null;
+
+        foreach ($dates as $date) {
+            // Проверка корта
+            if (!$this->scheduleService->canBook($court, $date, $startTime, $endTime)) {
+                $skipped[$date] = 'занято';
+                continue;
+            }
+
+            // Проверка тренера
+            if (!empty($validated['coach_id'])) {
+                $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
+                    ->where('user_id', $validated['coach_id'])
+                    ->first();
+                if (!$clubCoach || !$clubCoach->isFreeAt($date, $startTime, $endTime)) {
+                    $skipped[$date] = 'тренер занят';
+                    continue;
+                }
+            }
+
+            $booking = CourtBooking::create([
+                'court_id' => $court->id,
+                'date' => $date,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'client_name' => $validated['client_name'],
+                'client_phone' => $validated['client_phone'],
+                'booked_by' => $linkedUser?->id ?? auth()->id(),
+                'price' => $price,
+                'discount' => $discount,
+                'payment_method' => $validated['payment_method'] ?? null,
+                'is_paid' => $validated['is_paid'] ?? false,
+                'comment' => $validated['comment'] ?? null,
+                'coach_id' => $validated['coach_id'] ?? null,
+            ]);
+            $firstBooking ??= $booking;
+            $created[] = ['date' => $date, 'id' => $booking->id];
+
+            \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$date} {$startTime}–{$endTime}");
+        }
+
+        // Если ни одна дата не сохранилась — единственная — рассказываем причину
+        if (empty($created)) {
+            $first = array_key_first($skipped);
+            return back()->with('error', count($skipped) === 1 && $first !== null
+                ? "Не удалось забронировать ({$skipped[$first]}): {$first}"
+                : 'Все выбранные даты заняты');
+        }
 
         // Автоматически добавить клиента в справочник если его нет
         if ($validated['client_phone']) {
@@ -609,32 +637,35 @@ class CourtController extends Controller
             );
         }
 
-        // Push юзеру приложения — отложено до момента ПОСЛЕ ответа клиенту,
-        // чтобы синхронный сетевой вызов FCM не блокировал возврат в админку
+        // Пуш юзеру приложения — по одному пушу на каждую созданную бронь.
         if ($linkedUser) {
             $linkedUserId = $linkedUser->id;
-            $bookingId = $booking->id;
             $clubName = $club->name;
             $courtName = $court->name;
-            $dateLabel = Carbon::parse($validated['date'])->format('d.m.Y');
             $startTimeLabel = $startTime;
+            $createdSnapshot = $created;
 
-            app()->terminating(function () use ($linkedUserId, $bookingId, $clubName, $courtName, $dateLabel, $startTimeLabel) {
+            app()->terminating(function () use ($linkedUserId, $createdSnapshot, $clubName, $courtName, $startTimeLabel) {
                 try {
-                    $title = 'Вам забронирован корт ✅';
-                    $body = "{$clubName} · {$courtName}, {$dateLabel} в {$startTimeLabel}";
-
-                    \App\Models\Notification::create([
-                        'user_id' => $linkedUserId,
-                        'title' => $title,
-                        'body' => $body,
-                        'type' => 'booking_created',
-                        'category' => 'booking',
-                        'data' => ['booking_id' => $bookingId],
-                    ]);
-
                     $user = \App\Models\User::find($linkedUserId);
-                    if ($user) {
+                    if (!$user) return;
+
+                    foreach ($createdSnapshot as $row) {
+                        $bookingId = $row['id'];
+                        $dateLabel = Carbon::parse($row['date'])->format('d.m.Y');
+
+                        $title = 'Вам забронирован корт ✅';
+                        $body = "{$clubName} · {$courtName}, {$dateLabel} в {$startTimeLabel}";
+
+                        \App\Models\Notification::create([
+                            'user_id' => $linkedUserId,
+                            'title' => $title,
+                            'body' => $body,
+                            'type' => 'booking_created',
+                            'category' => 'booking',
+                            'data' => ['booking_id' => $bookingId],
+                        ]);
+
                         app(\App\Services\FCMNotificationService::class)->sendToUser($user, $title, $body, [
                             'type' => 'booking_created',
                             'booking_id' => (string) $bookingId,
@@ -646,9 +677,63 @@ class CourtController extends Controller
             });
         }
 
-        \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$validated['date']} {$startTime}–{$endTime}");
+        // Сообщение об успехе
+        $createdCount = count($created);
+        if ($createdCount === 1 && empty($skipped)) {
+            $message = "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸";
+        } else {
+            $parts = ["Создано {$createdCount} бронирований"];
+            if (!empty($skipped)) {
+                $skippedDates = array_map(fn($d) => Carbon::parse($d)->format('d.m'), array_keys($skipped));
+                $parts[] = 'пропущено ' . count($skipped) . ' (' . implode(', ', $skippedDates) . ')';
+            }
+            $message = implode(', ', $parts);
+        }
 
-        return back()->with('success', "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸");
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Разворачивает start-дату + паттерн повтора в массив дат (Y-m-d).
+     * - none: [start]
+     * - daily / every_2_days / weekly / biweekly + repeat_until (week/two_weeks/month)
+     */
+    private function expandRepeatDates(string $startDate, string $repeat, string $repeatUntil): array
+    {
+        if ($repeat === 'none') {
+            return [$startDate];
+        }
+
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = match ($repeatUntil) {
+            // До конца текущей недели (включая воскресенье)
+            'week' => $start->copy()
+                ->addDays((7 - $start->dayOfWeekIso) % 7)
+                ->endOfDay(),
+            'two_weeks' => $start->copy()->addDays(13)->endOfDay(),
+            default => $start->copy()->endOfMonth(),
+        };
+
+        $step = match ($repeat) {
+            'daily' => 1,
+            'every_2_days' => 2,
+            'weekly' => 7,
+            'biweekly' => 14,
+            default => 0,
+        };
+
+        if ($step === 0) {
+            return [$startDate];
+        }
+
+        $dates = [];
+        $cursor = $start->copy();
+        // Защита от зацикливания — максимум 60 итераций
+        for ($i = 0; $i < 60 && !$cursor->greaterThan($end); $i++) {
+            $dates[] = $cursor->format('Y-m-d');
+            $cursor->addDays($step);
+        }
+        return $dates;
     }
 
     public function updateBooking(Request $request, CourtBooking $booking)

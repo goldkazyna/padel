@@ -549,6 +549,8 @@
                     </div>
                 </div>
 
+                @include('club.courts.partials._book_repeat')
+
                 <div class="sch-modal-footer">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn-confirm">Забронировать</button>
@@ -860,6 +862,8 @@
         document.querySelector('.paid-btn[data-value="0"]').classList.add('active');
         document.getElementById('bookCoachId').value = '';
         updateCoachButtons();
+
+        if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
