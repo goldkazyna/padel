@@ -21,6 +21,18 @@ class Tournament extends Model
         static::deleting(function (self $tournament) {
             \App\Models\RatingHistory::where('tournament_id', $tournament->id)->delete();
         });
+
+        // Когда турнир переводят в статус cancelled — оповещаем всех
+        // зарегистрированных участников: in-app уведомление + FCM push.
+        static::updated(function (self $tournament) {
+            if (
+                $tournament->wasChanged('status')
+                && $tournament->status === 'cancelled'
+                && $tournament->getOriginal('status') !== 'cancelled'
+            ) {
+                \App\Http\Controllers\Api\MobileTournamentController::notifyParticipantsTournamentCancelled($tournament);
+            }
+        });
     }
 
     /**
