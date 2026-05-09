@@ -29,6 +29,7 @@ class User extends Authenticatable
         'city',
         'role',
         'rating',
+        'hidden_from_rating',
         'level',
         'level_verified',
         'quiz_completed',
@@ -56,6 +57,7 @@ class User extends Authenticatable
         'last_played_at' => 'datetime',
         'level' => 'decimal:2',
         'level_verified' => 'boolean',
+        'hidden_from_rating' => 'boolean',
         'quiz_completed' => 'boolean',
         'quiz_answers' => 'array',
         'notify_only_my_level' => 'boolean',
@@ -108,6 +110,17 @@ class User extends Authenticatable
     public function scopeHuman($query)
     {
         return $query->whereNotIn('role', ['reserve', 'super_admin']);
+    }
+
+    /**
+     * Scope для рейтинга/мест: «реальные люди» + не помеченные как
+     * `hidden_from_rating` (тестовые/служебные аккаунты, которых
+     * не показываем в публичных рейтингах и подсчётах места).
+     */
+    public function scopeVisibleInRating($query)
+    {
+        return $query->whereNotIn('role', ['reserve', 'super_admin'])
+            ->where('hidden_from_rating', false);
     }
 
     /**
