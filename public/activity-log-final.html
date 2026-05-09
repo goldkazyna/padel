@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Журнал — Padel Club</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #09090b; color: #e4e4e7; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+.page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+/* ═══ HEADER ═══ */
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.header-left h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.header-left p { font-size: 13px; color: #52525b; margin-top: 2px; }
+
+.stats { display: flex; gap: 6px; }
+.stat {
+    padding: 10px 16px; background: #111113; border: 1px solid #1e1e22;
+    border-radius: 10px; text-align: center; min-width: 80px;
+}
+.stat-num { font-size: 20px; font-weight: 800; line-height: 1; }
+.stat-num.green { color: #22c55e; }
+.stat-num.blue { color: #3b82f6; }
+.stat-num.red { color: #ef4444; }
+.stat-num.orange { color: #f59e0b; }
+.stat-num.total { color: #a1a1aa; }
+.stat-label { font-size: 10px; color: #3f3f46; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+/* ═══ TOOLBAR ═══ */
+.toolbar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.search-box {
+    flex: 1; min-width: 200px; background: #111113; border: 1px solid #1e1e22;
+    border-radius: 10px; padding: 9px 14px 9px 36px; color: #e4e4e7;
+    font-size: 13px; font-family: inherit; position: relative;
+}
+.search-box:focus { outline: none; border-color: #27272a; }
+.search-box::placeholder { color: #3f3f46; }
+.search-wrap { position: relative; flex: 1; min-width: 200px; }
+.search-wrap i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #3f3f46; font-size: 14px; }
+
+.filter-select {
+    background: #111113; border: 1px solid #1e1e22; border-radius: 10px;
+    padding: 9px 14px; color: #a1a1aa; font-size: 13px; font-family: inherit;
+    cursor: pointer; min-width: 150px; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%233f3f46'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+.filter-select:focus { outline: none; border-color: #27272a; }
+
+.filter-chips { display: flex; gap: 4px; }
+.chip {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid #1e1e22;
+    background: #111113; color: #52525b; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
+}
+.chip:hover { border-color: #27272a; color: #71717a; }
+.chip.active { background: #e4e4e7; color: #09090b; border-color: #e4e4e7; }
+.chip .cnt { font-size: 10px; opacity: 0.5; }
+
+/* ═══ GROUP BY DAY ═══ */
+.day-group { margin-bottom: 20px; }
+.day-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: #3f3f46; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+    padding: 0 14px;
+}
+.day-label::after { content: ''; flex: 1; height: 1px; background: #1a1a1e; }
+.day-count {
+    font-size: 10px; font-weight: 600; color: #27272a; background: #111113;
+    padding: 2px 8px; border-radius: 100px;
+}
+
+/* ═══ TABLE ═══ */
+.log-table { width: 100%; border-collapse: separate; border-spacing: 0 2px; }
+
+.log-table thead th {
+    text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: #3f3f46; padding: 8px 14px;
+    border-bottom: 1px solid #1e1e22; position: sticky; top: 0; background: #09090b; z-index: 10;
+}
+.log-table thead th:last-child { text-align: right; }
+
+.log-row {
+    transition: all 0.1s; cursor: default;
+}
+.log-row:hover td { background: #111113; }
+.log-row td {
+    padding: 10px 14px; vertical-align: middle; font-size: 13px;
+    border-top: 1px solid transparent; border-bottom: 1px solid transparent;
+    background: transparent; transition: background 0.1s;
+}
+.log-row td:first-child { border-radius: 10px 0 0 10px; }
+.log-row td:last-child { border-radius: 0 10px 10px 0; }
+
+/* Time column */
+.col-time {
+    font-size: 12px; color: #52525b; font-weight: 500; white-space: nowrap;
+    font-variant-numeric: tabular-nums; width: 70px;
+}
+
+/* Action column */
+.col-action { width: 130px; }
+.action-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;
+}
+.action-badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+.action-badge.created { background: rgba(34,197,94,0.08); color: #22c55e; }
+.action-badge.created .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.action-badge.updated { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.action-badge.updated .dot { background: #3b82f6; box-shadow: 0 0 6px rgba(59,130,246,0.5); }
+.action-badge.cancelled { background: rgba(239,68,68,0.08); color: #ef4444; }
+.action-badge.cancelled .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.action-badge.blocked { background: rgba(245,158,11,0.08); color: #f59e0b; }
+.action-badge.blocked .dot { background: #f59e0b; }
+.action-badge.unblocked { background: rgba(167,139,250,0.08); color: #a78bfa; }
+.action-badge.unblocked .dot { background: #a78bfa; }
+.action-badge.deleted { background: rgba(239,68,68,0.08); color: #ef4444; }
+.action-badge.deleted .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+
+/* Subject column */
+.col-subject { width: 110px; }
+.subject-tag {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
+    background: #111113; border: 1px solid #1e1e22; color: #52525b; white-space: nowrap;
+}
+.subject-tag.booking { color: #60a5fa; border-color: rgba(59,130,246,0.15); background: rgba(59,130,246,0.05); }
+.subject-tag.client { color: #4ade80; border-color: rgba(34,197,94,0.15); background: rgba(34,197,94,0.05); }
+.subject-tag.block { color: #fbbf24; border-color: rgba(245,158,11,0.15); background: rgba(245,158,11,0.05); }
+.subject-tag.tournament { color: #c084fc; border-color: rgba(167,139,250,0.15); background: rgba(167,139,250,0.05); }
+
+/* Description column */
+.col-desc { font-weight: 500; color: #d4d4d8; }
+.col-desc .detail { color: #52525b; font-weight: 400; }
+
+/* User column */
+.col-user { width: 160px; }
+.user-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.user-avatar {
+    width: 24px; height: 24px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 9px; font-weight: 700;
+    flex-shrink: 0;
+}
+.user-name { font-size: 12px; color: #71717a; font-weight: 500; text-align: right; }
+
+/* ═══ CHANGES (expandable) ═══ */
+.changes-row td { padding: 0 14px 8px; }
+.changes-block {
+    margin-left: 70px; padding: 10px 14px; background: #0c0c0e;
+    border-radius: 8px; border: 1px solid #1a1a1e;
+    display: flex; flex-wrap: wrap; gap: 8px 24px;
+}
+.change-item { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.change-field { color: #3f3f46; font-weight: 600; }
+.change-old { color: #ef4444; text-decoration: line-through; font-size: 11px; }
+.change-arrow { color: #27272a; }
+.change-new { color: #22c55e; font-weight: 500; }
+
+/* ═══ EXPANDABLE ROW TOGGLE ═══ */
+.log-row.has-changes { cursor: pointer; }
+.log-row.has-changes .col-desc::after {
+    content: '▾'; margin-left: 6px; font-size: 10px; color: #3f3f46;
+    transition: transform 0.2s;
+}
+.log-row.has-changes.expanded .col-desc::after { content: '▴'; color: #52525b; }
+.changes-row { display: none; }
+.changes-row.show { display: table-row; }
+
+/* ═══ EMPTY STATE ═══ */
+.empty-state {
+    text-align: center; padding: 60px 20px; color: #27272a;
+}
+.empty-state i { font-size: 48px; }
+.empty-state p { font-size: 14px; margin-top: 12px; color: #3f3f46; }
+
+/* ═══ PAGINATION ═══ */
+.pagination-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 20px; padding: 12px 0; border-top: 1px solid #1e1e22;
+}
+.pagination-info { font-size: 12px; color: #3f3f46; }
+.pagination-btns { display: flex; gap: 4px; }
+.page-btn {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid #1e1e22;
+    background: #111113; color: #71717a; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.page-btn:hover { border-color: #27272a; color: #a1a1aa; }
+.page-btn.active { background: #e4e4e7; color: #09090b; border-color: #e4e4e7; }
+.page-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 768px) {
+    .page { padding: 20px 12px; }
+    .header { flex-direction: column; gap: 16px; }
+    .stats { width: 100%; }
+    .stat { flex: 1; }
+    .toolbar { flex-direction: column; }
+    .search-wrap { width: 100%; }
+    .filter-chips { width: 100%; overflow-x: auto; }
+    .log-table thead { display: none; }
+    .log-row { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 12px 14px; border-radius: 10px; }
+    .log-row:hover { background: #111113; }
+    .log-row td { padding: 0; display: inline; border-radius: 0 !important; background: transparent !important; }
+    .col-time { order: 1; }
+    .col-action { order: 2; }
+    .col-desc { order: 4; width: 100%; margin-top: 4px; }
+    .col-subject { order: 3; }
+    .col-user { order: 5; width: 100%; margin-top: 4px; }
+    .user-cell { justify-content: flex-start; }
+    .changes-block { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+    <!-- HEADER + STATS -->
+    <div class="header">
+        <div class="header-left">
+            <h1>Журнал — Padel Club</h1>
+            <p>Все действия в клубе</p>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-num total">41</div>
+                <div class="stat-label">Всего</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num green">18</div>
+                <div class="stat-label">Создано</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num blue">12</div>
+                <div class="stat-label">Изменено</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num red">6</div>
+                <div class="stat-label">Отменено</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num orange">5</div>
+                <div class="stat-label">Блоки</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input class="search-box" type="text" placeholder="Поиск по описанию, имени...">
+        </div>
+        <div class="filter-chips">
+            <button class="chip active">Все <span class="cnt">41</span></button>
+            <button class="chip"><i class="bi bi-calendar-check" style="font-size:12px;"></i> Брони <span class="cnt">24</span></button>
+            <button class="chip"><i class="bi bi-person" style="font-size:12px;"></i> Клиенты <span class="cnt">12</span></button>
+            <button class="chip"><i class="bi bi-lock" style="font-size:12px;"></i> Блоки <span class="cnt">5</span></button>
+        </div>
+        <select class="filter-select">
+            <option>Все действия</option>
+            <option>Создание</option>
+            <option>Изменение</option>
+            <option>Отмена</option>
+            <option>Блокировка</option>
+            <option>Разблокировка</option>
+            <option>Удаление</option>
+        </select>
+        <select class="filter-select">
+            <option>Все пользователи</option>
+            <option>Денис Казына</option>
+            <option>Ольга Петрова</option>
+            <option>Айбек Модератор</option>
+        </select>
+    </div>
+
+    <!-- ═══ DAY: СЕГОДНЯ ═══ -->
+    <div class="day-group">
+        <div class="day-label">
+            Сегодня, 15 апреля
+            <span class="day-count">6 действий</span>
+        </div>
+
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Действие</th>
+                    <th>Объект</th>
+                    <th>Описание</th>
+                    <th style="text-align:right;">Автор</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="log-row">
+                    <td class="col-time">14:32</td>
+                    <td class="col-action"><span class="action-badge created"><span class="dot"></span>Создание</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Алексей Иванов, Корт 1, 10:00–12:00 <span class="detail">· 2 часа · 6 000 ₸</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr class="log-row has-changes" onclick="toggleChanges(this)">
+                    <td class="col-time">13:15</td>
+                    <td class="col-action"><span class="action-badge updated"><span class="dot"></span>Изменение</span></td>
+                    <td class="col-subject"><span class="subject-tag client"><i class="bi bi-person"></i> Клиент</span></td>
+                    <td class="col-desc">Марат Сагинбаев <span class="detail">· телефон, email</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="changes-row">
+                    <td colspan="5">
+                        <div class="changes-block">
+                            <div class="change-item">
+                                <span class="change-field">Телефон</span>
+                                <span class="change-old">+7 701 111 22 33</span>
+                                <span class="change-arrow">→</span>
+                                <span class="change-new">+7 702 444 55 66</span>
+                            </div>
+                            <div class="change-item">
+                                <span class="change-field">Email</span>
+                                <span class="change-old">marat@old.kz</span>
+                                <span class="change-arrow">→</span>
+                                <span class="change-new">marat@new.kz</span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr class="log-row has-changes" onclick="toggleChanges(this)">
+                    <td class="col-time">12:40</td>
+                    <td class="col-action"><span class="action-badge updated"><span class="dot"></span>Изменение</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Перенос брони: Тимур Нурпеисов, Корт 2 <span class="detail">· время</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="changes-row">
+                    <td colspan="5">
+                        <div class="changes-block">
+                            <div class="change-item">
+                                <span class="change-field">Время</span>
+                                <span class="change-old">14:00–15:00</span>
+                                <span class="change-arrow">→</span>
+                                <span class="change-new">16:00–17:00</span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr class="log-row">
+                    <td class="col-time">11:48</td>
+                    <td class="col-action"><span class="action-badge cancelled"><span class="dot"></span>Отмена</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Ольга Петрова, Корт 2, 16:00–17:00</td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Ольга Петрова</span>
+                            <span class="user-avatar" style="background:#ef4444;color:#fff;">ОП</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr class="log-row">
+                    <td class="col-time">09:20</td>
+                    <td class="col-action"><span class="action-badge blocked"><span class="dot"></span>Блокировка</span></td>
+                    <td class="col-subject"><span class="subject-tag block"><i class="bi bi-lock"></i> Блок</span></td>
+                    <td class="col-desc">Корт 3, 18:00–20:00 <span class="detail">· тех. обслуживание</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Админ</span>
+                            <span class="user-avatar" style="background:#f59e0b;color:#000;">АД</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr class="log-row">
+                    <td class="col-time">08:55</td>
+                    <td class="col-action"><span class="action-badge created"><span class="dot"></span>Создание</span></td>
+                    <td class="col-subject"><span class="subject-tag client"><i class="bi bi-person"></i> Клиент</span></td>
+                    <td class="col-desc">Добавлен: Асем Байменова <span class="detail">· +7 708 123 45 67</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Айбек Модератор</span>
+                            <span class="user-avatar" style="background:#a78bfa;color:#fff;">АМ</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══ DAY: ВЧЕРА ═══ -->
+    <div class="day-group">
+        <div class="day-label">
+            Вчера, 14 апреля
+            <span class="day-count">4 действия</span>
+        </div>
+
+        <table class="log-table">
+            <tbody>
+                <tr class="log-row">
+                    <td class="col-time">18:05</td>
+                    <td class="col-action"><span class="action-badge created"><span class="dot"></span>Создание</span></td>
+                    <td class="col-subject"><span class="subject-tag client"><i class="bi bi-person"></i> Клиент</span></td>
+                    <td class="col-desc">Добавлен: Сергей Козлов <span class="detail">· +7 707 999 88 77</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="log-row">
+                    <td class="col-time">15:30</td>
+                    <td class="col-action"><span class="action-badge created"><span class="dot"></span>Создание</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Айдос Жумагалиев, Корт 1, 08:00–09:00 <span class="detail">· 1 час · 3 000 ₸</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="log-row">
+                    <td class="col-time">12:10</td>
+                    <td class="col-action"><span class="action-badge deleted"><span class="dot"></span>Удаление</span></td>
+                    <td class="col-subject"><span class="subject-tag client"><i class="bi bi-person"></i> Клиент</span></td>
+                    <td class="col-desc">Удалён: Тестовый Клиент <span class="detail">· дубликат</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="log-row">
+                    <td class="col-time">09:00</td>
+                    <td class="col-action"><span class="action-badge unblocked"><span class="dot"></span>Разблокировка</span></td>
+                    <td class="col-subject"><span class="subject-tag block"><i class="bi bi-lock"></i> Блок</span></td>
+                    <td class="col-desc">Корт 3 <span class="detail">· разблокирован после ремонта</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Админ</span>
+                            <span class="user-avatar" style="background:#f59e0b;color:#000;">АД</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══ DAY: 13 АПРЕЛЯ ═══ -->
+    <div class="day-group">
+        <div class="day-label">
+            13 апреля, воскресенье
+            <span class="day-count">3 действия</span>
+        </div>
+
+        <table class="log-table">
+            <tbody>
+                <tr class="log-row">
+                    <td class="col-time">20:15</td>
+                    <td class="col-action"><span class="action-badge cancelled"><span class="dot"></span>Отмена</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Руслан Абдулин, Корт 1, 14:00–16:00 <span class="detail">· причина не указана</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Денис Казына</span>
+                            <span class="user-avatar" style="background:#22c55e;color:#000;">ДК</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="log-row">
+                    <td class="col-time">16:30</td>
+                    <td class="col-action"><span class="action-badge created"><span class="dot"></span>Создание</span></td>
+                    <td class="col-subject"><span class="subject-tag booking"><i class="bi bi-calendar-check"></i> Бронь</span></td>
+                    <td class="col-desc">Нурлан Сабитов, Корт 2, 18:00–20:00 <span class="detail">· 2 часа · 6 000 ₸</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Айбек Модератор</span>
+                            <span class="user-avatar" style="background:#a78bfa;color:#fff;">АМ</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="log-row">
+                    <td class="col-time">10:00</td>
+                    <td class="col-action"><span class="action-badge blocked"><span class="dot"></span>Блокировка</span></td>
+                    <td class="col-subject"><span class="subject-tag block"><i class="bi bi-lock"></i> Блок</span></td>
+                    <td class="col-desc">Корт 3, 10:00–14:00 <span class="detail">· ремонт покрытия</span></td>
+                    <td class="col-user">
+                        <div class="user-cell">
+                            <span class="user-name">Админ</span>
+                            <span class="user-avatar" style="background:#f59e0b;color:#000;">АД</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination-bar">
+        <div class="pagination-info">Показано 1–13 из 41</div>
+        <div class="pagination-btns">
+            <button class="page-btn disabled"><i class="bi bi-chevron-left"></i></button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleChanges(row) {
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains('changes-row')) {
+        next.classList.toggle('show');
+        row.classList.toggle('expanded');
+    }
+}
+</script>
+</body>
+</html>

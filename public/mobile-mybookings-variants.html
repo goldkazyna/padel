@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375, initial-scale=1.0">
+<title>Мои бронирования — 5 вариантов</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; gap: 40px; padding: 40px; justify-content: center; }
+
+    .screen { width: 375px; min-height: 700px; background: #0F0F0F; border-radius: 40px; border: 3px solid #27272a; overflow: hidden; flex-shrink: 0; }
+    .screen-label { text-align: center; padding: 10px; font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #16161a; }
+    .status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; color: #71717a; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 0 16px 16px; }
+    .back { font-size: 24px; color: #a1a1aa; }
+    .header h1 { font-size: 20px; font-weight: 800; }
+    .content { padding: 0 16px 24px; }
+
+    /* Табы */
+    .tabs { display: flex; gap: 4px; background: #1A1A1A; border-radius: 12px; padding: 3px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 8px; text-align: center; border-radius: 9px; font-size: 13px; font-weight: 700; color: #71717a; cursor: pointer; }
+    .tab.active { background: #22C55E; color: #0F0F0F; }
+    .tab .badge { display: inline-block; min-width: 16px; height: 16px; padding: 0 4px; background: #ef4444; color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; margin-left: 4px; line-height: 16px; text-align: center; }
+
+    /* Пустое */
+    .empty { text-align: center; padding: 40px 0; color: #52525b; font-size: 14px; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* ===== VARIANT 1 — Карточки с левой полоской ===== */
+    .v1-card { background: #1A1A1A; border-radius: 14px; padding: 14px; margin-bottom: 10px; border-left: 4px solid; overflow: hidden; }
+    .v1-card.pending { border-left-color: #ef4444; }
+    .v1-card.confirmed { border-left-color: #3B82F6; }
+    .v1-card.past { border-left-color: #3F3F46; opacity: 0.6; }
+    .v1-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .v1-club { font-size: 15px; font-weight: 700; }
+    .v1-status { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .v1-status.pending { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .v1-status.confirmed { background: rgba(59,130,246,0.15); color: #3B82F6; }
+    .v1-status.past { background: rgba(113,113,122,0.15); color: #71717a; }
+    .v1-details { display: flex; gap: 12px; font-size: 12px; color: #71717a; margin-bottom: 6px; }
+    .v1-detail { display: flex; align-items: center; gap: 4px; }
+    .v1-bottom { display: flex; justify-content: space-between; align-items: center; }
+    .v1-price { font-size: 15px; font-weight: 800; color: #22C55E; }
+    .v1-coach { font-size: 11px; color: #A78BFA; }
+    .v1-cancel { padding: 6px 12px; border-radius: 8px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #ef4444; font-size: 11px; font-weight: 700; }
+
+    /* ===== VARIANT 2 — Таймлайн ===== */
+    .v2-item { display: flex; gap: 14px; margin-bottom: 16px; position: relative; }
+    .v2-item::before { content: ''; position: absolute; left: 24px; top: 50px; bottom: -16px; width: 2px; background: #1E1E1E; }
+    .v2-item:last-child::before { display: none; }
+    .v2-date { width: 48px; text-align: center; flex-shrink: 0; }
+    .v2-date .num { font-size: 20px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .v2-date .mon { font-size: 10px; color: #52525b; font-weight: 600; text-transform: uppercase; }
+    .v2-card { flex: 1; background: #1A1A1A; border-radius: 12px; padding: 12px; border: 1px solid #2A2A2A; }
+    .v2-card.pending { border-color: #ef4444; }
+    .v2-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .v2-club { font-size: 14px; font-weight: 700; }
+    .v2-time { font-size: 13px; font-weight: 700; color: #a1a1aa; }
+    .v2-row2 { display: flex; gap: 6px; align-items: center; font-size: 11px; color: #71717a; }
+    .v2-tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+    .v2-tag.court { background: rgba(59,130,246,0.12); color: #3B82F6; }
+    .v2-tag.coach { background: rgba(167,139,250,0.12); color: #A78BFA; }
+    .v2-tag.price { background: rgba(34,197,94,0.12); color: #22C55E; }
+    .v2-tag.pending { background: rgba(239,68,68,0.12); color: #ef4444; }
+
+    /* ===== VARIANT 3 — Большие карточки с фоном ===== */
+    .v3-card { border-radius: 16px; padding: 16px; margin-bottom: 12px; position: relative; overflow: hidden; }
+    .v3-card.pending { background: linear-gradient(135deg, #1A1A1A, #1F1A1A); border: 1px solid rgba(239,68,68,0.2); }
+    .v3-card.confirmed { background: linear-gradient(135deg, #1A1A1A, #1A1D1A); border: 1px solid rgba(34,197,94,0.15); }
+    .v3-card.past { background: #1A1A1A; border: 1px solid #2A2A2A; opacity: 0.5; }
+    .v3-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .v3-club { font-size: 16px; font-weight: 800; }
+    .v3-badge { padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+    .v3-badge.pending { background: #ef4444; color: #fff; }
+    .v3-badge.confirmed { background: rgba(34,197,94,0.15); color: #22C55E; }
+    .v3-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .v3-info-item { }
+    .v3-info-label { font-size: 10px; color: #52525b; font-weight: 600; text-transform: uppercase; }
+    .v3-info-value { font-size: 13px; font-weight: 700; color: #d4d4d8; }
+    .v3-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #2A2A2A; }
+    .v3-price { font-size: 18px; font-weight: 800; color: #22C55E; }
+    .v3-cancel { padding: 6px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; color: #ef4444; font-size: 12px; font-weight: 700; }
+
+    /* ===== VARIANT 4 — Компактный список ===== */
+    .v4-item { display: flex; align-items: center; padding: 12px; background: #1A1A1A; border-radius: 12px; margin-bottom: 6px; gap: 12px; border: 1px solid #2A2A2A; }
+    .v4-item.pending { border-color: rgba(239,68,68,0.3); }
+    .v4-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .v4-icon.pending { background: rgba(239,68,68,0.1); }
+    .v4-icon.confirmed { background: rgba(59,130,246,0.1); }
+    .v4-icon.past { background: rgba(113,113,122,0.1); }
+    .v4-info { flex: 1; min-width: 0; }
+    .v4-title { font-size: 14px; font-weight: 700; }
+    .v4-sub { font-size: 11px; color: #71717a; }
+    .v4-right { text-align: right; }
+    .v4-price { font-size: 14px; font-weight: 800; color: #22C55E; }
+    .v4-date { font-size: 11px; color: #71717a; }
+
+    /* ===== VARIANT 5 — Календарная карточка ===== */
+    .v5-card { display: flex; gap: 12px; margin-bottom: 10px; background: #1A1A1A; border-radius: 14px; overflow: hidden; border: 1px solid #2A2A2A; }
+    .v5-card.pending { border-color: rgba(239,68,68,0.3); }
+    .v5-cal { width: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; flex-shrink: 0; }
+    .v5-cal.pending { background: rgba(239,68,68,0.08); }
+    .v5-cal.confirmed { background: rgba(59,130,246,0.08); }
+    .v5-cal.past { background: rgba(113,113,122,0.05); }
+    .v5-cal .wday { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .v5-cal .dnum { font-size: 22px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .v5-cal .dmon { font-size: 10px; color: #52525b; }
+    .v5-body { flex: 1; padding: 10px 12px 10px 0; display: flex; flex-direction: column; justify-content: center; }
+    .v5-club { font-size: 14px; font-weight: 700; }
+    .v5-meta { font-size: 11px; color: #71717a; margin-top: 2px; }
+    .v5-foot { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+    .v5-tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ===== VARIANT 1 — Карточки с левой полоской ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 1 — Полоска слева + статус</div>
+    <div class="status-bar"><span>22:43</span><span>82%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Мои бронирования</h1></div>
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">Предстоящие <span class="badge">3</span></div>
+            <div class="tab">Прошедшие</div>
+        </div>
+        <div class="v1-card pending">
+            <div class="v1-top"><span class="v1-club">ADD PADEL</span><span class="v1-status pending">Не обработан</span></div>
+            <div class="v1-details"><span class="v1-detail">📅 3 апр</span><span class="v1-detail">🕐 14:00 — 16:00</span><span class="v1-detail">🎾 Корт 1</span></div>
+            <div class="v1-bottom"><span class="v1-price">64 000 ₸</span><span class="v1-coach">Тренер: Кирилл (+36 000 ₸)</span></div>
+        </div>
+        <div class="v1-card confirmed">
+            <div class="v1-top"><span class="v1-club">Pulse Padel Club</span><span class="v1-status confirmed">Подтверждено</span></div>
+            <div class="v1-details"><span class="v1-detail">📅 5 апр</span><span class="v1-detail">🕐 10:00 — 11:00</span><span class="v1-detail">🎾 Корт 2</span></div>
+            <div class="v1-bottom"><span class="v1-price">30 000 ₸</span><button class="v1-cancel">Отменить</button></div>
+        </div>
+        <div class="v1-card confirmed">
+            <div class="v1-top"><span class="v1-club">ADD PADEL</span><span class="v1-status confirmed">Подтверждено</span></div>
+            <div class="v1-details"><span class="v1-detail">📅 7 апр</span><span class="v1-detail">🕐 18:00 — 20:00</span><span class="v1-detail">🎾 Корт 3</span></div>
+            <div class="v1-bottom"><span class="v1-price">70 000 ₸</span><button class="v1-cancel">Отменить</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 2 — Таймлайн ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 2 — Таймлайн по датам</div>
+    <div class="status-bar"><span>22:43</span><span>82%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Мои бронирования</h1></div>
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">Предстоящие <span class="badge">3</span></div>
+            <div class="tab">Прошедшие</div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-date"><div class="num">3</div><div class="mon">апр</div></div>
+            <div class="v2-card pending">
+                <div class="v2-row1"><span class="v2-club">ADD PADEL</span><span class="v2-time">14:00 — 16:00</span></div>
+                <div class="v2-row2"><span class="v2-tag court">Корт 1</span><span class="v2-tag coach">Кирилл</span><span class="v2-tag price">64 000 ₸</span><span class="v2-tag pending">Новая</span></div>
+            </div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-date"><div class="num">5</div><div class="mon">апр</div></div>
+            <div class="v2-card">
+                <div class="v2-row1"><span class="v2-club">Pulse Padel</span><span class="v2-time">10:00 — 11:00</span></div>
+                <div class="v2-row2"><span class="v2-tag court">Корт 2</span><span class="v2-tag price">30 000 ₸</span></div>
+            </div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-date"><div class="num">7</div><div class="mon">апр</div></div>
+            <div class="v2-card">
+                <div class="v2-row1"><span class="v2-club">ADD PADEL</span><span class="v2-time">18:00 — 20:00</span></div>
+                <div class="v2-row2"><span class="v2-tag court">Корт 3</span><span class="v2-tag price">70 000 ₸</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 3 — Большие карточки ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 3 — Большие карточки с деталями</div>
+    <div class="status-bar"><span>22:43</span><span>82%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Мои бронирования</h1></div>
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">Предстоящие <span class="badge">3</span></div>
+            <div class="tab">Прошедшие</div>
+        </div>
+        <div class="v3-card pending">
+            <div class="v3-header"><span class="v3-club">ADD PADEL</span><span class="v3-badge pending">Новая заявка</span></div>
+            <div class="v3-info">
+                <div class="v3-info-item"><div class="v3-info-label">Дата</div><div class="v3-info-value">3 апреля 2026</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Время</div><div class="v3-info-value">14:00 — 16:00</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Корт</div><div class="v3-info-value">Корт 1</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Тренер</div><div class="v3-info-value" style="color:#A78BFA">Кирилл</div></div>
+            </div>
+            <div class="v3-footer"><span class="v3-price">100 000 ₸</span><button class="v3-cancel">Отменить</button></div>
+        </div>
+        <div class="v3-card confirmed">
+            <div class="v3-header"><span class="v3-club">Pulse Padel Club</span><span class="v3-badge confirmed">Подтверждено</span></div>
+            <div class="v3-info">
+                <div class="v3-info-item"><div class="v3-info-label">Дата</div><div class="v3-info-value">5 апреля 2026</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Время</div><div class="v3-info-value">10:00 — 11:00</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Корт</div><div class="v3-info-value">Корт 2</div></div>
+                <div class="v3-info-item"><div class="v3-info-label">Тренер</div><div class="v3-info-value">—</div></div>
+            </div>
+            <div class="v3-footer"><span class="v3-price">30 000 ₸</span><button class="v3-cancel">Отменить</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 4 — Компактный список ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 4 — Компактный список</div>
+    <div class="status-bar"><span>22:43</span><span>82%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Мои бронирования</h1></div>
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">Предстоящие <span class="badge">3</span></div>
+            <div class="tab">Прошедшие</div>
+        </div>
+        <div class="v4-item pending">
+            <div class="v4-icon pending">🎾</div>
+            <div class="v4-info"><div class="v4-title">ADD PADEL · Корт 1</div><div class="v4-sub">14:00 — 16:00 · Тренер: Кирилл</div></div>
+            <div class="v4-right"><div class="v4-price">64 000 ₸</div><div class="v4-date">3 апр</div></div>
+        </div>
+        <div class="v4-item">
+            <div class="v4-icon confirmed">🎾</div>
+            <div class="v4-info"><div class="v4-title">Pulse Padel · Корт 2</div><div class="v4-sub">10:00 — 11:00</div></div>
+            <div class="v4-right"><div class="v4-price">30 000 ₸</div><div class="v4-date">5 апр</div></div>
+        </div>
+        <div class="v4-item">
+            <div class="v4-icon confirmed">🎾</div>
+            <div class="v4-info"><div class="v4-title">ADD PADEL · Корт 3</div><div class="v4-sub">18:00 — 20:00</div></div>
+            <div class="v4-right"><div class="v4-price">70 000 ₸</div><div class="v4-date">7 апр</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 5 — Календарная карточка ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 5 — Карточка с датой слева</div>
+    <div class="status-bar"><span>22:43</span><span>82%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Мои бронирования</h1></div>
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active">Предстоящие <span class="badge">3</span></div>
+            <div class="tab">Прошедшие</div>
+        </div>
+        <div class="v5-card pending">
+            <div class="v5-cal pending"><span class="wday">Чт</span><span class="dnum">3</span><span class="dmon">апр</span></div>
+            <div class="v5-body">
+                <div class="v5-club">ADD PADEL</div>
+                <div class="v5-meta">14:00 — 16:00 · Корт 1</div>
+                <div class="v5-foot">
+                    <span class="v5-tag" style="background:rgba(167,139,250,0.12);color:#A78BFA;">Кирилл</span>
+                    <span class="v5-tag" style="background:rgba(34,197,94,0.12);color:#22C55E;">64 000 ₸</span>
+                    <span class="v5-tag" style="background:rgba(239,68,68,0.12);color:#ef4444;">Новая</span>
+                </div>
+            </div>
+        </div>
+        <div class="v5-card">
+            <div class="v5-cal confirmed"><span class="wday">Сб</span><span class="dnum">5</span><span class="dmon">апр</span></div>
+            <div class="v5-body">
+                <div class="v5-club">Pulse Padel Club</div>
+                <div class="v5-meta">10:00 — 11:00 · Корт 2</div>
+                <div class="v5-foot">
+                    <span class="v5-tag" style="background:rgba(34,197,94,0.12);color:#22C55E;">30 000 ₸</span>
+                </div>
+            </div>
+        </div>
+        <div class="v5-card">
+            <div class="v5-cal confirmed"><span class="wday">Пн</span><span class="dnum">7</span><span class="dmon">апр</span></div>
+            <div class="v5-body">
+                <div class="v5-club">ADD PADEL</div>
+                <div class="v5-meta">18:00 — 20:00 · Корт 3</div>
+                <div class="v5-foot">
+                    <span class="v5-tag" style="background:rgba(34,197,94,0.12);color:#22C55E;">70 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

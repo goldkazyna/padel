@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Варианты навигации по неделе</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 24px; }
+    h2 { font-size: 14px; color: #71717a; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+    .variant { margin-bottom: 60px; }
+    .variant-label { font-size: 12px; color: #3b82f6; margin-bottom: 12px; font-weight: 700; letter-spacing: 1px; }
+
+    /* Shared */
+    .arrow { width: 36px; height: 36px; min-width: 36px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 18px; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+    .arrow:hover { border-color: #22c55e; color: #22c55e; }
+    .today-btn { padding: 7px 16px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+    .today-btn:hover { border-color: #22c55e; color: #22c55e; }
+    .date-input { background: #16161a; border: 1px solid #27272a; border-radius: 8px; padding: 7px 12px; color: #a1a1aa; font-size: 12px; font-weight: 600; color-scheme: dark; cursor: pointer; }
+
+    /* ============ VARIANT 1 — Компактные пилюли ============ */
+    .v1-wrap { display: flex; align-items: center; gap: 8px; }
+    .v1-days { display: flex; flex: 1; gap: 4px; }
+    .v1-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 10px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 12px; text-decoration: none; transition: all 0.2s; position: relative; cursor: pointer; }
+    .v1-day:hover { border-color: #22c55e; }
+    .v1-day.active { background: #22c55e; border-color: #22c55e; }
+    .v1-day.today:not(.active) { border-color: #22c55e; }
+    .v1-day .dn { font-size: 10px; font-weight: 600; color: #71717a; text-transform: uppercase; }
+    .v1-day .dd { font-size: 18px; font-weight: 800; color: #a1a1aa; }
+    .v1-day .dm { font-size: 10px; font-weight: 600; color: #52525b; }
+    .v1-day.active .dn, .v1-day.active .dd, .v1-day.active .dm { color: #0a0a0b; }
+    .v1-day.today:not(.active) .dd { color: #22c55e; }
+    .v1-day .occ { position: absolute; top: 3px; right: 5px; font-size: 8px; font-weight: 700; }
+    .v1-day.active .occ { color: #0a0a0b !important; opacity: 0.6; }
+    .v1-tools { display: flex; align-items: center; gap: 8px; margin-top: 8px; justify-content: center; }
+
+    /* ============ VARIANT 2 — Горизонтальная полоса с датой по центру ============ */
+    .v2-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .v2-title { font-size: 18px; font-weight: 800; }
+    .v2-title span { color: #22c55e; }
+    .v2-tools { display: flex; gap: 8px; align-items: center; }
+    .v2-strip { display: flex; align-items: center; gap: 6px; }
+    .v2-days { display: flex; flex: 1; background: #111113; border: 1px solid #27272a; border-radius: 12px; overflow: hidden; }
+    .v2-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 4px; text-decoration: none; cursor: pointer; transition: all 0.15s; position: relative; border-right: 1px solid #1c1c21; }
+    .v2-day:last-child { border-right: none; }
+    .v2-day:hover { background: #1c1c21; }
+    .v2-day.active { background: #22c55e; }
+    .v2-day.today:not(.active) { background: rgba(34,197,94,0.1); }
+    .v2-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .v2-day .dd { font-size: 16px; font-weight: 800; color: #e4e4e7; }
+    .v2-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .v2-day.active .dn, .v2-day.active .dd, .v2-day.active .dm { color: #0a0a0b; }
+    .v2-day.today:not(.active) .dd { color: #22c55e; }
+    .v2-day .occ { position: absolute; top: 2px; right: 4px; font-size: 8px; font-weight: 700; }
+    .v2-day.active .occ { color: #0a0a0b !important; opacity: 0.6; }
+
+    /* ============ VARIANT 3 — Карточки с тенью ============ */
+    .v3-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .v3-top-left { display: flex; gap: 8px; align-items: center; }
+    .v3-week-label { font-size: 15px; font-weight: 700; color: #a1a1aa; }
+    .v3-wrap { display: flex; align-items: center; gap: 8px; }
+    .v3-days { display: flex; flex: 1; gap: 6px; }
+    .v3-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px 10px; background: #111113; border: 1px solid #27272a; border-radius: 14px; text-decoration: none; cursor: pointer; transition: all 0.2s; position: relative; }
+    .v3-day:hover { border-color: #3f3f46; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .v3-day.active { background: linear-gradient(135deg, #22c55e, #16a34a); border-color: transparent; box-shadow: 0 4px 20px rgba(34,197,94,0.3); }
+    .v3-day.today:not(.active) { border-color: #22c55e; }
+    .v3-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .v3-day .dd { font-size: 20px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .v3-day .dm { font-size: 10px; font-weight: 600; color: #52525b; }
+    .v3-day.active .dn, .v3-day.active .dd, .v3-day.active .dm { color: #fff; }
+    .v3-day.today:not(.active) .dd { color: #22c55e; }
+    .v3-day .occ { position: absolute; top: 4px; right: 6px; font-size: 8px; font-weight: 700; }
+    .v3-day.active .occ { color: #fff !important; opacity: 0.7; }
+    .v3-day .occ-bar { width: 80%; height: 3px; border-radius: 2px; background: #27272a; margin-top: 2px; overflow: hidden; }
+    .v3-day .occ-bar-fill { height: 100%; border-radius: 2px; }
+    .v3-day.active .occ-bar { background: rgba(255,255,255,0.2); }
+
+    /* ============ VARIANT 4 — Минимал с подчёркиванием ============ */
+    .v4-bar { display: flex; align-items: center; gap: 6px; padding: 0 0 12px; border-bottom: 1px solid #27272a; margin-bottom: 12px; }
+    .v4-tools { display: flex; gap: 8px; align-items: center; }
+    .v4-days { display: flex; flex: 1; justify-content: center; gap: 2px; }
+    .v4-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 16px; text-decoration: none; cursor: pointer; transition: all 0.2s; position: relative; border-bottom: 3px solid transparent; }
+    .v4-day:hover { background: #16161a; border-radius: 8px 8px 0 0; }
+    .v4-day.active { border-bottom-color: #22c55e; }
+    .v4-day.today:not(.active) { border-bottom-color: #3f3f46; }
+    .v4-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .v4-day .dd { font-size: 15px; font-weight: 800; color: #a1a1aa; }
+    .v4-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .v4-day.active .dd { color: #22c55e; }
+    .v4-day.today:not(.active) .dd { color: #a1a1aa; }
+    .v4-day .occ { font-size: 8px; font-weight: 700; margin-top: 1px; }
+
+    /* ============ VARIANT 5 — Круглые бейджи ============ */
+    .v5-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 10px; }
+    .v5-tools { display: flex; gap: 8px; align-items: center; justify-content: center; }
+    .v5-days { display: flex; gap: 8px; }
+    .v5-day { display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+    .v5-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .v5-day .circle { width: 48px; height: 48px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #16161a; border: 2px solid #27272a; transition: all 0.2s; position: relative; }
+    .v5-day:hover .circle { border-color: #22c55e; }
+    .v5-day.active .circle { background: #22c55e; border-color: #22c55e; }
+    .v5-day.today:not(.active) .circle { border-color: #22c55e; }
+    .v5-day .dd { font-size: 16px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .v5-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .v5-day.active .dd { color: #0a0a0b; }
+    .v5-day.active .dm { color: rgba(0,0,0,0.5); }
+    .v5-day.today:not(.active) .dd { color: #22c55e; }
+    .v5-day .occ { font-size: 8px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- VARIANT 1 — Компактные пилюли -->
+<div class="variant">
+    <div class="variant-label">ВАРИАНТ 1 — Компактные пилюли</div>
+    <div class="v1-tools">
+        <input type="date" class="date-input" value="2026-03-30">
+        <a class="today-btn">Сегодня</a>
+    </div>
+    <div class="v1-wrap" style="margin-top: 8px;">
+        <a class="arrow">&#8249;</a>
+        <div class="v1-days">
+            <a class="v1-day"><span class="dn">пн</span><span class="dd">27</span><span class="dm">апр</span></a>
+            <a class="v1-day"><span class="dn">вт</span><span class="dd">28</span><span class="dm">апр</span></a>
+            <a class="v1-day"><span class="dn">ср</span><span class="dd">29</span><span class="dm">апр</span><span class="occ" style="color:#22c55e">12%</span></a>
+            <a class="v1-day active"><span class="dn">чт</span><span class="dd">30</span><span class="dm">апр</span><span class="occ" style="color:#fb923c">45%</span></a>
+            <a class="v1-day"><span class="dn">пт</span><span class="dd">01</span><span class="dm">май</span><span class="occ" style="color:#ef4444">85%</span></a>
+            <a class="v1-day"><span class="dn">сб</span><span class="dd">02</span><span class="dm">май</span><span class="occ" style="color:#fb923c">60%</span></a>
+            <a class="v1-day today"><span class="dn">вс</span><span class="dd">03</span><span class="dm">май</span></a>
+        </div>
+        <a class="arrow">&#8250;</a>
+    </div>
+</div>
+
+<!-- VARIANT 2 — Единая полоса -->
+<div class="variant">
+    <div class="variant-label">ВАРИАНТ 2 — Единая полоса</div>
+    <div class="v2-header">
+        <div class="v2-tools">
+            <input type="date" class="date-input" value="2026-03-30">
+            <a class="today-btn">Сегодня</a>
+        </div>
+    </div>
+    <div class="v2-strip">
+        <a class="arrow">&#8249;</a>
+        <div class="v2-days">
+            <a class="v2-day"><span class="dn">пн</span><span class="dd">27</span><span class="dm">апр</span></a>
+            <a class="v2-day"><span class="dn">вт</span><span class="dd">28</span><span class="dm">апр</span></a>
+            <a class="v2-day"><span class="dn">ср</span><span class="dd">29</span><span class="dm">апр</span><span class="occ" style="color:#22c55e">12%</span></a>
+            <a class="v2-day active"><span class="dn">чт</span><span class="dd">30</span><span class="dm">апр</span><span class="occ" style="color:#fb923c">45%</span></a>
+            <a class="v2-day"><span class="dn">пт</span><span class="dd">01</span><span class="dm">май</span><span class="occ" style="color:#ef4444">85%</span></a>
+            <a class="v2-day"><span class="dn">сб</span><span class="dd">02</span><span class="dm">май</span><span class="occ" style="color:#fb923c">60%</span></a>
+            <a class="v2-day today"><span class="dn">вс</span><span class="dd">03</span><span class="dm">май</span></a>
+        </div>
+        <a class="arrow">&#8250;</a>
+    </div>
+</div>
+
+<!-- VARIANT 3 — Карточки с градиентом и прогресс-баром -->
+<div class="variant">
+    <div class="variant-label">ВАРИАНТ 3 — Карточки с прогресс-баром</div>
+    <div class="v3-top">
+        <div class="v3-top-left">
+            <input type="date" class="date-input" value="2026-03-30">
+            <a class="today-btn">Сегодня</a>
+        </div>
+    </div>
+    <div class="v3-wrap">
+        <a class="arrow">&#8249;</a>
+        <div class="v3-days">
+            <a class="v3-day"><span class="dn">пн</span><span class="dd">27</span><span class="dm">апр</span><div class="occ-bar"><div class="occ-bar-fill" style="width:0%;background:#22c55e"></div></div></a>
+            <a class="v3-day"><span class="dn">вт</span><span class="dd">28</span><span class="dm">апр</span><div class="occ-bar"><div class="occ-bar-fill" style="width:0%;background:#22c55e"></div></div></a>
+            <a class="v3-day"><span class="dn">ср</span><span class="dd">29</span><span class="dm">апр</span><span class="occ" style="color:#22c55e">12%</span><div class="occ-bar"><div class="occ-bar-fill" style="width:12%;background:#22c55e"></div></div></a>
+            <a class="v3-day active"><span class="dn">чт</span><span class="dd">30</span><span class="dm">апр</span><span class="occ">45%</span><div class="occ-bar"><div class="occ-bar-fill" style="width:45%;background:#fff"></div></div></a>
+            <a class="v3-day"><span class="dn">пт</span><span class="dd">01</span><span class="dm">май</span><span class="occ" style="color:#ef4444">85%</span><div class="occ-bar"><div class="occ-bar-fill" style="width:85%;background:#ef4444"></div></div></a>
+            <a class="v3-day"><span class="dn">сб</span><span class="dd">02</span><span class="dm">май</span><span class="occ" style="color:#fb923c">60%</span><div class="occ-bar"><div class="occ-bar-fill" style="width:60%;background:#fb923c"></div></div></a>
+            <a class="v3-day today"><span class="dn">вс</span><span class="dd">03</span><span class="dm">май</span><div class="occ-bar"><div class="occ-bar-fill" style="width:0%;background:#22c55e"></div></div></a>
+        </div>
+        <a class="arrow">&#8250;</a>
+    </div>
+</div>
+
+<!-- VARIANT 4 — Минимал с подчёркиванием (tab-style) -->
+<div class="variant">
+    <div class="variant-label">ВАРИАНТ 4 — Табы с подчёркиванием</div>
+    <div class="v4-bar">
+        <a class="arrow">&#8249;</a>
+        <div class="v4-days">
+            <a class="v4-day"><span class="dn">пн</span><span class="dd">27</span><span class="dm">апр</span></a>
+            <a class="v4-day"><span class="dn">вт</span><span class="dd">28</span><span class="dm">апр</span></a>
+            <a class="v4-day"><span class="dn">ср</span><span class="dd">29</span><span class="dm">апр</span><span class="occ" style="color:#22c55e">12%</span></a>
+            <a class="v4-day active"><span class="dn">чт</span><span class="dd">30</span><span class="dm">апр</span><span class="occ" style="color:#22c55e">45%</span></a>
+            <a class="v4-day"><span class="dn">пт</span><span class="dd">01</span><span class="dm">май</span><span class="occ" style="color:#ef4444">85%</span></a>
+            <a class="v4-day"><span class="dn">сб</span><span class="dd">02</span><span class="dm">май</span><span class="occ" style="color:#fb923c">60%</span></a>
+            <a class="v4-day today"><span class="dn">вс</span><span class="dd">03</span><span class="dm">май</span></a>
+        </div>
+        <a class="arrow">&#8250;</a>
+    </div>
+    <div class="v5-tools">
+        <input type="date" class="date-input" value="2026-03-30">
+        <a class="today-btn">Сегодня</a>
+    </div>
+</div>
+
+<!-- VARIANT 5 — Круглые бейджи -->
+<div class="variant">
+    <div class="variant-label">ВАРИАНТ 5 — Круглые бейджи</div>
+    <div class="v5-tools" style="margin-bottom: 12px;">
+        <input type="date" class="date-input" value="2026-03-30">
+        <a class="today-btn">Сегодня</a>
+    </div>
+    <div class="v5-row">
+        <a class="arrow">&#8249;</a>
+        <div class="v5-days">
+            <a class="v5-day"><span class="dn">пн</span><div class="circle"><span class="dd">27</span></div><span class="dm">апр</span></a>
+            <a class="v5-day"><span class="dn">вт</span><div class="circle"><span class="dd">28</span></div><span class="dm">апр</span></a>
+            <a class="v5-day"><span class="dn">ср</span><div class="circle"><span class="dd">29</span></div><span class="dm">апр</span><span class="occ" style="color:#22c55e">12%</span></a>
+            <a class="v5-day active"><span class="dn">чт</span><div class="circle"><span class="dd">30</span></div><span class="dm">апр</span><span class="occ" style="color:#22c55e">45%</span></a>
+            <a class="v5-day"><span class="dn">пт</span><div class="circle"><span class="dd">01</span></div><span class="dm">май</span><span class="occ" style="color:#ef4444">85%</span></a>
+            <a class="v5-day"><span class="dn">сб</span><div class="circle"><span class="dd">02</span></div><span class="dm">май</span><span class="occ" style="color:#fb923c">60%</span></a>
+            <a class="v5-day today"><span class="dn">вс</span><div class="circle"><span class="dd">03</span></div><span class="dm">май</span></a>
+        </div>
+        <a class="arrow">&#8250;</a>
+    </div>
+</div>
+
+</body>
+</html>

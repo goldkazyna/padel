@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Место в турнире — 5 вариантов</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0b;
+            color: #f4f4f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            padding: 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
+        }
+        .variant-wrap {
+            background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden;
+        }
+        .vlabel { font-size: 11px; color: #22c55e; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px 0; }
+        .vdesc { font-size: 12px; color: #52525b; padding: 4px 16px 12px; }
+        .phone { max-width: 400px; background: #0a0a0b; }
+        .section-label { padding: 12px 16px 8px; font-size: 11px; color: #52525b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .row {
+            display: flex; align-items: center; padding: 10px 16px; gap: 10px;
+            border-bottom: 1px solid #1a1a1e;
+        }
+        .row-info { flex: 1; min-width: 0; }
+        .row-name { font-size: 13px; font-weight: 600; color: #f4f4f5; }
+        .row-date { font-size: 11px; color: #52525b; }
+        .row-arrow { color: #3f3f46; font-size: 14px; margin-right: 4px; }
+        .row-change { font-size: 14px; font-weight: 800; min-width: 44px; text-align: right; }
+        .row-change.pos { color: #22c55e; }
+        .row-change.neg { color: #ef4444; }
+
+        /* ===== V1: Цветной бейдж ===== */
+        .v1-badge {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 800; flex-shrink: 0;
+        }
+        .v1-badge.gold { background: rgba(250,204,21,0.15); color: #facc15; }
+        .v1-badge.silver { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .v1-badge.bronze { background: rgba(249,115,22,0.15); color: #f97316; }
+        .v1-badge.normal { background: #27272a; color: #71717a; }
+
+        /* ===== V2: Медаль + число ===== */
+        .v2-place {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; flex-shrink: 0;
+        }
+        .v2-place.medal { background: none; }
+        .v2-place.num {
+            background: #1e1e1e; border: 1.5px solid #3f3f46;
+            font-size: 13px; font-weight: 800; color: #a1a1aa;
+        }
+
+        /* ===== V3: Слева число, обводка цветная ===== */
+        .v3-place {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 800; flex-shrink: 0;
+            border: 2px solid #3f3f46; color: #71717a;
+        }
+        .v3-place.gold { border-color: #facc15; color: #facc15; background: rgba(250,204,21,0.08); }
+        .v3-place.silver { border-color: #94a3b8; color: #94a3b8; background: rgba(148,163,184,0.08); }
+        .v3-place.bronze { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.08); }
+
+        /* ===== V4: Компактный тег справа от названия ===== */
+        .v4-icon {
+            width: 32px; height: 32px; border-radius: 8px; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0; color: #71717a;
+        }
+        .v4-tag {
+            display: inline-block; padding: 2px 7px; border-radius: 4px;
+            font-size: 10px; font-weight: 800; margin-left: 6px; vertical-align: middle;
+        }
+        .v4-tag.gold { background: rgba(250,204,21,0.15); color: #facc15; }
+        .v4-tag.silver { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .v4-tag.bronze { background: rgba(249,115,22,0.15); color: #f97316; }
+        .v4-tag.normal { background: #27272a; color: #71717a; }
+
+        /* ===== V5: Эмодзи медаль + число в кружке ===== */
+        .v5-place {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 22px;
+            background: #16161a; border: 1px solid #27272a;
+        }
+        .v5-place.num { font-size: 15px; font-weight: 800; color: #71717a; }
+        .v5-place.top { border-color: rgba(250,204,21,0.3); }
+    </style>
+</head>
+<body>
+    <h1 style="font-size: 18px; margin-bottom: 20px; color: #a1a1aa;">Место в турнире — 5 вариантов</h1>
+
+    <div class="grid">
+
+        <!-- V1: Цветной бейдж -->
+        <div class="variant-wrap">
+            <div class="vlabel">1 — Цветной бейдж</div>
+            <div class="vdesc">Квадратный бейдж с цветным фоном. 1-3 цветные, остальные серые.</div>
+            <div class="phone">
+                <div class="section-label">История рейтинга</div>
+                <div class="row"><div class="v1-badge gold">1</div><div class="row-info"><div class="row-name">L3-L4 Americano Воскресенье</div><div class="row-date">01.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+51</span></div>
+                <div class="row"><div class="v1-badge silver">2</div><div class="row-info"><div class="row-name">L2-L3 Mix - Воскресенье</div><div class="row-date">08.02.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+21</span></div>
+                <div class="row"><div class="v1-badge bronze">3</div><div class="row-info"><div class="row-name">L1 Суббота</div><div class="row-date">14.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+205</span></div>
+                <div class="row"><div class="v1-badge normal">7</div><div class="row-info"><div class="row-name">L2-L3</div><div class="row-date">05.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-22</span></div>
+                <div class="row"><div class="v1-badge normal">15</div><div class="row-info"><div class="row-name">L3-L4 Americano - Суббота</div><div class="row-date">11.04.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-34</span></div>
+                <div class="row"><div class="v1-badge normal">16</div><div class="row-info"><div class="row-name">L3-L4 Americano-Воскресенье</div><div class="row-date">15.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-36</span></div>
+            </div>
+        </div>
+
+        <!-- V2: Медаль круглая -->
+        <div class="variant-wrap">
+            <div class="vlabel">2 — Медаль / число в кружке</div>
+            <div class="vdesc">Топ-3 медали эмодзи, остальные — число в кружке с обводкой.</div>
+            <div class="phone">
+                <div class="section-label">История рейтинга</div>
+                <div class="row"><div class="v2-place medal">🥇</div><div class="row-info"><div class="row-name">L3-L4 Americano Воскресенье</div><div class="row-date">01.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+51</span></div>
+                <div class="row"><div class="v2-place medal">🥈</div><div class="row-info"><div class="row-name">L2-L3 Mix - Воскресенье</div><div class="row-date">08.02.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+21</span></div>
+                <div class="row"><div class="v2-place medal">🥉</div><div class="row-info"><div class="row-name">L1 Суббота</div><div class="row-date">14.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+205</span></div>
+                <div class="row"><div class="v2-place num">7</div><div class="row-info"><div class="row-name">L2-L3</div><div class="row-date">05.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-22</span></div>
+                <div class="row"><div class="v2-place num">15</div><div class="row-info"><div class="row-name">L3-L4 Americano - Суббота</div><div class="row-date">11.04.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-34</span></div>
+                <div class="row"><div class="v2-place num">16</div><div class="row-info"><div class="row-name">L3-L4 Americano-Воскресенье</div><div class="row-date">15.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-36</span></div>
+            </div>
+        </div>
+
+        <!-- V3: Обводка цветная -->
+        <div class="variant-wrap">
+            <div class="vlabel">3 — Цветная обводка</div>
+            <div class="vdesc">Круг с числом и цветной обводкой для топ-3, серой для остальных.</div>
+            <div class="phone">
+                <div class="section-label">История рейтинга</div>
+                <div class="row"><div class="v3-place gold">1</div><div class="row-info"><div class="row-name">L3-L4 Americano Воскресенье</div><div class="row-date">01.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+51</span></div>
+                <div class="row"><div class="v3-place silver">2</div><div class="row-info"><div class="row-name">L2-L3 Mix - Воскресенье</div><div class="row-date">08.02.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+21</span></div>
+                <div class="row"><div class="v3-place bronze">3</div><div class="row-info"><div class="row-name">L1 Суббота</div><div class="row-date">14.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+205</span></div>
+                <div class="row"><div class="v3-place">7</div><div class="row-info"><div class="row-name">L2-L3</div><div class="row-date">05.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-22</span></div>
+                <div class="row"><div class="v3-place">15</div><div class="row-info"><div class="row-name">L3-L4 Americano - Суббота</div><div class="row-date">11.04.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-34</span></div>
+                <div class="row"><div class="v3-place">16</div><div class="row-info"><div class="row-name">L3-L4 Americano-Воскресенье</div><div class="row-date">15.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-36</span></div>
+            </div>
+        </div>
+
+        <!-- V4: Тег после названия -->
+        <div class="variant-wrap">
+            <div class="vlabel">4 — Тег у названия</div>
+            <div class="vdesc">Иконка кубка слева, место показано тегом рядом с названием турнира.</div>
+            <div class="phone">
+                <div class="section-label">История рейтинга</div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L3-L4 Americano Воскресенье <span class="v4-tag gold">1 место</span></div><div class="row-date">01.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+51</span></div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L2-L3 Mix - Воскресенье <span class="v4-tag silver">2 место</span></div><div class="row-date">08.02.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+21</span></div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L1 Суббота <span class="v4-tag bronze">3 место</span></div><div class="row-date">14.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+205</span></div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L2-L3 <span class="v4-tag normal">7 место</span></div><div class="row-date">05.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-22</span></div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L3-L4 Americano - Суббота <span class="v4-tag normal">15 место</span></div><div class="row-date">11.04.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-34</span></div>
+                <div class="row"><div class="v4-icon">🏆</div><div class="row-info"><div class="row-name">L3-L4 Americano-Воскресенье <span class="v4-tag normal">16 место</span></div><div class="row-date">15.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-36</span></div>
+            </div>
+        </div>
+
+        <!-- V5: Крупная карточка -->
+        <div class="variant-wrap">
+            <div class="vlabel">5 — Карточка с иконкой</div>
+            <div class="vdesc">Крупнее иконка, скруглённый квадрат. Медали для топ-3, число для остальных.</div>
+            <div class="phone">
+                <div class="section-label">История рейтинга</div>
+                <div class="row"><div class="v5-place top">🥇</div><div class="row-info"><div class="row-name">L3-L4 Americano Воскресенье</div><div class="row-date">01.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+51</span></div>
+                <div class="row"><div class="v5-place top">🥈</div><div class="row-info"><div class="row-name">L2-L3 Mix - Воскресенье</div><div class="row-date">08.02.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+21</span></div>
+                <div class="row"><div class="v5-place top">🥉</div><div class="row-info"><div class="row-name">L1 Суббота</div><div class="row-date">14.03.2026</div></div><span class="row-arrow">›</span><span class="row-change pos">+205</span></div>
+                <div class="row"><div class="v5-place num">7</div><div class="row-info"><div class="row-name">L2-L3</div><div class="row-date">05.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-22</span></div>
+                <div class="row"><div class="v5-place num">15</div><div class="row-info"><div class="row-name">L3-L4 Americano - Суббота</div><div class="row-date">11.04.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-34</span></div>
+                <div class="row"><div class="v5-place num">16</div><div class="row-info"><div class="row-name">L3-L4 Americano-Воскресенье</div><div class="row-date">15.03.2026</div></div><span class="row-arrow">›</span><span class="row-change neg">-36</span></div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

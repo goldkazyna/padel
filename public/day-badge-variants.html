@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200, initial-scale=1.0">
+<title>Бейджи необработанных — 5 вариантов</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 24px; }
+    h2 { font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 50px 0 16px; }
+    h2:first-child { margin-top: 0; }
+    .row { display: flex; gap: 6px; max-width: 900px; }
+
+    /* Базовая кнопка дня */
+    .day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 8px; background: #111113; border: 1px solid #27272a; border-radius: 14px; position: relative; cursor: pointer; transition: all 0.2s; }
+    .day:hover { border-color: #3f3f46; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .day.active { background: linear-gradient(135deg, #22c55e, #16a34a); border-color: transparent; box-shadow: 0 4px 20px rgba(34,197,94,0.3); }
+    .day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .day .dd { font-size: 15px; font-weight: 800; color: #d4d4d8; line-height: 1.2; }
+    .day.active .dn, .day.active .dd { color: #fff; }
+    .day .occ { font-size: 8px; font-weight: 700; position: absolute; top: 4px; right: 6px; }
+    .day.active .occ { color: #fff !important; opacity: 0.7; }
+    .day .bar { width: 80%; height: 3px; border-radius: 2px; background: #27272a; margin-top: 2px; overflow: hidden; }
+    .day .bar-fill { height: 100%; border-radius: 2px; }
+    .day.active .bar { background: rgba(255,255,255,0.2); }
+    .day.active .bar-fill { background: #fff !important; }
+
+    /* ========== ВАРИАНТ A — Пульсирующая точка ========== */
+    .a-dot { position: absolute; top: 3px; left: 6px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+    .day.active .a-dot { background: #fff; animation-name: pulse-white; }
+    @keyframes pulse-white { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 50% { box-shadow: 0 0 0 6px rgba(255,255,255,0); } }
+
+    /* ========== ВАРИАНТ B — Красная рамка + число в углу ========== */
+    .b-alert { border-color: #ef4444 !important; }
+    .b-alert.active { border: 2px solid #ef4444 !important; background: linear-gradient(135deg, #22c55e, #16a34a) !important; }
+    .b-count { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); min-width: 18px; height: 16px; padding: 0 5px; background: #ef4444; color: #fff; font-size: 9px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+
+    /* ========== ВАРИАНТ C — Подсветка снизу (свечение) ========== */
+    .c-glow { box-shadow: 0 4px 16px rgba(239,68,68,0.4), inset 0 -2px 0 #ef4444; }
+    .c-glow.active { box-shadow: 0 4px 20px rgba(34,197,94,0.3), inset 0 -2px 0 #ef4444; }
+    .c-label { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); padding: 1px 6px; background: #ef4444; color: #fff; font-size: 8px; font-weight: 700; border-radius: 4px; white-space: nowrap; }
+
+    /* ========== ВАРИАНТ D — Иконка колокольчика с числом ========== */
+    .d-bell { position: absolute; top: 2px; left: 4px; font-size: 12px; color: #ef4444; }
+    .d-bell-count { position: absolute; top: -2px; left: 14px; min-width: 14px; height: 14px; padding: 0 3px; background: #ef4444; color: #fff; font-size: 8px; font-weight: 700; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .day.active .d-bell { color: #fff; }
+    .day.active .d-bell-count { background: rgba(239,68,68,0.9); }
+
+    /* ========== ВАРИАНТ E — Верхняя полоска-индикатор ========== */
+    .e-stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #ef4444; border-radius: 14px 14px 0 0; }
+    .e-num { position: absolute; top: 5px; right: 5px; font-size: 9px; font-weight: 800; color: #ef4444; }
+    .day.active .e-num { color: #fca5a5; }
+</style>
+</head>
+<body>
+
+<!-- ВАРИАНТ A — Пульсирующая точка -->
+<h2>Вариант A — Пульсирующая красная точка (без числа, просто индикатор)</h2>
+<div class="row">
+    <div class="day"><span class="dn">Пн</span><span class="dd">30 мар</span><span class="occ" style="color:#fb923c">50%</span><div class="bar"><div class="bar-fill" style="width:50%;background:#fb923c"></div></div></div>
+    <div class="day"><div class="a-dot"></div><span class="dn">Вт</span><span class="dd">31 мар</span><span class="occ" style="color:#fb923c">65%</span><div class="bar"><div class="bar-fill" style="width:65%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="dn">Ср</span><span class="dd">01 апр</span><span class="occ" style="color:#22c55e">30%</span><div class="bar"><div class="bar-fill" style="width:30%;background:#22c55e"></div></div></div>
+    <div class="day" style="border-color:#22c55e;"><div class="a-dot"></div><span class="dn">Чт</span><span class="dd">02 апр</span><span class="occ" style="color:#ef4444">87%</span><div class="bar"><div class="bar-fill" style="width:87%;background:#ef4444"></div></div></div>
+    <div class="day"><div class="a-dot"></div><span class="dn">Пт</span><span class="dd">03 апр</span><span class="occ" style="color:#fb923c">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fb923c"></div></div></div>
+    <div class="day active"><div class="a-dot"></div><span class="dn">Сб</span><span class="dd">04 апр</span><span class="occ">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fff"></div></div></div>
+    <div class="day"><span class="dn">Вс</span><span class="dd">05 апр</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+</div>
+
+<!-- ВАРИАНТ B — Красная рамка + число сверху по центру -->
+<h2>Вариант B — Красная рамка + число сверху по центру</h2>
+<div class="row">
+    <div class="day"><span class="dn">Пн</span><span class="dd">30 мар</span><span class="occ" style="color:#fb923c">50%</span><div class="bar"><div class="bar-fill" style="width:50%;background:#fb923c"></div></div></div>
+    <div class="day b-alert"><div class="b-count">2</div><span class="dn">Вт</span><span class="dd">31 мар</span><span class="occ" style="color:#fb923c">65%</span><div class="bar"><div class="bar-fill" style="width:65%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="dn">Ср</span><span class="dd">01 апр</span><span class="occ" style="color:#22c55e">30%</span><div class="bar"><div class="bar-fill" style="width:30%;background:#22c55e"></div></div></div>
+    <div class="day b-alert" style="border-color:#22c55e;"><div class="b-count">1</div><span class="dn">Чт</span><span class="dd">02 апр</span><span class="occ" style="color:#ef4444">87%</span><div class="bar"><div class="bar-fill" style="width:87%;background:#ef4444"></div></div></div>
+    <div class="day b-alert"><div class="b-count">3</div><span class="dn">Пт</span><span class="dd">03 апр</span><span class="occ" style="color:#fb923c">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fb923c"></div></div></div>
+    <div class="day active b-alert"><div class="b-count">1</div><span class="dn">Сб</span><span class="dd">04 апр</span><span class="occ">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fff"></div></div></div>
+    <div class="day"><span class="dn">Вс</span><span class="dd">05 апр</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+</div>
+
+<!-- ВАРИАНТ C — Красное свечение снизу + подпись -->
+<h2>Вариант C — Красное свечение снизу + подпись «новых: N»</h2>
+<div class="row" style="padding-bottom: 14px;">
+    <div class="day"><span class="dn">Пн</span><span class="dd">30 мар</span><span class="occ" style="color:#fb923c">50%</span><div class="bar"><div class="bar-fill" style="width:50%;background:#fb923c"></div></div></div>
+    <div class="day c-glow"><div class="c-label">2 новых</div><span class="dn">Вт</span><span class="dd">31 мар</span><span class="occ" style="color:#fb923c">65%</span><div class="bar"><div class="bar-fill" style="width:65%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="dn">Ср</span><span class="dd">01 апр</span><span class="occ" style="color:#22c55e">30%</span><div class="bar"><div class="bar-fill" style="width:30%;background:#22c55e"></div></div></div>
+    <div class="day c-glow"><div class="c-label">1 новая</div><span class="dn">Чт</span><span class="dd">02 апр</span><span class="occ" style="color:#ef4444">87%</span><div class="bar"><div class="bar-fill" style="width:87%;background:#ef4444"></div></div></div>
+    <div class="day c-glow"><div class="c-label">3 новых</div><span class="dn">Пт</span><span class="dd">03 апр</span><span class="occ" style="color:#fb923c">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fb923c"></div></div></div>
+    <div class="day active c-glow"><div class="c-label">1 новая</div><span class="dn">Сб</span><span class="dd">04 апр</span><span class="occ">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fff"></div></div></div>
+    <div class="day"><span class="dn">Вс</span><span class="dd">05 апр</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+</div>
+
+<!-- ВАРИАНТ D — Колокольчик с числом -->
+<h2>Вариант D — Иконка колокольчика + число</h2>
+<div class="row">
+    <div class="day"><span class="dn">Пн</span><span class="dd">30 мар</span><span class="occ" style="color:#fb923c">50%</span><div class="bar"><div class="bar-fill" style="width:50%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="d-bell">🔔</span><span class="d-bell-count">2</span><span class="dn">Вт</span><span class="dd">31 мар</span><span class="occ" style="color:#fb923c">65%</span><div class="bar"><div class="bar-fill" style="width:65%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="dn">Ср</span><span class="dd">01 апр</span><span class="occ" style="color:#22c55e">30%</span><div class="bar"><div class="bar-fill" style="width:30%;background:#22c55e"></div></div></div>
+    <div class="day"><span class="d-bell">🔔</span><span class="d-bell-count">1</span><span class="dn">Чт</span><span class="dd">02 апр</span><span class="occ" style="color:#ef4444">87%</span><div class="bar"><div class="bar-fill" style="width:87%;background:#ef4444"></div></div></div>
+    <div class="day"><span class="d-bell">🔔</span><span class="d-bell-count">3</span><span class="dn">Пт</span><span class="dd">03 апр</span><span class="occ" style="color:#fb923c">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fb923c"></div></div></div>
+    <div class="day active"><span class="d-bell">🔔</span><span class="d-bell-count">1</span><span class="dn">Сб</span><span class="dd">04 апр</span><span class="occ">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fff"></div></div></div>
+    <div class="day"><span class="dn">Вс</span><span class="dd">05 апр</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+</div>
+
+<!-- ВАРИАНТ E — Красная полоска сверху + число справа -->
+<h2>Вариант E — Красная полоска сверху + число</h2>
+<div class="row">
+    <div class="day"><span class="dn">Пн</span><span class="dd">30 мар</span><span class="occ" style="color:#fb923c">50%</span><div class="bar"><div class="bar-fill" style="width:50%;background:#fb923c"></div></div></div>
+    <div class="day"><div class="e-stripe"></div><span class="e-num">2</span><span class="dn">Вт</span><span class="dd">31 мар</span><span class="occ" style="color:#fb923c">65%</span><div class="bar"><div class="bar-fill" style="width:65%;background:#fb923c"></div></div></div>
+    <div class="day"><span class="dn">Ср</span><span class="dd">01 апр</span><span class="occ" style="color:#22c55e">30%</span><div class="bar"><div class="bar-fill" style="width:30%;background:#22c55e"></div></div></div>
+    <div class="day"><div class="e-stripe"></div><span class="e-num">1</span><span class="dn">Чт</span><span class="dd">02 апр</span><span class="occ" style="color:#ef4444">87%</span><div class="bar"><div class="bar-fill" style="width:87%;background:#ef4444"></div></div></div>
+    <div class="day"><div class="e-stripe"></div><span class="e-num">3</span><span class="dn">Пт</span><span class="dd">03 апр</span><span class="occ" style="color:#fb923c">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fb923c"></div></div></div>
+    <div class="day active"><div class="e-stripe"></div><span class="e-num">1</span><span class="dn">Сб</span><span class="dd">04 апр</span><span class="occ">67%</span><div class="bar"><div class="bar-fill" style="width:67%;background:#fff"></div></div></div>
+    <div class="day"><span class="dn">Вс</span><span class="dd">05 апр</span><div class="bar"><div class="bar-fill" style="width:0%"></div></div></div>
+</div>
+
+</body>
+</html>

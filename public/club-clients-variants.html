@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Клиенты клуба — 5 вариантов</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --bg: #0a0a0b;
+            --bg-secondary: #111113;
+            --card: #16161a;
+            --card-hover: #1c1c21;
+            --accent: #22c55e;
+            --accent-dark: #16a34a;
+            --blue: #3b82f6;
+            --blue-dark: #2563eb;
+            --text: #f4f4f5;
+            --text-dim: #a1a1aa;
+            --text-muted: #71717a;
+            --border: #27272a;
+            --border-light: #3f3f46;
+            --yellow: #facc15;
+            --red: #ef4444;
+            --orange: #f97316;
+            --purple: #a855f7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+        }
+
+        /* Variant selector */
+        .variant-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+        }
+        .variant-nav span {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-right: 8px;
+        }
+        .variant-btn {
+            padding: 8px 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .variant-btn:hover { border-color: var(--border-light); color: var(--text); }
+        .variant-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+        .variant { display: none; padding: 80px 40px 60px; max-width: 1100px; margin: 0 auto; }
+        .variant.active { display: block; }
+
+        .variant-label {
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .variant-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ===================== SHARED STYLES ===================== */
+        .search-clear {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .search-clear:hover { color: var(--text); }
+
+        /* ===================== VARIANT 1: Таблица (как Users) ===================== */
+        .v1-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        .v1-title-block {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .v1-title-block i {
+            font-size: 26px;
+            color: var(--accent);
+        }
+        .v1-title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .v1-count {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .v1-btn-add {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .v1-btn-add:hover { background: var(--accent-dark); transform: translateY(-1px); }
+        .v1-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .v1-search {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+        .v1-search i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+        .v1-search input {
+            width: 100%;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px 12px 44px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .v1-search input::placeholder { color: var(--text-muted); }
+        .v1-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .v1-table-wrap {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .v1-table { width: 100%; border-collapse: collapse; }
+        .v1-table th {
+            padding: 16px 20px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+        }
+        .v1-table td {
+            padding: 18px 20px;
+            font-size: 15px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .v1-table tbody tr { transition: background 0.15s; }
+        .v1-table tbody tr:hover { background: var(--card-hover); }
+        .v1-table tbody tr:last-child td { border-bottom: none; }
+        .v1-name-cell { display: flex; align-items: center; gap: 14px; }
+        .v1-avatar {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 700; color: var(--bg);
+            flex-shrink: 0;
+        }
+        .v1-name-info { display: flex; flex-direction: column; }
+        .v1-fullname { font-size: 15px; font-weight: 600; color: var(--text); }
+        .v1-note { font-size: 12px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .v1-phone { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+        .v1-level {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(34,197,94,0.12);
+            color: var(--accent);
+        }
+        .v1-gender { color: var(--text-dim); font-size: 14px; }
+        .v1-actions { display: flex; align-items: center; gap: 6px; justify-content: center; }
+        .v1-action-btn {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-dim);
+            font-size: 16px;
+        }
+        .v1-action-btn:hover { border-color: var(--border-light); color: var(--text); }
+        .v1-action-btn.edit:hover { border-color: var(--blue); color: var(--blue); }
+        .v1-action-btn.delete:hover { border-color: var(--red); color: var(--red); }
+
+        /* ===================== VARIANT 2: Карточки ===================== */
+        .v2-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .v2-title-block {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .v2-title-block i { font-size: 26px; color: var(--accent); }
+        .v2-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .v2-count {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .v2-btn-add {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 12px 20px; border-radius: 10px;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .v2-btn-add:hover { background: var(--accent-dark); }
+        .v2-toolbar {
+            margin-bottom: 24px;
+        }
+        .v2-search {
+            max-width: 400px;
+            position: relative;
+        }
+        .v2-search i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; color: var(--text-muted);
+        }
+        .v2-search input {
+            width: 100%;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px 12px 44px;
+            font-size: 14px; color: var(--text);
+        }
+        .v2-search input::placeholder { color: var(--text-muted); }
+        .v2-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .v2-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .v2-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .v2-card:hover { border-color: var(--border-light); background: var(--card-hover); }
+        .v2-card-top { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
+        .v2-card-avatar {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 700; color: var(--bg);
+            flex-shrink: 0;
+        }
+        .v2-card-info { flex: 1; min-width: 0; }
+        .v2-card-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+        .v2-card-phone { font-size: 14px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+        .v2-card-actions { display: flex; gap: 6px; }
+        .v2-card-action {
+            width: 34px; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; cursor: pointer; color: var(--text-muted); font-size: 15px;
+            transition: all 0.2s;
+        }
+        .v2-card-action:hover { color: var(--text); border-color: var(--border-light); }
+        .v2-card-action.edit:hover { color: var(--blue); border-color: var(--blue); }
+        .v2-card-action.delete:hover { color: var(--red); border-color: var(--red); }
+        .v2-card-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+        .v2-card-tag {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 10px;
+            background: var(--card);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+        .v2-card-tag i { font-size: 13px; color: var(--text-muted); }
+        .v2-card-note {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* ===================== VARIANT 3: Компактный список ===================== */
+        .v3-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .v3-title-block { display: flex; align-items: center; gap: 14px; }
+        .v3-title-block i { font-size: 26px; color: var(--accent); }
+        .v3-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .v3-count {
+            background: var(--accent); color: var(--bg);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 13px; font-weight: 700;
+        }
+        .v3-btn-add {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 12px 20px; border-radius: 10px;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .v3-btn-add:hover { background: var(--accent-dark); }
+        .v3-search {
+            max-width: 400px; position: relative; margin-bottom: 24px;
+        }
+        .v3-search i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; color: var(--text-muted);
+        }
+        .v3-search input {
+            width: 100%;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px 12px 44px;
+            font-size: 14px; color: var(--text);
+        }
+        .v3-search input::placeholder { color: var(--text-muted); }
+        .v3-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .v3-list {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .v3-item {
+            display: flex; align-items: center; gap: 16px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .v3-item:last-child { border-bottom: none; }
+        .v3-item:hover { background: var(--card-hover); }
+        .v3-item-avatar {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: var(--bg);
+            flex-shrink: 0;
+        }
+        .v3-item-main { flex: 1; min-width: 0; }
+        .v3-item-name { font-size: 15px; font-weight: 600; }
+        .v3-item-sub { font-size: 13px; color: var(--text-muted); display: flex; gap: 12px; }
+        .v3-item-right { display: flex; align-items: center; gap: 12px; }
+        .v3-item-level {
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 12px; font-weight: 700;
+            background: rgba(34,197,94,0.12); color: var(--accent);
+        }
+        .v3-item-actions { display: flex; gap: 4px; }
+        .v3-item-action {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; border: 1px solid transparent;
+            border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 15px;
+            transition: all 0.2s;
+        }
+        .v3-item-action:hover { background: var(--card); border-color: var(--border); color: var(--text); }
+
+        /* ===================== VARIANT 4: Таблица + inline добавление ===================== */
+        .v4-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .v4-title-block { display: flex; align-items: center; gap: 14px; }
+        .v4-title-block i { font-size: 26px; color: var(--accent); }
+        .v4-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .v4-count {
+            background: var(--accent); color: var(--bg);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 13px; font-weight: 700;
+        }
+        .v4-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .v4-search { flex: 1; max-width: 400px; position: relative; }
+        .v4-search i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; color: var(--text-muted);
+        }
+        .v4-search input {
+            width: 100%;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px 12px 44px;
+            font-size: 14px; color: var(--text);
+        }
+        .v4-search input::placeholder { color: var(--text-muted); }
+        .v4-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .v4-table-wrap {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .v4-table { width: 100%; border-collapse: collapse; }
+        .v4-table th {
+            padding: 14px 20px; text-align: left;
+            font-size: 12px; font-weight: 700;
+            color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.5px; background: var(--card);
+            border-bottom: 1px solid var(--border);
+        }
+        .v4-table td {
+            padding: 14px 20px; font-size: 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .v4-table tbody tr { transition: background 0.15s; }
+        .v4-table tbody tr:hover { background: var(--card-hover); }
+        .v4-table tbody tr:last-child td { border-bottom: none; }
+        .v4-inline-row td { background: var(--card); }
+        .v4-inline-input {
+            width: 100%;
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 12px;
+            font-size: 14px; color: var(--text);
+        }
+        .v4-inline-input::placeholder { color: var(--text-muted); }
+        .v4-inline-input:focus { outline: none; border-color: var(--accent); }
+        .v4-inline-select {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 12px;
+            font-size: 14px; color: var(--text);
+        }
+        .v4-inline-actions { display: flex; gap: 6px; }
+        .v4-inline-save {
+            padding: 8px 16px; background: var(--accent); border: none;
+            border-radius: 8px; font-size: 13px; font-weight: 700;
+            color: var(--bg); cursor: pointer;
+        }
+        .v4-inline-cancel {
+            padding: 8px 12px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 13px; font-weight: 600;
+            color: var(--text-dim); cursor: pointer;
+        }
+        .v4-add-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 14px 20px;
+            color: var(--accent);
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            border-top: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .v4-add-row:hover { background: var(--card-hover); }
+        .v4-add-row i { font-size: 18px; }
+        .v4-name-cell { display: flex; align-items: center; gap: 12px; }
+        .v4-avatar {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: var(--bg);
+        }
+        .v4-actions { display: flex; gap: 4px; justify-content: center; }
+        .v4-action {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; border: 1px solid transparent;
+            border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 15px;
+        }
+        .v4-action:hover { background: var(--card); border-color: var(--border); color: var(--text); }
+
+        /* ===================== VARIANT 5: Карточки + боковая панель ===================== */
+        .v5-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .v5-title-block { display: flex; align-items: center; gap: 14px; }
+        .v5-title-block i { font-size: 26px; color: var(--accent); }
+        .v5-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .v5-count {
+            background: var(--accent); color: var(--bg);
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 13px; font-weight: 700;
+        }
+        .v5-btn-add {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--accent); color: var(--bg); border: none;
+            padding: 12px 20px; border-radius: 10px;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .v5-btn-add:hover { background: var(--accent-dark); }
+        .v5-search { max-width: 400px; position: relative; margin-bottom: 24px; }
+        .v5-search i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; color: var(--text-muted);
+        }
+        .v5-search input {
+            width: 100%;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 14px 12px 44px;
+            font-size: 14px; color: var(--text);
+        }
+        .v5-search input::placeholder { color: var(--text-muted); }
+        .v5-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .v5-layout { display: flex; gap: 24px; }
+        .v5-list-col { flex: 1; }
+        .v5-list {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .v5-list-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .v5-list-item:last-child { border-bottom: none; }
+        .v5-list-item:hover { background: var(--card-hover); }
+        .v5-list-item.selected { background: var(--card-hover); border-left: 3px solid var(--accent); }
+        .v5-list-avatar {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 700; color: var(--bg);
+            flex-shrink: 0;
+        }
+        .v5-list-info { flex: 1; }
+        .v5-list-name { font-size: 15px; font-weight: 600; }
+        .v5-list-phone { font-size: 13px; color: var(--text-muted); }
+        .v5-list-level {
+            padding: 3px 8px; border-radius: 6px;
+            font-size: 12px; font-weight: 700;
+            background: rgba(34,197,94,0.12); color: var(--accent);
+        }
+        .v5-detail-col {
+            width: 380px; flex-shrink: 0;
+        }
+        .v5-detail {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            position: sticky;
+            top: 80px;
+        }
+        .v5-detail-header { text-align: center; margin-bottom: 24px; }
+        .v5-detail-avatar {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 700; color: var(--bg);
+            margin: 0 auto 12px;
+        }
+        .v5-detail-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .v5-detail-phone { font-size: 14px; color: var(--text-dim); }
+        .v5-detail-section { margin-bottom: 20px; }
+        .v5-detail-label {
+            font-size: 11px; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .v5-detail-fields { display: flex; flex-direction: column; gap: 10px; }
+        .v5-detail-field {
+            display: flex; justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--card);
+            border-radius: 8px;
+        }
+        .v5-detail-field-label { font-size: 13px; color: var(--text-muted); }
+        .v5-detail-field-value { font-size: 14px; font-weight: 600; }
+        .v5-detail-note {
+            padding: 12px 14px;
+            background: var(--card);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        .v5-detail-actions { display: flex; gap: 8px; margin-top: 20px; }
+        .v5-detail-btn-edit {
+            flex: 1; padding: 12px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; font-size: 14px; font-weight: 600;
+            color: var(--text-dim); cursor: pointer; text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .v5-detail-btn-edit:hover { border-color: var(--blue); color: var(--blue); }
+        .v5-detail-btn-delete {
+            padding: 12px 16px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; font-size: 14px;
+            color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .v5-detail-btn-delete:hover { border-color: var(--red); color: var(--red); }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="variant-nav">
+        <span>Вариант:</span>
+        <button class="variant-btn active" onclick="showVariant(1)">1 — Таблица</button>
+        <button class="variant-btn" onclick="showVariant(2)">2 — Карточки</button>
+        <button class="variant-btn" onclick="showVariant(3)">3 — Компактный</button>
+        <button class="variant-btn" onclick="showVariant(4)">4 — Inline</button>
+        <button class="variant-btn" onclick="showVariant(5)">5 — Список + панель</button>
+    </div>
+
+    <!-- ==================== VARIANT 1: Таблица (как Users) ==================== -->
+    <div class="variant active" id="v1">
+        <div class="variant-label">Вариант 1</div>
+        <div class="variant-desc">Классическая таблица — как страница «Пользователи». Привычно, видно все поля сразу. Кнопка добавления + модалка.</div>
+
+        <div class="v1-header">
+            <div class="v1-title-block">
+                <i class="bi bi-person-lines-fill"></i>
+                <h1 class="v1-title">Клиенты</h1>
+                <span class="v1-count">47</span>
+            </div>
+            <button class="v1-btn-add">
+                <i class="bi bi-plus-lg"></i>
+                Добавить клиента
+            </button>
+        </div>
+
+        <div class="v1-toolbar">
+            <div class="v1-search">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Поиск по имени или телефону...">
+            </div>
+        </div>
+
+        <div class="v1-table-wrap">
+            <table class="v1-table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Телефон</th>
+                        <th>Уровень</th>
+                        <th>Пол</th>
+                        <th style="text-align:center">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="v1-name-cell">
+                                <div class="v1-avatar">АК</div>
+                                <div class="v1-name-info">
+                                    <span class="v1-fullname">Алексей Козлов</span>
+                                    <span class="v1-note">Играет по вечерам, предпочитает корт 2</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="v1-phone">+7 777 123 45 67</span></td>
+                        <td><span class="v1-level">3.0</span></td>
+                        <td><span class="v1-gender">М</span></td>
+                        <td>
+                            <div class="v1-actions">
+                                <button class="v1-action-btn edit"><i class="bi bi-pencil"></i></button>
+                                <button class="v1-action-btn delete"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v1-name-cell">
+                                <div class="v1-avatar">МС</div>
+                                <div class="v1-name-info">
+                                    <span class="v1-fullname">Мария Соколова</span>
+                                    <span class="v1-note">Новичок, пришла по рекомендации</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="v1-phone">+7 707 987 65 43</span></td>
+                        <td><span class="v1-level">1.5</span></td>
+                        <td><span class="v1-gender">Ж</span></td>
+                        <td>
+                            <div class="v1-actions">
+                                <button class="v1-action-btn edit"><i class="bi bi-pencil"></i></button>
+                                <button class="v1-action-btn delete"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v1-name-cell">
+                                <div class="v1-avatar">ДН</div>
+                                <div class="v1-name-info">
+                                    <span class="v1-fullname">Дмитрий Новиков</span>
+                                    <span class="v1-note"></span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="v1-phone">+7 771 555 33 22</span></td>
+                        <td><span class="v1-level">4.25</span></td>
+                        <td><span class="v1-gender">М</span></td>
+                        <td>
+                            <div class="v1-actions">
+                                <button class="v1-action-btn edit"><i class="bi bi-pencil"></i></button>
+                                <button class="v1-action-btn delete"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v1-name-cell">
+                                <div class="v1-avatar">ЕП</div>
+                                <div class="v1-name-info">
+                                    <span class="v1-fullname">Елена Петрова</span>
+                                    <span class="v1-note">Тренируется с тренером Асановым</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="v1-phone">+7 702 444 11 88</span></td>
+                        <td><span class="v1-level">2.5</span></td>
+                        <td><span class="v1-gender">Ж</span></td>
+                        <td>
+                            <div class="v1-actions">
+                                <button class="v1-action-btn edit"><i class="bi bi-pencil"></i></button>
+                                <button class="v1-action-btn delete"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v1-name-cell">
+                                <div class="v1-avatar">ТА</div>
+                                <div class="v1-name-info">
+                                    <span class="v1-fullname">Тимур Ахметов</span>
+                                    <span class="v1-note">Постоянный клиент, играет 3 раза в неделю</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="v1-phone">+7 778 222 99 00</span></td>
+                        <td><span class="v1-level">3.75</span></td>
+                        <td><span class="v1-gender">М</span></td>
+                        <td>
+                            <div class="v1-actions">
+                                <button class="v1-action-btn edit"><i class="bi bi-pencil"></i></button>
+                                <button class="v1-action-btn delete"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== VARIANT 2: Карточки ==================== -->
+    <div class="variant" id="v2">
+        <div class="variant-label">Вариант 2</div>
+        <div class="variant-desc">Карточки с тегами — каждый клиент на отдельной карточке. Видна заметка, уровень, пол, возраст. Удобно для визуального сканирования.</div>
+
+        <div class="v2-header">
+            <div class="v2-title-block">
+                <i class="bi bi-person-lines-fill"></i>
+                <h1 class="v2-title">Клиенты</h1>
+                <span class="v2-count">47</span>
+            </div>
+            <button class="v2-btn-add">
+                <i class="bi bi-plus-lg"></i>
+                Добавить клиента
+            </button>
+        </div>
+
+        <div class="v2-toolbar">
+            <div class="v2-search">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Поиск по имени или телефону...">
+            </div>
+        </div>
+
+        <div class="v2-grid">
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">АК</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Алексей Козлов</div>
+                        <div class="v2-card-phone">+7 777 123 45 67</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 3.0</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> М</span>
+                    <span class="v2-card-tag"><i class="bi bi-calendar3"></i> 32 года</span>
+                </div>
+                <div class="v2-card-note">Играет по вечерам, предпочитает корт 2</div>
+            </div>
+
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">МС</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Мария Соколова</div>
+                        <div class="v2-card-phone">+7 707 987 65 43</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 1.5</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> Ж</span>
+                    <span class="v2-card-tag"><i class="bi bi-calendar3"></i> 28 лет</span>
+                </div>
+                <div class="v2-card-note">Новичок, пришла по рекомендации</div>
+            </div>
+
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">ДН</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Дмитрий Новиков</div>
+                        <div class="v2-card-phone">+7 771 555 33 22</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 4.25</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> М</span>
+                    <span class="v2-card-tag"><i class="bi bi-calendar3"></i> 41 год</span>
+                </div>
+            </div>
+
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">ЕП</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Елена Петрова</div>
+                        <div class="v2-card-phone">+7 702 444 11 88</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 2.5</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> Ж</span>
+                    <span class="v2-card-tag"><i class="bi bi-calendar3"></i> 35 лет</span>
+                </div>
+                <div class="v2-card-note">Тренируется с тренером Асановым</div>
+            </div>
+
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">ТА</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Тимур Ахметов</div>
+                        <div class="v2-card-phone">+7 778 222 99 00</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 3.75</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> М</span>
+                    <span class="v2-card-tag"><i class="bi bi-calendar3"></i> 29 лет</span>
+                </div>
+                <div class="v2-card-note">Постоянный клиент, играет 3 раза в неделю</div>
+            </div>
+
+            <div class="v2-card">
+                <div class="v2-card-top">
+                    <div class="v2-card-avatar">АС</div>
+                    <div class="v2-card-info">
+                        <div class="v2-card-name">Анна Сидорова</div>
+                        <div class="v2-card-phone">+7 701 333 77 55</div>
+                    </div>
+                    <div class="v2-card-actions">
+                        <button class="v2-card-action edit"><i class="bi bi-pencil"></i></button>
+                        <button class="v2-card-action delete"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+                <div class="v2-card-meta">
+                    <span class="v2-card-tag"><i class="bi bi-bar-chart"></i> Уровень 2.0</span>
+                    <span class="v2-card-tag"><i class="bi bi-person"></i> Ж</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== VARIANT 3: Компактный список ==================== -->
+    <div class="variant" id="v3">
+        <div class="variant-label">Вариант 3</div>
+        <div class="variant-desc">Компактный список — минимум места, максимум клиентов на экране. Кнопки действий появляются при наведении. Хорошо для больших списков.</div>
+
+        <div class="v3-header">
+            <div class="v3-title-block">
+                <i class="bi bi-person-lines-fill"></i>
+                <h1 class="v3-title">Клиенты</h1>
+                <span class="v3-count">47</span>
+            </div>
+            <button class="v3-btn-add">
+                <i class="bi bi-plus-lg"></i>
+                Добавить
+            </button>
+        </div>
+
+        <div class="v3-search">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Поиск по имени или телефону...">
+        </div>
+
+        <div class="v3-list">
+            <div class="v3-item">
+                <div class="v3-item-avatar">АК</div>
+                <div class="v3-item-main">
+                    <div class="v3-item-name">Алексей Козлов</div>
+                    <div class="v3-item-sub">
+                        <span>+7 777 123 45 67</span>
+                        <span>М, 32 года</span>
+                    </div>
+                </div>
+                <div class="v3-item-right">
+                    <span class="v3-item-level">3.0</span>
+                    <div class="v3-item-actions">
+                        <button class="v3-item-action"><i class="bi bi-pencil"></i></button>
+                        <button class="v3-item-action"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="v3-item">
+                <div class="v3-item-avatar">МС</div>
+                <div class="v3-item-main">
+                    <div class="v3-item-name">Мария Соколова</div>
+                    <div class="v3-item-sub">
+                        <span>+7 707 987 65 43</span>
+                        <span>Ж, 28 лет</span>
+                    </div>
+                </div>
+                <div class="v3-item-right">
+                    <span class="v3-item-level">1.5</span>
+                    <div class="v3-item-actions">
+                        <button class="v3-item-action"><i class="bi bi-pencil"></i></button>
+                        <button class="v3-item-action"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="v3-item">
+                <div class="v3-item-avatar">ДН</div>
+                <div class="v3-item-main">
+                    <div class="v3-item-name">Дмитрий Новиков</div>
+                    <div class="v3-item-sub">
+                        <span>+7 771 555 33 22</span>
+                        <span>М, 41 год</span>
+                    </div>
+                </div>
+                <div class="v3-item-right">
+                    <span class="v3-item-level">4.25</span>
+                    <div class="v3-item-actions">
+                        <button class="v3-item-action"><i class="bi bi-pencil"></i></button>
+                        <button class="v3-item-action"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="v3-item">
+                <div class="v3-item-avatar">ЕП</div>
+                <div class="v3-item-main">
+                    <div class="v3-item-name">Елена Петрова</div>
+                    <div class="v3-item-sub">
+                        <span>+7 702 444 11 88</span>
+                        <span>Ж, 35 лет</span>
+                    </div>
+                </div>
+                <div class="v3-item-right">
+                    <span class="v3-item-level">2.5</span>
+                    <div class="v3-item-actions">
+                        <button class="v3-item-action"><i class="bi bi-pencil"></i></button>
+                        <button class="v3-item-action"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="v3-item">
+                <div class="v3-item-avatar">ТА</div>
+                <div class="v3-item-main">
+                    <div class="v3-item-name">Тимур Ахметов</div>
+                    <div class="v3-item-sub">
+                        <span>+7 778 222 99 00</span>
+                        <span>М, 29 лет</span>
+                    </div>
+                </div>
+                <div class="v3-item-right">
+                    <span class="v3-item-level">3.75</span>
+                    <div class="v3-item-actions">
+                        <button class="v3-item-action"><i class="bi bi-pencil"></i></button>
+                        <button class="v3-item-action"><i class="bi bi-trash3"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== VARIANT 4: Inline добавление ==================== -->
+    <div class="variant" id="v4">
+        <div class="variant-label">Вариант 4</div>
+        <div class="variant-desc">Таблица с inline-добавлением — новый клиент вводится прямо в строке таблицы, без модалки. Быстрый ввод нескольких клиентов подряд.</div>
+
+        <div class="v4-header">
+            <div class="v4-title-block">
+                <i class="bi bi-person-lines-fill"></i>
+                <h1 class="v4-title">Клиенты</h1>
+                <span class="v4-count">47</span>
+            </div>
+        </div>
+
+        <div class="v4-toolbar">
+            <div class="v4-search">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Поиск по имени или телефону...">
+            </div>
+        </div>
+
+        <div class="v4-table-wrap">
+            <table class="v4-table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Телефон</th>
+                        <th>Уровень</th>
+                        <th>Пол</th>
+                        <th>Заметка</th>
+                        <th style="text-align:center; width: 90px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="v4-inline-row">
+                        <td>
+                            <input class="v4-inline-input" type="text" placeholder="Имя клиента">
+                        </td>
+                        <td>
+                            <input class="v4-inline-input" type="text" placeholder="+7 ___ ___ __ __">
+                        </td>
+                        <td>
+                            <input class="v4-inline-input" type="number" placeholder="1.0" min="1" max="5.75" step="0.25" style="width: 80px;">
+                        </td>
+                        <td>
+                            <select class="v4-inline-select">
+                                <option value="">—</option>
+                                <option value="male">М</option>
+                                <option value="female">Ж</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input class="v4-inline-input" type="text" placeholder="Заметка...">
+                        </td>
+                        <td>
+                            <div class="v4-inline-actions">
+                                <button class="v4-inline-save">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="v4-inline-cancel">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v4-name-cell">
+                                <div class="v4-avatar">АК</div>
+                                Алексей Козлов
+                            </div>
+                        </td>
+                        <td style="color:var(--text-dim)">+7 777 123 45 67</td>
+                        <td><span class="v1-level">3.0</span></td>
+                        <td style="color:var(--text-dim)">М</td>
+                        <td style="color:var(--text-muted); font-size:13px;">Играет по вечерам</td>
+                        <td>
+                            <div class="v4-actions">
+                                <button class="v4-action"><i class="bi bi-pencil"></i></button>
+                                <button class="v4-action"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v4-name-cell">
+                                <div class="v4-avatar">МС</div>
+                                Мария Соколова
+                            </div>
+                        </td>
+                        <td style="color:var(--text-dim)">+7 707 987 65 43</td>
+                        <td><span class="v1-level">1.5</span></td>
+                        <td style="color:var(--text-dim)">Ж</td>
+                        <td style="color:var(--text-muted); font-size:13px;">Новичок</td>
+                        <td>
+                            <div class="v4-actions">
+                                <button class="v4-action"><i class="bi bi-pencil"></i></button>
+                                <button class="v4-action"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="v4-name-cell">
+                                <div class="v4-avatar">ДН</div>
+                                Дмитрий Новиков
+                            </div>
+                        </td>
+                        <td style="color:var(--text-dim)">+7 771 555 33 22</td>
+                        <td><span class="v1-level">4.25</span></td>
+                        <td style="color:var(--text-dim)">М</td>
+                        <td style="color:var(--text-muted); font-size:13px;"></td>
+                        <td>
+                            <div class="v4-actions">
+                                <button class="v4-action"><i class="bi bi-pencil"></i></button>
+                                <button class="v4-action"><i class="bi bi-trash3"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="v4-add-row">
+                <i class="bi bi-plus-circle"></i>
+                Добавить клиента
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== VARIANT 5: Список + боковая панель ==================== -->
+    <div class="variant" id="v5">
+        <div class="variant-label">Вариант 5</div>
+        <div class="variant-desc">Список слева + карточка клиента справа. Кликаешь на клиента — видишь все детали. Удобно для быстрого просмотра без переходов.</div>
+
+        <div class="v5-header">
+            <div class="v5-title-block">
+                <i class="bi bi-person-lines-fill"></i>
+                <h1 class="v5-title">Клиенты</h1>
+                <span class="v5-count">47</span>
+            </div>
+            <button class="v5-btn-add">
+                <i class="bi bi-plus-lg"></i>
+                Добавить
+            </button>
+        </div>
+
+        <div class="v5-search">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Поиск по имени или телефону...">
+        </div>
+
+        <div class="v5-layout">
+            <div class="v5-list-col">
+                <div class="v5-list">
+                    <div class="v5-list-item selected">
+                        <div class="v5-list-avatar">АК</div>
+                        <div class="v5-list-info">
+                            <div class="v5-list-name">Алексей Козлов</div>
+                            <div class="v5-list-phone">+7 777 123 45 67</div>
+                        </div>
+                        <span class="v5-list-level">3.0</span>
+                    </div>
+                    <div class="v5-list-item">
+                        <div class="v5-list-avatar">МС</div>
+                        <div class="v5-list-info">
+                            <div class="v5-list-name">Мария Соколова</div>
+                            <div class="v5-list-phone">+7 707 987 65 43</div>
+                        </div>
+                        <span class="v5-list-level">1.5</span>
+                    </div>
+                    <div class="v5-list-item">
+                        <div class="v5-list-avatar">ДН</div>
+                        <div class="v5-list-info">
+                            <div class="v5-list-name">Дмитрий Новиков</div>
+                            <div class="v5-list-phone">+7 771 555 33 22</div>
+                        </div>
+                        <span class="v5-list-level">4.25</span>
+                    </div>
+                    <div class="v5-list-item">
+                        <div class="v5-list-avatar">ЕП</div>
+                        <div class="v5-list-info">
+                            <div class="v5-list-name">Елена Петрова</div>
+                            <div class="v5-list-phone">+7 702 444 11 88</div>
+                        </div>
+                        <span class="v5-list-level">2.5</span>
+                    </div>
+                    <div class="v5-list-item">
+                        <div class="v5-list-avatar">ТА</div>
+                        <div class="v5-list-info">
+                            <div class="v5-list-name">Тимур Ахметов</div>
+                            <div class="v5-list-phone">+7 778 222 99 00</div>
+                        </div>
+                        <span class="v5-list-level">3.75</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="v5-detail-col">
+                <div class="v5-detail">
+                    <div class="v5-detail-header">
+                        <div class="v5-detail-avatar">АК</div>
+                        <div class="v5-detail-name">Алексей Козлов</div>
+                        <div class="v5-detail-phone">+7 777 123 45 67</div>
+                    </div>
+
+                    <div class="v5-detail-section">
+                        <div class="v5-detail-label">Информация</div>
+                        <div class="v5-detail-fields">
+                            <div class="v5-detail-field">
+                                <span class="v5-detail-field-label">Уровень</span>
+                                <span class="v5-detail-field-value">3.0</span>
+                            </div>
+                            <div class="v5-detail-field">
+                                <span class="v5-detail-field-label">Пол</span>
+                                <span class="v5-detail-field-value">Мужской</span>
+                            </div>
+                            <div class="v5-detail-field">
+                                <span class="v5-detail-field-label">Дата рождения</span>
+                                <span class="v5-detail-field-value">15.03.1994</span>
+                            </div>
+                            <div class="v5-detail-field">
+                                <span class="v5-detail-field-label">Добавлен</span>
+                                <span class="v5-detail-field-value">02.04.2026</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="v5-detail-section">
+                        <div class="v5-detail-label">Заметка</div>
+                        <div class="v5-detail-note">
+                            Играет по вечерам, предпочитает корт 2. Постоянный клиент с марта 2026.
+                        </div>
+                    </div>
+
+                    <div class="v5-detail-actions">
+                        <button class="v5-detail-btn-edit">
+                            <i class="bi bi-pencil"></i>
+                            Редактировать
+                        </button>
+                        <button class="v5-detail-btn-delete">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showVariant(n) {
+            document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('v' + n).classList.add('active');
+            document.querySelectorAll('.variant-btn')[n - 1].classList.add('active');
+        }
+    </script>
+</body>
+</html>

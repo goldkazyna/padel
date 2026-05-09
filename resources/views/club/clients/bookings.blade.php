@@ -112,7 +112,7 @@
                         @php
                             $bStart = substr($b->start_time, 0, 5);
                             $bEnd   = substr($b->end_time, 0, 5);
-                            $courtName = $b->court->name ?? '—';
+                            $courtName = $b->court?->name ?? '—';
                         @endphp
                         <div class="cb-row"
                              data-date="{{ $dateStr }}"

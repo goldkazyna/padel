@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Журнал — 5 вариантов</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #09090b; color: #e4e4e7; font-family: 'DM Sans', sans-serif; }
+
+/* ═══ NAV ═══ */
+.variant-nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 0; background: #111113; border-bottom: 1px solid #27272a;
+    padding: 0 20px;
+}
+.variant-nav button {
+    background: none; border: none; color: #71717a; padding: 16px 24px;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    border-bottom: 2px solid transparent; font-family: inherit;
+}
+.variant-nav button.active { color: #fff; border-bottom-color: #22c55e; }
+.variant-nav button:hover { color: #a1a1aa; }
+
+.variant-section { display: none; min-height: 100vh; padding: 40px 20px; }
+.variant-section.active { display: block; }
+
+/* ═══════════════════════════════════════════════════
+   ВАРИАНТ 1 — TIMELINE (вертикальная ось времени)
+   ═══════════════════════════════════════════════════ */
+.v1-wrap { max-width: 800px; margin: 0 auto; font-family: 'Manrope', sans-serif; }
+.v1-header { margin-bottom: 32px; }
+.v1-header h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+.v1-header p { color: #52525b; font-size: 13px; margin-top: 4px; }
+
+.v1-filters { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+.v1-filter-btn {
+    padding: 7px 16px; border-radius: 100px; border: 1px solid #27272a;
+    background: transparent; color: #71717a; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.v1-filter-btn:hover { border-color: #3f3f46; color: #a1a1aa; }
+.v1-filter-btn.active { background: #22c55e; border-color: #22c55e; color: #000; }
+
+.v1-day-group { margin-bottom: 32px; }
+.v1-day-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #52525b; margin-bottom: 16px; padding-left: 48px;
+}
+
+.v1-timeline { position: relative; padding-left: 48px; }
+.v1-timeline::before {
+    content: ''; position: absolute; left: 17px; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, #27272a, transparent);
+}
+
+.v1-entry { position: relative; margin-bottom: 2px; }
+.v1-entry::before {
+    content: ''; position: absolute; left: -35px; top: 18px;
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid #27272a; background: #09090b;
+}
+.v1-entry.act-created::before { border-color: #22c55e; background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+.v1-entry.act-updated::before { border-color: #3b82f6; background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.4); }
+.v1-entry.act-cancelled::before { border-color: #ef4444; background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+.v1-entry.act-blocked::before { border-color: #f59e0b; background: #f59e0b; }
+.v1-entry.act-unblocked::before { border-color: #a78bfa; background: #a78bfa; }
+.v1-entry.act-deleted::before { border-color: #ef4444; background: #ef4444; }
+
+.v1-card {
+    background: #111113; border: 1px solid #1e1e22; border-radius: 12px;
+    padding: 14px 18px; transition: all 0.15s;
+}
+.v1-card:hover { border-color: #27272a; background: #141416; }
+
+.v1-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.v1-card-desc { font-size: 13px; font-weight: 600; line-height: 1.5; flex: 1; }
+.v1-card-time { font-size: 11px; color: #52525b; white-space: nowrap; font-weight: 500; }
+
+.v1-card-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.v1-card-user {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #71717a; font-weight: 600;
+}
+.v1-card-user .avatar {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #22c55e; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #000;
+}
+.v1-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 100px; font-weight: 600;
+}
+.v1-tag.created { background: rgba(34,197,94,0.1); color: #22c55e; }
+.v1-tag.updated { background: rgba(59,130,246,0.1); color: #3b82f6; }
+.v1-tag.cancelled { background: rgba(239,68,68,0.1); color: #ef4444; }
+.v1-tag.blocked { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.v1-tag.deleted { background: rgba(239,68,68,0.1); color: #ef4444; }
+
+.v1-changes { margin-top: 10px; padding: 10px 12px; background: #0a0a0c; border-radius: 8px; border: 1px solid #1e1e22; }
+.v1-change-row { display: flex; align-items: center; gap: 8px; font-size: 11px; padding: 3px 0; }
+.v1-change-field { color: #52525b; font-weight: 600; min-width: 80px; }
+.v1-change-old { color: #ef4444; text-decoration: line-through; }
+.v1-change-arrow { color: #3f3f46; }
+.v1-change-new { color: #22c55e; }
+
+/* ═══════════════════════════════════════════════════
+   ВАРИАНТ 2 — TABLE / SPREADSHEET (табличный вид)
+   ═══════════════════════════════════════════════════ */
+.v2-wrap { max-width: 1100px; margin: 0 auto; font-family: 'JetBrains Mono', monospace; }
+.v2-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.v2-header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+.v2-stats { display: flex; gap: 16px; }
+.v2-stat { text-align: center; }
+.v2-stat-num { font-size: 22px; font-weight: 700; }
+.v2-stat-num.green { color: #22c55e; }
+.v2-stat-num.blue { color: #3b82f6; }
+.v2-stat-num.red { color: #ef4444; }
+.v2-stat-label { font-size: 9px; color: #52525b; text-transform: uppercase; letter-spacing: 1px; }
+
+.v2-toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.v2-search {
+    flex: 1; background: #111113; border: 1px solid #27272a; border-radius: 8px;
+    padding: 10px 14px; color: #e4e4e7; font-size: 12px; font-family: inherit;
+}
+.v2-search:focus { outline: none; border-color: #3b82f6; }
+.v2-search::placeholder { color: #3f3f46; }
+.v2-select {
+    background: #111113; border: 1px solid #27272a; border-radius: 8px;
+    padding: 10px 14px; color: #a1a1aa; font-size: 12px; font-family: inherit; cursor: pointer;
+}
+
+.v2-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.v2-table thead th {
+    text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: #52525b; padding: 10px 14px;
+    border-bottom: 1px solid #27272a; position: sticky; top: 56px; background: #09090b;
+}
+.v2-table tbody tr { transition: background 0.1s; }
+.v2-table tbody tr:hover { background: #111113; }
+.v2-table tbody td {
+    padding: 12px 14px; border-bottom: 1px solid #1a1a1e; font-size: 12px;
+    vertical-align: top;
+}
+
+.v2-action-cell { display: flex; align-items: center; gap: 8px; }
+.v2-action-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.v2-action-dot.created { background: #22c55e; }
+.v2-action-dot.updated { background: #3b82f6; }
+.v2-action-dot.cancelled { background: #ef4444; }
+.v2-action-dot.blocked { background: #f59e0b; }
+.v2-action-dot.deleted { background: #ef4444; }
+.v2-action-label { font-weight: 600; color: #a1a1aa; }
+
+.v2-desc { font-weight: 500; color: #d4d4d8; max-width: 400px; }
+.v2-user-cell { color: #71717a; font-weight: 500; }
+.v2-time-cell { color: #52525b; white-space: nowrap; }
+.v2-changes-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+.v2-diff {
+    font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: #111; border: 1px solid #1e1e22;
+}
+.v2-diff .old { color: #ef4444; }
+.v2-diff .new { color: #22c55e; }
+
+/* ═══════════════════════════════════════════════════
+   ВАРИАНТ 3 — FEED / CARD STREAM (лента карточек)
+   ═══════════════════════════════════════════════════ */
+.v3-wrap { max-width: 700px; margin: 0 auto; font-family: 'Outfit', sans-serif; }
+.v3-header { text-align: center; margin-bottom: 40px; }
+.v3-header h1 { font-size: 32px; font-weight: 800; letter-spacing: -1.5px; }
+.v3-header p { color: #52525b; font-size: 14px; margin-top: 6px; font-weight: 400; }
+
+.v3-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 32px; background: #111113; border-radius: 14px; padding: 4px; }
+.v3-tab {
+    padding: 10px 20px; border-radius: 10px; border: none;
+    background: transparent; color: #71717a; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.v3-tab.active { background: #1c1c20; color: #fff; }
+.v3-tab:hover:not(.active) { color: #a1a1aa; }
+.v3-tab .count { margin-left: 6px; font-size: 11px; opacity: 0.5; }
+
+.v3-day { margin-bottom: 28px; }
+.v3-day-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.v3-day-date { font-size: 13px; font-weight: 700; color: #a1a1aa; }
+.v3-day-line { flex: 1; height: 1px; background: #1e1e22; }
+.v3-day-count { font-size: 11px; color: #3f3f46; font-weight: 500; }
+
+.v3-card {
+    background: #111113; border: 1px solid #1e1e22; border-radius: 16px;
+    padding: 18px 20px; margin-bottom: 8px; transition: all 0.2s;
+    position: relative; overflow: hidden;
+}
+.v3-card:hover { border-color: #27272a; transform: translateY(-1px); }
+.v3-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+}
+.v3-card.act-created::before { background: #22c55e; }
+.v3-card.act-updated::before { background: #3b82f6; }
+.v3-card.act-cancelled::before { background: #ef4444; }
+.v3-card.act-blocked::before { background: #f59e0b; }
+.v3-card.act-deleted::before { background: #ef4444; }
+
+.v3-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.v3-card-action { display: flex; align-items: center; gap: 8px; }
+.v3-card-icon {
+    width: 32px; height: 32px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; font-size: 14px;
+}
+.v3-card.act-created .v3-card-icon { background: rgba(34,197,94,0.12); color: #22c55e; }
+.v3-card.act-updated .v3-card-icon { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.v3-card.act-cancelled .v3-card-icon { background: rgba(239,68,68,0.12); color: #ef4444; }
+.v3-card.act-blocked .v3-card-icon { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.v3-card.act-deleted .v3-card-icon { background: rgba(239,68,68,0.12); color: #ef4444; }
+.v3-card-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.v3-card.act-created .v3-card-type { color: #22c55e; }
+.v3-card.act-updated .v3-card-type { color: #3b82f6; }
+.v3-card.act-cancelled .v3-card-type { color: #ef4444; }
+.v3-card.act-blocked .v3-card-type { color: #f59e0b; }
+.v3-card.act-deleted .v3-card-type { color: #ef4444; }
+
+.v3-card-time { font-size: 12px; color: #52525b; font-weight: 500; }
+.v3-card-desc { font-size: 14px; font-weight: 500; line-height: 1.5; color: #d4d4d8; }
+.v3-card-footer { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.v3-card-avatar {
+    width: 22px; height: 22px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+}
+.v3-card-user-name { font-size: 12px; color: #71717a; font-weight: 600; }
+.v3-card-subject {
+    margin-left: auto; font-size: 10px; padding: 3px 10px; border-radius: 100px;
+    background: #1a1a1e; color: #52525b; font-weight: 600;
+}
+
+.v3-changes-block { margin-top: 12px; padding: 12px 14px; background: #0c0c0e; border-radius: 10px; }
+.v3-change-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.v3-change-label { color: #52525b; font-weight: 600; min-width: 90px; }
+.v3-change-from { color: #71717a; text-decoration: line-through; font-size: 11px; }
+.v3-change-to { color: #22c55e; font-weight: 500; }
+
+/* ═══════════════════════════════════════════════════
+   ВАРИАНТ 4 — COMPACT LOG (компактный список)
+   ═══════════════════════════════════════════════════ */
+.v4-wrap { max-width: 900px; margin: 0 auto; font-family: 'DM Sans', sans-serif; }
+.v4-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #1e1e22; }
+.v4-header h1 { font-size: 22px; font-weight: 700; }
+.v4-header-right { display: flex; gap: 12px; align-items: center; }
+.v4-count { font-size: 12px; color: #52525b; font-weight: 500; }
+.v4-export {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #27272a;
+    background: transparent; color: #a1a1aa; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+}
+
+.v4-filter-row { display: flex; gap: 8px; margin-bottom: 20px; }
+.v4-filter-chip {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid #1e1e22;
+    background: #111113; color: #71717a; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px;
+}
+.v4-filter-chip i { font-size: 10px; }
+.v4-filter-chip.active { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.06); }
+.v4-filter-chip .badge {
+    background: #27272a; padding: 1px 6px; border-radius: 100px; font-size: 10px; color: #71717a;
+}
+
+.v4-group { margin-bottom: 24px; }
+.v4-group-label {
+    font-size: 12px; font-weight: 700; color: #3f3f46; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+}
+.v4-group-label::after { content: ''; flex: 1; height: 1px; background: #1a1a1e; }
+
+.v4-row {
+    display: grid; grid-template-columns: 100px 120px 1fr 140px;
+    gap: 16px; padding: 10px 14px; border-radius: 10px; align-items: center;
+    transition: background 0.1s; border: 1px solid transparent;
+}
+.v4-row:hover { background: #111113; border-color: #1e1e22; }
+
+.v4-row-time { font-size: 12px; color: #52525b; font-weight: 500; font-variant-numeric: tabular-nums; }
+.v4-row-action { display: flex; align-items: center; gap: 6px; }
+.v4-row-action-icon {
+    width: 6px; height: 6px; border-radius: 50%;
+}
+.v4-row-action-icon.created { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.v4-row-action-icon.updated { background: #3b82f6; box-shadow: 0 0 6px rgba(59,130,246,0.5); }
+.v4-row-action-icon.cancelled { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+.v4-row-action-icon.blocked { background: #f59e0b; }
+.v4-row-action-icon.deleted { background: #ef4444; }
+.v4-row-action-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #71717a; }
+
+.v4-row-desc { font-size: 13px; font-weight: 500; color: #d4d4d8; }
+.v4-row-desc .subject-tag { color: #52525b; font-weight: 400; }
+.v4-row-user { font-size: 12px; color: #52525b; text-align: right; font-weight: 500; }
+
+.v4-expand-changes {
+    grid-column: 1 / -1; padding: 8px 14px; margin: 0 14px 4px;
+    background: #0c0c0e; border-radius: 8px; display: flex; flex-wrap: wrap; gap: 12px;
+}
+.v4-exp-item { font-size: 11px; display: flex; gap: 6px; }
+.v4-exp-field { color: #52525b; font-weight: 600; }
+.v4-exp-old { color: #ef4444; text-decoration: line-through; }
+.v4-exp-new { color: #22c55e; }
+
+/* ═══════════════════════════════════════════════════
+   ВАРИАНТ 5 — GROUPED BY TYPE (группировка по типу)
+   ═══════════════════════════════════════════════════ */
+.v5-wrap { max-width: 1000px; margin: 0 auto; font-family: 'Manrope', sans-serif; }
+.v5-header { margin-bottom: 32px; }
+.v5-header h1 { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+
+.v5-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.v5-summary-card {
+    background: #111113; border: 1px solid #1e1e22; border-radius: 14px;
+    padding: 18px; text-align: center; position: relative; overflow: hidden;
+}
+.v5-summary-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.v5-summary-card.s-booking::before { background: #3b82f6; }
+.v5-summary-card.s-client::before { background: #22c55e; }
+.v5-summary-card.s-block::before { background: #f59e0b; }
+.v5-summary-card.s-total::before { background: #a78bfa; }
+.v5-summary-num { font-size: 28px; font-weight: 800; }
+.v5-summary-card.s-booking .v5-summary-num { color: #3b82f6; }
+.v5-summary-card.s-client .v5-summary-num { color: #22c55e; }
+.v5-summary-card.s-block .v5-summary-num { color: #f59e0b; }
+.v5-summary-card.s-total .v5-summary-num { color: #a78bfa; }
+.v5-summary-label { font-size: 11px; color: #52525b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+.v5-filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.v5-filter-label { font-size: 12px; color: #3f3f46; font-weight: 600; margin-right: 4px; }
+.v5-chip {
+    padding: 6px 14px; border-radius: 10px; border: 1px solid #1e1e22;
+    background: #111113; color: #71717a; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.v5-chip:hover { border-color: #27272a; }
+.v5-chip.active { background: #fff; color: #000; border-color: #fff; }
+
+.v5-section { margin-bottom: 24px; }
+.v5-section-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    padding: 10px 16px; background: #111113; border-radius: 12px; border: 1px solid #1e1e22;
+    cursor: pointer; user-select: none;
+}
+.v5-section-icon { font-size: 18px; }
+.v5-section-icon.booking { color: #3b82f6; }
+.v5-section-icon.client { color: #22c55e; }
+.v5-section-icon.block { color: #f59e0b; }
+.v5-section-title { font-size: 14px; font-weight: 700; flex: 1; }
+.v5-section-count {
+    font-size: 11px; padding: 3px 10px; border-radius: 100px;
+    background: #1a1a1e; color: #71717a; font-weight: 600;
+}
+.v5-section-chevron { color: #3f3f46; transition: transform 0.2s; }
+
+.v5-items { padding-left: 0; }
+.v5-item {
+    display: grid; grid-template-columns: 80px auto 1fr auto;
+    gap: 12px; padding: 10px 16px; align-items: center;
+    border-left: 2px solid #1e1e22; margin-left: 24px; transition: all 0.1s;
+}
+.v5-item:hover { background: rgba(255,255,255,0.02); border-left-color: #3f3f46; }
+
+.v5-item-time { font-size: 12px; color: #52525b; font-weight: 500; font-variant-numeric: tabular-nums; }
+.v5-item-badge {
+    padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.3px; width: fit-content;
+}
+.v5-item-badge.created { background: rgba(34,197,94,0.1); color: #22c55e; }
+.v5-item-badge.updated { background: rgba(59,130,246,0.1); color: #3b82f6; }
+.v5-item-badge.cancelled { background: rgba(239,68,68,0.1); color: #ef4444; }
+.v5-item-badge.blocked { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.v5-item-badge.deleted { background: rgba(239,68,68,0.1); color: #ef4444; }
+.v5-item-desc { font-size: 13px; font-weight: 500; color: #d4d4d8; }
+.v5-item-user { font-size: 11px; color: #52525b; text-align: right; }
+</style>
+</head>
+<body>
+
+<nav class="variant-nav">
+    <button class="active" onclick="showVariant(1)">1. Timeline</button>
+    <button onclick="showVariant(2)">2. Таблица</button>
+    <button onclick="showVariant(3)">3. Карточки</button>
+    <button onclick="showVariant(4)">4. Компакт</button>
+    <button onclick="showVariant(5)">5. По типу</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════
+     ВАРИАНТ 1 — TIMELINE
+     ═══════════════════════════════════════════════════ -->
+<section class="variant-section active" id="v1">
+<div class="v1-wrap">
+    <div class="v1-header">
+        <h1>Журнал действий</h1>
+        <p>Padel Club — вся активность клуба</p>
+    </div>
+
+    <div class="v1-filters">
+        <button class="v1-filter-btn active">Все</button>
+        <button class="v1-filter-btn">Бронирования</button>
+        <button class="v1-filter-btn">Клиенты</button>
+        <button class="v1-filter-btn">Блокировки</button>
+    </div>
+
+    <div class="v1-day-group">
+        <div class="v1-day-label">Сегодня · 15 апреля 2026</div>
+        <div class="v1-timeline">
+            <div class="v1-entry act-created">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Бронирование: Алексей Иванов, Корт 1, 15.04 10:00–12:00</div>
+                        <div class="v1-card-time">14:32</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar">ДК</span> Денис Казына</div>
+                        <span class="v1-tag created">Создание</span>
+                    </div>
+                </div>
+            </div>
+            <div class="v1-entry act-updated">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Редактирование клиента Марат Сагинбаев: телефон, email</div>
+                        <div class="v1-card-time">13:15</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar">ДК</span> Денис Казына</div>
+                        <span class="v1-tag updated">Изменение</span>
+                    </div>
+                    <div class="v1-changes">
+                        <div class="v1-change-row">
+                            <span class="v1-change-field">Телефон</span>
+                            <span class="v1-change-old">+7 701 111 22 33</span>
+                            <span class="v1-change-arrow">→</span>
+                            <span class="v1-change-new">+7 702 444 55 66</span>
+                        </div>
+                        <div class="v1-change-row">
+                            <span class="v1-change-field">Email</span>
+                            <span class="v1-change-old">marat@old.kz</span>
+                            <span class="v1-change-arrow">→</span>
+                            <span class="v1-change-new">marat@new.kz</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="v1-entry act-cancelled">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Отмена брони: Ольга Петрова, Корт 2, 15.04 16:00–17:00</div>
+                        <div class="v1-card-time">11:48</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar" style="background:#ef4444;">ОП</span> Ольга Петрова</div>
+                        <span class="v1-tag cancelled">Отмена</span>
+                    </div>
+                </div>
+            </div>
+            <div class="v1-entry act-blocked">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Блокировка: Корт 3, 15.04 18:00–20:00</div>
+                        <div class="v1-card-time">09:20</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar" style="background:#f59e0b;">АМ</span> Админ</div>
+                        <span class="v1-tag blocked">Блокировка</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="v1-day-group">
+        <div class="v1-day-label">Вчера · 14 апреля 2026</div>
+        <div class="v1-timeline">
+            <div class="v1-entry act-created">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Добавлен клиент: Сергей Козлов, +7 707 999 88 77</div>
+                        <div class="v1-card-time">18:05</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar">ДК</span> Денис Казына</div>
+                        <span class="v1-tag created">Создание</span>
+                    </div>
+                </div>
+            </div>
+            <div class="v1-entry act-created">
+                <div class="v1-card">
+                    <div class="v1-card-top">
+                        <div class="v1-card-desc">Бронирование: Айдос Жумагалиев, Корт 1, 14.04 08:00–09:00</div>
+                        <div class="v1-card-time">15:30</div>
+                    </div>
+                    <div class="v1-card-meta">
+                        <div class="v1-card-user"><span class="avatar">ДК</span> Денис Казына</div>
+                        <span class="v1-tag created">Создание</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ВАРИАНТ 2 — TABLE
+     ═══════════════════════════════════════════════════ -->
+<section class="variant-section" id="v2">
+<div class="v2-wrap">
+    <div class="v2-header">
+        <h1>// ЖУРНАЛ ДЕЙСТВИЙ</h1>
+        <div class="v2-stats">
+            <div class="v2-stat"><div class="v2-stat-num green">24</div><div class="v2-stat-label">Создано</div></div>
+            <div class="v2-stat"><div class="v2-stat-num blue">12</div><div class="v2-stat-label">Изменено</div></div>
+            <div class="v2-stat"><div class="v2-stat-num red">5</div><div class="v2-stat-label">Отменено</div></div>
+        </div>
+    </div>
+
+    <div class="v2-toolbar">
+        <input class="v2-search" placeholder="Поиск по описанию..." type="text">
+        <select class="v2-select">
+            <option>Все действия</option>
+            <option>Создание</option>
+            <option>Изменение</option>
+            <option>Отмена</option>
+        </select>
+        <select class="v2-select">
+            <option>Все пользователи</option>
+            <option>Денис Казына</option>
+            <option>Ольга Петрова</option>
+        </select>
+    </div>
+
+    <table class="v2-table">
+        <thead>
+            <tr>
+                <th>Действие</th>
+                <th>Описание</th>
+                <th>Изменения</th>
+                <th>Пользователь</th>
+                <th>Дата / Время</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot created"></span><span class="v2-action-label">Создание</span></div></td>
+                <td class="v2-desc">Бронирование: Алексей Иванов, Корт 1, 15.04 10:00–12:00</td>
+                <td>—</td>
+                <td class="v2-user-cell">Денис Казына</td>
+                <td class="v2-time-cell">15.04.2026 14:32</td>
+            </tr>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot updated"></span><span class="v2-action-label">Изменение</span></div></td>
+                <td class="v2-desc">Редактирование клиента Марат Сагинбаев</td>
+                <td class="v2-changes-cell">
+                    <span class="v2-diff"><span class="old">+7 701...</span> → <span class="new">+7 702...</span></span>
+                </td>
+                <td class="v2-user-cell">Денис Казына</td>
+                <td class="v2-time-cell">15.04.2026 13:15</td>
+            </tr>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot cancelled"></span><span class="v2-action-label">Отмена</span></div></td>
+                <td class="v2-desc">Отмена брони: Ольга Петрова, Корт 2, 16:00–17:00</td>
+                <td>—</td>
+                <td class="v2-user-cell">Ольга Петрова</td>
+                <td class="v2-time-cell">15.04.2026 11:48</td>
+            </tr>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot blocked"></span><span class="v2-action-label">Блокировка</span></div></td>
+                <td class="v2-desc">Блокировка: Корт 3, 15.04 18:00–20:00</td>
+                <td>—</td>
+                <td class="v2-user-cell">Админ</td>
+                <td class="v2-time-cell">15.04.2026 09:20</td>
+            </tr>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot created"></span><span class="v2-action-label">Создание</span></div></td>
+                <td class="v2-desc">Добавлен клиент: Сергей Козлов, +7 707 999 88 77</td>
+                <td>—</td>
+                <td class="v2-user-cell">Денис Казына</td>
+                <td class="v2-time-cell">14.04.2026 18:05</td>
+            </tr>
+            <tr>
+                <td><div class="v2-action-cell"><span class="v2-action-dot created"></span><span class="v2-action-label">Создание</span></div></td>
+                <td class="v2-desc">Бронирование: Айдос Жумагалиев, Корт 1, 14.04 08:00–09:00</td>
+                <td>—</td>
+                <td class="v2-user-cell">Денис Казына</td>
+                <td class="v2-time-cell">14.04.2026 15:30</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ВАРИАНТ 3 — CARD FEED
+     ═══════════════════════════════════════════════════ -->
+<section class="variant-section" id="v3">
+<div class="v3-wrap">
+    <div class="v3-header">
+        <h1>Журнал активности</h1>
+        <p>Padel Club · Все действия в клубе</p>
+    </div>
+
+    <div class="v3-tabs">
+        <button class="v3-tab active">Все<span class="count">41</span></button>
+        <button class="v3-tab">Брони<span class="count">24</span></button>
+        <button class="v3-tab">Клиенты<span class="count">12</span></button>
+        <button class="v3-tab">Блоки<span class="count">5</span></button>
+    </div>
+
+    <div class="v3-day">
+        <div class="v3-day-header">
+            <span class="v3-day-date">Сегодня, 15 апреля</span>
+            <span class="v3-day-line"></span>
+            <span class="v3-day-count">4 действия</span>
+        </div>
+
+        <div class="v3-card act-created">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-plus-circle-fill"></i></div>
+                    <span class="v3-card-type">Создание</span>
+                </div>
+                <span class="v3-card-time">14:32</span>
+            </div>
+            <div class="v3-card-desc">Бронирование: Алексей Иванов, Корт 1, 15.04 10:00–12:00</div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#22c55e;color:#000;font-size:10px;font-weight:700;">ДК</div>
+                <span class="v3-card-user-name">Денис Казына</span>
+                <span class="v3-card-subject">Бронирование</span>
+            </div>
+        </div>
+
+        <div class="v3-card act-updated">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-pencil-fill"></i></div>
+                    <span class="v3-card-type">Изменение</span>
+                </div>
+                <span class="v3-card-time">13:15</span>
+            </div>
+            <div class="v3-card-desc">Редактирование клиента Марат Сагинбаев: телефон, email</div>
+            <div class="v3-changes-block">
+                <div class="v3-change-item">
+                    <span class="v3-change-label">Телефон</span>
+                    <span class="v3-change-from">+7 701 111 22 33</span>
+                    <span style="color:#3f3f46;">→</span>
+                    <span class="v3-change-to">+7 702 444 55 66</span>
+                </div>
+                <div class="v3-change-item">
+                    <span class="v3-change-label">Email</span>
+                    <span class="v3-change-from">marat@old.kz</span>
+                    <span style="color:#3f3f46;">→</span>
+                    <span class="v3-change-to">marat@new.kz</span>
+                </div>
+            </div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#3b82f6;color:#fff;font-size:10px;font-weight:700;">ДК</div>
+                <span class="v3-card-user-name">Денис Казына</span>
+                <span class="v3-card-subject">Клиент</span>
+            </div>
+        </div>
+
+        <div class="v3-card act-cancelled">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-x-circle-fill"></i></div>
+                    <span class="v3-card-type">Отмена</span>
+                </div>
+                <span class="v3-card-time">11:48</span>
+            </div>
+            <div class="v3-card-desc">Отмена брони: Ольга Петрова, Корт 2, 15.04 16:00–17:00</div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;">ОП</div>
+                <span class="v3-card-user-name">Ольга Петрова</span>
+                <span class="v3-card-subject">Бронирование</span>
+            </div>
+        </div>
+
+        <div class="v3-card act-blocked">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-lock-fill"></i></div>
+                    <span class="v3-card-type">Блокировка</span>
+                </div>
+                <span class="v3-card-time">09:20</span>
+            </div>
+            <div class="v3-card-desc">Блокировка: Корт 3, 15.04 18:00–20:00</div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#f59e0b;color:#000;font-size:10px;font-weight:700;">АМ</div>
+                <span class="v3-card-user-name">Админ</span>
+                <span class="v3-card-subject">Блокировка</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="v3-day">
+        <div class="v3-day-header">
+            <span class="v3-day-date">Вчера, 14 апреля</span>
+            <span class="v3-day-line"></span>
+            <span class="v3-day-count">2 действия</span>
+        </div>
+
+        <div class="v3-card act-created">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-plus-circle-fill"></i></div>
+                    <span class="v3-card-type">Создание</span>
+                </div>
+                <span class="v3-card-time">18:05</span>
+            </div>
+            <div class="v3-card-desc">Добавлен клиент: Сергей Козлов, +7 707 999 88 77</div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#22c55e;color:#000;font-size:10px;font-weight:700;">ДК</div>
+                <span class="v3-card-user-name">Денис Казына</span>
+                <span class="v3-card-subject">Клиент</span>
+            </div>
+        </div>
+
+        <div class="v3-card act-created">
+            <div class="v3-card-header">
+                <div class="v3-card-action">
+                    <div class="v3-card-icon"><i class="bi bi-plus-circle-fill"></i></div>
+                    <span class="v3-card-type">Создание</span>
+                </div>
+                <span class="v3-card-time">15:30</span>
+            </div>
+            <div class="v3-card-desc">Бронирование: Айдос Жумагалиев, Корт 1, 14.04 08:00–09:00</div>
+            <div class="v3-card-footer">
+                <div class="v3-card-avatar" style="background:#22c55e;color:#000;font-size:10px;font-weight:700;">ДК</div>
+                <span class="v3-card-user-name">Денис Казына</span>
+                <span class="v3-card-subject">Бронирование</span>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ВАРИАНТ 4 — COMPACT
+     ═══════════════════════════════════════════════════ -->
+<section class="variant-section" id="v4">
+<div class="v4-wrap">
+    <div class="v4-header">
+        <h1>Журнал — Padel Club</h1>
+        <div class="v4-header-right">
+            <span class="v4-count">41 запись</span>
+        </div>
+    </div>
+
+    <div class="v4-filter-row">
+        <button class="v4-filter-chip active"><i class="bi bi-grid-3x3-gap"></i> Все <span class="badge">41</span></button>
+        <button class="v4-filter-chip"><i class="bi bi-calendar-check"></i> Брони <span class="badge">24</span></button>
+        <button class="v4-filter-chip"><i class="bi bi-person"></i> Клиенты <span class="badge">12</span></button>
+        <button class="v4-filter-chip"><i class="bi bi-lock"></i> Блоки <span class="badge">5</span></button>
+    </div>
+
+    <div class="v4-group">
+        <div class="v4-group-label">Сегодня, 15 апреля</div>
+        <div class="v4-row">
+            <div class="v4-row-time">14:32</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon created"></span><span class="v4-row-action-label">Создание</span></div>
+            <div class="v4-row-desc">Бронирование: Алексей Иванов, Корт 1, 10:00–12:00 <span class="subject-tag">· бронь</span></div>
+            <div class="v4-row-user">Денис Казына</div>
+        </div>
+        <div class="v4-row">
+            <div class="v4-row-time">13:15</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon updated"></span><span class="v4-row-action-label">Изменение</span></div>
+            <div class="v4-row-desc">Клиент Марат Сагинбаев: телефон, email <span class="subject-tag">· клиент</span></div>
+            <div class="v4-row-user">Денис Казына</div>
+        </div>
+        <div class="v4-expand-changes">
+            <div class="v4-exp-item"><span class="v4-exp-field">Телефон:</span> <span class="v4-exp-old">+7 701 111 22 33</span> → <span class="v4-exp-new">+7 702 444 55 66</span></div>
+            <div class="v4-exp-item"><span class="v4-exp-field">Email:</span> <span class="v4-exp-old">marat@old.kz</span> → <span class="v4-exp-new">marat@new.kz</span></div>
+        </div>
+        <div class="v4-row">
+            <div class="v4-row-time">11:48</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon cancelled"></span><span class="v4-row-action-label">Отмена</span></div>
+            <div class="v4-row-desc">Отмена брони: Ольга Петрова, Корт 2, 16:00–17:00 <span class="subject-tag">· бронь</span></div>
+            <div class="v4-row-user">Ольга Петрова</div>
+        </div>
+        <div class="v4-row">
+            <div class="v4-row-time">09:20</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon blocked"></span><span class="v4-row-action-label">Блокировка</span></div>
+            <div class="v4-row-desc">Блокировка: Корт 3, 18:00–20:00 <span class="subject-tag">· блок</span></div>
+            <div class="v4-row-user">Админ</div>
+        </div>
+    </div>
+
+    <div class="v4-group">
+        <div class="v4-group-label">Вчера, 14 апреля</div>
+        <div class="v4-row">
+            <div class="v4-row-time">18:05</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon created"></span><span class="v4-row-action-label">Создание</span></div>
+            <div class="v4-row-desc">Добавлен клиент: Сергей Козлов, +7 707 999 88 77 <span class="subject-tag">· клиент</span></div>
+            <div class="v4-row-user">Денис Казына</div>
+        </div>
+        <div class="v4-row">
+            <div class="v4-row-time">15:30</div>
+            <div class="v4-row-action"><span class="v4-row-action-icon created"></span><span class="v4-row-action-label">Создание</span></div>
+            <div class="v4-row-desc">Бронирование: Айдос Жумагалиев, Корт 1, 08:00–09:00 <span class="subject-tag">· бронь</span></div>
+            <div class="v4-row-user">Денис Казына</div>
+        </div>
+    </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ВАРИАНТ 5 — GROUPED BY TYPE
+     ═══════════════════════════════════════════════════ -->
+<section class="variant-section" id="v5">
+<div class="v5-wrap">
+    <div class="v5-header">
+        <h1>Журнал действий</h1>
+    </div>
+
+    <div class="v5-summary">
+        <div class="v5-summary-card s-total">
+            <div class="v5-summary-num">41</div>
+            <div class="v5-summary-label">Всего</div>
+        </div>
+        <div class="v5-summary-card s-booking">
+            <div class="v5-summary-num">24</div>
+            <div class="v5-summary-label">Бронирования</div>
+        </div>
+        <div class="v5-summary-card s-client">
+            <div class="v5-summary-num">12</div>
+            <div class="v5-summary-label">Клиенты</div>
+        </div>
+        <div class="v5-summary-card s-block">
+            <div class="v5-summary-num">5</div>
+            <div class="v5-summary-label">Блокировки</div>
+        </div>
+    </div>
+
+    <div class="v5-filters">
+        <span class="v5-filter-label">Период:</span>
+        <button class="v5-chip">Сегодня</button>
+        <button class="v5-chip active">Неделя</button>
+        <button class="v5-chip">Месяц</button>
+        <span class="v5-filter-label" style="margin-left:12px;">Автор:</span>
+        <button class="v5-chip active">Все</button>
+        <button class="v5-chip">Денис Казына</button>
+    </div>
+
+    <div class="v5-section">
+        <div class="v5-section-header">
+            <i class="bi bi-calendar-check v5-section-icon booking"></i>
+            <span class="v5-section-title">Бронирования</span>
+            <span class="v5-section-count">24</span>
+            <i class="bi bi-chevron-down v5-section-chevron"></i>
+        </div>
+        <div class="v5-items">
+            <div class="v5-item">
+                <span class="v5-item-time">15.04 14:32</span>
+                <span class="v5-item-badge created">Создание</span>
+                <span class="v5-item-desc">Алексей Иванов, Корт 1, 10:00–12:00</span>
+                <span class="v5-item-user">Денис Казына</span>
+            </div>
+            <div class="v5-item">
+                <span class="v5-item-time">15.04 11:48</span>
+                <span class="v5-item-badge cancelled">Отмена</span>
+                <span class="v5-item-desc">Ольга Петрова, Корт 2, 16:00–17:00</span>
+                <span class="v5-item-user">Ольга Петрова</span>
+            </div>
+            <div class="v5-item">
+                <span class="v5-item-time">14.04 15:30</span>
+                <span class="v5-item-badge created">Создание</span>
+                <span class="v5-item-desc">Айдос Жумагалиев, Корт 1, 08:00–09:00</span>
+                <span class="v5-item-user">Денис Казына</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="v5-section">
+        <div class="v5-section-header">
+            <i class="bi bi-person-lines-fill v5-section-icon client"></i>
+            <span class="v5-section-title">Клиенты</span>
+            <span class="v5-section-count">12</span>
+            <i class="bi bi-chevron-down v5-section-chevron"></i>
+        </div>
+        <div class="v5-items">
+            <div class="v5-item">
+                <span class="v5-item-time">15.04 13:15</span>
+                <span class="v5-item-badge updated">Изменение</span>
+                <span class="v5-item-desc">Марат Сагинбаев: телефон, email</span>
+                <span class="v5-item-user">Денис Казына</span>
+            </div>
+            <div class="v5-item">
+                <span class="v5-item-time">14.04 18:05</span>
+                <span class="v5-item-badge created">Создание</span>
+                <span class="v5-item-desc">Сергей Козлов, +7 707 999 88 77</span>
+                <span class="v5-item-user">Денис Казына</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="v5-section">
+        <div class="v5-section-header">
+            <i class="bi bi-lock-fill v5-section-icon block"></i>
+            <span class="v5-section-title">Блокировки</span>
+            <span class="v5-section-count">5</span>
+            <i class="bi bi-chevron-down v5-section-chevron"></i>
+        </div>
+        <div class="v5-items">
+            <div class="v5-item">
+                <span class="v5-item-time">15.04 09:20</span>
+                <span class="v5-item-badge blocked">Блокировка</span>
+                <span class="v5-item-desc">Корт 3, 18:00–20:00</span>
+                <span class="v5-item-user">Админ</span>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<script>
+function showVariant(n) {
+    document.querySelectorAll('.variant-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.variant-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('v' + n).classList.add('active');
+    document.querySelectorAll('.variant-nav button')[n - 1].classList.add('active');
+}
+</script>
+</body>
+</html>

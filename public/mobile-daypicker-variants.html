@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375, initial-scale=1.0">
+<title>Выбор дня — загруженность</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0F0F0F; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 16px; max-width: 375px; margin: 0 auto; }
+    h2 { font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 40px 0 16px; }
+    h2:first-child { margin-top: 0; }
+
+    .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+    .days::-webkit-scrollbar { display: none; }
+
+    /* ===== Вариант A — Прогресс-бар снизу ===== */
+    .a-day { min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px 6px; background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 14px; position: relative; overflow: hidden; }
+    .a-day.active { background: #22C55E; border-color: #22C55E; }
+    .a-day.today:not(.active) { border-color: #22C55E; }
+    .a-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .a-day .dd { font-size: 18px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .a-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .a-day.active .dn, .a-day.active .dd, .a-day.active .dm { color: #0F0F0F; }
+    .a-day.today:not(.active) .dd { color: #22C55E; }
+    .a-bar { width: 80%; height: 3px; border-radius: 2px; background: #2A2A2A; margin-top: 3px; overflow: hidden; }
+    .a-bar-fill { height: 100%; border-radius: 2px; }
+    .a-day.active .a-bar { background: rgba(0,0,0,0.15); }
+    .a-day.active .a-bar-fill { background: #0F0F0F !important; opacity: 0.4; }
+
+    /* ===== Вариант B — Заливка снизу (кувшин) ===== */
+    .b-day { min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px 8px; background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 14px; position: relative; overflow: hidden; }
+    .b-day.active { border-color: #22C55E; }
+    .b-day.today:not(.active) { border-color: #22C55E; }
+    .b-fill { position: absolute; bottom: 0; left: 0; right: 0; z-index: 0; border-radius: 0 0 13px 13px; }
+    .b-day > * { position: relative; z-index: 1; }
+    .b-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .b-day .dd { font-size: 18px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .b-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .b-day.active .dn, .b-day.active .dd, .b-day.active .dm { color: #fff; }
+    .b-day.today:not(.active) .dd { color: #22C55E; }
+
+    /* ===== Вариант C — Процент текстом + цвет фона ===== */
+    .c-day { min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px 8px; background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 14px; }
+    .c-day.active { background: #22C55E; border-color: #22C55E; }
+    .c-day.today:not(.active) { border-color: #22C55E; }
+    .c-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .c-day .dd { font-size: 18px; font-weight: 800; color: #d4d4d8; line-height: 1; }
+    .c-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .c-day .occ { font-size: 8px; font-weight: 700; margin-top: 2px; }
+    .c-day.active .dn, .c-day.active .dd, .c-day.active .dm { color: #0F0F0F; }
+    .c-day.active .occ { color: rgba(0,0,0,0.5); }
+    .c-day.today:not(.active) .dd { color: #22C55E; }
+
+    /* ===== Вариант D — Кольцо вокруг числа ===== */
+    .d-day { min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 8px 8px; }
+    .d-day .dn { font-size: 10px; font-weight: 700; color: #52525b; text-transform: uppercase; }
+    .d-ring { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; }
+    .d-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+    .d-ring .dd { font-size: 16px; font-weight: 800; color: #d4d4d8; position: relative; z-index: 1; }
+    .d-day .dm { font-size: 9px; font-weight: 600; color: #52525b; }
+    .d-day.active .dd { color: #22C55E; }
+    .d-day.active .dn { color: #22C55E; }
+
+    /* ===== Вариант E — Кувшин с градиентом (лучший) ===== */
+    .e-day { min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px 8px; background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 14px; position: relative; overflow: hidden; }
+    .e-day.active { border-color: #22C55E; }
+    .e-day.today:not(.active) { border-color: #22C55E; }
+    .e-fill { position: absolute; bottom: 0; left: 0; right: 0; z-index: 0; border-radius: 0 0 13px 13px; opacity: 0.9; }
+    .e-fill::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(to bottom, rgba(255,255,255,0.15), transparent); }
+    .e-day > * { position: relative; z-index: 1; }
+    .e-day .dn { font-size: 10px; font-weight: 700; color: #71717a; text-transform: uppercase; }
+    .e-day .dd { font-size: 18px; font-weight: 800; color: #e4e4e7; line-height: 1; }
+    .e-day .dm { font-size: 9px; font-weight: 600; color: #71717a; }
+    .e-day.active { border-width: 2px; }
+    .e-day.active .dd { color: #fff; }
+    .e-day.active .dn, .e-day.active .dm { color: rgba(255,255,255,0.8); }
+</style>
+</head>
+<body>
+
+<h2>Вариант A — Прогресс-бар снизу</h2>
+<div class="days">
+    <div class="a-day"><span class="dn">Пн</span><span class="dd">30</span><span class="dm">мар</span><div class="a-bar"><div class="a-bar-fill" style="width:0%"></div></div></div>
+    <div class="a-day active"><span class="dn">Вт</span><span class="dd">31</span><span class="dm">мар</span><div class="a-bar"><div class="a-bar-fill" style="width:45%;background:#fb923c"></div></div></div>
+    <div class="a-day"><span class="dn">Ср</span><span class="dd">1</span><span class="dm">апр</span><div class="a-bar"><div class="a-bar-fill" style="width:20%;background:#22C55E"></div></div></div>
+    <div class="a-day"><span class="dn">Чт</span><span class="dd">2</span><span class="dm">апр</span><div class="a-bar"><div class="a-bar-fill" style="width:80%;background:#ef4444"></div></div></div>
+    <div class="a-day today"><span class="dn">Пт</span><span class="dd">3</span><span class="dm">апр</span><div class="a-bar"><div class="a-bar-fill" style="width:100%;background:#ef4444"></div></div></div>
+    <div class="a-day"><span class="dn">Сб</span><span class="dd">4</span><span class="dm">апр</span><div class="a-bar"><div class="a-bar-fill" style="width:60%;background:#fb923c"></div></div></div>
+    <div class="a-day"><span class="dn">Вс</span><span class="dd">5</span><span class="dm">апр</span><div class="a-bar"><div class="a-bar-fill" style="width:10%;background:#22C55E"></div></div></div>
+</div>
+
+<h2>Вариант B — Кувшин (заливка снизу)</h2>
+<div class="days">
+    <div class="b-day"><div class="b-fill" style="height:0%;background:transparent"></div><span class="dn">Пн</span><span class="dd">30</span><span class="dm">мар</span></div>
+    <div class="b-day active"><div class="b-fill" style="height:45%;background:rgba(251,146,60,0.3)"></div><span class="dn">Вт</span><span class="dd">31</span><span class="dm">мар</span></div>
+    <div class="b-day"><div class="b-fill" style="height:20%;background:rgba(34,197,94,0.2)"></div><span class="dn">Ср</span><span class="dd">1</span><span class="dm">апр</span></div>
+    <div class="b-day"><div class="b-fill" style="height:80%;background:rgba(239,68,68,0.25)"></div><span class="dn">Чт</span><span class="dd">2</span><span class="dm">апр</span></div>
+    <div class="b-day today"><div class="b-fill" style="height:100%;background:rgba(239,68,68,0.3)"></div><span class="dn">Пт</span><span class="dd">3</span><span class="dm">апр</span></div>
+    <div class="b-day"><div class="b-fill" style="height:60%;background:rgba(251,146,60,0.25)"></div><span class="dn">Сб</span><span class="dd">4</span><span class="dm">апр</span></div>
+    <div class="b-day"><div class="b-fill" style="height:10%;background:rgba(34,197,94,0.15)"></div><span class="dn">Вс</span><span class="dd">5</span><span class="dm">апр</span></div>
+</div>
+
+<h2>Вариант C — Процент текстом</h2>
+<div class="days">
+    <div class="c-day"><span class="dn">Пн</span><span class="dd">30</span><span class="dm">мар</span></div>
+    <div class="c-day active"><span class="dn">Вт</span><span class="dd">31</span><span class="dm">мар</span><span class="occ">45%</span></div>
+    <div class="c-day"><span class="dn">Ср</span><span class="dd">1</span><span class="dm">апр</span><span class="occ" style="color:#22C55E">20%</span></div>
+    <div class="c-day"><span class="dn">Чт</span><span class="dd">2</span><span class="dm">апр</span><span class="occ" style="color:#ef4444">80%</span></div>
+    <div class="c-day today"><span class="dn">Пт</span><span class="dd">3</span><span class="dm">апр</span><span class="occ" style="color:#ef4444">100%</span></div>
+    <div class="c-day"><span class="dn">Сб</span><span class="dd">4</span><span class="dm">апр</span><span class="occ" style="color:#fb923c">60%</span></div>
+    <div class="c-day"><span class="dn">Вс</span><span class="dd">5</span><span class="dm">апр</span><span class="occ" style="color:#22C55E">10%</span></div>
+</div>
+
+<h2>Вариант D — Кольцо загруженности вокруг числа</h2>
+<div class="days">
+    <div class="d-day">
+        <span class="dn">Пн</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/></svg>
+            <span class="dd">30</span>
+        </div>
+        <span class="dm">мар</span>
+    </div>
+    <div class="d-day active">
+        <span class="dn">Вт</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#fb923c" stroke-width="3" stroke-dasharray="54 120" stroke-linecap="round"/></svg>
+            <span class="dd">31</span>
+        </div>
+        <span class="dm">мар</span>
+    </div>
+    <div class="d-day">
+        <span class="dn">Ср</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#22C55E" stroke-width="3" stroke-dasharray="24 120" stroke-linecap="round"/></svg>
+            <span class="dd">1</span>
+        </div>
+        <span class="dm">апр</span>
+    </div>
+    <div class="d-day">
+        <span class="dn">Чт</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="96 120" stroke-linecap="round"/></svg>
+            <span class="dd">2</span>
+        </div>
+        <span class="dm">апр</span>
+    </div>
+    <div class="d-day today">
+        <span class="dn">Пт</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="120 120" stroke-linecap="round"/></svg>
+            <span class="dd">3</span>
+        </div>
+        <span class="dm">апр</span>
+    </div>
+    <div class="d-day">
+        <span class="dn">Сб</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#fb923c" stroke-width="3" stroke-dasharray="72 120" stroke-linecap="round"/></svg>
+            <span class="dd">4</span>
+        </div>
+        <span class="dm">апр</span>
+    </div>
+    <div class="d-day">
+        <span class="dn">Вс</span>
+        <div class="d-ring">
+            <svg width="42" height="42"><circle cx="21" cy="21" r="19" fill="none" stroke="#2A2A2A" stroke-width="3"/><circle cx="21" cy="21" r="19" fill="none" stroke="#22C55E" stroke-width="3" stroke-dasharray="12 120" stroke-linecap="round"/></svg>
+            <span class="dd">5</span>
+        </div>
+        <span class="dm">апр</span>
+    </div>
+</div>
+
+<h2>Вариант E — Кувшин с градиентом (эффект жидкости)</h2>
+<div class="days">
+    <div class="e-day"><div class="e-fill" style="height:0%"></div><span class="dn">Пн</span><span class="dd">30</span><span class="dm">мар</span></div>
+    <div class="e-day active"><div class="e-fill" style="height:45%;background:linear-gradient(to top, rgba(251,146,60,0.4), rgba(251,146,60,0.15))"></div><span class="dn">Вт</span><span class="dd">31</span><span class="dm">мар</span></div>
+    <div class="e-day"><div class="e-fill" style="height:20%;background:linear-gradient(to top, rgba(34,197,94,0.3), rgba(34,197,94,0.1))"></div><span class="dn">Ср</span><span class="dd">1</span><span class="dm">апр</span></div>
+    <div class="e-day"><div class="e-fill" style="height:80%;background:linear-gradient(to top, rgba(239,68,68,0.35), rgba(239,68,68,0.1))"></div><span class="dn">Чт</span><span class="dd">2</span><span class="dm">апр</span></div>
+    <div class="e-day today"><div class="e-fill" style="height:100%;background:linear-gradient(to top, rgba(239,68,68,0.4), rgba(239,68,68,0.15))"></div><span class="dn">Пт</span><span class="dd">3</span><span class="dm">апр</span></div>
+    <div class="e-day"><div class="e-fill" style="height:60%;background:linear-gradient(to top, rgba(251,146,60,0.35), rgba(251,146,60,0.1))"></div><span class="dn">Сб</span><span class="dd">4</span><span class="dm">апр</span></div>
+    <div class="e-day"><div class="e-fill" style="height:10%;background:linear-gradient(to top, rgba(34,197,94,0.25), rgba(34,197,94,0.05))"></div><span class="dn">Вс</span><span class="dd">5</span><span class="dm">апр</span></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=375, initial-scale=1.0">
+<title>Уведомления — категории в нашем стиле</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; gap: 40px; padding: 40px; justify-content: center; }
+    .screen { width: 375px; min-height: 700px; background: #0F0F0F; border-radius: 40px; border: 3px solid #27272a; overflow: hidden; flex-shrink: 0; }
+    .screen-label { text-align: center; padding: 10px; font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #16161a; }
+    .status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; color: #71717a; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 0 16px 20px; }
+    .back { font-size: 24px; color: #a1a1aa; }
+    .header h1 { font-size: 20px; font-weight: 800; }
+    .content { padding: 0 16px 24px; }
+    .mi { font-family: 'Material Icons Outlined'; font-size: 22px; font-style: normal; }
+
+    /* ===== VARIANT 1 — Карточки с иконкой (как текущие уведомления) ===== */
+    .v1-card { display: flex; align-items: center; gap: 12px; padding: 14px; background: #1A1A1A; border-radius: 14px; margin-bottom: 8px; border: 1px solid #2A2A2A; }
+    .v1-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #111; }
+    .v1-icon .mi { color: #22C55E; }
+    .v1-info { flex: 1; min-width: 0; }
+    .v1-title { font-size: 15px; font-weight: 700; }
+    .v1-desc { font-size: 12px; color: #52525b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .v1-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .v1-badge { min-width: 22px; height: 22px; padding: 0 6px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; border-radius: 11px; display: flex; align-items: center; justify-content: center; }
+    .v1-arrow { color: #3f3f46; font-size: 18px; }
+
+    /* ===== VARIANT 2 — Компактный список без описания ===== */
+    .v2-item { display: flex; align-items: center; gap: 12px; padding: 16px 14px; border-bottom: 1px solid #1E1E1E; }
+    .v2-item:last-child { border-bottom: none; }
+    .v2-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #1A1A1A; }
+    .v2-icon .mi { color: #22C55E; font-size: 20px; }
+    .v2-title { flex: 1; font-size: 15px; font-weight: 600; }
+    .v2-right { display: flex; align-items: center; gap: 8px; }
+
+    /* ===== VARIANT 3 — Карточки с подсчётом и описанием ===== */
+    .v3-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: #1A1A1A; border-radius: 14px; margin-bottom: 8px; border: 1px solid #2A2A2A; }
+    .v3-card.has-new { border-color: rgba(34,197,94,0.25); }
+    .v3-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .v3-icon .mi { font-size: 22px; }
+    .v3-info { flex: 1; min-width: 0; }
+    .v3-title { font-size: 15px; font-weight: 700; }
+    .v3-sub { font-size: 12px; color: #52525b; margin-top: 1px; }
+    .v3-count { font-size: 12px; color: #71717a; margin-top: 3px; }
+    .v3-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+
+    /* ===== VARIANT 4 — Минимальный с точкой ===== */
+    .v4-item { display: flex; align-items: center; gap: 14px; padding: 14px; background: #1A1A1A; border-radius: 12px; margin-bottom: 6px; border: 1px solid #2A2A2A; }
+    .v4-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .v4-dot.active { box-shadow: 0 0 8px; }
+    .v4-info { flex: 1; }
+    .v4-title { font-size: 15px; font-weight: 700; }
+    .v4-last { font-size: 11px; color: #52525b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ===== VARIANT 5 — Большие карточки с иконкой и preview ===== */
+    .v5-card { background: #1A1A1A; border-radius: 16px; padding: 18px; margin-bottom: 10px; border: 1px solid #2A2A2A; }
+    .v5-card.has-new { border-color: rgba(34,197,94,0.2); }
+    .v5-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .v5-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .v5-icon .mi { font-size: 20px; }
+    .v5-title { flex: 1; font-size: 16px; font-weight: 700; }
+    .v5-preview { background: #111; border-radius: 10px; padding: 10px 12px; }
+    .v5-preview-title { font-size: 13px; font-weight: 600; }
+    .v5-preview-body { font-size: 11px; color: #52525b; margin-top: 2px; }
+    .v5-preview-time { font-size: 10px; color: #3f3f46; margin-top: 4px; }
+    .v5-more { font-size: 11px; color: #22C55E; font-weight: 600; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ===== VARIANT 1 — Карточки (как текущий стиль уведомлений) ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 1 — Карточки с последним сообщением</div>
+    <div class="status-bar"><span>18:19</span><span>100%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Уведомления</h1></div>
+    <div class="content">
+        <div class="v1-card">
+            <div class="v1-icon"><span class="mi">emoji_events</span></div>
+            <div class="v1-info">
+                <div class="v1-title">Турниры</div>
+                <div class="v1-desc">Новый турнир! L2-L3 Mix Утро</div>
+            </div>
+            <div class="v1-right">
+                <div class="v1-badge">5</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v1-card">
+            <div class="v1-icon"><span class="mi">sports_tennis</span></div>
+            <div class="v1-info">
+                <div class="v1-title">Бронирование</div>
+                <div class="v1-desc">Бронирование подтверждено ✅</div>
+            </div>
+            <div class="v1-right">
+                <div class="v1-badge">1</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v1-card">
+            <div class="v1-icon"><span class="mi" style="color:#52525b;">swords</span></div>
+            <div class="v1-info">
+                <div class="v1-title" style="color:#71717a;">Поединки</div>
+                <div class="v1-desc">Нет новых</div>
+            </div>
+            <div class="v1-right">
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v1-card">
+            <div class="v1-icon"><span class="mi">campaign</span></div>
+            <div class="v1-info">
+                <div class="v1-title">Общие</div>
+                <div class="v1-desc">Доступно обновление приложения</div>
+            </div>
+            <div class="v1-right">
+                <div class="v1-badge">2</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 2 — Компактный список ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 2 — Компактный список</div>
+    <div class="status-bar"><span>18:19</span><span>100%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Уведомления</h1></div>
+    <div class="content" style="background:#1A1A1A; border-radius:14px; border:1px solid #2A2A2A; padding:0 14px;">
+        <div class="v2-item">
+            <div class="v2-icon"><span class="mi">emoji_events</span></div>
+            <div class="v2-title">Турниры</div>
+            <div class="v2-right">
+                <div class="v1-badge">5</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-icon"><span class="mi">sports_tennis</span></div>
+            <div class="v2-title">Бронирование</div>
+            <div class="v2-right">
+                <div class="v1-badge">1</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-icon"><span class="mi" style="color:#52525b;">swords</span></div>
+            <div class="v2-title" style="color:#71717a;">Поединки</div>
+            <div class="v2-right">
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v2-item">
+            <div class="v2-icon"><span class="mi">campaign</span></div>
+            <div class="v2-title">Общие</div>
+            <div class="v2-right">
+                <div class="v1-badge">2</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 3 — Карточки с описанием и кол-вом ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 3 — С описанием и счётчиком</div>
+    <div class="status-bar"><span>18:19</span><span>100%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Уведомления</h1></div>
+    <div class="content">
+        <div class="v3-card has-new">
+            <div class="v3-icon" style="background:rgba(34,197,94,0.08);"><span class="mi" style="color:#22C55E;">emoji_events</span></div>
+            <div class="v3-info">
+                <div class="v3-title">Турниры</div>
+                <div class="v3-sub">Записи, результаты, напоминания</div>
+                <div class="v3-count">5 непрочитанных</div>
+            </div>
+            <div class="v3-right">
+                <div class="v1-badge">5</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v3-card has-new">
+            <div class="v3-icon" style="background:rgba(59,130,246,0.08);"><span class="mi" style="color:#3B82F6;">sports_tennis</span></div>
+            <div class="v3-info">
+                <div class="v3-title">Бронирование</div>
+                <div class="v3-sub">Подтверждение и отмена</div>
+                <div class="v3-count">1 непрочитанное</div>
+            </div>
+            <div class="v3-right">
+                <div class="v1-badge">1</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v3-card">
+            <div class="v3-icon" style="background:rgba(251,146,60,0.08);"><span class="mi" style="color:#FB923C;">swords</span></div>
+            <div class="v3-info">
+                <div class="v3-title">Поединки</div>
+                <div class="v3-sub">Приглашения и результаты</div>
+                <div class="v3-count" style="color:#3f3f46;">Нет новых</div>
+            </div>
+            <div class="v3-right">
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v3-card has-new">
+            <div class="v3-icon" style="background:rgba(167,139,250,0.08);"><span class="mi" style="color:#A78BFA;">campaign</span></div>
+            <div class="v3-info">
+                <div class="v3-title">Общие</div>
+                <div class="v3-sub">Новости, акции, обновления</div>
+                <div class="v3-count">2 непрочитанных</div>
+            </div>
+            <div class="v3-right">
+                <div class="v1-badge">2</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 4 — Минимальный с точкой-индикатором ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 4 — Минимальный с цветной точкой</div>
+    <div class="status-bar"><span>18:19</span><span>100%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Уведомления</h1></div>
+    <div class="content">
+        <div class="v4-item">
+            <div class="v4-dot active" style="background:#22C55E; box-shadow: 0 0 8px #22C55E;"></div>
+            <div class="v4-info">
+                <div class="v4-title">Турниры</div>
+                <div class="v4-last">Новый турнир! L2-L3 Mix Утро</div>
+            </div>
+            <div class="v1-badge">5</div>
+            <span class="v1-arrow">›</span>
+        </div>
+        <div class="v4-item">
+            <div class="v4-dot active" style="background:#3B82F6; box-shadow: 0 0 8px #3B82F6;"></div>
+            <div class="v4-info">
+                <div class="v4-title">Бронирование</div>
+                <div class="v4-last">Бронирование подтверждено ✅</div>
+            </div>
+            <div class="v1-badge">1</div>
+            <span class="v1-arrow">›</span>
+        </div>
+        <div class="v4-item">
+            <div class="v4-dot" style="background:#3f3f46;"></div>
+            <div class="v4-info">
+                <div class="v4-title" style="color:#71717a;">Поединки</div>
+                <div class="v4-last">Нет новых уведомлений</div>
+            </div>
+            <span class="v1-arrow">›</span>
+        </div>
+        <div class="v4-item">
+            <div class="v4-dot active" style="background:#A78BFA; box-shadow: 0 0 8px #A78BFA;"></div>
+            <div class="v4-info">
+                <div class="v4-title">Общие</div>
+                <div class="v4-last">Доступно обновление приложения</div>
+            </div>
+            <div class="v1-badge">2</div>
+            <span class="v1-arrow">›</span>
+        </div>
+    </div>
+</div>
+
+<!-- ===== VARIANT 5 — Карточки с preview последнего ===== -->
+<div class="screen">
+    <div class="screen-label">Вариант 5 — Карточки с preview</div>
+    <div class="status-bar"><span>18:19</span><span>100%</span></div>
+    <div class="header"><span class="back">‹</span><h1>Уведомления</h1></div>
+    <div class="content">
+        <div class="v5-card has-new">
+            <div class="v5-top">
+                <div class="v5-icon" style="background:rgba(34,197,94,0.08);"><span class="mi" style="color:#22C55E;">emoji_events</span></div>
+                <div class="v5-title">Турниры</div>
+                <div class="v1-badge">5</div>
+                <span class="v1-arrow">›</span>
+            </div>
+            <div class="v5-preview">
+                <div class="v5-preview-title">Новый турнир!</div>
+                <div class="v5-preview-body">L2-L3 Mix Утро — 29.03.2026 11:00</div>
+                <div class="v5-preview-time">6 дн. назад</div>
+            </div>
+            <div class="v5-more">Ещё 4 уведомления →</div>
+        </div>
+        <div class="v5-card has-new">
+            <div class="v5-top">
+                <div class="v5-icon" style="background:rgba(59,130,246,0.08);"><span class="mi" style="color:#3B82F6;">sports_tennis</span></div>
+                <div class="v5-title">Бронирование</div>
+                <div class="v1-badge">1</div>
+                <span class="v1-arrow">›</span>
+            </div>
+            <div class="v5-preview">
+                <div class="v5-preview-title">Бронирование подтверждено ✅</div>
+                <div class="v5-preview-body">Корт 1, 04.04.2026 в 08:00</div>
+                <div class="v5-preview-time">1 дн. назад</div>
+            </div>
+        </div>
+        <div class="v5-card">
+            <div class="v5-top">
+                <div class="v5-icon" style="background:rgba(251,146,60,0.08);"><span class="mi" style="color:#52525b;">swords</span></div>
+                <div class="v5-title" style="color:#71717a;">Поединки</div>
+                <span class="v1-arrow">›</span>
+            </div>
+        </div>
+        <div class="v5-card has-new">
+            <div class="v5-top">
+                <div class="v5-icon" style="background:rgba(167,139,250,0.08);"><span class="mi" style="color:#A78BFA;">campaign</span></div>
+                <div class="v5-title">Общие</div>
+                <div class="v1-badge">2</div>
+                <span class="v1-arrow">›</span>
+            </div>
+            <div class="v5-preview">
+                <div class="v5-preview-title">Обновление доступно</div>
+                <div class="v5-preview-body">Версия 1.3.0 — новые функции</div>
+                <div class="v5-preview-time">вчера</div>
+            </div>
+            <div class="v5-more">Ещё 1 уведомление →</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

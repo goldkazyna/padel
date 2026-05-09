@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты турнира — вкладки</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0b;
+            color: #f4f4f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px;
+        }
+        .header-btn {
+            width: 40px; height: 40px; border-radius: 50%; background: #16161a;
+            display: flex; align-items: center; justify-content: center;
+            color: #a1a1aa; font-size: 18px; cursor: pointer; border: none;
+        }
+        .title-block { text-align: center; padding: 0 16px 16px; }
+        .title-name { font-size: 20px; font-weight: 800; }
+        .title-sub { font-size: 13px; color: #71717a; margin-top: 4px; }
+
+        /* Stats */
+        .stats-row {
+            display: flex; gap: 8px; padding: 0 16px 16px;
+        }
+        .stat-box {
+            flex: 1; text-align: center; padding: 14px 8px;
+            background: #16161a; border-radius: 12px; border: 1px solid #27272a;
+        }
+        .stat-val { font-size: 18px; font-weight: 800; }
+        .stat-val.green { color: #22c55e; }
+        .stat-val.red { color: #ef4444; }
+        .stat-label { font-size: 10px; color: #52525b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex; border-bottom: 1px solid #27272a; margin: 0 16px;
+        }
+        .tab {
+            flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 700;
+            color: #52525b; cursor: pointer; border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active { color: #22c55e; border-bottom-color: #22c55e; }
+        .tab:hover { color: #a1a1aa; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* === Results tab === */
+        .match-info {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 16px 12px; font-size: 13px; color: #71717a;
+        }
+        .match-info b { color: #f4f4f5; }
+
+        .round-card {
+            margin: 0 16px 12px; padding: 16px;
+            background: #16161a; border-radius: 14px; border: 1px solid #27272a;
+        }
+        .round-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px;
+        }
+        .round-label { font-size: 11px; font-weight: 700; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .round-change { font-size: 13px; font-weight: 800; }
+        .round-change.neg { color: #ef4444; }
+        .round-change.pos { color: #22c55e; }
+
+        .round-teams {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .round-team { flex: 1; }
+        .round-player {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+        }
+        .round-team.right .round-player { flex-direction: row-reverse; }
+        .round-avatar {
+            width: 28px; height: 28px; border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: #a1a1aa; flex-shrink: 0;
+        }
+        .round-player-name { font-size: 13px; font-weight: 600; }
+        .round-score {
+            font-size: 28px; font-weight: 800; text-align: center;
+            min-width: 80px; letter-spacing: 2px;
+        }
+        .round-result {
+            text-align: center; margin-top: 12px;
+        }
+        .round-result-tag {
+            display: inline-block; padding: 4px 14px; border-radius: 6px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase;
+        }
+        .round-result-tag.win { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .round-result-tag.loss { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+        /* === Participants tab === */
+        .participants-count {
+            padding: 12px 16px; font-size: 12px; color: #52525b; font-weight: 600;
+        }
+        .participant-row {
+            display: flex; align-items: center; padding: 10px 16px; gap: 10px;
+            border-bottom: 1px solid #1a1a1e;
+        }
+        .p-rank { font-size: 13px; font-weight: 700; color: #52525b; min-width: 24px; text-align: center; }
+        .p-avatar {
+            width: 36px; height: 36px; border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: #a1a1aa; flex-shrink: 0;
+        }
+        .p-info { flex: 1; }
+        .p-name { font-size: 14px; font-weight: 600; }
+        .p-level { font-size: 11px; color: #52525b; }
+        .p-rating { font-size: 14px; font-weight: 700; color: #a1a1aa; }
+
+        /* === Table tab === */
+        .table-header-row {
+            display: grid; grid-template-columns: 28px 1fr 40px 40px 40px 50px;
+            padding: 10px 16px; font-size: 10px; color: #52525b;
+            font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #27272a;
+        }
+        .table-row {
+            display: grid; grid-template-columns: 28px 1fr 40px 40px 40px 50px;
+            padding: 10px 16px; align-items: center;
+            border-bottom: 1px solid #1a1a1e; font-size: 13px;
+        }
+        .table-row.me { background: rgba(34,197,94,0.06); }
+        .t-pos { font-weight: 700; color: #52525b; text-align: center; }
+        .t-pos.gold { color: #facc15; }
+        .t-pos.silver { color: #94a3b8; }
+        .t-pos.bronze { color: #f97316; }
+        .t-name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .t-name-text { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .t-mini-avatar {
+            width: 24px; height: 24px; border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 700; color: #a1a1aa; flex-shrink: 0;
+        }
+        .t-num { text-align: center; color: #a1a1aa; }
+        .t-pts { text-align: center; font-weight: 800; color: #22c55e; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <button class="header-btn">&#8249;</button>
+        <button class="header-btn" style="font-size:16px;">&#8599;</button>
+    </div>
+
+    <div class="title-block">
+        <div class="title-name">L2-L3 Mix- Воскресенье</div>
+        <div class="title-sub">15 марта · ADD PADEL</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-box"><div class="stat-val">7</div><div class="stat-label">Матчей</div></div>
+        <div class="stat-box"><div class="stat-val">2 / 5</div><div class="stat-label">Победы</div></div>
+        <div class="stat-box"><div class="stat-val red">-16</div><div class="stat-label">Рейтинг</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="showTab(0)">Результаты</div>
+        <div class="tab" onclick="showTab(1)">Участники</div>
+        <div class="tab" onclick="showTab(2)">Таблица</div>
+    </div>
+
+    <!-- === Results === -->
+    <div class="tab-content active" id="tab0">
+        <div class="match-info">
+            <span><b>Матчи</b></span>
+            <span>Американо · 7 раундов</span>
+        </div>
+
+        <div class="round-card">
+            <div class="round-header">
+                <span class="round-label">Раунд 1</span>
+                <span class="round-change neg">&#9660; -8</span>
+            </div>
+            <div class="round-teams">
+                <div class="round-team">
+                    <div class="round-player"><div class="round-avatar">ДД</div><span class="round-player-name">Денис Дудников</span></div>
+                    <div class="round-player"><div class="round-avatar">A</div><span class="round-player-name">Angira</span></div>
+                </div>
+                <div class="round-score">13 : 19</div>
+                <div class="round-team right">
+                    <div class="round-player"><span class="round-player-name">Шах</span><div class="round-avatar">Ш</div></div>
+                    <div class="round-player"><span class="round-player-name">Антон Волков</span><div class="round-avatar">АВ</div></div>
+                </div>
+            </div>
+            <div class="round-result"><span class="round-result-tag loss">Поражение</span></div>
+        </div>
+
+        <div class="round-card">
+            <div class="round-header">
+                <span class="round-label">Раунд 2</span>
+                <span class="round-change neg">&#9660; -8</span>
+            </div>
+            <div class="round-teams">
+                <div class="round-team">
+                    <div class="round-player"><div class="round-avatar">ДД</div><span class="round-player-name">Денис Дудников</span></div>
+                    <div class="round-player"><div class="round-avatar">АВ</div><span class="round-player-name">Антон Волков</span></div>
+                </div>
+                <div class="round-score">14 : 18</div>
+                <div class="round-team right">
+                    <div class="round-player"><span class="round-player-name">Денис Яманов</span><div class="round-avatar">ДЯ</div></div>
+                    <div class="round-player"><span class="round-player-name">Дембаев Арсен</span><div class="round-avatar">ДА</div></div>
+                </div>
+            </div>
+            <div class="round-result"><span class="round-result-tag loss">Поражение</span></div>
+        </div>
+
+        <div class="round-card">
+            <div class="round-header">
+                <span class="round-label">Раунд 3</span>
+                <span class="round-change pos">&#9650; +12</span>
+            </div>
+            <div class="round-teams">
+                <div class="round-team">
+                    <div class="round-player"><div class="round-avatar">ДД</div><span class="round-player-name">Денис Дудников</span></div>
+                    <div class="round-player"><div class="round-avatar">Ш</div><span class="round-player-name">Шах</span></div>
+                </div>
+                <div class="round-score">21 : 15</div>
+                <div class="round-team right">
+                    <div class="round-player"><span class="round-player-name">Канагат</span><div class="round-avatar">К</div></div>
+                    <div class="round-player"><span class="round-player-name">Susie Wolke</span><div class="round-avatar">SW</div></div>
+                </div>
+            </div>
+            <div class="round-result"><span class="round-result-tag win">Победа</span></div>
+        </div>
+    </div>
+
+    <!-- === Participants === -->
+    <div class="tab-content" id="tab1">
+        <div class="participants-count">16 участников</div>
+        <div class="participant-row"><span class="p-rank">1</span><div class="p-avatar">ДД</div><div class="p-info"><div class="p-name">Денис Дудников</div><div class="p-level">L2 · 2.5</div></div><span class="p-rating">2589</span></div>
+        <div class="participant-row"><span class="p-rank">2</span><div class="p-avatar">Ш</div><div class="p-info"><div class="p-name">Шах</div><div class="p-level">L2 · 2.25</div></div><span class="p-rating">2450</span></div>
+        <div class="participant-row"><span class="p-rank">3</span><div class="p-avatar">АВ</div><div class="p-info"><div class="p-name">Антон Волков</div><div class="p-level">L2 · 2.0</div></div><span class="p-rating">2380</span></div>
+        <div class="participant-row"><span class="p-rank">4</span><div class="p-avatar">A</div><div class="p-info"><div class="p-name">Angira</div><div class="p-level">L2 · 2.5</div></div><span class="p-rating">2350</span></div>
+        <div class="participant-row"><span class="p-rank">5</span><div class="p-avatar">ДЯ</div><div class="p-info"><div class="p-name">Денис Яманов</div><div class="p-level">L3 · 3.0</div></div><span class="p-rating">3120</span></div>
+        <div class="participant-row"><span class="p-rank">6</span><div class="p-avatar">ДА</div><div class="p-info"><div class="p-name">Дембаев Арсен</div><div class="p-level">L2 · 2.75</div></div><span class="p-rating">2890</span></div>
+        <div class="participant-row"><span class="p-rank">7</span><div class="p-avatar">К</div><div class="p-info"><div class="p-name">Канагат</div><div class="p-level">L2 · 2.0</div></div><span class="p-rating">2200</span></div>
+        <div class="participant-row"><span class="p-rank">8</span><div class="p-avatar">SW</div><div class="p-info"><div class="p-name">Susie Wolke</div><div class="p-level">L2 · 2.25</div></div><span class="p-rating">2310</span></div>
+    </div>
+
+    <!-- === Table === -->
+    <div class="tab-content" id="tab2">
+        <div class="table-header-row">
+            <span>#</span>
+            <span>Игрок</span>
+            <span style="text-align:center">В</span>
+            <span style="text-align:center">П</span>
+            <span style="text-align:center">Р</span>
+            <span style="text-align:center">Очки</span>
+        </div>
+        <div class="table-row"><span class="t-pos gold">1</span><div class="t-name-cell"><div class="t-mini-avatar">ДЯ</div><span class="t-name-text">Денис Яманов</span></div><span class="t-num">6</span><span class="t-num">1</span><span class="t-num">21:7</span><span class="t-pts">127</span></div>
+        <div class="table-row"><span class="t-pos silver">2</span><div class="t-name-cell"><div class="t-mini-avatar">ДА</div><span class="t-name-text">Дембаев Арсен</span></div><span class="t-num">5</span><span class="t-num">2</span><span class="t-num">18:10</span><span class="t-pts">118</span></div>
+        <div class="table-row"><span class="t-pos bronze">3</span><div class="t-name-cell"><div class="t-mini-avatar">АВ</div><span class="t-name-text">Антон Волков</span></div><span class="t-num">5</span><span class="t-num">2</span><span class="t-num">17:11</span><span class="t-pts">115</span></div>
+        <div class="table-row"><span class="t-pos">4</span><div class="t-name-cell"><div class="t-mini-avatar">Ш</div><span class="t-name-text">Шах</span></div><span class="t-num">4</span><span class="t-num">3</span><span class="t-num">15:13</span><span class="t-pts">108</span></div>
+        <div class="table-row me"><span class="t-pos" style="color:#22c55e">5</span><div class="t-name-cell"><div class="t-mini-avatar" style="background:rgba(34,197,94,0.2);color:#22c55e;">ДД</div><span class="t-name-text" style="color:#22c55e">Денис Дудников</span></div><span class="t-num">2</span><span class="t-num">5</span><span class="t-num">10:18</span><span class="t-pts" style="color:#22c55e">95</span></div>
+        <div class="table-row"><span class="t-pos">6</span><div class="t-name-cell"><div class="t-mini-avatar">A</div><span class="t-name-text">Angira</span></div><span class="t-num">3</span><span class="t-num">4</span><span class="t-num">13:15</span><span class="t-pts">102</span></div>
+        <div class="table-row"><span class="t-pos">7</span><div class="t-name-cell"><div class="t-mini-avatar">К</div><span class="t-name-text">Канагат</span></div><span class="t-num">2</span><span class="t-num">5</span><span class="t-num">9:19</span><span class="t-pts">88</span></div>
+        <div class="table-row"><span class="t-pos">8</span><div class="t-name-cell"><div class="t-mini-avatar">SW</div><span class="t-name-text">Susie Wolke</span></div><span class="t-num">1</span><span class="t-num">6</span><span class="t-num">7:21</span><span class="t-pts">75</span></div>
+    </div>
+
+    <div style="height:40px;"></div>
+
+    <script>
+        function showTab(n) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab' + n).classList.add('active');
+            document.querySelectorAll('.tab')[n].classList.add('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Модалка бронирования — 5 вариантов</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --bg: #0a0a0b;
+            --bg2: #111113;
+            --card: #16161a;
+            --card-hover: #1c1c21;
+            --accent: #22c55e;
+            --accent-dark: #16a34a;
+            --text: #f4f4f5;
+            --text-dim: #a1a1aa;
+            --text-muted: #71717a;
+            --border: #27272a;
+            --border-light: #3f3f46;
+            --red: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Nav */
+        .variant-nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: var(--bg2); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px; padding: 12px 24px;
+        }
+        .variant-nav span { font-size: 13px; color: var(--text-muted); margin-right: 8px; }
+        .vbtn {
+            padding: 8px 16px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .vbtn:hover { border-color: var(--border-light); color: var(--text); }
+        .vbtn.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+        .variant { display: none; padding: 80px 40px 60px; }
+        .variant.active { display: flex; justify-content: center; }
+        .variant-wrap { max-width: 900px; width: 100%; }
+        .variant-label { font-size: 13px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .variant-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+
+        /* Shared form styles */
+        .f-label {
+            display: block; font-size: 11px; font-weight: 700; color: var(--text-dim);
+            margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .f-input {
+            width: 100%; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--text);
+        }
+        .f-input::placeholder { color: var(--text-muted); }
+        .f-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+        .f-group { margin-bottom: 14px; }
+        .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .info-row { display: flex; justify-content: space-between; padding: 6px 0; }
+        .info-label { font-size: 13px; color: var(--text-muted); }
+        .info-value { font-size: 14px; font-weight: 700; }
+
+        .dur-btn {
+            padding: 8px 14px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .dur-btn.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+        .pay-btn {
+            padding: 7px 12px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        .pay-btn.active { border-color: var(--accent); color: var(--accent); }
+
+        .paid-btn {
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+            border: 1px solid var(--border); background: var(--card); color: var(--text-dim);
+        }
+        .paid-btn.not-paid { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+        .paid-btn.is-paid { background: rgba(34,197,94,0.15); border-color: var(--accent); color: var(--accent); }
+
+        .coach-btn {
+            padding: 7px 12px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-dim); font-size: 12px; cursor: pointer;
+        }
+        .coach-btn .rate { color: var(--accent); font-weight: 700; margin-left: 4px; }
+
+        .total-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 14px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 10px;
+        }
+        .total-label { font-size: 14px; font-weight: 600; color: var(--text-dim); }
+        .total-val { font-size: 20px; font-weight: 800; color: var(--accent); }
+
+        .modal-foot {
+            display: flex; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border);
+        }
+        .btn-c {
+            flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--text-dim); font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .btn-s {
+            flex: 2; padding: 12px; background: var(--accent); border: none;
+            border-radius: 10px; color: var(--bg); font-size: 14px; font-weight: 700; cursor: pointer;
+        }
+        .btn-block {
+            padding: 8px 16px; background: transparent; border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-muted); font-size: 13px; cursor: pointer;
+        }
+
+        .m-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+        }
+        .m-head h2 { font-size: 18px; font-weight: 700; margin: 0; }
+        .m-close {
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+            background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text-dim); font-size: 16px; cursor: pointer;
+        }
+
+        /* ===== V1: Широкая двухколоночная ===== */
+        .v1-modal {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+            width: 720px; overflow: hidden;
+        }
+        .v1-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+        .v1-left { padding: 20px 24px; border-right: 1px solid var(--border); }
+        .v1-right { padding: 20px 24px; }
+        .v1-section-title {
+            font-size: 11px; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; margin-top: 16px;
+        }
+        .v1-section-title:first-child { margin-top: 0; }
+
+        /* ===== V2: Широкая с компактной шапкой ===== */
+        .v2-modal {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+            width: 680px; overflow: hidden;
+        }
+        .v2-top-bar {
+            display: flex; align-items: center; gap: 16px;
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            background: var(--card);
+        }
+        .v2-top-bar .tag {
+            padding: 5px 12px; background: rgba(34,197,94,0.12); border-radius: 6px;
+            font-size: 13px; font-weight: 700; color: var(--accent);
+        }
+        .v2-top-bar .sep { color: var(--border-light); }
+        .v2-top-bar .info { font-size: 14px; color: var(--text-dim); }
+        .v2-top-bar .info b { color: var(--text); font-weight: 700; }
+        .v2-body { padding: 20px 24px; }
+        .v2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* ===== V3: Три колонки ===== */
+        .v3-modal {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+            width: 840px; overflow: hidden;
+        }
+        .v3-body { display: grid; grid-template-columns: 200px 1fr 1fr; }
+        .v3-sidebar {
+            padding: 20px; background: var(--card); border-right: 1px solid var(--border);
+        }
+        .v3-sidebar .info-block { margin-bottom: 20px; }
+        .v3-sidebar .info-block-label {
+            font-size: 10px; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 4px;
+        }
+        .v3-sidebar .info-block-value { font-size: 15px; font-weight: 700; }
+        .v3-col { padding: 20px; }
+        .v3-col + .v3-col { border-left: 1px solid var(--border); }
+
+        /* ===== V4: Аккордеон-секции ===== */
+        .v4-modal {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+            width: 560px; overflow: hidden;
+        }
+        .v4-body { padding: 0; }
+        .v4-section {
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+        }
+        .v4-section:last-child { border-bottom: none; }
+        .v4-section-head {
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none;
+        }
+        .v4-section-title {
+            font-size: 13px; font-weight: 700; color: var(--text);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .v4-section-title i { color: var(--text-muted); font-size: 15px; }
+        .v4-section-summary { font-size: 13px; color: var(--accent); font-weight: 700; }
+        .v4-section-body { margin-top: 12px; }
+        .v4-info-compact {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            background: var(--card); border-radius: 10px; padding: 12px 14px;
+        }
+        .v4-info-item {}
+        .v4-info-item .lbl { font-size: 11px; color: var(--text-muted); }
+        .v4-info-item .val { font-size: 14px; font-weight: 700; }
+
+        /* ===== V5: Tabs ===== */
+        .v5-modal {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+            width: 580px; overflow: hidden;
+        }
+        .v5-tabs {
+            display: flex; border-bottom: 1px solid var(--border);
+        }
+        .v5-tab {
+            flex: 1; padding: 12px; text-align: center;
+            font-size: 13px; font-weight: 700; color: var(--text-muted);
+            cursor: pointer; border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .v5-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .v5-tab:hover { color: var(--text); }
+        .v5-tab-content { display: none; padding: 20px 24px; }
+        .v5-tab-content.active { display: block; }
+        .v5-info-strip {
+            display: flex; gap: 16px; padding: 12px 24px;
+            background: var(--card); border-bottom: 1px solid var(--border);
+            font-size: 13px; color: var(--text-dim); flex-wrap: wrap;
+        }
+        .v5-info-strip b { color: var(--text); font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="variant-nav">
+        <span>Вариант:</span>
+        <button class="vbtn active" onclick="showV(1)">1 — Две колонки</button>
+        <button class="vbtn" onclick="showV(2)">2 — Компактная шапка</button>
+        <button class="vbtn" onclick="showV(3)">3 — Три колонки</button>
+        <button class="vbtn" onclick="showV(4)">4 — Секции</button>
+        <button class="vbtn" onclick="showV(5)">5 — Табы</button>
+    </div>
+
+    <!-- ===== V1: Двухколоночная ===== -->
+    <div class="variant active" id="v1">
+        <div class="variant-wrap">
+            <div class="variant-label">Вариант 1</div>
+            <div class="variant-desc">Широкая модалка, две колонки. Слева — инфо о слоте, длительность, цена. Справа — клиент, оплата, тренер. Всё видно без скролла.</div>
+            <div class="v1-modal">
+                <div class="m-head">
+                    <h2>Бронирование</h2>
+                    <button class="m-close">&times;</button>
+                </div>
+                <div class="v1-body">
+                    <div class="v1-left">
+                        <div class="info-row"><span class="info-label">Корт</span><span class="info-value">Корт 3</span></div>
+                        <div class="info-row"><span class="info-label">Дата</span><span class="info-value">18 апреля 2026</span></div>
+                        <div class="info-row"><span class="info-label">Начало</span><span class="info-value">07:00</span></div>
+                        <div class="info-row"><span class="info-label">Цена/час</span><span class="info-value">32 000 ₸</span></div>
+
+                        <div class="v1-section-title">Длительность</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="dur-btn active">1 час</button>
+                            <button class="dur-btn">2 часа</button>
+                            <button class="dur-btn">3 часа</button>
+                            <button class="dur-btn">4 часа</button>
+                            <button class="dur-btn">5 часов</button>
+                            <button class="dur-btn">6 часов</button>
+                        </div>
+
+                        <div class="v1-section-title">Цена и скидка</div>
+                        <div class="f-row">
+                            <div class="f-group"><label class="f-label">Цена корта</label><input class="f-input" value="32000"></div>
+                            <div class="f-group"><label class="f-label">Скидка</label><input class="f-input" value="0"></div>
+                        </div>
+                        <div class="total-bar">
+                            <span class="total-label">Итого</span>
+                            <span class="total-val">32 000 ₸</span>
+                        </div>
+                    </div>
+                    <div class="v1-right">
+                        <div class="f-group"><label class="f-label">Имя клиента *</label><input class="f-input" placeholder="Введите имя"></div>
+                        <div class="f-group"><label class="f-label">Телефон *</label><input class="f-input" placeholder="+7 (___) ___-__-__"></div>
+
+                        <div class="v1-section-title">Способ оплаты</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+                            <button class="pay-btn">Наличные</button>
+                            <button class="pay-btn">Карта</button>
+                            <button class="pay-btn active">Kaspi</button>
+                            <button class="pay-btn">Сертификат</button>
+                            <button class="pay-btn">Клубная карта</button>
+                            <button class="pay-btn">Депозит</button>
+                            <button class="pay-btn">Кешбэк</button>
+                        </div>
+
+                        <div class="f-group">
+                            <label class="f-label">Статус оплаты</label>
+                            <div style="display:flex;gap:8px;">
+                                <button class="paid-btn not-paid">Не оплачено</button>
+                                <button class="paid-btn">Оплачено</button>
+                            </div>
+                        </div>
+
+                        <div class="f-group"><label class="f-label">Комментарий</label><textarea class="f-input" rows="2" placeholder="Заметка"></textarea></div>
+
+                        <div class="v1-section-title">Тренер</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="coach-btn">Артём <span class="rate">18 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл К. <span class="rate">20 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл П. <span class="rate">12 000 ₸</span></button>
+                            <button class="coach-btn">Вячеслав <span class="rate">16 000 ₸</span></button>
+                        </div>
+
+                        <div style="text-align:center;margin-top:16px;">
+                            <button class="btn-block">Заблокировать слот</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn-c">Отмена</button>
+                    <button class="btn-s">Забронировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== V2: Компактная шапка + две колонки ===== -->
+    <div class="variant" id="v2">
+        <div class="variant-wrap">
+            <div class="variant-label">Вариант 2</div>
+            <div class="variant-desc">Инфо о слоте в компактной полоске сверху. Ниже — двухколоночная форма. Экономит вертикальное пространство.</div>
+            <div class="v2-modal">
+                <div class="m-head">
+                    <h2>Бронирование</h2>
+                    <button class="m-close">&times;</button>
+                </div>
+                <div class="v2-top-bar">
+                    <span class="tag">Корт 3</span>
+                    <span class="info"><b>18 апр 2026</b></span>
+                    <span class="sep">|</span>
+                    <span class="info"><b>07:00</b></span>
+                    <span class="sep">|</span>
+                    <span class="info"><b>32 000 ₸</b>/час</span>
+                </div>
+                <div class="v2-body">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+                        <button class="dur-btn active">1 час</button>
+                        <button class="dur-btn">2 часа</button>
+                        <button class="dur-btn">3 часа</button>
+                        <button class="dur-btn">4 часа</button>
+                        <button class="dur-btn">5 часов</button>
+                        <button class="dur-btn">6 часов</button>
+                    </div>
+
+                    <div class="v2-grid" style="margin-bottom:14px;">
+                        <div class="f-group"><label class="f-label">Цена корта</label><input class="f-input" value="32000"></div>
+                        <div class="f-group"><label class="f-label">Скидка</label><input class="f-input" value="0"></div>
+                    </div>
+
+                    <div class="total-bar" style="margin-bottom:16px;">
+                        <span class="total-label">Итого</span>
+                        <span class="total-val">32 000 ₸</span>
+                    </div>
+
+                    <div class="v2-grid" style="margin-bottom:14px;">
+                        <div class="f-group"><label class="f-label">Имя клиента *</label><input class="f-input" placeholder="Введите имя"></div>
+                        <div class="f-group"><label class="f-label">Телефон *</label><input class="f-input" placeholder="+7 (___) ___-__-__"></div>
+                    </div>
+
+                    <div class="f-group">
+                        <label class="f-label">Способ оплаты</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="pay-btn">Наличные</button>
+                            <button class="pay-btn">Карта</button>
+                            <button class="pay-btn active">Kaspi</button>
+                            <button class="pay-btn">Сертификат</button>
+                            <button class="pay-btn">Клубная карта</button>
+                            <button class="pay-btn">Депозит</button>
+                            <button class="pay-btn">Кешбэк</button>
+                        </div>
+                    </div>
+
+                    <div class="v2-grid" style="margin-bottom:14px;">
+                        <div class="f-group">
+                            <label class="f-label">Статус оплаты</label>
+                            <div style="display:flex;gap:8px;">
+                                <button class="paid-btn not-paid">Не оплачено</button>
+                                <button class="paid-btn">Оплачено</button>
+                            </div>
+                        </div>
+                        <div class="f-group"><label class="f-label">Комментарий</label><textarea class="f-input" rows="2" placeholder="Заметка"></textarea></div>
+                    </div>
+
+                    <div class="f-group">
+                        <label class="f-label">Тренер</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="coach-btn">Артём <span class="rate">18 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл К. <span class="rate">20 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл П. <span class="rate">12 000 ₸</span></button>
+                            <button class="coach-btn">Вячеслав <span class="rate">16 000 ₸</span></button>
+                        </div>
+                    </div>
+
+                    <div style="text-align:center;margin-top:8px;">
+                        <button class="btn-block">Заблокировать слот</button>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn-c">Отмена</button>
+                    <button class="btn-s">Забронировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== V3: Три колонки ===== -->
+    <div class="variant" id="v3">
+        <div class="variant-wrap">
+            <div class="variant-label">Вариант 3</div>
+            <div class="variant-desc">Три колонки: слева — инфо о слоте (сайдбар), по центру — клиент и цена, справа — оплата и тренер. Максимально плоская, всё на виду.</div>
+            <div class="v3-modal">
+                <div class="m-head">
+                    <h2>Бронирование</h2>
+                    <button class="m-close">&times;</button>
+                </div>
+                <div class="v3-body">
+                    <div class="v3-sidebar">
+                        <div class="info-block">
+                            <div class="info-block-label">Корт</div>
+                            <div class="info-block-value">Корт 3</div>
+                        </div>
+                        <div class="info-block">
+                            <div class="info-block-label">Дата</div>
+                            <div class="info-block-value">18 апр 2026</div>
+                        </div>
+                        <div class="info-block">
+                            <div class="info-block-label">Начало</div>
+                            <div class="info-block-value">07:00</div>
+                        </div>
+                        <div class="info-block">
+                            <div class="info-block-label">Цена/час</div>
+                            <div class="info-block-value" style="color:var(--accent)">32 000 ₸</div>
+                        </div>
+                        <div style="margin-top:24px;">
+                            <div class="info-block-label" style="margin-bottom:8px;">Длительность</div>
+                            <div style="display:flex;flex-direction:column;gap:4px;">
+                                <button class="dur-btn active" style="width:100%;text-align:center;">1 час</button>
+                                <button class="dur-btn" style="width:100%;text-align:center;">2 часа</button>
+                                <button class="dur-btn" style="width:100%;text-align:center;">3 часа</button>
+                                <button class="dur-btn" style="width:100%;text-align:center;">4 часа</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="v3-col">
+                        <div class="f-group"><label class="f-label">Имя клиента *</label><input class="f-input" placeholder="Введите имя"></div>
+                        <div class="f-group"><label class="f-label">Телефон *</label><input class="f-input" placeholder="+7 (___) ___-__-__"></div>
+                        <div class="f-row" style="margin-bottom:14px;">
+                            <div class="f-group"><label class="f-label">Цена корта</label><input class="f-input" value="32000"></div>
+                            <div class="f-group"><label class="f-label">Скидка</label><input class="f-input" value="0"></div>
+                        </div>
+                        <div class="total-bar">
+                            <span class="total-label">Итого</span>
+                            <span class="total-val">32 000 ₸</span>
+                        </div>
+                        <div class="f-group" style="margin-top:14px;"><label class="f-label">Комментарий</label><textarea class="f-input" rows="2" placeholder="Заметка"></textarea></div>
+                    </div>
+                    <div class="v3-col">
+                        <div class="f-group">
+                            <label class="f-label">Способ оплаты</label>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button class="pay-btn">Наличные</button>
+                                <button class="pay-btn">Карта</button>
+                                <button class="pay-btn active">Kaspi</button>
+                                <button class="pay-btn">Сертификат</button>
+                                <button class="pay-btn">Клубная карта</button>
+                                <button class="pay-btn">Депозит</button>
+                                <button class="pay-btn">Кешбэк</button>
+                            </div>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Статус оплаты</label>
+                            <div style="display:flex;gap:8px;">
+                                <button class="paid-btn not-paid">Не оплачено</button>
+                                <button class="paid-btn">Оплачено</button>
+                            </div>
+                        </div>
+                        <div class="f-group">
+                            <label class="f-label">Тренер</label>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button class="coach-btn">Артём <span class="rate">18 000 ₸</span></button>
+                                <button class="coach-btn">Кирилл К. <span class="rate">20 000 ₸</span></button>
+                                <button class="coach-btn">Кирилл П. <span class="rate">12 000 ₸</span></button>
+                                <button class="coach-btn">Вячеслав <span class="rate">16 000 ₸</span></button>
+                            </div>
+                        </div>
+                        <div style="text-align:center;margin-top:16px;">
+                            <button class="btn-block">Заблокировать слот</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn-c">Отмена</button>
+                    <button class="btn-s">Забронировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== V4: Секции (аккордеон-стиль) ===== -->
+    <div class="variant" id="v4">
+        <div class="variant-wrap">
+            <div class="variant-label">Вариант 4</div>
+            <div class="variant-desc">Визуально разделённые секции. Каждый блок выделен, видна структура. Ширина побольше текущей, но всё в одну колонку. Скролл минимален.</div>
+            <div class="v4-modal">
+                <div class="m-head">
+                    <h2>Бронирование</h2>
+                    <button class="m-close">&times;</button>
+                </div>
+                <div class="v4-body">
+                    <!-- Info + Duration -->
+                    <div class="v4-section">
+                        <div class="v4-info-compact">
+                            <div class="v4-info-item"><div class="lbl">Корт</div><div class="val">Корт 3</div></div>
+                            <div class="v4-info-item"><div class="lbl">Дата</div><div class="val">18 апр 2026</div></div>
+                            <div class="v4-info-item"><div class="lbl">Начало</div><div class="val">07:00</div></div>
+                            <div class="v4-info-item"><div class="lbl">Цена/час</div><div class="val" style="color:var(--accent)">32 000 ₸</div></div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;">
+                            <button class="dur-btn active">1 час</button>
+                            <button class="dur-btn">2 часа</button>
+                            <button class="dur-btn">3 часа</button>
+                            <button class="dur-btn">4 часа</button>
+                            <button class="dur-btn">5 часов</button>
+                            <button class="dur-btn">6 часов</button>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="v4-section">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
+                            <div class="f-group" style="margin:0;"><label class="f-label">Цена корта</label><input class="f-input" value="32000"></div>
+                            <div class="f-group" style="margin:0;"><label class="f-label">Скидка</label><input class="f-input" value="0"></div>
+                            <div class="total-bar"><span class="total-label">Итого</span><span class="total-val">32 000 ₸</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Client -->
+                    <div class="v4-section">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div class="f-group" style="margin:0;"><label class="f-label">Имя клиента *</label><input class="f-input" placeholder="Введите имя"></div>
+                            <div class="f-group" style="margin:0;"><label class="f-label">Телефон *</label><input class="f-input" placeholder="+7 (___) ___-__-__"></div>
+                        </div>
+                    </div>
+
+                    <!-- Payment -->
+                    <div class="v4-section">
+                        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;">
+                            <div>
+                                <label class="f-label">Способ оплаты</label>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <button class="pay-btn">Наличные</button>
+                                    <button class="pay-btn">Карта</button>
+                                    <button class="pay-btn active">Kaspi</button>
+                                    <button class="pay-btn">Сертификат</button>
+                                    <button class="pay-btn">Клубная карта</button>
+                                    <button class="pay-btn">Депозит</button>
+                                    <button class="pay-btn">Кешбэк</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="f-label">Оплата</label>
+                                <div style="display:flex;gap:8px;">
+                                    <button class="paid-btn not-paid">Не оплачено</button>
+                                    <button class="paid-btn">Оплачено</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment + Coach -->
+                    <div class="v4-section">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+                            <div class="f-group" style="margin:0;"><label class="f-label">Комментарий</label><textarea class="f-input" rows="2" placeholder="Заметка"></textarea></div>
+                            <div>
+                                <label class="f-label">Тренер</label>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <button class="coach-btn">Артём <span class="rate">18 000 ₸</span></button>
+                                    <button class="coach-btn">Кирилл К. <span class="rate">20 000 ₸</span></button>
+                                    <button class="coach-btn">Кирилл П. <span class="rate">12 000 ₸</span></button>
+                                    <button class="coach-btn">Вячеслав <span class="rate">16 000 ₸</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align:center;margin-top:14px;">
+                            <button class="btn-block">Заблокировать слот</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button class="btn-c">Отмена</button>
+                    <button class="btn-s">Забронировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== V5: Табы ===== -->
+    <div class="variant" id="v5">
+        <div class="variant-wrap">
+            <div class="variant-label">Вариант 5</div>
+            <div class="variant-desc">Три таба: «Клиент и цена», «Оплата», «Тренер». Инфо о слоте всегда видна в полоске. Каждый таб неглубокий — скролла нет вообще.</div>
+            <div class="v5-modal">
+                <div class="m-head">
+                    <h2>Бронирование</h2>
+                    <button class="m-close">&times;</button>
+                </div>
+                <div class="v5-info-strip">
+                    <span><b>Корт 3</b></span>
+                    <span><b>18 апр 2026</b></span>
+                    <span><b>07:00</b></span>
+                    <span><b>32 000 ₸</b>/час</span>
+                </div>
+                <div class="v5-tabs">
+                    <div class="v5-tab active" onclick="showTab(1)">Клиент и цена</div>
+                    <div class="v5-tab" onclick="showTab(2)">Оплата</div>
+                    <div class="v5-tab" onclick="showTab(3)">Тренер</div>
+                </div>
+
+                <div class="v5-tab-content active" id="tab1">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+                        <button class="dur-btn active">1 час</button>
+                        <button class="dur-btn">2 часа</button>
+                        <button class="dur-btn">3 часа</button>
+                        <button class="dur-btn">4 часа</button>
+                        <button class="dur-btn">5 часов</button>
+                        <button class="dur-btn">6 часов</button>
+                    </div>
+                    <div class="f-row" style="margin-bottom:14px;">
+                        <div class="f-group"><label class="f-label">Цена корта</label><input class="f-input" value="32000"></div>
+                        <div class="f-group"><label class="f-label">Скидка</label><input class="f-input" value="0"></div>
+                    </div>
+                    <div class="total-bar" style="margin-bottom:16px;">
+                        <span class="total-label">Итого</span>
+                        <span class="total-val">32 000 ₸</span>
+                    </div>
+                    <div class="f-row">
+                        <div class="f-group"><label class="f-label">Имя клиента *</label><input class="f-input" placeholder="Введите имя"></div>
+                        <div class="f-group"><label class="f-label">Телефон *</label><input class="f-input" placeholder="+7 (___) ___-__-__"></div>
+                    </div>
+                    <div class="f-group"><label class="f-label">Комментарий</label><textarea class="f-input" rows="2" placeholder="Заметка"></textarea></div>
+                </div>
+
+                <div class="v5-tab-content" id="tab2">
+                    <div class="f-group">
+                        <label class="f-label">Способ оплаты</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="pay-btn">Наличные</button>
+                            <button class="pay-btn">Карта</button>
+                            <button class="pay-btn active">Kaspi</button>
+                            <button class="pay-btn">Сертификат</button>
+                            <button class="pay-btn">Клубная карта</button>
+                            <button class="pay-btn">Депозит</button>
+                            <button class="pay-btn">Кешбэк</button>
+                        </div>
+                    </div>
+                    <div class="f-group">
+                        <label class="f-label">Статус оплаты</label>
+                        <div style="display:flex;gap:8px;">
+                            <button class="paid-btn not-paid">Не оплачено</button>
+                            <button class="paid-btn">Оплачено</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="v5-tab-content" id="tab3">
+                    <div class="f-group">
+                        <label class="f-label">Тренер</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="coach-btn">Артём <span class="rate">18 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл Колганов <span class="rate">20 000 ₸</span></button>
+                            <button class="coach-btn">Кирилл Платонов <span class="rate">12 000 ₸</span></button>
+                            <button class="coach-btn">Вячеслав Сидоров <span class="rate">16 000 ₸</span></button>
+                            <button class="coach-btn">Максим Мальцев <span class="rate">15 000 ₸</span></button>
+                            <button class="coach-btn">Вадим Вадим <span class="rate">15 000 ₸</span></button>
+                            <button class="coach-btn">Ранджит Ранджит <span class="rate">20 000 ₸</span></button>
+                        </div>
+                    </div>
+                    <div style="text-align:center;margin-top:16px;">
+                        <button class="btn-block">Заблокировать слот</button>
+                    </div>
+                </div>
+
+                <div class="modal-foot">
+                    <button class="btn-c">Отмена</button>
+                    <button class="btn-s">Забронировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showV(n) {
+            document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+            document.getElementById('v' + n).classList.add('active');
+            document.querySelectorAll('.vbtn')[n - 1].classList.add('active');
+        }
+        function showTab(n) {
+            document.querySelectorAll('.v5-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.v5-tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.v5-tab')[n - 1].classList.add('active');
+            document.getElementById('tab' + n).classList.add('active');
+        }
+    </script>
+</body>
+</html>

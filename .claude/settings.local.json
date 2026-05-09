@@ -27,7 +27,8 @@
       "Bash(git -C /c/projects/padel add app/Http/Controllers/Api/MobileChallengeController.php)",
       "Bash(git -C:*)",
       "Bash(git -C /c/projects/padel push)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(flutter gen-l10n:*)"
     ]
   }
 }

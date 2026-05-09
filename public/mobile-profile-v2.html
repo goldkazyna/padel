@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профиль — кардинально другие</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; }
+        .wrap { background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
+        .vlabel { font-size: 11px; color: #22c55e; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px 0; }
+        .vdesc { font-size: 12px; color: #52525b; padding: 4px 16px 12px; }
+        .phone { max-width: 400px; background: #0a0a0b; overflow: hidden; }
+
+        .menu-row { display: flex; align-items: center; padding: 14px 16px; gap: 12px; border-top: 1px solid #1a1a1e; }
+        .menu-icon { width: 40px; height: 40px; border-radius: 10px; background: #16161a; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .menu-info { flex: 1; }
+        .menu-title { font-size: 14px; font-weight: 600; }
+        .menu-sub { font-size: 12px; color: #52525b; }
+
+        /* ===== A: FIFA Card ===== */
+        .a-card {
+            margin: 16px; border-radius: 16px; overflow: hidden;
+            background: linear-gradient(135deg, #1a3a2a 0%, #0d1f15 50%, #1a2a1a 100%);
+            border: 1px solid rgba(34,197,94,0.3);
+            position: relative;
+        }
+        .a-card::before {
+            content: ''; position: absolute; top: 0; right: 0; width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
+        }
+        .a-top { display: flex; align-items: center; padding: 20px; gap: 16px; position: relative; }
+        .a-avatar {
+            width: 72px; height: 72px; border-radius: 14px; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 700; color: #a1a1aa;
+            border: 2px solid rgba(34,197,94,0.4); flex-shrink: 0;
+        }
+        .a-info { flex: 1; }
+        .a-name { font-size: 20px; font-weight: 900; }
+        .a-sub { font-size: 12px; color: #71717a; margin-top: 2px; }
+        .a-rating { text-align: right; }
+        .a-rating-num { font-size: 36px; font-weight: 900; color: #22c55e; line-height: 1; }
+        .a-rating-label { font-size: 10px; color: #52525b; font-weight: 700; text-transform: uppercase; }
+        .a-stats {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            border-top: 1px solid rgba(34,197,94,0.15); position: relative;
+        }
+        .a-stat {
+            text-align: center; padding: 14px 4px;
+            border-right: 1px solid rgba(34,197,94,0.1);
+        }
+        .a-stat:last-child { border-right: none; }
+        .a-stat-val { font-size: 18px; font-weight: 800; }
+        .a-stat-label { font-size: 8px; color: rgba(255,255,255,0.4); font-weight: 700; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+        .a-progress { padding: 0 20px 16px; }
+        .a-progress-info { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 4px; }
+        .a-bar { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .a-bar-fill { height: 100%; background: #22c55e; border-radius: 2px; }
+
+        /* ===== B: Dashboard ===== */
+        .b-header { padding: 16px; display: flex; align-items: center; gap: 12px; }
+        .b-avatar { width: 44px; height: 44px; border-radius: 12px; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #a1a1aa; }
+        .b-info { flex: 1; }
+        .b-name { font-size: 16px; font-weight: 700; }
+        .b-sub { font-size: 12px; color: #52525b; }
+        .b-dots { color: #52525b; font-size: 20px; cursor: pointer; }
+        .b-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 8px; }
+        .b-tile { padding: 16px; border-radius: 14px; background: #16161a; border: 1px solid #27272a; }
+        .b-tile-big { grid-column: span 2; display: flex; align-items: center; justify-content: space-between; }
+        .b-tile-label { font-size: 10px; color: #52525b; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+        .b-tile-val { font-size: 28px; font-weight: 900; }
+        .b-tile-val-sm { font-size: 22px; font-weight: 800; }
+        .b-ring { position: relative; width: 60px; height: 60px; }
+        .b-ring svg { transform: rotate(-90deg); }
+        .b-ring-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; font-weight: 800; }
+        .b-mini-chart { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+        .b-bar-item { width: 6px; border-radius: 2px; background: #22c55e; }
+
+        /* ===== C: Gaming ===== */
+        .c-hero { text-align: center; padding: 24px 16px 16px; position: relative; }
+        .c-ring-wrap { position: relative; width: 88px; height: 88px; margin: 0 auto; }
+        .c-ring-wrap svg { transform: rotate(-90deg); }
+        .c-avatar-inner {
+            position: absolute; top: 8px; left: 8px; width: 72px; height: 72px;
+            border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 700; color: #a1a1aa;
+        }
+        .c-level-badge {
+            position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+            background: #22c55e; color: #000; padding: 2px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 800;
+        }
+        .c-name { font-size: 22px; font-weight: 900; margin-top: 14px; }
+        .c-sub { font-size: 12px; color: #52525b; margin-top: 4px; }
+        .c-rank-shield {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 12px; padding: 8px 20px;
+            background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
+            border: 1px solid rgba(34,197,94,0.3); border-radius: 12px;
+        }
+        .c-rank-num { font-size: 20px; font-weight: 900; color: #22c55e; }
+        .c-rank-text { font-size: 11px; color: #71717a; }
+        .c-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 16px; }
+        .c-stat { text-align: center; padding: 12px; background: #16161a; border-radius: 10px; }
+        .c-stat-val { font-size: 20px; font-weight: 800; }
+        .c-stat-label { font-size: 9px; color: #52525b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+
+        /* ===== D: Stories ===== */
+        .d-header { padding: 20px 16px; display: flex; align-items: center; gap: 14px; }
+        .d-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+        .d-ring-wrap svg { transform: rotate(-90deg); }
+        .d-avatar-inner {
+            position: absolute; top: 4px; left: 4px; width: 56px; height: 56px;
+            border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700; color: #a1a1aa;
+        }
+        .d-info { flex: 1; }
+        .d-name { font-size: 20px; font-weight: 800; }
+        .d-sub { font-size: 12px; color: #52525b; margin-top: 2px; }
+        .d-xp { font-size: 11px; color: #22c55e; font-weight: 700; margin-top: 4px; }
+        .d-dots { color: #52525b; font-size: 20px; }
+        .d-scroll { display: flex; gap: 8px; padding: 0 16px 16px; overflow-x: auto; }
+        .d-card {
+            min-width: 110px; padding: 14px 12px; border-radius: 14px;
+            background: #16161a; border: 1px solid #27272a; text-align: center; flex-shrink: 0;
+        }
+        .d-card-icon { font-size: 20px; margin-bottom: 6px; }
+        .d-card-val { font-size: 20px; font-weight: 800; }
+        .d-card-label { font-size: 9px; color: #52525b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+        .d-card.accent { border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.05); }
+        .d-card.accent .d-card-val { color: #22c55e; }
+
+        /* ===== E: ATP/Tennis ===== */
+        .e-header {
+            padding: 20px 16px; display: flex; align-items: flex-start; gap: 14px;
+            background: linear-gradient(180deg, #16161a 0%, #0a0a0b 100%);
+            border-bottom: 1px solid #27272a;
+        }
+        .e-avatar { width: 56px; height: 56px; border-radius: 14px; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #a1a1aa; flex-shrink: 0; }
+        .e-info { flex: 1; }
+        .e-name { font-size: 20px; font-weight: 900; }
+        .e-meta { font-size: 12px; color: #52525b; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+        .e-flag { font-size: 14px; }
+        .e-rank-col { text-align: right; }
+        .e-rank-num { font-size: 28px; font-weight: 900; color: #22c55e; line-height: 1; }
+        .e-rank-label { font-size: 10px; color: #52525b; }
+        .e-bar { padding: 12px 16px; border-bottom: 1px solid #1a1a1e; }
+        .e-bar-info { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+        .e-progress { height: 3px; background: #27272a; border-radius: 2px; }
+        .e-progress-fill { height: 100%; background: #22c55e; border-radius: 2px; }
+        .e-stats-row { display: flex; padding: 0; border-bottom: 1px solid #1a1a1e; }
+        .e-stat-item { flex: 1; text-align: center; padding: 14px 8px; border-right: 1px solid #1a1a1e; }
+        .e-stat-item:last-child { border-right: none; }
+        .e-stat-val { font-size: 18px; font-weight: 800; }
+        .e-stat-label { font-size: 9px; color: #52525b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        .e-form { padding: 12px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #1a1a1e; }
+        .e-form-label { font-size: 11px; color: #52525b; font-weight: 700; text-transform: uppercase; }
+        .e-form-dots { display: flex; gap: 4px; }
+        .e-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .e-dot.w { background: #22c55e; }
+        .e-dot.l { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1 style="font-size: 18px; margin-bottom: 20px; color: #a1a1aa;">Профиль — кардинально другие</h1>
+    <div class="grid">
+
+        <!-- A: FIFA Card -->
+        <div class="wrap">
+            <div class="vlabel">A — Спортивная карточка</div>
+            <div class="vdesc">Как FIFA/NBA. Градиентный фон, рейтинг крупно, статы внизу.</div>
+            <div class="phone">
+                <div class="a-card">
+                    <div class="a-top">
+                        <div class="a-avatar">ДД</div>
+                        <div class="a-info">
+                            <div class="a-name">Денис Дудников</div>
+                            <div class="a-sub">+7 777 433 38 22</div>
+                        </div>
+                        <div class="a-rating">
+                            <div class="a-rating-num">2589</div>
+                            <div class="a-rating-label">#264 в рейтинге</div>
+                        </div>
+                    </div>
+                    <div class="a-progress">
+                        <div class="a-progress-info"><span style="color:rgba(255,255,255,0.3)">Уровень 2.50</span><span style="color:#22c55e;font-weight:700;">2589 / 2750</span></div>
+                        <div class="a-bar"><div class="a-bar-fill" style="width:94%"></div></div>
+                    </div>
+                    <div class="a-stats">
+                        <div class="a-stat"><div class="a-stat-val" style="color:#22c55e">2589</div><div class="a-stat-label">Рейтинг</div></div>
+                        <div class="a-stat"><div class="a-stat-val">23</div><div class="a-stat-label">Матчи</div></div>
+                        <div class="a-stat"><div class="a-stat-val">9</div><div class="a-stat-label">Победы</div></div>
+                        <div class="a-stat"><div class="a-stat-val">39%</div><div class="a-stat-label">Винрейт</div></div>
+                    </div>
+                </div>
+                <div class="menu-row"><div class="menu-icon">🌐</div><div class="menu-info"><div class="menu-title">Язык</div></div></div>
+                <div class="menu-row"><div class="menu-icon">📅</div><div class="menu-info"><div class="menu-title">Мои бронирования</div></div></div>
+            </div>
+        </div>
+
+        <!-- B: Dashboard -->
+        <div class="wrap">
+            <div class="vlabel">B — Dashboard</div>
+            <div class="vdesc">Плитки-виджеты разного размера, кольцо прогресса, мини-график.</div>
+            <div class="phone">
+                <div class="b-header">
+                    <div class="b-avatar">ДД</div>
+                    <div class="b-info"><div class="b-name">Денис Дудников</div><div class="b-sub">+7 777 433 38 22</div></div>
+                    <div class="b-dots">···</div>
+                </div>
+                <div class="b-tiles">
+                    <div class="b-tile b-tile-big">
+                        <div>
+                            <div class="b-tile-label">Рейтинг</div>
+                            <div class="b-tile-val" style="color:#22c55e;">2589</div>
+                            <div style="font-size:11px;color:#52525b;margin-top:2px;">#264 в рейтинге</div>
+                        </div>
+                        <div class="b-ring">
+                            <svg width="60" height="60"><circle cx="30" cy="30" r="26" fill="none" stroke="#27272a" stroke-width="4"/><circle cx="30" cy="30" r="26" fill="none" stroke="#22c55e" stroke-width="4" stroke-dasharray="163" stroke-dashoffset="10" stroke-linecap="round"/></svg>
+                            <div class="b-ring-text" style="color:#22c55e;">2.5</div>
+                        </div>
+                    </div>
+                    <div class="b-tile">
+                        <div class="b-tile-label">Матчи</div>
+                        <div class="b-tile-val-sm">23</div>
+                        <div class="b-mini-chart" style="margin-top:8px;">
+                            <div class="b-bar-item" style="height:15px;"></div>
+                            <div class="b-bar-item" style="height:22px;"></div>
+                            <div class="b-bar-item" style="height:10px;background:#ef4444;"></div>
+                            <div class="b-bar-item" style="height:28px;"></div>
+                            <div class="b-bar-item" style="height:18px;"></div>
+                            <div class="b-bar-item" style="height:8px;background:#ef4444;"></div>
+                            <div class="b-bar-item" style="height:25px;"></div>
+                        </div>
+                    </div>
+                    <div class="b-tile">
+                        <div class="b-tile-label">Винрейт</div>
+                        <div class="b-tile-val-sm">39%</div>
+                        <div style="margin-top:8px;font-size:11px;"><span style="color:#22c55e;">9W</span> <span style="color:#52525b;">/</span> <span style="color:#ef4444;">14L</span></div>
+                    </div>
+                </div>
+                <div class="menu-row"><div class="menu-icon">🌐</div><div class="menu-info"><div class="menu-title">Язык</div></div></div>
+                <div class="menu-row"><div class="menu-icon">📅</div><div class="menu-info"><div class="menu-title">Мои бронирования</div></div></div>
+            </div>
+        </div>
+
+        <!-- C: Gaming -->
+        <div class="wrap">
+            <div class="vlabel">C — Игровой профиль</div>
+            <div class="vdesc">Кольцо прогресса вокруг аватара, бейдж уровня, ранг-щит.</div>
+            <div class="phone">
+                <div class="c-hero">
+                    <div class="c-ring-wrap">
+                        <svg width="88" height="88"><circle cx="44" cy="44" r="40" fill="none" stroke="#27272a" stroke-width="4"/><circle cx="44" cy="44" r="40" fill="none" stroke="#22c55e" stroke-width="4" stroke-dasharray="251" stroke-dashoffset="15" stroke-linecap="round"/></svg>
+                        <div class="c-avatar-inner">ДД</div>
+                        <div class="c-level-badge">LVL 2.5</div>
+                    </div>
+                    <div class="c-name">Денис Дудников</div>
+                    <div class="c-sub">+7 777 433 38 22 · 2589 / 2750 XP</div>
+                    <div class="c-rank-shield">
+                        <span class="c-rank-num">#264</span>
+                        <span class="c-rank-text">в рейтинге</span>
+                    </div>
+                </div>
+                <div class="c-stats">
+                    <div class="c-stat"><div class="c-stat-val" style="color:#22c55e;">2589</div><div class="c-stat-label">Рейтинг</div></div>
+                    <div class="c-stat"><div class="c-stat-val">23</div><div class="c-stat-label">Матчи</div></div>
+                    <div class="c-stat"><div class="c-stat-val">39%</div><div class="c-stat-label">Винрейт</div></div>
+                </div>
+                <div class="menu-row"><div class="menu-icon">🌐</div><div class="menu-info"><div class="menu-title">Язык</div></div></div>
+                <div class="menu-row"><div class="menu-icon">📅</div><div class="menu-info"><div class="menu-title">Мои бронирования</div></div></div>
+            </div>
+        </div>
+
+        <!-- D: Stories -->
+        <div class="wrap">
+            <div class="vlabel">D — Stories стиль</div>
+            <div class="vdesc">Кольцо прогресса как stories, горизонтальные карточки со статами.</div>
+            <div class="phone">
+                <div class="d-header">
+                    <div class="d-ring-wrap">
+                        <svg width="64" height="64"><circle cx="32" cy="32" r="29" fill="none" stroke="#27272a" stroke-width="3"/><circle cx="32" cy="32" r="29" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="182" stroke-dashoffset="11" stroke-linecap="round"/></svg>
+                        <div class="d-avatar-inner">ДД</div>
+                    </div>
+                    <div class="d-info">
+                        <div class="d-name">Денис Дудников</div>
+                        <div class="d-sub">+7 777 433 38 22</div>
+                        <div class="d-xp">Уровень 2.50 · 2589 / 2750 XP</div>
+                    </div>
+                    <div class="d-dots">···</div>
+                </div>
+                <div class="d-scroll">
+                    <div class="d-card accent"><div class="d-card-icon">⚡</div><div class="d-card-val">2589</div><div class="d-card-label">Рейтинг</div></div>
+                    <div class="d-card"><div class="d-card-icon">🏆</div><div class="d-card-val">#264</div><div class="d-card-label">Место</div></div>
+                    <div class="d-card"><div class="d-card-icon">🎾</div><div class="d-card-val">23</div><div class="d-card-label">Матчи</div></div>
+                    <div class="d-card"><div class="d-card-icon">✅</div><div class="d-card-val">9</div><div class="d-card-label">Победы</div></div>
+                    <div class="d-card"><div class="d-card-icon">📊</div><div class="d-card-val">39%</div><div class="d-card-label">Винрейт</div></div>
+                </div>
+                <div class="menu-row"><div class="menu-icon">🌐</div><div class="menu-info"><div class="menu-title">Язык</div></div></div>
+                <div class="menu-row"><div class="menu-icon">📅</div><div class="menu-info"><div class="menu-title">Мои бронирования</div></div></div>
+            </div>
+        </div>
+
+        <!-- E: ATP -->
+        <div class="wrap">
+            <div class="vlabel">E — ATP / Теннисный</div>
+            <div class="vdesc">Как профиль теннисиста. Город, форма (последние 5 матчей), статы в строку.</div>
+            <div class="phone">
+                <div class="e-header">
+                    <div class="e-avatar">ДД</div>
+                    <div class="e-info">
+                        <div class="e-name">Денис Дудников</div>
+                        <div class="e-meta"><span class="e-flag">🇰🇿</span> Алматы · +7 777 433 38 22</div>
+                    </div>
+                    <div class="e-rank-col">
+                        <div class="e-rank-num">#264</div>
+                        <div class="e-rank-label">рейтинг</div>
+                    </div>
+                </div>
+                <div class="e-bar">
+                    <div class="e-bar-info"><span style="color:#71717a;">Уровень 2.50</span><span style="color:#22c55e;font-weight:700;">2589 / 2750 XP</span></div>
+                    <div class="e-progress"><div class="e-progress-fill" style="width:94%"></div></div>
+                </div>
+                <div class="e-stats-row">
+                    <div class="e-stat-item"><div class="e-stat-val" style="color:#22c55e;">2589</div><div class="e-stat-label">Рейтинг</div></div>
+                    <div class="e-stat-item"><div class="e-stat-val">23</div><div class="e-stat-label">Матчи</div></div>
+                    <div class="e-stat-item"><div class="e-stat-val">9</div><div class="e-stat-label">Победы</div></div>
+                    <div class="e-stat-item"><div class="e-stat-val">39%</div><div class="e-stat-label">Винрейт</div></div>
+                </div>
+                <div class="e-form">
+                    <div class="e-form-label">Форма</div>
+                    <div class="e-form-dots">
+                        <div class="e-dot w"></div>
+                        <div class="e-dot l"></div>
+                        <div class="e-dot l"></div>
+                        <div class="e-dot w"></div>
+                        <div class="e-dot l"></div>
+                    </div>
+                </div>
+                <div class="menu-row"><div class="menu-icon">🌐</div><div class="menu-info"><div class="menu-title">Язык</div></div></div>
+                <div class="menu-row"><div class="menu-icon">📅</div><div class="menu-info"><div class="menu-title">Мои бронирования</div></div></div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

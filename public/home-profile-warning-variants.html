@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1900, initial-scale=1.0">
+<title>Главная — предупреждение о незаполненном профиле (5 вариантов)</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        background: #09090b;
+        color: #f4f4f5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 40px;
+        padding: 40px;
+        justify-content: center;
+    }
+    .screen {
+        width: 360px;
+        background: #0F0F0F;
+        border-radius: 40px;
+        border: 3px solid #27272a;
+        overflow: hidden;
+        flex-shrink: 0;
+        padding-bottom: 20px;
+    }
+    .screen-label {
+        text-align: center;
+        padding: 12px;
+        font-size: 11px;
+        color: #22C55E;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        background: #16161a;
+    }
+    .status-bar {
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        font-size: 12px;
+        color: #71717a;
+    }
+    .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 18px 20px;
+    }
+    .top h1 { font-size: 22px; font-weight: 800; }
+    .bell {
+        width: 40px; height: 40px;
+        background: #1A1A1A;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        color: #a1a1aa;
+    }
+    .mi { font-family: 'Material Icons Outlined'; font-style: normal; }
+
+    /* Статистика */
+    .stats {
+        display: flex;
+        gap: 8px;
+        padding: 0 18px 16px;
+    }
+    .stat {
+        flex: 1;
+        background: #1A1A1A;
+        border-radius: 14px;
+        padding: 14px 8px;
+        text-align: center;
+    }
+    .stat .mi { color: #22C55E; font-size: 22px; }
+    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; }
+    .stat-lbl { font-size: 10px; color: #71717a; margin-top: 2px; letter-spacing: 0.5px; }
+
+    /* Кнопка бронирования */
+    .book-btn {
+        margin: 0 18px 16px;
+        background: #22C55E;
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .book-btn-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .book-btn-sub { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 2px; }
+    .book-btn-icon {
+        width: 40px; height: 40px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff;
+    }
+
+    /* Section title */
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        padding: 0 18px 10px;
+    }
+
+    /* ===== VARIANT 1 — Баннер-плашка под именем (желтый) ===== */
+    .v1-banner {
+        margin: 0 18px 16px;
+        background: linear-gradient(135deg, #3B2A0F 0%, #2D2108 100%);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 14px;
+        padding: 14px 14px 14px 52px;
+        position: relative;
+    }
+    .v1-icon {
+        position: absolute;
+        left: 14px;
+        top: 14px;
+        width: 28px; height: 28px;
+        background: rgba(245, 158, 11, 0.18);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .v1-icon .mi { color: #F59E0B; font-size: 18px; }
+    .v1-title { font-size: 14px; font-weight: 700; color: #F59E0B; }
+    .v1-text { font-size: 12px; color: #d4d4d8; margin-top: 3px; line-height: 1.4; }
+    .v1-missing {
+        font-size: 11px; color: #fbbf24; margin-top: 6px; font-weight: 600;
+    }
+    .v1-btn {
+        margin-top: 10px;
+        background: #F59E0B;
+        color: #0F0F0F;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 8px;
+        display: inline-block;
+    }
+
+    /* ===== VARIANT 2 — Прогресс-карточка с чеклистом ===== */
+    .v2-card {
+        margin: 0 18px 16px;
+        background: #1A1A1A;
+        border: 1px solid #2A2A2A;
+        border-radius: 16px;
+        padding: 16px;
+    }
+    .v2-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .v2-title { font-size: 14px; font-weight: 700; }
+    .v2-percent { font-size: 18px; font-weight: 800; color: #22C55E; }
+    .v2-bar {
+        height: 6px;
+        background: #09090b;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 14px;
+    }
+    .v2-bar-fill {
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, #22C55E, #16A34A);
+        border-radius: 3px;
+    }
+    .v2-list { display: flex; flex-direction: column; gap: 8px; }
+    .v2-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+    }
+    .v2-check {
+        width: 18px; height: 18px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .v2-check .mi { font-size: 14px; }
+    .v2-check.done { background: rgba(34,197,94,0.15); }
+    .v2-check.done .mi { color: #22C55E; }
+    .v2-check.todo { background: #2A2A2A; }
+    .v2-check.todo .mi { color: #71717a; }
+    .v2-label { flex: 1; color: #d4d4d8; }
+    .v2-item.todo .v2-label { color: #a1a1aa; }
+    .v2-item.done .v2-label { color: #52525b; text-decoration: line-through; }
+    .v2-cta {
+        margin-top: 14px;
+        background: #22C55E;
+        color: #06160b;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 11px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    /* ===== VARIANT 3 — Компактные чипы с отсутствующими полями ===== */
+    .v3-wrap {
+        margin: 0 18px 16px;
+        background: #1A1A1A;
+        border: 1px solid #2A2A2A;
+        border-radius: 14px;
+        padding: 12px 14px;
+    }
+    .v3-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .v3-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #F59E0B;
+        box-shadow: 0 0 8px #F59E0B;
+    }
+    .v3-head { font-size: 13px; font-weight: 700; color: #fff; flex: 1; }
+    .v3-action { font-size: 12px; color: #22C55E; font-weight: 600; }
+    .v3-chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .v3-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #0F0F0F;
+        border: 1px solid #2A2A2A;
+        color: #d4d4d8;
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    .v3-chip .mi { font-size: 14px; color: #F59E0B; }
+
+    /* ===== VARIANT 4 — Inline-строка с восклицательным знаком (минимал) ===== */
+    .v4-row {
+        margin: 0 18px 16px;
+        background: rgba(245, 158, 11, 0.08);
+        border-left: 3px solid #F59E0B;
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .v4-icon { color: #F59E0B; font-size: 22px; }
+    .v4-text { flex: 1; font-size: 13px; color: #fbbf24; font-weight: 600; }
+    .v4-text span { color: #a1a1aa; font-weight: 500; font-size: 12px; display: block; margin-top: 2px; }
+    .v4-arrow { color: #F59E0B; font-size: 20px; }
+
+    /* ===== VARIANT 5 — Bottom sheet-оверлей (dismissible) ===== */
+    .v5-screen { position: relative; }
+    .v5-overlay {
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        background: #18181b;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        padding: 20px 20px 26px;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+        border-top: 1px solid #2A2A2A;
+    }
+    .v5-handle {
+        width: 36px; height: 4px;
+        background: #3f3f46;
+        border-radius: 2px;
+        margin: 0 auto 14px;
+    }
+    .v5-close {
+        position: absolute;
+        top: 14px; right: 14px;
+        width: 28px; height: 28px;
+        background: #27272a;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: #a1a1aa;
+    }
+    .v5-icon-big {
+        width: 52px; height: 52px;
+        background: rgba(245, 158, 11, 0.15);
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 14px;
+    }
+    .v5-icon-big .mi { color: #F59E0B; font-size: 28px; }
+    .v5-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .v5-sub { font-size: 13px; color: #a1a1aa; margin-bottom: 14px; line-height: 1.5; }
+    .v5-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .v5-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #0F0F0F;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+    .v5-field .mi { color: #F59E0B; font-size: 18px; }
+    .v5-field-name { flex: 1; font-size: 13px; color: #d4d4d8; }
+    .v5-field-req { font-size: 11px; color: #ef4444; font-weight: 700; }
+    .v5-actions { display: flex; gap: 10px; }
+    .v5-later {
+        flex: 1;
+        background: transparent;
+        border: 1px solid #2A2A2A;
+        color: #a1a1aa;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 11px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .v5-fill {
+        flex: 2;
+        background: #22C55E;
+        color: #06160b;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 11px;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    /* пониженная яркость главного контента под bottom sheet */
+    .v5-dim { opacity: 0.35; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<!-- =============================================================== -->
+<!-- VARIANT 1 — Жёлтый баннер под приветствием -->
+<!-- =============================================================== -->
+<div class="screen">
+    <div class="screen-label">Вариант 1 — жёлтый баннер</div>
+    <div class="status-bar"><span>21:42</span><span>100%</span></div>
+    <div class="top">
+        <h1>Андрей Кузнецов</h1>
+        <div class="bell"><span class="mi">notifications</span></div>
+    </div>
+    <div class="v1-banner">
+        <div class="v1-icon"><span class="mi">warning_amber</span></div>
+        <div class="v1-title">Заполните профиль</div>
+        <div class="v1-text">Без этих данных нельзя записаться на турнир.</div>
+        <div class="v1-missing">Не заполнено: город · пол · телефон</div>
+        <div class="v1-btn">Дозаполнить</div>
+    </div>
+    <div class="stats">
+        <div class="stat"><span class="mi">trending_up</span><div class="stat-val">1093</div><div class="stat-lbl">РЕЙТИНГ</div></div>
+        <div class="stat"><span class="mi">bar_chart</span><div class="stat-val">1.00</div><div class="stat-lbl">УРОВЕНЬ</div></div>
+        <div class="stat"><span class="mi">military_tech</span><div class="stat-val">#758</div><div class="stat-lbl">МЕСТО</div></div>
+    </div>
+    <div class="book-btn">
+        <div>
+            <div class="book-btn-title">Забронировать корт</div>
+            <div class="book-btn-sub">Выберите клуб и удобное время</div>
+        </div>
+        <div class="book-btn-icon"><span class="mi">sports_tennis</span></div>
+    </div>
+    <div class="section-title">Ближайший турнир</div>
+</div>
+
+<!-- =============================================================== -->
+<!-- VARIANT 2 — Прогресс-карточка с чеклистом -->
+<!-- =============================================================== -->
+<div class="screen">
+    <div class="screen-label">Вариант 2 — прогресс профиля</div>
+    <div class="status-bar"><span>21:42</span><span>100%</span></div>
+    <div class="top">
+        <h1>Андрей Кузнецов</h1>
+        <div class="bell"><span class="mi">notifications</span></div>
+    </div>
+    <div class="stats">
+        <div class="stat"><span class="mi">trending_up</span><div class="stat-val">1093</div><div class="stat-lbl">РЕЙТИНГ</div></div>
+        <div class="stat"><span class="mi">bar_chart</span><div class="stat-val">1.00</div><div class="stat-lbl">УРОВЕНЬ</div></div>
+        <div class="stat"><span class="mi">military_tech</span><div class="stat-val">#758</div><div class="stat-lbl">МЕСТО</div></div>
+    </div>
+    <div class="v2-card">
+        <div class="v2-head">
+            <div class="v2-title">Заполните профиль</div>
+            <div class="v2-percent">40%</div>
+        </div>
+        <div class="v2-bar"><div class="v2-bar-fill"></div></div>
+        <div class="v2-list">
+            <div class="v2-item done">
+                <div class="v2-check done"><span class="mi">check</span></div>
+                <div class="v2-label">Имя и фамилия</div>
+            </div>
+            <div class="v2-item done">
+                <div class="v2-check done"><span class="mi">check</span></div>
+                <div class="v2-label">Email</div>
+            </div>
+            <div class="v2-item todo">
+                <div class="v2-check todo"><span class="mi">close</span></div>
+                <div class="v2-label">Город</div>
+            </div>
+            <div class="v2-item todo">
+                <div class="v2-check todo"><span class="mi">close</span></div>
+                <div class="v2-label">Пол</div>
+            </div>
+            <div class="v2-item todo">
+                <div class="v2-check todo"><span class="mi">close</span></div>
+                <div class="v2-label">Телефон</div>
+            </div>
+        </div>
+        <div class="v2-cta">Заполнить сейчас</div>
+    </div>
+    <div class="book-btn">
+        <div>
+            <div class="book-btn-title">Забронировать корт</div>
+            <div class="book-btn-sub">Выберите клуб и удобное время</div>
+        </div>
+        <div class="book-btn-icon"><span class="mi">sports_tennis</span></div>
+    </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- VARIANT 3 — Тонкая карточка с чипами незаполненных полей -->
+<!-- =============================================================== -->
+<div class="screen">
+    <div class="screen-label">Вариант 3 — чипы с полями</div>
+    <div class="status-bar"><span>21:42</span><span>100%</span></div>
+    <div class="top">
+        <h1>Андрей Кузнецов</h1>
+        <div class="bell"><span class="mi">notifications</span></div>
+    </div>
+    <div class="stats">
+        <div class="stat"><span class="mi">trending_up</span><div class="stat-val">1093</div><div class="stat-lbl">РЕЙТИНГ</div></div>
+        <div class="stat"><span class="mi">bar_chart</span><div class="stat-val">1.00</div><div class="stat-lbl">УРОВЕНЬ</div></div>
+        <div class="stat"><span class="mi">military_tech</span><div class="stat-val">#758</div><div class="stat-lbl">МЕСТО</div></div>
+    </div>
+    <div class="v3-wrap">
+        <div class="v3-row">
+            <div class="v3-dot"></div>
+            <div class="v3-head">Дозаполните профиль</div>
+            <div class="v3-action">Открыть ›</div>
+        </div>
+        <div class="v3-chips">
+            <div class="v3-chip"><span class="mi">location_on</span>Город</div>
+            <div class="v3-chip"><span class="mi">wc</span>Пол</div>
+            <div class="v3-chip"><span class="mi">phone</span>Телефон</div>
+        </div>
+    </div>
+    <div class="book-btn">
+        <div>
+            <div class="book-btn-title">Забронировать корт</div>
+            <div class="book-btn-sub">Выберите клуб и удобное время</div>
+        </div>
+        <div class="book-btn-icon"><span class="mi">sports_tennis</span></div>
+    </div>
+    <div class="section-title">Ближайший турнир</div>
+</div>
+
+<!-- =============================================================== -->
+<!-- VARIANT 4 — Минимальная inline-строка с полоской -->
+<!-- =============================================================== -->
+<div class="screen">
+    <div class="screen-label">Вариант 4 — минимал</div>
+    <div class="status-bar"><span>21:42</span><span>100%</span></div>
+    <div class="top">
+        <h1>Андрей Кузнецов</h1>
+        <div class="bell"><span class="mi">notifications</span></div>
+    </div>
+    <div class="stats">
+        <div class="stat"><span class="mi">trending_up</span><div class="stat-val">1093</div><div class="stat-lbl">РЕЙТИНГ</div></div>
+        <div class="stat"><span class="mi">bar_chart</span><div class="stat-val">1.00</div><div class="stat-lbl">УРОВЕНЬ</div></div>
+        <div class="stat"><span class="mi">military_tech</span><div class="stat-val">#758</div><div class="stat-lbl">МЕСТО</div></div>
+    </div>
+    <div class="v4-row">
+        <span class="mi v4-icon">error_outline</span>
+        <div class="v4-text">Профиль не заполнен<span>Город, пол и телефон</span></div>
+        <span class="mi v4-arrow">chevron_right</span>
+    </div>
+    <div class="book-btn">
+        <div>
+            <div class="book-btn-title">Забронировать корт</div>
+            <div class="book-btn-sub">Выберите клуб и удобное время</div>
+        </div>
+        <div class="book-btn-icon"><span class="mi">sports_tennis</span></div>
+    </div>
+    <div class="section-title">Ближайший турнир</div>
+    <div style="margin: 0 18px; background: #1A1A1A; border-radius: 16px; padding: 40px 20px; text-align: center; color: #52525b; font-size: 13px;">
+        <span class="mi" style="font-size: 32px; color: #3f3f46;">event_available</span>
+        <div style="margin-top: 10px;">Нет доступных турниров</div>
+    </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- VARIANT 5 — Bottom sheet при входе -->
+<!-- =============================================================== -->
+<div class="screen v5-screen">
+    <div class="screen-label">Вариант 5 — bottom sheet</div>
+    <div class="status-bar"><span>21:42</span><span>100%</span></div>
+    <div class="v5-dim">
+        <div class="top">
+            <h1>Андрей Кузнецов</h1>
+            <div class="bell"><span class="mi">notifications</span></div>
+        </div>
+        <div class="stats">
+            <div class="stat"><span class="mi">trending_up</span><div class="stat-val">1093</div><div class="stat-lbl">РЕЙТИНГ</div></div>
+            <div class="stat"><span class="mi">bar_chart</span><div class="stat-val">1.00</div><div class="stat-lbl">УРОВЕНЬ</div></div>
+            <div class="stat"><span class="mi">military_tech</span><div class="stat-val">#758</div><div class="stat-lbl">МЕСТО</div></div>
+        </div>
+        <div class="book-btn">
+            <div>
+                <div class="book-btn-title">Забронировать корт</div>
+                <div class="book-btn-sub">Выберите клуб и удобное время</div>
+            </div>
+            <div class="book-btn-icon"><span class="mi">sports_tennis</span></div>
+        </div>
+        <div class="section-title">Ближайший турнир</div>
+    </div>
+    <div class="v5-overlay">
+        <div class="v5-handle"></div>
+        <div class="v5-close"><span class="mi" style="font-size: 16px;">close</span></div>
+        <div class="v5-icon-big"><span class="mi">person_outline</span></div>
+        <div class="v5-title">Дозаполните профиль</div>
+        <div class="v5-sub">Эти данные нужны, чтобы записываться на турниры и получать приглашения в поединки.</div>
+        <div class="v5-fields">
+            <div class="v5-field">
+                <span class="mi">location_on</span>
+                <div class="v5-field-name">Город</div>
+                <div class="v5-field-req">ОБЯЗАТ.</div>
+            </div>
+            <div class="v5-field">
+                <span class="mi">wc</span>
+                <div class="v5-field-name">Пол</div>
+                <div class="v5-field-req">ОБЯЗАТ.</div>
+            </div>
+            <div class="v5-field">
+                <span class="mi">phone</span>
+                <div class="v5-field-name">Телефон</div>
+                <div class="v5-field-req">ОБЯЗАТ.</div>
+            </div>
+        </div>
+        <div class="v5-actions">
+            <div class="v5-later">Позже</div>
+            <div class="v5-fill">Заполнить</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

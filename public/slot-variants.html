@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вариант 1 — доработка</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0b; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 24px; }
+    table { width: 100%; border-collapse: collapse; background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; table-layout: fixed; }
+    th { padding: 14px 12px; text-align: center; font-size: 13px; font-weight: 800; color: #71717a; background: #16161a; border-bottom: 1px solid #27272a; text-transform: uppercase; }
+    th.time-col { width: 70px; text-align: left; padding-left: 16px; }
+    td { padding: 4px; border-bottom: 1px solid #1c1c21; height: 60px; }
+    td.time { padding-left: 16px; font-size: 14px; font-weight: 700; color: #71717a; vertical-align: middle; border-right: 1px solid #27272a; width: 70px; }
+
+    /* Свободный */
+    .slot-free { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15); border-radius: 8px; height: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; color: #22c55e; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .slot-free:hover { background: rgba(34,197,94,0.2); border-color: #22c55e; box-shadow: inset 0 0 0 2px #22c55e; }
+
+    /* Забронирован */
+    .slot-booked { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.18); border-radius: 8px; height: 100%; min-height: 52px; display: flex; align-items: center; padding: 0 14px; cursor: pointer; transition: all 0.15s; gap: 0; }
+    .slot-booked:hover { background: rgba(59,130,246,0.18); border-color: #3b82f6; }
+
+    /* Не оплачен */
+    .slot-booked.unpaid { background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.18); }
+    .slot-booked.unpaid:hover { background: rgba(251,146,60,0.18); border-color: #fb923c; }
+    .slot-booked.unpaid .slot-name { color: #fbbf24; }
+
+    /* Секции внутри слота */
+    .slot-section { display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+    .slot-section:first-child { padding-left: 0; }
+    .slot-section:last-child { padding-right: 0; margin-left: auto; }
+    .slot-divider { width: 1px; height: 24px; background: #27272a; flex-shrink: 0; }
+
+    .slot-name { font-size: 13px; font-weight: 700; color: #e4e4e7; white-space: nowrap; }
+    .slot-phone { font-size: 11px; color: #52525b; white-space: nowrap; }
+    .slot-coach { font-size: 11px; color: #a78bfa; font-weight: 600; white-space: nowrap; }
+    .slot-comment { font-size: 10px; color: #71717a; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    .slot-prices { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+    .slot-price-court { font-size: 13px; font-weight: 700; color: #22c55e; }
+    .slot-price-plus { font-size: 11px; color: #52525b; }
+    .slot-price-coach { font-size: 12px; font-weight: 700; color: #a78bfa; }
+
+    /* Заблокирован */
+    .slot-blocked { background: rgba(113,113,122,0.08); border: 1px solid rgba(113,113,122,0.15); border-radius: 8px; height: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; color: #52525b; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .slot-blocked:hover { background: rgba(113,113,122,0.15); border-color: #71717a; }
+</style>
+</head>
+<body>
+
+<table>
+    <thead><tr><th class="time-col">Время</th><th>Корт 1</th></tr></thead>
+    <tbody>
+        <!-- Заблокирован -->
+        <tr>
+            <td class="time">07:00</td>
+            <td><div class="slot-blocked">Групповая тренировка</div></td>
+        </tr>
+        <tr>
+            <td class="time">08:00</td>
+            <td><div class="slot-blocked">Групповая тренировка</div></td>
+        </tr>
+
+        <!-- Бронь с тренером, телефоном, комментарием, 2 часа -->
+        <tr>
+            <td class="time">09:00</td>
+            <td>
+                <div class="slot-booked">
+                    <div class="slot-section">
+                        <span class="slot-name">Сабина</span>
+                        <span class="slot-phone">77012223344</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section">
+                        <span class="slot-coach">Кирилл</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section">
+                        <span class="slot-comment">подготовка к турниру</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section" style="margin-left:auto;">
+                        <div class="slot-prices">
+                            <span class="slot-price-court">64 000 ₸</span>
+                            <span class="slot-price-plus">+</span>
+                            <span class="slot-price-coach">24 000 ₸</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <!-- Свободный -->
+        <tr>
+            <td class="time">11:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+        <tr>
+            <td class="time">12:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+
+        <!-- Простая бронь без тренера -->
+        <tr>
+            <td class="time">13:00</td>
+            <td>
+                <div class="slot-booked">
+                    <div class="slot-section">
+                        <span class="slot-name">Айдана</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section" style="margin-left:auto;">
+                        <div class="slot-prices">
+                            <span class="slot-price-court">32 000 ₸</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <!-- Бронь с тренером без комментария -->
+        <tr>
+            <td class="time">14:00</td>
+            <td>
+                <div class="slot-booked">
+                    <div class="slot-section">
+                        <span class="slot-name">Ануар</span>
+                        <span class="slot-phone">77012222533</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section">
+                        <span class="slot-coach">Кирилл</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section" style="margin-left:auto;">
+                        <div class="slot-prices">
+                            <span class="slot-price-court">32 000 ₸</span>
+                            <span class="slot-price-plus">+</span>
+                            <span class="slot-price-coach">12 000 ₸</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <!-- Свободный -->
+        <tr>
+            <td class="time">15:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+        <tr>
+            <td class="time">16:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+
+        <!-- Заблокирован с комментарием -->
+        <tr>
+            <td class="time">17:00</td>
+            <td><div class="slot-blocked">Групповая тренировка</div></td>
+        </tr>
+
+        <!-- Не оплачен -->
+        <tr>
+            <td class="time">18:00</td>
+            <td>
+                <div class="slot-booked unpaid">
+                    <div class="slot-section">
+                        <span class="slot-name">Маржан</span>
+                        <span class="slot-phone">77051112233</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section" style="margin-left:auto;">
+                        <div class="slot-prices">
+                            <span class="slot-price-court">32 000 ₸</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <!-- Свободные -->
+        <tr>
+            <td class="time">19:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+
+        <!-- Не оплачен с тренером -->
+        <tr>
+            <td class="time">20:00</td>
+            <td>
+                <div class="slot-booked unpaid">
+                    <div class="slot-section">
+                        <span class="slot-name">Айгерим</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section">
+                        <span class="slot-coach">Артём</span>
+                    </div>
+                    <span class="slot-divider"></span>
+                    <div class="slot-section" style="margin-left:auto;">
+                        <div class="slot-prices">
+                            <span class="slot-price-court">32 000 ₸</span>
+                            <span class="slot-price-plus">+</span>
+                            <span class="slot-price-coach">18 000 ₸</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+
+        <tr>
+            <td class="time">22:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+        <tr>
+            <td class="time">23:00</td>
+            <td><div class="slot-free">32 000 ₸</div></td>
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

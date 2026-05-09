@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профиль игрока — 5 вариантов</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0b;
+            color: #f4f4f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        .variant-wrap {
+            background: #111113;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .vlabel {
+            font-size: 11px; color: #22c55e; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            padding: 12px 16px 0;
+        }
+        .vdesc {
+            font-size: 12px; color: #52525b; padding: 4px 16px 12px;
+        }
+        .phone-frame {
+            max-width: 400px;
+            background: #0a0a0b;
+        }
+
+        /* Shared */
+        .back-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 16px; font-size: 18px; font-weight: 800;
+        }
+        .back-arrow { color: #a1a1aa; font-size: 20px; cursor: pointer; }
+
+        .avatar-lg {
+            width: 64px; height: 64px; border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 700; color: #a1a1aa; flex-shrink: 0;
+        }
+        .avatar-sm {
+            width: 40px; height: 40px; border-radius: 50%; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: #a1a1aa; flex-shrink: 0;
+        }
+        .accent { color: #22c55e; }
+        .muted { color: #52525b; }
+        .dim { color: #a1a1aa; }
+        .card-bg { background: #16161a; }
+        .border-b { border-bottom: 1px solid #1a1a1e; }
+
+        .stat-box {
+            text-align: center; padding: 12px 8px;
+            background: #16161a; border-radius: 10px;
+        }
+        .stat-val { font-size: 18px; font-weight: 800; }
+        .stat-label { font-size: 10px; color: #52525b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+
+        .tag {
+            display: inline-block; padding: 3px 8px; border-radius: 4px;
+            font-size: 10px; font-weight: 700;
+        }
+        .tag-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .tag-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .tag-blue { background: rgba(59,130,246,0.15); color: #3b82f6; }
+
+        .tournament-row {
+            display: flex; align-items: center; padding: 10px 16px; gap: 10px;
+        }
+        .t-icon {
+            width: 32px; height: 32px; border-radius: 8px; background: #27272a;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; flex-shrink: 0;
+        }
+        .t-info { flex: 1; min-width: 0; }
+        .t-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .t-date { font-size: 11px; color: #52525b; }
+        .t-change { font-size: 14px; font-weight: 800; text-align: right; min-width: 50px; }
+        .t-change.pos { color: #22c55e; }
+        .t-change.neg { color: #ef4444; }
+
+        /* ===== V1: Карточка сверху + список ===== */
+        .v1-profile {
+            padding: 20px 16px; text-align: center;
+        }
+        .v1-name { font-size: 20px; font-weight: 800; margin-top: 12px; }
+        .v1-sub { font-size: 13px; color: #71717a; margin-top: 4px; }
+        .v1-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+        .v1-section { padding: 12px 16px 6px; font-size: 11px; color: #52525b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ===== V2: Горизонтальная карточка + timeline ===== */
+        .v2-profile {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px; margin: 12px 16px;
+            background: #16161a; border-radius: 14px;
+            border: 1px solid #27272a;
+        }
+        .v2-info { flex: 1; }
+        .v2-name { font-size: 18px; font-weight: 800; }
+        .v2-meta { font-size: 12px; color: #71717a; margin-top: 2px; }
+        .v2-rating-big { text-align: right; }
+        .v2-rating-val { font-size: 24px; font-weight: 800; color: #22c55e; }
+        .v2-rating-label { font-size: 10px; color: #52525b; }
+        .v2-section { padding: 12px 16px 6px; font-size: 11px; color: #52525b; font-weight: 700; text-transform: uppercase; }
+        .v2-timeline-row {
+            display: flex; align-items: flex-start; padding: 0 16px; gap: 12px;
+        }
+        .v2-dot-col {
+            display: flex; flex-direction: column; align-items: center; width: 20px; padding-top: 14px;
+        }
+        .v2-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+        .v2-dot.neg { background: #ef4444; }
+        .v2-line { width: 1px; flex: 1; background: #27272a; min-height: 30px; }
+        .v2-content { flex: 1; padding: 10px 0; }
+        .v2-t-name { font-size: 13px; font-weight: 600; }
+        .v2-t-date { font-size: 11px; color: #52525b; }
+        .v2-t-right { text-align: right; padding-top: 10px; }
+        .v2-t-change { font-size: 14px; font-weight: 800; }
+        .v2-t-after { font-size: 11px; color: #52525b; }
+
+        /* ===== V3: Большой аватар + карточки турниров ===== */
+        .v3-hero { text-align: center; padding: 24px 16px 16px; }
+        .v3-hero .avatar-lg { width: 80px; height: 80px; font-size: 28px; margin: 0 auto; }
+        .v3-name { font-size: 22px; font-weight: 800; margin-top: 12px; }
+        .v3-sub { font-size: 13px; color: #71717a; margin-top: 4px; }
+        .v3-stats { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
+        .v3-stat-val { font-size: 20px; font-weight: 800; }
+        .v3-stat-label { font-size: 10px; color: #52525b; text-transform: uppercase; }
+        .v3-section { padding: 16px 16px 8px; font-size: 11px; color: #52525b; font-weight: 700; text-transform: uppercase; }
+        .v3-t-card {
+            margin: 0 16px 8px; padding: 12px 14px;
+            background: #16161a; border-radius: 10px; border: 1px solid #1a1a1e;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .v3-t-info { flex: 1; }
+
+        /* ===== V4: Компактный — минимум отступов ===== */
+        .v4-profile {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-bottom: 1px solid #27272a;
+        }
+        .v4-info { flex: 1; }
+        .v4-name { font-size: 16px; font-weight: 700; }
+        .v4-meta { font-size: 12px; color: #52525b; }
+        .v4-badges { display: flex; gap: 6px; margin-top: 4px; }
+        .v4-rating { font-size: 20px; font-weight: 800; color: #22c55e; }
+
+        /* ===== V5: Карточка + табличный вид турниров ===== */
+        .v5-profile {
+            margin: 12px 16px; padding: 16px;
+            background: #16161a; border-radius: 14px;
+            border: 1px solid rgba(34,197,94,0.2);
+            display: flex; align-items: center; gap: 14px;
+        }
+        .v5-info { flex: 1; }
+        .v5-name { font-size: 18px; font-weight: 800; }
+        .v5-meta { font-size: 12px; color: #71717a; margin-top: 2px; }
+        .v5-stats-row { display: flex; gap: 12px; margin-top: 8px; }
+        .v5-stat { font-size: 11px; color: #a1a1aa; }
+        .v5-stat b { color: #f4f4f5; }
+        .v5-table-head {
+            display: grid; grid-template-columns: 1fr 70px 60px;
+            padding: 8px 16px; font-size: 10px; color: #52525b;
+            font-weight: 700; text-transform: uppercase;
+        }
+        .v5-table-row {
+            display: grid; grid-template-columns: 1fr 70px 60px;
+            padding: 10px 16px; align-items: center;
+            border-bottom: 1px solid #1a1a1e;
+        }
+        .v5-t-name { font-size: 13px; font-weight: 600; }
+        .v5-t-date { font-size: 11px; color: #52525b; }
+        .v5-t-after { font-size: 13px; font-weight: 600; text-align: right; }
+        .v5-t-change { font-size: 13px; font-weight: 800; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1 style="font-size: 20px; margin-bottom: 20px;">Профиль игрока — 5 вариантов</h1>
+
+    <div class="grid">
+
+        <!-- ===== V1 ===== -->
+        <div class="variant-wrap">
+            <div class="vlabel">1 — Центрированная карточка</div>
+            <div class="vdesc">Аватар по центру, статистика в 3 колонки, турниры списком</div>
+            <div class="phone-frame">
+                <div class="back-header"><span class="back-arrow">&#8249;</span> Профиль игрока</div>
+                <div class="v1-profile">
+                    <div class="avatar-lg" style="margin:0 auto;">ДД</div>
+                    <div class="v1-name">Дуйсенгазин Дамир</div>
+                    <div class="v1-sub">L4 · 4.75 · #1 в рейтинге</div>
+                    <div class="v1-stats">
+                        <div class="stat-box"><div class="stat-val accent">4975</div><div class="stat-label">Рейтинг</div></div>
+                        <div class="stat-box"><div class="stat-val">32</div><div class="stat-label">Игры</div></div>
+                        <div class="stat-box"><div class="stat-val">12</div><div class="stat-label">Турниры</div></div>
+                    </div>
+                </div>
+                <div class="v1-section">История рейтинга</div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Pulse Open Cup</div><div class="t-date">5 апр 2026</div></div><div class="t-change pos">+48</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Almaty Padel Masters</div><div class="t-date">28 мар 2026</div></div><div class="t-change pos">+36</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Weekend Challenge</div><div class="t-date">15 мар 2026</div></div><div class="t-change neg">-12</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Spring Tournament</div><div class="t-date">2 мар 2026</div></div><div class="t-change pos">+24</div></div>
+                <div class="tournament-row"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">February Open</div><div class="t-date">18 фев 2026</div></div><div class="t-change pos">+55</div></div>
+            </div>
+        </div>
+
+        <!-- ===== V2 ===== -->
+        <div class="variant-wrap">
+            <div class="vlabel">2 — Timeline</div>
+            <div class="vdesc">Горизонтальная карточка, турниры как таймлайн с точками и линией</div>
+            <div class="phone-frame">
+                <div class="back-header"><span class="back-arrow">&#8249;</span> Профиль игрока</div>
+                <div class="v2-profile">
+                    <div class="avatar-lg">ДД</div>
+                    <div class="v2-info">
+                        <div class="v2-name">Дуйсенгазин Дамир</div>
+                        <div class="v2-meta">L4 · 4.75 · 32 игры · 12 турниров</div>
+                    </div>
+                    <div class="v2-rating-big">
+                        <div class="v2-rating-val">4975</div>
+                        <div class="v2-rating-label">#1</div>
+                    </div>
+                </div>
+                <div class="v2-section">История рейтинга</div>
+
+                <div class="v2-timeline-row">
+                    <div class="v2-dot-col"><div class="v2-dot"></div><div class="v2-line"></div></div>
+                    <div class="v2-content"><div class="v2-t-name">Pulse Open Cup</div><div class="v2-t-date">5 апр 2026</div></div>
+                    <div class="v2-t-right"><div class="v2-t-change accent">+48</div><div class="v2-t-after">→ 4975</div></div>
+                </div>
+                <div class="v2-timeline-row">
+                    <div class="v2-dot-col"><div class="v2-dot"></div><div class="v2-line"></div></div>
+                    <div class="v2-content"><div class="v2-t-name">Almaty Padel Masters</div><div class="v2-t-date">28 мар 2026</div></div>
+                    <div class="v2-t-right"><div class="v2-t-change accent">+36</div><div class="v2-t-after">→ 4927</div></div>
+                </div>
+                <div class="v2-timeline-row">
+                    <div class="v2-dot-col"><div class="v2-dot neg"></div><div class="v2-line"></div></div>
+                    <div class="v2-content"><div class="v2-t-name">Weekend Challenge</div><div class="v2-t-date">15 мар 2026</div></div>
+                    <div class="v2-t-right"><div class="v2-t-change" style="color:#ef4444">-12</div><div class="v2-t-after">→ 4891</div></div>
+                </div>
+                <div class="v2-timeline-row">
+                    <div class="v2-dot-col"><div class="v2-dot"></div><div class="v2-line"></div></div>
+                    <div class="v2-content"><div class="v2-t-name">Spring Tournament</div><div class="v2-t-date">2 мар 2026</div></div>
+                    <div class="v2-t-right"><div class="v2-t-change accent">+24</div><div class="v2-t-after">→ 4903</div></div>
+                </div>
+                <div class="v2-timeline-row">
+                    <div class="v2-dot-col"><div class="v2-dot"></div></div>
+                    <div class="v2-content"><div class="v2-t-name">February Open</div><div class="v2-t-date">18 фев 2026</div></div>
+                    <div class="v2-t-right"><div class="v2-t-change accent">+55</div><div class="v2-t-after">→ 4879</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== V3 ===== -->
+        <div class="variant-wrap">
+            <div class="vlabel">3 — Большой аватар + карточки</div>
+            <div class="vdesc">Крупный аватар, статы по центру, турниры карточками</div>
+            <div class="phone-frame">
+                <div class="back-header"><span class="back-arrow">&#8249;</span> Профиль игрока</div>
+                <div class="v3-hero">
+                    <div class="avatar-lg" style="width:80px;height:80px;font-size:28px;margin:0 auto;">ДД</div>
+                    <div class="v3-name">Дуйсенгазин Дамир</div>
+                    <div class="v3-sub">L4 · 4.75</div>
+                    <div class="v3-stats">
+                        <div><div class="v3-stat-val accent">4975</div><div class="v3-stat-label">Рейтинг</div></div>
+                        <div><div class="v3-stat-val">#1</div><div class="v3-stat-label">Место</div></div>
+                        <div><div class="v3-stat-val">32</div><div class="v3-stat-label">Игры</div></div>
+                        <div><div class="v3-stat-val">12</div><div class="v3-stat-label">Турниры</div></div>
+                    </div>
+                </div>
+                <div class="v3-section">Турниры</div>
+                <div class="v3-t-card"><div class="t-icon">🏆</div><div class="v3-t-info"><div class="t-name">Pulse Open Cup</div><div class="t-date">5 апр 2026</div></div><div class="t-change pos">+48</div></div>
+                <div class="v3-t-card"><div class="t-icon">🏆</div><div class="v3-t-info"><div class="t-name">Almaty Padel Masters</div><div class="t-date">28 мар 2026</div></div><div class="t-change pos">+36</div></div>
+                <div class="v3-t-card"><div class="t-icon">🏆</div><div class="v3-t-info"><div class="t-name">Weekend Challenge</div><div class="t-date">15 мар 2026</div></div><div class="t-change neg">-12</div></div>
+                <div class="v3-t-card"><div class="t-icon">🏆</div><div class="v3-t-info"><div class="t-name">Spring Tournament</div><div class="t-date">2 мар 2026</div></div><div class="t-change pos">+24</div></div>
+                <div class="v3-t-card"><div class="t-icon">🏆</div><div class="v3-t-info"><div class="t-name">February Open</div><div class="t-date">18 фев 2026</div></div><div class="t-change pos">+55</div></div>
+            </div>
+        </div>
+
+        <!-- ===== V4 ===== -->
+        <div class="variant-wrap">
+            <div class="vlabel">4 — Компактный</div>
+            <div class="vdesc">Минимум места на профиль, максимум на список турниров</div>
+            <div class="phone-frame">
+                <div class="back-header"><span class="back-arrow">&#8249;</span> Профиль игрока</div>
+                <div class="v4-profile">
+                    <div class="avatar-sm">ДД</div>
+                    <div class="v4-info">
+                        <div class="v4-name">Дуйсенгазин Дамир</div>
+                        <div class="v4-meta">L4 · 4.75 · #1 в рейтинге</div>
+                        <div class="v4-badges">
+                            <span class="tag tag-blue">32 игры</span>
+                            <span class="tag tag-green">12 турниров</span>
+                        </div>
+                    </div>
+                    <div class="v4-rating">4975</div>
+                </div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Pulse Open Cup</div><div class="t-date">5 апр 2026</div></div><div class="t-change pos">+48</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Almaty Padel Masters</div><div class="t-date">28 мар 2026</div></div><div class="t-change pos">+36</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Weekend Challenge</div><div class="t-date">15 мар 2026</div></div><div class="t-change neg">-12</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">Spring Tournament</div><div class="t-date">2 мар 2026</div></div><div class="t-change pos">+24</div></div>
+                <div class="tournament-row border-b"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">February Open</div><div class="t-date">18 фев 2026</div></div><div class="t-change pos">+55</div></div>
+                <div class="tournament-row"><div class="t-icon">🏆</div><div class="t-info"><div class="t-name">January Cup</div><div class="t-date">10 янв 2026</div></div><div class="t-change pos">+42</div></div>
+            </div>
+        </div>
+
+        <!-- ===== V5 ===== -->
+        <div class="variant-wrap">
+            <div class="vlabel">5 — Таблица</div>
+            <div class="vdesc">Карточка с зелёной обводкой, турниры в табличном виде с колонками</div>
+            <div class="phone-frame">
+                <div class="back-header"><span class="back-arrow">&#8249;</span> Профиль игрока</div>
+                <div class="v5-profile">
+                    <div class="avatar-lg">ДД</div>
+                    <div class="v5-info">
+                        <div class="v5-name">Дуйсенгазин Дамир</div>
+                        <div class="v5-meta">L4 · 4.75 · #1 в рейтинге</div>
+                        <div class="v5-stats-row">
+                            <span class="v5-stat"><b>4975</b> очков</span>
+                            <span class="v5-stat"><b>32</b> игры</span>
+                            <span class="v5-stat"><b>12</b> турниров</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="v5-table-head">
+                    <span>Турнир</span><span style="text-align:right">Рейтинг</span><span style="text-align:right">Изм.</span>
+                </div>
+                <div class="v5-table-row"><div><div class="v5-t-name">Pulse Open Cup</div><div class="v5-t-date">5 апр 2026</div></div><div class="v5-t-after">4975</div><div class="v5-t-change accent">+48</div></div>
+                <div class="v5-table-row"><div><div class="v5-t-name">Almaty Padel Masters</div><div class="v5-t-date">28 мар 2026</div></div><div class="v5-t-after">4927</div><div class="v5-t-change accent">+36</div></div>
+                <div class="v5-table-row"><div><div class="v5-t-name">Weekend Challenge</div><div class="v5-t-date">15 мар 2026</div></div><div class="v5-t-after">4891</div><div class="v5-t-change" style="color:#ef4444">-12</div></div>
+                <div class="v5-table-row"><div><div class="v5-t-name">Spring Tournament</div><div class="v5-t-date">2 мар 2026</div></div><div class="v5-t-after">4903</div><div class="v5-t-change accent">+24</div></div>
+                <div class="v5-table-row"><div><div class="v5-t-name">February Open</div><div class="v5-t-date">18 фев 2026</div></div><div class="v5-t-after">4879</div><div class="v5-t-change accent">+55</div></div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

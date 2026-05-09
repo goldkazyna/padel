@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бронирование кортов — мобильные экраны</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; flex-wrap: wrap; gap: 40px; padding: 40px; justify-content: center; }
+
+    .screen { width: 375px; min-height: 700px; background: #0a0a0b; border-radius: 40px; border: 3px solid #27272a; overflow: hidden; position: relative; flex-shrink: 0; }
+    .screen-label { text-align: center; padding: 12px; font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #16161a; }
+    .status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; font-weight: 600; color: #a1a1aa; }
+    .content { padding: 0 16px 100px; }
+
+    /* Bottom Nav */
+    .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: #111113; border-top: 1px solid #27272a; display: flex; align-items: center; justify-content: space-around; padding-bottom: 16px; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #52525b; font-size: 10px; font-weight: 600; }
+    .nav-item.active { color: #22c55e; }
+    .nav-dot { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+    /* Header */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 20px; }
+    .header-title { font-size: 22px; font-weight: 800; }
+    .header-sub { font-size: 13px; color: #71717a; }
+    .avatar { width: 40px; height: 40px; border-radius: 12px; background: #22c55e; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #0a0a0b; }
+
+    /* User Card */
+    .user-card { background: linear-gradient(135deg, #16161a 0%, #1c1c21 100%); border: 1px solid #27272a; border-radius: 16px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
+    .user-rating { font-size: 24px; font-weight: 800; color: #22c55e; }
+    .user-level { font-size: 12px; color: #71717a; font-weight: 600; }
+    .user-place { font-size: 11px; color: #a1a1aa; background: #27272a; padding: 2px 8px; border-radius: 4px; margin-left: auto; }
+
+    /* === ЭКРАН 1: Главная — баннер бронирования === */
+    .book-banner { background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 16px; padding: 20px; margin-bottom: 20px; cursor: pointer; position: relative; overflow: hidden; }
+    .book-banner::after { content: ''; position: absolute; right: -20px; top: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; }
+    .book-banner-title { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .book-banner-sub { font-size: 13px; color: rgba(255,255,255,0.8); }
+    .book-banner-arrow { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; color: rgba(255,255,255,0.7); }
+
+    /* Турнир карточка */
+    .section-title { font-size: 15px; font-weight: 700; color: #a1a1aa; margin-bottom: 12px; }
+    .tournament-card { background: #111113; border: 1px solid #27272a; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .tournament-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .tournament-meta { font-size: 12px; color: #71717a; display: flex; gap: 8px; }
+    .tournament-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; background: rgba(34,197,94,0.15); color: #22c55e; }
+
+    /* === ЭКРАН 2: Выбор клуба === */
+    .back-btn { font-size: 24px; color: #a1a1aa; cursor: pointer; padding: 4px; text-decoration: none; }
+    .page-header { display: flex; align-items: center; gap: 12px; padding: 8px 0 16px; }
+    .page-title { font-size: 20px; font-weight: 800; }
+
+    .search-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 12px; padding: 12px 16px 12px 40px; font-size: 14px; color: #f4f4f5; margin-bottom: 16px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.344.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 14px center; }
+
+    .city-tabs { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; }
+    .city-tab { padding: 6px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; font-size: 12px; font-weight: 600; color: #71717a; white-space: nowrap; cursor: pointer; }
+    .city-tab.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+
+    .club-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; margin-bottom: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+    .club-card:hover { border-color: #22c55e; }
+    .club-img { width: 100%; height: 120px; background: linear-gradient(135deg, #1c1c21, #27272a); display: flex; align-items: center; justify-content: center; color: #3f3f46; font-size: 32px; }
+    .club-info { padding: 14px; }
+    .club-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .club-address { font-size: 12px; color: #71717a; margin-bottom: 8px; }
+    .club-tags { display: flex; gap: 6px; }
+    .club-tag { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .club-tag-courts { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .club-tag-price { background: rgba(34,197,94,0.15); color: #22c55e; }
+
+    /* === ЭКРАН 3: Расписание кортов === */
+    .date-selector { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+    .date-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 12px; background: #16161a; border: 1px solid #27272a; border-radius: 12px; min-width: 52px; cursor: pointer; }
+    .date-chip.active { background: #22c55e; border-color: #22c55e; }
+    .date-chip .day-name { font-size: 10px; font-weight: 600; color: #52525b; text-transform: uppercase; }
+    .date-chip .day-num { font-size: 16px; font-weight: 800; color: #a1a1aa; }
+    .date-chip.active .day-name, .date-chip.active .day-num { color: #0a0a0b; }
+
+    .court-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+    .court-tab { flex: 1; padding: 10px; text-align: center; background: #16161a; border: 1px solid #27272a; border-radius: 10px; font-size: 13px; font-weight: 700; color: #71717a; cursor: pointer; }
+    .court-tab.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+    .time-slot { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #1c1c21; }
+    .time-slot:last-child { border-bottom: none; }
+    .time-label { width: 50px; font-size: 14px; font-weight: 700; color: #71717a; }
+    .slot-cell { flex: 1; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .slot-cell.free { background: rgba(34,197,94,0.08); color: #22c55e; border: 1px solid rgba(34,197,94,0.15); }
+    .slot-cell.free:hover { background: rgba(34,197,94,0.2); border-color: #22c55e; }
+    .slot-cell.booked { background: rgba(59,130,246,0.1); color: #3b82f6; border: 1px solid rgba(59,130,246,0.15); font-size: 11px; }
+    .slot-cell.blocked { background: rgba(113,113,122,0.08); color: #3f3f46; border: 1px solid rgba(113,113,122,0.1); font-size: 11px; }
+
+    /* === ЭКРАН 4: Бронирование === */
+    .book-summary { background: #111113; border: 1px solid #27272a; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+    .book-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+    .book-label { font-size: 13px; color: #71717a; }
+    .book-value { font-size: 14px; font-weight: 700; }
+
+    .duration-btns { display: flex; gap: 6px; margin-bottom: 16px; }
+    .dur-btn { flex: 1; padding: 12px; text-align: center; background: #16161a; border: 1px solid #27272a; border-radius: 10px; font-size: 15px; font-weight: 700; color: #71717a; cursor: pointer; }
+    .dur-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
+
+    .total-block { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .total-label { font-size: 14px; color: #a1a1aa; font-weight: 600; }
+    .total-price { font-size: 20px; font-weight: 800; color: #22c55e; }
+
+    .input-group { margin-bottom: 14px; }
+    .input-label { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .input-field { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 14px; font-size: 14px; color: #f4f4f5; }
+
+    .coach-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .coach-chip { padding: 8px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; font-size: 12px; font-weight: 600; color: #a1a1aa; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .coach-chip.active { background: #a78bfa; color: #0a0a0b; border-color: #a78bfa; }
+    .coach-chip .chip-rate { font-size: 10px; opacity: 0.7; }
+    .coach-chip.unavail { opacity: 0.3; text-decoration: line-through; }
+
+    .btn-book { width: 100%; padding: 16px; background: #22c55e; border: none; border-radius: 14px; font-size: 16px; font-weight: 800; color: #0a0a0b; cursor: pointer; }
+    .btn-book:hover { background: #16a34a; }
+
+    /* === ЭКРАН 5: Подтверждение === */
+    .success-icon { width: 80px; height: 80px; border-radius: 50%; background: rgba(34,197,94,0.15); display: flex; align-items: center; justify-content: center; margin: 40px auto 20px; font-size: 40px; }
+    .success-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .success-sub { text-align: center; font-size: 14px; color: #71717a; margin-bottom: 24px; }
+    .confirm-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+    .confirm-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1c1c21; font-size: 13px; }
+    .confirm-row:last-child { border-bottom: none; }
+    .confirm-label { color: #71717a; }
+    .confirm-value { font-weight: 700; }
+    .confirm-value.green { color: #22c55e; }
+    .btn-home { width: 100%; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 14px; font-size: 14px; font-weight: 700; color: #a1a1aa; cursor: pointer; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== ЭКРАН 1: ГЛАВНАЯ ==================== -->
+<div class="screen">
+    <div class="screen-label">Экран 1 — Главная</div>
+    <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+    <div class="content">
+        <div class="header">
+            <div>
+                <div class="header-title">Привет, Денис!</div>
+                <div class="header-sub">Добро пожаловать</div>
+            </div>
+            <div class="avatar">ДК</div>
+        </div>
+
+        <div class="user-card">
+            <div>
+                <div class="user-rating">3 654</div>
+                <div class="user-level">Уровень 3.5</div>
+            </div>
+            <div class="user-place">#42</div>
+        </div>
+
+        <!-- БАННЕР БРОНИРОВАНИЯ -->
+        <div class="book-banner">
+            <div class="book-banner-title">Забронировать корт</div>
+            <div class="book-banner-sub">Выберите клуб и время</div>
+            <span class="book-banner-arrow">›</span>
+        </div>
+
+        <div class="section-title">Ближайший турнир</div>
+        <div class="tournament-card">
+            <div class="tournament-name">L3-L4 Americano Суббота</div>
+            <div class="tournament-meta">
+                <span>5 апреля</span>
+                <span>•</span>
+                <span>14:00</span>
+                <span class="tournament-badge">Открыт</span>
+            </div>
+        </div>
+
+        <div class="section-title">Предстоящие</div>
+        <div class="tournament-card">
+            <div class="tournament-name">L2-L3 Mix Среда</div>
+            <div class="tournament-meta"><span>2 апреля</span><span>•</span><span>18:00</span></div>
+        </div>
+        <div class="tournament-card">
+            <div class="tournament-name">Team Tournament</div>
+            <div class="tournament-meta"><span>7 апреля</span><span>•</span><span>10:00</span></div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-dot">🏠</div>Главная</div>
+        <div class="nav-item"><div class="nav-dot">🏆</div>Турниры</div>
+        <div class="nav-item"><div class="nav-dot">⚔️</div>Поединки</div>
+        <div class="nav-item"><div class="nav-dot">📊</div>Рейтинг</div>
+        <div class="nav-item"><div class="nav-dot">👤</div>Профиль</div>
+    </div>
+</div>
+
+<!-- ==================== ЭКРАН 2: ВЫБОР КЛУБА ==================== -->
+<div class="screen">
+    <div class="screen-label">Экран 2 — Выбор клуба</div>
+    <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+    <div class="content">
+        <div class="page-header">
+            <a class="back-btn">‹</a>
+            <div class="page-title">Выберите клуб</div>
+        </div>
+
+        <input type="text" class="search-input" placeholder="Поиск клуба...">
+
+        <div class="city-tabs">
+            <div class="city-tab active">Все</div>
+            <div class="city-tab">Алматы</div>
+            <div class="city-tab">Астана</div>
+            <div class="city-tab">Шымкент</div>
+        </div>
+
+        <div class="club-card">
+            <div class="club-img">🎾</div>
+            <div class="club-info">
+                <div class="club-name">ADD PADEL</div>
+                <div class="club-address">Алматы, ул. Тимирязева 42</div>
+                <div class="club-tags">
+                    <span class="club-tag club-tag-courts">3 корта</span>
+                    <span class="club-tag club-tag-price">от 30 000 ₸</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="club-card">
+            <div class="club-img">🎾</div>
+            <div class="club-info">
+                <div class="club-name">Padel Arena</div>
+                <div class="club-address">Алматы, пр. Аль-Фараби 77</div>
+                <div class="club-tags">
+                    <span class="club-tag club-tag-courts">4 корта</span>
+                    <span class="club-tag club-tag-price">от 25 000 ₸</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="club-card">
+            <div class="club-img">🎾</div>
+            <div class="club-info">
+                <div class="club-name">Pro Padel Club</div>
+                <div class="club-address">Астана, ул. Кабанбай батыра 11</div>
+                <div class="club-tags">
+                    <span class="club-tag club-tag-courts">2 корта</span>
+                    <span class="club-tag club-tag-price">от 20 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== ЭКРАН 3: РАСПИСАНИЕ КОРТОВ ==================== -->
+<div class="screen">
+    <div class="screen-label">Экран 3 — Расписание</div>
+    <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+    <div class="content">
+        <div class="page-header">
+            <a class="back-btn">‹</a>
+            <div>
+                <div class="page-title">ADD PADEL</div>
+                <div class="header-sub">Алматы, ул. Тимирязева 42</div>
+            </div>
+        </div>
+
+        <div class="date-selector">
+            <div class="date-chip"><span class="day-name">Пн</span><span class="day-num">31</span></div>
+            <div class="date-chip active"><span class="day-name">Вт</span><span class="day-num">01</span></div>
+            <div class="date-chip"><span class="day-name">Ср</span><span class="day-num">02</span></div>
+            <div class="date-chip"><span class="day-name">Чт</span><span class="day-num">03</span></div>
+            <div class="date-chip"><span class="day-name">Пт</span><span class="day-num">04</span></div>
+            <div class="date-chip"><span class="day-name">Сб</span><span class="day-num">05</span></div>
+            <div class="date-chip"><span class="day-name">Вс</span><span class="day-num">06</span></div>
+        </div>
+
+        <div class="court-tabs">
+            <div class="court-tab active">Корт 1</div>
+            <div class="court-tab">Корт 2</div>
+            <div class="court-tab">Корт 3</div>
+        </div>
+
+        <div class="time-slot"><span class="time-label">09:00</span><div class="slot-cell free">30 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">10:00</span><div class="slot-cell booked">Занято</div></div>
+        <div class="time-slot"><span class="time-label">11:00</span><div class="slot-cell booked">Занято</div></div>
+        <div class="time-slot"><span class="time-label">12:00</span><div class="slot-cell free">30 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">13:00</span><div class="slot-cell free">30 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">14:00</span><div class="slot-cell free">32 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">15:00</span><div class="slot-cell free">32 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">16:00</span><div class="slot-cell blocked">Заблок.</div></div>
+        <div class="time-slot"><span class="time-label">17:00</span><div class="slot-cell free">32 000 ₸</div></div>
+        <div class="time-slot"><span class="time-label">18:00</span><div class="slot-cell free">35 000 ₸</div></div>
+    </div>
+</div>
+
+<!-- ==================== ЭКРАН 4: ФОРМА БРОНИРОВАНИЯ ==================== -->
+<div class="screen">
+    <div class="screen-label">Экран 4 — Бронирование</div>
+    <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+    <div class="content">
+        <div class="page-header">
+            <a class="back-btn">‹</a>
+            <div class="page-title">Бронирование</div>
+        </div>
+
+        <div class="book-summary">
+            <div class="book-row"><span class="book-label">Клуб</span><span class="book-value">ADD PADEL</span></div>
+            <div class="book-row"><span class="book-label">Корт</span><span class="book-value">Корт 1</span></div>
+            <div class="book-row"><span class="book-label">Дата</span><span class="book-value">1 апреля 2026</span></div>
+            <div class="book-row"><span class="book-label">Начало</span><span class="book-value">14:00</span></div>
+        </div>
+
+        <div class="input-label">Длительность</div>
+        <div class="duration-btns">
+            <div class="dur-btn active">1 ч</div>
+            <div class="dur-btn">2 ч</div>
+            <div class="dur-btn">3 ч</div>
+        </div>
+
+        <div class="total-block">
+            <span class="total-label">Итого</span>
+            <span class="total-price">32 000 ₸</span>
+        </div>
+
+        <div class="input-label">Тренер (необязательно)</div>
+        <div class="coach-chips">
+            <div class="coach-chip">Кирилл <span class="chip-rate">20 000 ₸</span></div>
+            <div class="coach-chip active">Артём <span class="chip-rate">18 000 ₸</span></div>
+            <div class="coach-chip unavail">Максим <span class="chip-rate">15 000 ₸</span></div>
+        </div>
+
+        <div class="input-group">
+            <div class="input-label">Ваше имя *</div>
+            <input type="text" class="input-field" value="Денис Казына">
+        </div>
+        <div class="input-group">
+            <div class="input-label">Телефон</div>
+            <input type="text" class="input-field" value="+7 777 433 3822">
+        </div>
+        <div class="input-group">
+            <div class="input-label">Комментарий</div>
+            <input type="text" class="input-field" placeholder="Необязательно">
+        </div>
+
+        <button class="btn-book">Забронировать — 50 000 ₸</button>
+    </div>
+</div>
+
+<!-- ==================== ЭКРАН 5: ПОДТВЕРЖДЕНИЕ ==================== -->
+<div class="screen">
+    <div class="screen-label">Экран 5 — Подтверждение</div>
+    <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+    <div class="content">
+        <div class="success-icon">✓</div>
+        <div class="success-title">Бронь подтверждена!</div>
+        <div class="success-sub">Вы успешно забронировали корт</div>
+
+        <div class="confirm-card">
+            <div class="confirm-row"><span class="confirm-label">Клуб</span><span class="confirm-value">ADD PADEL</span></div>
+            <div class="confirm-row"><span class="confirm-label">Корт</span><span class="confirm-value">Корт 1</span></div>
+            <div class="confirm-row"><span class="confirm-label">Дата</span><span class="confirm-value">1 апреля 2026</span></div>
+            <div class="confirm-row"><span class="confirm-label">Время</span><span class="confirm-value">14:00 — 15:00</span></div>
+            <div class="confirm-row"><span class="confirm-label">Тренер</span><span class="confirm-value" style="color: #a78bfa;">Артём</span></div>
+            <div class="confirm-row"><span class="confirm-label">Корт</span><span class="confirm-value green">32 000 ₸</span></div>
+            <div class="confirm-row"><span class="confirm-label">Тренер</span><span class="confirm-value" style="color: #a78bfa;">18 000 ₸</span></div>
+            <div class="confirm-row" style="border-top: 1px solid #27272a; padding-top: 10px;"><span class="confirm-label" style="font-weight:700; color:#e4e4e7;">Итого</span><span class="confirm-value green" style="font-size:18px;">50 000 ₸</span></div>
+        </div>
+
+        <button class="btn-book">Мои бронирования</button>
+        <div class="btn-home">На главную</div>
+    </div>
+</div>
+
+</body>
+</html>

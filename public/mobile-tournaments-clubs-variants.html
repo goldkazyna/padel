@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Турниры — разделение по клубам</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: #151517;
+    --card-border: #1f1f23;
+    --text: #f0f0f0;
+    --text-muted: #8a8a8e;
+    --accent: #34c759;
+    --red: #ff3b30;
+    --blue: #0a84ff;
+    --orange: #ff9f0a;
+    --purple: #bf5af2;
+    --pink: #ff375f;
+    --teal: #30d5c8;
+    --tag-bg: rgba(52,199,89,.15);
+    --tag-text: #34c759;
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Manrope', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .variants-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,10,10,.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .variants-nav::-webkit-scrollbar { display: none; }
+  .variants-nav button {
+    flex: 1;
+    min-width: 0;
+    padding: 14px 6px 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font: 600 12px 'Manrope', sans-serif;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .variants-nav button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .variant { display: none; padding: 58px 0 90px; min-height: 100vh; }
+  .variant.active { display: block; }
+
+  /* Shared: screen header */
+  .screen-header {
+    padding: 12px 16px 0;
+  }
+  .screen-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 14px;
+  }
+
+  /* Shared: tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin: 0 16px 16px;
+    background: #1c1c1e;
+    border-radius: 10px;
+    padding: 3px;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font: 600 14px 'Manrope', sans-serif;
+    color: var(--text-muted);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* Shared: tournament card */
+  .t-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 0 16px 10px;
+    position: relative;
+  }
+  .t-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .t-date {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .t-day {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .t-month-time {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .t-name {
+    font-size: 15px;
+    font-weight: 700;
+    text-align: right;
+    max-width: 55%;
+  }
+  .t-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .t-type-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+  }
+  .t-type-tag.team {
+    background: rgba(191,90,242,.15);
+    color: var(--purple);
+  }
+  .t-club-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .t-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .t-info {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .t-info span { display: flex; align-items: center; gap: 3px; }
+
+  .btn-register {
+    padding: 7px 16px;
+    border-radius: 8px;
+    font: 700 13px 'Manrope', sans-serif;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-register.open {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-register.full {
+    background: rgba(255,59,48,.15);
+    color: var(--red);
+  }
+  .btn-register.registered {
+    background: rgba(52,199,89,.1);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ============================================
+     VARIANT 1 — Секции с заголовком клуба
+     ============================================ */
+  .v1-club-section {
+    margin-bottom: 8px;
+  }
+  .v1-club-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 16px 10px;
+  }
+  .v1-club-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .v1-club-logo.add { background: linear-gradient(135deg, #ff9f0a, #ff6b00); color: #000; }
+  .v1-club-logo.pulse { background: linear-gradient(135deg, #bf5af2, #8b3fc7); color: #fff; }
+  .v1-club-info h3 {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .v1-club-info span {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .v1-divider {
+    height: 1px;
+    background: var(--card-border);
+    margin: 4px 16px 0;
+  }
+
+  /* ============================================
+     VARIANT 2 — Чипсы-фильтры по клубам
+     ============================================ */
+  .v2-chips {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .v2-chips::-webkit-scrollbar { display: none; }
+  .v2-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--card-border);
+    background: transparent;
+    color: var(--text-muted);
+    font: 600 13px 'Manrope', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .v2-chip.active {
+    border-color: var(--accent);
+    background: rgba(52,199,89,.1);
+    color: var(--accent);
+  }
+  .v2-chip .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .v2-chip .count {
+    font-size: 11px;
+    opacity: .7;
+  }
+
+  /* Card with club dot indicator */
+  .v2-card-club {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .v2-card-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .v2-card-club-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  /* ============================================
+     VARIANT 3 — Левая полоса цвета клуба
+     ============================================ */
+  .v3-card {
+    border-left: 3px solid transparent;
+    padding-left: 14px;
+  }
+  .v3-card.club-add { border-left-color: var(--orange); }
+  .v3-card.club-pulse { border-left-color: var(--purple); }
+
+  .v3-legend {
+    display: flex;
+    gap: 16px;
+    padding: 0 16px 14px;
+  }
+  .v3-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .v3-legend-bar {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  /* ============================================
+     VARIANT 4 — Аккордеон по клубам
+     ============================================ */
+  .v4-accordion {
+    margin: 0 16px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .v4-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--card);
+    cursor: pointer;
+    user-select: none;
+  }
+  .v4-accordion-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .v4-acc-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .v4-acc-logo.add { background: linear-gradient(135deg, #ff9f0a, #ff6b00); color: #000; }
+  .v4-acc-logo.pulse { background: linear-gradient(135deg, #bf5af2, #8b3fc7); color: #fff; }
+  .v4-acc-name {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .v4-acc-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .v4-acc-arrow {
+    font-size: 16px;
+    color: var(--text-muted);
+    transition: transform .25s;
+  }
+  .v4-accordion.open .v4-acc-arrow {
+    transform: rotate(180deg);
+  }
+  .v4-accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .3s ease;
+  }
+  .v4-accordion.open .v4-accordion-body {
+    max-height: 1200px;
+  }
+  .v4-accordion-body .t-card {
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .v4-accordion-body .t-card:last-child {
+    border-bottom: none;
+  }
+
+  /* ============================================
+     VARIANT 5 — Мини-бейдж клуба на карточке + сортировка по дате
+     ============================================ */
+  .v5-card {
+    overflow: hidden;
+  }
+  .v5-club-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 5px 12px 5px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    border-radius: 0 14px 0 10px;
+  }
+  .v5-club-badge.add {
+    background: linear-gradient(135deg, rgba(255,159,10,.2), rgba(255,107,0,.15));
+    color: var(--orange);
+  }
+  .v5-club-badge.pulse {
+    background: linear-gradient(135deg, rgba(191,90,242,.2), rgba(139,63,199,.15));
+    color: var(--purple);
+  }
+
+  /* Date separator */
+  .v5-date-sep {
+    padding: 18px 16px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .v5-date-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .v5-date-line {
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+  }
+
+  /* Bottom nav mockup */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 80px;
+    background: rgba(10,10,10,.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: 16px;
+    z-index: 50;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-icon { font-size: 20px; }
+
+  /* Variant label */
+  .variant-label {
+    margin: 8px 16px 12px;
+    padding: 10px 14px;
+    background: rgba(52,199,89,.06);
+    border: 1px solid rgba(52,199,89,.15);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .variant-label b { color: var(--text); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="variants-nav">
+  <button class="active" onclick="showVariant(1)">1. Секции</button>
+  <button onclick="showVariant(2)">2. Фильтры</button>
+  <button onclick="showVariant(3)">3. Полоса</button>
+  <button onclick="showVariant(4)">4. Аккордеон</button>
+  <button onclick="showVariant(5)">5. Бейдж</button>
+</nav>
+
+<!-- ==========================================
+     VARIANT 1 — Секции с заголовком клуба
+     ========================================== -->
+<div class="variant active" id="v1">
+  <div class="screen-header"><div class="screen-title">Турниры</div></div>
+  <div class="tabs">
+    <div class="tab active">Открытые</div>
+    <div class="tab">Мои</div>
+    <div class="tab">Архив</div>
+  </div>
+
+  <div class="variant-label">
+    <b>Вариант 1 — Секции.</b> Турниры сгруппированы по клубам. Каждая группа начинается заголовком с логотипом и названием клуба.
+  </div>
+
+  <!-- ADD PADEL -->
+  <div class="v1-club-section">
+    <div class="v1-club-header">
+      <div class="v1-club-logo add">AP</div>
+      <div class="v1-club-info">
+        <h3>ADD PADEL</h3>
+        <span>5 турниров</span>
+      </div>
+    </div>
+    <div class="v1-divider"></div>
+
+    <div style="height:10px"></div>
+
+    <div class="t-card">
+      <div class="t-card-top">
+        <div class="t-date">
+          <span class="t-day">14</span>
+          <span class="t-month-time">АПР · 09:00</span>
+        </div>
+        <div class="t-name">L2-L3.0 Утро</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-type-tag">Американо</span>
+      </div>
+      <div class="t-bottom">
+        <div class="t-info">
+          <span>👥 11/16</span>
+          <span>💳 18000 ₸</span>
+          <span>📈 2.0 – 3.0</span>
+        </div>
+        <button class="btn-register registered">✓ Записан</button>
+      </div>
+    </div>
+
+    <div class="t-card">
+      <div class="t-card-top">
+        <div class="t-date">
+          <span class="t-day">15</span>
+          <span class="t-month-time">АПР · 17:00</span>
+        </div>
+        <div class="t-name">L1 - среда</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-type-tag">Американо</span>
+      </div>
+      <div class="t-bottom">
+        <div class="t-info">
+          <span>👥 11/12</span>
+          <span>💳 18000 ₸</span>
+          <span>📈 1.0 – 1.75</span>
+        </div>
+        <button class="btn-register open">Записаться</button>
+      </div>
+    </div>
+
+    <div class="t-card">
+      <div class="t-card-top">
+        <div class="t-date">
+          <span class="t-day">15</span>
+          <span class="t-month-time">АПР · 20:00</span>
+        </div>
+        <div class="t-name">L2-L3 Mix Среда</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-type-tag">Американо</span>
+      </div>
+      <div class="t-bottom">
+        <div class="t-info">
+          <span>👥 16/16</span>
+          <span>💳 18000 ₸</span>
+          <span>📈 2.0 – 3.75</span>
+        </div>
+        <button class="btn-register full">Мест нет</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulse Padel Club -->
+  <div class="v1-club-section">
+    <div class="v1-club-header">
+      <div class="v1-club-logo pulse">PP</div>
+      <div class="v1-club-info">
+        <h3>Pulse Padel Club</h3>
+        <span>2 турнира</span>
+      </div>
+    </div>
+    <div class="v1-divider"></div>
+    <div style="height:10px"></div>
+
+    <div class="t-card">
+      <div class="t-card-top">
+        <div class="t-date">
+          <span class="t-day">14</span>
+          <span class="t-month-time">АПР · 14:00</span>
+        </div>
+        <div class="t-name">Friends Cup</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-type-tag team">Групповой + Плей-офф</span>
+      </div>
+      <div class="t-bottom">
+        <div class="t-info">
+          <span>👥 12/12</span>
+          <span>💳 18000 ₸</span>
+          <span>📈 2.0 – 3.0</span>
+        </div>
+        <button class="btn-register full">Мест нет</button>
+      </div>
+    </div>
+
+    <div class="t-card">
+      <div class="t-card-top">
+        <div class="t-date">
+          <span class="t-day">16</span>
+          <span class="t-month-time">АПР · 09:00</span>
+        </div>
+        <div class="t-name">L3 - Утро</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-type-tag">Американо</span>
+      </div>
+      <div class="t-bottom">
+        <div class="t-info">
+          <span>👥 15/16</span>
+          <span>💳 18000 ₸</span>
+          <span>📈 3.0 – 4.0</span>
+        </div>
+        <button class="btn-register open">Записаться</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     VARIANT 2 — Чипсы-фильтры по клубам
+     ========================================== -->
+<div class="variant" id="v2">
+  <div class="screen-header"><div class="screen-title">Турниры</div></div>
+  <div class="tabs">
+    <div class="tab active">Открытые</div>
+    <div class="tab">Мои</div>
+    <div class="tab">Архив</div>
+  </div>
+
+  <div class="variant-label">
+    <b>Вариант 2 — Фильтры-чипсы.</b> Горизонтальная строка фильтров по клубам. Каждый клуб — свой цвет-точка. На карточке — маленькая точка + подпись клуба.
+  </div>
+
+  <div class="v2-chips">
+    <div class="v2-chip active">Все <span class="count">(7)</span></div>
+    <div class="v2-chip"><span class="dot" style="background:var(--orange)"></span> ADD PADEL <span class="count">5</span></div>
+    <div class="v2-chip"><span class="dot" style="background:var(--purple)"></span> Pulse Padel <span class="count">2</span></div>
+  </div>
+
+  <div class="t-card">
+    <div class="v2-card-club">
+      <span class="v2-card-dot" style="background:var(--orange)"></span>
+      <span class="v2-card-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name">L2-L3.0 Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register registered">✓ Записан</button>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="v2-card-club">
+      <span class="v2-card-dot" style="background:var(--purple)"></span>
+      <span class="v2-card-club-name">PULSE PADEL CLUB</span>
+    </div>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 14:00</span>
+      </div>
+      <div class="t-name">Friends Cup</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag team">Групповой + Плей-офф</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 12/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="v2-card-club">
+      <span class="v2-card-dot" style="background:var(--orange)"></span>
+      <span class="v2-card-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 17:00</span>
+      </div>
+      <div class="t-name">L1 - среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 1.0 – 1.75</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="v2-card-club">
+      <span class="v2-card-dot" style="background:var(--orange)"></span>
+      <span class="v2-card-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 20:00</span>
+      </div>
+      <div class="t-name">L2-L3 Mix Среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 16/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.75</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="t-card">
+    <div class="v2-card-club">
+      <span class="v2-card-dot" style="background:var(--purple)"></span>
+      <span class="v2-card-club-name">PULSE PADEL CLUB</span>
+    </div>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">16</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name">L3 - Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 15/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 3.0 – 4.0</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     VARIANT 3 — Левая цветная полоса
+     ========================================== -->
+<div class="variant" id="v3">
+  <div class="screen-header"><div class="screen-title">Турниры</div></div>
+  <div class="tabs">
+    <div class="tab active">Открытые</div>
+    <div class="tab">Мои</div>
+    <div class="tab">Архив</div>
+  </div>
+
+  <div class="variant-label">
+    <b>Вариант 3 — Цветная полоса.</b> Каждый клуб — цвет на левом крае карточки. Минимальная легенда сверху. Список остаётся по дате.
+  </div>
+
+  <div class="v3-legend">
+    <div class="v3-legend-item">
+      <span class="v3-legend-bar" style="background:var(--orange)"></span> ADD PADEL
+    </div>
+    <div class="v3-legend-item">
+      <span class="v3-legend-bar" style="background:var(--purple)"></span> Pulse Padel Club
+    </div>
+  </div>
+
+  <div class="t-card v3-card club-add">
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name">L2-L3.0 Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+      <span class="t-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register registered">✓ Записан</button>
+    </div>
+  </div>
+
+  <div class="t-card v3-card club-pulse">
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 14:00</span>
+      </div>
+      <div class="t-name">Friends Cup</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag team">Групповой + Плей-офф</span>
+      <span class="t-club-name">Pulse Padel Club</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 12/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="t-card v3-card club-add">
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 17:00</span>
+      </div>
+      <div class="t-name">L1 - среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+      <span class="t-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 1.0 – 1.75</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+
+  <div class="t-card v3-card club-add">
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 20:00</span>
+      </div>
+      <div class="t-name">L2-L3 Mix Среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+      <span class="t-club-name">ADD PADEL</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 16/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.75</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="t-card v3-card club-pulse">
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">16</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name">L3 - Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+      <span class="t-club-name">Pulse Padel Club</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 15/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 3.0 – 4.0</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     VARIANT 4 — Аккордеон
+     ========================================== -->
+<div class="variant" id="v4">
+  <div class="screen-header"><div class="screen-title">Турниры</div></div>
+  <div class="tabs">
+    <div class="tab active">Открытые</div>
+    <div class="tab">Мои</div>
+    <div class="tab">Архив</div>
+  </div>
+
+  <div class="variant-label">
+    <b>Вариант 4 — Аккордеон.</b> Каждый клуб — раскрывающийся блок. Можно открыть/закрыть. Компактно, когда клубов много.
+  </div>
+
+  <div class="v4-accordion open" onclick="this.classList.toggle('open')">
+    <div class="v4-accordion-header">
+      <div class="v4-accordion-left">
+        <div class="v4-acc-logo add">AP</div>
+        <span class="v4-acc-name">ADD PADEL</span>
+        <span class="v4-acc-count">5 турниров</span>
+      </div>
+      <span class="v4-acc-arrow">▾</span>
+    </div>
+    <div class="v4-accordion-body">
+      <div class="t-card">
+        <div class="t-card-top">
+          <div class="t-date">
+            <span class="t-day">14</span>
+            <span class="t-month-time">АПР · 09:00</span>
+          </div>
+          <div class="t-name">L2-L3.0 Утро</div>
+        </div>
+        <div class="t-meta">
+          <span class="t-type-tag">Американо</span>
+        </div>
+        <div class="t-bottom">
+          <div class="t-info">
+            <span>👥 11/16</span>
+            <span>💳 18000 ₸</span>
+            <span>📈 2.0 – 3.0</span>
+          </div>
+          <button class="btn-register registered">✓ Записан</button>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-card-top">
+          <div class="t-date">
+            <span class="t-day">15</span>
+            <span class="t-month-time">АПР · 17:00</span>
+          </div>
+          <div class="t-name">L1 - среда</div>
+        </div>
+        <div class="t-meta">
+          <span class="t-type-tag">Американо</span>
+        </div>
+        <div class="t-bottom">
+          <div class="t-info">
+            <span>👥 11/12</span>
+            <span>💳 18000 ₸</span>
+            <span>📈 1.0 – 1.75</span>
+          </div>
+          <button class="btn-register open">Записаться</button>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-card-top">
+          <div class="t-date">
+            <span class="t-day">15</span>
+            <span class="t-month-time">АПР · 20:00</span>
+          </div>
+          <div class="t-name">L2-L3 Mix Среда</div>
+        </div>
+        <div class="t-meta">
+          <span class="t-type-tag">Американо</span>
+        </div>
+        <div class="t-bottom">
+          <div class="t-info">
+            <span>👥 16/16</span>
+            <span>💳 18000 ₸</span>
+            <span>📈 2.0 – 3.75</span>
+          </div>
+          <button class="btn-register full">Мест нет</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v4-accordion" onclick="this.classList.toggle('open')">
+    <div class="v4-accordion-header">
+      <div class="v4-accordion-left">
+        <div class="v4-acc-logo pulse">PP</div>
+        <span class="v4-acc-name">Pulse Padel</span>
+        <span class="v4-acc-count">2 турнира</span>
+      </div>
+      <span class="v4-acc-arrow">▾</span>
+    </div>
+    <div class="v4-accordion-body">
+      <div class="t-card">
+        <div class="t-card-top">
+          <div class="t-date">
+            <span class="t-day">14</span>
+            <span class="t-month-time">АПР · 14:00</span>
+          </div>
+          <div class="t-name">Friends Cup</div>
+        </div>
+        <div class="t-meta">
+          <span class="t-type-tag team">Групповой + Плей-офф</span>
+        </div>
+        <div class="t-bottom">
+          <div class="t-info">
+            <span>👥 12/12</span>
+            <span>💳 18000 ₸</span>
+            <span>📈 2.0 – 3.0</span>
+          </div>
+          <button class="btn-register full">Мест нет</button>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-card-top">
+          <div class="t-date">
+            <span class="t-day">16</span>
+            <span class="t-month-time">АПР · 09:00</span>
+          </div>
+          <div class="t-name">L3 - Утро</div>
+        </div>
+        <div class="t-meta">
+          <span class="t-type-tag">Американо</span>
+        </div>
+        <div class="t-bottom">
+          <div class="t-info">
+            <span>👥 15/16</span>
+            <span>💳 18000 ₸</span>
+            <span>📈 3.0 – 4.0</span>
+          </div>
+          <button class="btn-register open">Записаться</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     VARIANT 5 — Бейдж клуба + разделители по дате
+     ========================================== -->
+<div class="variant" id="v5">
+  <div class="screen-header"><div class="screen-title">Турниры</div></div>
+  <div class="tabs">
+    <div class="tab active">Открытые</div>
+    <div class="tab">Мои</div>
+    <div class="tab">Архив</div>
+  </div>
+
+  <div class="variant-label">
+    <b>Вариант 5 — Бейдж + даты.</b> Список по дате (как сейчас), но на каждой карточке — цветной бейдж клуба в углу. Плюс разделители по дням.
+  </div>
+
+  <div class="v5-date-sep">
+    <span class="v5-date-text">14 апреля · понедельник</span>
+    <span class="v5-date-line"></span>
+  </div>
+
+  <div class="t-card v5-card">
+    <span class="v5-club-badge add">ADD PADEL</span>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name" style="margin-top:18px">L2-L3.0 Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register registered">✓ Записан</button>
+    </div>
+  </div>
+
+  <div class="t-card v5-card">
+    <span class="v5-club-badge pulse">PULSE PADEL</span>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">14</span>
+        <span class="t-month-time">АПР · 14:00</span>
+      </div>
+      <div class="t-name" style="margin-top:18px">Friends Cup</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag team">Групповой + Плей-офф</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 12/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.0</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="v5-date-sep">
+    <span class="v5-date-text">15 апреля · вторник</span>
+    <span class="v5-date-line"></span>
+  </div>
+
+  <div class="t-card v5-card">
+    <span class="v5-club-badge add">ADD PADEL</span>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 17:00</span>
+      </div>
+      <div class="t-name" style="margin-top:18px">L1 - среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 11/12</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 1.0 – 1.75</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+
+  <div class="t-card v5-card">
+    <span class="v5-club-badge add">ADD PADEL</span>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">15</span>
+        <span class="t-month-time">АПР · 20:00</span>
+      </div>
+      <div class="t-name" style="margin-top:18px">L2-L3 Mix Среда</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 16/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 2.0 – 3.75</span>
+      </div>
+      <button class="btn-register full">Мест нет</button>
+    </div>
+  </div>
+
+  <div class="v5-date-sep">
+    <span class="v5-date-text">16 апреля · среда</span>
+    <span class="v5-date-line"></span>
+  </div>
+
+  <div class="t-card v5-card">
+    <span class="v5-club-badge pulse">PULSE PADEL</span>
+    <div class="t-card-top">
+      <div class="t-date">
+        <span class="t-day">16</span>
+        <span class="t-month-time">АПР · 09:00</span>
+      </div>
+      <div class="t-name" style="margin-top:18px">L3 - Утро</div>
+    </div>
+    <div class="t-meta">
+      <span class="t-type-tag">Американо</span>
+    </div>
+    <div class="t-bottom">
+      <div class="t-info">
+        <span>👥 15/16</span>
+        <span>💳 18000 ₸</span>
+        <span>📈 3.0 – 4.0</span>
+      </div>
+      <button class="btn-register open">Записаться</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item"><span class="nav-icon">🏠</span> Главная</div>
+  <div class="nav-item active"><span class="nav-icon">🏆</span> Турниры</div>
+  <div class="nav-item"><span class="nav-icon">📅</span> Бронирование</div>
+  <div class="nav-item"><span class="nav-icon">📊</span> Рейтинг</div>
+  <div class="nav-item"><span class="nav-icon">👤</span> Профиль</div>
+</div>
+
+<script>
+function showVariant(n) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variants-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('v' + n).classList.add('active');
+  document.querySelectorAll('.variants-nav button')[n - 1].classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>

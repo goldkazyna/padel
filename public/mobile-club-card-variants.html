@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карточка клуба — варианты</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0b;
+            color: #f4f4f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+
+        .variant-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .vbtn {
+            padding: 8px 14px;
+            background: #16161a;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            color: #a1a1aa;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .vbtn.active { background: #22c55e; border-color: #22c55e; color: #0a0a0b; }
+
+        .variant { display: none; }
+        .variant.active { display: block; }
+        .variant-label { font-size: 12px; color: #22c55e; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .variant-desc { font-size: 13px; color: #71717a; margin-bottom: 20px; }
+
+        .tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .tag-blue { background: rgba(59,130,246,0.15); color: #3b82f6; }
+        .tag-green { background: rgba(34,197,94,0.15); color: #22c55e; }
+
+        /* ===== V1: Contain (лого по центру, не обрезается) ===== */
+        .v1-card {
+            background: #16161a;
+            border-radius: 16px;
+            border: 1px solid #27272a;
+            overflow: hidden;
+        }
+        .v1-logo {
+            height: 140px;
+            background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .v1-logo img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        .v1-info { padding: 14px; }
+        .v1-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .v1-addr { font-size: 12px; color: #a1a1aa; margin-bottom: 10px; }
+        .v1-tags { display: flex; gap: 6px; }
+
+        /* ===== V2: Горизонтальная (лого слева, инфо справа) ===== */
+        .v2-card {
+            background: #16161a;
+            border-radius: 16px;
+            border: 1px solid #27272a;
+            display: flex;
+            overflow: hidden;
+        }
+        .v2-logo {
+            width: 110px;
+            min-height: 110px;
+            background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .v2-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .v2-info { padding: 14px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .v2-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .v2-addr { font-size: 12px; color: #a1a1aa; margin-bottom: 10px; }
+        .v2-tags { display: flex; gap: 6px; }
+
+        /* ===== V3: Маленькое лого + инфо (компактная) ===== */
+        .v3-card {
+            background: #16161a;
+            border-radius: 16px;
+            border: 1px solid #27272a;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .v3-logo {
+            width: 60px;
+            height: 60px;
+            background: #1e1e1e;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .v3-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .v3-info { flex: 1; }
+        .v3-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+        .v3-addr { font-size: 12px; color: #a1a1aa; margin-bottom: 8px; }
+        .v3-tags { display: flex; gap: 6px; }
+
+        /* ===== V4: Баннер cover (как было, но с затемнением) ===== */
+        .v4-card {
+            background: #16161a;
+            border-radius: 16px;
+            border: 1px solid #27272a;
+            overflow: hidden;
+        }
+        .v4-logo {
+            aspect-ratio: 1;
+            background: #1e1e1e;
+            position: relative;
+        }
+        .v4-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .v4-logo::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 50px;
+            background: linear-gradient(transparent, #16161a);
+        }
+        .v4-info { padding: 14px; }
+        .v4-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .v4-addr { font-size: 12px; color: #a1a1aa; margin-bottom: 10px; }
+        .v4-tags { display: flex; gap: 6px; }
+
+        /* ===== V5: Круглое лого + инфо ===== */
+        .v5-card {
+            background: #16161a;
+            border-radius: 16px;
+            border: 1px solid #27272a;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .v5-logo {
+            width: 64px;
+            height: 64px;
+            background: #1e1e1e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .v5-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .v5-info { flex: 1; }
+        .v5-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+        .v5-addr { font-size: 12px; color: #a1a1aa; margin-bottom: 8px; }
+        .v5-tags { display: flex; gap: 6px; }
+    </style>
+</head>
+<body>
+    <div class="variant-nav">
+        <button class="vbtn active" onclick="showV(1)">1 — Contain</button>
+        <button class="vbtn" onclick="showV(2)">2 — Лого слева</button>
+        <button class="vbtn" onclick="showV(3)">3 — Компакт</button>
+        <button class="vbtn" onclick="showV(4)">4 — Баннер</button>
+        <button class="vbtn" onclick="showV(5)">5 — Круглое</button>
+    </div>
+
+    <!-- V1 -->
+    <div class="variant active" id="v1">
+        <div class="variant-label">Вариант 1</div>
+        <div class="variant-desc">Лого по центру, не обрезается, видно целиком. Как сейчас, но без растягивания.</div>
+        <div class="v1-card">
+            <div class="v1-logo">
+                <img src="https://padel-p.kz/logos/pulse-padel.jpeg" alt="Pulse Padel Club">
+            </div>
+            <div class="v1-info">
+                <div class="v1-name">Pulse Padel Club</div>
+                <div class="v1-addr">Назарбаева, 226</div>
+                <div class="v1-tags">
+                    <span class="tag tag-blue">3 корта</span>
+                    <span class="tag tag-green">от 32 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- V2 -->
+    <div class="variant" id="v2">
+        <div class="variant-label">Вариант 2</div>
+        <div class="variant-desc">Горизонтальная карточка — лого слева квадратом, инфо справа.</div>
+        <div class="v2-card">
+            <div class="v2-logo">
+                <img src="https://padel-p.kz/logos/pulse-padel.jpeg" alt="Pulse Padel Club">
+            </div>
+            <div class="v2-info">
+                <div class="v2-name">Pulse Padel Club</div>
+                <div class="v2-addr">Назарбаева, 226</div>
+                <div class="v2-tags">
+                    <span class="tag tag-blue">3 корта</span>
+                    <span class="tag tag-green">от 32 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- V3 -->
+    <div class="variant" id="v3">
+        <div class="variant-label">Вариант 3</div>
+        <div class="variant-desc">Компактная — маленькое квадратное лого со скруглёнными углами, инфо рядом.</div>
+        <div class="v3-card">
+            <div class="v3-logo">
+                <img src="https://padel-p.kz/logos/pulse-padel.jpeg" alt="Pulse Padel Club">
+            </div>
+            <div class="v3-info">
+                <div class="v3-name">Pulse Padel Club</div>
+                <div class="v3-addr">Назарбаева, 226</div>
+                <div class="v3-tags">
+                    <span class="tag tag-blue">3 корта</span>
+                    <span class="tag tag-green">от 32 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- V4 -->
+    <div class="variant" id="v4">
+        <div class="variant-label">Вариант 4</div>
+        <div class="variant-desc">Баннер на всю ширину (cover) с градиентным затемнением снизу. Для широких логотипов.</div>
+        <div class="v4-card">
+            <div class="v4-logo">
+                <img src="https://padel-p.kz/logos/pulse-padel.jpeg" alt="Pulse Padel Club">
+            </div>
+            <div class="v4-info">
+                <div class="v4-name">Pulse Padel Club</div>
+                <div class="v4-addr">Назарбаева, 226</div>
+                <div class="v4-tags">
+                    <span class="tag tag-blue">3 корта</span>
+                    <span class="tag tag-green">от 32 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- V5 -->
+    <div class="variant" id="v5">
+        <div class="variant-label">Вариант 5</div>
+        <div class="variant-desc">Круглый аватар лого, компактная строка.</div>
+        <div class="v5-card">
+            <div class="v5-logo">
+                <img src="https://padel-p.kz/logos/pulse-padel.jpeg" alt="Pulse Padel Club">
+            </div>
+            <div class="v5-info">
+                <div class="v5-name">Pulse Padel Club</div>
+                <div class="v5-addr">Назарбаева, 226</div>
+                <div class="v5-tags">
+                    <span class="tag tag-blue">3 корта</span>
+                    <span class="tag tag-green">от 32 000 ₸</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showV(n) {
+            document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+            document.getElementById('v' + n).classList.add('active');
+            document.querySelectorAll('.vbtn')[n - 1].classList.add('active');
+        }
+    </script>
+</body>
+</html>
