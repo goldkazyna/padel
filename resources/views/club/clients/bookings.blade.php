@@ -46,9 +46,9 @@
                 <div class="cb-subtitle">+{{ $client->phone }}</div>
             @endif
         </div>
-        <button type="button" class="cb-copy" onclick="copyBookingsList()">
-            <i class="bi bi-clipboard"></i>
-            Скопировать
+        <button type="button" class="cb-copy" onclick="window.print()">
+            <i class="bi bi-file-earmark-pdf"></i>
+            Скачать PDF
         </button>
     </div>
 
@@ -242,6 +242,35 @@
     .cb-row-court { grid-column: 1 / -1; order: 3; color: #9ca3af; font-size: 12px; }
     .cb-row-paid { grid-column: 1 / -1; order: 4; text-align: left; }
 }
+
+@media print {
+    @page { margin: 14mm; }
+    body { background: #fff !important; }
+    /* Скрываем layout (sidebar/header/footer) — оставляем только контент */
+    body > *:not(.cb-page),
+    body > * > *:not(.cb-page),
+    .cb-back, .cb-copy, .cb-periods, .cb-custom { display: none !important; }
+    .cb-page, .cb-page * { color: #000 !important; background: #fff !important; }
+    .cb-page { max-width: 100%; padding: 0; }
+    .cb-title { font-size: 18px; margin-bottom: 4px; }
+    .cb-subtitle { color: #444 !important; font-size: 12px; }
+    .cb-stats {
+        grid-template-columns: repeat(4, 1fr); gap: 10px;
+        margin: 12px 0 16px;
+    }
+    .cb-stat { background: #fff !important; border: 1px solid #ccc !important; padding: 8px; }
+    .cb-stat-num { color: #000 !important; font-size: 16px; }
+    .cb-stat-lbl { color: #666 !important; font-size: 9px; }
+    .cb-day-header { color: #000 !important; }
+    .cb-day-num { color: #000 !important; }
+    .cb-day-dow { color: #555 !important; }
+    .cb-row { background: #fff !important; border: 1px solid #ccc !important; page-break-inside: avoid; }
+    .cb-row-time, .cb-row-price { color: #000 !important; }
+    .cb-row-court { color: #444 !important; }
+    .cb-row-paid.paid { color: #176c2f !important; }
+    .cb-row-paid.unpaid { color: #a05a00 !important; }
+    .cb-empty { display: none; }
+}
 </style>
 
 <script>
@@ -249,61 +278,6 @@ function toggleCustomRange() {
     const el = document.getElementById('cbCustom');
     if (!el) return;
     el.style.display = el.style.display === 'none' ? '' : 'none';
-}
-
-function copyBookingsList() {
-    const list = document.getElementById('cbList');
-    const clientName = list?.dataset?.clientName || @json($client->name);
-    const periodLabel = list?.dataset?.periodLabel || '';
-
-    let text = `Бронирования — ${clientName}\n`;
-    if (periodLabel) text += `Период: ${periodLabel}\n`;
-    text += '\n';
-
-    if (list) {
-        const days = list.querySelectorAll('.cb-day');
-        days.forEach(day => {
-            const num = day.querySelector('.cb-day-num')?.innerText || '';
-            const dow = day.querySelector('.cb-day-dow')?.innerText || '';
-            text += `${num} (${dow})\n`;
-            day.querySelectorAll('.cb-row').forEach(r => {
-                const t = r.dataset.time || '';
-                const c = r.dataset.court || '';
-                const p = r.dataset.price || '';
-                const paid = r.dataset.paid || '';
-                text += `  ${t} · ${c} · ${p} ₸ · ${paid}\n`;
-            });
-            text += '\n';
-        });
-    } else {
-        text += 'Нет бронирований за выбранный период\n';
-    }
-
-    const __sCount = @json($stats['count']);
-    const __sHours = @json($hoursStr);
-    const __sAmount = @json($amountStr);
-    text += 'Итого: ' + __sCount + ' броней, ' + __sHours + ' ч, ' + __sAmount + ' ₸\n';
-
-    const onCopied = () => {
-        const btn = document.querySelector('.cb-copy');
-        if (btn) {
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check2"></i> Скопировано';
-            setTimeout(() => btn.innerHTML = orig, 1500);
-        }
-    };
-
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(onCopied);
-    } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        onCopied();
-    }
 }
 </script>
 @endsection
