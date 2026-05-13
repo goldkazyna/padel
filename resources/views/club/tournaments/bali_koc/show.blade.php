@@ -24,7 +24,7 @@
         @php
             $pairsCount = $tournament->baliKocPairs->count();
             $courtsCount = (int) ($pairsCount / 2);
-            $roundsPlayed = $tournament->baliKocRounds->count();
+            $roundsPlayed = $tournament->baliKocRounds->where('status', 'completed')->count();
         @endphp
         <div class="alert-info-custom mb-4">
             <i class="bi bi-info-circle me-2"></i>

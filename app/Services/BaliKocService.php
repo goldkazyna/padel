@@ -411,7 +411,8 @@ class BaliKocService
      *  1) очкам (desc)
      *  2) H2H (между равными): кто кого побил
      *  3) выигранным геймам (desc)
-     *  4) id (стабильность)
+     *  4) разнице геймов (desc) — 6:0 выше 6:2
+     *  5) id (стабильность)
      */
     public function getStandings(Tournament $tournament): array
     {
@@ -448,7 +449,13 @@ class BaliKocService
             if ($a->games_for !== $b->games_for) {
                 return $b->games_for <=> $a->games_for;
             }
-            // 4) стабильность — id
+            // 4) разница геймов (6:0 выше 6:2)
+            $aDiff = (int) $a->games_for - (int) $a->games_against;
+            $bDiff = (int) $b->games_for - (int) $b->games_against;
+            if ($aDiff !== $bDiff) {
+                return $bDiff <=> $aDiff;
+            }
+            // 5) стабильность — id
             return $a->id <=> $b->id;
         });
 
