@@ -157,7 +157,7 @@ class BaliKocController extends Controller
 
         foreach ($round->matches as $m) {
             $courtNum = (int) $m->court_number;
-            $title = "Следующий раунд — корт {$courtNum}";
+            $title = "Раунд {$roundNumber} — корт {$courtNum}";
 
             $pair1Names = trim(($m->pair1->player1->name ?? '?') . ' + ' . ($m->pair1->player2->name ?? '?'));
             $pair2Names = trim(($m->pair2->player1->name ?? '?') . ' + ' . ($m->pair2->player2->name ?? '?'));
