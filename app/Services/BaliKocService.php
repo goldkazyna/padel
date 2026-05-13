@@ -364,9 +364,11 @@ class BaliKocService
                 $kFactor = $this->getMatchKFactor($team1Rating, $team2Rating);
                 $multiplier = $this->getScoreMultiplier((int) $match->pair1_games, (int) $match->pair2_games);
 
+                // Формат строки должен соответствовать парсеру в preview-rating.blade.php:
+                //   "Р<N>: <team1> vs <team2> | Счёт A:B | K=… | М=… | Шанс=…% | ±N"
                 $info1 = sprintf(
-                    "Р%d К%d: %s(%d)+%s(%d)=[%d] vs %s(%d)+%s(%d)=[%d] | %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
-                    $round->round_number, $match->court_number,
+                    "Р%d: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
                     $ratingChanges[$t1p1]['name'], $r1_1,
                     $ratingChanges[$t1p2]['name'], $r1_2,
                     round($team1Rating),
@@ -378,8 +380,8 @@ class BaliKocService
                     $result['change1']
                 );
                 $info2 = sprintf(
-                    "Р%d К%d: %s(%d)+%s(%d)=[%d] vs %s(%d)+%s(%d)=[%d] | %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
-                    $round->round_number, $match->court_number,
+                    "Р%d: %s(%d) + %s(%d) = [%d] vs %s(%d) + %s(%d) = [%d] | Счёт %d:%d | K=%d | М=%.2f | Шанс=%.0f%% | %+d",
+                    $round->round_number,
                     $ratingChanges[$t2p1]['name'], $r2_1,
                     $ratingChanges[$t2p2]['name'], $r2_2,
                     round($team2Rating),
