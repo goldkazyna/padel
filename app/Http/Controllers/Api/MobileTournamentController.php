@@ -1593,6 +1593,16 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Bali Format — место по парам (стандинги через сервис с tiebreaker)
+        if ($tournament->type === 'bali_koc') {
+            $standings = app(\App\Services\BaliKocService::class)->getStandings($tournament);
+            foreach ($standings as $i => $pair) {
+                if ((int) $pair->player1_id === $userId || (int) $pair->player2_id === $userId) {
+                    return $i + 1;
+                }
+            }
+        }
+
         return null;
     }
 
