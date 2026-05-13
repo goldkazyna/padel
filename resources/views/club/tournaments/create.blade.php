@@ -45,6 +45,7 @@
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
 							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
+							<option value="bali_koc" {{ old('type') === 'bali_koc' ? 'selected' : '' }}>Король Корта (Bali Format)</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -313,6 +314,17 @@
 							когда последний раунд доигран.
 						</div>
 					</div>
+
+					<div id="baliKocFields" style="display: none;">
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Король Корта (Bali Format):</strong> Игроков кратно 4 (минимум 8). После набора админ
+							вручную создаёт фиксированные пары — пары не миксуются. Ротация как в KOC: победители ↑,
+							проигравшие ↓. Очки: раунд 1 — 1/0; со 2-го раунда победитель корта K из N кортов получает
+							(N+2−K) очков, проигравший — 0. Турнирная таблица по парам: очки → личная встреча →
+							выигранные геймы.
+						</div>
+					</div>
 					
 					
 					
@@ -350,7 +362,8 @@ function toggleTypeFields() {
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
     const kingOfCourtFields = document.getElementById('kingOfCourtFields');
-    
+    const baliKocFields = document.getElementById('baliKocFields');
+
     // Подсказка "(укажите кол-во пар)" для team турниров
     var reserveHint = document.getElementById('reserveHintPairs');
     if (reserveHint) reserveHint.style.display = (type === 'team') ? 'inline' : 'none';
@@ -360,6 +373,7 @@ function toggleTypeFields() {
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
     if (kingOfCourtFields) kingOfCourtFields.style.display = 'none';
+    if (baliKocFields) baliKocFields.style.display = 'none';
     
     // Отключаем все playoff_format селекты
     const playoffFormat = document.getElementById('playoffFormat');
@@ -408,6 +422,9 @@ function toggleTypeFields() {
         generateCourtsInputs();
     } else if (type === 'king_of_court' && kingOfCourtFields) {
         kingOfCourtFields.style.display = 'block';
+        generateCourtsInputs();
+    } else if (type === 'bali_koc' && baliKocFields) {
+        baliKocFields.style.display = 'block';
         generateCourtsInputs();
     }
 }

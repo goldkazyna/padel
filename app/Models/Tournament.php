@@ -264,6 +264,7 @@ class Tournament extends Model
 			'team' => 'Групповой + Плей-офф',
 			'classic' => 'Классический',
 			'king_of_court' => 'Король корта',
+			'bali_koc' => 'Король Корта (Bali Format)',
 			default => $this->type,
 		};
 	}
@@ -285,6 +286,21 @@ class Tournament extends Model
 	public function kingOfCourtRounds()
 	{
 		return $this->hasMany(KingOfCourtRound::class)->orderBy('round_number');
+	}
+
+	public function isBaliKoc(): bool
+	{
+		return $this->type === 'bali_koc';
+	}
+
+	public function baliKocPairs()
+	{
+		return $this->hasMany(BaliKocPair::class);
+	}
+
+	public function baliKocRounds()
+	{
+		return $this->hasMany(BaliKocRound::class)->orderBy('round_number');
 	}
 
 	public function mexicanoPlayers()

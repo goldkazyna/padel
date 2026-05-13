@@ -9,6 +9,7 @@ use App\Http\Controllers\Club\MatchController;
 use App\Http\Controllers\Club\AmericanoController;
 use App\Http\Controllers\Club\MexicanoController;
 use App\Http\Controllers\Club\KingOfCourtController;
+use App\Http\Controllers\Club\BaliKocController;
 use App\Http\Controllers\Club\TeamTournamentController;
 use App\Http\Controllers\RatingController;
 use Illuminate\Support\Facades\Route;
@@ -105,6 +106,16 @@ Route::get('/consent', function () {
                 'type' => 'grouped',
             ]));
         })->name('tournaments.previewRatingKingOfCourt');
+
+        Route::get('/tournaments/{tournament}/preview-rating-bali-koc', function (\App\Models\Tournament $tournament) {
+            $service = app(\App\Services\BaliKocService::class);
+            $preview = $service->previewRatingChanges($tournament);
+            return response(view('preview-rating', [
+                'tournament' => $tournament,
+                'preview' => ['Bali Format' => $preview],
+                'type' => 'grouped',
+            ]));
+        })->name('tournaments.previewRatingBaliKoc');
         /*
 /*
 |--------------------------------------------------------------------------
@@ -311,6 +322,18 @@ Route::middleware('auth')->group(function () {
                 ->name('kingofcourt.updateScore');
             Route::post('/kingofcourt/tournament/{tournament}/next-round', [KingOfCourtController::class, 'generateNextRound'])
                 ->name('kingofcourt.nextRound');
+
+            // Король Корта (Bali Format)
+            Route::get('/bali-koc/{tournament}/pairs', [BaliKocController::class, 'pairs'])
+                ->name('bali-koc.pairs');
+            Route::post('/bali-koc/{tournament}/pairs', [BaliKocController::class, 'storePairs'])
+                ->name('bali-koc.storePairs');
+            Route::post('/bali-koc/match/{match}/score', [BaliKocController::class, 'saveScore'])
+                ->name('bali-koc.saveScore');
+            Route::put('/bali-koc/match/{match}/score', [BaliKocController::class, 'updateScore'])
+                ->name('bali-koc.updateScore');
+            Route::post('/bali-koc/tournament/{tournament}/next-round', [BaliKocController::class, 'generateNextRound'])
+                ->name('bali-koc.nextRound');
 
             // Групповой + Плей-офф (Team)
             Route::post('/tournaments/{tournament}/add-team', [TeamTournamentController::class, 'addTeam'])
