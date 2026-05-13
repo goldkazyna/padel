@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class BaliKocController extends Controller
 {
-    public function show(Tournament $tournament, BaliKocService $service)
+    public function show(Tournament $tournament)
     {
         $tournament->load([
             'club',
@@ -23,7 +23,7 @@ class BaliKocController extends Controller
             'baliKocRounds.matches.pair2.player2',
         ]);
 
-        $standings = $service->getStandings($tournament);
+        $standings = app(BaliKocService::class)->getStandings($tournament);
 
         return view('club.tournaments.bali_koc.show', compact('tournament', 'standings'));
     }
