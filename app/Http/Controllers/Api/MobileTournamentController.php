@@ -1720,10 +1720,13 @@ class MobileTournamentController extends Controller
         if ($tournament->type === 'king_of_court') {
             return $this->liveKingOfCourt($tournament, $user);
         }
+        if ($tournament->type === 'bali_koc') {
+            return $this->liveBaliKoc($tournament, $user);
+        }
         if ($tournament->type !== 'americano') {
             return response()->json([
                 'success' => false,
-                'message' => 'Live-режим пока доступен только для Американо/Мексикано/Группового/Король корта',
+                'message' => 'Live-режим пока доступен только для Американо/Мексикано/Группового/Король корта/Bali Format',
             ], 400);
         }
 
@@ -2266,6 +2269,170 @@ class MobileTournamentController extends Controller
                 'courts_count' => (int) ($tournament->max_participants / 4),
             ],
             'leaderboard' => array_values($leaderboard),
+            'rounds' => $roundsOut,
+            'playoff' => [],
+        ]);
+    }
+
+    /**
+     * Live для турнира «Король Корта (Bali Format)».
+     * Лидерборд — пары (фиксированные), стандинги с tiebreaker (очки → H2H → геймы).
+     * Раунды — как у KOC: top/middle/bottom корты.
+     */
+    private function liveBaliKoc(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+        $targetId = (int) (request()->query('player_id') ?: $userId);
+
+        $service = app(\App\Services\BaliKocService::class);
+        $pairs = $tournament->baliKocPairs()->with(['player1', 'player2'])->get();
+
+        // Мапа player_id → pair (для is_me/has_me и player_stats)
+        $playerToPair = [];
+        $playerStats = [];
+        foreach ($pairs as $p) {
+            foreach ([$p->player1, $p->player2] as $u) {
+                if (!$u) continue;
+                $playerToPair[$u->id] = $p;
+                $playerStats[$u->id] = [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'avatar' => $u->avatar,
+                    'rating' => $u->rating,
+                    'level' => $u->level,
+                ];
+            }
+        }
+
+        // Эволюция рейтингов по раундам — для дельты целевого игрока
+        $ratingEvolve = [];
+        foreach ($pairs as $p) {
+            $ratingEvolve[$p->player1_id] = ['current_rating' => (int) $p->player1_rating_before];
+            $ratingEvolve[$p->player2_id] = ['current_rating' => (int) $p->player2_rating_before];
+        }
+
+        $rounds = $tournament->baliKocRounds()
+            ->with(['matches' => function ($q) {
+                $q->orderBy('court_number');
+            }])
+            ->orderBy('round_number')
+            ->get();
+
+        $roundDeltas = [];
+        foreach ($rounds as $r) {
+            $pre = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            foreach ($r->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $service->calculateEloForMatch($m, $pairs, $ratingEvolve);
+            }
+            $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
+        }
+
+        // Сборка раундов с матчами
+        $roundsOut = [];
+        foreach ($rounds as $r) {
+            $courtsTotal = $r->matches->count();
+            $matchesOut = [];
+            foreach ($r->matches as $m) {
+                $courtIdx = (int) $m->court_number;
+                if ($courtIdx === 1) {
+                    $courtTier = 'top';
+                } elseif ($courtIdx === $courtsTotal) {
+                    $courtTier = 'bottom';
+                } else {
+                    $courtTier = 'middle';
+                }
+
+                $pair1 = $pairs->firstWhere('id', $m->pair1_id);
+                $pair2 = $pairs->firstWhere('id', $m->pair2_id);
+                if (!$pair1 || !$pair2) continue;
+
+                $t1Players = [(int) $pair1->player1_id, (int) $pair1->player2_id];
+                $t2Players = [(int) $pair2->player1_id, (int) $pair2->player2_id];
+
+                $t1HasMe = $userId !== null && in_array($userId, $t1Players, true);
+                $t2HasMe = $userId !== null && in_array($userId, $t2Players, true);
+
+                // Очки за победу на этом корте (подсказка)
+                $pointsWin = $service->pointsForMatch((int) $r->round_number, $courtIdx, $courtsTotal);
+
+                $matchesOut[] = [
+                    'id' => $m->id,
+                    'court_number' => $courtIdx,
+                    'court_tier' => $courtTier,
+                    'court_label' => "Корт {$courtIdx}",
+                    'points_for_win' => $pointsWin,
+                    'status' => $m->status,
+                    'team1' => [
+                        'pair_id' => $pair1->id,
+                        'player1' => $this->formatPlayerForLive($pair1->player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($pair1->player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->pair1_games : null,
+                        'has_me' => $t1HasMe,
+                    ],
+                    'team2' => [
+                        'pair_id' => $pair2->id,
+                        'player1' => $this->formatPlayerForLive($pair2->player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($pair2->player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->pair2_games : null,
+                        'has_me' => $t2HasMe,
+                    ],
+                    'has_me' => $t1HasMe || $t2HasMe,
+                ];
+            }
+            $roundsOut[] = [
+                'id' => $r->id,
+                'round_number' => $r->round_number,
+                'status' => $r->status,
+                'matches' => $matchesOut,
+                'my_rating_change' => $roundDeltas[$r->id] ?? null,
+            ];
+        }
+
+        // Лидерборд пар (стандинги с tiebreaker через сервис)
+        $standings = $service->getStandings($tournament);
+        $myPairId = $userId !== null && isset($playerToPair[$userId])
+            ? (int) $playerToPair[$userId]->id
+            : null;
+
+        $leaderboard = [];
+        foreach ($standings as $idx => $p) {
+            $totalGames = (int) $p->games_for + (int) $p->games_against;
+            $ballPercent = $totalGames > 0
+                ? (int) round((int) $p->games_for / $totalGames * 100)
+                : 0;
+            $leaderboard[] = [
+                'position' => $idx + 1,
+                'pair_id' => $p->id,
+                'player1' => $this->formatPlayerForLive($p->player1_id, $playerStats, $tournament),
+                'player2' => $this->formatPlayerForLive($p->player2_id, $playerStats, $tournament),
+                'wins' => (int) $p->wins,
+                'losses' => (int) $p->losses,
+                'games_for' => (int) $p->games_for,
+                'games_against' => (int) $p->games_against,
+                'point_diff' => (int) $p->games_for - (int) $p->games_against,
+                'ball_percent' => $ballPercent,
+                'points' => (int) $p->points,
+                'is_me' => $myPairId !== null && (int) $p->id === $myPairId,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'has_playoff' => false,
+                'courts_count' => (int) ($pairs->count() / 2),
+            ],
+            'leaderboard' => $leaderboard,
             'rounds' => $roundsOut,
             'playoff' => [],
         ]);

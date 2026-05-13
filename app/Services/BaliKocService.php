@@ -563,8 +563,9 @@ class BaliKocService
 
     /**
      * ELO для одного матча: 2v2 средними рейтингами команд.
+     * Public — используется в mobile API для подсчёта дельты по раундам.
      */
-    protected function calculateEloForMatch(BaliKocMatch $match, $pairs, array &$ratingChanges): void
+    public function calculateEloForMatch(BaliKocMatch $match, $pairs, array &$ratingChanges): void
     {
         $p1 = $pairs->firstWhere('id', $match->pair1_id);
         $p2 = $pairs->firstWhere('id', $match->pair2_id);
