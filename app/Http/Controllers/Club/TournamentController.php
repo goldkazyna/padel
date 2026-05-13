@@ -93,7 +93,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:classic,americano,mexicano,team,king_of_court',
+			'type' => 'required|in:americano,mexicano,team,king_of_court',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',

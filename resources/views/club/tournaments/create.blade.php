@@ -41,8 +41,7 @@
 					<div class="mb-4">
 						<label class="form-label">Тип турнира *</label>
 						<select name="type" id="tournamentType" class="form-select" required onchange="toggleTypeFields()">
-							<option value="classic" {{ old('type') === 'classic' ? 'selected' : '' }}>Классический</option>
-							<option value="americano" {{ old('type') === 'americano' ? 'selected' : '' }}>Американо</option>
+							<option value="americano" {{ old('type', 'americano') === 'americano' ? 'selected' : '' }}>Американо</option>
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
 							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
