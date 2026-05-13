@@ -626,6 +626,16 @@ class MobileRatingController extends Controller
             }
         }
 
+        // Bali Format — место по парам (стандинги с tiebreaker через сервис)
+        if ($tournament->type === 'bali_koc') {
+            $standings = app(\App\Services\BaliKocService::class)->getStandings($tournament);
+            foreach ($standings as $i => $pair) {
+                if ((int) $pair->player1_id === $userId || (int) $pair->player2_id === $userId) {
+                    return $i + 1;
+                }
+            }
+        }
+
         // Team турнир без плей-офф — место по группе
         if ($tournament->type === 'team' && $myTeamIds->isNotEmpty()) {
             $groups = $tournament->groups()->with('teams')->get();
