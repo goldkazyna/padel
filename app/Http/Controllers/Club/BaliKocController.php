@@ -128,7 +128,7 @@ class BaliKocController extends Controller
      * Персональная рассылка после генерации раунда: каждому игроку — его корт
      * и состав соперника. Записываем в колокольчик и шлём FCM.
      */
-    protected static function notifyBaliRoundGenerated(int $tournamentId, string $tournamentName, int $roundNumber): void
+    public static function notifyBaliRoundGenerated(int $tournamentId, string $tournamentName, int $roundNumber): void
     {
         $round = \App\Models\BaliKocRound::where('tournament_id', $tournamentId)
             ->where('round_number', $roundNumber)

@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AmericanoMatch;
+use App\Models\BaliKocMatch;
+use App\Models\BaliKocPair;
 use App\Models\KingOfCourtMatch;
 use App\Models\Tournament;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use App\Services\AmericanoService;
+use App\Services\BaliKocService;
 use App\Services\KingOfCourtService;
 use App\Services\MexicanoService;
 use App\Services\TeamTournamentService;
@@ -110,7 +113,8 @@ class MobileAdminTournamentDetailController extends Controller
         AmericanoService $americano,
         MexicanoService $mexicano,
         TeamTournamentService $team,
-        KingOfCourtService $king
+        KingOfCourtService $king,
+        BaliKocService $bali
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -131,6 +135,15 @@ class MobileAdminTournamentDetailController extends Controller
             $ok = $team->startTournament($tournament);
         } elseif ($tournament->isKingOfCourt()) {
             $ok = $king->startTournament($tournament);
+        } elseif ($tournament->isBaliKoc()) {
+            if (!$bali->arePairsCreated($tournament)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Сначала создайте пары',
+                    'pairs_required' => true,
+                ], 422);
+            }
+            $ok = $bali->startTournament($tournament);
         } else {
             return response()->json([
                 'success' => false,
@@ -716,6 +729,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildKingOfCourtMatches($tournament));
         }
 
+        if ($tournament->isBaliKoc()) {
+            return response()->json($this->buildBaliKocMatches($tournament));
+        }
+
         // Для Mexicano / Team — пока заглушка, добавим на этапах 3c-3/3c-4
         return response()->json([
             'success' => true,
@@ -1159,7 +1176,8 @@ class MobileAdminTournamentDetailController extends Controller
         AmericanoService $americano,
         MexicanoService $mexicano,
         TeamTournamentService $team,
-        KingOfCourtService $king
+        KingOfCourtService $king,
+        BaliKocService $bali
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -1181,9 +1199,14 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $king->finishTournament($tournament);
+        } elseif ($tournament->isBaliKoc()) {
+            if (!$bali->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте текущий раунд');
+            }
+            $ok = $bali->finishTournament($tournament);
         } else {
             return $this->error(
-                'Завершение из мобилы пока поддерживается только для Американо и Король корта'
+                'Завершение из мобилы пока поддерживается только для Американо/KOC/Bali'
             );
         }
 
@@ -1269,29 +1292,51 @@ class MobileAdminTournamentDetailController extends Controller
     public function nextRound(
         Request $request,
         Tournament $tournament,
-        KingOfCourtService $king
+        KingOfCourtService $king,
+        BaliKocService $bali
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
         }
 
-        if (!$tournament->isKingOfCourt()) {
-            return $this->error(
-                'Генерация следующего раунда из мобилы пока поддерживается только для Король корта'
-            );
+        if ($tournament->isKingOfCourt()) {
+            if (!$king->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            $ok = $king->generateNextRound($tournament);
+            if (!$ok) {
+                return $this->error('Не удалось сгенерировать следующий раунд');
+            }
+            $tournament->refresh();
+            return response()->json($this->buildKingOfCourtMatches($tournament));
         }
 
-        if (!$king->canGenerateNextRound($tournament)) {
-            return $this->error('Текущий раунд ещё не завершён');
+        if ($tournament->isBaliKoc()) {
+            if (!$bali->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            $ok = $bali->generateNextRound($tournament);
+            if (!$ok) {
+                return $this->error('Не удалось сгенерировать следующий раунд');
+            }
+
+            // Персональные пуши — переиспользуем тот же метод что веб-контроллер
+            $newRoundNumber = (int) $tournament->baliKocRounds()->max('round_number');
+            $tournamentId = $tournament->id;
+            $tournamentName = $tournament->name;
+            app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
+                \App\Http\Controllers\Club\BaliKocController::notifyBaliRoundGenerated(
+                    $tournamentId, $tournamentName, $newRoundNumber
+                );
+            });
+
+            $tournament->refresh();
+            return response()->json($this->buildBaliKocMatches($tournament));
         }
 
-        $ok = $king->generateNextRound($tournament);
-        if (!$ok) {
-            return $this->error('Не удалось сгенерировать следующий раунд');
-        }
-
-        $tournament->refresh();
-        return response()->json($this->buildKingOfCourtMatches($tournament));
+        return $this->error(
+            'Генерация следующего раунда из мобилы пока поддерживается только для KOC и Bali'
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -1422,6 +1467,306 @@ class MobileAdminTournamentDetailController extends Controller
                 'point_diff' => (int) $kp->points_for - (int) $kp->points_against,
                 'win_percent' => $totalGames > 0 ? (int) round($kp->wins / $totalGames * 100) : 0,
                 'ball_percent' => $totalBalls > 0 ? (int) round($kp->points_for / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
+    }
+
+    // -------------------------------------------------------------------------
+    // Bali KOC — ввод счёта, создание пар, формирование ответа /matches
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/bali_koc/matches/{match}/score
+     * Bali, как и KOC, использует один метод для save/update — saveMatchResult
+     * сам откатит старые статы если матч уже completed.
+     */
+    public function saveBaliKocScore(
+        Request $request,
+        Tournament $tournament,
+        BaliKocMatch $match,
+        BaliKocService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round');
+        if (!$match->round ||
+            (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'pair1_games' => 'required|integer|min:0|max:99',
+            'pair2_games' => 'required|integer|min:0|max:99|different:pair1_games',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveMatchResult(
+            $match,
+            (int) $request->input('pair1_games'),
+            (int) $request->input('pair2_games'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->pair1_games !== null && $match->pair2_games !== null) {
+            $winner = $match->pair1_games > $match->pair2_games ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->pair1_games,
+                'team2_score' => $match->pair2_games,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/bali_koc/pairs
+     * Список зарегистрированных участников + уже созданные пары.
+     */
+    public function baliKocPairs(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (!$tournament->isBaliKoc()) {
+            return $this->error('Турнир не Bali Format', 422);
+        }
+
+        $participants = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => $this->formatUser($u));
+
+        $existingPairs = $tournament->baliKocPairs()
+            ->with(['player1', 'player2'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'player1' => $p->player1 ? $this->formatUser($p->player1) : null,
+                'player2' => $p->player2 ? $this->formatUser($p->player2) : null,
+            ]);
+
+        $expectedPairs = (int) ($participants->count() / 2);
+        $canCreate = $participants->count() >= 8 && $participants->count() % 4 === 0;
+
+        return response()->json([
+            'success' => true,
+            'participants' => $participants,
+            'pairs' => $existingPairs,
+            'expected_pairs_count' => $expectedPairs,
+            'can_create' => $canCreate,
+            'locked' => $existingPairs->isNotEmpty(),
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/bali_koc/pairs
+     * Сохранить пары. Тело: { pairs: [[player1_id, player2_id], ...] }
+     */
+    public function saveBaliKocPairs(
+        Request $request,
+        Tournament $tournament,
+        BaliKocService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $validator = Validator::make($request->all(), [
+            'pairs' => 'required|array|min:2',
+            'pairs.*.0' => 'required|integer|exists:users,id',
+            'pairs.*.1' => 'required|integer|exists:users,id',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        [$ok, $message] = $service->createPairs($tournament, $request->input('pairs'));
+        if (!$ok) {
+            return $this->error($message);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Bali KOC — формирование ответа /matches
+    // -------------------------------------------------------------------------
+
+    private function buildBaliKocMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'baliKocPairs.player1',
+            'baliKocPairs.player2',
+            'baliKocRounds.matches',
+        ]);
+
+        $bali = app(BaliKocService::class);
+
+        // Если пары ещё не созданы — возвращаем спец-сигнал для UI
+        if (!$bali->arePairsCreated($tournament)) {
+            $participantsCount = $tournament->participants()
+                ->wherePivot('status', 'registered')
+                ->count();
+            return [
+                'success' => true,
+                'type' => 'bali_koc',
+                'pairs_required' => true,
+                'participants_count' => $participantsCount,
+                'expected_pairs_count' => (int) ($participantsCount / 2),
+                'groups' => [],
+                'playoff' => null,
+                'summary' => [
+                    'matches_total' => 0,
+                    'matches_played' => 0,
+                    'all_group_matches_played' => false,
+                    'can_finish' => false,
+                    'can_generate_playoff' => false,
+                    'can_generate_next_round' => false,
+                ],
+            ];
+        }
+
+        $pairsById = $tournament->baliKocPairs->keyBy('id');
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->baliKocRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed, $pairsById) {
+                $matches = $round->matches
+                    ->sortBy('court_number')
+                    ->values()
+                    ->map(function ($m) use (&$matchesTotal, &$matchesPlayed, $pairsById) {
+                        $matchesTotal++;
+                        if ($m->status === 'completed') $matchesPlayed++;
+                        return $this->formatBaliKocMatch($m, $pairsById);
+                    });
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $leaderboard = $this->buildBaliKocLeaderboard($tournament, $bali);
+
+        // Заворачиваем в одну виртуальную группу — UI переиспользует рендер.
+        $virtualGroup = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $leaderboard,
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+
+        return [
+            'success' => true,
+            'type' => 'bali_koc',
+            'pairs_required' => false,
+            'groups' => [$virtualGroup],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $bali->canFinishTournament($tournament),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $isLive && $bali->canGenerateNextRound($tournament),
+            ],
+        ];
+    }
+
+    private function formatBaliKocMatch(BaliKocMatch $m, $pairsById): array
+    {
+        $pair1 = $pairsById[$m->pair1_id] ?? null;
+        $pair2 = $pairsById[$m->pair2_id] ?? null;
+
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $pair1?->player1 ? $this->formatMatchPlayer($pair1->player1) : null,
+                    $pair1?->player2 ? $this->formatMatchPlayer($pair1->player2) : null,
+                ]),
+                'score' => $m->pair1_games,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $pair2?->player1 ? $this->formatMatchPlayer($pair2->player1) : null,
+                    $pair2?->player2 ? $this->formatMatchPlayer($pair2->player2) : null,
+                ]),
+                'score' => $m->pair2_games,
+            ],
+            'status' => $m->status,
+            'winner' => $this->baliKocMatchWinner($m),
+        ];
+    }
+
+    private function baliKocMatchWinner(BaliKocMatch $m): ?int
+    {
+        if ($m->status !== 'completed') return null;
+        if ($m->pair1_games === null || $m->pair2_games === null) return null;
+        if ($m->pair1_games === $m->pair2_games) return null;
+        return $m->pair1_games > $m->pair2_games ? 1 : 2;
+    }
+
+    /**
+     * Лидерборд для Bali — строка = пара (2 игрока), отсортировано
+     * через BaliKocService::getStandings с tiebreaker.
+     * Чтобы переиспользовать ту же UI-структуру (одна строка таблицы),
+     * рендерим пару как: name = «Иван / Сергей», avatar = первый игрок.
+     */
+    private function buildBaliKocLeaderboard(Tournament $tournament, BaliKocService $bali): array
+    {
+        $standings = $bali->getStandings($tournament);
+        $rows = [];
+        $position = 1;
+        foreach ($standings as $p) {
+            $p1 = $p->player1;
+            $p2 = $p->player2;
+            $name1 = $p1->name ?? '?';
+            $name2 = $p2->name ?? '?';
+            $totalGames = (int) $p->wins + (int) $p->losses;
+            $totalBalls = (int) $p->games_for + (int) $p->games_against;
+            $rows[] = [
+                'position' => $position++,
+                'id' => $p->id, // pair id (отрицательным не делаем — UI не будет открывать профиль пары)
+                'name' => "{$name1} / {$name2}",
+                'avatar' => $p1 && $p1->avatar ? asset('storage/' . $p1->avatar) : null,
+                'rating' => 0,
+                'wins' => (int) $p->wins,
+                'losses' => (int) $p->losses,
+                'draws' => 0,
+                'points_for' => (int) $p->games_for,
+                'points_against' => (int) $p->games_against,
+                'total_points' => (int) $p->points,
+                'games_played' => $totalGames,
+                'point_diff' => (int) $p->games_for - (int) $p->games_against,
+                'win_percent' => $totalGames > 0 ? (int) round($p->wins / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($p->games_for / $totalBalls * 100) : 0,
             ];
         }
         return $rows;
