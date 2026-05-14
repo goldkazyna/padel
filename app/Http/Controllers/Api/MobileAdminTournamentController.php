@@ -154,7 +154,7 @@ class MobileAdminTournamentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:king_of_court,americano',
+            'type' => 'required|in:king_of_court,americano,bali_koc',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',
