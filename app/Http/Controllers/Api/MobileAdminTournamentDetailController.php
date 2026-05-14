@@ -245,6 +245,10 @@ class MobileAdminTournamentDetailController extends Controller
             ? $this->hasTournamentsFullAccess($user, $t)
             : false;
         $canStart = $t->status === 'open' && $taken >= $minRequired;
+        // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
+        $baliPairsCreated = $t->isBaliKoc()
+            ? $t->baliKocPairs()->exists()
+            : false;
         // Редактировать/удалять — только с полными правами.
         $canEdit = $hasFullAccess
             && in_array($t->status, ['draft', 'open'], true);
@@ -277,6 +281,7 @@ class MobileAdminTournamentDetailController extends Controller
             'can_edit' => $canEdit,
             'can_start' => $canStart,
             'can_delete' => $canDelete,
+            'bali_pairs_created' => $baliPairsCreated,
             'tournaments_full_access' => $hasFullAccess,
         ];
     }
