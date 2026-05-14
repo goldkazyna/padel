@@ -14,9 +14,48 @@
     <div class="col-lg-8">
         <div class="card-dark">
             <div class="card-body">
-                <form action="{{ route('admin.clubs.update', $club) }}" method="POST">
+                <form action="{{ route('admin.clubs.update', $club) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+
+                    {{-- Логотип --}}
+                    @php
+                        $currentLogo = $club->logo;
+                        $logoUrl = $currentLogo
+                            ? (preg_match('#^https?://#', $currentLogo)
+                                ? $currentLogo
+                                : asset('logos/' . ltrim($currentLogo, '/')))
+                            : null;
+                    @endphp
+                    <div class="mb-4">
+                        <label class="form-label">Логотип клуба</label>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            @if($logoUrl)
+                                <img src="{{ $logoUrl }}" alt="logo"
+                                     style="width: 72px; height: 72px; border-radius: 12px; object-fit: cover; background: var(--bg-secondary);">
+                            @else
+                                <div style="width: 72px; height: 72px; border-radius: 12px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                                    <i class="bi bi-image fs-3"></i>
+                                </div>
+                            @endif
+                            <div class="flex-grow-1">
+                                <input type="file" name="logo" accept="image/png,image/jpeg,image/webp"
+                                       class="form-control @error('logo') is-invalid @enderror">
+                                <small class="text-muted">JPG/PNG/WEBP, до 2 МБ. Замените существующий или загрузите новый.</small>
+                                @error('logo')
+                                    <div class="text-danger mt-2 small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                        @if($logoUrl)
+                            <label class="form-check">
+                                <input type="hidden" name="remove_logo" value="0">
+                                <input type="checkbox" name="remove_logo" value="1" class="form-check-input"
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Удалить текущий логотип</span>
+                            </label>
+                        @endif
+                    </div>
 
                     <div class="mb-4">
                         <label class="form-label">Название *</label>

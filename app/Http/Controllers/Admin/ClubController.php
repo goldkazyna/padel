@@ -55,6 +55,8 @@ class ClubController extends Controller
             'is_active' => 'boolean',
             'features' => 'nullable|array',
             'features.*' => 'boolean',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'remove_logo' => 'nullable|boolean',
         ]);
 
         $features = $request->input('features', []);
@@ -69,9 +71,43 @@ class ClubController extends Controller
             'moderators' => (bool) ($features['moderators'] ?? true),
         ];
 
+        // Удаление текущего логотипа (если поставлен чекбокс)
+        if ($request->boolean('remove_logo') && $club->logo) {
+            $this->deleteClubLogoFile($club->logo);
+            $validated['logo'] = null;
+        }
+        unset($validated['remove_logo']);
+
+        // Загрузка нового логотипа
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $filename = 'club-' . $club->id . '-' . time() . '.' . $ext;
+            $file->move(public_path('logos'), $filename);
+
+            // Удаляем старый локальный логотип (внешние URL не трогаем)
+            if ($club->logo) {
+                $this->deleteClubLogoFile($club->logo);
+            }
+            $validated['logo'] = $filename;
+        }
+
         $club->update($validated);
 
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб обновлён!');
+    }
+
+    /**
+     * Удалить локальный файл логотипа, если это не внешний URL.
+     */
+    private function deleteClubLogoFile(?string $logo): void
+    {
+        if (!$logo) return;
+        if (preg_match('#^https?://#', $logo)) return;
+        $path = public_path('logos/' . ltrim($logo, '/'));
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 	public function admins(Club $club)
 	{
