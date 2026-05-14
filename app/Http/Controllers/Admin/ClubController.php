@@ -85,17 +85,24 @@ class ClubController extends Controller
 	{
 		$validated = $request->validate([
 			'user_id' => 'required|exists:users,id',
+			'password' => 'nullable|string|min:6|max:255',
 		]);
 
 		$user = \App\Models\User::findOrFail($validated['user_id']);
-		
-		// Меняем роль на club_admin
-		$user->update(['role' => 'club_admin']);
-		
+
+		$updates = ['role' => 'club_admin'];
+		if (!empty($validated['password'])) {
+			$updates['password'] = bcrypt($validated['password']);
+		}
+		$user->update($updates);
+
 		// Привязываем к клубу
 		$club->admins()->syncWithoutDetaching([$user->id]);
 
-		return redirect()->route('admin.clubs.admins', $club)->with('success', 'Админ добавлен!');
+		$msg = !empty($validated['password'])
+			? 'Админ добавлен, пароль установлен!'
+			: 'Админ добавлен!';
+		return redirect()->route('admin.clubs.admins', $club)->with('success', $msg);
 	}
 
 	public function removeAdmin(Club $club, User $user)
@@ -137,17 +144,26 @@ class ClubController extends Controller
 	}
 	public function addModerator(Request $request, Club $club)
 	{
-		$request->validate(['user_id' => 'required|exists:users,id']);
-		
-		$user = User::findOrFail($request->user_id);
-		
-		// Меняем роль на модератора
-		$user->update(['role' => 'club_moderator']);
-		
+		$validated = $request->validate([
+			'user_id' => 'required|exists:users,id',
+			'password' => 'nullable|string|min:6|max:255',
+		]);
+
+		$user = User::findOrFail($validated['user_id']);
+
+		$updates = ['role' => 'club_moderator'];
+		if (!empty($validated['password'])) {
+			$updates['password'] = bcrypt($validated['password']);
+		}
+		$user->update($updates);
+
 		// Привязываем к клубу
 		$club->moderators()->syncWithoutDetaching([$user->id]);
-		
-		return back()->with('success', 'Модератор добавлен');
+
+		$msg = !empty($validated['password'])
+			? 'Модератор добавлен, пароль установлен'
+			: 'Модератор добавлен';
+		return back()->with('success', $msg);
 	}
 
 	public function removeModerator(Club $club, User $user)

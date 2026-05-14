@@ -160,22 +160,27 @@ function searchAdmin() {
         .then(data => {
             if (data.found) {
                 resultDiv.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
-                        <div class="d-flex align-items-center gap-3">
+                    <form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST"
+                          class="p-3 rounded-3" style="background: var(--bg-secondary);">
+                        @csrf
+                        <input type="hidden" name="user_id" value="${data.player.id}">
+                        <div class="d-flex align-items-center gap-3 mb-3">
                             <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
                             <div>
                                 <div class="fw-medium">${data.player.name}</div>
                                 <small class="text-secondary">${data.player.email}</small>
                             </div>
                         </div>
-                        <form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="user_id" value="${data.player.id}">
-                            <button type="submit" class="btn-primary-custom btn-sm">
-                                <i class="bi bi-plus"></i> Назначить
-                            </button>
-                        </form>
-                    </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-secondary">Пароль (необязательно, мин. 6 симв.)</label>
+                            <input type="text" name="password" class="form-control"
+                                   placeholder="Оставьте пустым, чтобы не менять"
+                                   autocomplete="new-password" minlength="6">
+                        </div>
+                        <button type="submit" class="btn-primary-custom btn-sm">
+                            <i class="bi bi-plus"></i> Назначить админом
+                        </button>
+                    </form>
                 `;
             } else {
                 resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
@@ -201,22 +206,27 @@ function searchModerator() {
         .then(data => {
             if (data.found) {
                 resultDiv.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-between p-3 rounded-3" style="background: var(--bg-secondary);">
-                        <div class="d-flex align-items-center gap-3">
+                    <form action="{{ route('admin.clubs.moderators.add', $club) }}" method="POST"
+                          class="p-3 rounded-3" style="background: var(--bg-secondary);">
+                        @csrf
+                        <input type="hidden" name="user_id" value="${data.player.id}">
+                        <div class="d-flex align-items-center gap-3 mb-3">
                             <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
                             <div>
                                 <div class="fw-medium">${data.player.name}</div>
                                 <small class="text-secondary">${data.player.email}</small>
                             </div>
                         </div>
-                        <form action="{{ route('admin.clubs.moderators.add', $club) }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="user_id" value="${data.player.id}">
-                            <button type="submit" class="btn-primary-custom btn-sm">
-                                <i class="bi bi-plus"></i> Назначить
-                            </button>
-                        </form>
-                    </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-secondary">Пароль (необязательно, мин. 6 симв.)</label>
+                            <input type="text" name="password" class="form-control"
+                                   placeholder="Оставьте пустым, чтобы не менять"
+                                   autocomplete="new-password" minlength="6">
+                        </div>
+                        <button type="submit" class="btn-primary-custom btn-sm">
+                            <i class="bi bi-plus"></i> Назначить модератором
+                        </button>
+                    </form>
                 `;
             } else {
                 resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
