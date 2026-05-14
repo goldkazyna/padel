@@ -78,16 +78,17 @@ class ClubController extends Controller
         }
         unset($validated['remove_logo']);
 
-        // Загрузка нового логотипа — имя как slug клуба, чтобы URL были
-        // понятными: pulse-padel.jpg, add-padel-almaty.jpg и т.д.
+        // Загрузка нового логотипа — имя как slug клуба, в БД сохраняем
+        // путь /logos/<slug>.<ext> (как у существующих записей — этим путём
+        // MobileClubController отдаёт через url($club->logo)).
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
             $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
             $slug = \Illuminate\Support\Str::slug($validated['name'] ?? $club->name) ?: ('club-' . $club->id);
             $filename = $slug . '.' . $ext;
 
-            // Удаляем старый файл из БД, а также любой другой файл с тем же
-            // slug (любое расширение) — чтобы не оставлять мусор при смене формата.
+            // Удаляем старый файл, плюс любой другой файл с тем же slug
+            // (другое расширение — чтобы не оставлять дубль).
             if ($club->logo) {
                 $this->deleteClubLogoFile($club->logo);
             }
@@ -96,7 +97,7 @@ class ClubController extends Controller
             }
 
             $file->move(public_path('logos'), $filename);
-            $validated['logo'] = $filename;
+            $validated['logo'] = '/logos/' . $filename;
         }
 
         $club->update($validated);
@@ -106,12 +107,18 @@ class ClubController extends Controller
 
     /**
      * Удалить локальный файл логотипа, если это не внешний URL.
+     * Поддерживает оба формата записи в БД: «/logos/x.jpg» и «x.jpg».
      */
     private function deleteClubLogoFile(?string $logo): void
     {
         if (!$logo) return;
         if (preg_match('#^https?://#', $logo)) return;
-        $path = public_path('logos/' . ltrim($logo, '/'));
+        $relative = ltrim($logo, '/');
+        // Убираем дублирующий префикс logos/, если он уже есть в строке
+        if (str_starts_with($relative, 'logos/')) {
+            $relative = substr($relative, strlen('logos/'));
+        }
+        $path = public_path('logos/' . $relative);
         if (is_file($path)) {
             @unlink($path);
         }

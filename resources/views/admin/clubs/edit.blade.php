@@ -21,11 +21,17 @@
                     {{-- Логотип --}}
                     @php
                         $currentLogo = $club->logo;
-                        $logoUrl = $currentLogo
-                            ? (preg_match('#^https?://#', $currentLogo)
-                                ? $currentLogo
-                                : asset('logos/' . ltrim($currentLogo, '/')))
-                            : null;
+                        if (!$currentLogo) {
+                            $logoUrl = null;
+                        } elseif (preg_match('#^https?://#', $currentLogo)) {
+                            $logoUrl = $currentLogo;
+                        } elseif (str_starts_with($currentLogo, '/')) {
+                            // Формат /logos/x.jpg — как у существующих клубов
+                            $logoUrl = url($currentLogo);
+                        } else {
+                            // Старые записи без префикса
+                            $logoUrl = asset('logos/' . $currentLogo);
+                        }
                     @endphp
                     <div class="mb-4">
                         <label class="form-label">Логотип клуба</label>
