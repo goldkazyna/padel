@@ -78,17 +78,24 @@ class ClubController extends Controller
         }
         unset($validated['remove_logo']);
 
-        // Загрузка нового логотипа
+        // Загрузка нового логотипа — имя как slug клуба, чтобы URL были
+        // понятными: pulse-padel.jpg, add-padel-almaty.jpg и т.д.
         if ($request->hasFile('logo')) {
             $file = $request->file('logo');
             $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-            $filename = 'club-' . $club->id . '-' . time() . '.' . $ext;
-            $file->move(public_path('logos'), $filename);
+            $slug = \Illuminate\Support\Str::slug($validated['name'] ?? $club->name) ?: ('club-' . $club->id);
+            $filename = $slug . '.' . $ext;
 
-            // Удаляем старый локальный логотип (внешние URL не трогаем)
+            // Удаляем старый файл из БД, а также любой другой файл с тем же
+            // slug (любое расширение) — чтобы не оставлять мусор при смене формата.
             if ($club->logo) {
                 $this->deleteClubLogoFile($club->logo);
             }
+            foreach (glob(public_path('logos/' . $slug . '.*')) ?: [] as $oldPath) {
+                @unlink($oldPath);
+            }
+
+            $file->move(public_path('logos'), $filename);
             $validated['logo'] = $filename;
         }
 
