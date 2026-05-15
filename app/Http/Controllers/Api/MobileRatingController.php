@@ -307,17 +307,45 @@ class MobileRatingController extends Controller
         $tournamentStats = $user->getTournamentStats();
 
         // Тренд рейтинга — одно значение на турнир
-        $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
+        $trendEntries = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('tournament_id')
             ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
             ->get(['tournament_id', 'rating_after'])
             ->groupBy('tournament_id')
-            ->map(fn($group) => $group->last()->rating_after)
+            ->map(fn($group) => [
+                'tournament_id' => (int) $group->first()->tournament_id,
+                'rating_after' => (int) $group->last()->rating_after,
+            ])
             ->values()
-            ->toArray();
-        $ratingTrend = array_slice($ratingTrend, -10);
-        $ratingTrend = array_map('intval', $ratingTrend);
+            ->take(-10)
+            ->values();
+
+        $ratingTrend = $trendEntries->pluck('rating_after')->map('intval')->all();
+
+        // Подробности по последним 10 точкам — название турнира, клуб, дата, дельта
+        $tournamentIds = $trendEntries->pluck('tournament_id')->all();
+        $tournamentsForTrend = \App\Models\Tournament::whereIn('id', $tournamentIds)
+            ->with('club')
+            ->get()
+            ->keyBy('id');
+
+        $ratingTrendDetails = [];
+        $prevRating = null;
+        foreach ($trendEntries as $entry) {
+            $t = $tournamentsForTrend[$entry['tournament_id']] ?? null;
+            $rating = (int) $entry['rating_after'];
+            $delta = $prevRating === null ? null : $rating - $prevRating;
+            $ratingTrendDetails[] = [
+                'tournament_id' => $entry['tournament_id'],
+                'name' => $t?->name ?? 'Турнир',
+                'club_name' => $t?->club?->name,
+                'date' => $t?->start_date?->translatedFormat('j M Y'),
+                'rating' => $rating,
+                'delta' => $delta,
+            ];
+            $prevRating = $rating;
+        }
 
         // История рейтинга — показываем ТОЛЬКО записи с существующим турниром.
         // Если у записи tournament_id=NULL (FK обнулил при удалении турнира)
@@ -361,6 +389,7 @@ class MobileRatingController extends Controller
                     : 0,
                 'tournaments_count' => $tournamentStats['total'],
                 'rating_trend' => $ratingTrend,
+                'rating_trend_details' => $ratingTrendDetails,
             ],
             'history' => $history,
         ]);
