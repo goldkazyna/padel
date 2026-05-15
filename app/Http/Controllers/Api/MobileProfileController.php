@@ -88,17 +88,46 @@ class MobileProfileController extends Controller
 
         // Тренд рейтинга — одно значение на турнир (финальный rating_after),
         // чтобы совпадал со списком "История турниров"
-        $ratingTrend = \App\Models\RatingHistory::where('user_id', $user->id)
+        $trendEntries = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('tournament_id')
             ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
             ->get(['tournament_id', 'rating_after'])
             ->groupBy('tournament_id')
-            ->map(fn($group) => $group->last()->rating_after)
+            ->map(fn($group) => [
+                'tournament_id' => (int) $group->first()->tournament_id,
+                'rating_after' => (int) $group->last()->rating_after,
+            ])
             ->values()
-            ->toArray();
-        $ratingTrend = array_slice($ratingTrend, -10);
-        $ratingTrend = array_map('intval', $ratingTrend);
+            ->take(-10) // последние 10 турниров
+            ->values();
+
+        $ratingTrend = $trendEntries->pluck('rating_after')->map('intval')->all();
+
+        // Подробности по последним 10 точкам — для карточки «Динамика рейтинга»:
+        // название турнира, клуб, дата, дельта рейтинга.
+        $tournamentIds = $trendEntries->pluck('tournament_id')->all();
+        $tournaments = \App\Models\Tournament::whereIn('id', $tournamentIds)
+            ->with('club')
+            ->get()
+            ->keyBy('id');
+
+        $details = [];
+        $prev = null;
+        foreach ($trendEntries as $entry) {
+            $t = $tournaments[$entry['tournament_id']] ?? null;
+            $rating = (int) $entry['rating_after'];
+            $delta = $prev === null ? null : $rating - $prev;
+            $details[] = [
+                'tournament_id' => $entry['tournament_id'],
+                'name' => $t?->name ?? 'Турнир',
+                'club_name' => $t?->club?->name,
+                'date' => $t?->start_date?->translatedFormat('j M Y'),
+                'rating' => $rating,
+                'delta' => $delta,
+            ];
+            $prev = $rating;
+        }
 
         return response()->json([
             'success' => true,
@@ -111,7 +140,8 @@ class MobileProfileController extends Controller
                     ? (int) round(($matchStats['won'] / $matchStats['total']) * 100)
                     : 0,
                 'tournaments_count' => $tournamentStats['total'],
-                'rating_trend' => array_map('intval', $ratingTrend),
+                'rating_trend' => $ratingTrend,
+                'rating_trend_details' => $details,
             ],
         ]);
     }
