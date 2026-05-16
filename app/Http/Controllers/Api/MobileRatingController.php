@@ -23,7 +23,7 @@ class MobileRatingController extends Controller
         $level = $request->input('level', 'all');
         $search = $request->input('search');
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 20;
+        $perPage = 50;
 
         // Базовый запрос с фильтрами
         $query = User::visibleInRating();
