@@ -200,7 +200,7 @@ class MobileRatingController extends Controller
         $period = $request->input('period', 'month');
         $search = $request->input('search');
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 20;
+        $perPage = 50;
 
         $query = \App\Models\RatingHistory::selectRaw('user_id, SUM(`change`) as total_growth')
             ->groupBy('user_id')
@@ -509,7 +509,7 @@ class MobileRatingController extends Controller
         $period = $request->input('period', 'month');
         $search = $request->input('search');
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 20;
+        $perPage = 50;
 
         $query = \App\Models\RatingHistory::selectRaw('user_id, COUNT(DISTINCT tournament_id) as tournaments_count, SUM(`change`) as total_change')
             ->whereNotNull('tournament_id')
