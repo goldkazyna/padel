@@ -131,6 +131,11 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'saveBaliKocPairs']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 
+        // Team (Групповой + Плей-офф) — счёт групповых матчей, плей-офф, генерация
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/team/group-match/{match}/score', [MobileAdminTournamentDetailController::class, 'saveTeamGroupScore']);
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/team/playoff-match/{match}/score', [MobileAdminTournamentDetailController::class, 'saveTeamPlayoffScore']);
+        Route::post('/admin/tournaments/{tournament}/team/generate-playoff', [MobileAdminTournamentDetailController::class, 'generateTeamPlayoff']);
+
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);

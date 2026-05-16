@@ -8,6 +8,7 @@ use App\Models\BaliKocMatch;
 use App\Models\BaliKocPair;
 use App\Models\KingOfCourtMatch;
 use App\Models\Tournament;
+use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
 use App\Models\User;
@@ -738,7 +739,11 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildBaliKocMatches($tournament));
         }
 
-        // Для Mexicano / Team — пока заглушка, добавим на этапах 3c-3/3c-4
+        if ($tournament->isTeamBased()) {
+            return response()->json($this->buildTeamMatches($tournament));
+        }
+
+        // Mexicano — пока заглушка
         return response()->json([
             'success' => true,
             'type' => $tournament->type,
@@ -1209,9 +1214,14 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $bali->finishTournament($tournament);
+        } elseif ($tournament->isTeamBased()) {
+            if (!$team->canFinishTournament($tournament)) {
+                return $this->error('Финал ещё не сыгран');
+            }
+            $ok = $team->finishTournament($tournament);
         } else {
             return $this->error(
-                'Завершение из мобилы пока поддерживается только для Американо/KOC/Bali'
+                'Завершение из мобилы пока поддерживается только для Американо/KOC/Bali/Group'
             );
         }
 
@@ -1775,5 +1785,376 @@ class MobileAdminTournamentDetailController extends Controller
             ];
         }
         return $rows;
+    }
+
+    // -------------------------------------------------------------------------
+    // Team (Групповой + Плей-офф) — ввод счёта, генерация плей-офф, /matches
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/team/group-match/{match}/score
+     */
+    public function saveTeamGroupScore(
+        Request $request,
+        Tournament $tournament,
+        TournamentGroupMatch $match,
+        TeamTournamentService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('group');
+        if (!$match->group ||
+            (int) $match->group->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveGroupMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null) {
+            if ($match->team1_score > $match->team2_score) $winner = 1;
+            elseif ($match->team2_score > $match->team1_score) $winner = 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/team/playoff-match/{match}/score
+     */
+    public function saveTeamPlayoffScore(
+        Request $request,
+        Tournament $tournament,
+        TournamentPlayoffMatch $match,
+        TeamTournamentService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ((int) $match->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99|different:team1_score',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->savePlayoffMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/team/generate-playoff
+     */
+    public function generateTeamPlayoff(
+        Request $request,
+        Tournament $tournament,
+        TeamTournamentService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isTeamBased()) {
+            return $this->error('Только для парного группового турнира');
+        }
+        if (!$service->isGroupStageCompleted($tournament)) {
+            return $this->error('Групповой этап не завершён');
+        }
+        if (!$service->generatePlayoff($tournament)) {
+            return $this->error('Не удалось сгенерировать плей-офф');
+        }
+
+        $tournament->refresh();
+        return response()->json($this->buildTeamMatches($tournament));
+    }
+
+    /**
+     * Формирование /matches для team — структура такая же как у liveTeam в
+     * MobileTournamentController, плюс админ-флаги (can_finish, can_generate_playoff).
+     */
+    private function buildTeamMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'teamGroups.standings.team.player1',
+            'teamGroups.standings.team.player2',
+            'teamGroups.matches.team1.player1',
+            'teamGroups.matches.team1.player2',
+            'teamGroups.matches.team2.player1',
+            'teamGroups.matches.team2.player2',
+            'playoffMatches.team1.player1',
+            'playoffMatches.team1.player2',
+            'playoffMatches.team2.player1',
+            'playoffMatches.team2.player2',
+        ]);
+
+        $service = app(TeamTournamentService::class);
+
+        $fmtPlayer = function ($p) {
+            if (!$p) return null;
+            return ['id' => $p->id, 'name' => $p->name, 'avatar' => $p->avatar];
+        };
+        $fmtTeam = function ($team) use ($fmtPlayer) {
+            if (!$team) return null;
+            return [
+                'id' => $team->id,
+                'name' => $team->name,
+                'player1' => $fmtPlayer($team->player1),
+                'player2' => $fmtPlayer($team->player2),
+            ];
+        };
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+        $groupsOut = [];
+
+        foreach ($tournament->teamGroups as $group) {
+            // Standings через сервис — учитывается личная встреча при равных очках
+            $sortedStandings = $service->getSortedStandings($group);
+
+            $leaderboard = [];
+            $position = 1;
+            foreach ($sortedStandings as $row) {
+                $teamId = (int) $row['team_id'];
+                $standingObj = $group->standings->firstWhere('team_id', $teamId);
+                $team = $standingObj?->team;
+                if (!$team) continue;
+
+                $diff = (int) $row['points_for'] - (int) $row['points_against'];
+                $totalBalls = (int) $row['points_for'] + (int) $row['points_against'];
+                $ballPercent = $totalBalls > 0
+                    ? (int) round((int) $row['points_for'] / $totalBalls * 100)
+                    : 0;
+
+                $name1 = $team->player1?->name ?? '?';
+                $name2 = $team->player2?->name ?? '?';
+
+                // Для лидерборда UI используем единый формат с другими типами:
+                // строка показывается через name (склейка имён пары).
+                $leaderboard[] = [
+                    'position' => $position++,
+                    'id' => $team->id,
+                    'name' => "{$name1} / {$name2}",
+                    'avatar' => $team->player1?->avatar ? asset('storage/' . $team->player1->avatar) : null,
+                    'rating' => 0,
+                    'wins' => (int) $row['won'],
+                    'losses' => (int) $row['lost'],
+                    'draws' => max(0, (int) $row['played'] - (int) $row['won'] - (int) $row['lost']),
+                    'points_for' => (int) $row['points_for'],
+                    'points_against' => (int) $row['points_against'],
+                    'total_points' => (int) $row['points'],
+                    'games_played' => (int) $row['played'],
+                    'point_diff' => $diff,
+                    'win_percent' => ((int) $row['played']) > 0
+                        ? (int) round((int) $row['won'] / (int) $row['played'] * 100)
+                        : 0,
+                    'ball_percent' => $ballPercent,
+                ];
+            }
+
+            // Матчи группы, объединённые в раунды по round_number
+            $byRound = [];
+            foreach ($group->matches as $m) {
+                $matchesTotal++;
+                if ($m->status === 'completed') $matchesPlayed++;
+
+                $rn = (int) $m->round_number;
+                $byRound[$rn] ??= [];
+
+                $t1 = $fmtTeam($m->team1);
+                $t2 = $fmtTeam($m->team2);
+
+                $byRound[$rn][] = [
+                    'id' => $m->id,
+                    'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+                    'team1' => [
+                        'players' => array_filter([
+                            $t1['player1'] ?? null,
+                            $t1['player2'] ?? null,
+                        ]),
+                        'score' => $m->team1_score,
+                        'team_id' => $m->team1_id,
+                        'team_name' => $t1['name'] ?? null,
+                    ],
+                    'team2' => [
+                        'players' => array_filter([
+                            $t2['player1'] ?? null,
+                            $t2['player2'] ?? null,
+                        ]),
+                        'score' => $m->team2_score,
+                        'team_id' => $m->team2_id,
+                        'team_name' => $t2['name'] ?? null,
+                    ],
+                    'status' => $m->status,
+                    'winner' => $this->teamMatchWinner($m->team1_score, $m->team2_score, $m->status),
+                ];
+            }
+            ksort($byRound);
+
+            $rounds = [];
+            foreach ($byRound as $rn => $matches) {
+                $hasInProgress = false;
+                $allCompleted = true;
+                foreach ($matches as $m) {
+                    if ($m['status'] === 'in_progress') $hasInProgress = true;
+                    if ($m['status'] !== 'completed') $allCompleted = false;
+                }
+                $rounds[] = [
+                    'id' => $group->id * 1000 + $rn,
+                    'round_number' => $rn,
+                    'status' => $hasInProgress
+                        ? 'in_progress'
+                        : ($allCompleted ? 'completed' : 'pending'),
+                    'matches' => $matches,
+                ];
+            }
+
+            $groupsOut[] = [
+                'id' => $group->id,
+                'name' => $group->name,
+                'rounds' => $rounds,
+                'leaderboard' => $leaderboard,
+            ];
+        }
+
+        // Плей-офф (если есть матчи)
+        $playoffOut = null;
+        $playoffMatches = $tournament->playoffMatches;
+        if ($playoffMatches->isNotEmpty()) {
+            $stages = [];
+            foreach ($playoffMatches as $m) {
+                $matchesTotal++;
+                if ($m->status === 'completed') $matchesPlayed++;
+
+                $stageKey = $m->is_bronze
+                    ? 'За 3-е место'
+                    : ($m->stage_name ?: ($m->stage ?? '—'));
+                if ($m->bracket === 'lower') {
+                    $stageKey .= ' (нижняя сетка)';
+                }
+
+                $t1 = $fmtTeam($m->team1);
+                $t2 = $fmtTeam($m->team2);
+
+                $stages[$stageKey][] = [
+                    'id' => $m->id,
+                    'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+                    'match_number' => $m->match_number,
+                    'team1' => [
+                        'players' => array_filter([
+                            $t1['player1'] ?? null,
+                            $t1['player2'] ?? null,
+                        ]),
+                        'score' => $m->team1_score,
+                        'team_id' => $m->team1_id,
+                        'team_name' => $t1['name'] ?? null,
+                    ],
+                    'team2' => [
+                        'players' => array_filter([
+                            $t2['player1'] ?? null,
+                            $t2['player2'] ?? null,
+                        ]),
+                        'score' => $m->team2_score,
+                        'team_id' => $m->team2_id,
+                        'team_name' => $t2['name'] ?? null,
+                    ],
+                    'status' => $m->status,
+                    'winner' => $this->teamMatchWinner($m->team1_score, $m->team2_score, $m->status),
+                ];
+            }
+            $stageOrder = [
+                '1/8 финала' => 1,
+                '1/4 финала' => 2,
+                'Полуфинал' => 3,
+                'За 3-е место' => 4,
+                'Финал' => 5,
+            ];
+            $stageList = array_keys($stages);
+            usort($stageList, fn($a, $b) =>
+                ($stageOrder[$a] ?? 99) <=> ($stageOrder[$b] ?? 99));
+
+            $playoffOut = [
+                'has_playoff' => true,
+                'is_generated' => true,
+                'matches' => [],
+                'stages' => array_map(fn($s) => [
+                    'stage' => $s,
+                    'matches' => $stages[$s],
+                ], $stageList),
+            ];
+        }
+
+        $isLive = $tournament->status === 'in_progress';
+        $canGeneratePlayoff = $isLive
+            && $playoffMatches->isEmpty()
+            && $service->isGroupStageCompleted($tournament);
+
+        return [
+            'success' => true,
+            'type' => 'team',
+            'groups' => $groupsOut,
+            'playoff' => $playoffOut,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $service->isGroupStageCompleted($tournament),
+                'can_finish' => $isLive && $service->canFinishTournament($tournament),
+                'can_generate_playoff' => $canGeneratePlayoff,
+                'can_generate_next_round' => false,
+            ],
+        ];
+    }
+
+    private function teamMatchWinner($s1, $s2, ?string $status): ?int
+    {
+        if ($status !== 'completed') return null;
+        if ($s1 === null || $s2 === null) return null;
+        if ($s1 === $s2) return null;
+        return $s1 > $s2 ? 1 : 2;
     }
 }
