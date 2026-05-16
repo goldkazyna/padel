@@ -328,6 +328,34 @@ class MobileTournamentController extends Controller
             TournamentSubscription::where('tournament_id', $tournament->id)
                 ->where('user_id', $friend->id)
                 ->delete();
+
+            // Пуш + запись в колокольчик — другу, что его записали
+            $date = $tournament->start_date->format('d.m.Y H:i');
+            $title = 'Вас записали на турнир';
+            $body = "{$user->name} записал(а) вас на «{$tournament->name}» — {$date}. Заявка на модерации.";
+
+            \App\Models\Notification::create([
+                'user_id' => $friend->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'registered_by_friend',
+                'category' => 'tournament',
+                'data' => [
+                    'tournament_id' => $tournament->id,
+                    'invited_by_user_id' => $user->id,
+                    'invited_by_name' => $user->name,
+                ],
+            ]);
+
+            $fcm = app(\App\Services\FCMNotificationService::class);
+            $fcm->sendToUser($friend, $title, $body, [
+                'type' => 'tournament',
+                'category' => 'tournament',
+                'subtype' => 'registered_by_friend',
+                'tournament_id' => (string) $tournament->id,
+                'invited_by_user_id' => (string) $user->id,
+                'invited_by_name' => $user->name,
+            ]);
         }
 
         return response()->json([
