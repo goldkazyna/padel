@@ -245,6 +245,11 @@ class MobileTournamentController extends Controller
     {
         $user = $request->user();
 
+        $request->validate([
+            'friend_user_id' => 'nullable|integer|exists:users,id',
+        ]);
+        $friendId = $request->input('friend_user_id');
+
         if ($tournament->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Турнир не открыт для регистрации'], 400);
         }
@@ -260,34 +265,76 @@ class MobileTournamentController extends Controller
             ], 400);
         }
 
-        // Атомарная проверка мест + запись (защита от race condition)
-        $registered = DB::transaction(function () use ($tournament, $user) {
+        // Валидация друга (если указан)
+        $friend = null;
+        if ($friendId) {
+            if ((int) $friendId === (int) $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Нельзя записать самого себя как друга',
+                ], 400);
+            }
+            $friend = User::find($friendId);
+            if (!$friend) {
+                return response()->json(['success' => false, 'message' => 'Друг не найден'], 404);
+            }
+            if ($tournament->participants()->where('user_id', $friend->id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "{$friend->name} уже записан на этот турнир",
+                ], 400);
+            }
+            if ($friend->level < $tournament->min_level || $friend->level > $tournament->max_level) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Уровень {$friend->name} ({$friend->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+                ], 400);
+            }
+        }
+
+        // Атомарная проверка мест + запись (защита от race condition).
+        // Если друг указан — нужно ≥ 2 свободных мест, записываем обоих.
+        $needSlots = $friend ? 2 : 1;
+        $registered = DB::transaction(function () use ($tournament, $user, $friend, $needSlots) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
             $takenSlots = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])
                 ->count();
 
-            if ($takenSlots >= $tournament->max_participants) {
+            if ($takenSlots + $needSlots > $tournament->max_participants) {
                 return false;
             }
 
             $tournament->participants()->attach($user->id, ['status' => 'pending']);
+            if ($friend) {
+                $tournament->participants()->attach($friend->id, ['status' => 'pending']);
+            }
             return true;
         });
 
         if (!$registered) {
-            return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => $needSlots === 2 ? 'Не хватает мест для двоих' : 'Все места заняты',
+            ], 400);
         }
 
         // Удаляем подписку — пользователь уже записался
         TournamentSubscription::where('tournament_id', $tournament->id)
             ->where('user_id', $user->id)
             ->delete();
+        if ($friend) {
+            TournamentSubscription::where('tournament_id', $tournament->id)
+                ->where('user_id', $friend->id)
+                ->delete();
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Заявка отправлена на модерацию',
+            'message' => $friend
+                ? "Заявка на двоих отправлена на модерацию ({$friend->name})"
+                : 'Заявка отправлена на модерацию',
             'registration_status' => 'pending',
         ]);
     }
