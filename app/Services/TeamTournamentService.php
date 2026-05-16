@@ -224,7 +224,16 @@ class TeamTournamentService
 
 		// Если админ ограничил количество кортов — перераспределяем матчи
 		// групповой стадии в волны по courts_count одновременно.
-		if ($tournament->courts_count && $tournament->courts_count > 0) {
+		// Логика rebalance имеет смысл только когда групп ≥ 2 (синхронизирует
+		// раунды между группами). Для одной группы matrix round-robin уже
+		// создаёт правильные раунды по floor(N/2) матчей на разных кортах —
+		// rebalance бы схлопнул их в N(N-1)/2 туров по 1 матчу, что
+		// неправильно (теряется параллелизм по кортам).
+		if (
+			$tournament->courts_count
+			&& $tournament->courts_count > 0
+			&& $groups->count() >= 2
+		) {
 			$this->rebalanceGroupMatchesToCourts($tournament, (int) $tournament->courts_count);
 		}
 	}
