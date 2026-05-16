@@ -1740,6 +1740,21 @@ class MobileTournamentController extends Controller
             ], 400);
         }
 
+        // Карта дельт рейтинга для каждого матча текущего юзера (если он auth)
+        $myMatchDeltas = [];
+        if ($user) {
+            try {
+                $userMatchesForDelta = $this->getPlayerBasedMatches($tournament, (int) $user->id);
+                foreach ($userMatchesForDelta as $um) {
+                    if (isset($um['id'])) {
+                        $myMatchDeltas[(int) $um['id']] = (int) ($um['rating_change'] ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $myMatchDeltas = [];
+            }
+        }
+
         $groups = [];
         $tournamentGroups = $tournament->groups()
             ->with(['players', 'rounds.matches'])
@@ -1838,6 +1853,7 @@ class MobileTournamentController extends Controller
                             'has_me' => $t2HasMe,
                         ],
                         'has_me' => $t1HasMe || $t2HasMe,
+                        'my_rating_change' => $myMatchDeltas[(int) $m->id] ?? null,
                     ];
                 }
                 $rounds[] = [
@@ -1887,6 +1903,25 @@ class MobileTournamentController extends Controller
     private function getPlayoffForLive(Tournament $tournament, $user): array
     {
         $userId = $user ? (int) $user->id : null;
+
+        // Карта дельт рейтинга по match_id для текущего юзера
+        $myMatchDeltas = [];
+        if ($user) {
+            try {
+                if ($tournament->type === 'team') {
+                    $userMatchesForDelta = $this->getTeamBasedMatches($tournament, (int) $user->id);
+                } else {
+                    $userMatchesForDelta = $this->getPlayerBasedMatches($tournament, (int) $user->id);
+                }
+                foreach ($userMatchesForDelta as $um) {
+                    if (isset($um['id'])) {
+                        $myMatchDeltas[(int) $um['id']] = (int) ($um['rating_change'] ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $myMatchDeltas = [];
+            }
+        }
 
         $matches = $tournament->playoffMatches()
             ->with([
@@ -1971,6 +2006,7 @@ class MobileTournamentController extends Controller
                     'has_me' => $t2HasMe,
                 ],
                 'has_me' => $t1HasMe || $t2HasMe,
+                'my_rating_change' => $myMatchDeltas[(int) $m->id] ?? null,
             ];
         }
 
@@ -2005,6 +2041,21 @@ class MobileTournamentController extends Controller
     private function liveMexicano(Tournament $tournament, $user)
     {
         $userId = $user ? (int) $user->id : null;
+
+        // Карта дельт рейтинга для каждого матча текущего юзера
+        $myMatchDeltas = [];
+        if ($user) {
+            try {
+                $userMatchesForDelta = $this->getPlayerBasedMatches($tournament, (int) $user->id);
+                foreach ($userMatchesForDelta as $um) {
+                    if (isset($um['id'])) {
+                        $myMatchDeltas[(int) $um['id']] = (int) ($um['rating_change'] ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $myMatchDeltas = [];
+            }
+        }
 
         // Игроки с total_points
         $mexicanoPlayers = $tournament->mexicanoPlayers()->with('user')->get();
@@ -2072,6 +2123,7 @@ class MobileTournamentController extends Controller
                         'has_me' => $t2HasMe,
                     ],
                     'has_me' => $t1HasMe || $t2HasMe,
+                    'my_rating_change' => $myMatchDeltas[(int) $m->id] ?? null,
                 ];
             }
             $roundsOut[] = [
@@ -2462,6 +2514,21 @@ class MobileTournamentController extends Controller
     {
         $userId = $user ? (int) $user->id : null;
 
+        // Карта дельт рейтинга для каждого матча текущего юзера (team-based)
+        $myMatchDeltas = [];
+        if ($user) {
+            try {
+                $userMatchesForDelta = $this->getTeamBasedMatches($tournament, (int) $user->id);
+                foreach ($userMatchesForDelta as $um) {
+                    if (isset($um['id'])) {
+                        $myMatchDeltas[(int) $um['id']] = (int) ($um['rating_change'] ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $myMatchDeltas = [];
+            }
+        }
+
         $teamGroups = $tournament->teamGroups()
             ->with([
                 'standings.team.player1',
@@ -2565,6 +2632,7 @@ class MobileTournamentController extends Controller
                         'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
                     ]),
                     'has_me' => ($t1['has_me'] ?? false) || ($t2['has_me'] ?? false),
+                    'my_rating_change' => $myMatchDeltas[(int) $m->id] ?? null,
                 ];
             }
             ksort($byRound);
