@@ -2062,11 +2062,21 @@ class MobileAdminTournamentDetailController extends Controller
             ];
         }
 
-        // Плей-офф (если есть матчи)
+        // Плей-офф (если есть матчи). Возвращаем плоский массив playoff.matches —
+        // его рендерит общий админский UI. Поле stage у каждого матча подсказывает
+        // заголовок (Полуфинал/Финал/...).
         $playoffOut = null;
         $playoffMatches = $tournament->playoffMatches;
         if ($playoffMatches->isNotEmpty()) {
-            $stages = [];
+            $stageOrder = [
+                '1/8 финала' => 1,
+                '1/4 финала' => 2,
+                'Полуфинал' => 3,
+                'За 3-е место' => 4,
+                'Финал' => 5,
+            ];
+
+            $flat = [];
             foreach ($playoffMatches as $m) {
                 $matchesTotal++;
                 if ($m->status === 'completed') $matchesPlayed++;
@@ -2081,8 +2091,9 @@ class MobileAdminTournamentDetailController extends Controller
                 $t1 = $fmtTeam($m->team1);
                 $t2 = $fmtTeam($m->team2);
 
-                $stages[$stageKey][] = [
+                $flat[] = [
                     'id' => $m->id,
+                    'stage' => $stageKey,
                     'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
                     'match_number' => $m->match_number,
                     'team1' => [
@@ -2105,27 +2116,25 @@ class MobileAdminTournamentDetailController extends Controller
                     ],
                     'status' => $m->status,
                     'winner' => $this->teamMatchWinner($m->team1_score, $m->team2_score, $m->status),
+                    '_stage_order' => $stageOrder[$stageKey] ?? 99,
                 ];
             }
-            $stageOrder = [
-                '1/8 финала' => 1,
-                '1/4 финала' => 2,
-                'Полуфинал' => 3,
-                'За 3-е место' => 4,
-                'Финал' => 5,
-            ];
-            $stageList = array_keys($stages);
-            usort($stageList, fn($a, $b) =>
-                ($stageOrder[$a] ?? 99) <=> ($stageOrder[$b] ?? 99));
+
+            // Сортируем по логическому порядку стадий, затем по match_number
+            usort($flat, function ($a, $b) {
+                if ($a['_stage_order'] !== $b['_stage_order']) {
+                    return $a['_stage_order'] <=> $b['_stage_order'];
+                }
+                return ($a['match_number'] ?? 0) <=> ($b['match_number'] ?? 0);
+            });
+            // Убираем служебное поле
+            foreach ($flat as &$mm) unset($mm['_stage_order']);
+            unset($mm);
 
             $playoffOut = [
                 'has_playoff' => true,
                 'is_generated' => true,
-                'matches' => [],
-                'stages' => array_map(fn($s) => [
-                    'stage' => $s,
-                    'matches' => $stages[$s],
-                ], $stageList),
+                'matches' => $flat,
             ];
         }
 
