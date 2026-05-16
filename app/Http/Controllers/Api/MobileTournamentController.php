@@ -1856,7 +1856,10 @@ class MobileTournamentController extends Controller
             ];
         }
 
-        $playoff = $tournament->has_playoff
+        // Показываем плей-офф если он есть в БД — независимо от has_playoff.
+        // Так покрываем team-турниры со старым флагом и любые случаи с
+        // существующими матчами плей-офф.
+        $playoff = ($tournament->has_playoff || $tournament->playoffMatches()->exists())
             ? $this->getPlayoffForLive($tournament, $user)
             : [];
 
@@ -2105,7 +2108,10 @@ class MobileTournamentController extends Controller
             ]);
         }
 
-        $playoff = $tournament->has_playoff
+        // Показываем плей-офф если он есть в БД — независимо от has_playoff.
+        // Так покрываем team-турниры со старым флагом и любые случаи с
+        // существующими матчами плей-офф.
+        $playoff = ($tournament->has_playoff || $tournament->playoffMatches()->exists())
             ? $this->getPlayoffForLive($tournament, $user)
             : [];
 
@@ -2592,7 +2598,10 @@ class MobileTournamentController extends Controller
             ];
         }
 
-        $playoff = $tournament->has_playoff
+        // Показываем плей-офф если он есть в БД — независимо от has_playoff.
+        // Так покрываем team-турниры со старым флагом и любые случаи с
+        // существующими матчами плей-офф.
+        $playoff = ($tournament->has_playoff || $tournament->playoffMatches()->exists())
             ? $this->getPlayoffForLive($tournament, $user)
             : [];
 
