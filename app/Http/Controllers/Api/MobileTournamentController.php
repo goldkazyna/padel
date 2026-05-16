@@ -193,77 +193,49 @@ class MobileTournamentController extends Controller
             ->where('user_id', $user->id)
             ->exists();
 
+        // Хелперы форматирования
+        $formatPlayer = fn($u) => [
+            'id' => $u->id,
+            'name' => $u->name,
+            'level' => $u->level,
+            'rating' => $u->rating,
+            'level_verified' => (bool) $u->level_verified,
+            'avatar_url' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+        ];
+        $formatParticipant = fn($p, $status = null) => array_merge(
+            $formatPlayer($p),
+            ['status' => $status ?? $p->pivot->status],
+        );
+        $formatTeam = fn($t, $status = null) => [
+            'id' => $t->id,
+            'player1' => $formatPlayer($t->player1),
+            'player2' => $formatPlayer($t->player2),
+            'status' => $status ?? $t->status,
+        ];
+
         // Добавляем участников/команды (основные + лист ожидания)
         if ($tournament->type === 'team') {
             $data['teams'] = $tournament->teams()
                 ->with(['player1', 'player2'])
                 ->whereIn('status', ['approved', 'pending'])
                 ->get()
-                ->map(fn($t) => [
-                    'id' => $t->id,
-                    'player1' => [
-                        'id' => $t->player1->id,
-                        'name' => $t->player1->name,
-                        'level' => $t->player1->level,
-                        'rating' => $t->player1->rating,
-                        'level_verified' => (bool) $t->player1->level_verified,
-                    ],
-                    'player2' => [
-                        'id' => $t->player2->id,
-                        'name' => $t->player2->name,
-                        'level' => $t->player2->level,
-                        'rating' => $t->player2->rating,
-                        'level_verified' => (bool) $t->player2->level_verified,
-                    ],
-                    'status' => $t->status,
-                ]);
+                ->map(fn($t) => $formatTeam($t));
             $data['waitlist_teams'] = $tournament->teams()
                 ->with(['player1', 'player2'])
                 ->where('status', 'waiting')
                 ->orderBy('created_at')
                 ->get()
-                ->map(fn($t) => [
-                    'id' => $t->id,
-                    'player1' => [
-                        'id' => $t->player1->id,
-                        'name' => $t->player1->name,
-                        'level' => $t->player1->level,
-                        'rating' => $t->player1->rating,
-                        'level_verified' => (bool) $t->player1->level_verified,
-                    ],
-                    'player2' => [
-                        'id' => $t->player2->id,
-                        'name' => $t->player2->name,
-                        'level' => $t->player2->level,
-                        'rating' => $t->player2->rating,
-                        'level_verified' => (bool) $t->player2->level_verified,
-                    ],
-                    'status' => 'waiting',
-                ]);
+                ->map(fn($t) => $formatTeam($t, 'waiting'));
         } else {
             $data['participants'] = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])
                 ->get()
-                ->map(fn($p) => [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'level' => $p->level,
-                    'rating' => $p->rating,
-                    'level_verified' => (bool) $p->level_verified,
-                    'status' => $p->pivot->status,
-                ]);
+                ->map(fn($p) => $formatParticipant($p));
             $data['waitlist_participants'] = $tournament->participants()
                 ->wherePivot('status', 'waiting')
                 ->orderBy('tournament_participants.created_at')
                 ->get()
-                ->map(fn($p) => [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'level' => $p->level,
-                    'rating' => $p->rating,
-                    'level_verified' => (bool) $p->level_verified,
-                    'status' => 'waiting',
-                ]);
+                ->map(fn($p) => $formatParticipant($p, 'waiting'));
         }
 
         return response()->json([
