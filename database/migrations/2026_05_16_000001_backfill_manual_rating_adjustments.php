@@ -38,6 +38,13 @@ return new class extends Migration
 
             if ($actualRating === $lastRating) continue;
 
+            // Дата — сразу после последней существующей записи (на 1 сек),
+            // чтобы точка на графике встала сразу после последнего турнира,
+            // а не «уехала» в сегодня.
+            $createdAt = $last->created_at
+                ? $last->created_at->copy()->addSecond()
+                : now();
+
             RatingHistory::create([
                 'user_id' => $userId,
                 'tournament_id' => null,
@@ -45,6 +52,8 @@ return new class extends Migration
                 'rating_after' => $actualRating,
                 'change' => $actualRating - $lastRating,
                 'reason' => 'Ручная корректировка',
+                'created_at' => $createdAt,
+                'updated_at' => $createdAt,
             ]);
         }
     }
