@@ -154,7 +154,7 @@ class MobileAdminTournamentController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'type' => 'required|in:king_of_court,americano,bali_koc',
+            'type' => 'required|in:king_of_court,americano,bali_koc,team',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',
@@ -167,9 +167,10 @@ class MobileAdminTournamentController extends Controller
             'courts.*' => 'nullable|string|max:50',
             'courts_count' => 'nullable|integer|min:1|max:32',
             'reserve_count' => 'nullable|integer|min:0|max:10',
-            // Поля Американо
+            // Поля Американо / Team
             'groups_count' => 'nullable|integer|in:1,2,3,4',
             'rounds_count' => 'nullable|integer|min:1|max:30',
+            'teams_advance' => 'nullable|integer|in:1,2,3,4',
             'has_playoff' => 'nullable|boolean',
             'has_lower_bracket' => 'nullable|boolean',
             'has_bronze_match' => 'nullable|boolean',
@@ -194,10 +195,13 @@ class MobileAdminTournamentController extends Controller
             $validated['price'] = 0;
         }
 
-        // Нормализация плей-офф (копия из Web Club\TournamentController::store)
+        // Нормализация плей-офф (копия из Web Club\TournamentController::store).
+        // Для team — playoff всегда включён (парный без него бессмыслен).
+        $isTeamType = ($validated['type'] ?? null) === 'team';
         $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
         $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
-        $validated['has_playoff'] = $request->boolean('has_playoff')
+        $validated['has_playoff'] = $isTeamType
+            || $request->boolean('has_playoff')
             || $validated['has_lower_bracket']
             || $validated['has_bronze_match'];
         if (!$validated['has_playoff']) {
@@ -220,17 +224,31 @@ class MobileAdminTournamentController extends Controller
 
         $tournament = Tournament::create($validated);
 
-        // Резервные игроки (для KOC — обычные одиночки, как в Web для не-team)
+        // Резервные игроки/пары (как в Web Club\TournamentController::store)
         $reserveCount = (int) ($validated['reserve_count'] ?? 0);
         if ($reserveCount > 0) {
             $reserves = \App\Models\User::where('role', 'reserve')
                 ->orderBy('id')
-                ->limit($reserveCount)
                 ->get();
-            foreach ($reserves as $reserve) {
-                $tournament->participants()->attach($reserve->id, [
-                    'status' => 'registered',
-                ]);
+
+            if ($tournament->type === 'team') {
+                // Для командных турниров создаём резервные пары — по 2 игрока на пару
+                $needed = $reserveCount * 2;
+                $reservePairs = $reserves->take($needed);
+                for ($i = 0; $i + 1 < $reservePairs->count(); $i += 2) {
+                    \App\Models\TournamentTeam::create([
+                        'tournament_id' => $tournament->id,
+                        'player1_id' => $reservePairs[$i]->id,
+                        'player2_id' => $reservePairs[$i + 1]->id,
+                        'status' => 'approved',
+                    ]);
+                }
+            } else {
+                foreach ($reserves->take($reserveCount) as $reserve) {
+                    $tournament->participants()->attach($reserve->id, [
+                        'status' => 'registered',
+                    ]);
+                }
             }
         }
 
