@@ -1,5 +1,9 @@
 @php
     $hasGroups = $tournament->isAmericano() && $tournament->groups()->count() > 0;
+    $waitlistParticipants = $tournament->participants()
+        ->wherePivot('status', 'waiting')
+        ->orderBy('tournament_participants.created_at')
+        ->get();
 @endphp
 
 <div class="section-header" style="cursor: pointer;" onclick="toggleParticipants()">
@@ -8,6 +12,9 @@
         Участники ({{ $tournament->approvedParticipantsCount() }}/{{ $tournament->max_participants }})
         @if($tournament->pendingParticipantsCount() > 0)
             <span class="pending-badge">+{{ $tournament->pendingParticipantsCount() }} на модерации</span>
+        @endif
+        @if($waitlistParticipants->count() > 0)
+            <span class="waitlist-badge">+{{ $waitlistParticipants->count() }} в листе ожидания</span>
         @endif
         @if($tournament->status === 'in_progress' || $tournament->status === 'completed' || $hasGroups)
             <i class="bi bi-chevron-down toggle-icon" id="toggleIcon"></i>
@@ -179,6 +186,47 @@
         @endforelse
     </div>
 
+    {{-- Лист ожидания --}}
+    @if($waitlistParticipants->count() > 0)
+    <div class="waitlist-section mb-4 mt-4">
+        <div class="waitlist-header">
+            <i class="bi bi-hourglass-split"></i>
+            <span>Лист ожидания ({{ $waitlistParticipants->count() }}{{ $tournament->waitlist_size ? '/'.$tournament->waitlist_size : '' }})</span>
+        </div>
+        <div class="participants-list">
+            @foreach($waitlistParticipants as $i => $participant)
+                <div class="participant-row waiting">
+                    <div class="participant-status-indicator waiting">
+                        <i class="bi bi-hourglass"></i>
+                    </div>
+                    <div class="participant-rank">{{ $i + 1 }}</div>
+                    <div class="participant-avatar">
+                        {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
+                    </div>
+                    <div class="participant-info">
+                        <div class="participant-name">{{ $participant->name }}</div>
+                        <small class="text-muted">{{ $participant->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $participant->phone) : '' }}</small>
+                        <div class="participant-meta">
+                            <span class="level-badge">{{ $participant->level }}</span>
+                            <span class="text-info">В очереди</span>
+                        </div>
+                    </div>
+                    <div class="participant-rating">{{ $participant->rating }}</div>
+                    @if($tournament->status === 'open' && !$hasGroups)
+                        <div class="participant-actions">
+                            <form action="{{ route('club.tournaments.participants.remove', [$tournament, $participant->id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Удалить из листа ожидания?')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn-danger-custom btn-sm" title="Удалить"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Форма добавления участника --}}
     @if($tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">
@@ -242,6 +290,41 @@
     border-radius: 20px;
     margin-left: 8px;
     font-weight: 600;
+}
+
+.waitlist-badge {
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-left: 8px;
+    font-weight: 600;
+}
+
+.waitlist-section {
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.waitlist-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #60a5fa;
+}
+
+.participant-status-indicator.waiting {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.participant-row.waiting {
+    border-left: 3px solid #60a5fa;
 }
 
 .pending-section {

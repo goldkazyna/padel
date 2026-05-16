@@ -2,6 +2,7 @@
 @php
     $pendingTeams = $tournament->teams()->where('status', 'pending')->orderBy('created_at', 'asc')->get();
     $approvedTeams = $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get();
+    $waitlistTeams = $tournament->teams()->where('status', 'waiting')->orderBy('created_at', 'asc')->get();
 @endphp
 
 @if($tournament->status === 'open' && $pendingTeams->count() > 0)
@@ -107,6 +108,53 @@
         </div>
     @endif
 </section>
+
+{{-- Лист ожидания пар --}}
+@if($waitlistTeams->count() > 0)
+<section class="waitlist-pairs mb-4">
+    <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 16px;">
+        <h2 class="section-title">
+            <i class="bi bi-hourglass-split me-2" style="color:#60a5fa;"></i>Лист ожидания
+        </h2>
+        <span class="badge" style="background:#60a5fa; color:#000;">
+            {{ $waitlistTeams->count() }}{{ $tournament->waitlist_size ? '/'.$tournament->waitlist_size : '' }} пар
+        </span>
+    </div>
+
+    <div class="pairs-grid">
+        @foreach($waitlistTeams as $i => $team)
+            <div class="pair-card waitlist-card">
+                <span class="pair-rank" style="background:rgba(59,130,246,0.18); color:#60a5fa;">{{ $i + 1 }}</span>
+                <div class="pair-info-block">
+                    <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
+                    <div class="pair-phones">
+                        <small style="color: #a1a1aa;">
+                            {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                            /
+                            {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                        </small>
+                    </div>
+                </div>
+                <div class="pair-rating">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    {{ $team->rating_avg }}
+                </div>
+                @if($tournament->status === 'open')
+                    <div class="pair-actions">
+                        <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару из листа ожидания?')" class="d-inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="pair-action-btn delete" title="Удалить">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </form>
+                    </div>
+                @endif
+            </div>
+        @endforeach
+    </div>
+</section>
+@endif
 
 {{-- Edit Team Modals --}}
 @if($tournament->status === 'open')
