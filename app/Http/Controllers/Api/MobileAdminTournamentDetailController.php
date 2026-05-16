@@ -664,9 +664,7 @@ class MobileAdminTournamentDetailController extends Controller
             'phone' => $u->phone,
             'level' => $u->level !== null ? (float) $u->level : null,
             'rating' => $u->rating !== null ? (int) $u->rating : null,
-            'avatar_url' => $u->avatar
-                ? asset('storage/' . $u->avatar)
-                : null,
+            'avatar_url' => $u->avatar, // в БД уже хранится готовый URL (как в рейтинге)
         ];
     }
 
