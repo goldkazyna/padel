@@ -421,8 +421,15 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->forbidden();
         }
 
+        $row = $tournament->participants()->where('user_id', $user->id)->first();
+        $wasMain = $row ? in_array($row->pivot->status, ['registered', 'pending'], true) : false;
+
         $tournament->participants()->detach($user->id);
         $this->notifyRejected($tournament, $user);
+
+        if ($wasMain && $tournament->status === 'open') {
+            \App\Http\Controllers\Api\MobileTournamentController::promoteNextFromWaitlist($tournament);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -440,7 +447,15 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Группы уже сформированы. Используйте редактор групп в Web.');
         }
 
+        $row = $tournament->participants()->where('user_id', $user->id)->first();
+        $wasMain = $row ? in_array($row->pivot->status, ['registered', 'pending'], true) : false;
+
         $tournament->participants()->detach($user->id);
+
+        if ($wasMain && $tournament->status === 'open') {
+            \App\Http\Controllers\Api\MobileTournamentController::promoteNextFromWaitlist($tournament);
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -596,7 +611,12 @@ class MobileAdminTournamentDetailController extends Controller
         if ($team->tournament_id !== $tournament->id) {
             return $this->error('Пара не принадлежит этому турниру', 404);
         }
+        $wasMain = in_array($team->status, ['approved', 'pending'], true);
         $team->delete();
+
+        if ($wasMain && $tournament->status === 'open') {
+            \App\Http\Controllers\Api\MobileTournamentController::promoteNextTeamFromWaitlist($tournament);
+        }
         return response()->json(['success' => true]);
     }
 
@@ -614,7 +634,12 @@ class MobileAdminTournamentDetailController extends Controller
         if ($tournament->status !== 'open') {
             return $this->error('Турнир уже начат');
         }
+        $wasMain = in_array($team->status, ['approved', 'pending'], true);
         $team->delete();
+
+        if ($wasMain) {
+            \App\Http\Controllers\Api\MobileTournamentController::promoteNextTeamFromWaitlist($tournament);
+        }
         return response()->json(['success' => true]);
     }
 

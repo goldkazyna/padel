@@ -167,6 +167,7 @@ class MobileAdminTournamentController extends Controller
             'courts.*' => 'nullable|string|max:50',
             'courts_count' => 'nullable|integer|min:1|max:32',
             'reserve_count' => 'nullable|integer|min:0|max:10',
+            'waitlist_size' => 'nullable|integer|min:0|max:32',
             // Поля Американо / Team
             'groups_count' => 'nullable|integer|in:1,2,3,4',
             'rounds_count' => 'nullable|integer|min:1|max:30',

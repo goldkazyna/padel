@@ -193,7 +193,7 @@ class MobileTournamentController extends Controller
             ->where('user_id', $user->id)
             ->exists();
 
-        // Добавляем участников/команды
+        // Добавляем участников/команды (основные + лист ожидания)
         if ($tournament->type === 'team') {
             $data['teams'] = $tournament->teams()
                 ->with(['player1', 'player2'])
@@ -217,6 +217,22 @@ class MobileTournamentController extends Controller
                     ],
                     'status' => $t->status,
                 ]);
+            $data['waitlist_teams'] = $tournament->teams()
+                ->with(['player1', 'player2'])
+                ->where('status', 'waiting')
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn($t) => [
+                    'id' => $t->id,
+                    'player1' => [
+                        'id' => $t->player1->id,
+                        'name' => $t->player1->name,
+                    ],
+                    'player2' => [
+                        'id' => $t->player2->id,
+                        'name' => $t->player2->name,
+                    ],
+                ]);
         } else {
             $data['participants'] = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])
@@ -228,6 +244,16 @@ class MobileTournamentController extends Controller
                     'rating' => $p->rating,
                     'level_verified' => (bool) $p->level_verified,
                     'status' => $p->pivot->status,
+                ]);
+            $data['waitlist_participants'] = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->orderBy('tournament_participants.created_at')
+                ->get()
+                ->map(fn($p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'level' => $p->level,
+                    'rating' => $p->rating,
                 ]);
         }
 
@@ -247,8 +273,10 @@ class MobileTournamentController extends Controller
 
         $request->validate([
             'friend_user_id' => 'nullable|integer|exists:users,id',
+            'confirm_waitlist' => 'nullable|boolean',
         ]);
         $friendId = $request->input('friend_user_id');
+        $confirmWaitlist = $request->boolean('confirm_waitlist');
 
         if ($tournament->status !== 'open') {
             return response()->json(['success' => false, 'message' => 'Турнир не открыт для регистрации'], 400);
@@ -294,31 +322,70 @@ class MobileTournamentController extends Controller
 
         // Атомарная проверка мест + запись (защита от race condition).
         // Если друг указан — нужно ≥ 2 свободных мест, записываем обоих.
+        // Если основных мест нет, но включён confirm_waitlist и в листе ожидания есть место —
+        // ставим в очередь со статусом 'waiting'.
         $needSlots = $friend ? 2 : 1;
-        $registered = DB::transaction(function () use ($tournament, $user, $friend, $needSlots) {
+        $outcome = DB::transaction(function () use ($tournament, $user, $friend, $needSlots, $confirmWaitlist) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
             $takenSlots = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])
                 ->count();
 
-            if ($takenSlots + $needSlots > $tournament->max_participants) {
-                return false;
+            $hasMain = ($takenSlots + $needSlots) <= $tournament->max_participants;
+
+            if ($hasMain) {
+                $tournament->participants()->attach($user->id, ['status' => 'pending']);
+                if ($friend) {
+                    $tournament->participants()->attach($friend->id, ['status' => 'pending']);
+                }
+                return 'registered';
             }
 
-            $tournament->participants()->attach($user->id, ['status' => 'pending']);
-            if ($friend) {
-                $tournament->participants()->attach($friend->id, ['status' => 'pending']);
+            // Основные места кончились — пробуем waitlist
+            $waitlistTaken = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->count();
+            $waitlistCapacity = (int) ($tournament->waitlist_size ?? 0);
+            $hasWaitlist = $waitlistCapacity > 0
+                && ($waitlistTaken + $needSlots) <= $waitlistCapacity;
+
+            if (!$hasWaitlist) {
+                return 'no_space';
             }
-            return true;
+
+            if (!$confirmWaitlist) {
+                return 'needs_confirm';
+            }
+
+            $tournament->participants()->attach($user->id, ['status' => 'waiting']);
+            if ($friend) {
+                $tournament->participants()->attach($friend->id, ['status' => 'waiting']);
+            }
+            return 'waitlisted';
         });
 
-        if (!$registered) {
+        if ($outcome === 'no_space') {
             return response()->json([
                 'success' => false,
                 'message' => $needSlots === 2 ? 'Не хватает мест для двоих' : 'Все места заняты',
             ], 400);
         }
+
+        if ($outcome === 'needs_confirm') {
+            $position = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->count() + 1;
+            return response()->json([
+                'success' => false,
+                'requires_waitlist_confirmation' => true,
+                'message' => 'Все места заняты. Встать в лист ожидания?',
+                'waitlist_position' => $position,
+                'waitlist_size' => (int) ($tournament->waitlist_size ?? 0),
+            ]);
+        }
+
+        $isWaitlisted = $outcome === 'waitlisted';
 
         // Удаляем подписку — пользователь уже записался
         TournamentSubscription::where('tournament_id', $tournament->id)
@@ -331,14 +398,16 @@ class MobileTournamentController extends Controller
 
             // Пуш + запись в колокольчик — другу, что его записали
             $date = $tournament->start_date->format('d.m.Y H:i');
-            $title = 'Вас записали на турнир';
-            $body = "{$user->name} записал(а) вас на «{$tournament->name}» — {$date}. Заявка на модерации.";
+            $title = $isWaitlisted ? 'Вас поставили в лист ожидания' : 'Вас записали на турнир';
+            $body = $isWaitlisted
+                ? "{$user->name} поставил(а) вас в лист ожидания «{$tournament->name}» — {$date}."
+                : "{$user->name} записал(а) вас на «{$tournament->name}» — {$date}. Заявка на модерации.";
 
             \App\Models\Notification::create([
                 'user_id' => $friend->id,
                 'title' => $title,
                 'body' => $body,
-                'type' => 'registered_by_friend',
+                'type' => $isWaitlisted ? 'waitlisted_by_friend' : 'registered_by_friend',
                 'category' => 'tournament',
                 'data' => [
                     'tournament_id' => $tournament->id,
@@ -351,10 +420,22 @@ class MobileTournamentController extends Controller
             $fcm->sendToUser($friend, $title, $body, [
                 'type' => 'tournament',
                 'category' => 'tournament',
-                'subtype' => 'registered_by_friend',
+                'subtype' => $isWaitlisted ? 'waitlisted_by_friend' : 'registered_by_friend',
                 'tournament_id' => (string) $tournament->id,
                 'invited_by_user_id' => (string) $user->id,
                 'invited_by_name' => $user->name,
+            ]);
+        }
+
+        if ($isWaitlisted) {
+            $position = $tournament->getWaitlistPosition($user) ?? 0;
+            return response()->json([
+                'success' => true,
+                'message' => $friend
+                    ? "Вы и {$friend->name} в листе ожидания"
+                    : 'Вы в листе ожидания',
+                'registration_status' => 'waiting',
+                'waitlist_position' => $position,
             ]);
         }
 
@@ -385,6 +466,9 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Нельзя отменить запись — турнир уже начался'], 400);
         }
 
+        // Был ли пользователь в основном составе (а не в waitlist)
+        $wasMain = in_array($participant->pivot->status, ['registered', 'pending'], true);
+
         $wasFull = $tournament->participants()
             ->wherePivotIn('status', ['registered', 'pending'])
             ->count() >= $tournament->max_participants;
@@ -400,7 +484,16 @@ class MobileTournamentController extends Controller
             $tournament->club_id,
         );
 
-        if ($wasFull && $tournament->status === 'open') {
+        // Освободилось место в основном составе — пробуем подтянуть из waitlist.
+        // Только если уходил человек из основного состава.
+        $promoted = null;
+        if ($wasMain && $tournament->status === 'open') {
+            $promoted = self::promoteNextFromWaitlist($tournament);
+        }
+
+        // Если место осталось свободным (никого не подтянули) и турнир был полным —
+        // оповещаем подписчиков и канал.
+        if ($wasFull && $tournament->status === 'open' && !$promoted) {
             $channelService = new \App\Services\TelegramChannelService($tournament->club);
             if ($channelService->isConfigured()) {
                 $channelService->postSlotAvailable($tournament);
@@ -465,7 +558,9 @@ class MobileTournamentController extends Controller
 
         $request->validate([
             'partner_id' => 'required|exists:users,id',
+            'confirm_waitlist' => 'nullable|boolean',
         ]);
+        $confirmWaitlist = $request->boolean('confirm_waitlist');
 
         if ($tournament->type !== 'team') {
             return response()->json(['success' => false, 'message' => 'Это не командный турнир'], 400);
@@ -513,8 +608,8 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Вы или ваш партнёр уже зарегистрированы'], 400);
         }
 
-        // Атомарная проверка мест + создание команды (защита от race condition)
-        $team = DB::transaction(function () use ($tournament, $user, $partner) {
+        // Атомарная проверка мест + создание команды (с поддержкой waitlist)
+        $result = DB::transaction(function () use ($tournament, $user, $partner, $confirmWaitlist) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
             $maxTeams = $tournament->max_participants / 2;
@@ -522,36 +617,78 @@ class MobileTournamentController extends Controller
                 ->whereIn('status', ['approved', 'pending'])
                 ->count();
 
-            if ($takenTeams >= $maxTeams) {
-                return null;
+            $hasMain = $takenTeams < $maxTeams;
+
+            if ($hasMain) {
+                return [
+                    'outcome' => 'registered',
+                    'team' => TournamentTeam::create([
+                        'tournament_id' => $tournament->id,
+                        'player1_id' => $user->id,
+                        'player2_id' => $partner->id,
+                        'rating_avg' => intval(($user->rating + $partner->rating) / 2),
+                        'status' => 'pending',
+                    ]),
+                ];
             }
 
-            return TournamentTeam::create([
-                'tournament_id' => $tournament->id,
-                'player1_id' => $user->id,
-                'player2_id' => $partner->id,
-                'rating_avg' => intval(($user->rating + $partner->rating) / 2),
-                'status' => 'pending',
-            ]);
+            $waitlistCapacity = (int) ($tournament->waitlist_size ?? 0);
+            $waitlistTaken = TournamentTeam::where('tournament_id', $tournament->id)
+                ->where('status', 'waiting')
+                ->count();
+            $hasWaitlist = $waitlistCapacity > 0 && ($waitlistTaken + 1) <= $waitlistCapacity;
+
+            if (!$hasWaitlist) {
+                return ['outcome' => 'no_space'];
+            }
+            if (!$confirmWaitlist) {
+                return ['outcome' => 'needs_confirm', 'position' => $waitlistTaken + 1];
+            }
+
+            return [
+                'outcome' => 'waitlisted',
+                'team' => TournamentTeam::create([
+                    'tournament_id' => $tournament->id,
+                    'player1_id' => $user->id,
+                    'player2_id' => $partner->id,
+                    'rating_avg' => intval(($user->rating + $partner->rating) / 2),
+                    'status' => 'waiting',
+                ]),
+            ];
         });
 
-        if ($team === null) {
+        if ($result['outcome'] === 'no_space') {
             return response()->json(['success' => false, 'message' => 'Все места заняты'], 400);
         }
 
-        // Удаляем подписки обоих игроков — они уже записались
+        if ($result['outcome'] === 'needs_confirm') {
+            return response()->json([
+                'success' => false,
+                'requires_waitlist_confirmation' => true,
+                'message' => 'Все места заняты. Встать парой в лист ожидания?',
+                'waitlist_position' => $result['position'],
+                'waitlist_size' => (int) ($tournament->waitlist_size ?? 0),
+            ]);
+        }
+
+        $team = $result['team'];
+
+        // Удаляем подписки обоих игроков — они уже записались/в листе
         TournamentSubscription::where('tournament_id', $tournament->id)
             ->whereIn('user_id', [$user->id, $partner->id])
             ->delete();
 
+        $isWaitlisted = $result['outcome'] === 'waitlisted';
+
         return response()->json([
             'success' => true,
-            'message' => 'Заявка отправлена на модерацию',
+            'message' => $isWaitlisted ? 'Пара в листе ожидания' : 'Заявка отправлена на модерацию',
+            'registration_status' => $team->status,
             'team' => [
                 'id' => $team->id,
                 'player1' => ['id' => $user->id, 'name' => $user->name],
                 'player2' => ['id' => $partner->id, 'name' => $partner->name],
-                'status' => 'pending',
+                'status' => $team->status,
             ],
         ]);
     }
@@ -582,6 +719,7 @@ class MobileTournamentController extends Controller
         $team->load(['player1', 'player2']);
         $partner = $team->player1_id === $user->id ? $team->player2 : $team->player1;
         $partnerName = $partner->name ?? '—';
+        $wasMain = in_array($team->status, ['approved', 'pending'], true);
 
         $team->delete();
 
@@ -599,6 +737,11 @@ class MobileTournamentController extends Controller
             ],
             $tournament->club_id,
         );
+
+        // Освободилось место в основном составе — подтягиваем пару из waitlist
+        if ($wasMain && $tournament->status === 'open') {
+            self::promoteNextTeamFromWaitlist($tournament);
+        }
 
         return response()->json([
             'success' => true,
@@ -683,6 +826,9 @@ class MobileTournamentController extends Controller
             'max_participants' => $t->max_participants,
             'participants_count' => $this->getParticipantsCount($t),
             'spots_left' => max(0, $t->max_participants - $this->getParticipantsCount($t)),
+            'waitlist_size' => (int) ($t->waitlist_size ?? 0),
+            'waitlist_count' => $t->waitlistCount(),
+            'waitlist_available' => $t->hasWaitlistSlot(),
         ];
 
         if ($user && $includeRegistration) {
@@ -691,6 +837,8 @@ class MobileTournamentController extends Controller
             $data['registration_status'] = $registration['status'];
             $data['can_register'] = $registration['can_register'];
             $data['block_reason'] = $registration['block_reason'];
+            $data['in_waitlist'] = $registration['in_waitlist'];
+            $data['waitlist_position'] = $registration['waitlist_position'];
         }
 
         return $data;
@@ -735,6 +883,8 @@ class MobileTournamentController extends Controller
             'status' => null,
             'can_register' => false,
             'block_reason' => null,
+            'in_waitlist' => false,
+            'waitlist_position' => null,
         ];
 
         if ($t->type === 'team') {
@@ -748,8 +898,13 @@ class MobileTournamentController extends Controller
             if ($team) {
                 $result['is_registered'] = true;
                 $result['status'] = $team->status;
+                if ($team->status === 'waiting') {
+                    $result['in_waitlist'] = true;
+                    $result['waitlist_position'] = $t->getWaitlistPosition($user);
+                }
             } else {
-                $result['block_reason'] = $t->getRegistrationBlockReason($user);
+                // Парная регистрация — учитываем waitlist (нужна 1 пара = 2 человека)
+                $result['block_reason'] = $this->resolveBlockReason($t, $user, 2);
                 $result['can_register'] = $result['block_reason'] === null && $t->isOpen();
             }
         } else {
@@ -758,13 +913,37 @@ class MobileTournamentController extends Controller
             if ($participant) {
                 $result['is_registered'] = true;
                 $result['status'] = $participant->pivot->status;
+                if ($participant->pivot->status === 'waiting') {
+                    $result['in_waitlist'] = true;
+                    $result['waitlist_position'] = $t->getWaitlistPosition($user);
+                }
             } else {
-                $result['block_reason'] = $t->getRegistrationBlockReason($user);
+                $result['block_reason'] = $this->resolveBlockReason($t, $user, 1);
                 $result['can_register'] = $result['block_reason'] === null && $t->isOpen();
             }
         }
 
         return $result;
+    }
+
+    /**
+     * Block reason с учётом waitlist: если основной состав полный, но waitlist открыт —
+     * не блокируем (даём пользователю записаться через подтверждение листа ожидания).
+     */
+    private function resolveBlockReason(Tournament $t, $user, int $needSlots): ?string
+    {
+        if ($t->isFull() && $t->hasWaitlistSlot($needSlots)) {
+            // Места нет в основном, но есть в waitlist — пропускаем (UI спросит confirm)
+            if (!$t->isOpen()) return 'Турнир не открыт для регистрации';
+            if ($user->level < $t->min_level) {
+                return 'Ваш уровень (' . $user->level . ') ниже минимального (' . $t->min_level . ')';
+            }
+            if ($user->level > $t->max_level) {
+                return 'Ваш уровень (' . $user->level . ') выше максимального (' . $t->max_level . ')';
+            }
+            return null;
+        }
+        return $t->getRegistrationBlockReason($user);
     }
 
     /**
@@ -1730,6 +1909,114 @@ class MobileTournamentController extends Controller
                 'tournament_id' => (string) $tournament->id,
             ]);
         }
+    }
+
+    /**
+     * Подтянуть следующего из листа ожидания в pending (solo).
+     * Возвращает promoted-user или null.
+     */
+    public static function promoteNextFromWaitlist(Tournament $tournament): ?\App\Models\User
+    {
+        if ($tournament->isTeamBased()) return null;
+        if ($tournament->status !== 'open') return null;
+
+        return DB::transaction(function () use ($tournament) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $taken = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending'])
+                ->count();
+            if ($taken >= $tournament->max_participants) {
+                return null;
+            }
+
+            $next = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->orderBy('tournament_participants.created_at')
+                ->first();
+
+            if (!$next) return null;
+
+            $tournament->participants()->updateExistingPivot($next->id, ['status' => 'pending']);
+
+            $date = $tournament->start_date->format('d.m.Y H:i');
+            $title = 'Место освободилось!';
+            $body = "Вы перешли из листа ожидания на турнир «{$tournament->name}» ({$date}). Заявка на модерации.";
+
+            \App\Models\Notification::create([
+                'user_id' => $next->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'waitlist_promoted',
+                'category' => 'tournament',
+                'data' => ['tournament_id' => $tournament->id],
+            ]);
+
+            app(\App\Services\FCMNotificationService::class)->sendToUser($next, $title, $body, [
+                'type' => 'tournament',
+                'category' => 'tournament',
+                'subtype' => 'waitlist_promoted',
+                'tournament_id' => (string) $tournament->id,
+            ]);
+
+            return $next;
+        });
+    }
+
+    /**
+     * Подтянуть следующую пару из листа ожидания в pending (team).
+     */
+    public static function promoteNextTeamFromWaitlist(Tournament $tournament): ?TournamentTeam
+    {
+        if (!$tournament->isTeamBased()) return null;
+        if ($tournament->status !== 'open') return null;
+
+        return DB::transaction(function () use ($tournament) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $maxTeams = $tournament->max_participants / 2;
+            $taken = TournamentTeam::where('tournament_id', $tournament->id)
+                ->whereIn('status', ['approved', 'pending'])
+                ->count();
+            if ($taken >= $maxTeams) return null;
+
+            $team = TournamentTeam::where('tournament_id', $tournament->id)
+                ->where('status', 'waiting')
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->first();
+
+            if (!$team) return null;
+
+            $team->update(['status' => 'pending']);
+            $team->load(['player1', 'player2']);
+
+            $date = $tournament->start_date->format('d.m.Y H:i');
+            $title = 'Место освободилось!';
+            $body = "Ваша пара перешла из листа ожидания на турнир «{$tournament->name}» ({$date}). Заявка на модерации.";
+
+            $fcm = app(\App\Services\FCMNotificationService::class);
+            foreach ([$team->player1, $team->player2] as $u) {
+                if (!$u) continue;
+                \App\Models\Notification::create([
+                    'user_id' => $u->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => 'waitlist_promoted',
+                    'category' => 'tournament',
+                    'data' => ['tournament_id' => $tournament->id, 'team_id' => $team->id],
+                ]);
+                $fcm->sendToUser($u, $title, $body, [
+                    'type' => 'tournament',
+                    'category' => 'tournament',
+                    'subtype' => 'waitlist_promoted',
+                    'tournament_id' => (string) $tournament->id,
+                    'team_id' => (string) $team->id,
+                ]);
+            }
+
+            return $team;
+        });
     }
 
     /**

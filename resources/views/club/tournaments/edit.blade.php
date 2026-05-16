@@ -77,8 +77,14 @@
                         </div>
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Стоимость (₸)</label>
-                            <input type="number" name="price" class="form-control" 
+                            <input type="number" name="price" class="form-control"
                                    value="{{ old('price', $tournament->price) }}" min="0">
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
+                            <input type="number" name="waitlist_size" class="form-control"
+                                   value="{{ old('waitlist_size', $tournament->waitlist_size ?? 0) }}" min="0" max="32">
+                            <small class="text-secondary">Сколько человек/пар встанут в очередь, когда турнир заполнится</small>
                         </div>
                     </div>
 					@if($tournament->isAmericano())

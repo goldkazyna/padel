@@ -107,6 +107,7 @@ class Tournament extends Model
 		'playoff_type',
 		'playoff_format',
 		'reserve_count',
+		'waitlist_size',
 		'courts',
 		'courts_count',
 		'has_lower_bracket',
@@ -151,7 +152,7 @@ class Tournament extends Model
 	}
 
 	/**
-	 * Количество занятых мест (approved + pending)
+	 * Количество занятых мест (approved + pending, без waiting)
 	 */
 	public function takenSlotsCount(): int
 	{
@@ -159,6 +160,56 @@ class Tournament extends Model
 			return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
 		}
 		return $this->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
+	}
+
+	/**
+	 * Сколько уже стоит в листе ожидания (в людях; для team пары*2)
+	 */
+	public function waitlistCount(): int
+	{
+		if ($this->isTeamBased()) {
+			return $this->teams()->where('status', 'waiting')->count() * 2;
+		}
+		return $this->participants()->wherePivot('status', 'waiting')->count();
+	}
+
+	/**
+	 * Есть ли свободное место в листе ожидания.
+	 * $needSlots: 1 для solo, 2 для solo-с-другом, 2 для team (одна пара).
+	 */
+	public function hasWaitlistSlot(int $needSlots = 1): bool
+	{
+		$size = (int) ($this->waitlist_size ?? 0);
+		if ($size <= 0) return false;
+		// waitlist_size для team задаётся в парах, для solo в людях.
+		$capacity = $this->isTeamBased() ? $size * 2 : $size;
+		return ($this->waitlistCount() + $needSlots) <= $capacity;
+	}
+
+	/**
+	 * Позиция пользователя в листе ожидания (1-based), либо null
+	 */
+	public function getWaitlistPosition(User $user): ?int
+	{
+		if ($this->isTeamBased()) {
+			$teams = $this->teams()->where('status', 'waiting')
+				->orderBy('created_at')->orderBy('id')->get(['id', 'player1_id', 'player2_id']);
+			$pos = 1;
+			foreach ($teams as $t) {
+				if ($t->player1_id === $user->id || $t->player2_id === $user->id) return $pos;
+				$pos++;
+			}
+			return null;
+		}
+		$rows = $this->participants()->wherePivot('status', 'waiting')
+			->orderBy('tournament_participants.created_at')
+			->get(['users.id']);
+		$pos = 1;
+		foreach ($rows as $r) {
+			if ($r->id === $user->id) return $pos;
+			$pos++;
+		}
+		return null;
 	}
 
     public function canRegister(User $user): bool

@@ -90,7 +90,12 @@ class TeamTournamentController extends Controller
             abort(403);
         }
 
+        $wasMain = in_array($team->status, ['approved', 'pending'], true);
         $team->delete();
+
+        if ($wasMain) {
+            \App\Http\Controllers\Api\MobileTournamentController::promoteNextTeamFromWaitlist($tournament);
+        }
 
         return back()->with('success', 'Пара удалена из турнира');
     }
@@ -342,8 +347,13 @@ class TeamTournamentController extends Controller
 	 */
 	public function rejectTeam(Tournament $tournament, TournamentTeam $team)
 	{
+		$wasMain = in_array($team->status, ['approved', 'pending'], true);
 		$team->delete();
-		
+
+		if ($wasMain) {
+			\App\Http\Controllers\Api\MobileTournamentController::promoteNextTeamFromWaitlist($tournament);
+		}
+
 		return back()->with('success', 'Заявка отклонена');
 	}
 	

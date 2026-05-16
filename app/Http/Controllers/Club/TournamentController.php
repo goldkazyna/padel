@@ -104,6 +104,7 @@ class TournamentController extends Controller
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
+			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
 			'courts_count' => 'nullable|integer|min:1|max:32',
@@ -253,6 +254,7 @@ class TournamentController extends Controller
 			'has_playoff' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
+			'waitlist_size' => 'nullable|integer|min:0|max:32',
 		]);
 		
 		// Обработка чекбокса плей-офф
@@ -312,6 +314,10 @@ class TournamentController extends Controller
 			return back()->with('error', 'Группы уже сформированы. Используйте редактор групп.');
 		}
 
+		// Запоминаем был ли участник в основном составе
+		$participant = $tournament->participants()->where('user_id', $userId)->first();
+		$wasMain = $participant ? in_array($participant->pivot->status, ['registered', 'pending'], true) : false;
+
 		// Проверяем был ли турнир полным ДО удаления
 		$takenSlots = $tournament->participants()
 			->wherePivotIn('status', ['registered', 'pending'])
@@ -320,8 +326,14 @@ class TournamentController extends Controller
 
 		$tournament->participants()->detach($userId);
 
-		// Если турнир был полным и открыт — уведомляем в канал и подписчиков
-		if ($wasFull && $tournament->status === 'open') {
+		// Подтягиваем из листа ожидания, если ушёл человек из основного состава
+		$promoted = null;
+		if ($wasMain && $tournament->status === 'open') {
+			$promoted = MobileTournamentController::promoteNextFromWaitlist($tournament);
+		}
+
+		// Если турнир был полным и из waitlist никого не подтянули — оповещаем подписчиков
+		if ($wasFull && $tournament->status === 'open' && !$promoted) {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
 			if ($channelService->isConfigured()) {
 				$channelService->postSlotAvailable($tournament);
@@ -639,13 +651,23 @@ class TournamentController extends Controller
 		// Получаем пользователя до удаления
 		$user = \App\Models\User::find($userId);
 
+		// Запоминаем был ли участник в основном составе (а не в waitlist)
+		$participant = $tournament->participants()->where('user_id', $userId)->first();
+		$wasMain = $participant ? in_array($participant->pivot->status, ['registered', 'pending'], true) : false;
+
 		// Проверяем был ли турнир полным ДО удаления
 		$takenSlots = $tournament->participants()
 			->wherePivotIn('status', ['registered', 'pending'])
 			->count();
 		$wasFull = $takenSlots >= $tournament->max_participants;
-		
+
 		$tournament->participants()->detach($userId);
+
+		// Подтягиваем из waitlist, если был в основном составе
+		$promoted = null;
+		if ($wasMain && $tournament->status === 'open') {
+			$promoted = MobileTournamentController::promoteNextFromWaitlist($tournament);
+		}
 
 		// Отправляем уведомление об отклонении
 		if ($user) {
@@ -672,8 +694,8 @@ class TournamentController extends Controller
 			]);
 		}
 
-		// Если турнир был полным — уведомляем в канал и подписчиков
-		if ($wasFull && $tournament->status === 'open') {
+		// Если турнир был полным и никого не подтянули из waitlist — оповещаем подписчиков
+		if ($wasFull && $tournament->status === 'open' && !$promoted) {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
 			if ($channelService->isConfigured()) {
 				$channelService->postSlotAvailable($tournament);
