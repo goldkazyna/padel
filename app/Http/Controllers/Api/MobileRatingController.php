@@ -306,57 +306,96 @@ class MobileRatingController extends Controller
         $matchStats = $user->getAllMatchesStats();
         $tournamentStats = $user->getTournamentStats();
 
-        // Тренд рейтинга — одно значение на турнир
-        $trendEntries = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->whereNotNull('tournament_id')
+        // Тренд рейтинга — каждый турнир и каждая ручная правка как отдельная точка.
+        $rawHistory = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
-            ->get(['tournament_id', 'rating_after'])
-            ->groupBy('tournament_id')
-            ->map(fn($group) => [
-                'tournament_id' => (int) $group->first()->tournament_id,
-                'rating_after' => (int) $group->last()->rating_after,
-            ])
-            ->values()
-            ->take(-10)
-            ->values();
+            ->get(['id', 'tournament_id', 'rating_after', 'created_at']);
 
-        $ratingTrend = $trendEntries->pluck('rating_after')->map('intval')->all();
+        $entries = [];
+        $prevTournamentId = -1;
+        foreach ($rawHistory as $h) {
+            $tid = $h->tournament_id !== null ? (int) $h->tournament_id : null;
+            if ($tid !== null && $tid === $prevTournamentId) {
+                $last = count($entries) - 1;
+                $entries[$last]['rating_after'] = (int) $h->rating_after;
+                $entries[$last]['created_at'] = $h->created_at;
+            } else {
+                $entries[] = [
+                    'tournament_id' => $tid,
+                    'rating_after' => (int) $h->rating_after,
+                    'created_at' => $h->created_at,
+                ];
+                $prevTournamentId = $tid ?? -1;
+            }
+        }
+        $entries = array_slice($entries, -10);
 
-        // Подробности по последним 10 точкам — название турнира, клуб, дата, дельта
-        $tournamentIds = $trendEntries->pluck('tournament_id')->all();
-        $tournamentsForTrend = \App\Models\Tournament::whereIn('id', $tournamentIds)
-            ->with('club')
-            ->get()
-            ->keyBy('id');
+        $ratingTrend = array_map(fn($e) => $e['rating_after'], $entries);
+
+        $tournamentIds = array_values(array_filter(array_map(
+            fn($e) => $e['tournament_id'],
+            $entries,
+        ), fn($v) => $v !== null));
+        $tournamentsForTrend = $tournamentIds
+            ? \App\Models\Tournament::whereIn('id', $tournamentIds)
+                ->with('club')
+                ->get()
+                ->keyBy('id')
+            : collect();
 
         $ratingTrendDetails = [];
         $prevRating = null;
-        foreach ($trendEntries as $entry) {
-            $t = $tournamentsForTrend[$entry['tournament_id']] ?? null;
+        foreach ($entries as $entry) {
             $rating = (int) $entry['rating_after'];
             $delta = $prevRating === null ? null : $rating - $prevRating;
-            $ratingTrendDetails[] = [
-                'tournament_id' => $entry['tournament_id'],
-                'name' => $t?->name ?? 'Турнир',
-                'club_name' => $t?->club?->name,
-                'date' => $t?->start_date?->translatedFormat('j M Y'),
-                'rating' => $rating,
-                'delta' => $delta,
-            ];
+            if ($entry['tournament_id'] === null) {
+                $ratingTrendDetails[] = [
+                    'tournament_id' => null,
+                    'name' => 'Ручная корректировка',
+                    'club_name' => null,
+                    'date' => $entry['created_at']?->translatedFormat('j M Y'),
+                    'rating' => $rating,
+                    'delta' => $delta,
+                    'is_manual' => true,
+                ];
+            } else {
+                $t = $tournamentsForTrend[$entry['tournament_id']] ?? null;
+                $ratingTrendDetails[] = [
+                    'tournament_id' => $entry['tournament_id'],
+                    'name' => $t?->name ?? 'Турнир',
+                    'club_name' => $t?->club?->name,
+                    'date' => $t?->start_date?->translatedFormat('j M Y'),
+                    'rating' => $rating,
+                    'delta' => $delta,
+                    'is_manual' => false,
+                ];
+            }
             $prevRating = $rating;
         }
 
-        // История рейтинга — показываем ТОЛЬКО записи с существующим турниром.
-        // Если у записи tournament_id=NULL (FK обнулил при удалении турнира)
-        // или сам турнир физически удалён — это руины, прячем.
+        // История рейтинга — показываем турниры + ручные правки
+        // (reason = 'Ручная корректировка', tournament_id = null).
+        // Если turn_id есть, но турнир физически удалён — это руины, прячем.
         $history = \App\Models\RatingHistory::where('user_id', $user->id)
             ->with('tournament:id,name,type,has_playoff')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
-            ->filter(fn($h) => $h->tournament !== null)
+            ->filter(fn($h) => $h->tournament_id === null || $h->tournament !== null)
             ->map(function($h) use ($user) {
+                if ($h->tournament_id === null) {
+                    return [
+                        'tournament_id' => null,
+                        'tournament_name' => $h->reason ?: 'Ручная корректировка',
+                        'tournament_type' => 'manual',
+                        'date' => $h->created_at->format('d.m.Y'),
+                        'change' => $h->change,
+                        'rating_after' => $h->rating_after,
+                        'place' => null,
+                        'is_manual' => true,
+                    ];
+                }
                 return [
                     'tournament_id' => $h->tournament->id,
                     'tournament_name' => $h->tournament->name,
@@ -365,6 +404,7 @@ class MobileRatingController extends Controller
                     'change' => $h->change,
                     'rating_after' => $h->rating_after,
                     'place' => $this->getTournamentPlace($h->tournament, $user->id),
+                    'is_manual' => false,
                 ];
             })
             ->values();

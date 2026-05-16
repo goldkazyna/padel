@@ -127,6 +127,7 @@ class UserController extends Controller
         $oldName = $user->name;
         $oldLevel = $user->level !== null ? (float) $user->level : null;
         $oldVerified = (bool) $user->level_verified;
+        $oldRating = (int) ($user->rating ?? 0);
 
         $update = ['name' => $validated['name']];
 
@@ -145,6 +146,19 @@ class UserController extends Controller
 
         $user->update($update);
         $user->refresh();
+
+        // Если рейтинг изменился — фиксируем в rating_history с tournament_id=null,
+        // чтобы график «Динамика рейтинга» совпадал с актуальным users.rating.
+        if (isset($update['rating']) && $update['rating'] !== $oldRating) {
+            \App\Models\RatingHistory::create([
+                'user_id' => $user->id,
+                'tournament_id' => null,
+                'rating_before' => $oldRating,
+                'rating_after' => (int) $update['rating'],
+                'change' => (int) $update['rating'] - $oldRating,
+                'reason' => 'Ручная корректировка',
+            ]);
+        }
 
         $newVerified = (bool) $user->level_verified;
 

@@ -86,46 +86,76 @@ class MobileProfileController extends Controller
                 ->count() + 1;
         }
 
-        // Тренд рейтинга — одно значение на турнир (финальный rating_after),
-        // чтобы совпадал со списком "История турниров"
-        $trendEntries = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->whereNotNull('tournament_id')
+        // Тренд рейтинга для графика «Динамика рейтинга».
+        // Каждый турнир = одна точка (берём финальный rating_after турнира).
+        // Каждая ручная правка (tournament_id = null) = отдельная точка.
+        $rawHistory = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
-            ->get(['tournament_id', 'rating_after'])
-            ->groupBy('tournament_id')
-            ->map(fn($group) => [
-                'tournament_id' => (int) $group->first()->tournament_id,
-                'rating_after' => (int) $group->last()->rating_after,
-            ])
-            ->values()
-            ->take(-10) // последние 10 турниров
-            ->values();
+            ->get(['id', 'tournament_id', 'rating_after', 'created_at']);
 
-        $ratingTrend = $trendEntries->pluck('rating_after')->map('intval')->all();
+        $entries = [];
+        $prevTournamentId = -1; // -1 = «нет предыдущей»
+        foreach ($rawHistory as $h) {
+            $tid = $h->tournament_id !== null ? (int) $h->tournament_id : null;
+            if ($tid !== null && $tid === $prevTournamentId) {
+                // Тот же турнир — обновляем последнюю запись (финальный rating_after)
+                $last = count($entries) - 1;
+                $entries[$last]['rating_after'] = (int) $h->rating_after;
+                $entries[$last]['created_at'] = $h->created_at;
+            } else {
+                $entries[] = [
+                    'tournament_id' => $tid,
+                    'rating_after' => (int) $h->rating_after,
+                    'created_at' => $h->created_at,
+                ];
+                $prevTournamentId = $tid ?? -1;
+            }
+        }
+        $entries = array_slice($entries, -10);
 
-        // Подробности по последним 10 точкам — для карточки «Динамика рейтинга»:
-        // название турнира, клуб, дата, дельта рейтинга.
-        $tournamentIds = $trendEntries->pluck('tournament_id')->all();
-        $tournaments = \App\Models\Tournament::whereIn('id', $tournamentIds)
-            ->with('club')
-            ->get()
-            ->keyBy('id');
+        $ratingTrend = array_map(fn($e) => $e['rating_after'], $entries);
+
+        // Подгружаем турниры для отображения названий/клубов/дат
+        $tournamentIds = array_values(array_filter(array_map(
+            fn($e) => $e['tournament_id'],
+            $entries,
+        ), fn($v) => $v !== null));
+        $tournaments = $tournamentIds
+            ? \App\Models\Tournament::whereIn('id', $tournamentIds)
+                ->with('club')
+                ->get()
+                ->keyBy('id')
+            : collect();
 
         $details = [];
         $prev = null;
-        foreach ($trendEntries as $entry) {
-            $t = $tournaments[$entry['tournament_id']] ?? null;
+        foreach ($entries as $entry) {
             $rating = (int) $entry['rating_after'];
             $delta = $prev === null ? null : $rating - $prev;
-            $details[] = [
-                'tournament_id' => $entry['tournament_id'],
-                'name' => $t?->name ?? 'Турнир',
-                'club_name' => $t?->club?->name,
-                'date' => $t?->start_date?->translatedFormat('j M Y'),
-                'rating' => $rating,
-                'delta' => $delta,
-            ];
+            if ($entry['tournament_id'] === null) {
+                // Ручная правка админом — точка без турнира.
+                $details[] = [
+                    'tournament_id' => null,
+                    'name' => 'Ручная корректировка',
+                    'club_name' => null,
+                    'date' => $entry['created_at']?->translatedFormat('j M Y'),
+                    'rating' => $rating,
+                    'delta' => $delta,
+                    'is_manual' => true,
+                ];
+            } else {
+                $t = $tournaments[$entry['tournament_id']] ?? null;
+                $details[] = [
+                    'tournament_id' => $entry['tournament_id'],
+                    'name' => $t?->name ?? 'Турнир',
+                    'club_name' => $t?->club?->name,
+                    'date' => $t?->start_date?->translatedFormat('j M Y'),
+                    'rating' => $rating,
+                    'delta' => $delta,
+                    'is_manual' => false,
+                ];
+            }
             $prev = $rating;
         }
 

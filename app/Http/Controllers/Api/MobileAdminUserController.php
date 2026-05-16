@@ -160,6 +160,7 @@ class MobileAdminUserController extends Controller
         $oldName = $target->name;
         $oldLevel = $target->level !== null ? (float) $target->level : null;
         $oldVerified = (bool) $target->level_verified;
+        $oldRating = (int) ($target->rating ?? 0);
 
         $update = ['name' => $validated['name']];
         $newLevel = null;
@@ -175,6 +176,19 @@ class MobileAdminUserController extends Controller
 
         $target->update($update);
         $target->refresh();
+
+        // Фиксируем ручную правку рейтинга в rating_history (tournament_id=null),
+        // чтобы график «Динамика рейтинга» был полным.
+        if (isset($update['rating']) && $update['rating'] !== $oldRating) {
+            \App\Models\RatingHistory::create([
+                'user_id' => $target->id,
+                'tournament_id' => null,
+                'rating_before' => $oldRating,
+                'rating_after' => (int) $update['rating'],
+                'change' => (int) $update['rating'] - $oldRating,
+                'reason' => 'Ручная корректировка',
+            ]);
+        }
         $newVerified = (bool) $target->level_verified;
 
         // Сборка changes
