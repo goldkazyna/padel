@@ -200,7 +200,7 @@ class MobileTournamentController extends Controller
             'level' => $u->level,
             'rating' => $u->rating,
             'level_verified' => (bool) $u->level_verified,
-            'avatar_url' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+            'avatar' => $u->avatar,
         ];
         $formatParticipant = fn($p, $status = null) => array_merge(
             $formatPlayer($p),
