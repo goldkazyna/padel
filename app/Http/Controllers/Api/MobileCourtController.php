@@ -24,6 +24,7 @@ class MobileCourtController extends Controller
     public function clubs(Request $request)
     {
         $query = Club::active()
+            ->where('is_test', false)
             ->whereHas('courts', fn($q) => $q->where('is_active', true));
 
         // Фильтр по фиче courts
