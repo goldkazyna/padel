@@ -583,13 +583,16 @@ class CourtController extends Controller
         $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
         $linkedUser = $this->findUserByPhone($validated['client_phone']);
 
-        // Для новых клиентов (которых ещё нет в справочнике) требуем имя+фамилию.
-        // Существующих клиентов с однословным именем не блокируем — у них в базе уже
-        // что-то лежит и мы не хотим мешать сотруднику забронировать.
+        // Карточка клиента — источник истины. Если клиент уже есть по телефону,
+        // в бронь идёт имя из карточки, а введённое игнорируется — это исключает
+        // рассинхрон, когда в карточке одно имя, а в свежей брони другое.
+        // Для новых клиентов (нет в справочнике) требуем имя+фамилию.
         $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
             ->where('phone', $validated['client_phone'])
             ->first();
-        if (!$existingClient) {
+        if ($existingClient) {
+            $validated['client_name'] = $existingClient->name;
+        } else {
             $words = preg_split('/\s+/', trim($validated['client_name']));
             $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
             if (count($words) < 2) {
