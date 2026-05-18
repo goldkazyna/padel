@@ -534,10 +534,10 @@
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
 
                         <div class="form-group" style="margin-top: 14px;">
-                            <label class="form-label">Статус оплаты</label>
-                            <input type="hidden" name="is_paid" id="isPaidInput" value="0">
+                            <label class="form-label">Статус оплаты *</label>
+                            <input type="hidden" name="is_paid" id="isPaidInput" value="">
                             <div class="paid-toggle">
-                                <button type="button" class="paid-btn active" data-value="0" onclick="setPaid(this)">Не оплачено</button>
+                                <button type="button" class="paid-btn" data-value="0" onclick="setPaid(this)">Не оплачено</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
                             </div>
                         </div>
@@ -876,10 +876,9 @@
         if (clientName) clientName.value = '';
         if (clientPhone) clientPhone.value = '';
         document.getElementById('paymentMethodInput').value = '';
-        document.getElementById('isPaidInput').value = '0';
+        document.getElementById('isPaidInput').value = '';
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector('.paid-btn[data-value="0"]').classList.add('active');
         document.getElementById('bookCoachId').value = '';
         updateCoachButtons();
 
@@ -1107,6 +1106,39 @@
         btn.classList.add('active');
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
     }
+
+    // Валидация формы бронирования: имя+фамилия, способ оплаты, статус оплаты
+    document.getElementById('bookForm').addEventListener('submit', function(e) {
+        const form = e.target;
+        const nameInput = form.querySelector('input[name="client_name"]');
+        const phoneInput = form.querySelector('input[name="client_phone"]');
+        const paymentInput = form.querySelector('input[name="payment_method"]');
+        const paidInput = form.querySelector('input[name="is_paid"]');
+
+        const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+        if (words.length < 2) {
+            e.preventDefault();
+            alert('Укажите имя и фамилию клиента (например: «Денис Дудников»)');
+            nameInput.focus();
+            return;
+        }
+        if (!(phoneInput.value || '').trim()) {
+            e.preventDefault();
+            alert('Укажите номер телефона');
+            phoneInput.focus();
+            return;
+        }
+        if (!paymentInput.value) {
+            e.preventDefault();
+            alert('Выберите способ оплаты');
+            return;
+        }
+        if (paidInput.value === '') {
+            e.preventDefault();
+            alert('Выберите статус оплаты: «Оплачено» или «Не оплачено»');
+            return;
+        }
+    });
 
     // Тренеры — доступность по слотам
     const coachAvailability = @json($coachAvailability);

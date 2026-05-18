@@ -564,18 +564,40 @@ class CourtController extends Controller
             'slots' => 'required|integer|min:1|max:8',
             'client_name' => 'required|string|max:255',
             'client_phone' => 'required|string|max:50',
-            'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
-            'is_paid' => 'nullable|boolean',
+            'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'required|boolean',
             'comment' => 'nullable|string|max:500',
             'coach_id' => 'nullable|exists:users,id',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
+        ], [
+            'client_name.required' => 'Укажите имя клиента',
+            'client_phone.required' => 'Укажите номер телефона',
+            'payment_method.required' => 'Выберите способ оплаты',
+            'payment_method.in' => 'Выберите корректный способ оплаты',
+            'is_paid.required' => 'Выберите статус оплаты (оплачено / не оплачено)',
         ]);
 
         $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
         $linkedUser = $this->findUserByPhone($validated['client_phone']);
+
+        // Для новых клиентов (которых ещё нет в справочнике) требуем имя+фамилию.
+        // Существующих клиентов с однословным именем не блокируем — у них в базе уже
+        // что-то лежит и мы не хотим мешать сотруднику забронировать.
+        $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
+            ->where('phone', $validated['client_phone'])
+            ->first();
+        if (!$existingClient) {
+            $words = preg_split('/\s+/', trim($validated['client_name']));
+            $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
+            if (count($words) < 2) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
+            }
+        }
 
         $startTime = $validated['start_time'];
         $totalMinutes = $validated['slots'] * $court->slot_duration;
