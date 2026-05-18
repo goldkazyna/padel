@@ -790,18 +790,42 @@ class CourtController extends Controller
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
             'client_phone' => 'required|string|max:50',
-            'payment_method' => 'nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
-            'is_paid' => 'nullable|boolean',
+            'client_note' => 'nullable|string|max:1000',
+            'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'required|boolean',
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'coach_id' => 'nullable',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'slots' => 'nullable|integer|min:1|max:8',
+        ], [
+            'client_name.required' => 'Укажите имя клиента',
+            'client_phone.required' => 'Укажите номер телефона',
+            'payment_method.required' => 'Выберите способ оплаты',
+            'payment_method.in' => 'Выберите корректный способ оплаты',
+            'is_paid.required' => 'Выберите статус оплаты (оплачено / не оплачено)',
         ]);
 
         $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
         $linkedUser = $this->findUserByPhone($validated['client_phone']);
+
+        // Карточка клиента — источник истины. Если клиент уже есть по телефону,
+        // в бронь идёт имя из карточки. Для новых клиентов требуем имя+фамилию.
+        $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
+            ->where('phone', $validated['client_phone'])
+            ->first();
+        if ($existingClient) {
+            $validated['client_name'] = $existingClient->name;
+        } else {
+            $words = preg_split('/\s+/', trim($validated['client_name']));
+            $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
+            if (count($words) < 2) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
+            }
+        }
 
         $updateData = [
             'client_name' => $validated['client_name'],
@@ -859,6 +883,17 @@ class CourtController extends Controller
         }
 
         $booking->update($updateData);
+
+        // Если клиента ещё нет в справочнике (например, у старой брони
+        // добавили телефон) — создаём карточку. Заметку из формы берём только
+        // для новых клиентов, существующих не трогаем (карточка — источник истины).
+        if ($validated['client_phone']) {
+            $clientNote = $request->has('client_note') ? trim((string) $request->input('client_note')) : '';
+            \App\Models\ClubClient::firstOrCreate(
+                ['club_id' => $club->id, 'phone' => $validated['client_phone']],
+                ['name' => $validated['client_name'], 'note' => $clientNote !== '' ? $clientNote : null]
+            );
+        }
 
         // Push + уведомление при обработке (was unprocessed → now processed) — отложено
         if ($wasUnprocessed && $booking->is_processed && $booking->booked_by) {

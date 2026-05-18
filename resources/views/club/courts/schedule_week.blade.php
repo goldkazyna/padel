@@ -1015,8 +1015,8 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Статус оплаты</label>
-                            <input type="hidden" name="is_paid" id="editIsPaidInput" value="0">
+                            <label class="form-label">Статус оплаты *</label>
+                            <input type="hidden" name="is_paid" id="editIsPaidInput" value="">
                             <div class="paid-toggle">
                                 <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
@@ -1035,9 +1035,10 @@
 
                     <div class="modal-col-right">
                         <div class="form-group autocomplete-wrap">
-                            <label class="form-label">Имя клиента *</label>
-                            <input type="text" name="client_name" id="editClientName" class="form-input" autocomplete="off" required>
+                            <label class="form-label">Напишите имя и фамилию клиента *</label>
+                            <input type="text" name="client_name" id="editClientName" class="form-input" placeholder="Например: Денис Дудников" autocomplete="off" required>
                             <div class="autocomplete-list" id="editNameList"></div>
+                            <small class="form-hint" id="editClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
                         <div class="form-group autocomplete-wrap">
                             <label class="form-label">Телефон *</label>
@@ -1045,7 +1046,13 @@
                             <div class="autocomplete-list" id="editPhoneList"></div>
                         </div>
 
-                        <div class="modal-section-title">Способ оплаты</div>
+                        <div class="form-group">
+                            <label class="form-label">Заметка о клиенте</label>
+                            <textarea name="client_note" id="editClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
+                            <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
+                        </div>
+
+                        <div class="modal-section-title">Способ оплаты *</div>
                         <div class="payment-methods" id="editPaymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
@@ -1072,6 +1079,11 @@
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
                     </div>
+                </div>
+
+                <div class="book-form-error" id="editFormError" role="alert" aria-live="polite">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span class="book-form-error-text"></span>
                 </div>
 
                 <div class="sch-modal-footer" style="flex-direction: column; gap: 8px;">
@@ -1262,8 +1274,23 @@
         document.getElementById('viewTime').textContent = data.startTime + ' — ' + data.endTime;
         document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
 
+        unlockClientFields('edit');
+        clearEditFormError();
+
         document.getElementById('editClientName').value = data.clientName || '';
         document.getElementById('editClientPhone').value = data.clientPhone ? '+' + data.clientPhone.replace(/\D/g, '') : '';
+        document.getElementById('editClientNote').value = '';
+
+        const phoneNorm = (data.clientPhone || '').replace(/\D/g, '');
+        if (phoneNorm) {
+            fetch('{{ route("club.clients.search") }}?q=' + encodeURIComponent(phoneNorm) + '&field=phone')
+                .then(r => r.json())
+                .then(clients => {
+                    const exact = (clients || []).find(c => (c.phone || '').replace(/\D/g, '') === phoneNorm);
+                    if (exact) lockClientFields('edit', exact.note || '');
+                })
+                .catch(() => {});
+        }
 
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
@@ -1410,6 +1437,113 @@
 
     function cancelBooking() {
         if (confirm('Вы уверены, что хотите отменить бронь?')) document.getElementById('cancelBookingForm').submit();
+    }
+
+    // Лок/анлок клиентских полей + валидация edit-формы (как в book)
+    function lockClientFields(prefix, noteValue) {
+        const nameInput = document.getElementById(prefix + 'ClientName');
+        if (nameInput) {
+            nameInput.setAttribute('readonly', 'readonly');
+            nameInput.classList.add('is-locked');
+            nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
+        }
+        const nameHint = document.getElementById(prefix + 'ClientNameHint');
+        if (nameHint) nameHint.style.display = 'block';
+        const noteInput = document.getElementById(prefix + 'ClientNote');
+        if (noteInput) {
+            noteInput.value = noteValue || '';
+            noteInput.setAttribute('readonly', 'readonly');
+            noteInput.classList.add('is-locked');
+            noteInput.title = 'Заметка берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
+        }
+        const noteHint = document.getElementById(prefix + 'ClientNoteHint');
+        if (noteHint) noteHint.style.display = 'block';
+    }
+    function unlockClientFields(prefix) {
+        const nameInput = document.getElementById(prefix + 'ClientName');
+        if (nameInput && nameInput.hasAttribute('readonly')) {
+            nameInput.removeAttribute('readonly');
+            nameInput.classList.remove('is-locked');
+            nameInput.removeAttribute('title');
+        }
+        const nameHint = document.getElementById(prefix + 'ClientNameHint');
+        if (nameHint) nameHint.style.display = 'none';
+        const noteInput = document.getElementById(prefix + 'ClientNote');
+        if (noteInput) {
+            noteInput.removeAttribute('readonly');
+            noteInput.classList.remove('is-locked');
+            noteInput.removeAttribute('title');
+        }
+        const noteHint = document.getElementById(prefix + 'ClientNoteHint');
+        if (noteHint) noteHint.style.display = 'none';
+    }
+
+    function showEditFormError(message, targetEl) {
+        const errorBox = document.getElementById('editFormError');
+        if (!errorBox) return;
+        errorBox.querySelector('.book-form-error-text').textContent = message;
+        errorBox.classList.add('is-visible');
+        document.querySelectorAll('#editBookingForm .has-error').forEach(el => el.classList.remove('has-error'));
+        if (targetEl) {
+            targetEl.classList.add('has-error');
+            try { targetEl.scrollIntoView({behavior: 'smooth', block: 'center'}); } catch (_) {}
+            if (targetEl.tagName === 'INPUT') setTimeout(() => targetEl.focus({preventScroll: true}), 200);
+        }
+    }
+    function clearEditFormError() {
+        const errorBox = document.getElementById('editFormError');
+        if (errorBox) errorBox.classList.remove('is-visible');
+        document.querySelectorAll('#editBookingForm .has-error').forEach(el => el.classList.remove('has-error'));
+    }
+
+    document.getElementById('editBookingForm').addEventListener('submit', function(e) {
+        const form = e.target;
+        const nameInput = form.querySelector('input[name="client_name"]');
+        const phoneInput = form.querySelector('input[name="client_phone"]');
+        const paymentInput = form.querySelector('input[name="payment_method"]');
+        const paidInput = form.querySelector('input[name="is_paid"]');
+        const paymentGroup = document.getElementById('editPaymentMethods');
+        const paidGroup = document.querySelector('#editBookingForm .paid-toggle');
+
+        const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
+        if (!nameIsLocked) {
+            const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+            if (words.length < 2) {
+                e.preventDefault();
+                showEditFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                return;
+            }
+        }
+        if (!(phoneInput.value || '').trim()) {
+            e.preventDefault();
+            showEditFormError('Укажите номер телефона клиента', phoneInput);
+            return;
+        }
+        if (!paymentInput.value) {
+            e.preventDefault();
+            showEditFormError('Выберите способ оплаты', paymentGroup);
+            return;
+        }
+        if (paidInput.value === '') {
+            e.preventDefault();
+            showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+            return;
+        }
+        clearEditFormError();
+    });
+    document.getElementById('editBookingForm').addEventListener('input', clearEditFormError);
+    document.getElementById('editBookingForm').addEventListener('click', function(e) {
+        if (e.target.closest('.pay-btn, .paid-btn')) clearEditFormError();
+    });
+
+    const editPhoneEl = document.getElementById('editClientPhone');
+    if (editPhoneEl) {
+        editPhoneEl.addEventListener('input', function() {
+            if (document.getElementById('editClientName').hasAttribute('readonly')) {
+                unlockClientFields('edit');
+                document.getElementById('editClientNote').value = '';
+            }
+        });
     }
 
     function selectEditPayment(btn) {
@@ -1764,25 +1898,11 @@
                                     input.value = this.dataset[field];
                                     const paired = document.getElementById(pairedInputId);
                                     if (paired) paired.value = this.dataset[field === 'name' ? 'phone' : 'name'];
-                                    // Выбран существующий клиент — имя в брони править нельзя
-                                    if (inputId === 'bookClientName' || inputId === 'bookClientPhone') {
-                                        const nameInput = document.getElementById('bookClientName');
-                                        if (nameInput) {
-                                            nameInput.setAttribute('readonly', 'readonly');
-                                            nameInput.classList.add('is-locked');
-                                            nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
-                                        }
-                                        const nameHint = document.getElementById('bookClientNameHint');
-                                        if (nameHint) nameHint.style.display = 'block';
-                                        const noteInput = document.getElementById('bookClientNote');
-                                        const noteHint = document.getElementById('bookClientNoteHint');
-                                        if (noteInput) {
-                                            noteInput.value = this.dataset.note || '';
-                                            noteInput.setAttribute('readonly', 'readonly');
-                                            noteInput.classList.add('is-locked');
-                                            noteInput.title = 'Заметка берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
-                                        }
-                                        if (noteHint) noteHint.style.display = 'block';
+                                    // Существующий клиент — лочим имя+заметку (book или edit)
+                                    const isBook = (inputId === 'bookClientName' || inputId === 'bookClientPhone');
+                                    const isEdit = (inputId === 'editClientName' || inputId === 'editClientPhone');
+                                    if (isBook || isEdit) {
+                                        lockClientFields(isBook ? 'book' : 'edit', this.dataset.note || '');
                                     }
                                     list.classList.remove('show');
                                 });
