@@ -8,6 +8,7 @@ use App\Models\ClubClient;
 use App\Models\CourtBooking;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClientController extends Controller
 {
@@ -225,6 +226,53 @@ class ClientController extends Controller
 
         return redirect()->route('club.clients.index', ['selected' => $client->id])
             ->with('success', 'Клиент обновлён');
+    }
+
+    /**
+     * Выгрузка всех клиентов клуба в CSV (открывается в Excel).
+     * GET /club/clients/export
+     */
+    public function export(): StreamedResponse
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $clients = ClubClient::where('club_id', $club->id)
+            ->orderBy('name')
+            ->get();
+
+        $fileName = 'clients_' . $club->id . '_' . Carbon::now()->format('Y-m-d') . '.csv';
+
+        $callback = function () use ($clients) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM чтобы Excel корректно отображал кириллицу
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'Имя', 'Телефон', 'Пол', 'Дата рождения', 'Заметка', 'Добавлен',
+            ], ';');
+
+            foreach ($clients as $c) {
+                $gender = match ($c->gender) {
+                    'male' => 'Мужской',
+                    'female' => 'Женский',
+                    default => '',
+                };
+                fputcsv($out, [
+                    $c->name,
+                    $c->phone ? '+' . $c->phone : '',
+                    $gender,
+                    $c->birth_date ? $c->birth_date->format('d.m.Y') : '',
+                    $c->note ?? '',
+                    $c->created_at?->format('d.m.Y') ?? '',
+                ], ';');
+            }
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 
     public function destroy(ClubClient $client)

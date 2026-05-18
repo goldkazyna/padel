@@ -10,10 +10,16 @@
             <h1 class="clients-title">Клиенты</h1>
             <span class="clients-count">{{ $totalCount }}</span>
         </div>
-        <button class="btn-add-client" onclick="openAddModal()">
-            <i class="bi bi-plus-lg"></i>
-            Добавить
-        </button>
+        <div class="clients-header-actions">
+            <a href="{{ route('club.clients.export') }}" class="btn-export-client">
+                <i class="bi bi-file-earmark-excel"></i>
+                Excel
+            </a>
+            <button class="btn-add-client" onclick="openAddModal()">
+                <i class="bi bi-plus-lg"></i>
+                Добавить
+            </button>
+        </div>
     </header>
 
     <!-- Search -->
@@ -325,6 +331,11 @@ document.addEventListener('keydown', function(e) {
     font-size: 13px;
     font-weight: 700;
 }
+.clients-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .btn-add-client {
     display: flex;
     align-items: center;
@@ -343,6 +354,26 @@ document.addEventListener('keydown', function(e) {
     background: var(--cl-accent-dark);
     transform: translateY(-1px);
 }
+.btn-export-client {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-border);
+    color: var(--cl-text-dim);
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.btn-export-client:hover {
+    border-color: #22c55e;
+    color: #22c55e;
+}
+.btn-export-client i { font-size: 16px; }
 
 /* Search */
 .clients-search {
