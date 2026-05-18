@@ -878,7 +878,12 @@
         const form = document.getElementById('bookForm');
         const clientName = form.querySelector('input[name="client_name"]');
         const clientPhone = form.querySelector('input[name="client_phone"]');
-        if (clientName) clientName.value = '';
+        if (clientName) {
+            clientName.value = '';
+            clientName.removeAttribute('readonly');
+            clientName.classList.remove('is-locked');
+            clientName.removeAttribute('title');
+        }
         if (clientPhone) clientPhone.value = '';
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
@@ -2623,6 +2628,17 @@
         border-color: #ef4444 !important;
         box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
     }
+    /* Залоченное имя клиента (выбран из автокомплита) */
+    .form-input.is-locked {
+        background: rgba(34, 197, 94, 0.06) !important;
+        border-color: rgba(34, 197, 94, 0.45) !important;
+        color: #d4d4d8 !important;
+        cursor: not-allowed;
+        padding-right: 38px;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%2322c55e' viewBox='0 0 16 16' width='16' height='16'><path d='M8 1a3 3 0 0 0-3 3v3H4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1V4a3 3 0 0 0-3-3zm0 1a2 2 0 0 1 2 2v3H6V4a2 2 0 0 1 2-2z'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+    }
     .payment-methods.has-error,
     .paid-toggle.has-error {
         position: relative;
@@ -2741,6 +2757,16 @@ function cancelUnprocessed(id, url, name) {
                                     const pairedField = field === 'name' ? 'phone' : 'name';
                                     paired.value = this.dataset[pairedField];
                                 }
+                                // Выбран существующий клиент — карточка источник истины,
+                                // имя править нельзя в форме бронирования (только в /club/clients).
+                                if (inputId === 'bookClientName' || inputId === 'bookClientPhone') {
+                                    const nameInput = document.getElementById('bookClientName');
+                                    if (nameInput) {
+                                        nameInput.setAttribute('readonly', 'readonly');
+                                        nameInput.classList.add('is-locked');
+                                        nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
+                                    }
+                                }
                                 list.classList.remove('show');
                             });
                         });
@@ -2767,6 +2793,19 @@ function cancelUnprocessed(id, url, name) {
     // Book modal
     setupAutocomplete('bookClientName', 'bookNameList', 'name', 'bookClientPhone');
     setupAutocomplete('bookClientPhone', 'bookPhoneList', 'phone', 'bookClientName');
+
+    // Ручная правка телефона — клиент уже не «выбран из базы», разлочим имя
+    const bookPhoneEl = document.getElementById('bookClientPhone');
+    if (bookPhoneEl) {
+        bookPhoneEl.addEventListener('input', function() {
+            const nameInput = document.getElementById('bookClientName');
+            if (nameInput && nameInput.hasAttribute('readonly')) {
+                nameInput.removeAttribute('readonly');
+                nameInput.classList.remove('is-locked');
+                nameInput.removeAttribute('title');
+            }
+        });
+    }
 
     // Edit modal
     setupAutocomplete('editClientName', 'editNameList', 'name', 'editClientPhone');
