@@ -154,7 +154,7 @@ class ClientController extends Controller
         }
 
         return response()->json(
-            $query->orderBy('name')->limit(10)->get(['id', 'name', 'phone'])
+            $query->orderBy('name')->limit(10)->get(['id', 'name', 'phone', 'note'])
         );
     }
 

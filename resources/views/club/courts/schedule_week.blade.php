@@ -802,6 +802,14 @@
         border-color: #ef4444 !important;
         box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
     }
+    .form-hint {
+        display: block;
+        margin-top: 6px;
+        font-size: 11.5px;
+        color: rgba(34, 197, 94, 0.85);
+        font-weight: 600;
+        line-height: 1.4;
+    }
     .form-input.is-locked {
         background: rgba(34, 197, 94, 0.06) !important;
         border-color: rgba(34, 197, 94, 0.45) !important;
@@ -886,6 +894,12 @@
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="bookClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
                             <div class="autocomplete-list" id="bookPhoneList"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Заметка о клиенте</label>
+                            <textarea name="client_note" id="bookClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
+                            <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента — изменения сохранятся в карточку</small>
                         </div>
 
                         <div class="modal-section-title">Способ оплаты</div>
@@ -1205,6 +1219,10 @@
             nameEl.removeAttribute('title');
         }
         form.querySelector('input[name="client_phone"]').value = '';
+        const noteEl = document.getElementById('bookClientNote');
+        const noteHint = document.getElementById('bookClientNoteHint');
+        if (noteEl) noteEl.value = '';
+        if (noteHint) noteHint.style.display = 'none';
         form.querySelector('textarea[name="comment"]').value = '';
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
@@ -1719,7 +1737,7 @@
                         .then(clients => {
                             if (!clients.length) { list.classList.remove('show'); return; }
                             list.innerHTML = clients.map(c =>
-                                '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + formatPhone(c.phone).replace(/"/g, '&quot;') + '">' +
+                                '<div class="autocomplete-item" data-name="' + (c.name || '').replace(/"/g, '&quot;') + '" data-phone="' + formatPhone(c.phone).replace(/"/g, '&quot;') + '" data-note="' + (c.note || '').replace(/"/g, '&quot;') + '">' +
                                 '<span class="autocomplete-item-name">' + escHtml(c.name) + '</span>' +
                                 '<span class="autocomplete-item-phone">' + escHtml(formatPhone(c.phone)) + '</span>' +
                                 '</div>'
@@ -1738,6 +1756,10 @@
                                             nameInput.classList.add('is-locked');
                                             nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
                                         }
+                                        const noteInput = document.getElementById('bookClientNote');
+                                        const noteHint = document.getElementById('bookClientNoteHint');
+                                        if (noteInput) noteInput.value = this.dataset.note || '';
+                                        if (noteHint) noteHint.style.display = 'block';
                                     }
                                     list.classList.remove('show');
                                 });
@@ -1757,6 +1779,7 @@
         setupAutocomplete('editClientPhone', 'editPhoneList', 'phone', 'editClientName');
 
         // Ручная правка телефона — клиент уже не «выбран из базы», разлочим имя
+        // и сбросим подгруженную заметку (это новый клиент / новые данные).
         const bookPhoneEl = document.getElementById('bookClientPhone');
         if (bookPhoneEl) {
             bookPhoneEl.addEventListener('input', function() {
@@ -1766,6 +1789,10 @@
                     nameInput.classList.remove('is-locked');
                     nameInput.removeAttribute('title');
                 }
+                const noteInput = document.getElementById('bookClientNote');
+                const noteHint = document.getElementById('bookClientNoteHint');
+                if (noteInput) noteInput.value = '';
+                if (noteHint) noteHint.style.display = 'none';
             });
         }
     })();

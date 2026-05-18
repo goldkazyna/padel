@@ -564,6 +564,7 @@ class CourtController extends Controller
             'slots' => 'required|integer|min:1|max:8',
             'client_name' => 'required|string|max:255',
             'client_phone' => 'required|string|max:50',
+            'client_note' => 'nullable|string|max:1000',
             'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'required|boolean',
             'comment' => 'nullable|string|max:500',
@@ -668,12 +669,22 @@ class CourtController extends Controller
                 : 'Все выбранные даты заняты');
         }
 
-        // Автоматически добавить клиента в справочник если его нет
+        // Карточка клиента — источник истины. Создаём/обновляем её на основе
+        // данных формы. Заметку записываем только если её прислали (или явно
+        // очистили существующее значение через приход пустой строки на
+        // существующего клиента — это значит сотрудник стер заметку осознанно).
         if ($validated['client_phone']) {
-            \App\Models\ClubClient::firstOrCreate(
+            $clientNote = $request->has('client_note') ? trim((string) $request->input('client_note')) : null;
+            $card = \App\Models\ClubClient::firstOrCreate(
                 ['club_id' => $club->id, 'phone' => $validated['client_phone']],
-                ['name' => $validated['client_name']]
+                ['name' => $validated['client_name'], 'note' => $clientNote ?: null]
             );
+            // Если карточка уже была и сотрудник прислал заметку — обновим.
+            // Учитываем случай, когда поле в форме прислано (значит он его
+            // видел), но содержит пустую строку — это намеренная очистка.
+            if (!$card->wasRecentlyCreated && $request->has('client_note') && $clientNote !== (string) $card->note) {
+                $card->update(['note' => $clientNote ?: null]);
+            }
         }
 
         // Пуш юзеру приложения — по одному пушу на каждую созданную бронь.
