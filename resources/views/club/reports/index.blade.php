@@ -54,6 +54,27 @@
         </form>
     </div>
 
+    @if($noPhoneTotal > 0)
+    <a href="{{ route('club.reports.noPhone') }}"
+       style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;margin-bottom:20px;border-radius:12px;
+              background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.35);text-decoration:none;color:inherit;transition:all .15s;"
+       onmouseover="this.style.background='rgba(249,115,22,0.16)'" onmouseout="this.style.background='rgba(249,115,22,0.10)'">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size:22px;color:#f97316;"></i>
+            <div>
+                <div style="font-weight:700;color:#fdba74;font-size:14.5px;">Неразобранные брони</div>
+                <div style="font-size:12.5px;color:#a0a0a0;margin-top:2px;">Брони без указанного телефона — нужно дозаполнить</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:rgba(249,115,22,0.20);color:#f97316;padding:6px 14px;border-radius:20px;font-weight:800;font-size:14px;">
+                {{ $noPhoneTotal }}
+            </span>
+            <i class="bi bi-chevron-right" style="color:#71717a;font-size:14px;"></i>
+        </div>
+    </a>
+    @endif
+
     {{-- === KPI block === --}}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;">
         @include('club.reports._kpi', ['label' => 'Выручка', 'value' => $formatMoney($data['revenue']), 'delta' => $deltaRevenue, 'icon' => 'bi-cash-stack', 'iconColor' => '#22c47a'])

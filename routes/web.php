@@ -174,6 +174,7 @@ Route::middleware('auth')->group(function () {
             // Отчёты
             Route::get('/reports', [App\Http\Controllers\Club\ReportsController::class, 'index'])->name('reports.index');
             Route::get('/reports/export', [App\Http\Controllers\Club\ReportsController::class, 'export'])->name('reports.export');
+            Route::get('/reports/no-phone', [App\Http\Controllers\Club\ReportsController::class, 'noPhoneBookings'])->name('reports.noPhone');
         });
 
         // Кол-во необработанных бронирований (для polling)
