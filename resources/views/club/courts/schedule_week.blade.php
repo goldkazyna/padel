@@ -815,10 +815,18 @@
         border-color: rgba(34, 197, 94, 0.45) !important;
         color: #d4d4d8 !important;
         cursor: not-allowed;
+    }
+    input.form-input.is-locked {
         padding-right: 38px;
         background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%2322c55e' viewBox='0 0 16 16' width='16' height='16'><path d='M8 1a3 3 0 0 0-3 3v3H4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1V4a3 3 0 0 0-3-3zm0 1a2 2 0 0 1 2 2v3H6V4a2 2 0 0 1 2-2z'/></svg>");
         background-repeat: no-repeat;
         background-position: right 12px center;
+    }
+    textarea.form-input.is-locked {
+        padding-right: 32px;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%2322c55e' viewBox='0 0 16 16' width='14' height='14'><path d='M8 1a3 3 0 0 0-3 3v3H4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1V4a3 3 0 0 0-3-3zm0 1a2 2 0 0 1 2 2v3H6V4a2 2 0 0 1 2-2z'/></svg>");
+        background-repeat: no-repeat;
+        background-position: top 10px right 10px;
     }
     .payment-methods.has-error,
     .paid-toggle.has-error {
@@ -899,7 +907,7 @@
                         <div class="form-group">
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="bookClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
-                            <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента — изменения сохранятся в карточку</small>
+                            <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
 
                         <div class="modal-section-title">Способ оплаты</div>
@@ -1221,7 +1229,12 @@
         form.querySelector('input[name="client_phone"]').value = '';
         const noteEl = document.getElementById('bookClientNote');
         const noteHint = document.getElementById('bookClientNoteHint');
-        if (noteEl) noteEl.value = '';
+        if (noteEl) {
+            noteEl.value = '';
+            noteEl.removeAttribute('readonly');
+            noteEl.classList.remove('is-locked');
+            noteEl.removeAttribute('title');
+        }
         if (noteHint) noteHint.style.display = 'none';
         form.querySelector('textarea[name="comment"]').value = '';
         document.getElementById('paymentMethodInput').value = '';
@@ -1758,7 +1771,12 @@
                                         }
                                         const noteInput = document.getElementById('bookClientNote');
                                         const noteHint = document.getElementById('bookClientNoteHint');
-                                        if (noteInput) noteInput.value = this.dataset.note || '';
+                                        if (noteInput) {
+                                            noteInput.value = this.dataset.note || '';
+                                            noteInput.setAttribute('readonly', 'readonly');
+                                            noteInput.classList.add('is-locked');
+                                            noteInput.title = 'Заметка берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
+                                        }
                                         if (noteHint) noteHint.style.display = 'block';
                                     }
                                     list.classList.remove('show');
@@ -1791,7 +1809,12 @@
                 }
                 const noteInput = document.getElementById('bookClientNote');
                 const noteHint = document.getElementById('bookClientNoteHint');
-                if (noteInput) noteInput.value = '';
+                if (noteInput) {
+                    noteInput.value = '';
+                    noteInput.removeAttribute('readonly');
+                    noteInput.classList.remove('is-locked');
+                    noteInput.removeAttribute('title');
+                }
                 if (noteHint) noteHint.style.display = 'none';
             });
         }
