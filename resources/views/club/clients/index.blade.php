@@ -40,6 +40,12 @@
     @if(session('success'))
         <div class="alert-success">{{ session('success') }}</div>
     @endif
+    @if(session('error'))
+        <div class="alert-error">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            {{ session('error') }}
+        </div>
+    @endif
 
     <!-- Layout: list + detail -->
     <div class="clients-layout">
@@ -474,6 +480,20 @@ document.addEventListener('keydown', function(e) {
     font-weight: 600;
     margin-bottom: 24px;
 }
+.alert-error {
+    background: rgba(239, 68, 68, 0.10);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.alert-error i { color: #ef4444; font-size: 18px; }
 
 /* Layout */
 .clients-layout {

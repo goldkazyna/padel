@@ -178,6 +178,16 @@ class ClientController extends Controller
 
         if (!empty($validated['phone'])) {
             $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
+
+            // Проверка дубликата: клиент с таким нормализованным телефоном уже существует
+            $duplicate = ClubClient::where('club_id', $club->id)
+                ->where('phone', $validated['phone'])
+                ->first();
+            if ($duplicate) {
+                return redirect()->route('club.clients.index', ['selected' => $duplicate->id])
+                    ->withInput()
+                    ->with('error', "Клиент с таким телефоном уже есть: «{$duplicate->name}». Найдите его в списке и отредактируйте, если нужно.");
+            }
         }
 
         $client = ClubClient::create([...$validated, 'club_id' => $club->id]);
@@ -207,6 +217,17 @@ class ClientController extends Controller
 
         if (!empty($validated['phone'])) {
             $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
+
+            // Проверка: нельзя поставить телефон, который уже занят другим клиентом
+            $duplicate = ClubClient::where('club_id', $club->id)
+                ->where('phone', $validated['phone'])
+                ->where('id', '!=', $client->id)
+                ->first();
+            if ($duplicate) {
+                return redirect()->route('club.clients.index', ['selected' => $duplicate->id])
+                    ->withInput()
+                    ->with('error', "Этот телефон уже принадлежит клиенту «{$duplicate->name}». Один номер не может быть у двух разных клиентов.");
+            }
         }
 
         // Запоминаем старый телефон ДО апдейта — по нему найдём связанные брони.
