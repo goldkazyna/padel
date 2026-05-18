@@ -47,7 +47,7 @@
                     <tbody>
                         @foreach($bookings as $b)
                             <tr style="border-top:1px solid #27272a;">
-                                <td style="padding:12px 14px;font-size:13px;color:#f4f4f5;font-weight:600;white-space:nowrap;">{{ \Carbon\Carbon::parse($b->date)->format('d.m.Y') }}</td>
+                                <td style="padding:12px 14px;font-size:13px;color:#f4f4f5;font-weight:600;white-space:nowrap;">{{ $b->date->format('d.m.Y') }}</td>
                                 <td style="padding:12px 14px;font-size:13px;color:#a1a1aa;white-space:nowrap;">{{ substr($b->start_time, 0, 5) }}–{{ substr($b->end_time, 0, 5) }}</td>
                                 <td style="padding:12px 14px;font-size:13px;color:#f4f4f5;">{{ $b->client_name ?: '— без имени' }}</td>
                                 <td style="padding:12px 14px;font-size:13px;color:#a1a1aa;">{{ $b->court->name ?? '—' }}</td>
@@ -60,7 +60,7 @@
                                     @endif
                                 </td>
                                 <td style="padding:12px 14px;text-align:right;">
-                                    <a href="{{ route('club.courts.schedule', ['date' => $b->date]) }}"
+                                    <a href="{{ route('club.courts.schedule', ['date' => $b->date->format('Y-m-d')]) }}"
                                        style="display:inline-flex;align-items:center;gap:4px;color:#3b82f6;text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;"
                                        title="Открыть день в расписании">
                                         Открыть <i class="bi bi-arrow-up-right"></i>
