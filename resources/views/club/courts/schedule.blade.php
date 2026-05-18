@@ -565,6 +565,11 @@
 
                 @include('club.courts.partials._book_repeat')
 
+                <div class="book-form-error" id="bookFormError" role="alert" aria-live="polite">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span class="book-form-error-text"></span>
+                </div>
+
                 <div class="sch-modal-footer">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn-confirm">Забронировать</button>
@@ -883,6 +888,7 @@
         updateCoachButtons();
 
         if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
+        if (typeof clearBookFormError === 'function') clearBookFormError();
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
@@ -1108,36 +1114,65 @@
     }
 
     // Валидация формы бронирования: имя+фамилия, способ оплаты, статус оплаты
+    function showBookFormError(message, targetEl) {
+        const errorBox = document.getElementById('bookFormError');
+        if (!errorBox) return;
+        errorBox.querySelector('.book-form-error-text').textContent = message;
+        errorBox.classList.add('is-visible');
+
+        document.querySelectorAll('#bookForm .has-error').forEach(el => el.classList.remove('has-error'));
+        if (targetEl) {
+            targetEl.classList.add('has-error');
+            try { targetEl.scrollIntoView({behavior: 'smooth', block: 'center'}); } catch (_) {}
+            if (targetEl.tagName === 'INPUT') {
+                setTimeout(() => targetEl.focus({preventScroll: true}), 200);
+            }
+        }
+    }
+
+    function clearBookFormError() {
+        const errorBox = document.getElementById('bookFormError');
+        if (errorBox) errorBox.classList.remove('is-visible');
+        document.querySelectorAll('#bookForm .has-error').forEach(el => el.classList.remove('has-error'));
+    }
+
     document.getElementById('bookForm').addEventListener('submit', function(e) {
         const form = e.target;
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
         const paidInput = form.querySelector('input[name="is_paid"]');
+        const paymentGroup = document.getElementById('paymentMethods');
+        const paidGroup = document.querySelector('#bookForm .paid-toggle');
 
         const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
         if (words.length < 2) {
             e.preventDefault();
-            alert('Укажите имя и фамилию клиента (например: «Денис Дудников»)');
-            nameInput.focus();
+            showBookFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
             return;
         }
         if (!(phoneInput.value || '').trim()) {
             e.preventDefault();
-            alert('Укажите номер телефона');
-            phoneInput.focus();
+            showBookFormError('Укажите номер телефона клиента', phoneInput);
             return;
         }
         if (!paymentInput.value) {
             e.preventDefault();
-            alert('Выберите способ оплаты');
+            showBookFormError('Выберите способ оплаты', paymentGroup);
             return;
         }
         if (paidInput.value === '') {
             e.preventDefault();
-            alert('Выберите статус оплаты: «Оплачено» или «Не оплачено»');
+            showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
             return;
         }
+        clearBookFormError();
+    });
+
+    // Любое изменение в форме / клик по тогглам — гасим ошибку
+    document.getElementById('bookForm').addEventListener('input', clearBookFormError);
+    document.getElementById('bookForm').addEventListener('click', function(e) {
+        if (e.target.closest('.pay-btn, .paid-btn')) clearBookFormError();
     });
 
     // Тренеры — доступность по слотам
@@ -2551,6 +2586,61 @@
         .schedule-table { min-width: 600px; }
         .date-nav-wrap { flex-wrap: wrap; }
         .date-label { min-width: auto; font-size: 15px; }
+    }
+
+    /* Inline error в форме бронирования */
+    .book-form-error {
+        display: none;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 0 24px 4px;
+        padding: 12px 14px;
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 10px;
+        color: #fca5a5;
+        font-size: 13.5px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    .book-form-error.is-visible {
+        display: flex;
+        animation: bookFormErrorIn 0.22s ease;
+    }
+    .book-form-error i {
+        font-size: 18px;
+        color: #ef4444;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .book-form-error-text { display: block; }
+    @keyframes bookFormErrorIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    /* Подсветка проблемных полей и групп */
+    .form-input.has-error {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
+    }
+    .payment-methods.has-error,
+    .paid-toggle.has-error {
+        position: relative;
+        animation: shake 0.4s ease;
+    }
+    .payment-methods.has-error::before,
+    .paid-toggle.has-error::before {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 12px;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.55);
+        pointer-events: none;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25%      { transform: translateX(-4px); }
+        75%      { transform: translateX(4px); }
     }
 </style>
 <script>
