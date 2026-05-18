@@ -512,7 +512,7 @@
                     <div class="modal-col-right">
                         <div class="form-group autocomplete-wrap">
                             <label class="form-label">Имя клиента *</label>
-                            <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Введите имя" required autocomplete="off">
+                            <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Напишите имя и фамилию клиента" required autocomplete="off">
                             <div class="autocomplete-list" id="bookNameList"></div>
                         </div>
                         <div class="form-group autocomplete-wrap">
