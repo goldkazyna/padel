@@ -897,6 +897,7 @@
                             <label class="form-label">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Например: Денис Дудников" required autocomplete="off">
                             <div class="autocomplete-list" id="bookNameList"></div>
+                            <small class="form-hint" id="bookClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
                         <div class="form-group autocomplete-wrap">
                             <label class="form-label">Телефон *</label>
@@ -1226,6 +1227,8 @@
             nameEl.classList.remove('is-locked');
             nameEl.removeAttribute('title');
         }
+        const nameHint = document.getElementById('bookClientNameHint');
+        if (nameHint) nameHint.style.display = 'none';
         form.querySelector('input[name="client_phone"]').value = '';
         const noteEl = document.getElementById('bookClientNote');
         const noteHint = document.getElementById('bookClientNoteHint');
@@ -1769,6 +1772,8 @@
                                             nameInput.classList.add('is-locked');
                                             nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
                                         }
+                                        const nameHint = document.getElementById('bookClientNameHint');
+                                        if (nameHint) nameHint.style.display = 'block';
                                         const noteInput = document.getElementById('bookClientNote');
                                         const noteHint = document.getElementById('bookClientNoteHint');
                                         if (noteInput) {
@@ -1807,6 +1812,8 @@
                     nameInput.classList.remove('is-locked');
                     nameInput.removeAttribute('title');
                 }
+                const nameHint = document.getElementById('bookClientNameHint');
+                if (nameHint) nameHint.style.display = 'none';
                 const noteInput = document.getElementById('bookClientNote');
                 const noteHint = document.getElementById('bookClientNoteHint');
                 if (noteInput) {

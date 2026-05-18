@@ -514,6 +514,7 @@
                             <label class="form-label">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Например: Денис Дудников" required autocomplete="off">
                             <div class="autocomplete-list" id="bookNameList"></div>
+                            <small class="form-hint" id="bookClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
                         <div class="form-group autocomplete-wrap">
                             <label class="form-label">Телефон *</label>
@@ -890,6 +891,8 @@
             clientName.classList.remove('is-locked');
             clientName.removeAttribute('title');
         }
+        const clientNameHint = document.getElementById('bookClientNameHint');
+        if (clientNameHint) clientNameHint.style.display = 'none';
         if (clientPhone) clientPhone.value = '';
         const clientNote = document.getElementById('bookClientNote');
         const clientNoteHint = document.getElementById('bookClientNoteHint');
@@ -2798,6 +2801,8 @@ function cancelUnprocessed(id, url, name) {
                                         nameInput.classList.add('is-locked');
                                         nameInput.title = 'Имя берётся из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».';
                                     }
+                                    const nameHint = document.getElementById('bookClientNameHint');
+                                    if (nameHint) nameHint.style.display = 'block';
                                     const noteInput = document.getElementById('bookClientNote');
                                     const noteHint = document.getElementById('bookClientNoteHint');
                                     if (noteInput) {
@@ -2846,6 +2851,8 @@ function cancelUnprocessed(id, url, name) {
                 nameInput.classList.remove('is-locked');
                 nameInput.removeAttribute('title');
             }
+            const nameHint = document.getElementById('bookClientNameHint');
+            if (nameHint) nameHint.style.display = 'none';
             const noteInput = document.getElementById('bookClientNote');
             const noteHint = document.getElementById('bookClientNoteHint');
             if (noteInput) {
