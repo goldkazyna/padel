@@ -27,9 +27,14 @@ class ClientController extends Controller
         $query = ClubClient::where('club_id', $club->id)->orderBy('name');
 
         if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+            // Для phone сравниваем только цифры из запроса (без +, пробелов, скобок),
+            // т.к. в БД phone хранится в нормализованном виде (только цифры).
+            $digits = preg_replace('/\D/', '', $search);
+            $query->where(function ($q) use ($search, $digits) {
+                $q->where('name', 'like', "%{$search}%");
+                if ($digits !== '') {
+                    $q->orWhere('phone', 'like', "%{$digits}%");
+                }
             });
         }
 
