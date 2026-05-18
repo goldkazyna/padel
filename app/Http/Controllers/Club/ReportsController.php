@@ -64,8 +64,8 @@ class ReportsController extends Controller
         $prevFrom = $prevTo->copy()->subDays($days - 1);
         $prev = $this->compute($club, $prevFrom, $prevTo);
 
-        // Неразобранные — клиенты клуба без указанного телефона
-        $noPhoneTotal = $this->noPhoneClientsQuery($club)->count();
+        // Неразобранные — брони без указанного телефона
+        $noPhoneTotal = $this->noPhoneBookingsQuery($club)->count();
 
         return view('club.reports.index', [
             'club' => $club,
@@ -80,18 +80,20 @@ class ReportsController extends Controller
     }
 
     /**
-     * Базовый запрос клиентов клуба без указанного телефона.
+     * Базовый запрос броней клуба без указанного телефона.
      */
-    private function noPhoneClientsQuery(Club $club)
+    private function noPhoneBookingsQuery(Club $club)
     {
-        return \App\Models\ClubClient::where('club_id', $club->id)
+        $courtIds = $club->courts()->pluck('id');
+        return CourtBooking::whereIn('court_id', $courtIds)
+            ->where('status', 'confirmed')
             ->where(function ($q) {
-                $q->whereNull('phone')->orWhere('phone', '');
+                $q->whereNull('client_phone')->orWhere('client_phone', '');
             });
     }
 
     /**
-     * Страница «Неразобранные» — клиенты без телефона.
+     * Страница «Неразобранные брони» — брони без телефона клиента.
      * GET /club/reports/no-phone
      */
     public function noPhoneBookings(Request $request)
@@ -99,17 +101,31 @@ class ReportsController extends Controller
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $clients = $this->noPhoneClientsQuery($club)
-            ->orderBy('name')
+        $bookings = $this->noPhoneBookingsQuery($club)
+            ->with('court')
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
             ->paginate(50)
             ->withQueryString();
 
-        $totalCount = $this->noPhoneClientsQuery($club)->count();
+        // Сводка
+        $allRows = $this->noPhoneBookingsQuery($club)->get(['client_name', 'date', 'price']);
+        $byName = $allRows->groupBy(fn($b) => trim($b->client_name) ?: '— без имени');
+        $totalCount = $allRows->count();
+        $uniqueClients = $byName->count();
+        $totalSum = (float) $allRows->sum('price');
+        $earliest = $allRows->min('date');
+        $latest = $allRows->max('date');
 
         return view('club.reports.no_phone', [
             'club' => $club,
-            'clients' => $clients,
+            'bookings' => $bookings,
             'totalCount' => $totalCount,
+            'uniqueClients' => $uniqueClients,
+            'totalSum' => $totalSum,
+            'earliest' => $earliest,
+            'latest' => $latest,
+            'byName' => $byName->sortByDesc(fn($g) => $g->count()),
         ]);
     }
 

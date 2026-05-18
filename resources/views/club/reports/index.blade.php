@@ -62,8 +62,8 @@
         <div style="display:flex;align-items:center;gap:12px;">
             <i class="bi bi-exclamation-triangle-fill" style="font-size:22px;color:#f97316;"></i>
             <div>
-                <div style="font-weight:700;color:#fdba74;font-size:14.5px;">Клиенты без телефона</div>
-                <div style="font-size:12.5px;color:#a0a0a0;margin-top:2px;">Карточки клиентов без номера — нужно дозаполнить</div>
+                <div style="font-weight:700;color:#fdba74;font-size:14.5px;">Неразобранные брони</div>
+                <div style="font-size:12.5px;color:#a0a0a0;margin-top:2px;">Брони без указанного телефона — нужно дозаполнить</div>
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
