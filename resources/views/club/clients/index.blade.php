@@ -47,11 +47,23 @@
         <div class="clients-list-col">
             <div class="clients-list">
                 @forelse($clients as $client)
+                    @php
+                        $nameWords = array_values(array_filter(preg_split('/\s+/', trim($client->name)), fn($w) => mb_strlen($w) > 0));
+                        $noLastName = count($nameWords) < 2;
+                    @endphp
                     <a href="{{ route('club.clients.index', ['selected' => $client->id, 'search' => request('search'), 'page' => $clients->currentPage()]) }}"
                        class="clients-list-item {{ $selectedClient && $selectedClient->id === $client->id ? 'selected' : '' }}">
                         <div class="client-avatar">{{ mb_strtoupper(mb_substr($client->name, 0, 1)) }}</div>
                         <div class="client-list-info">
-                            <div class="client-list-name">{{ $client->name }}</div>
+                            <div class="client-list-name">
+                                <span>{{ $client->name }}</span>
+                                @if($noLastName)
+                                    <span class="client-no-lastname" title="В карточке нет фамилии — добавьте её">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        Поставьте фамилию
+                                    </span>
+                                @endif
+                            </div>
                             <div class="client-list-phone">{{ $client->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $client->phone) : '—' }}</div>
                         </div>
                     </a>
@@ -98,11 +110,21 @@
         <!-- Right: detail panel -->
         <div class="clients-detail-col">
             @if($selectedClient)
+            @php
+                $selectedNameWords = array_values(array_filter(preg_split('/\s+/', trim($selectedClient->name)), fn($w) => mb_strlen($w) > 0));
+                $selectedNoLastName = count($selectedNameWords) < 2;
+            @endphp
             <div class="client-detail">
                 <div class="client-detail-header">
                     <div class="client-detail-avatar">{{ mb_strtoupper(mb_substr($selectedClient->name, 0, 1)) }}</div>
                     <div class="client-detail-name">{{ $selectedClient->name }}</div>
                     <div class="client-detail-phone">{{ $selectedClient->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $selectedClient->phone) : '—' }}</div>
+                    @if($selectedNoLastName)
+                        <div class="client-detail-no-lastname">
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                            В карточке нет фамилии — добавьте её через «Редактировать»
+                        </div>
+                    @endif
                 </div>
 
                 <div class="client-detail-section">
@@ -509,10 +531,49 @@ document.addEventListener('keydown', function(e) {
     font-size: 15px;
     font-weight: 600;
     color: var(--cl-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 .client-list-phone {
     font-size: 13px;
     color: var(--cl-text-muted);
+}
+.client-no-lastname {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(249, 115, 22, 0.12);
+    color: #f97316;
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.client-no-lastname i { font-size: 12px; }
+.client-detail-no-lastname {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(249, 115, 22, 0.10);
+    border: 1px solid rgba(249, 115, 22, 0.35);
+    border-radius: 10px;
+    color: #fdba74;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+}
+.client-detail-no-lastname i {
+    color: #f97316;
+    font-size: 16px;
+    flex-shrink: 0;
 }
 .clients-empty {
     padding: 60px 20px;
