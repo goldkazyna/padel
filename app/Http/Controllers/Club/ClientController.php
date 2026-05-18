@@ -204,10 +204,28 @@ class ClientController extends Controller
             $validated['phone'] = preg_replace('/\D/', '', $validated['phone']);
         }
 
+        // Запоминаем старый телефон ДО апдейта — по нему найдём связанные брони.
+        $oldPhoneVariants = $this->phoneVariants($client->phone);
+
         $oldValues = $client->only(array_keys($validated));
         $client->update($validated);
         $changes = $client->getChanges();
         unset($changes['updated_at']);
+
+        // Синхронизация имени/телефона в court_bookings.
+        // Брони хранят client_name/client_phone текстом — при правке карточки
+        // имя/телефон в существующих бронях не подтягиваются автоматически.
+        // Находим брони клуба по старым вариантам телефона и подтягиваем актуальное.
+        $bookingsUpdated = 0;
+        if ($oldPhoneVariants && (array_key_exists('name', $changes) || array_key_exists('phone', $changes))) {
+            $courtIds = $club->courts()->pluck('id');
+            $bookingsUpdated = CourtBooking::whereIn('court_id', $courtIds)
+                ->whereIn('client_phone', $oldPhoneVariants)
+                ->update([
+                    'client_name' => $client->name,
+                    'client_phone' => $client->phone,
+                ]);
+        }
 
         if ($changes) {
             $changedFields = [];
@@ -221,7 +239,11 @@ class ClientController extends Controller
                 }
                 $changedFields[] = "{$label}: {$oldVal} → {$newVal}";
             }
-            ActivityLog::log('updated', 'ClubClient', $client->id, "Редактирование клиента {$client->name}: " . implode(', ', $changedFields), ['old' => $oldValues, 'new' => $changes]);
+            $logMessage = "Редактирование клиента {$client->name}: " . implode(', ', $changedFields);
+            if ($bookingsUpdated > 0) {
+                $logMessage .= " (синхр. в {$bookingsUpdated} бронях)";
+            }
+            ActivityLog::log('updated', 'ClubClient', $client->id, $logMessage, ['old' => $oldValues, 'new' => $changes]);
         }
 
         return redirect()->route('club.clients.index', ['selected' => $client->id])
