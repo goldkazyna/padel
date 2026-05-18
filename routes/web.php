@@ -211,6 +211,8 @@ Route::middleware('auth')->group(function () {
         Route::middleware('club.feature:clients')->group(function () {
             Route::get('/clients/search', [App\Http\Controllers\Club\ClientController::class, 'search'])->name('clients.search');
             Route::get('/clients/export', [App\Http\Controllers\Club\ClientController::class, 'export'])->name('clients.export');
+            Route::get('/clients/duplicates', [App\Http\Controllers\Club\ClientController::class, 'duplicates'])->name('clients.duplicates');
+            Route::post('/clients/duplicates/merge', [App\Http\Controllers\Club\ClientController::class, 'mergeDuplicates'])->name('clients.duplicates.merge');
             Route::get('/clients', [App\Http\Controllers\Club\ClientController::class, 'index'])->name('clients.index');
             Route::get('/clients/{client}/bookings', [App\Http\Controllers\Club\ClientController::class, 'bookings'])->name('clients.bookings');
             Route::post('/clients', [App\Http\Controllers\Club\ClientController::class, 'store'])->name('clients.store');

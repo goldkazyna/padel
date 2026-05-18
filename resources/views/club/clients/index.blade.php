@@ -11,6 +11,10 @@
             <span class="clients-count">{{ $totalCount }}</span>
         </div>
         <div class="clients-header-actions">
+            <a href="{{ route('club.clients.duplicates') }}" class="btn-duplicates-client">
+                <i class="bi bi-people"></i>
+                Дубликаты
+            </a>
             <a href="{{ route('club.clients.export') }}" class="btn-export-client">
                 <i class="bi bi-file-earmark-excel"></i>
                 Excel
@@ -374,6 +378,26 @@ document.addEventListener('keydown', function(e) {
     color: #22c55e;
 }
 .btn-export-client i { font-size: 16px; }
+.btn-duplicates-client {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-border);
+    color: var(--cl-text-dim);
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.btn-duplicates-client:hover {
+    border-color: #f97316;
+    color: #f97316;
+}
+.btn-duplicates-client i { font-size: 16px; }
 
 /* Search */
 .clients-search {

@@ -251,6 +251,122 @@ class ClientController extends Controller
     }
 
     /**
+     * Страница «Дубликаты»: показывает группы клиентов клуба с одинаковым
+     * нормализованным номером телефона.
+     * GET /club/clients/duplicates
+     */
+    public function duplicates()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $clients = ClubClient::where('club_id', $club->id)
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->orderBy('created_at')
+            ->get();
+
+        $groups = $clients->groupBy(function ($c) {
+            $digits = preg_replace('/\D/', '', $c->phone);
+            // Сводим к 10-значной форме без ведущей 7 — чтобы 77001234567 и 7001234567 совпали.
+            if (strlen($digits) === 11 && $digits[0] === '7') {
+                $digits = substr($digits, 1);
+            }
+            return $digits;
+        })->filter(fn($g) => $g->count() > 1)
+          ->map(fn($g) => $g->sortBy('created_at')->values())
+          ->values();
+
+        return view('club.clients.duplicates', [
+            'club' => $club,
+            'groups' => $groups,
+            'totalGroups' => $groups->count(),
+            'totalDuplicates' => $groups->sum(fn($g) => $g->count() - 1),
+        ]);
+    }
+
+    /**
+     * Слияние дубликатов в одного клиента.
+     * POST /club/clients/duplicates/merge
+     *
+     * keep_id    — кого оставляем
+     * merge_ids  — кого удаляем (их брони перепривязываются на keep_id)
+     */
+    public function mergeDuplicates(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $validated = $request->validate([
+            'keep_id' => 'required|exists:club_clients,id',
+            'merge_ids' => 'required|array|min:1',
+            'merge_ids.*' => 'exists:club_clients,id',
+        ]);
+
+        $keep = ClubClient::where('club_id', $club->id)->findOrFail($validated['keep_id']);
+        $merges = ClubClient::where('club_id', $club->id)
+            ->whereIn('id', $validated['merge_ids'])
+            ->where('id', '!=', $keep->id)
+            ->get();
+
+        if ($merges->isEmpty()) {
+            return back()->with('error', 'Не выбраны дубликаты для слияния');
+        }
+
+        // Заполняем пустые поля главного из дубликатов
+        foreach (['gender', 'birth_date', 'note'] as $field) {
+            if (empty($keep->$field)) {
+                foreach ($merges as $m) {
+                    if (!empty($m->$field)) {
+                        $keep->$field = $m->$field;
+                        break;
+                    }
+                }
+            }
+        }
+        // Заметки склеиваем, если у главного и у дублей разные
+        $extraNotes = $merges->pluck('note')->filter()->unique()->filter(
+            fn($n) => $n !== $keep->note
+        )->values();
+        if ($extraNotes->isNotEmpty()) {
+            $keep->note = trim(($keep->note ? $keep->note . "\n" : '') . $extraNotes->implode("\n"));
+        }
+        $keep->save();
+
+        // Перепривязываем брони с телефонов дубликатов на телефон главного
+        $courtIds = $club->courts()->pluck('id');
+        $bookingsRebound = 0;
+        foreach ($merges as $m) {
+            $oldVariants = $this->phoneVariants($m->phone);
+            if (!$oldVariants) continue;
+            $bookingsRebound += CourtBooking::whereIn('court_id', $courtIds)
+                ->whereIn('client_phone', $oldVariants)
+                ->update([
+                    'client_name' => $keep->name,
+                    'client_phone' => $keep->phone,
+                ]);
+        }
+
+        // Удаляем дубликаты
+        $mergedSnapshot = $merges->map(fn($m) => $m->only(['id', 'name', 'phone']))->toArray();
+        $mergedCount = $merges->count();
+        foreach ($merges as $m) {
+            $m->delete();
+        }
+
+        ActivityLog::log(
+            'updated',
+            'ClubClient',
+            $keep->id,
+            "Слияние дубликатов в «{$keep->name}»: удалено {$mergedCount}, перепривязано {$bookingsRebound} броней",
+            ['kept_id' => $keep->id, 'merged' => $mergedSnapshot, 'bookings_rebound' => $bookingsRebound]
+        );
+
+        return redirect()->route('club.clients.duplicates')
+            ->with('success', "Объединено: удалено {$mergedCount} дубликатов, перепривязано {$bookingsRebound} броней");
+    }
+
+    /**
      * Выгрузка всех клиентов клуба в CSV (открывается в Excel).
      * GET /club/clients/export
      */
