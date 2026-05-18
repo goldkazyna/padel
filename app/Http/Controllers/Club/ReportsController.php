@@ -105,27 +105,12 @@ class ReportsController extends Controller
             ->with('court')
             ->orderBy('date', 'desc')
             ->orderBy('start_time', 'desc')
-            ->paginate(50)
-            ->withQueryString();
-
-        // Сводка
-        $allRows = $this->noPhoneBookingsQuery($club)->get(['client_name', 'date', 'price']);
-        $byName = $allRows->groupBy(fn($b) => trim($b->client_name) ?: '— без имени');
-        $totalCount = $allRows->count();
-        $uniqueClients = $byName->count();
-        $totalSum = (float) $allRows->sum('price');
-        $earliest = $allRows->min('date');
-        $latest = $allRows->max('date');
+            ->get();
 
         return view('club.reports.no_phone', [
             'club' => $club,
             'bookings' => $bookings,
-            'totalCount' => $totalCount,
-            'uniqueClients' => $uniqueClients,
-            'totalSum' => $totalSum,
-            'earliest' => $earliest,
-            'latest' => $latest,
-            'byName' => $byName->sortByDesc(fn($g) => $g->count()),
+            'totalCount' => $bookings->count(),
         ]);
     }
 
