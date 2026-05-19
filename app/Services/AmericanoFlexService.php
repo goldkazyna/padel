@@ -230,18 +230,15 @@ class AmericanoFlexService
             $team2Ids = [$match->team2_player1_id, $match->team2_player2_id];
 
             // Очки игроков: команда получает свой счёт; matches_played +1
-            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
-                ->whereIn('user_id', $team1Ids)
-                ->update([
-                    'total_points' => DB::raw("total_points + {$score1}"),
-                    'matches_played' => DB::raw('matches_played + 1'),
-                ]);
-            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
-                ->whereIn('user_id', $team2Ids)
-                ->update([
-                    'total_points' => DB::raw("total_points + {$score2}"),
-                    'matches_played' => DB::raw('matches_played + 1'),
-                ]);
+            $query1 = AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team1Ids);
+            $query1->increment('total_points', $score1);
+            $query1->increment('matches_played');
+
+            $query2 = AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team2Ids);
+            $query2->increment('total_points', $score2);
+            $query2->increment('matches_played');
 
             // pair_history: +1 partners для команд, +1 opponents для крестов
             $this->incrementPairHistory($tournamentId, $team1Ids[0], $team1Ids[1], 'partners');
@@ -294,17 +291,19 @@ class AmericanoFlexService
     public function completeTournament(Tournament $tournament): void
     {
         DB::transaction(function () use ($tournament) {
-            // Идём по всем матчам в порядке создания, применяем ELO дельты последовательно.
-            $matches = AmericanoFlexMatch::whereIn(
-                    'americano_flex_round_id',
-                    $tournament->americanoFlexRounds()->pluck('id')
-                )
+            // Идём по всем матчам в явном порядке: раунды по round_number, внутри раунда — по id.
+            $roundIds = $tournament->americanoFlexRounds()
+                ->orderBy('round_number')
+                ->pluck('id');
+
+            $matches = AmericanoFlexMatch::whereIn('americano_flex_round_id', $roundIds)
                 ->where('status', 'completed')
+                ->orderBy('americano_flex_round_id')
                 ->orderBy('id')
                 ->get();
 
             // Стартовые рейтинги — из AmericanoFlexPlayer.rating_before
-            $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
+            $players = $tournament->americanoFlexPlayers()->with('user')->get()->keyBy('user_id');
             $currentRatings = [];
             foreach ($players as $p) {
                 $currentRatings[$p->user_id] = $p->rating_before ?? 1500;
@@ -328,9 +327,26 @@ class AmericanoFlexService
             }
 
             // Сохраняем rating_after в players + обновляем users.rating
-            foreach ($currentRatings as $userId => $newRating) {
-                $players[$userId]->update(['rating_after' => $newRating]);
-                \App\Models\User::where('id', $userId)->update(['rating' => $newRating]);
+            // Аналогично MexicanoService::finishTournament: применяем дельту к актуальному
+            // рейтингу пользователя и пишем запись в rating_history для аналитики.
+            foreach ($players as $userId => $player) {
+                $calcFinal = (int) ($currentRatings[$userId] ?? $player->rating_before ?? 1500);
+                $delta = $calcFinal - (int) $player->rating_before;
+                $actualBefore = (int) $player->user->rating;
+                $actualAfter = max($this->minRating, $actualBefore + $delta);
+
+                $player->update(['rating_after' => $actualAfter]);
+                $player->user->update(['rating' => $actualAfter]);
+                $this->updateLevel($player->user->fresh());
+
+                \App\Models\RatingHistory::create([
+                    'user_id' => $player->user_id,
+                    'tournament_id' => $tournament->id,
+                    'rating_before' => $actualBefore,
+                    'rating_after' => $actualAfter,
+                    'change' => $delta,
+                    'reason' => $tournament->name,
+                ]);
             }
 
             $tournament->update(['status' => 'completed']);
