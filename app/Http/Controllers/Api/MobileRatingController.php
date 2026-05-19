@@ -202,7 +202,10 @@ class MobileRatingController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 50;
 
+        // Ручные правки рейтинга (reason='Ручная корректировка') не считаются
+        // «игровым ростом» — исключаем их из лидерборда роста.
         $query = \App\Models\RatingHistory::selectRaw('user_id, SUM(`change`) as total_growth')
+            ->where('reason', '!=', 'Ручная корректировка')
             ->groupBy('user_id')
             ->having('total_growth', '>', 0);
 
@@ -253,8 +256,9 @@ class MobileRatingController extends Controller
             ];
         }
 
-        // Мой рост
-        $myGrowthQuery = \App\Models\RatingHistory::where('user_id', $user->id);
+        // Мой рост (без ручных правок)
+        $myGrowthQuery = \App\Models\RatingHistory::where('user_id', $user->id)
+            ->where('reason', '!=', 'Ручная корректировка');
         if ($period === 'week') {
             $myGrowthQuery->where('created_at', '>=', now()->subWeek());
         } elseif ($period === 'month') {
@@ -262,8 +266,9 @@ class MobileRatingController extends Controller
         }
         $myGrowth = (int) $myGrowthQuery->sum('change');
 
-        // Моя позиция в росте
+        // Моя позиция в росте (без ручных правок)
         $myPlaceQuery = \App\Models\RatingHistory::selectRaw('user_id, SUM(`change`) as total_growth')
+            ->where('reason', '!=', 'Ручная корректировка')
             ->groupBy('user_id')
             ->having('total_growth', '>', $myGrowth > 0 ? $myGrowth : PHP_INT_MAX);
         if ($period === 'week') {
