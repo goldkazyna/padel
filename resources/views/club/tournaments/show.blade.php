@@ -25,6 +25,10 @@
 @if($tournament->isMexicano() && $tournament->mexicanoPlayers->count() > 0)
     @include('club.tournaments.partials._mexicano')
 @endif
+{{-- Americano Flex --}}
+@if($tournament->isAmericanoFlex())
+    @include('club.tournaments.partials._americano_flex')
+@endif
 {{-- Командный турнир --}}
 @if($tournament->isTeamBased())
     @include('club.tournaments.partials._team')
