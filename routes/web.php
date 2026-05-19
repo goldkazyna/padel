@@ -319,6 +319,13 @@ Route::middleware('auth')->group(function () {
             Route::put('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'updatePlayoffScore'])
                 ->name('mexicano.updatePlayoffScore');
 
+            // Americano Flex
+            Route::post('/tournaments/{tournament}/flex/start', [App\Http\Controllers\Club\AmericanoFlexController::class, 'start'])->name('tournaments.flex.start');
+            Route::post('/tournaments/{tournament}/flex/next-round', [App\Http\Controllers\Club\AmericanoFlexController::class, 'nextRound'])->name('tournaments.flex.nextRound');
+            Route::post('/tournaments/{tournament}/flex/complete', [App\Http\Controllers\Club\AmericanoFlexController::class, 'complete'])->name('tournaments.flex.complete');
+            Route::post('/tournaments/flex/matches/{match}/score', [App\Http\Controllers\Club\AmericanoFlexController::class, 'saveScore'])->name('tournaments.flex.matches.score');
+            Route::put('/tournaments/flex/matches/{match}/score', [App\Http\Controllers\Club\AmericanoFlexController::class, 'updateScore'])->name('tournaments.flex.matches.updateScore');
+
             // Король корта
             Route::post('/kingofcourt/match/{match}/score', [KingOfCourtController::class, 'saveScore'])
                 ->name('kingofcourt.saveScore');
