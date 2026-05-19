@@ -293,8 +293,48 @@ class AmericanoFlexService
      */
     public function completeTournament(Tournament $tournament): void
     {
-        // реализовано в Task 2.5
-        throw new \RuntimeException('not implemented');
+        DB::transaction(function () use ($tournament) {
+            // Идём по всем матчам в порядке создания, применяем ELO дельты последовательно.
+            $matches = AmericanoFlexMatch::whereIn(
+                    'americano_flex_round_id',
+                    $tournament->americanoFlexRounds()->pluck('id')
+                )
+                ->where('status', 'completed')
+                ->orderBy('id')
+                ->get();
+
+            // Стартовые рейтинги — из AmericanoFlexPlayer.rating_before
+            $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
+            $currentRatings = [];
+            foreach ($players as $p) {
+                $currentRatings[$p->user_id] = $p->rating_before ?? 1500;
+            }
+
+            foreach ($matches as $match) {
+                $r11 = $currentRatings[$match->team1_player1_id];
+                $r12 = $currentRatings[$match->team1_player2_id];
+                $r21 = $currentRatings[$match->team2_player1_id];
+                $r22 = $currentRatings[$match->team2_player2_id];
+
+                $t1 = ($r11 + $r12) / 2;
+                $t2 = ($r21 + $r22) / 2;
+
+                $result = $this->calculateRatingChange($t1, $t2, $match->team1_score, $match->team2_score);
+
+                $currentRatings[$match->team1_player1_id] = $this->applyRatingChange($r11, $result['change1']);
+                $currentRatings[$match->team1_player2_id] = $this->applyRatingChange($r12, $result['change1']);
+                $currentRatings[$match->team2_player1_id] = $this->applyRatingChange($r21, $result['change2']);
+                $currentRatings[$match->team2_player2_id] = $this->applyRatingChange($r22, $result['change2']);
+            }
+
+            // Сохраняем rating_after в players + обновляем users.rating
+            foreach ($currentRatings as $userId => $newRating) {
+                $players[$userId]->update(['rating_after' => $newRating]);
+                \App\Models\User::where('id', $userId)->update(['rating' => $newRating]);
+            }
+
+            $tournament->update(['status' => 'completed']);
+        });
     }
 
     /**

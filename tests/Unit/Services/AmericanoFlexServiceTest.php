@@ -102,4 +102,24 @@ class AmericanoFlexServiceTest extends TestCase
             ->where('user_id', $match->team2_player1_id)->first();
         $this->assertEquals(18, $team2Player->total_points);
     }
+
+    public function test_complete_tournament_calculates_elo(): void
+    {
+        $tournament = $this->makeTournament(10, 2);
+        $this->service->startTournament($tournament);
+
+        // Закрываем все матчи первого раунда
+        $matches = $tournament->americanoFlexRounds()->first()->matches;
+        foreach ($matches as $m) {
+            $this->service->saveMatchResult($m, 24, 18);
+        }
+
+        $this->service->completeTournament($tournament);
+
+        $this->assertEquals('completed', $tournament->fresh()->status);
+        $players = AmericanoFlexPlayer::where('tournament_id', $tournament->id)->get();
+        foreach ($players as $p) {
+            $this->assertNotNull($p->rating_after, "у игрока {$p->user_id} должен быть rating_after");
+        }
+    }
 }
