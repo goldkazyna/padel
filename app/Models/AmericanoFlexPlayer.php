@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AmericanoFlexPlayer extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'tournament_id', 'user_id',
         'total_points', 'matches_played', 'bye_count', 'bye_streak',

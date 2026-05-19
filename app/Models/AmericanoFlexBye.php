@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AmericanoFlexBye extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['americano_flex_round_id', 'user_id'];
 
     public function round()
