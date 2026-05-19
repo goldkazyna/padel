@@ -316,6 +316,7 @@ class Tournament extends Model
 			'classic' => 'Классический',
 			'king_of_court' => 'Король корта',
 			'bali_koc' => 'Король Корта (Bali Format)',
+			'americano_flex' => 'Americano Flex',
 			default => $this->type,
 		};
 	}
@@ -386,6 +387,21 @@ class Tournament extends Model
 	public function playoffMatches()
 	{
 		return $this->hasMany(TournamentPlayoffMatch::class);
+	}
+
+	public function americanoFlexRounds()
+	{
+		return $this->hasMany(AmericanoFlexRound::class);
+	}
+
+	public function americanoFlexPlayers()
+	{
+		return $this->hasMany(AmericanoFlexPlayer::class);
+	}
+
+	public function isAmericanoFlex(): bool
+	{
+		return $this->type === 'americano_flex';
 	}
 	/**
      * Одобренные участники
