@@ -52,8 +52,165 @@ class AmericanoFlexService
      */
     public function generateNextRound(Tournament $tournament): AmericanoFlexRound
     {
-        // реализовано в Task 2.3
-        throw new \RuntimeException('not implemented');
+        return DB::transaction(function () use ($tournament) {
+            $lastRound = $this->getCurrentRound($tournament);
+            $nextNumber = $lastRound ? $lastRound->round_number + 1 : 1;
+
+            // 1. Выбираем играющих
+            $playing = $this->selectPlayersForRound($tournament);
+            $playingIds = array_map(fn($p) => $p->user_id, $playing);
+
+            // 2. Остальные — отдыхают
+            $allPlayers = $tournament->americanoFlexPlayers()->get();
+            $resting = $allPlayers->whereNotIn('user_id', $playingIds);
+
+            // 3. Создаём раунд
+            $round = AmericanoFlexRound::create([
+                'tournament_id' => $tournament->id,
+                'round_number' => $nextNumber,
+                'status' => 'in_progress',
+            ]);
+
+            // 4. Формируем пары и создаём матчи
+            $matches = $this->generatePairsForRound($tournament, $playing);
+            foreach ($matches as $m) {
+                AmericanoFlexMatch::create([
+                    'americano_flex_round_id' => $round->id,
+                    'court_number' => $m['court'],
+                    'team1_player1_id' => $m['team1'][0],
+                    'team1_player2_id' => $m['team1'][1],
+                    'team2_player1_id' => $m['team2'][0],
+                    'team2_player2_id' => $m['team2'][1],
+                    'status' => 'pending',
+                ]);
+            }
+
+            // 5. Записываем отдыхающих
+            foreach ($resting as $r) {
+                AmericanoFlexBye::create([
+                    'americano_flex_round_id' => $round->id,
+                    'user_id' => $r->user_id,
+                ]);
+            }
+
+            // 6. Обновляем bye_streak
+            AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+                ->whereIn('user_id', $playingIds)
+                ->update(['bye_streak' => 0]);
+            AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+                ->whereNotIn('user_id', $playingIds)
+                ->increment('bye_streak');
+            AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+                ->whereNotIn('user_id', $playingIds)
+                ->increment('bye_count');
+
+            return $round;
+        });
+    }
+
+    /**
+     * Выбрать M*4 игроков для нового раунда.
+     * Приоритеты: bye_streak DESC → matches_played ASC → рандом.
+     */
+    private function selectPlayersForRound(Tournament $tournament): array
+    {
+        $needed = $tournament->courts_count * 4;
+        $players = $tournament->americanoFlexPlayers()
+            ->with('user')
+            ->get()
+            ->shuffle()  // рандом для tie-breaker
+            ->sortBy([
+                ['bye_streak', 'desc'],
+                ['matches_played', 'asc'],
+            ])
+            ->values();
+
+        if ($players->count() <= $needed) {
+            return $players->all();  // все играют, никто не отдыхает
+        }
+
+        return $players->take($needed)->all();
+    }
+
+    /**
+     * Сформировать M матчей из массива M*4 AmericanoFlexPlayer.
+     * Минимизирует times_as_partners + times_as_opponents через pair_history.
+     * Возвращает массив матчей: [['team1' => [id1, id2], 'team2' => [id3, id4], 'court' => 1], ...]
+     */
+    private function generatePairsForRound(Tournament $tournament, array $players): array
+    {
+        $playerIds = array_map(fn($p) => $p->user_id, $players);
+        $history = AmericanoFlexPairHistory::where('tournament_id', $tournament->id)
+            ->whereIn('player1_id', $playerIds)
+            ->whereIn('player2_id', $playerIds)
+            ->get()
+            ->keyBy(fn($h) => $h->player1_id . '-' . $h->player2_id);
+
+        $cost = function (int $a, int $b) use ($history) {
+            [$lo, $hi] = AmericanoFlexPairHistory::normalizeIds($a, $b);
+            $key = "{$lo}-{$hi}";
+            $row = $history[$key] ?? null;
+            return $row ? ($row->times_as_partners + $row->times_as_opponents) : 0;
+        };
+
+        $matches = [];
+        $remaining = $playerIds;
+        $courtNum = 1;
+
+        while (count($remaining) >= 4) {
+            // Перебираем все возможные комбинации первой четвёрки, выбираем минимум cost
+            $bestMatch = null;
+            $bestCost = PHP_INT_MAX;
+
+            for ($i = 0; $i < count($remaining); $i++) {
+                for ($j = $i + 1; $j < count($remaining); $j++) {
+                    for ($k = $j + 1; $k < count($remaining); $k++) {
+                        for ($l = $k + 1; $l < count($remaining); $l++) {
+                            $A = $remaining[$i]; $B = $remaining[$j];
+                            $C = $remaining[$k]; $D = $remaining[$l];
+
+                            // 3 варианта разделения 4 игроков на 2 команды
+                            $variants = [
+                                ['t1' => [$A, $B], 't2' => [$C, $D]],
+                                ['t1' => [$A, $C], 't2' => [$B, $D]],
+                                ['t1' => [$A, $D], 't2' => [$B, $C]],
+                            ];
+
+                            foreach ($variants as $v) {
+                                $matchCost =
+                                    $cost($v['t1'][0], $v['t1'][1]) +
+                                    $cost($v['t2'][0], $v['t2'][1]) +
+                                    $cost($v['t1'][0], $v['t2'][0]) +
+                                    $cost($v['t1'][0], $v['t2'][1]) +
+                                    $cost($v['t1'][1], $v['t2'][0]) +
+                                    $cost($v['t1'][1], $v['t2'][1]);
+
+                                if ($matchCost < $bestCost) {
+                                    $bestCost = $matchCost;
+                                    $bestMatch = ['indices' => [$i, $j, $k, $l], 'teams' => $v];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!$bestMatch) break;
+
+            $matches[] = [
+                'team1' => $bestMatch['teams']['t1'],
+                'team2' => $bestMatch['teams']['t2'],
+                'court' => $courtNum++,
+            ];
+
+            // Удаляем использованных игроков
+            rsort($bestMatch['indices']);
+            foreach ($bestMatch['indices'] as $idx) {
+                array_splice($remaining, $idx, 1);
+            }
+        }
+
+        return $matches;
     }
 
     /**

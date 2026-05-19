@@ -53,4 +53,31 @@ class AmericanoFlexServiceTest extends TestCase
         $this->assertEquals('in_progress', $tournament->fresh()->status);
         $this->assertEquals(10, AmericanoFlexPlayer::where('tournament_id', $tournament->id)->count());
     }
+
+    public function test_first_round_has_correct_matches_and_byes(): void
+    {
+        $tournament = $this->makeTournament(10, 2);
+        $this->service->startTournament($tournament);
+
+        $round = $tournament->americanoFlexRounds()->first();
+        $this->assertNotNull($round);
+        $this->assertEquals(1, $round->round_number);
+        $this->assertEquals(2, $round->matches()->count(), 'на 2 кортах 2 матча');
+        $this->assertEquals(2, $round->byes()->count(), '10 - 8 = 2 отдыхают');
+    }
+
+    public function test_bye_streak_increments_for_resting_players(): void
+    {
+        $tournament = $this->makeTournament(10, 2);
+        $this->service->startTournament($tournament);
+
+        $restingIds = $tournament->americanoFlexRounds()->first()->byes()->pluck('user_id');
+        $resting = AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+            ->whereIn('user_id', $restingIds)
+            ->get();
+        foreach ($resting as $r) {
+            $this->assertEquals(1, $r->bye_streak);
+            $this->assertEquals(1, $r->bye_count);
+        }
+    }
 }
