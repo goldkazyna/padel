@@ -80,4 +80,26 @@ class AmericanoFlexServiceTest extends TestCase
             $this->assertEquals(1, $r->bye_count);
         }
     }
+
+    public function test_save_match_result_updates_points_and_history(): void
+    {
+        $tournament = $this->makeTournament(10, 2);
+        $this->service->startTournament($tournament);
+
+        $match = $tournament->americanoFlexRounds()->first()->matches()->first();
+        $this->service->saveMatchResult($match, 24, 18);
+
+        $match->refresh();
+        $this->assertEquals('completed', $match->status);
+        $this->assertEquals(24, $match->team1_score);
+
+        $team1Player = AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+            ->where('user_id', $match->team1_player1_id)->first();
+        $this->assertEquals(24, $team1Player->total_points);
+        $this->assertEquals(1, $team1Player->matches_played);
+
+        $team2Player = AmericanoFlexPlayer::where('tournament_id', $tournament->id)
+            ->where('user_id', $match->team2_player1_id)->first();
+        $this->assertEquals(18, $team2Player->total_points);
+    }
 }

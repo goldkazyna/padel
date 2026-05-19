@@ -218,8 +218,56 @@ class AmericanoFlexService
      */
     public function saveMatchResult(AmericanoFlexMatch $match, int $score1, int $score2): void
     {
-        // реализовано в Task 2.4
-        throw new \RuntimeException('not implemented');
+        DB::transaction(function () use ($match, $score1, $score2) {
+            $match->update([
+                'team1_score' => $score1,
+                'team2_score' => $score2,
+                'status' => 'completed',
+            ]);
+
+            $tournamentId = $match->round->tournament_id;
+            $team1Ids = [$match->team1_player1_id, $match->team1_player2_id];
+            $team2Ids = [$match->team2_player1_id, $match->team2_player2_id];
+
+            // Очки игроков: команда получает свой счёт; matches_played +1
+            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team1Ids)
+                ->update([
+                    'total_points' => DB::raw("total_points + {$score1}"),
+                    'matches_played' => DB::raw('matches_played + 1'),
+                ]);
+            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team2Ids)
+                ->update([
+                    'total_points' => DB::raw("total_points + {$score2}"),
+                    'matches_played' => DB::raw('matches_played + 1'),
+                ]);
+
+            // pair_history: +1 partners для команд, +1 opponents для крестов
+            $this->incrementPairHistory($tournamentId, $team1Ids[0], $team1Ids[1], 'partners');
+            $this->incrementPairHistory($tournamentId, $team2Ids[0], $team2Ids[1], 'partners');
+            foreach ($team1Ids as $a) {
+                foreach ($team2Ids as $b) {
+                    $this->incrementPairHistory($tournamentId, $a, $b, 'opponents');
+                }
+            }
+
+            // Если все матчи раунда завершены — пометить раунд completed
+            if ($this->isRoundCompleted($match->round)) {
+                $match->round->update(['status' => 'completed']);
+            }
+        });
+    }
+
+    private function incrementPairHistory(int $tournamentId, int $a, int $b, string $kind): void
+    {
+        [$lo, $hi] = AmericanoFlexPairHistory::normalizeIds($a, $b);
+        $col = $kind === 'partners' ? 'times_as_partners' : 'times_as_opponents';
+        $row = AmericanoFlexPairHistory::firstOrCreate(
+            ['tournament_id' => $tournamentId, 'player1_id' => $lo, 'player2_id' => $hi],
+            ['times_as_partners' => 0, 'times_as_opponents' => 0]
+        );
+        $row->increment($col);
     }
 
     /**
