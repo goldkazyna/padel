@@ -42,6 +42,7 @@
 						<label class="form-label">Тип турнира *</label>
 						<select name="type" id="tournamentType" class="form-select" required onchange="toggleTypeFields()">
 							<option value="americano" {{ old('type', 'americano') === 'americano' ? 'selected' : '' }}>Американо</option>
+							<option value="americano_flex" {{ old('type') === 'americano_flex' ? 'selected' : '' }}>Americano Flex — с очередью игроков</option>
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
 							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
@@ -331,6 +332,16 @@
 							выигранные геймы.
 						</div>
 					</div>
+
+					<div id="americanoFlexFields" style="display: none;">
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Americano Flex:</strong> Адаптивная очередь игроков на M кортах. Подходит при любом
+							количестве участников (в т.ч. не кратном 4). Кто отдыхал прошлый раунд — играет в следующем.
+							Пары и соперники миксуются с минимизацией повторов. Без групп и плей-офф: админ сам решает,
+							когда «Следующий раунд» и когда «Завершить турнир». Минимум: количество_кортов × 4 + 1 игрок.
+						</div>
+					</div>
 					
 					
 					
@@ -369,6 +380,7 @@ function toggleTypeFields() {
     const teamFields = document.getElementById('teamFields');
     const kingOfCourtFields = document.getElementById('kingOfCourtFields');
     const baliKocFields = document.getElementById('baliKocFields');
+    const americanoFlexFields = document.getElementById('americanoFlexFields');
 
     // Подсказка "(укажите кол-во пар)" для team турниров
     var reserveHint = document.getElementById('reserveHintPairs');
@@ -382,6 +394,7 @@ function toggleTypeFields() {
     if (teamFields) teamFields.style.display = 'none';
     if (kingOfCourtFields) kingOfCourtFields.style.display = 'none';
     if (baliKocFields) baliKocFields.style.display = 'none';
+    if (americanoFlexFields) americanoFlexFields.style.display = 'none';
     
     // Отключаем все playoff_format селекты
     const playoffFormat = document.getElementById('playoffFormat');
@@ -433,6 +446,9 @@ function toggleTypeFields() {
         generateCourtsInputs();
     } else if (type === 'bali_koc' && baliKocFields) {
         baliKocFields.style.display = 'block';
+        generateCourtsInputs();
+    } else if (type === 'americano_flex' && americanoFlexFields) {
+        americanoFlexFields.style.display = 'block';
         generateCourtsInputs();
     }
 }
