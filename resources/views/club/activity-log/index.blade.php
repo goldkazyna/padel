@@ -81,6 +81,7 @@
             <option value="deleted" {{ request('action') === 'deleted' ? 'selected' : '' }}>Удаление</option>
             <option value="level_changed" {{ request('action') === 'level_changed' ? 'selected' : '' }}>Изменение уровня</option>
         </select>
+        @unless($restrictedToSelf)
         <select name="user_id" class="log-filter-select" onchange="onUserFilterChange(this)">
             <option value="">Все пользователи</option>
             @foreach($users as $u)
@@ -107,6 +108,7 @@
                 <option value="" disabled>Нет владельцев и менеджеров</option>
             @endif
         </select>
+        @endunless
         @if(request('subject'))
             <input type="hidden" name="subject" value="{{ request('subject') }}">
         @endif

@@ -21,25 +21,33 @@ class ActivityLogController extends Controller
         $club = $this->getClub();
         if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
 
+        $user = auth()->user();
+
         // Модератор видит журнал только при флаге can_view_activity_log
-        if (!auth()->user()->canViewActivityLog($club)) {
+        if (!$user->canViewActivityLog($club)) {
             return redirect()->route('club.dashboard')->with('error', 'Нет доступа к журналу действий');
         }
+
+        // Модератор (не владелец/не супер-админ) видит только СВОИ действия.
+        $restrictUserId = ($user->isClubModerator() && !$user->isSuperAdmin()) ? $user->id : null;
 
         $query = ActivityLog::where('club_id', $club->id)
             ->with('user')
             ->orderByDesc('created_at');
 
+        if ($restrictUserId) {
+            $query->where('user_id', $restrictUserId);
+        }
+
         if ($request->get('action')) {
             $query->where('action', $request->get('action'));
         }
 
-        if ($request->get('user_id')) {
+        // Фильтры по пользователю/менеджеру — только для админа (модератор и так видит лишь себя)
+        if (!$restrictUserId && $request->get('user_id')) {
             $query->where('user_id', $request->get('user_id'));
         }
-
-        // Фильтр по менеджеру (модератору клуба) — тоже по user_id
-        if ($request->get('manager_id')) {
+        if (!$restrictUserId && $request->get('manager_id')) {
             $query->where('user_id', $request->get('manager_id'));
         }
 
@@ -66,8 +74,11 @@ class ActivityLogController extends Controller
         // после 19:00 UTC уезжали бы в следующий день.
         $groupedLogs = $logs->getCollection()->groupBy(fn($log) => $log->created_at->timezone('Asia/Almaty')->format('Y-m-d'));
 
-        // Статистика (за всё время, без фильтров)
+        // Статистика (за всё время). Для модератора — только его действия.
         $baseQuery = ActivityLog::where('club_id', $club->id);
+        if ($restrictUserId) {
+            $baseQuery->where('user_id', $restrictUserId);
+        }
         $stats = [
             'total' => $baseQuery->count(),
             'created' => (clone $baseQuery)->where('action', 'created')->count(),
@@ -86,19 +97,25 @@ class ActivityLogController extends Controller
             'User' => (clone $baseQuery)->where('subject_type', 'User')->count(),
         ];
 
-        // Пользователи клуба для фильтра
-        $users = ActivityLog::where('club_id', $club->id)
-            ->select('user_id')
-            ->distinct()
-            ->with('user')
-            ->get()
-            ->pluck('user')
-            ->filter();
+        // Фильтры по людям нужны только админу; модератор видит лишь себя.
+        $restrictedToSelf = (bool) $restrictUserId;
+        $users = collect();
+        $owners = collect();
+        $managers = collect();
+        if (!$restrictedToSelf) {
+            $users = ActivityLog::where('club_id', $club->id)
+                ->select('user_id')
+                ->distinct()
+                ->with('user')
+                ->get()
+                ->pluck('user')
+                ->filter();
 
-        // Менеджеры клуба для отдельного фильтра: владельцы (club_admins) + менеджеры (club_moderators)
-        $owners = $club->admins()->orderBy('name')->get();
-        $managers = $club->moderators()->orderBy('name')->get();
+            // Владельцы (club_admins) + менеджеры (club_moderators)
+            $owners = $club->admins()->orderBy('name')->get();
+            $managers = $club->moderators()->orderBy('name')->get();
+        }
 
-        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'owners', 'managers', 'club', 'stats', 'subjectCounts', 'date'));
+        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'owners', 'managers', 'club', 'stats', 'subjectCounts', 'date', 'restrictedToSelf'));
     }
 }
