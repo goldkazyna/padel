@@ -362,12 +362,20 @@ class CourtController extends Controller
                 }
             }
         } else {
-            // 2) обычное расписание дня недели
-            $schedule = $cc->schedules->firstWhere('day_of_week', $dayOfWeek);
-            if (!$schedule) return false;
-            $schStart = Carbon::parse($schedule->start_time)->hour * 60 + Carbon::parse($schedule->start_time)->minute;
-            $schEnd = Carbon::parse($schedule->end_time)->hour * 60 + Carbon::parse($schedule->end_time)->minute;
-            if (!($startMin >= $schStart && $endMin <= $schEnd)) return false;
+            // 2) обычное расписание дня недели — несколько интервалов (перерывы):
+            // тренер доступен, если время попадает в ЛЮБОЙ интервал дня.
+            $daySchedules = $cc->schedules->where('day_of_week', $dayOfWeek);
+            if ($daySchedules->isEmpty()) return false;
+            $inAnyInterval = false;
+            foreach ($daySchedules as $schedule) {
+                $schStart = Carbon::parse($schedule->start_time)->hour * 60 + Carbon::parse($schedule->start_time)->minute;
+                $schEnd = Carbon::parse($schedule->end_time)->hour * 60 + Carbon::parse($schedule->end_time)->minute;
+                if ($startMin >= $schStart && $endMin <= $schEnd) {
+                    $inAnyInterval = true;
+                    break;
+                }
+            }
+            if (!$inAnyInterval) return false;
         }
 
         // 3) брони этого тренера (из подгруженной коллекции)
