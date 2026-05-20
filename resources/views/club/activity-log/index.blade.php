@@ -88,12 +88,24 @@
             @endforeach
         </select>
         <select name="manager_id" class="log-filter-select" onchange="onManagerFilterChange(this)">
-            <option value="">Все менеджеры</option>
-            @forelse($managers as $m)
-                <option value="{{ $m->id }}" {{ request('manager_id') == $m->id ? 'selected' : '' }}>{{ $m->name }}</option>
-            @empty
-                <option value="" disabled>Менеджеров нет</option>
-            @endforelse
+            <option value="">Владельцы и менеджеры</option>
+            @if($owners->isNotEmpty())
+                <optgroup label="Владельцы">
+                    @foreach($owners as $o)
+                        <option value="{{ $o->id }}" {{ request('manager_id') == $o->id ? 'selected' : '' }}>{{ $o->name }}</option>
+                    @endforeach
+                </optgroup>
+            @endif
+            @if($managers->isNotEmpty())
+                <optgroup label="Менеджеры">
+                    @foreach($managers as $m)
+                        <option value="{{ $m->id }}" {{ request('manager_id') == $m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+                    @endforeach
+                </optgroup>
+            @endif
+            @if($owners->isEmpty() && $managers->isEmpty())
+                <option value="" disabled>Нет владельцев и менеджеров</option>
+            @endif
         </select>
         @if(request('subject'))
             <input type="hidden" name="subject" value="{{ request('subject') }}">

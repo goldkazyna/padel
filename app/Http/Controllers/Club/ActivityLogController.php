@@ -89,9 +89,10 @@ class ActivityLogController extends Controller
             ->pluck('user')
             ->filter();
 
-        // Менеджеры (модераторы) клуба для отдельного фильтра
+        // Менеджеры клуба для отдельного фильтра: владельцы (club_admins) + менеджеры (club_moderators)
+        $owners = $club->admins()->orderBy('name')->get();
         $managers = $club->moderators()->orderBy('name')->get();
 
-        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'managers', 'club', 'stats', 'subjectCounts', 'date'));
+        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'owners', 'managers', 'club', 'stats', 'subjectCounts', 'date'));
     }
 }
