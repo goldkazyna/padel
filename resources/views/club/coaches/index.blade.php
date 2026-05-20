@@ -18,6 +18,13 @@
     @if(session('error'))
         <div class="flash-message flash-error">{{ session('error') }}</div>
     @endif
+    @if($errors->any())
+        <div class="flash-message flash-error">
+            @foreach($errors->all() as $err)
+                <div>{{ $err }}</div>
+            @endforeach
+        </div>
+    @endif
 
     @forelse($clubCoaches as $cc)
         <div class="coach-card">
@@ -130,10 +137,26 @@
                 <h5 class="modal-title" style="font-weight: 700;">Редактировать — {{ $cc->user->full_name }}</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('club.coaches.update', $cc->user_id) }}" method="POST">
+            <form action="{{ route('club.coaches.update', $cc->user_id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 <div class="modal-body" style="padding: 24px;">
+                    <div class="form-group">
+                        <label class="form-label">Фотография тренера</label>
+                        <div style="display:flex;align-items:center;gap:14px;">
+                            <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;background:#16161a;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                                @if($cc->photo)
+                                    <img src="{{ $cc->photo }}" alt="фото" style="width:100%;height:100%;object-fit:cover;">
+                                @else
+                                    <i class="bi bi-person" style="font-size:28px;color:#52525b;"></i>
+                                @endif
+                            </div>
+                            <div style="flex:1;">
+                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="form-input" style="padding:8px;">
+                                <small style="color:#52525b;font-size:11px;display:block;margin-top:4px;">JPG/PNG/WebP. Размер изображения от 500×500 до 2000×2000 пикселей, до 4 МБ.</small>
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Специализация</label>
                         <input type="text" name="specialization" class="form-input" value="{{ $cc->specialization }}" placeholder="Например: Начинающие, Продвинутые">

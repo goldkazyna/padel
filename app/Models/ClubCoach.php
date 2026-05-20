@@ -10,6 +10,7 @@ class ClubCoach extends Model
         'club_id',
         'user_id',
         'specialization',
+        'photo',
         'hourly_rate',
     ];
 

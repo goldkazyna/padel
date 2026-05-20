@@ -69,15 +69,36 @@ class CoachController extends Controller
         $validated = $request->validate([
             'specialization' => 'nullable|string|max:255',
             'hourly_rate' => 'nullable|numeric|min:0',
+            'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096|dimensions:min_width=500,min_height=500,max_width=2000,max_height=2000',
             'rates' => 'nullable|array',
             'rates.*.hours' => 'required|integer|min:1|max:8',
             'rates.*.rate' => 'nullable|numeric|min:0',
+        ], [
+            'photo.dimensions' => 'Фото должно быть от 500×500 до 2000×2000 пикселей.',
+            'photo.image' => 'Файл должен быть изображением.',
+            'photo.max' => 'Размер фото не должен превышать 4 МБ.',
         ]);
 
-        $coach->update([
+        $updateData = [
             'specialization' => $validated['specialization'] ?? null,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
-        ]);
+        ];
+
+        // Загрузка фото тренера в public/coaches/<coach_id>.<ext>
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            $ext = strtolower($file->getClientOriginalExtension());
+            // Удаляем старые файлы фото этого тренера
+            foreach (glob(public_path('coaches/' . $coach->id . '.*')) ?: [] as $oldPath) {
+                @unlink($oldPath);
+            }
+            $filename = $coach->id . '.' . $ext;
+            $file->move(public_path('coaches'), $filename);
+            // Версионируем через ?v= чтобы браузер не показывал старый кеш
+            $updateData['photo'] = '/coaches/' . $filename . '?v=' . time();
+        }
+
+        $coach->update($updateData);
 
         // Обновляем ставки по длительности
         $coach->rates()->delete();
