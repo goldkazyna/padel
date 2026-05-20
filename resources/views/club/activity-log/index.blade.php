@@ -220,11 +220,11 @@
                                                 @elseif(is_array($value))
                                                     @if(isset($value[0]))
                                                         {{-- old/new в массиве --}}
-                                                        <span class="change-old">{{ $value[0] ?? '' }}</span>
+                                                        <span class="change-old">{{ is_array($value[0] ?? '') ? json_encode($value[0], JSON_UNESCAPED_UNICODE) : ($value[0] ?? '') }}</span>
                                                         <span class="change-arrow">→</span>
-                                                        <span class="change-new">{{ $value[1] ?? '' }}</span>
+                                                        <span class="change-new">{{ is_array($value[1] ?? '') ? json_encode($value[1], JSON_UNESCAPED_UNICODE) : ($value[1] ?? '') }}</span>
                                                     @else
-                                                        <span class="change-new">{{ json_encode($value) }}</span>
+                                                        <span class="change-new">{{ json_encode($value, JSON_UNESCAPED_UNICODE) }}</span>
                                                     @endif
                                                 @else
                                                     <span class="change-new">{{ $value }}</span>
