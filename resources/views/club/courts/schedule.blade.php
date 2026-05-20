@@ -2534,9 +2534,12 @@
     }
 
     .coach-buttons {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px;
+    }
+    @media (max-width: 600px) {
+        .coach-buttons { grid-template-columns: 1fr; }
     }
 
     .coach-btn {

@@ -734,7 +734,8 @@
     .pay-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
     .pay-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
 
-    .coach-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+    .coach-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    @media (max-width: 600px) { .coach-buttons { grid-template-columns: 1fr; } }
     .coach-btn { padding: 8px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .coach-btn .coach-rate { color: #22c55e; font-weight: 700; font-size: 12px; }
     .coach-btn-avatar { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #a78bfa, #7c3aed); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; flex-shrink: 0; }
