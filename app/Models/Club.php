@@ -20,6 +20,7 @@ class Club extends Model
         'is_active',
         'is_test',
         'is_community',
+        'hide_phones',
         'booking_cancel_hours',
         'payment_url',
         'features',
@@ -31,6 +32,7 @@ class Club extends Model
         'is_active' => 'boolean',
         'is_test' => 'boolean',
         'is_community' => 'boolean',
+        'hide_phones' => 'boolean',
         'features' => 'array',
     ];
 
