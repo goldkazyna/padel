@@ -102,13 +102,18 @@ class ClubCoach extends Model
             }
         }
 
-        $schedule = $this->schedules()->where('day_of_week', $dayOfWeek)->first();
-        if (!$schedule) return false;
+        $schedules = $this->schedules()->where('day_of_week', $dayOfWeek)->get();
+        if ($schedules->isEmpty()) return false;
 
-        $schStart = $this->toMinutes($schedule->start_time);
-        $schEnd = $this->toMinutes($schedule->end_time);
+        foreach ($schedules as $schedule) {
+            $schStart = $this->toMinutes($schedule->start_time);
+            $schEnd = $this->toMinutes($schedule->end_time);
+            if ($startMin >= $schStart && $endMin <= $schEnd) {
+                return true;
+            }
+        }
 
-        return $startMin >= $schStart && $endMin <= $schEnd;
+        return false;
     }
 
     public function isFreeAt(string $date, string $startTime, string $endTime, ?int $excludeBookingId = null): bool

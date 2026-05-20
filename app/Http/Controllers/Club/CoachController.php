@@ -127,23 +127,30 @@ class CoachController extends Controller
 
         // Получаем рабочие часы тренера на этот день
         $override = $clubCoach->overrides()->whereDate('date', $date)->first();
-        $weekSchedule = $clubCoach->schedules()->where('day_of_week', $dayOfWeek)->first();
+        $weekSchedules = $clubCoach->schedules()->where('day_of_week', $dayOfWeek)->orderBy('start_time')->get();
 
         $timeSlots = [];
-        $startMin = null;
-        $endMin = null;
+
+        // Собираем интервалы [start, end] в минутах (один или несколько)
+        $intervals = [];
 
         if ($override && !$override->is_available && !$override->start_time) {
             // Полный выходной — слотов нет
         } elseif ($override && $override->is_available && $override->start_time) {
-            $startMin = Carbon::parse($override->start_time)->hour * 60 + Carbon::parse($override->start_time)->minute;
-            $endMin = Carbon::parse($override->end_time)->hour * 60 + Carbon::parse($override->end_time)->minute;
-        } elseif ($weekSchedule) {
-            $startMin = Carbon::parse($weekSchedule->start_time)->hour * 60 + Carbon::parse($weekSchedule->start_time)->minute;
-            $endMin = Carbon::parse($weekSchedule->end_time)->hour * 60 + Carbon::parse($weekSchedule->end_time)->minute;
+            $intervals[] = [
+                Carbon::parse($override->start_time)->hour * 60 + Carbon::parse($override->start_time)->minute,
+                Carbon::parse($override->end_time)->hour * 60 + Carbon::parse($override->end_time)->minute,
+            ];
+        } elseif ($weekSchedules->isNotEmpty()) {
+            foreach ($weekSchedules as $ws) {
+                $intervals[] = [
+                    Carbon::parse($ws->start_time)->hour * 60 + Carbon::parse($ws->start_time)->minute,
+                    Carbon::parse($ws->end_time)->hour * 60 + Carbon::parse($ws->end_time)->minute,
+                ];
+            }
         }
 
-        if ($startMin !== null && $endMin !== null) {
+        foreach ($intervals as [$startMin, $endMin]) {
             for ($m = $startMin; $m + 60 <= $endMin; $m += 60) {
                 $timeSlots[] = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
             }

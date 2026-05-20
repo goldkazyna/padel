@@ -6,7 +6,7 @@
     $dateCarbon = \Carbon\Carbon::parse($date);
     $monthNames = ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
     $formattedDate = $dateCarbon->format('d') . ' ' . $monthNames[(int)$dateCarbon->format('m')] . ' ' . $dateCarbon->format('Y');
-    $existingSchedules = $clubCoach->schedules->keyBy('day_of_week');
+    $existingSchedules = $clubCoach->schedules->groupBy('day_of_week');
 @endphp
 
 <div class="coach-schedule-container">
@@ -218,18 +218,35 @@
                 @csrf
                 @method('PUT')
                 <div class="sch-modal-body">
-                    <p class="settings-hint">Отметьте рабочие дни и укажите часы работы</p>
+                    <p class="settings-hint">Отметьте рабочие дни и укажите часы работы. Можно добавить несколько интервалов в день (например, утро и вечер с перерывом).</p>
                     @for($day = 1; $day <= 7; $day++)
-                        @php $s = $existingSchedules->get($day); @endphp
+                        @php $daySchedules = $existingSchedules->get($day); $hasDay = $daySchedules && $daySchedules->count() > 0; @endphp
                         <div class="day-row">
                             <label class="day-check">
-                                <input type="checkbox" class="day-checkbox" data-day="{{ $day }}" {{ $s ? 'checked' : '' }} onchange="toggleDay({{ $day }})">
+                                <input type="checkbox" class="day-checkbox" data-day="{{ $day }}" {{ $hasDay ? 'checked' : '' }} onchange="toggleDay({{ $day }})">
                                 <span>{{ $dayNames[$day] }}</span>
                             </label>
-                            <div class="day-times" id="dayTimes{{ $day }}" style="{{ $s ? '' : 'display:none' }}">
-                                <input type="time" class="form-input time-input" id="startTime{{ $day }}" value="{{ $s ? \Carbon\Carbon::parse($s->start_time)->format('H:i') : '09:00' }}">
-                                <span class="time-dash">—</span>
-                                <input type="time" class="form-input time-input" id="endTime{{ $day }}" value="{{ $s ? \Carbon\Carbon::parse($s->end_time)->format('H:i') : '18:00' }}">
+                            <div class="day-times" id="dayTimes{{ $day }}" style="{{ $hasDay ? '' : 'display:none' }}">
+                                <div class="day-intervals" id="dayIntervals{{ $day }}">
+                                    @if($hasDay)
+                                        @foreach($daySchedules->sortBy('start_time') as $s)
+                                            <div class="interval-row">
+                                                <input type="time" class="form-input time-input interval-start" value="{{ \Carbon\Carbon::parse($s->start_time)->format('H:i') }}">
+                                                <span class="time-dash">—</span>
+                                                <input type="time" class="form-input time-input interval-end" value="{{ \Carbon\Carbon::parse($s->end_time)->format('H:i') }}">
+                                                <button type="button" class="btn-interval-remove" onclick="removeInterval(this)" title="Удалить интервал">&#10005;</button>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <div class="interval-row">
+                                            <input type="time" class="form-input time-input interval-start" value="09:00">
+                                            <span class="time-dash">—</span>
+                                            <input type="time" class="form-input time-input interval-end" value="18:00">
+                                            <button type="button" class="btn-interval-remove" onclick="removeInterval(this)" title="Удалить интервал">&#10005;</button>
+                                        </div>
+                                    @endif
+                                </div>
+                                <button type="button" class="btn-interval-add" onclick="addInterval({{ $day }})">+ Добавить интервал</button>
                             </div>
                         </div>
                     @endfor
@@ -321,7 +338,46 @@
 
     function toggleDay(day) {
         const checked = document.querySelector('[data-day="' + day + '"]').checked;
-        document.getElementById('dayTimes' + day).style.display = checked ? 'flex' : 'none';
+        const wrap = document.getElementById('dayTimes' + day);
+        wrap.style.display = checked ? 'flex' : 'none';
+        // Если день включили, а интервалов нет — добавим один по умолчанию
+        if (checked) {
+            const intervals = document.getElementById('dayIntervals' + day);
+            if (intervals.querySelectorAll('.interval-row').length === 0) {
+                addInterval(day, '09:00', '18:00');
+            }
+        }
+    }
+
+    function buildIntervalRow(start, end) {
+        const row = document.createElement('div');
+        row.className = 'interval-row';
+        row.innerHTML =
+            '<input type="time" class="form-input time-input interval-start" value="' + start + '">' +
+            '<span class="time-dash">—</span>' +
+            '<input type="time" class="form-input time-input interval-end" value="' + end + '">' +
+            '<button type="button" class="btn-interval-remove" onclick="removeInterval(this)" title="Удалить интервал">&#10005;</button>';
+        return row;
+    }
+
+    function addInterval(day, start, end) {
+        const intervals = document.getElementById('dayIntervals' + day);
+        intervals.appendChild(buildIntervalRow(start || '09:00', end || '18:00'));
+    }
+
+    function removeInterval(btn) {
+        const row = btn.closest('.interval-row');
+        const intervals = row.parentElement;
+        row.remove();
+        // Если у дня не осталось ни одного интервала — снимаем чекбокс «рабочий день»
+        if (intervals.querySelectorAll('.interval-row').length === 0) {
+            const wrap = intervals.closest('.day-times');
+            const cb = wrap.parentElement.querySelector('.day-checkbox');
+            if (cb) {
+                cb.checked = false;
+                wrap.style.display = 'none';
+            }
+        }
     }
 
     document.getElementById('scheduleForm').addEventListener('submit', function() {
@@ -331,12 +387,16 @@
         for (let day = 1; day <= 7; day++) {
             const cb = document.querySelector('[data-day="' + day + '"]');
             if (cb && cb.checked) {
-                const start = document.getElementById('startTime' + day).value;
-                const end = document.getElementById('endTime' + day).value;
-                container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][day_of_week]" value="' + day + '">';
-                container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][start_time]" value="' + start + '">';
-                container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][end_time]" value="' + end + '">';
-                idx++;
+                const rows = document.getElementById('dayIntervals' + day).querySelectorAll('.interval-row');
+                rows.forEach(function(row) {
+                    const start = row.querySelector('.interval-start').value;
+                    const end = row.querySelector('.interval-end').value;
+                    if (!start || !end) return;
+                    container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][day_of_week]" value="' + day + '">';
+                    container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][start_time]" value="' + start + '">';
+                    container.innerHTML += '<input type="hidden" name="schedules[' + idx + '][end_time]" value="' + end + '">';
+                    idx++;
+                });
             }
         }
     });
@@ -452,9 +512,15 @@
     .day-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid #1c1c21; }
     .day-check { display: flex; align-items: center; gap: 10px; min-width: 150px; font-weight: 600; color: #a1a1aa; cursor: pointer; font-size: 14px; }
     .day-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: #22c55e; }
-    .day-times { display: flex; align-items: center; gap: 8px; }
+    .day-times { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+    .day-intervals { display: flex; flex-direction: column; gap: 8px; }
+    .interval-row { display: flex; align-items: center; gap: 8px; }
     .time-input { width: 110px !important; }
     .time-dash { color: #52525b; }
+    .btn-interval-remove { width: 30px; height: 30px; min-width: 30px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #71717a; cursor: pointer; font-size: 13px; line-height: 1; transition: all 0.2s; }
+    .btn-interval-remove:hover { border-color: #ef4444; color: #ef4444; }
+    .btn-interval-add { align-self: flex-start; background: rgba(34,197,94,0.08); border: 1px dashed rgba(34,197,94,0.35); border-radius: 8px; color: #22c55e; cursor: pointer; padding: 6px 12px; font-size: 12px; font-weight: 700; transition: all 0.2s; }
+    .btn-interval-add:hover { background: rgba(34,197,94,0.18); border-color: #22c55e; }
 
     .override-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1c1c21; font-size: 13px; }
     .override-date { font-weight: 700; color: #d4d4d8; min-width: 80px; }
