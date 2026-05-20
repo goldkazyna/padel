@@ -82,7 +82,13 @@ class CoachController extends Controller
         $validated = $request->validate([
             'specialization' => 'nullable|string|max:255',
             'hourly_rate' => 'nullable|numeric|min:0',
+            'info' => 'nullable|string|max:5000',
+            'rating' => 'nullable|string|max:50',
             'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096|dimensions:min_width=500,min_height=500,max_width=2000,max_height=2000',
+            'certificates' => 'nullable|array',
+            'certificates.*' => 'image|mimes:jpeg,jpg,png,webp|max:8192',
+            'remove_certificates' => 'nullable|array',
+            'remove_certificates.*' => 'string',
             'rates' => 'nullable|array',
             'rates.*.hours' => 'required|integer|min:1|max:8',
             'rates.*.rate' => 'nullable|numeric|min:0',
@@ -90,11 +96,15 @@ class CoachController extends Controller
             'photo.dimensions' => 'Фото должно быть от 500×500 до 2000×2000 пикселей.',
             'photo.image' => 'Файл должен быть изображением.',
             'photo.max' => 'Размер фото не должен превышать 4 МБ.',
+            'certificates.*.image' => 'Сертификат должен быть изображением.',
+            'certificates.*.max' => 'Размер сертификата не должен превышать 8 МБ.',
         ]);
 
         $updateData = [
             'specialization' => $validated['specialization'] ?? null,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
+            'info' => $validated['info'] ?? null,
+            'rating' => $validated['rating'] ?? null,
         ];
 
         // Загрузка фото тренера в public/coaches/<coach_id>.<ext>
@@ -113,6 +123,36 @@ class CoachController extends Controller
             // Версионируем через ?v= чтобы браузер не показывал старый кеш
             $updateData['photo'] = '/coaches/' . $filename . '?v=' . time();
         }
+
+        // Сертификаты (несколько фото): удаляем отмеченные, добавляем новые.
+        $certificates = $coach->certificates ?? [];
+
+        // Удаление выбранных сертификатов
+        $toRemove = $request->input('remove_certificates', []);
+        if (!empty($toRemove)) {
+            foreach ($certificates as $i => $certPath) {
+                if (in_array($certPath, $toRemove, true)) {
+                    $clean = strtok(ltrim($certPath, '/'), '?'); // отбрасываем ?v=
+                    @unlink(public_path($clean));
+                    unset($certificates[$i]);
+                }
+            }
+            $certificates = array_values($certificates);
+        }
+
+        // Добавление новых сертификатов
+        if ($request->hasFile('certificates')) {
+            $dir = public_path('coaches/certificates/' . $coach->id);
+            \Illuminate\Support\Facades\File::ensureDirectoryExists($dir, 0775);
+            foreach ($request->file('certificates') as $certFile) {
+                $ext = strtolower($certFile->getClientOriginalExtension());
+                $name = uniqid('cert_') . '.' . $ext;
+                $certFile->move($dir, $name);
+                $certificates[] = '/coaches/certificates/' . $coach->id . '/' . $name;
+            }
+        }
+
+        $updateData['certificates'] = !empty($certificates) ? array_values($certificates) : null;
 
         $coach->update($updateData);
 

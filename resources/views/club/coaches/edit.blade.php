@@ -43,6 +43,35 @@
         </div>
 
         <div class="form-group">
+            <label class="form-label">Информация о тренере</label>
+            <textarea name="info" class="form-input" rows="4" placeholder="Опыт, достижения, подход к тренировкам...">{{ $cc->info }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Рейтинг</label>
+            <input type="text" name="rating" class="form-input" value="{{ $cc->rating }}" placeholder="Например: 5.0 или «Профессионал»">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Сертификаты</label>
+            @if(!empty($cc->certificates))
+                <div class="certificates-grid">
+                    @foreach($cc->certificates as $cert)
+                        <label class="certificate-item">
+                            <img src="{{ $cert }}" alt="сертификат">
+                            <span class="certificate-remove">
+                                <input type="checkbox" name="remove_certificates[]" value="{{ $cert }}">
+                                <i class="bi bi-trash3"></i> Удалить
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+            @endif
+            <input type="file" name="certificates[]" accept="image/jpeg,image/png,image/webp" class="form-input" style="padding:8px;" multiple>
+            <small class="form-hint">Можно выбрать несколько файлов. JPG/PNG/WebP, до 8 МБ каждый. Отметьте «Удалить» под существующим, чтобы убрать его.</small>
+        </div>
+
+        <div class="form-group">
             <label class="form-label">Ставка за 1 час (базовая)</label>
             <input type="number" name="hourly_rate" class="form-input" value="{{ $cc->hourly_rate ? intval($cc->hourly_rate) : '' }}" placeholder="&#8376;/час" min="0" step="100">
         </div>
@@ -91,6 +120,11 @@
     .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
     .photo-preview i { font-size: 34px; color: #52525b; }
 
+    .certificates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .certificate-item { display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+    .certificate-item img { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; border: 1px solid #27272a; }
+    .certificate-remove { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a1a1aa; }
+    .certificate-remove input { width: 16px; height: 16px; margin: 0; cursor: pointer; }
     .rates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
     .rate-row { display: flex; align-items: center; gap: 8px; }
     .rate-label { font-size: 13px; color: #a1a1aa; white-space: nowrap; min-width: 60px; }

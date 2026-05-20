@@ -11,11 +11,15 @@ class ClubCoach extends Model
         'user_id',
         'specialization',
         'photo',
+        'info',
+        'certificates',
+        'rating',
         'hourly_rate',
     ];
 
     protected $casts = [
         'hourly_rate' => 'decimal:2',
+        'certificates' => 'array',
     ];
 
     public function club()
