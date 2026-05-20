@@ -1005,7 +1005,7 @@
 						</a>
 					</li>
 					@endif
-					@if(!$navClub || $navClub->hasFeature('activity_log'))
+					@if((!$navClub) || ($navClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($navClub)))
 					<li class="nav-item">
 						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
 							<i class="bi bi-clock-history"></i>

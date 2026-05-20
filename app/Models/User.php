@@ -101,6 +101,28 @@ class User extends Authenticatable
 		}
 		return false;
 	}
+
+	/**
+	 * Может ли пользователь видеть журнал действий клуба.
+	 *  - super_admin / club_admin (владелец) — всегда
+	 *  - club_moderator — только с флагом can_view_activity_log
+	 */
+	public function canViewActivityLog(Club $club): bool
+	{
+		if ($this->isSuperAdmin()) return true;
+		if ($this->isClubAdmin()
+			&& $this->adminClubs()->where('clubs.id', $club->id)->exists()) {
+			return true;
+		}
+		if ($this->isClubModerator()) {
+			$mod = $this->moderatorClubs()
+				->where('clubs.id', $club->id)
+				->first();
+			return $mod !== null
+				&& (bool) $mod->pivot->can_view_activity_log;
+		}
+		return false;
+	}
     /**
      * Scope «реальные люди»: исключаем плейсхолдеры (`reserve`)
      * и системную учётку (`super_admin`). Используется в любых

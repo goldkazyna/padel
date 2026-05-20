@@ -20,6 +20,11 @@ class ActivityLogController extends Controller
         $club = $this->getClub();
         if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
 
+        // Модератор видит журнал только при флаге can_view_activity_log
+        if (!auth()->user()->canViewActivityLog($club)) {
+            return redirect()->route('club.dashboard')->with('error', 'Нет доступа к журналу действий');
+        }
+
         $query = ActivityLog::where('club_id', $club->id)
             ->with('user')
             ->orderByDesc('created_at');

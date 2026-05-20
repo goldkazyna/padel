@@ -16,7 +16,10 @@
     @endif
 
     @forelse($moderators as $mod)
-        @php $fullAccess = (bool)($mod->pivot->tournaments_full_access ?? false); @endphp
+        @php
+            $fullAccess = (bool)($mod->pivot->tournaments_full_access ?? false);
+            $canViewLog = (bool)($mod->pivot->can_view_activity_log ?? false);
+        @endphp
         <div class="mod-card">
             <div class="mod-card-left">
                 <div class="mod-avatar">{{ mb_strtoupper(mb_substr($mod->first_name ?? $mod->name, 0, 1)) }}</div>
@@ -28,6 +31,9 @@
                             <span style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">Полный доступ</span>
                         @else
                             <span style="background:rgba(113,113,122,0.15);color:#a1a1aa;border:1px solid rgba(113,113,122,0.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">Только модерация</span>
+                        @endif
+                        @if($canViewLog)
+                            <span style="background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;"><i class="bi bi-clock-history"></i> Журнал</span>
                         @endif
                     </div>
                 </div>
@@ -60,6 +66,13 @@
                                     Полный доступ к турнирам
                                 </label>
                                 <small style="color:#888;font-size:11px;">Без галочки — только модерация заявок и ввод счёта. С галочкой — может создавать, редактировать и удалять турниры (как админ клуба).</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                    <input type="checkbox" name="can_view_activity_log" value="1" {{ $canViewLog ? 'checked' : '' }} style="width:18px;height:18px;margin:0;cursor:pointer;">
+                                    Доступ к журналу действий
+                                </label>
+                                <small style="color:#888;font-size:11px;">С галочкой — модератор видит раздел «Журнал» и все действия в клубе. Без галочки — раздел скрыт и недоступен.</small>
                             </div>
                         </div>
                         <div class="modal-footer" style="border-top:1px solid #27272a;padding:20px 24px;">
@@ -140,6 +153,13 @@
                             Полный доступ к турнирам
                         </label>
                         <small style="color:#888;font-size:11px;">Без галочки — только модерация заявок и ввод счёта (как сейчас). С галочкой — может создавать, редактировать и удалять турниры (как админ).</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="can_view_activity_log" value="1" style="width:18px;height:18px;margin:0;cursor:pointer;">
+                            Доступ к журналу действий
+                        </label>
+                        <small style="color:#888;font-size:11px;">С галочкой — модератор видит раздел «Журнал». Без галочки — раздел скрыт.</small>
                     </div>
                     <small style="color: #52525b; font-size: 11px;">Модератор сможет входить по email и паролю и управлять расписанием кортов</small>
                 </div>

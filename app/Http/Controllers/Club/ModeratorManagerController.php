@@ -39,8 +39,10 @@ class ModeratorManagerController extends Controller
             'password' => 'required|string|min:6',
         ]);
 
-        $fullAccess = $request->boolean('tournaments_full_access');
-        $pivotData = ['tournaments_full_access' => $fullAccess];
+        $pivotData = [
+            'tournaments_full_access' => $request->boolean('tournaments_full_access'),
+            'can_view_activity_log' => $request->boolean('can_view_activity_log'),
+        ];
 
         // Проверяем есть ли уже пользователь с таким email
         $user = User::where('email', $validated['email'])->first();
@@ -86,6 +88,7 @@ class ModeratorManagerController extends Controller
 
         $club->moderators()->updateExistingPivot($user->id, [
             'tournaments_full_access' => $request->boolean('tournaments_full_access'),
+            'can_view_activity_log' => $request->boolean('can_view_activity_log'),
         ]);
 
         return back()->with('success', "Права для {$user->name} обновлены");

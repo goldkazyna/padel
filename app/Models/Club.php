@@ -56,7 +56,7 @@ class Club extends Model
 	public function moderators()
 	{
 		return $this->belongsToMany(User::class, 'club_moderators')
-			->withPivot('tournaments_full_access');
+			->withPivot('tournaments_full_access', 'can_view_activity_log');
 	}
 
     public function coaches()
