@@ -75,7 +75,7 @@ class User extends Authenticatable
 	public function moderatorClubs()
 	{
 		return $this->belongsToMany(Club::class, 'club_moderators')
-			->withPivot('tournaments_full_access');
+			->withPivot('tournaments_full_access', 'can_view_activity_log');
 	}
 
 	/**
