@@ -88,6 +88,9 @@ class CoachController extends Controller
         if ($request->hasFile('photo')) {
             $file = $request->file('photo');
             $ext = strtolower($file->getClientOriginalExtension());
+            // Гарантируем наличие папки (на проде её могло не быть, и веб-сервер
+            // не всегда может создать её сам — поэтому создаём явно).
+            \Illuminate\Support\Facades\File::ensureDirectoryExists(public_path('coaches'), 0775);
             // Удаляем старые файлы фото этого тренера
             foreach (glob(public_path('coaches/' . $coach->id . '.*')) ?: [] as $oldPath) {
                 @unlink($oldPath);
