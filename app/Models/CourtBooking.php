@@ -22,6 +22,7 @@ class CourtBooking extends Model
         'discount',
         'is_processed',
         'comment',
+        'booking_type',
         'coach_id',
         'needs_coach',
     ];

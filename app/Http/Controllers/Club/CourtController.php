@@ -576,6 +576,7 @@ class CourtController extends Controller
             'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
             'is_paid' => 'required|boolean',
             'comment' => 'nullable|string|max:500',
+            'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'coach_id' => 'nullable|exists:users,id',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
@@ -661,6 +662,7 @@ class CourtController extends Controller
                 'payment_method' => $validated['payment_method'] ?? null,
                 'is_paid' => $validated['is_paid'] ?? false,
                 'comment' => $validated['comment'] ?? null,
+                'booking_type' => $validated['booking_type'] ?? null,
                 'coach_id' => $validated['coach_id'] ?? null,
             ]);
             $firstBooking ??= $booking;
@@ -803,6 +805,7 @@ class CourtController extends Controller
             'is_paid' => 'required|boolean',
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
+            'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'coach_id' => 'nullable',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
@@ -842,6 +845,7 @@ class CourtController extends Controller
             'is_paid' => $validated['is_paid'] ?? false,
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
+            'booking_type' => $validated['booking_type'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
         ];
         // Перепривязка к пользователю приложения если телефон сменился
