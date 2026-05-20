@@ -59,6 +59,19 @@ class CoachController extends Controller
         return back()->with('success', 'Тренер добавлен!');
     }
 
+    public function edit(User $user)
+    {
+        $club = $this->getClub();
+        if (!$club) return redirect()->route('club.dashboard')->with('error', 'Клуб не найден');
+
+        $coach = ClubCoach::where('club_id', $club->id)
+            ->where('user_id', $user->id)
+            ->with(['user', 'rates'])
+            ->firstOrFail();
+
+        return view('club.coaches.edit', ['cc' => $coach]);
+    }
+
     public function update(Request $request, User $user)
     {
         $club = $this->getClub();
@@ -117,7 +130,7 @@ class CoachController extends Controller
             }
         }
 
-        return back()->with('success', 'Тренер обновлён!');
+        return redirect()->route('club.coaches.index')->with('success', 'Тренер обновлён!');
     }
 
     public function destroy(User $user)

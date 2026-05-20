@@ -243,6 +243,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/coaches/search-users', [App\Http\Controllers\Club\CoachController::class, 'searchUsers'])->name('coaches.searchUsers');
             Route::get('/coaches', [App\Http\Controllers\Club\CoachController::class, 'index'])->name('coaches.index');
             Route::post('/coaches', [App\Http\Controllers\Club\CoachController::class, 'store'])->name('coaches.store');
+            Route::get('/coaches/{user}/edit', [App\Http\Controllers\Club\CoachController::class, 'edit'])->name('coaches.edit');
             Route::put('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'update'])->name('coaches.update');
             Route::delete('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'destroy'])->name('coaches.destroy');
             Route::get('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'schedule'])->name('coaches.schedule');

@@ -66,7 +66,7 @@
                 </div>
                 <div class="coach-card-actions">
                     <a href="{{ route('club.coaches.schedule', $cc->user_id) }}" class="action-btn schedule" title="Расписание">&#128197;</a>
-                    <button class="action-btn edit" title="Редактировать" data-bs-toggle="modal" data-bs-target="#editModal{{ $cc->id }}">&#9998;</button>
+                    <a href="{{ route('club.coaches.edit', $cc->user_id) }}" class="action-btn edit" title="Редактировать">&#9998;</a>
                     <form action="{{ route('club.coaches.destroy', $cc->user_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Удалить тренера {{ $cc->user->full_name }}?')">
                         @csrf
                         @method('DELETE')
@@ -134,68 +134,6 @@
         </div>
     </div>
 </div>
-
-<!-- Модалки редактирования -->
-@foreach($clubCoaches as $cc)
-<div class="modal fade" id="editModal{{ $cc->id }}" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
-            <div class="modal-header" style="border-bottom: 1px solid #27272a; padding: 20px 24px;">
-                <h5 class="modal-title" style="font-weight: 700;">Редактировать — {{ $cc->user->full_name }}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ route('club.coaches.update', $cc->user_id) }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <div class="modal-body" style="padding: 24px;">
-                    <div class="form-group">
-                        <label class="form-label">Фотография тренера</label>
-                        <div style="display:flex;align-items:center;gap:14px;">
-                            <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;background:#16161a;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                                @if($cc->photo)
-                                    <img src="{{ $cc->photo }}" alt="фото" style="width:100%;height:100%;object-fit:cover;">
-                                @else
-                                    <i class="bi bi-person" style="font-size:28px;color:#52525b;"></i>
-                                @endif
-                            </div>
-                            <div style="flex:1;">
-                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="form-input" style="padding:8px;">
-                                <small style="color:#52525b;font-size:11px;display:block;margin-top:4px;">JPG/PNG/WebP. Размер изображения от 500×500 до 2000×2000 пикселей, до 4 МБ.</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Специализация</label>
-                        <input type="text" name="specialization" class="form-input" value="{{ $cc->specialization }}" placeholder="Например: Начинающие, Продвинутые">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Ставка за 1 час (базовая)</label>
-                        <input type="number" name="hourly_rate" class="form-input" value="{{ $cc->hourly_rate ? intval($cc->hourly_rate) : '' }}" placeholder="&#8376;/час" min="0" step="100">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Ставки по длительности</label>
-                        <div class="rates-grid">
-                            @for($h = 2; $h <= 6; $h++)
-                                @php $existingRate = $cc->rates->firstWhere('hours', $h); @endphp
-                                <div class="rate-row">
-                                    <span class="rate-label">{{ $h }} {{ $h <= 4 ? 'часа' : 'часов' }}</span>
-                                    <input type="hidden" name="rates[{{ $h - 2 }}][hours]" value="{{ $h }}">
-                                    <input type="number" name="rates[{{ $h - 2 }}][rate]" class="form-input rate-input" value="{{ $existingRate ? intval($existingRate->rate) : '' }}" placeholder="&#8376;" min="0" step="100">
-                                </div>
-                            @endfor
-                        </div>
-                        <small style="color: #52525b; font-size: 11px; margin-top: 6px; display: block;">Если не указано — считается по базовой ставке * часы</small>
-                    </div>
-                </div>
-                <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
-                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn-save">Сохранить</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endforeach
 
 <script>
 let searchTimeout;
