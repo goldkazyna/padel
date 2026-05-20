@@ -565,11 +565,12 @@
                             @php
                                 $b = $slot['booking'];
                                 $cls = !$b->is_processed ? 'unprocessed' : ($b->is_paid ? 'paid' : 'unpaid');
+                                if ($b->booking_type) $cls .= ' bt-slot-' . $b->booking_type;
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                             @endphp
                             <div class="ws-card {{ $cls }}"
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -642,6 +643,7 @@
                     'isPaid' => (bool) $ub->is_paid,
                     'isProcessed' => (bool) $ub->is_processed,
                     'comment' => $ub->comment,
+                    'bookingType' => $ub->booking_type,
                     'coachId' => $ub->coach_id,
                     'slotDuration' => $ub->court->slot_duration ?? 60,
                 ];
@@ -731,6 +733,17 @@
 
     .payment-methods { display: flex; flex-wrap: wrap; gap: 6px; }
     .pay-btn { flex: 1 1 calc(25% - 6px); min-width: 90px; padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
+    .booking-type-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+    .bt-btn { flex: 1 1 calc(50% - 6px); min-width: 120px; padding: 8px 10px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; transition: all .2s; }
+    .bt-btn:hover:not(.active) { border-color: #3f3f46; color: #f4f4f5; }
+    .bt-soft.active { background: rgba(245,158,11,0.18); border-color: #f59e0b; color: #f59e0b; }
+    .bt-group.active { background: rgba(59,130,246,0.18); border-color: #3b82f6; color: #3b82f6; }
+    .bt-individual.active { background: rgba(229,231,235,0.18); border-color: #e5e7eb; color: #e5e7eb; }
+    .bt-tournament.active { background: rgba(167,139,250,0.18); border-color: #a78bfa; color: #a78bfa; }
+    .ws-card.bt-slot-soft { border-left: 4px solid #f59e0b !important; }
+    .ws-card.bt-slot-group { border-left: 4px solid #3b82f6 !important; }
+    .ws-card.bt-slot-individual { border-left: 4px solid #e5e7eb !important; }
+    .ws-card.bt-slot-tournament { border-left: 4px solid #a78bfa !important; }
     .pay-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
     .pay-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
 
@@ -927,6 +940,15 @@
                             <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
 
+                        <div class="modal-section-title">Тип брони</div>
+                        <div class="booking-type-buttons" id="bookingTypeButtons">
+                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectBookingType(this)">Мягкая бронь</button>
+                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectBookingType(this)">Групповые</button>
+                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectBookingType(this)">Индивидуальные</button>
+                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectBookingType(this)">Турнир</button>
+                        </div>
+                        <input type="hidden" name="booking_type" id="bookingTypeInput">
+
                         <div class="modal-section-title">Способ оплаты</div>
                         <div class="payment-methods" id="paymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
@@ -1069,6 +1091,15 @@
                             <textarea name="client_note" id="editClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
+
+                        <div class="modal-section-title">Тип брони</div>
+                        <div class="booking-type-buttons" id="editBookingTypeButtons">
+                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectEditBookingType(this)">Мягкая бронь</button>
+                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectEditBookingType(this)">Групповые</button>
+                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectEditBookingType(this)">Индивидуальные</button>
+                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectEditBookingType(this)">Турнир</button>
+                        </div>
+                        <input type="hidden" name="booking_type" id="editBookingTypeInput">
 
                         <div class="modal-section-title">Способ оплаты *</div>
                         <div class="payment-methods" id="editPaymentMethods">
@@ -1265,6 +1296,8 @@
         document.getElementById('isPaidInput').value = '';
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('bookingTypeInput').value = '';
+        document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('bookCoachId').value = '';
         updateCoachButtons();
 
@@ -1304,6 +1337,12 @@
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-value') === data.paymentMethod);
+        });
+
+        const btVal = data.bookingType || '';
+        document.getElementById('editBookingTypeInput').value = btVal;
+        document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === btVal);
         });
 
         const paidVal = data.isPaid ? '1' : '0';
@@ -1604,6 +1643,21 @@
         document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
+    }
+
+    function selectBookingType(btn) {
+        const input = document.getElementById('bookingTypeInput');
+        const wasActive = btn.classList.contains('active');
+        document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
+        if (wasActive) { input.value = ''; }
+        else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+    }
+    function selectEditBookingType(btn) {
+        const input = document.getElementById('editBookingTypeInput');
+        const wasActive = btn.classList.contains('active');
+        document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
+        if (wasActive) { input.value = ''; }
+        else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
     }
 
     // Валидация формы бронирования: имя+фамилия, способ оплаты, статус оплаты
