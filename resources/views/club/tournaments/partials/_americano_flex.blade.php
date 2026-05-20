@@ -16,6 +16,29 @@
         || (method_exists(auth()->user(), 'hasTournamentsFullAccess')
             ? auth()->user()->hasTournamentsFullAccess($tournament->club)
             : true);
+
+    // Забито / пропущено по всем сыгранным матчам — для колонок таблицы.
+    $flexStats = [];
+    foreach ($leaderboard as $p) {
+        $flexStats[$p->user_id] = ['for' => 0, 'against' => 0];
+    }
+    foreach ($rounds as $r) {
+        foreach ($r->matches as $m) {
+            if (!$m->isCompleted() || $m->team1_score === null || $m->team2_score === null) continue;
+            foreach ([$m->team1_player1_id, $m->team1_player2_id] as $pid) {
+                if (isset($flexStats[$pid])) {
+                    $flexStats[$pid]['for'] += $m->team1_score;
+                    $flexStats[$pid]['against'] += $m->team2_score;
+                }
+            }
+            foreach ([$m->team2_player1_id, $m->team2_player2_id] as $pid) {
+                if (isset($flexStats[$pid])) {
+                    $flexStats[$pid]['for'] += $m->team2_score;
+                    $flexStats[$pid]['against'] += $m->team1_score;
+                }
+            }
+        }
+    }
 @endphp
 
 <div class="section-header flex-section-header">
@@ -106,9 +129,11 @@
                 <tr>
                     <th class="col-rank">#</th>
                     <th class="col-player">Игрок</th>
-                    <th class="col-stat">Очки</th>
+                    <th class="col-stat" title="Забито очков">Забито</th>
+                    <th class="col-stat" title="Пропущено очков">Пропущено</th>
+                    <th class="col-stat" title="Разница забито − пропущено">Разница</th>
                     <th class="col-stat">Матчей</th>
-                    <th class="col-points" title="Среднее очков на матч">Среднее</th>
+                    <th class="col-points" title="Среднее забитых очков за матч = Забито ÷ Матчей">Среднее</th>
                     <th class="col-rating">Рейтинг</th>
                 </tr>
             </thead>
@@ -141,7 +166,14 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="col-stat">{{ $player->total_points }}</td>
+                        @php
+                            $forPts = $flexStats[$player->user_id]['for'] ?? $player->total_points;
+                            $againstPts = $flexStats[$player->user_id]['against'] ?? 0;
+                            $diff = $forPts - $againstPts;
+                        @endphp
+                        <td class="col-stat points-for">{{ $forPts }}</td>
+                        <td class="col-stat points-against">{{ $againstPts }}</td>
+                        <td class="col-stat {{ $diff > 0 ? 'points-for' : ($diff < 0 ? 'points-against' : '') }}">{{ $diff > 0 ? '+' : '' }}{{ $diff }}</td>
                         <td class="col-stat">{{ $player->matches_played }}</td>
                         <td class="col-points">{{ number_format($player->average_score, 2) }}</td>
                         <td class="col-rating">
@@ -375,6 +407,14 @@
 .col-stat {
     width: 80px;
     font-size: 24px;
+}
+
+.col-stat.points-for {
+    color: #22c55e;
+}
+
+.col-stat.points-against {
+    color: #ef4444;
 }
 
 .col-points {
