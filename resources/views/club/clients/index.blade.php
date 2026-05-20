@@ -70,7 +70,7 @@
                                     </span>
                                 @endif
                             </div>
-                            <div class="client-list-phone">{{ $client->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $client->phone) : '—' }}</div>
+                            <div class="client-list-phone">@phoneFmt($client->phone)</div>
                         </div>
                     </a>
                 @empty
@@ -124,7 +124,7 @@
                 <div class="client-detail-header">
                     <div class="client-detail-avatar">{{ mb_strtoupper(mb_substr($selectedClient->name, 0, 1)) }}</div>
                     <div class="client-detail-name">{{ $selectedClient->name }}</div>
-                    <div class="client-detail-phone">{{ $selectedClient->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $selectedClient->phone) : '—' }}</div>
+                    <div class="client-detail-phone">@phoneFmt($selectedClient->phone)</div>
                     @if($selectedNoLastName)
                         <div class="client-detail-no-lastname">
                             <i class="bi bi-exclamation-circle-fill"></i>

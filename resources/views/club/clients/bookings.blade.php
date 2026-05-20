@@ -43,7 +43,7 @@
         <div class="cb-title-block">
             <div class="cb-title">Брони — {{ $client->name }}</div>
             @if($client->phone)
-                <div class="cb-subtitle">+{{ $client->phone }}</div>
+                <div class="cb-subtitle">@phoneFmt($client->phone)</div>
             @endif
         </div>
         <button type="button" class="cb-copy" onclick="printBookings()">
@@ -255,7 +255,7 @@ function toggleCustomRange() {
 function printBookings() {
     const list = document.getElementById('cbList');
     const clientName = @json($client->name);
-    const clientPhone = @json($client->phone);
+    const clientPhone = @json($client->phone ? \App\Support\PhoneVisibility::display($client->phone, true) : '');
     const periodLabel = @json($title);
     const sCount = @json($stats['count']);
     const sHours = @json($hoursStr);
@@ -331,7 +331,7 @@ ${docCss}
 <body>
 <div class="print-doc">
     <h1>Брони — ${clientName}</h1>
-    ${clientPhone ? `<div class="pd-sub">+${clientPhone}</div>` : ''}
+    ${clientPhone ? `<div class="pd-sub">${clientPhone}</div>` : ''}
     ${periodLabel ? `<div class="pd-period">Период: ${periodLabel}</div>` : ''}
     <div class="pd-stats">
         <div class="pd-stat"><div class="pd-stat-num">${sCount}</div><div class="pd-stat-lbl">броней</div></div>

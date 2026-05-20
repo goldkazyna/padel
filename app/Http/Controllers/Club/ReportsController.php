@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\CourtBooking;
 use App\Models\User;
+use App\Support\PhoneVisibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -166,7 +167,7 @@ class ReportsController extends Controller
                     substr($b->start_time, 0, 5) . '–' . substr($b->end_time, 0, 5),
                     $b->court->name ?? '',
                     $b->client_name,
-                    $b->client_phone,
+                    PhoneVisibility::forExport($b->client_phone),
                     $status,
                     $b->is_processed ? 'да' : 'нет',
                     $payment,

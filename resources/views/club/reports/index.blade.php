@@ -151,7 +151,7 @@
                                 <td style="padding:8px 0;">
                                     <div style="font-weight:600;">{{ $c['name'] }}</div>
                                     @if ($c['phone'])
-                                        <div style="color:#6a6a73;font-size:11px;">+{{ $c['phone'] }}</div>
+                                        <div style="color:#6a6a73;font-size:11px;">@phoneFmt($c['phone'])</div>
                                     @endif
                                 </td>
                                 <td style="padding:8px 0;text-align:center;">{{ $c['count'] }}</td>

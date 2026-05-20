@@ -22,9 +22,9 @@
                     <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                     <div class="pair-phones">
                         <small style="color: #a1a1aa;">
-                            {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                            @phoneFmt($team->player1->phone)
                             / 
-                            {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                            @phoneFmt($team->player2->phone)
                         </small>
                     </div>
                 </div>
@@ -72,9 +72,9 @@
                         <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                         <div class="pair-phones">
                             <small style="color: #a1a1aa;">
-                                {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                                @phoneFmt($team->player1->phone)
                                 /
-                                {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                                @phoneFmt($team->player2->phone)
                             </small>
                         </div>
                     </div>
@@ -129,9 +129,9 @@
                     <div class="pair-names">{{ $team->player1->name }} / {{ $team->player2->name }}</div>
                     <div class="pair-phones">
                         <small style="color: #a1a1aa;">
-                            {{ $team->player1->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player1->phone) : '—' }}
+                            @phoneFmt($team->player1->phone)
                             /
-                            {{ $team->player2->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $team->player2->phone) : '—' }}
+                            @phoneFmt($team->player2->phone)
                         </small>
                     </div>
                 </div>

@@ -26,7 +26,7 @@
                     <div class="coach-name">{{ $cc->user->full_name }}</div>
                     <div class="coach-contacts">
                         @if($cc->user->phone)
-                            <span class="coach-contact">{{ $cc->user->phone }}</span>
+                            <span class="coach-contact">@phone($cc->user->phone)</span>
                         @endif
                         @if($cc->user->email)
                             <span class="coach-contact">{{ $cc->user->email }}</span>

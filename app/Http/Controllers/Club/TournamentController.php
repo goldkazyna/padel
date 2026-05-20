@@ -11,6 +11,7 @@ use App\Services\AmericanoService;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentParticipant;
 use App\Http\Controllers\Api\MobileTournamentController;
+use App\Support\PhoneVisibility;
 
 
 class TournamentController extends Controller
@@ -806,7 +807,7 @@ class TournamentController extends Controller
 			return [
 				'id' => $player->id,
 				'name' => $player->name,
-				'phone' => $player->phone,
+				'phone' => PhoneVisibility::forExport($player->phone),
 				'level' => $player->level,
 				'rating' => $player->rating,
 			];

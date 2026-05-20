@@ -337,7 +337,7 @@
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
-                                                @if($booking->client_phone)<span class="slot-phone">+{{ $booking->client_phone }}</span>@endif
+                                                @if($booking->client_phone)<span class="slot-phone">@phoneFmt($booking->client_phone)</span>@endif
                                             </div>
                                             <div class="slot-right">
                                                 <span class="slot-price-court">{{ number_format($booking->price ?? 0, 0, '', ' ') }} &#8376;</span>
@@ -401,7 +401,7 @@
                     <div class="unprocessed-card-client">
                         <span class="unprocessed-card-name">{{ $ub->client_name }}</span>
                         @if($ub->client_phone)
-                            <span class="unprocessed-card-phone">+{{ $ub->client_phone }}</span>
+                            <span class="unprocessed-card-phone">@phoneFmt($ub->client_phone)</span>
                         @endif
                     </div>
                     <span class="unprocessed-card-price">{{ number_format($ub->price, 0, '', ' ') }} ₸</span>

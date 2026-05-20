@@ -173,7 +173,7 @@
                         </td>
                         <td>
                             <span class="user-phone">
-                                {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}
+                                @phoneFmt($user->phone)
                             </span>
                         </td>
                         <td>
@@ -290,7 +290,7 @@
                     <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Раз вы вручную меняете уровень — значит подтверждаете его.</small>
                 </div>
                 <div class="form-info">
-                    <span>Телефон: {{ $user->phone ? '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $user->phone) : '—' }}</span>
+                    <span>Телефон: @phoneFmt($user->phone)</span>
                     <span>Рейтинг: {{ $user->rating }}</span>
                 </div>
             </div>

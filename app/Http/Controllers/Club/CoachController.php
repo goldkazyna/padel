@@ -9,6 +9,7 @@ use App\Models\CoachSchedule;
 use App\Models\CoachScheduleOverride;
 use App\Models\CourtBooking;
 use App\Models\User;
+use App\Support\PhoneVisibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -343,7 +344,7 @@ class CoachController extends Controller
             ->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->full_name,
-                'phone' => $user->phone,
+                'phone' => PhoneVisibility::forExport($user->phone),
                 'email' => $user->email,
             ]);
 

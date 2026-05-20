@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\ClubClient;
 use App\Models\CourtBooking;
+use App\Support\PhoneVisibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -158,9 +159,16 @@ class ClientController extends Controller
             $query->where('name', 'like', "%{$q}%");
         }
 
-        return response()->json(
-            $query->orderBy('name')->limit(10)->get(['id', 'name', 'phone', 'note'])
-        );
+        $clients = $query->orderBy('name')->limit(10)->get(['id', 'name', 'phone', 'note']);
+
+        // Маскируем телефон в выдаче, если у клуба включено скрытие.
+        // Поиск по телефону (WHERE выше) при этом продолжает работать.
+        $clients->transform(function ($client) {
+            $client->phone = PhoneVisibility::forExport($client->phone);
+            return $client;
+        });
+
+        return response()->json($clients);
     }
 
     public function store(Request $request)
@@ -421,9 +429,10 @@ class ClientController extends Controller
                     'female' => 'Женский',
                     default => '',
                 };
+                $phoneCell = PhoneVisibility::forExport($c->phone);
                 fputcsv($out, [
                     $c->name,
-                    $c->phone ? '+' . $c->phone : '',
+                    ($phoneCell !== '' && $phoneCell !== 'скрыт') ? '+' . $phoneCell : $phoneCell,
                     $gender,
                     $c->birth_date ? $c->birth_date->format('d.m.Y') : '',
                     $c->note ?? '',

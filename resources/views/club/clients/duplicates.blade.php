@@ -41,7 +41,7 @@
                 <div class="dup-group-header">
                     <div class="dup-group-phone">
                         <i class="bi bi-telephone"></i>
-                        {{ '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $group->first()->phone) }}
+                        @phoneFmt($group->first()->phone)
                     </div>
                     <div class="dup-group-count">{{ $group->count() }} клиента</div>
                 </div>

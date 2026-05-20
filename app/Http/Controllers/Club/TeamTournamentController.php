@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tournament;
 use App\Models\TournamentTeam;
 use App\Models\User;
+use App\Support\PhoneVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\TournamentGroupMatch;
@@ -252,6 +253,11 @@ class TeamTournamentController extends Controller
 			})
 			->limit(10)
 			->get(['id', 'name', 'phone', 'rating', 'level']);
+
+        $players->transform(function ($player) {
+            $player->phone = PhoneVisibility::forExport($player->phone);
+            return $player;
+        });
 
         return response()->json($players);
     }

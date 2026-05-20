@@ -650,7 +650,7 @@
                 <div class="unprocessed-card-top">
                     <div>
                         <span class="unprocessed-card-name">{{ $ub->client_name }}</span>
-                        @if($ub->client_phone)<span class="unprocessed-card-phone">+{{ $ub->client_phone }}</span>@endif
+                        @if($ub->client_phone)<span class="unprocessed-card-phone">@phoneFmt($ub->client_phone)</span>@endif
                     </div>
                     <span class="unprocessed-card-price">{{ number_format($ub->price, 0, '', ' ') }} ₸</span>
                 </div>
