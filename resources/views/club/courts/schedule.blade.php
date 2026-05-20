@@ -660,6 +660,18 @@
                                 <button type="button" class="processed-btn" data-value="1" onclick="setEditProcessed(this)">Обработан</button>
                             </div>
                         </div>
+
+                        <div class="modal-section-title">Тренер</div>
+                        <div class="coach-buttons" id="editCoachButtons">
+                            @foreach($clubCoaches as $cc)
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
+                                    <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
+                                    <span class="coach-btn-name">{{ $cc->user->full_name }}</span>
+                                    @if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="coach_id" id="editCoachId" value="">
                     </div>
 
                     <!-- Right column: client, payment, coach -->
@@ -699,15 +711,6 @@
                             <textarea name="comment" id="editComment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                         </div>
 
-                        <div class="modal-section-title">Тренер</div>
-                        <div class="coach-buttons" id="editCoachButtons">
-                            @foreach($clubCoaches as $cc)
-                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
-                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
-                                </button>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="coach_id" id="editCoachId" value="">
                     </div>
                 </div>
 
