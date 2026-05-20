@@ -211,7 +211,22 @@
                                     </div>
 
                                     <div class="match-vs">
-                                        <span class="vs-pending">VS</span>
+                                        @if($match->isCompleted() && $tournament->status !== 'completed' && $canManage)
+                                            <button class="btn-score-edit"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#flexEditScoreModal{{ $match->id }}"
+                                                    title="Редактировать счёт">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        @elseif(!$match->isCompleted() && $round->status === 'in_progress' && $canManage)
+                                            <button class="btn-score"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#flexScoreModal{{ $match->id }}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                        @else
+                                            <span class="vs-pending">VS</span>
+                                        @endif
                                     </div>
 
                                     <div class="match-team {{ $winningTeam === 2 ? 'winner' : '' }}">
@@ -225,40 +240,25 @@
                                     </div>
                                 </div>
 
-                                {{-- Ввод/редактирование счёта (без AJAX, контроллер делает redirect) --}}
-                                @if($canManage && $tournament->status !== 'completed')
-                                    @if(!$match->isCompleted())
-                                        <form action="{{ route('club.tournaments.flex.matches.score', $match) }}"
-                                              method="POST" class="flex-score-form">
-                                            @csrf
-                                            <input type="number" name="team1_score" min="0" required
-                                                   value="{{ $match->team1_score }}" class="flex-score-input"
-                                                   placeholder="0">
-                                            <span class="flex-score-sep">:</span>
-                                            <input type="number" name="team2_score" min="0" required
-                                                   value="{{ $match->team2_score }}" class="flex-score-input"
-                                                   placeholder="0">
-                                            <button type="submit" class="btn-primary-custom flex-score-btn">
-                                                <i class="bi bi-check-lg"></i> Сохранить
-                                            </button>
-                                        </form>
-                                    @else
-                                        <form action="{{ route('club.tournaments.flex.matches.updateScore', $match) }}"
-                                              method="POST" class="flex-score-form">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="number" name="team1_score" min="0" required
-                                                   value="{{ $match->team1_score }}" class="flex-score-input">
-                                            <span class="flex-score-sep">:</span>
-                                            <input type="number" name="team2_score" min="0" required
-                                                   value="{{ $match->team2_score }}" class="flex-score-input">
-                                            <button type="submit" class="btn-outline-custom flex-score-btn">
-                                                <i class="bi bi-pencil"></i> Обновить
-                                            </button>
-                                        </form>
-                                    @endif
-                                @endif
                             </div>
+
+                            {{-- Модалки ввода/редактирования счёта (как в Американо, но без AJAX — контроллер делает redirect) --}}
+                            @if($canManage && $tournament->status !== 'completed')
+                                @if(!$match->isCompleted())
+                                    @include('club.tournaments.partials._modal_score', [
+                                        'match' => $match,
+                                        'modalId' => 'flexScoreModal'.$match->id,
+                                        'route' => 'club.tournaments.flex.matches.score',
+                                        'ajax' => false,
+                                    ])
+                                @else
+                                    @include('club.tournaments.partials._modal_edit_score', [
+                                        'match' => $match,
+                                        'modalId' => 'flexEditScoreModal'.$match->id,
+                                        'route' => 'club.tournaments.flex.matches.updateScore',
+                                    ])
+                                @endif
+                            @endif
                         @endforeach
 
                         {{-- Отдыхающие в раунде --}}
@@ -496,37 +496,17 @@
     font-size: 40px;
 }
 
-/* Inline-форма ввода счёта (без AJAX) */
-.flex-score-form {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 14px;
-    flex-wrap: wrap;
-}
-.flex-score-input {
-    width: 70px;
-    height: 48px;
-    text-align: center;
+/* Кнопки ввода счёта в .match-vs (как в Американо) */
+.score-team-name {
     font-size: 24px;
-    font-weight: 700;
-    background: var(--bg-input, rgba(255, 255, 255, 0.05));
-    color: var(--text-primary, #fff);
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
-    border-radius: 10px;
 }
-.flex-score-input:focus {
-    outline: none;
-    border-color: var(--accent);
+
+/* Убираем backdrop модалки (как в Американо) */
+.modal-backdrop {
+    display: none !important;
 }
-.flex-score-sep {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text-secondary);
-}
-.flex-score-btn {
-    margin-left: 6px;
+.modal {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 /* Отдыхающие */

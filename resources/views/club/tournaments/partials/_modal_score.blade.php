@@ -5,8 +5,8 @@
                 <h5 class="modal-title">Ввод счёта</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route($route, $match) }}" method="POST" 
-                  data-ajax-score data-match-id="{{ $match->id }}" @isset($group) data-group-id="{{ $group->id }}" @endisset>
+            <form action="{{ route($route, $match) }}" method="POST"
+                  @if($ajax ?? true) data-ajax-score data-match-id="{{ $match->id }}" @isset($group) data-group-id="{{ $group->id }}" @endisset @endif>
                 @csrf
                 <div class="modal-body">
                     <div class="score-input-grid">
