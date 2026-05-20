@@ -947,6 +947,14 @@
 						</a>
 					</li>
 					@endif
+					@if($modClub && $modClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($modClub))
+					<li class="nav-item">
+						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
+							<i class="bi bi-clock-history"></i>
+							<span>Журнал</span>
+						</a>
+					</li>
+					@endif
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
 					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
 					<li class="nav-section-title">Админ клуба</li>
