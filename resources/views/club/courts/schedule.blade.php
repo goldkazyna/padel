@@ -506,6 +506,16 @@
                             <span class="total-price-label">Итого</span>
                             <span class="total-price-value" id="bookTotalPrice"></span>
                         </div>
+
+                        <div class="modal-section-title">Тренер</div>
+                        <div class="coach-buttons" id="bookCoachButtons">
+                            @foreach($clubCoaches as $cc)
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
+                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                </button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="coach_id" id="bookCoachId" value="">
                     </div>
 
                     <!-- Right column: client, payment, coach -->
@@ -553,16 +563,6 @@
                             <label class="form-label">Комментарий</label>
                             <textarea name="comment" class="form-input" rows="2" placeholder="Заметка к бронированию"></textarea>
                         </div>
-
-                        <div class="modal-section-title">Тренер</div>
-                        <div class="coach-buttons" id="bookCoachButtons">
-                            @foreach($clubCoaches as $cc)
-                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
-                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
-                                </button>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="coach_id" id="bookCoachId" value="">
 
                         <div style="text-align: center; margin-top: 16px;">
                             <button type="button" class="btn-block-slot" onclick="blockSlot()">Заблокировать слот</button>
