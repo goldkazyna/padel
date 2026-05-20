@@ -42,13 +42,18 @@ class ActivityLogController extends Controller
 
         $date = $request->get('date');
         if ($date) {
-            $query->whereDate('created_at', $date);
+            // Фильтр по локальной дате (Asia/Almaty, +5): переводим выбранный
+            // день в UTC-диапазон, т.к. created_at хранится в UTC.
+            $start = \Carbon\Carbon::parse($date, 'Asia/Almaty')->startOfDay()->utc();
+            $end = \Carbon\Carbon::parse($date, 'Asia/Almaty')->endOfDay()->utc();
+            $query->whereBetween('created_at', [$start, $end]);
         }
 
         $logs = $query->paginate(30);
 
-        // Группировка по дням для view
-        $groupedLogs = $logs->getCollection()->groupBy(fn($log) => $log->created_at->format('Y-m-d'));
+        // Группировка по дням для view — в локальном времени (+5), иначе записи
+        // после 19:00 UTC уезжали бы в следующий день.
+        $groupedLogs = $logs->getCollection()->groupBy(fn($log) => $log->created_at->timezone('Asia/Almaty')->format('Y-m-d'));
 
         // Статистика (за всё время, без фильтров)
         $baseQuery = ActivityLog::where('club_id', $club->id);

@@ -162,7 +162,7 @@
                             $ac = $avatarColors[$log->action] ?? ['bg' => '#3f3f46', 'color' => '#fff'];
                         @endphp
                         <tr class="log-row {{ $hasChanges ? 'has-changes' : '' }}" @if($hasChanges) onclick="toggleChanges(this)" @endif>
-                            <td class="col-time">{{ $log->created_at->format('H:i') }}</td>
+                            <td class="col-time">{{ $log->created_at->timezone('Asia/Almaty')->format('H:i') }}</td>
                             <td class="col-action"><span class="action-badge {{ $log->action }}"><span class="dot"></span>{{ $actionLabels[$log->action] ?? $log->action }}</span></td>
                             <td class="col-subject"><span class="subject-tag {{ $subj['class'] }}"><i class="bi {{ $subj['icon'] }}"></i> {{ $subj['label'] }}</span></td>
                             <td class="col-desc">{{ $log->description }}</td>
