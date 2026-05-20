@@ -93,7 +93,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc',
+			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
@@ -108,7 +108,15 @@ class TournamentController extends Controller
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
 			'courts_count' => 'nullable|integer|min:1|max:32',
+			'flex_courts_count' => 'nullable|integer|min:1|max:8',
 		]);
+
+		// Americano Flex: количество кортов задаётся вручную отдельным полем,
+		// перекладываем его в courts_count (а не авто ceil(игроки/4)).
+		if (($validated['type'] ?? null) === 'americano_flex') {
+			$validated['courts_count'] = $validated['flex_courts_count'] ?? 2;
+		}
+		unset($validated['flex_courts_count']);
 
 
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');

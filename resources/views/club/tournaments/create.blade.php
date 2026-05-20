@@ -341,6 +341,15 @@
 							Пары и соперники миксуются с минимизацией повторов. Без групп и плей-офф: админ сам решает,
 							когда «Следующий раунд» и когда «Завершить турнир». Минимум: количество_кортов × 4 + 1 игрок.
 						</div>
+						<div class="row">
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Количество кортов *</label>
+								<input type="number" name="flex_courts_count" id="flexCourtsCount" class="form-control"
+									   value="{{ old('flex_courts_count', 2) }}" min="1" max="8"
+									   oninput="generateCourtsInputs()">
+								<small class="text-secondary">Сколько кортов реально играет. Игроков должно быть больше, чем кортов × 4 (например, 2 корта → от 9 игроков).</small>
+							</div>
+						</div>
 					</div>
 					
 					
@@ -526,10 +535,17 @@ function togglePlayoffFormat() {
     }
 }
 function generateCourtsInputs() {
-    const maxParticipants = document.querySelector('input[name="max_participants"]')?.value || 16;
-    const courtsCount = Math.ceil(maxParticipants / 4);
+    const type = document.getElementById('tournamentType')?.value;
+    let courtsCount;
+    if (type === 'americano_flex') {
+        // Для Flex количество кортов задаётся вручную, а не считается от игроков
+        courtsCount = parseInt(document.getElementById('flexCourtsCount')?.value) || 2;
+    } else {
+        const maxParticipants = document.querySelector('input[name="max_participants"]')?.value || 16;
+        courtsCount = Math.ceil(maxParticipants / 4);
+    }
     const container = document.getElementById('courtsInputs');
-    
+
     if (!container) return;
     
     let html = '';
