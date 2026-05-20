@@ -339,16 +339,7 @@ class CoachController extends Controller
 
         $existingCoachIds = ClubCoach::where('club_id', $club->id)->pluck('user_id');
 
-        $users = User::where(function ($query) use ($q) {
-                $digits = preg_replace('/\D/', '', $q);
-                $query->where('name', 'like', "%{$q}%")
-                    ->orWhere('first_name', 'like', "%{$q}%")
-                    ->orWhere('last_name', 'like', "%{$q}%")
-                    ->orWhere('email', 'like', "%{$q}%");
-                if ($digits !== '') {
-                    $query->orWhere('phone', 'like', "%{$digits}%");
-                }
-            })
+        $users = User::where('name', 'like', "%{$q}%")
             ->whereNotIn('id', $existingCoachIds)
             ->limit(10)
             ->get()
