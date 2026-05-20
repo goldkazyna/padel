@@ -32,6 +32,11 @@ class ActivityLogController extends Controller
             $query->where('user_id', $request->get('user_id'));
         }
 
+        // Фильтр по менеджеру (модератору клуба) — тоже по user_id
+        if ($request->get('manager_id')) {
+            $query->where('user_id', $request->get('manager_id'));
+        }
+
         if ($request->get('subject')) {
             $query->where('subject_type', $request->get('subject'));
         }
@@ -84,6 +89,9 @@ class ActivityLogController extends Controller
             ->pluck('user')
             ->filter();
 
-        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'club', 'stats', 'subjectCounts', 'date'));
+        // Менеджеры (модераторы) клуба для отдельного фильтра
+        $managers = $club->moderators()->orderBy('name')->get();
+
+        return view('club.activity-log.index', compact('logs', 'groupedLogs', 'users', 'managers', 'club', 'stats', 'subjectCounts', 'date'));
     }
 }

@@ -81,16 +81,39 @@
             <option value="deleted" {{ request('action') === 'deleted' ? 'selected' : '' }}>Удаление</option>
             <option value="level_changed" {{ request('action') === 'level_changed' ? 'selected' : '' }}>Изменение уровня</option>
         </select>
-        <select name="user_id" class="log-filter-select" onchange="document.getElementById('logForm').submit()">
+        <select name="user_id" class="log-filter-select" onchange="onUserFilterChange(this)">
             <option value="">Все пользователи</option>
             @foreach($users as $u)
                 <option value="{{ $u->id }}" {{ request('user_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
             @endforeach
         </select>
+        <select name="manager_id" class="log-filter-select" onchange="onManagerFilterChange(this)">
+            <option value="">Все менеджеры</option>
+            @forelse($managers as $m)
+                <option value="{{ $m->id }}" {{ request('manager_id') == $m->id ? 'selected' : '' }}>{{ $m->name }}</option>
+            @empty
+                <option value="" disabled>Менеджеров нет</option>
+            @endforelse
+        </select>
         @if(request('subject'))
             <input type="hidden" name="subject" value="{{ request('subject') }}">
         @endif
     </form>
+
+    <script>
+        // Менеджер и обычный пользователь фильтруют один user_id —
+        // при выборе одного сбрасываем другой, чтобы не было пустого AND.
+        function onUserFilterChange(sel) {
+            const mgr = document.querySelector('select[name="manager_id"]');
+            if (mgr) mgr.value = '';
+            document.getElementById('logForm').submit();
+        }
+        function onManagerFilterChange(sel) {
+            const usr = document.querySelector('select[name="user_id"]');
+            if (usr) usr.value = '';
+            document.getElementById('logForm').submit();
+        }
+    </script>
 
     <!-- LOGS -->
     @forelse($groupedLogs as $date => $dayLogs)
