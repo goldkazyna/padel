@@ -740,10 +740,10 @@
     .bt-group.active { background: rgba(59,130,246,0.18); border-color: #3b82f6; color: #3b82f6; }
     .bt-individual.active { background: rgba(229,231,235,0.18); border-color: #e5e7eb; color: #e5e7eb; }
     .bt-tournament.active { background: rgba(167,139,250,0.18); border-color: #a78bfa; color: #a78bfa; }
-    .ws-card.bt-slot-soft { background: rgba(245,158,11,0.30) !important; border-left: 4px solid #f59e0b !important; }
-    .ws-card.bt-slot-group { background: rgba(59,130,246,0.30) !important; border-left: 4px solid #3b82f6 !important; }
-    .ws-card.bt-slot-individual { background: rgba(229,231,235,0.22) !important; border-left: 4px solid #e5e7eb !important; }
-    .ws-card.bt-slot-tournament { background: rgba(167,139,250,0.30) !important; border-left: 4px solid #a78bfa !important; }
+    .ws-card.bt-slot-soft { background: rgba(245,158,11,0.30) !important; }
+    .ws-card.bt-slot-group { background: rgba(59,130,246,0.30) !important; }
+    .ws-card.bt-slot-individual { background: rgba(229,231,235,0.22) !important; }
+    .ws-card.bt-slot-tournament { background: rgba(167,139,250,0.30) !important; }
     .pay-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
     .pay-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
 

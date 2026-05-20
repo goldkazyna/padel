@@ -2577,10 +2577,10 @@
     .bt-tournament.active { background: rgba(167,139,250,0.18); border-color: #a78bfa; color: #a78bfa; }
 
     /* Цветной фон слота по типу брони */
-    .bt-slot-soft { background: rgba(245,158,11,0.30) !important; border-left: 4px solid #f59e0b !important; }
-    .bt-slot-group { background: rgba(59,130,246,0.30) !important; border-left: 4px solid #3b82f6 !important; }
-    .bt-slot-individual { background: rgba(229,231,235,0.22) !important; border-left: 4px solid #e5e7eb !important; }
-    .bt-slot-tournament { background: rgba(167,139,250,0.30) !important; border-left: 4px solid #a78bfa !important; }
+    .bt-slot-soft { background: rgba(245,158,11,0.30) !important; }
+    .bt-slot-group { background: rgba(59,130,246,0.30) !important; }
+    .bt-slot-individual { background: rgba(229,231,235,0.22) !important; }
+    .bt-slot-tournament { background: rgba(167,139,250,0.30) !important; }
 
     .pay-btn {
         flex: 1 1 calc(25% - 6px);
