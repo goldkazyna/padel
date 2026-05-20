@@ -736,8 +736,9 @@
 
     .coach-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
     @media (max-width: 600px) { .coach-buttons { grid-template-columns: 1fr; } }
-    .coach-btn { padding: 8px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    .coach-btn .coach-rate { color: #22c55e; font-weight: 700; font-size: 12px; }
+    .coach-btn { padding: 8px 14px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; text-align: left; justify-content: flex-start; }
+    .coach-btn-name { flex: 1; min-width: 0; text-align: left; line-height: 1.25; }
+    .coach-btn .coach-rate { color: #22c55e; font-weight: 700; font-size: 12px; flex-shrink: 0; white-space: nowrap; }
     .coach-btn-avatar { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #a78bfa, #7c3aed); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; flex-shrink: 0; }
     .coach-btn-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .coach-btn.active { background: #a78bfa; color: #0a0a0b; border-color: #a78bfa; }
@@ -899,7 +900,8 @@
                             @foreach($clubCoaches as $cc)
                                 <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
-                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                    <span class="coach-btn-name">{{ $cc->user->full_name }}</span>
+                                    @if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
                                 </button>
                             @endforeach
                         </div>

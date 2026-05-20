@@ -512,7 +512,8 @@
                             @foreach($clubCoaches as $cc)
                                 <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
-                                    {{ $cc->user->full_name }}@if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
+                                    <span class="coach-btn-name">{{ $cc->user->full_name }}</span>
+                                    @if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
                                 </button>
                             @endforeach
                         </div>
@@ -2555,12 +2556,22 @@
         display: flex;
         align-items: center;
         gap: 6px;
+        text-align: left;
+        justify-content: flex-start;
+    }
+    .coach-btn-name {
+        flex: 1;
+        min-width: 0;
+        text-align: left;
+        line-height: 1.25;
     }
 
     .coach-btn .coach-rate {
         color: var(--sch-accent);
         font-weight: 700;
         font-size: 12px;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
 
     .coach-btn-avatar {
