@@ -12,6 +12,7 @@ class ActivityLogController extends Controller
     {
         $user = auth()->user();
         if ($user->isSuperAdmin()) return \App\Models\Club::first();
+        if ($user->isClubModerator()) return $user->moderatorClubs()->first();
         return $user->adminClubs()->first();
     }
 

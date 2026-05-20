@@ -158,6 +158,12 @@ Route::middleware('auth')->group(function () {
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
 
+        // Журнал действий — доступен модератору с флагом can_view_activity_log
+        // (проверка доступа внутри контроллера). Поэтому вне группы только-admin.
+        Route::middleware('club.feature:activity_log')->group(function () {
+            Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
+        });
+
         // Управление модераторами (только admin)
         Route::middleware('role:club_admin,super_admin')->group(function () {
             Route::middleware('club.feature:moderators')->group(function () {
@@ -166,9 +172,6 @@ Route::middleware('auth')->group(function () {
                 Route::put('/moderators/{user}/password', [App\Http\Controllers\Club\ModeratorManagerController::class, 'updatePassword'])->name('moderators.updatePassword');
                 Route::put('/moderators/{user}/permissions', [App\Http\Controllers\Club\ModeratorManagerController::class, 'updatePermissions'])->name('moderators.updatePermissions');
                 Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
-            });
-            Route::middleware('club.feature:activity_log')->group(function () {
-                Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
             });
 
             // Отчёты
