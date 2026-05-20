@@ -29,6 +29,13 @@
     @forelse($clubCoaches as $cc)
         <div class="coach-card">
             <div class="coach-card-main">
+                <div class="coach-photo">
+                    @if($cc->photo)
+                        <img src="{{ $cc->photo }}" alt="{{ $cc->user->full_name }}">
+                    @else
+                        <span class="coach-photo-initials">{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}</span>
+                    @endif
+                </div>
                 <div class="coach-info">
                     <div class="coach-name">{{ $cc->user->full_name }}</div>
                     <div class="coach-contacts">
@@ -239,7 +246,10 @@ function clearSelectedUser() {
     .coach-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; margin-bottom: 16px; overflow: hidden; transition: border-color 0.2s; }
     .coach-card:hover { border-color: #3f3f46; }
     .coach-card-main { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; gap: 24px; flex-wrap: wrap; }
-    .coach-info { display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
+    .coach-photo { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #22c55e, #16a34a); display: flex; align-items: center; justify-content: center; }
+    .coach-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .coach-photo-initials { font-size: 26px; font-weight: 800; color: #0a0a0b; }
+    .coach-info { display: flex; flex-direction: column; gap: 6px; min-width: 200px; flex: 1; }
     .coach-name { font-size: 18px; font-weight: 700; color: #f4f4f5; }
     .coach-contacts { display: flex; gap: 16px; flex-wrap: wrap; }
     .coach-contact { font-size: 13px; color: #71717a; font-weight: 500; }
