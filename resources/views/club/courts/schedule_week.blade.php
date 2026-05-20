@@ -729,8 +729,8 @@
     .duration-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
     .duration-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
 
-    .payment-methods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .pay-btn { padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
+    .payment-methods { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pay-btn { flex: 1 1 calc(25% - 6px); min-width: 90px; padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
     .pay-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
     .pay-btn:hover:not(.active) { border-color: #22c55e; color: #22c55e; }
 

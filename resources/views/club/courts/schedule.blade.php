@@ -2501,16 +2501,14 @@
     }
 
     .payment-methods {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        display: flex;
+        flex-wrap: wrap;
         gap: 6px;
     }
 
-    .payment-methods .pay-btn:last-child:nth-child(4n - 2) {
-        grid-column: span 1;
-    }
-
     .pay-btn {
+        flex: 1 1 calc(25% - 6px);
+        min-width: 90px;
         padding: 8px 4px;
         background: var(--sch-card-alt);
         border: 1px solid var(--sch-border);
