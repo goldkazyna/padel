@@ -1042,15 +1042,6 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Статус оплаты *</label>
-                            <input type="hidden" name="is_paid" id="editIsPaidInput" value="">
-                            <div class="paid-toggle">
-                                <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
-                                <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
-                            </div>
-                        </div>
-
                         <div class="form-group" id="editProcessedGroup" style="display:none;">
                             <label class="form-label">Статус обработки</label>
                             <input type="hidden" name="is_processed" id="editIsProcessedInput" value="1">
@@ -1112,6 +1103,15 @@
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
+
+                        <div class="form-group" style="margin-top: 14px;">
+                            <label class="form-label">Статус оплаты *</label>
+                            <input type="hidden" name="is_paid" id="editIsPaidInput" value="">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn" data-value="0" onclick="setEditPaid(this)">Не оплачено</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
+                            </div>
+                        </div>
 
                         <div class="form-group" style="margin-top: 14px;">
                             <label class="form-label">Комментарий</label>
