@@ -24,6 +24,7 @@ class CourtBooking extends Model
         'comment',
         'booking_type',
         'coach_id',
+        'coach_paid',
         'needs_coach',
     ];
 
@@ -35,6 +36,7 @@ class CourtBooking extends Model
         'is_paid' => 'boolean',
         'is_processed' => 'boolean',
         'needs_coach' => 'boolean',
+        'coach_paid' => 'boolean',
     ];
 
     public function court()

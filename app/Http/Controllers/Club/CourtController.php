@@ -578,6 +578,7 @@ class CourtController extends Controller
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'coach_id' => 'nullable|exists:users,id',
+            'coach_paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
@@ -664,6 +665,7 @@ class CourtController extends Controller
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
                 'coach_id' => $validated['coach_id'] ?? null,
+                'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
             ]);
             $firstBooking ??= $booking;
             $created[] = ['date' => $date, 'id' => $booking->id];
@@ -807,6 +809,7 @@ class CourtController extends Controller
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'coach_id' => 'nullable',
+            'coach_paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'slots' => 'nullable|integer|min:1|max:8',
@@ -847,6 +850,7 @@ class CourtController extends Controller
             'comment' => $validated['comment'] ?? null,
             'booking_type' => $validated['booking_type'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
+            'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
         ];
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {

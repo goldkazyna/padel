@@ -334,7 +334,7 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', coachId: {{ $booking->coach_id ?? 'null' }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid ? 'true' : 'false' }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -439,6 +439,7 @@
                                 'comment' => $ub->comment,
                                 'bookingType' => $ub->booking_type,
                                 'coachId' => $ub->coach_id,
+                                'coachPaid' => (bool) $ub->coach_paid,
                                 'slotDuration' => $ub->court->slot_duration ?? 60,
                             ]) }})">
                         <i class="bi bi-eye"></i> Просмотреть
@@ -520,6 +521,15 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
+
+                        <div class="form-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Оплата тренера</label>
+                            <input type="hidden" name="coach_paid" id="bookCoachPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn active" data-value="0" onclick="setBookCoachPaid(this)">Не оплачен</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setBookCoachPaid(this)">Оплачен</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right column: client, payment, coach -->
@@ -674,6 +684,15 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
+
+                        <div class="form-group" id="editCoachPaidGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Оплата тренера</label>
+                            <input type="hidden" name="coach_paid" id="editCoachPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn" data-value="0" onclick="setEditCoachPaid(this)">Не оплачен</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setEditCoachPaid(this)">Оплачен</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right column: client, payment, coach -->
@@ -947,6 +966,9 @@
         document.getElementById('bookingTypeInput').value = '';
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('bookCoachId').value = '';
+        document.getElementById('bookCoachPaidGroup').style.display = 'none';
+        document.getElementById('bookCoachPaidInput').value = '0';
+        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === '0'));
         updateCoachButtons();
 
         if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
@@ -1003,7 +1025,7 @@
         const paidVal = data.isPaid ? '1' : '0';
         document.getElementById('editIsPaidInput').value = paidVal;
         document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => {
-            const isToggle = b.closest('#editProcessedGroup') === null;
+            const isToggle = b.closest('#editProcessedGroup') === null && b.closest('#editCoachPaidGroup') === null;
             if (isToggle) {
                 b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
             }
@@ -1039,6 +1061,15 @@
                 b.classList.add('active');
             }
         });
+        // Оплата тренера — показываем блок только если тренер выбран
+        const editCoachPaidGroup = document.getElementById('editCoachPaidGroup');
+        const coachPaidVal = data.coachPaid ? '1' : '0';
+        document.getElementById('editCoachPaidInput').value = coachPaidVal;
+        document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === coachPaidVal);
+        });
+        editCoachPaidGroup.style.display = data.coachId ? '' : 'none';
+
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
@@ -1425,12 +1456,20 @@
         const input = document.getElementById('bookCoachId');
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        const paidGroup = document.getElementById('bookCoachPaidGroup');
         if (isActive) {
             input.value = '';
+            if (paidGroup) paidGroup.style.display = 'none';
         } else {
             btn.classList.add('active');
             input.value = coachId;
+            if (paidGroup) paidGroup.style.display = '';
         }
+    }
+    function setBookCoachPaid(btn) {
+        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('bookCoachPaidInput').value = btn.getAttribute('data-value');
     }
 
     function setEditProcessed(btn) {
@@ -1445,12 +1484,20 @@
         const input = document.getElementById('editCoachId');
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
+        const paidGroup = document.getElementById('editCoachPaidGroup');
         if (isActive) {
             input.value = '';
+            if (paidGroup) paidGroup.style.display = 'none';
         } else {
             btn.classList.add('active');
             input.value = coachId;
+            if (paidGroup) paidGroup.style.display = '';
         }
+    }
+    function setEditCoachPaid(btn) {
+        document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editCoachPaidInput').value = btn.getAttribute('data-value');
     }
 
     // Авто-открытие модалки по URL-параметрам (приходит из недельного вида)

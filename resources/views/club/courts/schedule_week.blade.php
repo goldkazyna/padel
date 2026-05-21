@@ -570,7 +570,7 @@
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                             @endphp
                             <div class="ws-card {{ $cls }}"
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid ? 'true' : 'false' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -645,6 +645,7 @@
                     'comment' => $ub->comment,
                     'bookingType' => $ub->booking_type,
                     'coachId' => $ub->coach_id,
+                    'coachPaid' => (bool) $ub->coach_paid,
                     'slotDuration' => $ub->court->slot_duration ?? 60,
                 ];
             @endphp
@@ -919,6 +920,15 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
+
+                        <div class="form-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Оплата тренера</label>
+                            <input type="hidden" name="coach_paid" id="bookCoachPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn active" data-value="0" onclick="setBookCoachPaid(this)">Не оплачен</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setBookCoachPaid(this)">Оплачен</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-col-right">
@@ -1062,6 +1072,15 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
+
+                        <div class="form-group" id="editCoachPaidGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Оплата тренера</label>
+                            <input type="hidden" name="coach_paid" id="editCoachPaidInput" value="0">
+                            <div class="paid-toggle">
+                                <button type="button" class="paid-btn" data-value="0" onclick="setEditCoachPaid(this)">Не оплачен</button>
+                                <button type="button" class="paid-btn" data-value="1" onclick="setEditCoachPaid(this)">Оплачен</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-col-right">
@@ -1299,6 +1318,9 @@
         document.getElementById('bookingTypeInput').value = '';
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('bookCoachId').value = '';
+        document.getElementById('bookCoachPaidGroup').style.display = 'none';
+        document.getElementById('bookCoachPaidInput').value = '0';
+        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === '0'));
         updateCoachButtons();
 
         renderDurationButtons(currentBook.maxSlots);
@@ -1348,6 +1370,7 @@
         const paidVal = data.isPaid ? '1' : '0';
         document.getElementById('editIsPaidInput').value = paidVal;
         document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => {
+            if (b.closest('#editCoachPaidGroup')) return;
             b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
         });
 
@@ -1373,6 +1396,15 @@
             if (!available) b.classList.add('unavailable');
             if (isCurrentCoach && data.coachId) b.classList.add('active');
         });
+        // Оплата тренера — показываем блок только если тренер выбран
+        const editCoachPaidGroupW = document.getElementById('editCoachPaidGroup');
+        const coachPaidValW = data.coachPaid ? '1' : '0';
+        document.getElementById('editCoachPaidInput').value = coachPaidValW;
+        document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-value') === coachPaidValW);
+        });
+        editCoachPaidGroupW.style.display = data.coachId ? '' : 'none';
+
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
 
@@ -1738,8 +1770,14 @@
         const input = document.getElementById('bookCoachId');
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
-        if (isActive) input.value = '';
-        else { btn.classList.add('active'); input.value = coachId; }
+        const paidGroup = document.getElementById('bookCoachPaidGroup');
+        if (isActive) { input.value = ''; if (paidGroup) paidGroup.style.display = 'none'; }
+        else { btn.classList.add('active'); input.value = coachId; if (paidGroup) paidGroup.style.display = ''; }
+    }
+    function setBookCoachPaid(btn) {
+        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('bookCoachPaidInput').value = btn.getAttribute('data-value');
     }
 
     function selectEditCoach(btn) {
@@ -1748,8 +1786,14 @@
         const input = document.getElementById('editCoachId');
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
-        if (isActive) input.value = '';
-        else { btn.classList.add('active'); input.value = coachId; }
+        const paidGroup = document.getElementById('editCoachPaidGroup');
+        if (isActive) { input.value = ''; if (paidGroup) paidGroup.style.display = 'none'; }
+        else { btn.classList.add('active'); input.value = coachId; if (paidGroup) paidGroup.style.display = ''; }
+    }
+    function setEditCoachPaid(btn) {
+        document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('editCoachPaidInput').value = btn.getAttribute('data-value');
     }
 
     // === Polling новых заявок + звуковой сигнал + live-бейджи ===
