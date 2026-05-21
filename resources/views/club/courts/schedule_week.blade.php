@@ -570,7 +570,7 @@
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                             @endphp
                             <div class="ws-card {{ $cls }}"
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid ? 'true' : 'false' }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -645,7 +645,7 @@
                     'comment' => $ub->comment,
                     'bookingType' => $ub->booking_type,
                     'coachId' => $ub->coach_id,
-                    'coachPaid' => (bool) $ub->coach_paid,
+                    'coachPaid' => $ub->coach_paid,
                     'slotDuration' => $ub->court->slot_duration ?? 60,
                 ];
             @endphp
@@ -923,9 +923,9 @@
 
                         <div class="form-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Оплата тренера</label>
-                            <input type="hidden" name="coach_paid" id="bookCoachPaidInput" value="0">
+                            <input type="hidden" name="coach_paid" id="bookCoachPaidInput" value="">
                             <div class="paid-toggle">
-                                <button type="button" class="paid-btn active" data-value="0" onclick="setBookCoachPaid(this)">Не оплачен</button>
+                                <button type="button" class="paid-btn" data-value="0" onclick="setBookCoachPaid(this)">Не оплачен</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setBookCoachPaid(this)">Оплачен</button>
                             </div>
                         </div>
@@ -1075,7 +1075,7 @@
 
                         <div class="form-group" id="editCoachPaidGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Оплата тренера</label>
-                            <input type="hidden" name="coach_paid" id="editCoachPaidInput" value="0">
+                            <input type="hidden" name="coach_paid" id="editCoachPaidInput" value="">
                             <div class="paid-toggle">
                                 <button type="button" class="paid-btn" data-value="0" onclick="setEditCoachPaid(this)">Не оплачен</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setEditCoachPaid(this)">Оплачен</button>
@@ -1319,8 +1319,8 @@
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('bookCoachId').value = '';
         document.getElementById('bookCoachPaidGroup').style.display = 'none';
-        document.getElementById('bookCoachPaidInput').value = '0';
-        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === '0'));
+        document.getElementById('bookCoachPaidInput').value = '';
+        document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
         updateCoachButtons();
 
         renderDurationButtons(currentBook.maxSlots);
@@ -1398,10 +1398,10 @@
         });
         // Оплата тренера — показываем блок только если тренер выбран
         const editCoachPaidGroupW = document.getElementById('editCoachPaidGroup');
-        const coachPaidValW = data.coachPaid ? '1' : '0';
+        const coachPaidValW = data.coachPaid === true ? '1' : (data.coachPaid === false ? '0' : '');
         document.getElementById('editCoachPaidInput').value = coachPaidValW;
         document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => {
-            b.classList.toggle('active', b.getAttribute('data-value') === coachPaidValW);
+            b.classList.toggle('active', coachPaidValW !== '' && b.getAttribute('data-value') === coachPaidValW);
         });
         editCoachPaidGroupW.style.display = data.coachId ? '' : 'none';
 
@@ -1609,6 +1609,13 @@
             showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
             return;
         }
+        const coachId = document.getElementById('editCoachId').value;
+        const coachPaid = document.getElementById('editCoachPaidInput').value;
+        if (coachId && coachPaid === '') {
+            e.preventDefault();
+            showEditFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#editCoachPaidGroup .paid-toggle'));
+            return;
+        }
         clearEditFormError();
     });
     document.getElementById('editBookingForm').addEventListener('input', clearEditFormError);
@@ -1743,6 +1750,13 @@
         if (paidInput.value === '') {
             e.preventDefault();
             showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+            return;
+        }
+        const coachId = document.getElementById('bookCoachId').value;
+        const coachPaid = document.getElementById('bookCoachPaidInput').value;
+        if (coachId && coachPaid === '') {
+            e.preventDefault();
+            showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
             return;
         }
         clearBookFormError();
