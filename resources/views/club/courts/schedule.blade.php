@@ -349,7 +349,8 @@
                                         @if($booking->coach || $booking->comment || $coachTotal > 0 || $booking->needs_coach)
                                         <div class="slot-row slot-row-sub">
                                             <div class="slot-left">
-                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif@if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $booking->coach->first_name }}</span>@endif
+                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif
+                                                @if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $booking->coach->first_name }}</span>@endif
                                                 @if($booking->needs_coach && !$booking->coach)<span class="slot-needs-coach" title="Клиент запросил тренера">🎾 Нужен тренер</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
