@@ -349,7 +349,7 @@
                                         @if($booking->coach || $booking->comment || $coachTotal > 0 || $booking->needs_coach)
                                         <div class="slot-row slot-row-sub">
                                             <div class="slot-left">
-                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif</span>{{ $booking->coach->first_name }}@if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>@endif
+                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif@if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $booking->coach->first_name }}</span>@endif
                                                 @if($booking->needs_coach && !$booking->coach)<span class="slot-needs-coach" title="Клиент запросил тренера">🎾 Нужен тренер</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
@@ -2126,10 +2126,10 @@
         gap: 4px;
     }
     .slot-coach-avatar {
+        position: relative;
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        overflow: hidden;
         background: linear-gradient(135deg, #a78bfa, #7c3aed);
         display: inline-flex;
         align-items: center;
@@ -2139,13 +2139,15 @@
         color: #fff;
         flex-shrink: 0;
     }
-    .slot-coach-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .slot-coach-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
     .slot-coach-paid {
-        width: 9px;
-        height: 9px;
+        position: absolute;
+        bottom: -1px;
+        right: -1px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        display: inline-block;
-        flex-shrink: 0;
+        border: 1.5px solid var(--sch-card, #16161a);
     }
     .slot-coach-paid.paid { background: #22c55e; }
     .slot-coach-paid.unpaid { background: #f59e0b; }

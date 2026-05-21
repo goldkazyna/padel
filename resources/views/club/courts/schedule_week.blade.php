@@ -272,9 +272,9 @@
         text-overflow: ellipsis;
     }
     .ws-coach { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
-    .ws-coach-avatar { width: 16px; height: 16px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #a78bfa, #7c3aed); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; color: #fff; flex-shrink: 0; }
-    .ws-coach-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .ws-coach-paid { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .ws-coach-avatar { position: relative; width: 16px; height: 16px; border-radius: 50%; background: linear-gradient(135deg, #a78bfa, #7c3aed); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .ws-coach-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .ws-coach-paid { position: absolute; bottom: -1px; right: -1px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #16161a; }
     .ws-coach-paid.paid { background: #22c55e; }
     .ws-coach-paid.unpaid { background: #f59e0b; }
     .ws-card .court-num {
@@ -586,7 +586,7 @@
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
                                         <span class="meta">
-                                            @if($b->coach)<span class="ws-coach"><span class="ws-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($b->coach->first_name ?? '?', 0, 1)) }}@endif</span>{{ $b->coach->first_name }}@if($b->coach_paid !== null)<span class="ws-coach-paid {{ $b->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $b->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>@endif
+                                            @if($b->coach)<span class="ws-coach"><span class="ws-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($b->coach->first_name ?? '?', 0, 1)) }}@endif@if($b->coach_paid !== null)<span class="ws-coach-paid {{ $b->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $b->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $b->coach->first_name }}</span>@endif
                                             @if($b->coach_id && $b->comment) · @endif
                                             @if($b->comment){{ $b->comment }}@endif
                                         </span>
