@@ -271,6 +271,12 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .ws-coach { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
+    .ws-coach-avatar { width: 16px; height: 16px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #a78bfa, #7c3aed); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .ws-coach-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .ws-coach-paid { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .ws-coach-paid.paid { background: #22c55e; }
+    .ws-coach-paid.unpaid { background: #f59e0b; }
     .ws-card .court-num {
         font-size: 10px;
         font-weight: 700;
@@ -568,6 +574,11 @@
                                 if ($b->booking_type) $cls .= ' bt-slot-' . $b->booking_type;
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
+                                $coachPhoto = null;
+                                if ($b->coach_id) {
+                                    $ccW = $clubCoaches->firstWhere('user_id', $b->coach_id);
+                                    $coachPhoto = $ccW ? $ccW->photo : null;
+                                }
                             @endphp
                             <div class="ws-card {{ $cls }}"
                                  onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
@@ -575,7 +586,7 @@
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
                                         <span class="meta">
-                                            @if($b->coach)тренер: {{ $b->coach->first_name }}@endif
+                                            @if($b->coach)<span class="ws-coach"><span class="ws-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($b->coach->first_name ?? '?', 0, 1)) }}@endif</span>{{ $b->coach->first_name }}@if($b->coach_paid !== null)<span class="ws-coach-paid {{ $b->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $b->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>@endif
                                             @if($b->coach_id && $b->comment) · @endif
                                             @if($b->comment){{ $b->comment }}@endif
                                         </span>

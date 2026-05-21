@@ -314,9 +314,11 @@
                                     $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $statusClass;
                                     if ($booking->booking_type) $slotClass .= ' bt-slot-' . $booking->booking_type;
                                     $coachRate = null;
+                                    $coachPhoto = null;
                                     if ($booking->coach_id) {
                                         $cc = $clubCoaches->firstWhere('user_id', $booking->coach_id);
                                         $coachRate = $cc ? $cc->hourly_rate : null;
+                                        $coachPhoto = $cc ? $cc->photo : null;
                                     }
                                 @endphp
                                 <td @if($span > 1) rowspan="{{ $span }}" style="padding: 4px;" @endif>
@@ -347,7 +349,7 @@
                                         @if($booking->coach || $booking->comment || $coachTotal > 0 || $booking->needs_coach)
                                         <div class="slot-row slot-row-sub">
                                             <div class="slot-left">
-                                                @if($booking->coach)<span class="slot-coach">{{ $booking->coach->first_name }}</span>@endif
+                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif</span>{{ $booking->coach->first_name }}@if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>@endif
                                                 @if($booking->needs_coach && !$booking->coach)<span class="slot-needs-coach" title="Клиент запросил тренера">🎾 Нужен тренер</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
@@ -2119,7 +2121,34 @@
         font-weight: 600;
         color: #a78bfa;
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
+    .slot-coach-avatar {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #a78bfa, #7c3aed);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: 800;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .slot-coach-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .slot-coach-paid {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+    .slot-coach-paid.paid { background: #22c55e; }
+    .slot-coach-paid.unpaid { background: #f59e0b; }
 
     .slot-blocked {
         background: rgba(113, 113, 122, 0.15);
