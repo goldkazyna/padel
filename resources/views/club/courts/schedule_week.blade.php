@@ -1583,7 +1583,7 @@
         const paymentInput = form.querySelector('input[name="payment_method"]');
         const paidInput = form.querySelector('input[name="is_paid"]');
         const paymentGroup = document.getElementById('editPaymentMethods');
-        const paidGroup = document.querySelector('#editBookingForm .paid-toggle');
+        const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
         const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
         if (!nameIsLocked) {
@@ -1729,7 +1729,7 @@
         const paymentInput = form.querySelector('input[name="payment_method"]');
         const paidInput = form.querySelector('input[name="is_paid"]');
         const paymentGroup = document.getElementById('paymentMethods');
-        const paidGroup = document.querySelector('#bookForm .paid-toggle');
+        const paidGroup = document.getElementById('isPaidInput').parentElement.querySelector('.paid-toggle');
 
         const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
         if (words.length < 2) {
