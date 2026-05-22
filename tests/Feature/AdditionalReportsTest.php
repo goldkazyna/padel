@@ -37,4 +37,10 @@ class AdditionalReportsTest extends TestCase
         [, $admin] = $this->clubAdmin();
         $this->actingAs($admin)->get('/club/reports/extra/nope')->assertNotFound();
     }
+
+    public function test_index_page_loads(): void
+    {
+        [, $admin] = $this->clubAdmin();
+        $this->actingAs($admin)->get('/club/reports/extra')->assertOk()->assertSee('Дополнительные отчёты');
+    }
 }

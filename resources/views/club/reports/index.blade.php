@@ -26,9 +26,15 @@
             <h1 style="font-size:22px;font-weight:800;margin:0;">Отчёты клуба</h1>
             <div style="color:#a0a0a0;font-size:13px;margin-top:4px;">{{ $club->name }} · {{ $periodLabel }}</div>
         </div>
-        <a href="{{ route('club.reports.export', $exportParams) }}" class="btn" style="background:#22c47a;color:#0a0a0d;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
-            <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
-        </a>
+        <div style="display:inline-flex;gap:8px;flex-wrap:wrap;">
+            <a href="{{ route('club.reports.extra.index', request()->only(['preset','from','to'])) }}"
+               style="background:rgba(255,255,255,0.06);color:#f3f3f5;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,0.08);">
+                <i class="bi bi-file-earmark-bar-graph"></i> Дополнительные отчёты
+            </a>
+            <a href="{{ route('club.reports.export', $exportParams) }}" class="btn" style="background:#22c47a;color:#0a0a0d;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+                <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
+            </a>
+        </div>
     </div>
 
     {{-- === Preset + custom range === --}}
