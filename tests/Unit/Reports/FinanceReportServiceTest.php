@@ -48,4 +48,22 @@ class FinanceReportServiceTest extends TestCase
         $this->assertCount(1, $sheet->rows);
         $this->assertEquals(5000, $sheet->totals[4]); // debt total (6000-1000)
     }
+
+    public function test_sales_amount_includes_coach_cost(): void
+    {
+        $coachUser = \App\Models\User::factory()->create();
+        $cc = \App\Models\ClubCoach::create(['club_id' => $this->club->id, 'user_id' => $coachUser->id, 'hourly_rate' => 4000]);
+        \App\Models\CoachRate::create(['club_coach_id' => $cc->id, 'hours' => 1, 'rate' => 5000]);
+        // 1h booking with coach: court 5000 + coach 5000 = 10000
+        \App\Models\CourtBooking::create([
+            'court_id' => $this->court->id, 'date' => '2026-05-04', 'start_time' => '15:00', 'end_time' => '16:00',
+            'client_name' => 'CoachClient', 'price' => 5000, 'discount' => 0, 'payment_method' => 'cash',
+            'is_paid' => true, 'status' => 'confirmed', 'booked_by' => $this->u->id,
+            'coach_id' => $coachUser->id, 'coach_paid' => true,
+        ]);
+
+        $sheet = (new FinanceReportService())->sales($this->club, \Carbon\Carbon::parse('2026-05-01'), \Carbon\Carbon::parse('2026-05-31'));
+        $row = collect($sheet->rows)->firstWhere(3, 'CoachClient'); // client name column index 3
+        $this->assertEquals(10000, $row[5]); // amount = court 5000 + coach 5000
+    }
 }

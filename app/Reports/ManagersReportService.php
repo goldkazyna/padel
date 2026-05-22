@@ -9,6 +9,8 @@ use Carbon\Carbon;
 
 class ManagersReportService
 {
+    use CalculatesBookingRevenue;
+
     public function sales(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $bookings = CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
@@ -25,7 +27,7 @@ class ManagersReportService
             $dateKey = ($b->date instanceof \Carbon\Carbon ? $b->date : Carbon::parse((string) $b->date))->format('Y-m-d');
             $key = $b->booked_by . '|' . $dateKey;
             $agg[$key] ??= [0, 0.0, 0.0];
-            $amount = (float) $b->price - (float) $b->discount;
+            $amount = $this->bookingRevenue($b, $club->id);
             $agg[$key][0]++;
             $agg[$key][1] += $amount;
             if ($b->is_paid) $agg[$key][2] += $amount;

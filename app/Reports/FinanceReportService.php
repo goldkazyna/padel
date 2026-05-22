@@ -9,6 +9,8 @@ use Carbon\Carbon;
 
 class FinanceReportService
 {
+    use CalculatesBookingRevenue;
+
     private function confirmed(Club $club, Carbon $from, Carbon $to)
     {
         return CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
@@ -41,7 +43,7 @@ class FinanceReportService
         $names = [];
         $rows = []; $tAmount = 0; $tDiscount = 0;
         foreach ($bookings as $b) {
-            $amount = (float) $b->price - (float) $b->discount;
+            $amount = $this->bookingRevenue($b, $club->id);
             $rows[] = [
                 $this->parseDate($b->date)->format('d.m.Y'),
                 Carbon::parse($b->start_time)->format('H:i'),
@@ -61,7 +63,7 @@ class FinanceReportService
             headings: ['Дата', 'Время', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Скидка', 'Оплата', 'Оплачено', 'Менеджер'],
             rows: $rows,
             totals: ['Итого', '', '', '', '', round($tAmount, 2), round($tDiscount, 2), '', '', ''],
-            columnFormats: [5 => '#,##0', 6 => '#,##0'],
+            columnFormats: [4 => '@', 5 => '#,##0', 6 => '#,##0'],
         );
     }
 
@@ -72,7 +74,7 @@ class FinanceReportService
         foreach ($bookings as $b) {
             $k = $keyFn($b);
             $cnt[$k] = ($cnt[$k] ?? 0) + 1;
-            $sum[$k] = ($sum[$k] ?? 0) + ((float) $b->price - (float) $b->discount);
+            $sum[$k] = ($sum[$k] ?? 0) + $this->bookingRevenue($b, $club->id);
         }
         ksort($cnt);
         $rows = []; $tC = 0; $tS = 0;
@@ -124,7 +126,7 @@ class FinanceReportService
         $names = [];
         $rows = []; $tDebt = 0;
         foreach ($bookings as $b) {
-            $amount = (float) $b->price - (float) $b->discount;
+            $amount = $this->bookingRevenue($b, $club->id);
             $rows[] = [
                 $this->parseDate($b->date)->format('d.m.Y'),
                 $b->court->name ?? '',
@@ -140,7 +142,7 @@ class FinanceReportService
             headings: ['Дата', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Менеджер'],
             rows: $rows,
             totals: ['Итого', '', '', '', round($tDebt, 2), ''],
-            columnFormats: [4 => '#,##0'],
+            columnFormats: [3 => '@', 4 => '#,##0'],
         );
     }
 }

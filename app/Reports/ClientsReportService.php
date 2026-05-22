@@ -9,6 +9,8 @@ use Carbon\Carbon;
 
 class ClientsReportService
 {
+    use CalculatesBookingRevenue;
+
     /** @return string[] phone digit variants for matching */
     private function phoneVariants(?string $phone): array
     {
@@ -43,7 +45,7 @@ class ClientsReportService
 
             if ($bookings->isEmpty()) continue;
 
-            $amount = $bookings->sum(fn ($b) => (float) $b->price - (float) $b->discount);
+            $amount = $bookings->sum(fn ($b) => $this->bookingRevenue($b, $club->id));
             $last = $bookings->max('date');
             $rows[] = [
                 $client->name,
@@ -63,7 +65,7 @@ class ClientsReportService
             headings: ['Клиент', 'Телефон', 'Визитов', 'Сумма', 'Последний визит'],
             rows: $rows,
             totals: ['Итого', '', $totVisits, round($totAmount, 2), ''],
-            columnFormats: [3 => '#,##0'],
+            columnFormats: [1 => '@', 3 => '#,##0'],
         );
     }
 }
