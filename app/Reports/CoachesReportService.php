@@ -4,7 +4,6 @@ namespace App\Reports;
 
 use App\Models\Club;
 use App\Models\ClubCoach;
-use App\Models\CoachRate;
 use App\Models\CourtBooking;
 use App\Models\User;
 use Carbon\Carbon;
@@ -125,26 +124,13 @@ class CoachesReportService
         $bookings = $this->coachBookings($club, $from, $to);
         $names = [];
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
-        $rates = CoachRate::whereIn('club_coach_id', $profiles->pluck('id'))
-            ->get()
-            ->groupBy('club_coach_id');
 
         $agg = []; // userId => [sessions, hours, pay]
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
             $profile = $profiles->get($b->coach_id);
-            $rateValue = null;
-            if ($profile && isset($rates[$profile->id])) {
-                $match = $rates[$profile->id]->firstWhere('hours', (int) round($h));
-                if ($match) {
-                    // rate in coach_rates is the per-hour rate; pay = rate * hours
-                    $rateValue = (float) $match->rate;
-                }
-            }
-            if ($rateValue === null) {
-                $rateValue = (float) ($profile?->hourly_rate ?? 0);
-            }
-            $pay = $rateValue * $h;
+            $wholeHours = (int) floor($h);
+            $pay = $profile ? $profile->getRateForHours($wholeHours) : 0.0;
 
             $id = $b->coach_id;
             $agg[$id] ??= [0, 0.0, 0.0];

@@ -44,4 +44,24 @@ class CoachesReportServiceTest extends TestCase
         $sessions = $svc->sessions($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $this->assertCount(1, $sessions->rows);
     }
+
+    public function test_salary_falls_back_to_hourly_rate_when_no_coach_rates(): void
+    {
+        $club = Club::create(['name' => 'C2', 'address' => 'A2']);
+        $court = Court::create(['club_id' => $club->id, 'name' => 'K2', 'open_time' => '08:00', 'close_time' => '22:00', 'slot_duration' => 60]);
+        $booker = User::factory()->create();
+        $coachUser = User::factory()->create(['first_name' => 'Тренер', 'name' => 'Тренер Два']);
+        // No CoachRate rows — only hourly_rate
+        ClubCoach::create(['club_id' => $club->id, 'user_id' => $coachUser->id, 'hourly_rate' => 4000]);
+
+        // 1h confirmed booking
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-10', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Клиент2', 'price' => 6000, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_paid' => false, 'is_paid' => true, 'booked_by' => $booker->id]);
+
+        $svc = new CoachesReportService();
+        $salary = $svc->salary($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
+        $row = collect($salary->rows)->firstWhere(0, 'Тренер Два');
+        $this->assertEquals(1, $row[1]);    // sessions
+        $this->assertEquals(1.0, $row[2]);  // hours
+        $this->assertEquals(4000, $row[3]); // to_pay = hourly_rate * 1h
+    }
 }
