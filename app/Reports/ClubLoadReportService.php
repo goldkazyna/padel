@@ -55,10 +55,10 @@ class ClubLoadReportService
     }
 
     /**
-     * Available hours grouped by a key derived from each date in [from,to]:
-     * sum of active-court open hours minus blocked hours on that date.
+     * Группировка по дате: открыто / заблокировано / доступно (часы) по ключу.
+     * Доступно = открыто − блокировки. Используется для byWeekdays/byMonths.
      * @param callable $keyFn fn(Carbon $date): string
-     * @return array<string,float>
+     * @return array<string,array{open:float,blocked:float,avail:float}>
      */
     private function availableByDate(Club $club, Carbon $from, Carbon $to, callable $keyFn): array
     {
@@ -77,10 +77,12 @@ class ClubLoadReportService
         $end = $to->copy()->startOfDay();
         while ($cursor->lessThanOrEqualTo($end)) {
             $dateStr = $cursor->toDateString();
-            $avail = $dailyCourtHours - ($blocksByDate[$dateStr] ?? 0);
-            if ($avail < 0) $avail = 0;
+            $blocked = min($dailyCourtHours, $blocksByDate[$dateStr] ?? 0);
+            $avail = max(0, $dailyCourtHours - $blocked);
             $key = $keyFn($cursor);
-            $result[$key] = ($result[$key] ?? 0) + $avail;
+            $result[$key]['open'] = ($result[$key]['open'] ?? 0) + $dailyCourtHours;
+            $result[$key]['blocked'] = ($result[$key]['blocked'] ?? 0) + $blocked;
+            $result[$key]['avail'] = ($result[$key]['avail'] ?? 0) + $avail;
             $cursor->addDay();
         }
         return $result;
@@ -115,16 +117,17 @@ class ClubLoadReportService
         $blocks = $this->blocks($club, $from, $to);
 
         $rows = [];
-        $totOcc = 0; $totAvail = 0;
+        $totOcc = 0; $totBlocked = 0; $totAvail = 0;
         for ($h = 0; $h < 24; $h++) {
             $availCourts = $courts->filter(fn ($c) => $this->isOpenAtHour($c, $h))->count();
-            $avail = $availCourts * $days;
+            $open = $availCourts * $days;
 
             $blocked = 0.0;
             foreach ($blocks as $bl) {
                 $blocked += $this->hourOverlap($bl->start_time, $bl->end_time, $h);
             }
-            $avail = max(0, $avail - $blocked);
+            $blocked = min($open, $blocked);
+            $avail = max(0, $open - $blocked);
 
             $occ = 0.0;
             foreach ($bookings as $b) {
@@ -134,16 +137,16 @@ class ClubLoadReportService
             // пропускаем часы, когда ни один корт не открыт и нет броней
             if ($availCourts === 0 && $occ <= 0) continue;
 
-            $rows[] = [sprintf('%02d:00', $h), round($occ, 2), round($avail, 2), $avail > 0 ? round($occ / $avail, 4) : 0];
-            $totOcc += $occ; $totAvail += $avail;
+            $rows[] = [sprintf('%02d:00', $h), round($occ, 2), round($blocked, 2), round($avail, 2), $avail > 0 ? round($occ / $avail, 4) : 0];
+            $totOcc += $occ; $totBlocked += $blocked; $totAvail += $avail;
         }
 
         return new ReportSheet(
             title: 'Загрузка по часам',
-            headings: ['Час', 'Занято, ч', 'Доступно, ч', 'Загрузка'],
+            headings: ['Час', 'Занято, ч', 'Заблокировано, ч', 'Доступно, ч', 'Загрузка'],
             rows: $rows,
-            totals: ['Итого', round($totOcc, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0],
-            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '0%'],
+            totals: ['Итого', round($totOcc, 2), round($totBlocked, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0],
+            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '#,##0.0', 4 => '0%'],
         );
     }
 
@@ -158,18 +161,19 @@ class ClubLoadReportService
         }
         $avail = $this->availableByDate($club, $from, $to, fn (Carbon $d) => (string) $d->isoWeekday());
 
-        $rows = []; $totOcc = 0; $totAvail = 0; $totCnt = 0;
+        $rows = []; $totOcc = 0; $totBlocked = 0; $totAvail = 0; $totCnt = 0;
         foreach (self::WEEKDAYS as $i => $name) {
-            $a = $avail[(string) $i] ?? 0;
-            $rows[] = [$name, round($occ[$i], 2), round($a, 2), $a > 0 ? round($occ[$i] / $a, 4) : 0, $cnt[$i]];
-            $totOcc += $occ[$i]; $totAvail += $a; $totCnt += $cnt[$i];
+            $bl = $avail[(string) $i]['blocked'] ?? 0;
+            $a = $avail[(string) $i]['avail'] ?? 0;
+            $rows[] = [$name, round($occ[$i], 2), round($bl, 2), round($a, 2), $a > 0 ? round($occ[$i] / $a, 4) : 0, $cnt[$i]];
+            $totOcc += $occ[$i]; $totBlocked += $bl; $totAvail += $a; $totCnt += $cnt[$i];
         }
         return new ReportSheet(
             title: 'Загрузка по дням недели',
-            headings: ['День', 'Занято, ч', 'Доступно, ч', 'Загрузка', 'Броней'],
+            headings: ['День', 'Занято, ч', 'Заблокировано, ч', 'Доступно, ч', 'Загрузка', 'Броней'],
             rows: $rows,
-            totals: ['Итого', round($totOcc, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0, $totCnt],
-            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '0%'],
+            totals: ['Итого', round($totOcc, 2), round($totBlocked, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0, $totCnt],
+            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '#,##0.0', 4 => '0%'],
         );
     }
 
@@ -184,24 +188,24 @@ class ClubLoadReportService
         }
         $avail = $this->availableByDate($club, $from, $to, fn (Carbon $d) => $d->format('m.Y'));
 
-        ksort($occ);
-        // ensure months that have availability but no bookings still appear
+        // месяцы с доступностью, но без броней, тоже показываем
         foreach (array_keys($avail) as $k) { if (!isset($occ[$k])) $occ[$k] = 0; }
         uksort($occ, fn ($a, $b) => Carbon::createFromFormat('m.Y', $a)->timestamp <=> Carbon::createFromFormat('m.Y', $b)->timestamp);
 
-        $rows = []; $totOcc = 0; $totAvail = 0; $totCnt = 0;
+        $rows = []; $totOcc = 0; $totBlocked = 0; $totAvail = 0; $totCnt = 0;
         foreach ($occ as $key => $hours) {
-            $a = $avail[$key] ?? 0;
+            $bl = $avail[$key]['blocked'] ?? 0;
+            $a = $avail[$key]['avail'] ?? 0;
             $c = $cnt[$key] ?? 0;
-            $rows[] = [$key, round($hours, 2), round($a, 2), $a > 0 ? round($hours / $a, 4) : 0, $c];
-            $totOcc += $hours; $totAvail += $a; $totCnt += $c;
+            $rows[] = [$key, round($hours, 2), round($bl, 2), round($a, 2), $a > 0 ? round($hours / $a, 4) : 0, $c];
+            $totOcc += $hours; $totBlocked += $bl; $totAvail += $a; $totCnt += $c;
         }
         return new ReportSheet(
             title: 'Загрузка по месяцам',
-            headings: ['Месяц', 'Занято, ч', 'Доступно, ч', 'Загрузка', 'Броней'],
+            headings: ['Месяц', 'Занято, ч', 'Заблокировано, ч', 'Доступно, ч', 'Загрузка', 'Броней'],
             rows: $rows,
-            totals: ['Итого', round($totOcc, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0, $totCnt],
-            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '0%'],
+            totals: ['Итого', round($totOcc, 2), round($totBlocked, 2), round($totAvail, 2), $totAvail > 0 ? round($totOcc / $totAvail, 4) : 0, $totCnt],
+            columnFormats: [1 => '#,##0.0', 2 => '#,##0.0', 3 => '#,##0.0', 4 => '0%'],
         );
     }
 }

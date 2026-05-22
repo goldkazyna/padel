@@ -45,25 +45,27 @@ class ClubLoadReportServiceTest extends TestCase
         ]);
     }
 
+    // Колонки byHours: [0]=Час, [1]=Занято, [2]=Заблокировано, [3]=Доступно, [4]=Загрузка
     public function test_by_hours_returns_sheet_with_occupied_hour(): void
     {
         $svc = new ClubLoadReportService();
         $sheet = $svc->byHours($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-01'));
         $this->assertInstanceOf(ReportSheet::class, $sheet);
-        // hour 08:00 row: occupied 1h, available 1 court * 1 day = 1h, load 100%
         $row08 = collect($sheet->rows)->firstWhere(0, '08:00');
-        $this->assertEquals(1.0, $row08[1]);   // occupied
-        $this->assertEquals(1.0, $row08[2]);   // available
-        $this->assertEquals(1.0, $row08[3]);   // load fraction (formatted as 0%)
+        $this->assertEquals(1.0, $row08[1]);   // занято
+        $this->assertEquals(0.0, $row08[2]);   // заблокировано
+        $this->assertEquals(1.0, $row08[3]);   // доступно (1 корт * 1 день)
+        $this->assertEquals(1.0, $row08[4]);   // загрузка (формат 0%)
     }
 
+    // Колонки byWeekdays/byMonths: [1]=Занято, [2]=Заблок, [3]=Доступно, [4]=Загрузка, [5]=Броней
     public function test_by_weekdays_groups_friday(): void
     {
         $svc = new ClubLoadReportService();
         $sheet = $svc->byWeekdays($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-01'));
         $friday = collect($sheet->rows)->firstWhere(0, 'Пт');
-        $this->assertEquals(1.0, $friday[1]); // occupied hours
-        $this->assertEquals(1, $friday[4]);   // bookings count
+        $this->assertEquals(1.0, $friday[1]); // занято часов
+        $this->assertEquals(1, $friday[5]);   // кол-во броней
     }
 
     public function test_by_months_groups_may(): void
@@ -72,7 +74,7 @@ class ClubLoadReportServiceTest extends TestCase
         $sheet = $svc->byMonths($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $may = collect($sheet->rows)->firstWhere(0, '05.2026');
         $this->assertEquals(1.0, $may[1]);
-        $this->assertEquals(1, $may[4]);
+        $this->assertEquals(1, $may[5]);
     }
 
     public function test_court_block_reduces_available_hours_in_by_hours(): void
@@ -88,13 +90,15 @@ class ClubLoadReportServiceTest extends TestCase
         $svc = new ClubLoadReportService();
         $sheet = $svc->byHours($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-01'));
 
-        // 08:00 row: 1 court open, no block → available = 1.0
+        // 08:00: 1 корт открыт, без блокировки → доступно 1.0, заблокировано 0
         $row08 = collect($sheet->rows)->firstWhere(0, '08:00');
-        $this->assertEquals(1.0, $row08[2], '08:00 available should still be 1.0');
+        $this->assertEquals(1.0, $row08[3], '08:00 available should still be 1.0');
+        $this->assertEquals(0.0, $row08[2], '08:00 blocked should be 0');
 
-        // 09:00 row: 1 court open but fully blocked → available = 0.0
+        // 09:00: корт открыт, но полностью заблокирован → заблокировано 1.0, доступно 0
         $row09 = collect($sheet->rows)->firstWhere(0, '09:00');
-        $this->assertEquals(0.0, $row09[2], '09:00 available should be 0.0 (blocked)');
+        $this->assertEquals(1.0, $row09[2], '09:00 blocked should be 1.0');
+        $this->assertEquals(0.0, $row09[3], '09:00 available should be 0.0 (blocked)');
     }
 
     public function test_by_hours_handles_overnight_and_24h_courts(): void
@@ -122,12 +126,12 @@ class ClubLoadReportServiceTest extends TestCase
         $row23 = collect($sheet->rows)->firstWhere(0, '23:00');
         $this->assertNotNull($row23, '23:00 должен присутствовать (корт открыт ночью)');
         $this->assertEquals(1.0, $row23[1]); // занято 1 час
-        $this->assertEquals(1.0, $row23[2]); // доступно (корт открыт в 23:00, 1 день)
+        $this->assertEquals(1.0, $row23[3]); // доступно (корт открыт в 23:00, 1 день)
 
         // Час после полуночи тоже доступен (закрытие в 02:00)
         $row01 = collect($sheet->rows)->firstWhere(0, '01:00');
         $this->assertNotNull($row01, '01:00 должен присутствовать (закрытие в 02:00)');
-        $this->assertEquals(1.0, $row01[2]);
+        $this->assertEquals(1.0, $row01[3]);
 
         // Час, когда корт закрыт (05:00), отсутствует
         $this->assertNull(collect($sheet->rows)->firstWhere(0, '05:00'));
