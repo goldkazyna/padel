@@ -178,6 +178,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/reports', [App\Http\Controllers\Club\ReportsController::class, 'index'])->name('reports.index');
             Route::get('/reports/export', [App\Http\Controllers\Club\ReportsController::class, 'export'])->name('reports.export');
             Route::get('/reports/no-phone', [App\Http\Controllers\Club\ReportsController::class, 'noPhoneBookings'])->name('reports.noPhone');
+
+            // Дополнительные отчёты (Excel)
+            Route::get('/reports/extra', [App\Http\Controllers\Club\AdditionalReportsController::class, 'index'])->name('reports.extra.index');
+            Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
         });
 
         // Кол-во необработанных бронирований (для polling)
