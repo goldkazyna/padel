@@ -5,6 +5,7 @@ namespace Tests\Unit\Reports;
 use Tests\TestCase;
 use App\Models\Club;
 use App\Models\Court;
+use App\Models\CourtBlock;
 use App\Models\CourtBooking;
 use App\Models\User;
 use App\Reports\ClubLoadReportService;
@@ -72,5 +73,27 @@ class ClubLoadReportServiceTest extends TestCase
         $may = collect($sheet->rows)->firstWhere(0, '05.2026');
         $this->assertEquals(1.0, $may[1]);
         $this->assertEquals(1, $may[4]);
+    }
+
+    public function test_court_block_reduces_available_hours_in_by_hours(): void
+    {
+        // Block 09:00-10:00 on 2026-05-01 — the only court's last open hour
+        CourtBlock::create([
+            'court_id'   => $this->court->id,
+            'date'       => '2026-05-01',
+            'start_time' => '09:00:00',
+            'end_time'   => '10:00:00',
+        ]);
+
+        $svc = new ClubLoadReportService();
+        $sheet = $svc->byHours($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-01'));
+
+        // 08:00 row: 1 court open, no block → available = 1.0
+        $row08 = collect($sheet->rows)->firstWhere(0, '08:00');
+        $this->assertEquals(1.0, $row08[2], '08:00 available should still be 1.0');
+
+        // 09:00 row: 1 court open but fully blocked → available = 0.0
+        $row09 = collect($sheet->rows)->firstWhere(0, '09:00');
+        $this->assertEquals(0.0, $row09[2], '09:00 available should be 0.0 (blocked)');
     }
 }
