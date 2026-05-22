@@ -30,7 +30,11 @@ class ManagersReportService
             $agg[$key][1] += $amount;
             if ($b->is_paid) $agg[$key][2] += $amount;
         }
-        ksort($agg);
+        uksort($agg, function ($a, $b) {
+            [$ua, $da] = explode('|', $a);
+            [$ub, $db] = explode('|', $b);
+            return [(int) $ua, $da] <=> [(int) $ub, $db];
+        });
 
         $rows = []; $tC = 0; $tS = 0; $tP = 0;
         foreach ($agg as $key => [$c, $s, $p]) {
