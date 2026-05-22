@@ -96,4 +96,40 @@ class ClubLoadReportServiceTest extends TestCase
         $row09 = collect($sheet->rows)->firstWhere(0, '09:00');
         $this->assertEquals(0.0, $row09[2], '09:00 available should be 0.0 (blocked)');
     }
+
+    public function test_by_hours_handles_overnight_and_24h_courts(): void
+    {
+        // Овернайт-корт: открыт 07:00, закрывается в 02:00 следующего дня
+        $user = User::factory()->create();
+        $club = Club::create(['name' => 'Night', 'address' => 'A']);
+        $court = Court::create([
+            'club_id' => $club->id, 'name' => 'N1',
+            'open_time' => '07:00:00', 'close_time' => '02:00:00', 'slot_duration' => 60,
+        ]);
+        // Бронь 23:00–00:00 (1 час) на 2026-05-10
+        CourtBooking::create([
+            'court_id' => $court->id, 'date' => '2026-05-10',
+            'start_time' => '23:00:00', 'end_time' => '00:00:00',
+            'price' => 1000, 'status' => 'confirmed', 'is_paid' => true,
+            'client_name' => 'X', 'booked_by' => $user->id,
+        ]);
+
+        $sheet = (new ClubLoadReportService())->byHours($club, Carbon::parse('2026-05-10'), Carbon::parse('2026-05-10'));
+
+        // До фикса возвращалось 0 строк (окно minOpen..maxClose было пустым)
+        $this->assertNotEmpty($sheet->rows);
+
+        $row23 = collect($sheet->rows)->firstWhere(0, '23:00');
+        $this->assertNotNull($row23, '23:00 должен присутствовать (корт открыт ночью)');
+        $this->assertEquals(1.0, $row23[1]); // занято 1 час
+        $this->assertEquals(1.0, $row23[2]); // доступно (корт открыт в 23:00, 1 день)
+
+        // Час после полуночи тоже доступен (закрытие в 02:00)
+        $row01 = collect($sheet->rows)->firstWhere(0, '01:00');
+        $this->assertNotNull($row01, '01:00 должен присутствовать (закрытие в 02:00)');
+        $this->assertEquals(1.0, $row01[2]);
+
+        // Час, когда корт закрыт (05:00), отсутствует
+        $this->assertNull(collect($sheet->rows)->firstWhere(0, '05:00'));
+    }
 }

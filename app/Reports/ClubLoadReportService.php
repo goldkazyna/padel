@@ -86,6 +86,27 @@ class ClubLoadReportService
         return $result;
     }
 
+    /** Открыт ли корт в час [h, h+1)? Поддерживает круглосуточный и ночной (через полночь) режим. */
+    private function isOpenAtHour($court, int $h): bool
+    {
+        $o = (int) Carbon::parse($court->open_time)->hour;
+        $c = (int) Carbon::parse($court->close_time)->hour;
+        if ($o === $c) return true;                 // open == close → круглосуточно
+        if ($o < $c) return $h >= $o && $h < $c;    // обычный режим
+        return $h >= $o || $h < $c;                 // ночной: закрытие после полуночи
+    }
+
+    /** Часы интервала [start,end) (с переходом через полночь), попадающие в окно [h, h+1). */
+    private function hourOverlap(string $start, string $end, int $h): float
+    {
+        $bs = $this->hourFloat($start);
+        $be = $this->hourFloat($end);
+        if ($be <= $bs) $be += 24;
+        $ov = max(0, min($be, $h + 1) - max($bs, $h));
+        $ov += max(0, min($be, $h + 25) - max($bs, $h + 24)); // часть после полуночи
+        return $ov;
+    }
+
     public function byHours(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $courts = $this->activeCourts($club);
@@ -93,42 +114,25 @@ class ClubLoadReportService
         $bookings = $this->bookings($club, $from, $to);
         $blocks = $this->blocks($club, $from, $to);
 
-        $minOpen = 23; $maxClose = 0;
-        foreach ($courts as $c) {
-            $minOpen = min($minOpen, (int) Carbon::parse($c->open_time)->hour);
-            $closeH = (int) Carbon::parse($c->close_time)->hour;
-            $maxClose = max($maxClose, $closeH === 0 ? 24 : $closeH);
-        }
-        if ($courts->isEmpty()) { $minOpen = 8; $maxClose = 22; }
-
         $rows = [];
         $totOcc = 0; $totAvail = 0;
-        for ($h = $minOpen; $h < $maxClose; $h++) {
-            $availCourts = $courts->filter(function ($c) use ($h) {
-                $o = (int) Carbon::parse($c->open_time)->hour;
-                $cl = (int) Carbon::parse($c->close_time)->hour; $cl = $cl === 0 ? 24 : $cl;
-                return $h >= $o && $h < $cl;
-            })->count();
+        for ($h = 0; $h < 24; $h++) {
+            $availCourts = $courts->filter(fn ($c) => $this->isOpenAtHour($c, $h))->count();
             $avail = $availCourts * $days;
 
-            // subtract blocked overlap with [h, h+1) across all dates
             $blocked = 0.0;
             foreach ($blocks as $bl) {
-                $bs = $this->hourFloat($bl->start_time);
-                $be = $this->hourFloat($bl->end_time);
-                if ($be <= $bs) $be += 24;
-                $blocked += max(0, min($be, $h + 1) - max($bs, $h));
+                $blocked += $this->hourOverlap($bl->start_time, $bl->end_time, $h);
             }
-            $avail -= $blocked;
-            if ($avail < 0) $avail = 0;
+            $avail = max(0, $avail - $blocked);
 
             $occ = 0.0;
             foreach ($bookings as $b) {
-                $bs = $this->hourFloat($b->start_time);
-                $be = $this->hourFloat($b->end_time);
-                if ($be <= $bs) $be += 24;
-                $occ += max(0, min($be, $h + 1) - max($bs, $h));
+                $occ += $this->hourOverlap($b->start_time, $b->end_time, $h);
             }
+
+            // пропускаем часы, когда ни один корт не открыт и нет броней
+            if ($availCourts === 0 && $occ <= 0) continue;
 
             $rows[] = [sprintf('%02d:00', $h), round($occ, 2), round($avail, 2), $avail > 0 ? round($occ / $avail, 4) : 0];
             $totOcc += $occ; $totAvail += $avail;
