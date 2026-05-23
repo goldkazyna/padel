@@ -307,7 +307,7 @@ class MobileAdminTournamentDetailController extends Controller
             'courts' => $t->courts ?? [],
             'can_edit' => $canEdit,
             'can_start' => $canStart,
-            'can_restart' => $hasFullAccess && $t->canRestart(),
+            'can_restart' => $t->canRestart(),
             'can_delete' => $canDelete,
             'bali_pairs_created' => $baliPairsCreated,
             'tournaments_full_access' => $hasFullAccess,
