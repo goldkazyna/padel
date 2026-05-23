@@ -93,6 +93,10 @@ Route::prefix('mobile')->group(function () {
         Route::get('/admin/clubs/{club}/users', [MobileAdminUserController::class, 'index']);
         Route::put('/admin/clubs/{club}/users/{target}', [MobileAdminUserController::class, 'update']);
 
+        // Карточка клуба (редактирование, только владелец/super_admin)
+        Route::get('/admin/clubs/{club}', [\App\Http\Controllers\Api\MobileAdminClubController::class, 'show']);
+        Route::put('/admin/clubs/{club}', [\App\Http\Controllers\Api\MobileAdminClubController::class, 'update']);
+
         // Управление существующим турниром (Этап 3a)
         Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
         Route::put('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'update']);
