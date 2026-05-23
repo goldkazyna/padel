@@ -32,6 +32,7 @@ class MobileAdminClubController extends Controller
             'email' => $club->email,
             'description' => $club->description,
             'payment_url' => $club->payment_url,
+            'telegram_url' => $club->telegram_url,
         ];
     }
 
@@ -57,6 +58,7 @@ class MobileAdminClubController extends Controller
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
             'payment_url' => 'nullable|url|max:500',
+            'telegram_url' => 'nullable|url|max:500',
         ]);
 
         $club->update($validated);

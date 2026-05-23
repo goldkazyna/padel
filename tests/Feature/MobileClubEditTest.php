@@ -74,6 +74,27 @@ class MobileClubEditTest extends TestCase
         $this->putJson("/api/mobile/admin/clubs/{$club->id}", ['name' => 'X', 'address' => 'Y', 'payment_url' => 'not-url'])->assertStatus(422);
     }
 
+    public function test_owner_can_set_telegram_url_and_show_returns_it(): void
+    {
+        $club = $this->club();
+        $admin = \App\Models\User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+
+        $this->putJson("/api/mobile/admin/clubs/{$club->id}", [
+            'name' => 'X', 'address' => 'Y', 'telegram_url' => 'https://t.me/myclub',
+        ])->assertOk()->assertJsonPath('club.telegram_url', 'https://t.me/myclub');
+
+        $this->assertSame('https://t.me/myclub', $club->refresh()->telegram_url);
+
+        $this->getJson("/api/mobile/admin/clubs/{$club->id}")
+            ->assertOk()->assertJsonPath('club.telegram_url', 'https://t.me/myclub');
+
+        $this->putJson("/api/mobile/admin/clubs/{$club->id}", [
+            'name' => 'X', 'address' => 'Y', 'telegram_url' => 'not-a-url',
+        ])->assertStatus(422);
+    }
+
     public function test_moderator_forbidden(): void
     {
         $club = $this->club();
