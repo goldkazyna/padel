@@ -15,6 +15,7 @@ return new class extends Migration
             $table->foreignId('player1_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('player2_id')->constrained('users')->onDelete('cascade');
             $table->string('name')->nullable();
+            $table->string('status')->default('pending');
             $table->integer('seed')->nullable(); // Сеяный номер
             $table->integer('rating_avg')->nullable(); // Средний рейтинг пары
             $table->integer('rating_before')->nullable();

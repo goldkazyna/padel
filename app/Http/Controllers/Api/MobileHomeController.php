@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banner;
 use App\Models\Tournament;
 use App\Models\TournamentTeam;
 use App\Models\User;
@@ -25,7 +26,25 @@ class MobileHomeController extends Controller
             'active_tournament' => $this->getActiveTournament($user),
             'upcoming_tournaments' => $this->getUpcomingTournaments($user),
             'court_booking_available' => \App\Models\Club::active()->whereHas('courts', fn($q) => $q->where('is_active', true))->exists(),
+            'banner' => $this->getBanner(),
         ]);
+    }
+
+    /**
+     * Рекламный баннер (синглтон). Возвращаем только если задано фото.
+     */
+    private function getBanner(): ?array
+    {
+        $banner = Banner::first();
+
+        if (!$banner || empty($banner->image_path)) {
+            return null;
+        }
+
+        return [
+            'image' => url($banner->image_path),
+            'link' => $banner->link,
+        ];
     }
 
     /**
