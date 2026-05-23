@@ -28,6 +28,7 @@ class ClubController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
+            'telegram_url' => 'nullable|url|max:500',
         ]);
 
         Club::create($validated);
@@ -50,6 +51,7 @@ class ClubController extends Controller
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
             'payment_url' => 'nullable|url|max:500',
+            'telegram_url' => 'nullable|url|max:500',
             'telegram_channel_id' => 'nullable|string|max:255',
             'telegram_bot_token' => 'nullable|string|max:255',
             'is_active' => 'boolean',

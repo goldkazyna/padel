@@ -23,6 +23,7 @@ class Club extends Model
         'hide_phones',
         'booking_cancel_hours',
         'payment_url',
+        'telegram_url',
         'features',
         'telegram_channel_id',
         'telegram_bot_token',
