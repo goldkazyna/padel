@@ -153,6 +153,16 @@
                     </div>
 
                     <div class="mb-4">
+                        <label class="form-label">Инстаграм (ссылка)</label>
+                        <input type="text" name="instagram_url" class="form-control @error('instagram_url') is-invalid @enderror"
+                               value="{{ old('instagram_url', $club->instagram_url) }}" placeholder="https://instagram.com/yourclub">
+                        @error('instagram_url')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Публичная ссылка на инстаграм клуба (видна игрокам).</small>
+                    </div>
+
+                    <div class="mb-4">
                         <label class="form-label">Telegram — ID канала</label>
                         <input type="text" name="telegram_channel_id" class="form-control @error('telegram_channel_id') is-invalid @enderror"
                                value="{{ old('telegram_channel_id', $club->telegram_channel_id) }}" placeholder="@channel или -100123456789">
