@@ -95,6 +95,17 @@ class MobileClubEditTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_public_club_show_returns_telegram_url(): void
+    {
+        $club = $this->club();
+        $club->update(['telegram_url' => 'https://t.me/publicclub']);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $resp = $this->getJson("/api/mobile/clubs/{$club->id}")->assertOk();
+        $resp->assertJsonPath('club.telegram_url', 'https://t.me/publicclub');
+    }
+
     public function test_moderator_forbidden(): void
     {
         $club = $this->club();
