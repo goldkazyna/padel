@@ -54,6 +54,20 @@ class TournamentRestartTest extends TestCase
         $this->assertFalse($this->americano('completed')->canRestart());
     }
 
+    public function test_reset_wipes_americano_bracket_and_reopens(): void
+    {
+        $t = $this->americano('in_progress');
+        $g = \App\Models\TournamentGroup::create(['tournament_id' => $t->id, 'name' => 'A']);
+        $r = \App\Models\AmericanoRound::create(['tournament_group_id' => $g->id, 'round_number' => 1, 'status' => 'in_progress']);
+
+        app(\App\Services\TournamentResetService::class)->reset($t);
+
+        $t->refresh();
+        $this->assertEquals('open', $t->status);
+        $this->assertSame(0, \App\Models\TournamentGroup::where('tournament_id', $t->id)->count());
+        $this->assertSame(0, \App\Models\AmericanoRound::where('id', $r->id)->count());
+    }
+
     public function test_team_first_round_completed_via_group_match(): void
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
