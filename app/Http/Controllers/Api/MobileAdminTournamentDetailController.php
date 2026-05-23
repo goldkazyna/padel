@@ -185,9 +185,11 @@ class MobileAdminTournamentDetailController extends Controller
 
         app(\App\Services\TournamentResetService::class)->reset($tournament);
 
+        $tournament->refresh()->loadMissing('club');
+
         return response()->json([
             'success' => true,
-            'tournament' => $this->formatDetail($tournament->fresh()),
+            'tournament' => $this->formatDetail($tournament),
         ]);
     }
 
