@@ -61,6 +61,8 @@ class ClubController extends Controller
             'features.*' => 'boolean',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
             'remove_logo' => 'nullable|boolean',
+            'cover' => 'nullable|image',
+            'remove_cover' => 'nullable|boolean',
         ]);
 
         $features = $request->input('features', []);
@@ -104,6 +106,32 @@ class ClubController extends Controller
             $validated['logo'] = '/logos/' . $filename;
         }
 
+        // Удаление текущей обложки (если поставлен чекбокс)
+        if ($request->boolean('remove_cover') && $club->cover) {
+            $this->deleteClubCoverFile($club->cover);
+            $validated['cover'] = null;
+        }
+        unset($validated['remove_cover']);
+
+        // Загрузка новой обложки — имя как slug клуба, путь /covers/<slug>.<ext>.
+        if ($request->hasFile('cover')) {
+            $file = $request->file('cover');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $slug = \Illuminate\Support\Str::slug($validated['name'] ?? $club->name) ?: ('club-' . $club->id);
+            $filename = $slug . '.' . $ext;
+
+            // Удаляем старый файл, плюс любой другой файл с тем же slug (другое расширение).
+            if ($club->cover) {
+                $this->deleteClubCoverFile($club->cover);
+            }
+            foreach (glob(public_path('covers/' . $slug . '.*')) ?: [] as $oldPath) {
+                @unlink($oldPath);
+            }
+
+            $file->move(public_path('covers'), $filename);
+            $validated['cover'] = '/covers/' . $filename;
+        }
+
         $club->update($validated);
 
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб обновлён!');
@@ -127,6 +155,26 @@ class ClubController extends Controller
             @unlink($path);
         }
     }
+
+    /**
+     * Удалить локальный файл обложки, если это не внешний URL.
+     * Поддерживает оба формата записи в БД: «/covers/x.jpg» и «x.jpg».
+     */
+    private function deleteClubCoverFile(?string $cover): void
+    {
+        if (!$cover) return;
+        if (preg_match('#^https?://#', $cover)) return;
+        $relative = ltrim($cover, '/');
+        // Убираем дублирующий префикс covers/, если он уже есть в строке
+        if (str_starts_with($relative, 'covers/')) {
+            $relative = substr($relative, strlen('covers/'));
+        }
+        $path = public_path('covers/' . $relative);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+
 	public function admins(Club $club)
 	{
 		$club->load(['admins', 'moderators']);

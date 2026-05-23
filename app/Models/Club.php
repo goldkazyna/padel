@@ -15,6 +15,7 @@ class Club extends Model
         'phone',
         'email',
         'logo',
+        'cover',
         'description',
         'city',
         'is_active',

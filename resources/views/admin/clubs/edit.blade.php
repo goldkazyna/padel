@@ -63,6 +63,51 @@
                         @endif
                     </div>
 
+                    {{-- Обложка --}}
+                    @php
+                        $currentCover = $club->cover;
+                        if (!$currentCover) {
+                            $coverUrl = null;
+                        } elseif (preg_match('#^https?://#', $currentCover)) {
+                            $coverUrl = $currentCover;
+                        } elseif (str_starts_with($currentCover, '/')) {
+                            // Формат /covers/x.jpg
+                            $coverUrl = url($currentCover);
+                        } else {
+                            // Старые записи без префикса
+                            $coverUrl = asset('covers/' . $currentCover);
+                        }
+                    @endphp
+                    <div class="mb-4">
+                        <label class="form-label">Обложка клуба</label>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            @if($coverUrl)
+                                <img src="{{ $coverUrl }}" alt="cover"
+                                     style="width: 120px; height: 72px; border-radius: 12px; object-fit: cover; background: var(--bg-secondary);">
+                            @else
+                                <div style="width: 120px; height: 72px; border-radius: 12px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+                                    <i class="bi bi-image fs-3"></i>
+                                </div>
+                            @endif
+                            <div class="flex-grow-1">
+                                <input type="file" name="cover" accept="image/*"
+                                       class="form-control @error('cover') is-invalid @enderror">
+                                <small class="text-muted">Любой формат изображения. Замените существующую или загрузите новую.</small>
+                                @error('cover')
+                                    <div class="text-danger mt-2 small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                        @if($coverUrl)
+                            <label class="form-check">
+                                <input type="hidden" name="remove_cover" value="0">
+                                <input type="checkbox" name="remove_cover" value="1" class="form-check-input"
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Удалить текущую обложку</span>
+                            </label>
+                        @endif
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label">Название *</label>
                         <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" 
