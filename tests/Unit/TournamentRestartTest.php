@@ -68,6 +68,30 @@ class TournamentRestartTest extends TestCase
         $this->assertSame(0, \App\Models\AmericanoRound::where('id', $r->id)->count());
     }
 
+    public function test_reset_wipes_mexicano_bracket_and_reopens(): void
+    {
+        $club = \App\Models\Club::create(['name' => 'C', 'address' => 'A']);
+        $t = \App\Models\Tournament::create([
+            'club_id' => $club->id, 'name' => 'M', 'type' => 'mexicano',
+            'status' => 'in_progress', 'max_participants' => 8,
+            'start_date' => now()->addDay(), 'registration_deadline' => now()->addHour(),
+        ]);
+        $rid = \Illuminate\Support\Facades\DB::table('mexicano_rounds')->insertGetId([
+            'tournament_id' => $t->id, 'round_number' => 1, 'status' => 'in_progress',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        \Illuminate\Support\Facades\DB::table('mexicano_players')->insert([
+            'tournament_id' => $t->id, 'user_id' => \App\Models\User::factory()->create()->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(\App\Services\TournamentResetService::class)->reset($t);
+
+        $this->assertEquals('open', $t->refresh()->status);
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('mexicano_rounds')->where('tournament_id', $t->id)->count());
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('mexicano_players')->where('tournament_id', $t->id)->count());
+    }
+
     public function test_team_first_round_completed_via_group_match(): void
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
