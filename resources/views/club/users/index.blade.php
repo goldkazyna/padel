@@ -27,7 +27,7 @@
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" name="search" class="search-input" placeholder="Поиск по имени..." value="{{ request('search') }}">
+            <input type="text" name="search" class="search-input" placeholder="Поиск по имени или ID..." value="{{ request('search') }}">
             @if(request('search'))
                 <a href="{{ route('club.users.index', request('level') ? ['level' => request('level')] : []) }}" class="search-clear">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -149,6 +149,11 @@
                             Уровень {!! $currentSort === 'level' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
                         </a>
                     </th>
+                    <th>
+                        <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'rating', 'dir' => $currentSort === 'rating' && $currentDir === 'desc' ? 'asc' : 'desc'])) }}" class="sort-link {{ $currentSort === 'rating' ? 'active' : '' }}">
+                            Рейтинг {!! $currentSort === 'rating' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
+                        </a>
+                    </th>
                     <th>Верификация</th>
                     <th>
                         <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'created_at', 'dir' => $currentSort === 'created_at' && $currentDir === 'desc' ? 'asc' : 'desc'])) }}" class="sort-link {{ $currentSort === 'created_at' ? 'active' : '' }}">
@@ -177,6 +182,9 @@
 							<span class="user-level">{{ $user->level }}</span>
 						</td>
                         <td>
+                            <span class="rating-value">{{ $user->rating }}</span>
+                        </td>
+                        <td>
                             @if($user->level_verified)
                                 <span style="display:inline-flex;align-items:center;gap:4px;color:#22c47a;font-size:12px;font-weight:600;background:rgba(34,196,122,0.1);padding:3px 8px;border-radius:6px;" title="Уровень подтверждён">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c47a"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
@@ -199,7 +207,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #71717a;">
                             Пользователи не найдены
                         </td>
                     </tr>

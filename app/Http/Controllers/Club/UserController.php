@@ -30,7 +30,7 @@ class UserController extends Controller
         // Сортировка
         $sort = $request->get('sort', 'name');
         $direction = $request->get('dir', 'asc');
-        if (!in_array($sort, ['name', 'created_at', 'level'])) $sort = 'name';
+        if (!in_array($sort, ['name', 'created_at', 'level', 'rating'])) $sort = 'name';
         if (!in_array($direction, ['asc', 'desc'])) $direction = 'asc';
 
         $query = User::human()->orderBy($sort, $direction);
@@ -56,6 +56,9 @@ class UserController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%");
+                if (ctype_digit((string) $search)) {
+                    $q->orWhere('id', (int) $search);
+                }
             });
         }
 
