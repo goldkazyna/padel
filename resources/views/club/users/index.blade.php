@@ -285,11 +285,19 @@
                     <small style="color:#888;font-size:11px;">Рейтинг пересчитается автоматически (уровень × 1000 + 125).</small>
                 </div>
                 <div class="form-group">
-                    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f2d1f;border:1px solid #22c55e44;border-radius:6px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
-                        <span style="color:#22c55e;font-size:12px;font-weight:600;">Уровень будет автоматически отмечен как верифицированный</span>
-                    </div>
-                    <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Раз вы вручную меняете уровень — значит подтверждаете его.</small>
+                    @if($user->avatar)
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f2d1f;border:1px solid #22c55e44;border-radius:6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                            <span style="color:#22c55e;font-size:12px;font-weight:600;">Уровень будет автоматически отмечен как верифицированный</span>
+                        </div>
+                        <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Раз вы вручную меняете уровень — значит подтверждаете его.</small>
+                    @else
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#2d1f0f;border:1px solid #eab34e44;border-radius:6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab34e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                            <span style="color:#eab34e;font-size:12px;font-weight:600;">У игрока нет фото — уровень НЕ будет верифицирован</span>
+                        </div>
+                        <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Верификация включится автоматически, когда игрок добавит аватарку.</small>
+                    @endif
                 </div>
                 <div class="form-info">
                     <span>Рейтинг: {{ $user->rating }}</span>

@@ -140,11 +140,10 @@ class UserController extends Controller
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
-        // Ручная правка уровня админом = уровень верифицирован.
-        // Баннер «поставьте аватарку / сыграйте турнир» всё равно покажется
-        // пользователю — он не зависит от level_verified, а вычисляется по
-        // verificationBlockers().
-        $update['level_verified'] = true;
+        // Ручная правка уровня админом верифицирует уровень ТОЛЬКО если у
+        // игрока есть аватар. Без фото уровень не верифицируем, даже если
+        // его выставили вручную.
+        $update['level_verified'] = !empty($user->avatar);
 
         $user->update($update);
         $user->refresh();
