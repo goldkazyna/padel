@@ -53,6 +53,33 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     ]);
 })->name('tournament.share');
 
+// Лендинг клуба — для шаринга. Открывает deep-link «padelp://club/{id}»
+// или редиректит в магазин если приложения нет.
+Route::get('/c/{club}', function (\App\Models\Club $club) {
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+    $storeUrl = $isIOS
+        ? config('mobile_app.store_url_ios')
+        : config('mobile_app.store_url_android');
+
+    // Картинка для OG-превью: обложка → лого → fallback общая картинка.
+    $resolveImage = function (?string $path): ?string {
+        if (!$path) return null;
+        if (preg_match('#^https?://#', $path)) return $path;
+        return asset('logos/' . ltrim($path, '/'));
+    };
+
+    $ogImage = $resolveImage($club->cover)
+        ?? $resolveImage($club->logo)
+        ?? asset('logos/add-padel-almaty.jpg');
+
+    return view('club-share', [
+        'club'     => $club,
+        'storeUrl' => $storeUrl,
+        'ogImage'  => $ogImage,
+    ]);
+})->name('club.share');
+
 // Удаление аккаунта (публичная страница для App Store / Google Play)
 Route::get('/delete-account', [DeleteAccountController::class, 'show'])->name('delete-account');
 Route::post('/delete-account/send-code', [DeleteAccountController::class, 'sendCode'])->name('delete-account.send-code');
