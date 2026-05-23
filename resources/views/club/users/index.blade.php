@@ -27,7 +27,7 @@
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input type="text" name="search" class="search-input" placeholder="Поиск по имени или телефону..." value="{{ request('search') }}">
+            <input type="text" name="search" class="search-input" placeholder="Поиск по имени..." value="{{ request('search') }}">
             @if(request('search'))
                 <a href="{{ route('club.users.index', request('level') ? ['level' => request('level')] : []) }}" class="search-clear">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -143,7 +143,6 @@
                             Имя {!! $currentSort === 'name' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
                         </a>
                     </th>
-                    <th>Телефон</th>
                     <th>Город</th>
 					<th>
                         <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'level', 'dir' => $currentSort === 'level' && $currentDir === 'asc' ? 'desc' : 'asc'])) }}" class="sort-link {{ $currentSort === 'level' ? 'active' : '' }}">
@@ -170,11 +169,6 @@
                                     <span class="user-id">ID: {{ $user->id }}</span>
                                 </div>
                             </div>
-                        </td>
-                        <td>
-                            <span class="user-phone">
-                                @phoneFmt($user->phone)
-                            </span>
                         </td>
                         <td>
                             <span class="user-city">{{ $user->city ?: '—' }}</span>
@@ -205,7 +199,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #71717a;">
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #71717a;">
                             Пользователи не найдены
                         </td>
                     </tr>
@@ -290,7 +284,6 @@
                     <small style="color:#888;font-size:11px;display:block;margin-top:6px;">Раз вы вручную меняете уровень — значит подтверждаете его.</small>
                 </div>
                 <div class="form-info">
-                    <span>Телефон: @phoneFmt($user->phone)</span>
                     <span>Рейтинг: {{ $user->rating }}</span>
                 </div>
             </div>
@@ -880,14 +873,6 @@
         .user-id {
             font-size: 12px;
             color: var(--users-text-muted);
-        }
-
-        /* Phone Cell */
-        .user-phone {
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--users-text-dim);
-            font-variant-numeric: tabular-nums;
         }
 
         /* Level Cell */
