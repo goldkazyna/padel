@@ -168,7 +168,11 @@
                     <tr>
                         <td>
                             <div class="user-name-cell">
-                                <div class="user-avatar">{{ mb_strtoupper(mb_substr($user->first_name, 0, 1) . mb_substr($user->last_name, 0, 1)) }}</div>
+                                @if($user->avatar)
+                                    <img src="{{ $user->avatar }}" alt="" class="user-avatar user-avatar-img" loading="lazy">
+                                @else
+                                    <div class="user-avatar">{{ mb_strtoupper(mb_substr($user->first_name, 0, 1) . mb_substr($user->last_name, 0, 1)) }}</div>
+                                @endif
                                 <div class="user-name-info">
                                     <span class="user-fullname">{{ $user->name }}</span>
                                     <span class="user-id">ID: {{ $user->id }}</span>
@@ -873,6 +877,11 @@
             font-weight: 700;
             color: var(--users-bg);
             flex-shrink: 0;
+        }
+
+        .user-avatar-img {
+            object-fit: cover;
+            background: var(--users-card);
         }
 
         .user-name-info {
