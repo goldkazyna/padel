@@ -106,6 +106,30 @@ class MobileClubEditTest extends TestCase
         $resp->assertJsonPath('club.telegram_url', 'https://t.me/publicclub');
     }
 
+    public function test_owner_can_set_instagram_url_and_public_show_returns_it(): void
+    {
+        $club = $this->club();
+        $admin = \App\Models\User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+
+        $this->putJson("/api/mobile/admin/clubs/{$club->id}", [
+            'name' => 'X', 'address' => 'Y', 'instagram_url' => 'https://instagram.com/myclub',
+        ])->assertOk()->assertJsonPath('club.instagram_url', 'https://instagram.com/myclub');
+
+        $this->assertSame('https://instagram.com/myclub', $club->refresh()->instagram_url);
+
+        // invalid url rejected
+        $this->putJson("/api/mobile/admin/clubs/{$club->id}", [
+            'name' => 'X', 'address' => 'Y', 'instagram_url' => 'not-a-url',
+        ])->assertStatus(422);
+
+        // public player endpoint returns it
+        $club->update(['instagram_url' => 'https://instagram.com/publicclub']);
+        $this->getJson("/api/mobile/clubs/{$club->id}")
+            ->assertOk()->assertJsonPath('club.instagram_url', 'https://instagram.com/publicclub');
+    }
+
     public function test_moderator_forbidden(): void
     {
         $club = $this->club();

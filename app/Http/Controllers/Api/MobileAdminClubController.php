@@ -33,6 +33,7 @@ class MobileAdminClubController extends Controller
             'description' => $club->description,
             'payment_url' => $club->payment_url,
             'telegram_url' => $club->telegram_url,
+            'instagram_url' => $club->instagram_url,
         ];
     }
 
@@ -59,6 +60,7 @@ class MobileAdminClubController extends Controller
             'description' => 'nullable|string',
             'payment_url' => 'nullable|url|max:500',
             'telegram_url' => 'nullable|url|max:500',
+            'instagram_url' => 'nullable|url|max:500',
         ]);
 
         $club->update($validated);

@@ -54,6 +54,7 @@ class MobileClubController extends Controller
             'phone' => $club->phone,
             'is_community' => (bool) $club->is_community,
             'telegram_url' => $club->telegram_url,
+            'instagram_url' => $club->instagram_url,
         ]);
 
         $cities = $clubs->pluck('city')->filter()->unique()->sort()->values();
@@ -104,6 +105,7 @@ class MobileClubController extends Controller
                 'min_price' => $minPrice !== null ? (float) $minPrice : null,
                 'is_hidden' => $isHidden,
                 'telegram_url' => $club->telegram_url,
+                'instagram_url' => $club->instagram_url,
             ],
         ]);
     }
