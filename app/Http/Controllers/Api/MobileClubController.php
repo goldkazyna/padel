@@ -106,6 +106,12 @@ class MobileClubController extends Controller
                 'is_hidden' => $isHidden,
                 'telegram_url' => $club->telegram_url,
                 'instagram_url' => $club->instagram_url,
+                'cover' => $club->cover ? url($club->cover) : null,
+                'is_community' => (bool) $club->is_community,
+                'open_tournaments_count' => $club->tournaments()
+                    ->where('status', 'open')
+                    ->where('start_date', '>', now())
+                    ->count(),
             ],
         ]);
     }
