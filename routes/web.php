@@ -472,6 +472,10 @@ Route::middleware('auth')->group(function () {
 		// Модераторы клуба
 		Route::post('/clubs/{club}/moderators', [ClubController::class, 'addModerator'])->name('clubs.moderators.add');
 		Route::delete('/clubs/{club}/moderators/{user}', [ClubController::class, 'removeModerator'])->name('clubs.moderators.remove');
+
+        // Рекламный баннер
+        Route::get('/banners', [\App\Http\Controllers\Admin\BannerController::class, 'index'])->name('banners.index');
+        Route::post('/banners', [\App\Http\Controllers\Admin\BannerController::class, 'update'])->name('banners.update');
     });
     
 });

@@ -1043,6 +1043,12 @@
                             <span>Клубы</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.banners.index') }}" class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
+                            <i class="bi bi-megaphone"></i>
+                            <span>Рекламный баннер</span>
+                        </a>
+                    </li>
                 @endif
             </ul>
         </nav>
