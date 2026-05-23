@@ -60,8 +60,10 @@ class MobileAdminUserController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                  ->orWhere('last_name', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
             });
         }
 
@@ -169,10 +171,10 @@ class MobileAdminUserController extends Controller
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
         }
-        // Ручная правка уровня админом = уровень верифицирован.
-        // Баннер «поставьте аватарку / сыграйте турнир» всё равно покажется
-        // пользователю — он не зависит от level_verified.
-        $update['level_verified'] = true;
+        // Ручная правка уровня админом верифицирует уровень ТОЛЬКО если у
+        // игрока есть аватар. Без фото уровень не верифицируем, даже если
+        // его выставили вручную.
+        $update['level_verified'] = !empty($target->avatar);
 
         $target->update($update);
         $target->refresh();
@@ -263,11 +265,10 @@ class MobileAdminUserController extends Controller
         return [
             'id' => $u->id,
             'name' => $u->name,
-            'phone' => $u->phone,
             'level' => $u->level !== null ? (float) $u->level : null,
             'rating' => (int) ($u->rating ?? 0),
             'level_verified' => (bool) $u->level_verified,
-            'avatar_url' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+            'avatar_url' => $u->avatar ?: null,
         ];
     }
 }
