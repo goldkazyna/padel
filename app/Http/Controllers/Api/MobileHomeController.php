@@ -78,33 +78,45 @@ class MobileHomeController extends Controller
     }
 
     /**
-     * Ближайший турнир на который можно записаться (не записан, can_register = true)
+     * Ближайший турнир, в котором пользователь УЖЕ участвует и который ещё
+     * не начался (status=open, start_date в будущем). Учитываем
+     * индивидуальные и командные турниры, берём наиболее ранний.
      */
     private function getNearestTournament($user): ?array
     {
-        $hiddenClubIds = $this->normalizeHiddenClubIds($user);
-
-        $query = Tournament::where('status', 'open')
+        // Индивидуальные турниры, где пользователь записан
+        $individual = Tournament::whereHas('participants', function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->whereIn('status', ['registered', 'pending']);
+            })
+            ->where('status', 'open')
             ->where('start_date', '>', now())
-            ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
-            ->with('club');
+            ->with('club')
+            ->first();
 
-        if (!empty($hiddenClubIds)) {
-            $query->whereNotIn('club_id', $hiddenClubIds);
-        }
+        // Командные турниры, где пользователь в паре
+        $teamTournamentIds = TournamentTeam::where(function ($q) use ($user) {
+                $q->where('player1_id', $user->id)
+                  ->orWhere('player2_id', $user->id);
+            })
+            ->whereIn('status', ['approved', 'pending'])
+            ->pluck('tournament_id');
 
-        foreach ($query->get() as $t) {
-            // Доп. защитная проверка на случай если cast не отработал
-            if (in_array((int) $t->club_id, $hiddenClubIds, true)) {
-                continue;
-            }
-            if ($t->canRegister($user)) {
-                return $this->formatTournament($t);
-            }
-        }
+        $team = Tournament::whereIn('id', $teamTournamentIds)
+            ->where('status', 'open')
+            ->where('start_date', '>', now())
+            ->orderBy('start_date', 'asc')
+            ->with('club')
+            ->first();
 
-        return null;
+        // Берём наиболее ранний из двух
+        $nearest = collect([$individual, $team])
+            ->filter()
+            ->sortBy('start_date')
+            ->first();
+
+        return $nearest ? $this->formatTournament($nearest) : null;
     }
 
     /**
