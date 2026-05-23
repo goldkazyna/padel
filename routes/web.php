@@ -65,8 +65,9 @@ Route::get('/c/{club}', function (\App\Models\Club $club) {
     // Картинка для OG-превью: обложка → лого → fallback общая картинка.
     $resolveImage = function (?string $path): ?string {
         if (!$path) return null;
-        if (preg_match('#^https?://#', $path)) return $path;
-        return asset('logos/' . ltrim($path, '/'));
+        if (preg_match('#^https?://#', $path)) return $path;          // уже полный URL
+        if (str_starts_with($path, '/')) return url($path);            // /covers/x.jpg или /logos/x.jpg → полный URL
+        return asset('logos/' . $path);                                // устаревшее голое имя файла (напр. «x.jpg»)
     };
 
     $ogImage = $resolveImage($club->cover)

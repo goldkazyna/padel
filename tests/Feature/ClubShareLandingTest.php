@@ -18,4 +18,12 @@ class ClubShareLandingTest extends TestCase
         $resp->assertSee('My Club');
         $resp->assertSee("padelp://club/{$club->id}", false);
     }
+
+    public function test_og_image_uses_cover_full_url(): void
+    {
+        $club = \App\Models\Club::create(['name' => 'C', 'address' => 'A', 'cover' => '/covers/x.jpg']);
+        $this->get("/c/{$club->id}")
+            ->assertOk()
+            ->assertSee(url('/covers/x.jpg'), false);
+    }
 }
