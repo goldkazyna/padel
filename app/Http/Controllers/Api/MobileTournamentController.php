@@ -791,6 +791,7 @@ class MobileTournamentController extends Controller
                 'phone' => $t->club->phone ?? null,
                 'address' => $t->club->address ?? null,
                 'payment_url' => $t->club->payment_url ?? null,
+                'telegram_url' => $t->club->telegram_url ?? null,
                 'logo' => $t->club->logo ? url($t->club->logo) : null,
                 'is_community' => (bool) ($t->club->is_community ?? false),
             ],
