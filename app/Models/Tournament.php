@@ -562,4 +562,37 @@ class Tournament extends Model
 	{
 		return $this->hasMany(TournamentSubscription::class);
 	}
+
+	/**
+	 * Был ли уже сыгран первый раунд турнира.
+	 */
+	public function firstRoundCompleted(): bool
+	{
+		return match ($this->type) {
+			'americano' => \App\Models\AmericanoRound::query()
+				->whereIn('tournament_group_id', $this->groups()->pluck('id'))
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'mexicano' => $this->mexicanoRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'king_of_court' => $this->kingOfCourtRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'bali_koc' => $this->baliKocRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'americano_flex' => $this->americanoFlexRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'team' => \App\Models\TournamentGroupMatch::query()
+				->whereIn('group_id', $this->teamGroups()->pluck('id'))
+				->where('status', 'completed')->exists(),
+			default => $this->playoffMatches()->where('status', 'completed')->exists(),
+		};
+	}
+
+	/**
+	 * Можно ли перезапустить турнир.
+	 * Разрешено только пока турнир in_progress и первый раунд ещё не завершён.
+	 */
+	public function canRestart(): bool
+	{
+		return $this->status === 'in_progress' && ! $this->firstRoundCompleted();
+	}
 }
