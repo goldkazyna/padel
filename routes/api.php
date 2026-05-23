@@ -97,6 +97,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
         Route::put('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'update']);
         Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
+        Route::post('/admin/tournaments/{tournament}/restart', [MobileAdminTournamentDetailController::class, 'restart']);
         Route::delete('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'destroy']);
 
         // Участники / команды турнира (Этап 3b)

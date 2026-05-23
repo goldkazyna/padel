@@ -168,6 +168,30 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/restart
+     */
+    public function restart(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (!$tournament->canRestart()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Перезапуск недоступен: турнир не запущен или первый раунд уже сыгран',
+            ], 422);
+        }
+
+        app(\App\Services\TournamentResetService::class)->reset($tournament);
+
+        return response()->json([
+            'success' => true,
+            'tournament' => $this->formatDetail($tournament->fresh()),
+        ]);
+    }
+
+    /**
      * DELETE /api/mobile/admin/tournaments/{tournament}
      */
     public function destroy(Request $request, Tournament $tournament): JsonResponse
@@ -281,6 +305,7 @@ class MobileAdminTournamentDetailController extends Controller
             'courts' => $t->courts ?? [],
             'can_edit' => $canEdit,
             'can_start' => $canStart,
+            'can_restart' => $hasFullAccess && $t->canRestart(),
             'can_delete' => $canDelete,
             'bali_pairs_created' => $baliPairsCreated,
             'tournaments_full_access' => $hasFullAccess,
