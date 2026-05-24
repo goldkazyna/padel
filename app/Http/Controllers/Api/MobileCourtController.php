@@ -67,6 +67,7 @@ class MobileCourtController extends Controller
             'logo' => $club->logo ? url($club->logo) : null,
             'courts_count' => $club->courts_count,
             'min_price' => isset($minPrices[$club->id]) ? (float) $minPrices[$club->id] : null,
+            'online_payment_enabled' => (bool) $club->online_payment_enabled,
         ]);
 
         // Уникальные города из найденных клубов
@@ -160,6 +161,7 @@ class MobileCourtController extends Controller
                 'name' => $club->name,
                 'address' => $club->address,
                 'coach_booking' => $club->hasFeature('coach_booking'),
+                'online_payment_enabled' => (bool) $club->online_payment_enabled,
             ],
             'date' => $date,
             'courts' => $courtsData,
