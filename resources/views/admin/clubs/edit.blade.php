@@ -177,6 +177,58 @@
                         <small class="text-muted">Ссылка на страницу оплаты (Kaspi, PayBox и др.)</small>
                     </div>
 
+                    {{-- Онлайн-оплата и документы --}}
+                    <div class="mb-4">
+                        <label class="form-check">
+                            <input type="hidden" name="online_payment_enabled" value="0">
+                            <input type="checkbox" name="online_payment_enabled" value="1" class="form-check-input"
+                                   {{ old('online_payment_enabled', $club->online_payment_enabled) ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Оплата онлайн</span>
+                        </label>
+                    </div>
+
+                    @php
+                        $clubDocs = [
+                            'offer_agreement' => 'Договор оферты',
+                            'privacy_policy' => 'Политика конфиденциальности',
+                            'goods_description' => 'Описание товара или услуг',
+                            'card_payment_description' => 'Описание оплаты банковской картой',
+                        ];
+                    @endphp
+                    @foreach($clubDocs as $docField => $docLabel)
+                        @php
+                            $docPath = $club->$docField;
+                            $docUrl = $docPath
+                                ? (preg_match('#^https?://#', $docPath) ? $docPath : url($docPath))
+                                : null;
+                        @endphp
+                        <div class="mb-4">
+                            <label class="form-label">{{ $docLabel }}</label>
+                            @if($docUrl)
+                                <div class="mb-2">
+                                    <a href="{{ $docUrl }}" target="_blank" rel="noopener" class="small">
+                                        <i class="bi bi-file-earmark-text"></i> Текущий файл
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" name="{{ $docField }}" accept=".pdf,.doc,.docx,image/*"
+                                   class="form-control @error($docField) is-invalid @enderror">
+                            <small class="text-muted">PDF/DOC/DOCX или изображение, до 10 МБ.</small>
+                            @error($docField)
+                                <div class="text-danger mt-2 small">{{ $message }}</div>
+                            @enderror
+                            @if($docUrl)
+                                <label class="form-check mt-2">
+                                    <input type="hidden" name="remove_{{ $docField }}" value="0">
+                                    <input type="checkbox" name="remove_{{ $docField }}" value="1" class="form-check-input"
+                                           style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                    <span class="form-check-label">Удалить текущий файл</span>
+                                </label>
+                            @endif
+                        </div>
+                    @endforeach
+
                     <div class="mb-4">
                         <label class="form-check">
                             <input type="hidden" name="is_active" value="0">

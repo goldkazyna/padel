@@ -26,6 +26,11 @@ class Club extends Model
         'payment_url',
         'telegram_url',
         'instagram_url',
+        'offer_agreement',
+        'privacy_policy',
+        'goods_description',
+        'card_payment_description',
+        'online_payment_enabled',
         'features',
         'telegram_channel_id',
         'telegram_bot_token',
@@ -36,6 +41,7 @@ class Club extends Model
         'is_test' => 'boolean',
         'is_community' => 'boolean',
         'hide_phones' => 'boolean',
+        'online_payment_enabled' => 'boolean',
         'features' => 'array',
     ];
 

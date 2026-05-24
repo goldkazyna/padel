@@ -63,7 +63,19 @@ class ClubController extends Controller
             'remove_logo' => 'nullable|boolean',
             'cover' => 'nullable|image',
             'remove_cover' => 'nullable|boolean',
+            'online_payment_enabled' => 'boolean',
+            'offer_agreement' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:10240',
+            'remove_offer_agreement' => 'nullable|boolean',
+            'privacy_policy' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:10240',
+            'remove_privacy_policy' => 'nullable|boolean',
+            'goods_description' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:10240',
+            'remove_goods_description' => 'nullable|boolean',
+            'card_payment_description' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:10240',
+            'remove_card_payment_description' => 'nullable|boolean',
         ]);
+
+        // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
+        $validated['online_payment_enabled'] = $request->boolean('online_payment_enabled');
 
         $features = $request->input('features', []);
         $validated['features'] = [
@@ -132,9 +144,65 @@ class ClubController extends Controller
             $validated['cover'] = '/covers/' . $filename;
         }
 
+        // Документы онлайн-оплаты (оферта, политика, описание товара/услуг,
+        // описание оплаты картой) — загрузка в public/club_docs/.
+        foreach (['offer_agreement', 'privacy_policy', 'goods_description', 'card_payment_description'] as $docField) {
+            $this->handleClubDocUpload($request, $club, $docField, $validated);
+        }
+
         $club->update($validated);
 
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб обновлён!');
+    }
+
+    /**
+     * Загрузка/удаление файла-документа клуба (public/club_docs/<id>-<field>.<ext>).
+     * Записывает в $validated[$field] путь вида «/club_docs/...» или null при удалении.
+     */
+    private function handleClubDocUpload(Request $request, Club $club, string $field, array &$validated): void
+    {
+        // Удаление текущего файла по чекбоксу
+        if ($request->boolean('remove_' . $field) && $club->$field) {
+            $this->deleteClubDocFile($club->$field);
+            $validated[$field] = null;
+        }
+        unset($validated['remove_' . $field]);
+
+        if (!$request->hasFile($field)) {
+            return;
+        }
+
+        $file = $request->file($field);
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'pdf');
+        $filename = $club->id . '-' . $field . '.' . $ext;
+
+        // Удаляем старый файл (любое расширение с тем же именем)
+        if ($club->$field) {
+            $this->deleteClubDocFile($club->$field);
+        }
+        foreach (glob(public_path('club_docs/' . $club->id . '-' . $field . '.*')) ?: [] as $oldPath) {
+            @unlink($oldPath);
+        }
+
+        if (!is_dir(public_path('club_docs'))) {
+            @mkdir(public_path('club_docs'), 0775, true);
+        }
+
+        $file->move(public_path('club_docs'), $filename);
+        $validated[$field] = '/club_docs/' . $filename;
+    }
+
+    /**
+     * Удалить локальный файл-документ клуба (не трогаем внешние URL).
+     */
+    private function deleteClubDocFile(?string $path): void
+    {
+        if (!$path) return;
+        if (preg_match('#^https?://#', $path)) return;
+        $full = public_path(ltrim($path, '/'));
+        if (is_file($full)) {
+            @unlink($full);
+        }
     }
 
     /**
