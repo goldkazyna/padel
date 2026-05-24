@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MobileClubController;
 use App\Http\Controllers\Api\MobileAdminTournamentController;
 use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 use App\Http\Controllers\Api\MobileAdminUserController;
+use App\Http\Controllers\Api\MobileAdminModeratorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -92,6 +93,13 @@ Route::prefix('mobile')->group(function () {
         // Управление игроками клуба (нужен feature 'users')
         Route::get('/admin/clubs/{club}/users', [MobileAdminUserController::class, 'index']);
         Route::put('/admin/clubs/{club}/users/{target}', [MobileAdminUserController::class, 'update']);
+
+        // Управление модераторами клуба (нужен feature 'moderators', только админ)
+        Route::get('/admin/clubs/{club}/moderators', [MobileAdminModeratorController::class, 'index']);
+        Route::get('/admin/clubs/{club}/moderators/search', [MobileAdminModeratorController::class, 'search']);
+        Route::post('/admin/clubs/{club}/moderators', [MobileAdminModeratorController::class, 'store']);
+        Route::put('/admin/clubs/{club}/moderators/{target}/permissions', [MobileAdminModeratorController::class, 'updatePermissions']);
+        Route::delete('/admin/clubs/{club}/moderators/{target}', [MobileAdminModeratorController::class, 'destroy']);
 
         // Карточка клуба (редактирование, только владелец/super_admin)
         Route::get('/admin/clubs/{club}', [\App\Http\Controllers\Api\MobileAdminClubController::class, 'show']);
