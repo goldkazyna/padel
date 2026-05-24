@@ -138,7 +138,7 @@ class MobileProfileController extends Controller
                 $details[] = [
                     'tournament_id' => null,
                     'name' => 'Ручная корректировка',
-                    'club_name' => null,
+                    'club_name' => 'Padel Kz',
                     'date' => $entry['created_at']?->translatedFormat('j M Y'),
                     'rating' => $rating,
                     'delta' => $delta,

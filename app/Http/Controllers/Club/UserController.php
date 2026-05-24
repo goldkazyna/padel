@@ -124,6 +124,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'level' => 'nullable|numeric|min:1|max:5.75',
+            // Прямую установку рейтинга разрешаем только супер-админу (см. ниже).
+            'rating' => 'nullable|integer|min:1000|max:10000',
         ]);
 
         $oldName = $user->name;
@@ -139,6 +141,20 @@ class UserController extends Controller
             $newLevel = (float) $validated['level'];
             $update['level'] = $newLevel;
             $update['rating'] = (int) ($newLevel * 1000 + 125);
+        }
+
+        // Супер-админ может выставить рейтинг НАПРЯМУЮ — это ручная корректировка.
+        // Приоритет над уровнем: рейтинг задаёт состояние, уровень выводим из него
+        // (как после турниров: floor(rating/250)*0.25, клампим 1.0..5.75).
+        if (auth()->user()->isSuperAdmin()
+            && array_key_exists('rating', $validated)
+            && $validated['rating'] !== null
+            && (int) $validated['rating'] !== $oldRating
+        ) {
+            $newRating = (int) $validated['rating'];
+            $update['rating'] = $newRating;
+            $newLevel = max(1.0, min(5.75, floor($newRating / 250) * 0.25));
+            $update['level'] = $newLevel;
         }
         // Ручная правка уровня админом верифицирует уровень ТОЛЬКО если у
         // игрока есть аватар. Без фото уровень не верифицируем, даже если
@@ -170,6 +186,9 @@ class UserController extends Controller
         }
         if ($newLevel !== null && $oldLevel !== $newLevel) {
             $changes['level'] = ['from' => $oldLevel, 'to' => $newLevel];
+        }
+        if (isset($update['rating']) && (int) $update['rating'] !== $oldRating) {
+            $changes['rating'] = ['from' => $oldRating, 'to' => (int) $update['rating']];
         }
         if ($oldVerified !== $newVerified) {
             $changes['level_verified'] = ['from' => $oldVerified, 'to' => $newVerified];

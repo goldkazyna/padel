@@ -288,6 +288,14 @@
                            min="1" max="5.75" step="0.25">
                     <small style="color:#888;font-size:11px;">Рейтинг пересчитается автоматически (уровень × 1000 + 125).</small>
                 </div>
+                @if(auth()->user()->isSuperAdmin())
+                <div class="form-group">
+                    <label class="form-label">Рейтинг (ручная корректировка)</label>
+                    <input type="number" name="rating" class="form-input" value="{{ $user->rating }}"
+                           min="1000" max="10000" step="1">
+                    <small style="color:#888;font-size:11px;">Задаёт рейтинг напрямую и пишет ручную корректировку в историю (в графике приложения — «Padel Kz»). Уровень подстроится под рейтинг. Имеет приоритет над полем «Уровень».</small>
+                </div>
+                @endif
                 <div class="form-group">
                     @if($user->avatar)
                         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f2d1f;border:1px solid #22c55e44;border-radius:6px;">
