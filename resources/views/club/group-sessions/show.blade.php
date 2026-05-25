@@ -2,200 +2,240 @@
 @section('title', 'Занятие: ' . $session->group->name)
 @section('content')
 
-<div class="container-fluid px-4 py-3">
+@php
+    $statusLabel = match($session->status) {
+        'planned'   => 'Запланировано',
+        'held'      => 'Проведено',
+        'cancelled' => 'Отменено',
+        default     => $session->status,
+    };
+    $statusClass = match($session->status) {
+        'held'      => 'badge-held',
+        'cancelled' => 'badge-cancelled',
+        default     => 'badge-planned',
+    };
+@endphp
 
-    {{-- Header --}}
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <a href="{{ route('club.groupSessions.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i>
-        </a>
-        <i class="bi bi-journal-check fs-4 text-primary"></i>
-        <h1 class="h4 mb-0">{{ $session->group->name }}</h1>
-        @php
-            $badgeClass = match($session->status) {
-                'held'      => 'bg-success',
-                'cancelled' => 'bg-danger',
-                default     => 'bg-secondary',
-            };
-            $statusLabel = match($session->status) {
-                'planned'   => 'Запланировано',
-                'held'      => 'Проведено',
-                'cancelled' => 'Отменено',
-                default     => $session->status,
-            };
-        @endphp
-        <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+<div class="gsession-container">
+
+    <div class="gsession-header">
+        <div class="gsession-title-block">
+            <a href="{{ route('club.groupSessions.index') }}" class="back-link">&#8592; Журнал занятий</a>
+            <h1 class="gsession-title">{{ $session->group->name }}</h1>
+        </div>
+        <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
     </div>
 
-    {{-- Flash messages --}}
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+        <div class="flash-message flash-success">{{ session('success') }}</div>
     @endif
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+        <div class="flash-message flash-error">{{ session('error') }}</div>
     @endif
 
-    {{-- Session meta --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row g-2">
-                <div class="col-auto">
-                    <i class="bi bi-calendar3 me-1 text-muted"></i>
-                    <strong>{{ $session->date->format('d.m.Y') }}</strong>
-                </div>
-                <div class="col-auto">
-                    <i class="bi bi-clock me-1 text-muted"></i>
-                    {{ $session->start_time }}–{{ $session->end_time }}
-                </div>
-                <div class="col-auto">
-                    <i class="bi bi-geo-alt me-1 text-muted"></i>
-                    {{ $session->court->name }}
-                </div>
-                @if($session->coach)
-                    <div class="col-auto">
-                        <i class="bi bi-person-badge me-1 text-muted"></i>
-                        {{ $session->coach->name }}
-                    </div>
-                @endif
-            </div>
+    {{-- Session meta card --}}
+    <div class="meta-card">
+        <div class="meta-item-row">
+            <span class="meta-icon">&#128197;</span>
+            <span class="meta-value">{{ $session->date->format('d.m.Y') }}</span>
         </div>
+        <div class="meta-divider"></div>
+        <div class="meta-item-row">
+            <span class="meta-icon">&#128336;</span>
+            <span class="meta-value">{{ $session->start_time }}–{{ $session->end_time }}</span>
+        </div>
+        <div class="meta-divider"></div>
+        <div class="meta-item-row">
+            <span class="meta-icon">&#127968;</span>
+            <span class="meta-value">{{ $session->court->name }}</span>
+        </div>
+        @if($session->coach)
+            <div class="meta-divider"></div>
+            <div class="meta-item-row">
+                <span class="meta-icon">&#128100;</span>
+                <span class="meta-value">{{ $session->coach->name }}</span>
+            </div>
+        @endif
     </div>
 
     @if($session->status === 'planned')
+
         {{-- Conduct form --}}
         <form method="POST" action="{{ route('club.groupSessions.conduct', $session) }}">
             @csrf
-            <div class="card shadow-sm mb-3">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-people me-2"></i>Отметить посещаемость</h6>
+            <div class="attendance-card">
+                <div class="attendance-card-header">
+                    <h2 class="attendance-title">Отметить посещаемость</h2>
                 </div>
-                <div class="card-body p-0">
-                    @if($members->isEmpty())
-                        <p class="text-muted p-3 mb-0">В группе нет активных участников.</p>
-                    @else
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Участник</th>
-                                        <th class="text-center">Остаток занятий</th>
-                                        <th class="text-center">Пришёл</th>
-                                        <th class="text-center">Списать</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($members as $m)
-                                        @php $rem = $m->remaining; @endphp
-                                        <tr class="{{ $rem <= 0 ? 'table-warning' : '' }}">
-                                            <td>
-                                                {{ $m->client->name }}
-                                                @if($rem <= 0)
-                                                    <span class="badge bg-warning text-dark ms-2">нужно продлить</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="fw-bold {{ $rem <= 0 ? 'text-danger' : 'text-success' }}">{{ $rem }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <input type="checkbox"
-                                                    class="form-check-input"
-                                                    name="attendance[{{ $m->id }}][attended]"
-                                                    value="1"
-                                                    id="att_{{ $m->id }}">
-                                            </td>
-                                            <td class="text-center">
-                                                <input type="checkbox"
-                                                    class="form-check-input"
-                                                    name="attendance[{{ $m->id }}][charged]"
-                                                    value="1"
-                                                    id="chg_{{ $m->id }}"
-                                                    {{ $rem <= 0 ? 'disabled' : '' }}>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                @if($members->isEmpty())
+                    <div class="empty-state-small">В группе нет активных участников.</div>
+                @else
+                    <div class="attendance-table-header">
+                        <div class="att-col-name">Участник</div>
+                        <div class="att-col-rem">Остаток</div>
+                        <div class="att-col-cb">Пришёл</div>
+                        <div class="att-col-cb">Списать</div>
+                    </div>
+                    @foreach($members as $m)
+                        @php $rem = $m->remaining; @endphp
+                        <div class="attendance-row {{ $rem <= 0 ? 'row-warn' : '' }}">
+                            <div class="att-col-name">
+                                <span class="att-name">{{ $m->client->name }}</span>
+                                @if($rem <= 0)
+                                    <span class="need-renew-badge">нужно продлить</span>
+                                @endif
+                            </div>
+                            <div class="att-col-rem">
+                                <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
+                            </div>
+                            <div class="att-col-cb">
+                                <input type="checkbox"
+                                    class="att-checkbox"
+                                    name="attendance[{{ $m->id }}][attended]"
+                                    value="1"
+                                    id="att_{{ $m->id }}">
+                            </div>
+                            <div class="att-col-cb">
+                                <input type="checkbox"
+                                    class="att-checkbox"
+                                    name="attendance[{{ $m->id }}][charged]"
+                                    value="1"
+                                    id="chg_{{ $m->id }}"
+                                    {{ $rem <= 0 ? 'disabled' : '' }}>
+                            </div>
                         </div>
-                    @endif
-                </div>
+                    @endforeach
+                @endif
             </div>
 
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-check-circle me-1"></i>Провести занятие
-                </button>
+            <div class="session-actions">
+                <button type="submit" class="btn-conduct">&#10003; Провести занятие</button>
             </div>
         </form>
 
-        {{-- Cancel form (separate) --}}
-        <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" class="mt-2"
+        {{-- Cancel form --}}
+        <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" class="cancel-form"
               onsubmit="return confirm('Отменить занятие и освободить корт?')">
             @csrf
-            <button type="submit" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-x-circle me-1"></i>Отменить занятие
-            </button>
+            <button type="submit" class="btn-cancel-session">&#10005; Отменить занятие</button>
         </form>
 
     @elseif($session->status === 'held')
+
         {{-- Read-only attendance --}}
-        <div class="card shadow-sm">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Посещаемость</h6>
+        <div class="attendance-card">
+            <div class="attendance-card-header">
+                <h2 class="attendance-title">Посещаемость</h2>
             </div>
-            <div class="card-body p-0">
-                @if($members->isEmpty())
-                    <p class="text-muted p-3 mb-0">Нет участников.</p>
-                @else
-                    <div class="table-responsive">
-                        <table class="table mb-0 align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Участник</th>
-                                    <th class="text-center">Пришёл</th>
-                                    <th class="text-center">Списано</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($members as $m)
-                                    @php $rec = $existing->get($m->id); @endphp
-                                    <tr>
-                                        <td>{{ $m->client->name }}</td>
-                                        <td class="text-center">
-                                            @if($rec && $rec->attended)
-                                                <i class="bi bi-check-circle-fill text-success"></i>
-                                            @else
-                                                <i class="bi bi-x-circle text-muted"></i>
-                                            @endif
-                                        </td>
-                                        <td class="text-center">
-                                            @if($rec && $rec->charged)
-                                                <i class="bi bi-check-circle-fill text-warning"></i>
-                                            @else
-                                                <span class="text-muted">—</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+            @if($members->isEmpty())
+                <div class="empty-state-small">Нет участников.</div>
+            @else
+                <div class="attendance-table-header">
+                    <div class="att-col-name">Участник</div>
+                    <div class="att-col-cb">Пришёл</div>
+                    <div class="att-col-cb">Списано</div>
+                </div>
+                @foreach($members as $m)
+                    @php $rec = $existing->get($m->id); @endphp
+                    <div class="attendance-row">
+                        <div class="att-col-name">
+                            <span class="att-name">{{ $m->client->name }}</span>
+                        </div>
+                        <div class="att-col-cb">
+                            @if($rec && $rec->attended)
+                                <span class="check-icon check-yes">&#10003;</span>
+                            @else
+                                <span class="check-icon check-no">&#10005;</span>
+                            @endif
+                        </div>
+                        <div class="att-col-cb">
+                            @if($rec && $rec->charged)
+                                <span class="check-icon check-warn">&#10003;</span>
+                            @else
+                                <span class="check-icon-muted">—</span>
+                            @endif
+                        </div>
                     </div>
-                @endif
-            </div>
+                @endforeach
+            @endif
         </div>
 
     @else
+
         {{-- Cancelled --}}
-        <div class="alert alert-secondary">
-            <i class="bi bi-slash-circle me-2"></i>Занятие отменено.
+        <div class="cancelled-notice">
+            <span class="cancelled-icon">&#9940;</span>
+            <span class="cancelled-text">Занятие отменено.</span>
         </div>
+
     @endif
 
 </div>
+
+<style>
+    .gsession-container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+    .gsession-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+    .gsession-title-block { display: flex; flex-direction: column; gap: 6px; }
+    .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
+    .back-link:hover { color: #a1a1aa; }
+    .gsession-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #f4f4f5; margin: 0; }
+    .badge-held { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .badge-cancelled { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .badge-planned { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
+
+    .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+    .meta-card { display: flex; align-items: center; flex-wrap: wrap; gap: 0; background: #111113; border: 1px solid #27272a; border-radius: 14px; padding: 18px 24px; margin-bottom: 28px; gap: 16px; }
+    .meta-item-row { display: flex; align-items: center; gap: 8px; }
+    .meta-icon { font-size: 16px; color: #71717a; }
+    .meta-value { font-size: 15px; font-weight: 600; color: #f4f4f5; }
+    .meta-divider { width: 1px; height: 20px; background: #27272a; }
+
+    .attendance-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; margin-bottom: 20px; overflow: hidden; }
+    .attendance-card-header { padding: 18px 24px; border-bottom: 1px solid #27272a; }
+    .attendance-title { font-size: 16px; font-weight: 700; color: #f4f4f5; margin: 0; }
+    .attendance-table-header { display: grid; grid-template-columns: 1fr 80px 80px 80px; gap: 12px; padding: 10px 24px; background: #0e0e10; border-bottom: 1px solid #1c1c1f; }
+    .attendance-table-header > div { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .attendance-row { display: grid; grid-template-columns: 1fr 80px 80px 80px; gap: 12px; padding: 14px 24px; border-bottom: 1px solid #1c1c1f; align-items: center; transition: background 0.15s; }
+    .attendance-row:last-child { border-bottom: none; }
+    .attendance-row:hover { background: #16161a; }
+    .row-warn { background: rgba(234,179,8,0.05); }
+    .att-col-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .att-col-rem, .att-col-cb { display: flex; align-items: center; justify-content: center; }
+    .att-name { font-size: 14px; font-weight: 600; color: #f4f4f5; }
+    .need-renew-badge { display: inline-flex; align-items: center; padding: 2px 8px; background: rgba(234,179,8,0.15); color: #eab308; border: 1px solid rgba(234,179,8,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .rem-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+    .rem-ok { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .rem-low { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .att-checkbox { width: 18px; height: 18px; accent-color: #22c55e; cursor: pointer; }
+    .att-checkbox:disabled { opacity: 0.3; cursor: not-allowed; }
+    .check-icon { font-size: 18px; font-weight: 700; }
+    .check-yes { color: #22c55e; }
+    .check-no { color: #52525b; }
+    .check-warn { color: #eab308; }
+    .check-icon-muted { color: #52525b; font-size: 16px; }
+
+    .session-actions { display: flex; margin-bottom: 12px; }
+    .btn-conduct { background: #22c55e; color: #0a0a0b; border: none; padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .btn-conduct:hover { background: #16a34a; }
+    .cancel-form { display: inline; }
+    .btn-cancel-session { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,0.4); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-cancel-session:hover { background: rgba(239,68,68,0.1); border-color: #ef4444; }
+
+    .cancelled-notice { display: flex; align-items: center; gap: 12px; padding: 20px 24px; background: #111113; border: 1px solid #27272a; border-radius: 14px; }
+    .cancelled-icon { font-size: 22px; color: #71717a; }
+    .cancelled-text { font-size: 15px; font-weight: 600; color: #71717a; }
+
+    .empty-state-small { padding: 32px 24px; text-align: center; color: #71717a; font-size: 14px; }
+
+    @media (max-width: 600px) {
+        .gsession-header { flex-direction: column; align-items: flex-start; }
+        .meta-card { flex-direction: column; align-items: flex-start; }
+        .meta-divider { display: none; }
+        .attendance-table-header, .attendance-row { grid-template-columns: 1fr 60px 60px 60px; }
+    }
+</style>
 
 @endsection

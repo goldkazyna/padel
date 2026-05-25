@@ -3,234 +3,166 @@
 
 @section('content')
 
-<div class="page-header">
-    <div>
-        <div style="margin-bottom:6px;">
-            <a href="{{ route('club.groups.index') }}" style="color:var(--text-muted);text-decoration:none;font-size:0.9rem;">
-                <i class="bi bi-arrow-left me-1"></i>Группы
-            </a>
+<div class="group-show-container">
+
+    <div class="group-show-header">
+        <div class="group-show-title-block">
+            <a href="{{ route('club.groups.index') }}" class="back-link">&#8592; Группы</a>
+            <h1 class="group-show-title">{{ $group->name }}</h1>
+            <div class="group-show-meta">
+                @if($group->coach)
+                    <span class="meta-item">{{ $group->coach->name }}</span>
+                    <span class="meta-sep">&nbsp;·&nbsp;</span>
+                @endif
+                @if($group->price_per_session > 0)
+                    <span class="meta-item meta-price">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/занятие</span>
+                    <span class="meta-sep">&nbsp;·&nbsp;</span>
+                @endif
+                @if($group->status === 'active')
+                    <span class="badge-active">Активна</span>
+                @else
+                    <span class="badge-archived">Архив</span>
+                @endif
+            </div>
         </div>
-        <h2><i class="bi bi-people me-2" style="color:var(--accent)"></i>{{ $group->name }}</h2>
-        <p style="color:var(--text-secondary)">
-            @if($group->coach)
-                Тренер: {{ $group->coach->name }} &nbsp;·&nbsp;
-            @endif
-            @if($group->price_per_session > 0)
-                {{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/занятие &nbsp;·&nbsp;
-            @endif
-            @if($group->status === 'active')
-                <span class="badge-success-custom">Активна</span>
+        <button class="btn-edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
+    </div>
+
+    @if(session('success'))
+        <div class="flash-message flash-success">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="flash-message flash-error">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="flash-message flash-error">
+            @foreach($errors->all() as $err)
+                <div>{{ $err }}</div>
+            @endforeach
+        </div>
+    @endif
+
+    @if($group->note)
+        <div class="note-card">
+            <span class="note-icon">&#8505;</span>
+            <span class="note-text">{{ $group->note }}</span>
+        </div>
+    @endif
+
+    <div class="two-col-grid">
+
+        <!-- Участники -->
+        <div class="section-card">
+            <div class="section-card-header">
+                <h2 class="section-title">Участники</h2>
+                <button class="btn-add-small" onclick="document.getElementById('addMemberModal').style.display='flex'">+ Добавить</button>
+            </div>
+            @php $activeMembers = $group->members->where('status', 'active'); @endphp
+            @if($activeMembers->isEmpty())
+                <div class="empty-state-small">
+                    <p>Участников пока нет.</p>
+                </div>
             @else
-                <span class="badge-secondary-custom">Архив</span>
+                @foreach($activeMembers as $member)
+                    <div class="member-row">
+                        <div class="member-name">{{ optional($member->client)->name ?? '—' }}</div>
+                        <div class="member-right">
+                            @php $rem = $member->remaining; @endphp
+                            <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
+                            <button class="action-btn action-renew" onclick="openEnrollModal({{ $member->id }})" title="Продлить">+</button>
+                            <form method="POST"
+                                  action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
+                                  onsubmit="return confirm('Убрать участника из группы?')"
+                                  style="display:inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="action-btn action-remove" title="Убрать">&#10005;</button>
+                            </form>
+                        </div>
+                    </div>
+                @endforeach
             @endif
-        </p>
-    </div>
-    <button class="btn-outline-custom" onclick="document.getElementById('editGroupModal').style.display='flex'">
-        <i class="bi bi-pencil"></i> Редактировать
-    </button>
-</div>
-
-@if(session('success'))
-    <div class="alert-success-custom mb-4">{{ session('success') }}</div>
-@endif
-@if(session('error'))
-    <div class="alert-danger-custom mb-4">{{ session('error') }}</div>
-@endif
-
-@if($group->note)
-    <div class="card-dark mb-4">
-        <div class="card-body" style="color:var(--text-secondary);">
-            <i class="bi bi-info-circle me-2" style="color:var(--accent)"></i>{{ $group->note }}
         </div>
-    </div>
-@endif
 
-<div class="row g-4">
-    <!-- Участники -->
-    <div class="col-12 col-lg-6">
-        <div class="card-dark h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-person-check"></i> Участники</h5>
-                <button class="btn-primary-custom" onclick="document.getElementById('addMemberModal').style.display='flex'">
-                    <i class="bi bi-plus-lg"></i> Добавить
-                </button>
+        <!-- Занятия группы -->
+        <div class="section-card">
+            <div class="section-card-header">
+                <h2 class="section-title">Занятия группы</h2>
+                <span class="sessions-count">{{ $sessions->count() }}</span>
             </div>
-            <div class="card-body p-0">
-                @php $activeMembers = $group->members->where('status', 'active'); @endphp
-                @if($activeMembers->isEmpty())
-                    <div class="text-center py-5" style="color:var(--text-muted)">
-                        <i class="bi bi-person-x" style="font-size:2.5rem;"></i>
-                        <p class="mt-3">Участников пока нет.</p>
-                    </div>
-                @else
-                    <div class="table-responsive">
-                        <table class="table table-dark-custom mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Клиент</th>
-                                    <th>Остаток занятий</th>
-                                    <th style="width:100px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($activeMembers as $member)
-                                    <tr>
-                                        <td style="font-weight:500;">
-                                            {{ optional($member->client)->name ?? '—' }}
-                                        </td>
-                                        <td>
-                                            @php $rem = $member->remaining; @endphp
-                                            <span class="{{ $rem > 0 ? 'badge-success-custom' : 'badge-danger-custom' }}">
-                                                {{ $rem }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex gap-1 justify-content-end">
-                                                <button class="btn-outline-custom" style="padding:4px 8px;font-size:0.8rem;"
-                                                        onclick="openEnrollModal({{ $member->id }})">
-                                                    <i class="bi bi-plus-circle"></i> Продлить
-                                                </button>
-                                                <form method="POST"
-                                                      action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
-                                                      onsubmit="return confirm('Убрать участника из группы?')"
-                                                      style="display:inline;">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn-danger-custom" style="padding:4px 8px;font-size:0.8rem;">
-                                                        <i class="bi bi-person-dash"></i> Убрать
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
+            @if($sessions->isEmpty())
+                <div class="empty-state-small">
+                    <p>Занятий пока нет.</p>
+                </div>
+            @else
+                @foreach($sessions as $s)
+                    <a href="{{ route('club.groupSessions.show', $s) }}" class="session-row">
+                        <div class="session-date">{{ $s->date ? $s->date->format('d.m.Y') : '—' }}</div>
+                        <div class="session-time">
+                            {{ $s->start_time ? substr($s->start_time, 0, 5) : '—' }}
+                            @if($s->end_time)– {{ substr($s->end_time, 0, 5) }}@endif
+                        </div>
+                        <div class="session-court">{{ optional($s->court)->name ?? '—' }}</div>
+                        <div>
+                            @if($s->status === 'held')
+                                <span class="badge-held">Проведено</span>
+                            @elseif($s->status === 'cancelled')
+                                <span class="badge-cancelled">Отменено</span>
+                            @else
+                                <span class="badge-planned">Запланировано</span>
+                            @endif
+                        </div>
+                    </a>
+                @endforeach
+            @endif
         </div>
-    </div>
 
-    <!-- Занятия группы -->
-    <div class="col-12 col-lg-6">
-        <div class="card-dark h-100">
-            <div class="card-header">
-                <h5><i class="bi bi-calendar3"></i> Занятия группы</h5>
-                <span style="color:var(--text-muted);font-size:0.9rem;">{{ $sessions->count() }} {{ $sessions->count() === 1 ? 'занятие' : ($sessions->count() < 5 ? 'занятия' : 'занятий') }}</span>
-            </div>
-            <div class="card-body p-0">
-                @if($sessions->isEmpty())
-                    <div class="text-center py-5" style="color:var(--text-muted)">
-                        <i class="bi bi-calendar-x" style="font-size:2.5rem;"></i>
-                        <p class="mt-3">Занятий пока нет.</p>
-                    </div>
-                @else
-                    <div class="table-responsive">
-                        <table class="table table-dark-custom mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Время</th>
-                                    <th>Корт</th>
-                                    <th>Статус</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($sessions as $session)
-                                    <tr>
-                                        <td style="font-weight:500;">
-                                            {{ $session->date ? $session->date->format('d.m.Y') : '—' }}
-                                        </td>
-                                        <td style="color:var(--text-secondary);">
-                                            {{ $session->start_time ? substr($session->start_time, 0, 5) : '—' }}
-                                            @if($session->end_time)
-                                                – {{ substr($session->end_time, 0, 5) }}
-                                            @endif
-                                        </td>
-                                        <td style="color:var(--text-secondary);">
-                                            {{ optional($session->court)->name ?? '—' }}
-                                        </td>
-                                        <td>
-                                            @if($session->status === 'held')
-                                                <span class="badge-success-custom">Проведено</span>
-                                            @elseif($session->status === 'cancelled')
-                                                <span class="badge-danger-custom">Отменено</span>
-                                            @else
-                                                <span class="badge-secondary-custom">Запланировано</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
-            </div>
-        </div>
     </div>
 </div>
 
-@endsection
-
-@section('modals')
 <!-- Модал добавления участника -->
 <div id="addMemberModal"
      style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
      onclick="if(event.target===this)this.style.display='none'">
-    <div class="card-dark" style="width:100%;max-width:480px;max-height:90vh;overflow-y:auto;margin:20px;">
-        <div class="card-header">
-            <h5><i class="bi bi-person-plus"></i> Добавить участника</h5>
-            <button type="button" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;"
-                    onclick="document.getElementById('addMemberModal').style.display='none'">
-                <i class="bi bi-x"></i>
-            </button>
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header-row">
+            <h5 class="modal-title-text">Добавить участника</h5>
+            <button type="button" class="modal-close-btn" onclick="document.getElementById('addMemberModal').style.display='none'">&#10005;</button>
         </div>
-        <div class="card-body">
-            <form method="POST" action="{{ route('club.groups.members.store', $group) }}">
-                @csrf
-
-                <div class="mb-3">
+        <form method="POST" action="{{ route('club.groups.members.store', $group) }}">
+            @csrf
+            <div class="modal-body-area">
+                <div class="form-group">
                     <label class="form-label">Клиент <span style="color:#ef4444">*</span></label>
-                    <select name="client_id" class="form-select" required>
+                    <select name="client_id" class="form-input" required>
                         <option value="">— выберите клиента —</option>
                         @foreach($clients as $c)
                             <option value="{{ $c->id }}">{{ $c->name }}</option>
                         @endforeach
                     </select>
                 </div>
-
-                <div class="row mb-3">
-                    <div class="col-6">
+                <div class="form-row-2">
+                    <div class="form-group">
                         <label class="form-label">Занятий в пакете <span style="color:#ef4444">*</span></label>
-                        <input type="number" name="sessions" class="form-control" min="1" max="200" required
+                        <input type="number" name="sessions" class="form-input" min="1" max="200" required
                                value="{{ old('sessions', 8) }}">
                     </div>
-                    <div class="col-6">
+                    <div class="form-group">
                         <label class="form-label">Сумма (₸)</label>
-                        <input type="number" name="amount" class="form-control" min="0" step="100"
+                        <input type="number" name="amount" class="form-input" min="0" step="100"
                                value="{{ old('amount', $group->price_per_session * 8) }}">
                     </div>
                 </div>
-
-                <div class="mb-4">
-                    <div class="form-check">
-                        <input type="checkbox" name="is_paid" value="1" id="addIsPaid" class="form-check-input" checked>
-                        <label class="form-check-label" for="addIsPaid">Оплачено</label>
-                    </div>
+                <div class="form-check-row">
+                    <input type="checkbox" name="is_paid" value="1" id="addIsPaid" class="form-check-box" checked>
+                    <label class="form-check-label" for="addIsPaid">Оплачено</label>
                 </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn-primary-custom flex-grow-1">
-                        <i class="bi bi-person-check"></i> Добавить
-                    </button>
-                    <button type="button" class="btn-outline-custom"
-                            onclick="document.getElementById('addMemberModal').style.display='none'">
-                        Отмена
-                    </button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="modal-footer-row">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('addMemberModal').style.display='none'">Отмена</button>
+                <button type="submit" class="btn-save">Добавить</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -238,47 +170,97 @@
 <div id="enrollModal"
      style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
      onclick="if(event.target===this)this.style.display='none'">
-    <div class="card-dark" style="width:100%;max-width:420px;max-height:90vh;overflow-y:auto;margin:20px;">
-        <div class="card-header">
-            <h5><i class="bi bi-plus-circle"></i> Добавить пакет занятий</h5>
-            <button type="button" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;"
-                    onclick="document.getElementById('enrollModal').style.display='none'">
-                <i class="bi bi-x"></i>
-            </button>
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header-row">
+            <h5 class="modal-title-text">Добавить пакет занятий</h5>
+            <button type="button" class="modal-close-btn" onclick="document.getElementById('enrollModal').style.display='none'">&#10005;</button>
         </div>
-        <div class="card-body">
-            <form id="enrollForm" method="POST" action="">
-                @csrf
-
-                <div class="row mb-3">
-                    <div class="col-6">
+        <form id="enrollForm" method="POST" action="">
+            @csrf
+            <div class="modal-body-area">
+                <div class="form-row-2">
+                    <div class="form-group">
                         <label class="form-label">Занятий <span style="color:#ef4444">*</span></label>
-                        <input type="number" name="sessions" class="form-control" min="1" max="200" required value="8">
+                        <input type="number" name="sessions" class="form-input" min="1" max="200" required value="8">
                     </div>
-                    <div class="col-6">
+                    <div class="form-group">
                         <label class="form-label">Сумма (₸)</label>
-                        <input type="number" name="amount" class="form-control" min="0" step="100" value="0">
+                        <input type="number" name="amount" class="form-input" min="0" step="100" value="0">
                     </div>
                 </div>
-
-                <div class="mb-4">
-                    <div class="form-check">
-                        <input type="checkbox" name="is_paid" value="1" id="enrollIsPaid" class="form-check-input" checked>
-                        <label class="form-check-label" for="enrollIsPaid">Оплачено</label>
-                    </div>
+                <div class="form-check-row">
+                    <input type="checkbox" name="is_paid" value="1" id="enrollIsPaid" class="form-check-box" checked>
+                    <label class="form-check-label" for="enrollIsPaid">Оплачено</label>
                 </div>
+            </div>
+            <div class="modal-footer-row">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('enrollModal').style.display='none'">Отмена</button>
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn-primary-custom flex-grow-1">
-                        <i class="bi bi-check-lg"></i> Сохранить
-                    </button>
-                    <button type="button" class="btn-outline-custom"
-                            onclick="document.getElementById('enrollModal').style.display='none'">
-                        Отмена
-                    </button>
-                </div>
-            </form>
+<!-- Модал редактирования группы -->
+<div id="editGroupModal"
+     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header-row">
+            <h5 class="modal-title-text">Редактировать группу</h5>
+            <button type="button" class="modal-close-btn" onclick="document.getElementById('editGroupModal').style.display='none'">&#10005;</button>
         </div>
+        <form method="POST" action="{{ route('club.groups.update', $group) }}">
+            @csrf
+            @method('PUT')
+            <div class="modal-body-area">
+                <div class="form-group">
+                    <label class="form-label">Название <span style="color:#ef4444">*</span></label>
+                    <input type="text" name="name" class="form-input" required
+                           value="{{ old('name', $group->name) }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Тренер</label>
+                    <select name="coach_id" class="form-input">
+                        <option value="">— без тренера —</option>
+                        @foreach($coaches as $coach)
+                            <option value="{{ $coach->user_id }}"
+                                {{ old('coach_id', $group->coach_id) == $coach->user_id ? 'selected' : '' }}>
+                                {{ $coach->user->name ?? 'Тренер #'.$coach->user_id }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">Цена за занятие (₸)</label>
+                        <input type="number" name="price_per_session" class="form-input" min="0" step="100"
+                               value="{{ old('price_per_session', $group->price_per_session) }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Макс. участников</label>
+                        <input type="number" name="capacity" class="form-input" min="1" max="100"
+                               value="{{ old('capacity', $group->capacity) }}" placeholder="Не ограничено">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Статус</label>
+                    <select name="status" class="form-input">
+                        <option value="active" {{ old('status', $group->status) === 'active' ? 'selected' : '' }}>Активна</option>
+                        <option value="archived" {{ old('status', $group->status) === 'archived' ? 'selected' : '' }}>Архив</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Заметка</label>
+                    <textarea name="note" class="form-input" rows="3"
+                              placeholder="Дополнительная информация о группе...">{{ old('note', $group->note) }}</textarea>
+                </div>
+            </div>
+            <div class="modal-footer-row">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('editGroupModal').style.display='none'">Отмена</button>
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -296,80 +278,88 @@
     }
 </script>
 
-<!-- Модал редактирования группы -->
-<div id="editGroupModal"
-     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
-     onclick="if(event.target===this)this.style.display='none'">
-    <div class="card-dark" style="width:100%;max-width:520px;max-height:90vh;overflow-y:auto;margin:20px;">
-        <div class="card-header">
-            <h5><i class="bi bi-pencil-square"></i> Редактировать группу</h5>
-            <button type="button" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;"
-                    onclick="document.getElementById('editGroupModal').style.display='none'">
-                <i class="bi bi-x"></i>
-            </button>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ route('club.groups.update', $group) }}">
-                @csrf
-                @method('PUT')
+<style>
+    .group-show-container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+    .group-show-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+    .group-show-title-block { display: flex; flex-direction: column; gap: 6px; }
+    .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
+    .back-link:hover { color: #a1a1aa; }
+    .group-show-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #f4f4f5; margin: 0; }
+    .group-show-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 14px; }
+    .meta-item { color: #a1a1aa; font-weight: 500; }
+    .meta-price { color: #22c55e; font-weight: 600; }
+    .meta-sep { color: #52525b; }
+    .badge-active { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; }
+    .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; }
+    .btn-edit { display: flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-edit:hover { border-color: #3b82f6; color: #3b82f6; }
 
-                <div class="mb-3">
-                    <label class="form-label">Название <span style="color:#ef4444">*</span></label>
-                    <input type="text" name="name" class="form-control" required
-                           value="{{ old('name', $group->name) }}">
-                </div>
+    .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 
-                <div class="mb-3">
-                    <label class="form-label">Тренер</label>
-                    <select name="coach_id" class="form-select">
-                        <option value="">— без тренера —</option>
-                        @foreach($coaches as $coach)
-                            <option value="{{ $coach->user_id }}"
-                                {{ old('coach_id', $group->coach_id) == $coach->user_id ? 'selected' : '' }}>
-                                {{ $coach->user->name ?? 'Тренер #'.$coach->user_id }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+    .note-card { display: flex; align-items: flex-start; gap: 12px; background: #111113; border: 1px solid #27272a; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
+    .note-icon { font-size: 18px; color: #22c55e; flex-shrink: 0; }
+    .note-text { font-size: 14px; color: #a1a1aa; font-weight: 500; line-height: 1.5; }
 
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <label class="form-label">Цена за занятие (₸)</label>
-                        <input type="number" name="price_per_session" class="form-control" min="0" step="100"
-                               value="{{ old('price_per_session', $group->price_per_session) }}">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Макс. участников</label>
-                        <input type="number" name="capacity" class="form-control" min="1" max="100"
-                               value="{{ old('capacity', $group->capacity) }}" placeholder="Не ограничено">
-                    </div>
-                </div>
+    .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .section-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
+    .section-card-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #27272a; }
+    .section-title { font-size: 15px; font-weight: 700; color: #f4f4f5; margin: 0; }
+    .sessions-count { font-size: 13px; color: #71717a; font-weight: 600; background: #16161a; border: 1px solid #27272a; border-radius: 6px; padding: 3px 10px; }
+    .btn-add-small { background: #22c55e; color: #0a0a0b; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .btn-add-small:hover { background: #16a34a; }
 
-                <div class="mb-3">
-                    <label class="form-label">Статус</label>
-                    <select name="status" class="form-select">
-                        <option value="active" {{ old('status', $group->status) === 'active' ? 'selected' : '' }}>Активна</option>
-                        <option value="archived" {{ old('status', $group->status) === 'archived' ? 'selected' : '' }}>Архив</option>
-                    </select>
-                </div>
+    .member-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #1c1c1f; transition: background 0.15s; }
+    .member-row:last-child { border-bottom: none; }
+    .member-row:hover { background: #16161a; }
+    .member-name { font-size: 14px; font-weight: 600; color: #f4f4f5; }
+    .member-right { display: flex; align-items: center; gap: 8px; }
+    .rem-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+    .rem-ok { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .rem-low { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 7px; cursor: pointer; color: #a1a1aa; font-size: 14px; transition: all 0.2s; font-weight: 700; }
+    .action-renew:hover { border-color: #22c55e; color: #22c55e; }
+    .action-remove:hover { border-color: #ef4444; color: #ef4444; }
 
-                <div class="mb-4">
-                    <label class="form-label">Заметка</label>
-                    <textarea name="note" class="form-control" rows="3"
-                              placeholder="Дополнительная информация о группе...">{{ old('note', $group->note) }}</textarea>
-                </div>
+    .session-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #1c1c1f; text-decoration: none; transition: background 0.15s; }
+    .session-row:last-child { border-bottom: none; }
+    .session-row:hover { background: #16161a; }
+    .session-date { font-size: 14px; font-weight: 600; color: #f4f4f5; min-width: 80px; }
+    .session-time { font-size: 13px; color: #71717a; font-weight: 500; min-width: 90px; }
+    .session-court { font-size: 13px; color: #a1a1aa; flex: 1; }
+    .badge-held { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .badge-cancelled { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .badge-planned { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn-primary-custom flex-grow-1">
-                        <i class="bi bi-check-lg"></i> Сохранить
-                    </button>
-                    <button type="button" class="btn-outline-custom"
-                            onclick="document.getElementById('editGroupModal').style.display='none'">
-                        Отмена
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+    .empty-state-small { padding: 32px 20px; text-align: center; color: #71717a; font-size: 14px; }
+
+    /* Modal */
+    .modal-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }
+    .modal-header-row { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #27272a; }
+    .modal-title-text { font-size: 17px; font-weight: 700; color: #f4f4f5; margin: 0; }
+    .modal-close-btn { background: none; border: none; color: #71717a; font-size: 16px; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s; }
+    .modal-close-btn:hover { color: #ef4444; }
+    .modal-body-area { padding: 24px; }
+    .modal-footer-row { display: flex; gap: 12px; padding: 20px 24px; border-top: 1px solid #27272a; }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; color: #a1a1aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f4f5; font-weight: 500; font-family: inherit; box-sizing: border-box; }
+    .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+    .form-input::placeholder { color: #52525b; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .form-check-box { width: 18px; height: 18px; accent-color: #22c55e; cursor: pointer; }
+    .form-check-label { font-size: 14px; font-weight: 600; color: #a1a1aa; cursor: pointer; }
+    .btn-cancel { flex: 1; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .btn-save:hover { background: #16a34a; }
+
+    @media (max-width: 768px) {
+        .group-show-header { flex-direction: column; align-items: flex-start; }
+        .two-col-grid { grid-template-columns: 1fr; }
+        .form-row-2 { grid-template-columns: 1fr; }
+    }
+</style>
+
 @endsection
