@@ -265,6 +265,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/groups/{group}/members', [App\Http\Controllers\Club\ClubGroupController::class, 'addMember'])->name('groups.members.store');
             Route::post('/groups/{group}/members/{member}/enroll', [App\Http\Controllers\Club\ClubGroupController::class, 'enroll'])->name('groups.members.enroll');
             Route::delete('/groups/{group}/members/{member}', [App\Http\Controllers\Club\ClubGroupController::class, 'removeMember'])->name('groups.members.destroy');
+            Route::get('/group-sessions', [App\Http\Controllers\Club\GroupSessionController::class, 'index'])->name('groupSessions.index');
+            Route::post('/group-sessions', [App\Http\Controllers\Club\GroupSessionController::class, 'store'])->name('groupSessions.store');
         });
 
         // Корты

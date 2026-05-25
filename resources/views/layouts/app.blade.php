@@ -954,6 +954,12 @@
 							<span>Группы</span>
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
+							<i class="bi bi-journal-check"></i>
+							<span>Журнал занятий</span>
+						</a>
+					</li>
 					@endif
 					@if($modClub && $modClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($modClub))
 					<li class="nav-item">
@@ -1001,6 +1007,12 @@
 						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Группы</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
+							<i class="bi bi-journal-check"></i>
+							<span>Журнал занятий</span>
 						</a>
 					</li>
 					@endif
