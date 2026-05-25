@@ -47,7 +47,15 @@ class ClientController extends Controller
             ? ClubClient::where('club_id', $club->id)->find($selectedId)
             : $clients->first();
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient'));
+        $clientGroups = collect();
+        if ($selectedClient) {
+            $clientGroups = \App\Models\ClubGroupMember::where('client_id', $selectedClient->id)
+                ->whereHas('group', fn($q) => $q->where('club_id', $club->id))
+                ->with('group')
+                ->get();
+        }
+
+        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups'));
     }
 
     /**

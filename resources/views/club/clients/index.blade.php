@@ -155,6 +155,20 @@
                     </div>
                 </div>
 
+                @if(isset($clientGroups) && $clientGroups->count())
+                <div class="client-detail-section">
+                    <div class="client-detail-label">Группы</div>
+                    <div class="client-detail-fields">
+                        @foreach($clientGroups as $gm)
+                        <div class="client-detail-field">
+                            <a href="{{ route('club.groups.show', $gm->group) }}" style="color:var(--cl-text);text-decoration:none;">{{ $gm->group->name }}</a>
+                            <span class="field-label">осталось: {{ $gm->remaining }}</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 @if($selectedClient->note)
                 <div class="client-detail-section">
                     <div class="client-detail-label">Заметка</div>
