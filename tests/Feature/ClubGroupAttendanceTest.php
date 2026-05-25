@@ -66,4 +66,21 @@ class ClubGroupAttendanceTest extends TestCase
         $this->assertSame('cancelled', $booking->fresh()->status);
         $this->assertSame(2, $member->fresh()->remaining);
     }
+
+    public function test_reconduct_held_session_blocked(): void
+    {
+        [, $admin, , $member, $session] = $this->scenario(2);
+
+        // First conduct: attend + charge → remaining 2 -> 1
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+        ])->assertRedirect();
+        $this->assertSame(1, $member->fresh()->remaining);
+
+        // Second conduct attempt on a held session → blocked, balance unchanged
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+        ])->assertSessionHas('error');
+        $this->assertSame(1, $member->fresh()->remaining);
+    }
 }

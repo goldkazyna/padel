@@ -124,6 +124,10 @@ class GroupSessionController extends Controller
             return back()->with('error', 'Занятие отменено');
         }
 
+        if ($session->status === 'held') {
+            return back()->with('error', 'Занятие уже проведено');
+        }
+
         $rows = $request->input('attendance', []);
 
         // Проверка: у отмеченных «пришёл + списать» должен быть остаток > 0
@@ -185,5 +189,6 @@ class GroupSessionController extends Controller
         if (!$club) abort(403);
         $courtIds = $club->courts()->pluck('id')->all();
         if (!in_array($session->court_id, $courtIds, true)) abort(403);
+        if ($session->group && $session->group->club_id !== $club->id) abort(403);
     }
 }
