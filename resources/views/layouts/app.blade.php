@@ -947,6 +947,14 @@
 						</a>
 					</li>
 					@endif
+					@if(!$modClub || $modClub->hasFeature('groups'))
+					<li class="nav-item">
+						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
+							<i class="bi bi-people"></i>
+							<span>Группы</span>
+						</a>
+					</li>
+					@endif
 					@if($modClub && $modClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($modClub))
 					<li class="nav-item">
 						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
@@ -985,6 +993,14 @@
 						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
 							<i class="bi bi-person-lines-fill"></i>
 							<span>Клиенты</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('groups'))
+					<li class="nav-item">
+						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
+							<i class="bi bi-people"></i>
+							<span>Группы</span>
 						</a>
 					</li>
 					@endif
