@@ -129,17 +129,22 @@
             <h5 class="modal-title-text">Добавить участника</h5>
             <button type="button" class="modal-close-btn" onclick="document.getElementById('addMemberModal').style.display='none'">&#10005;</button>
         </div>
-        <form method="POST" action="{{ route('club.groups.members.store', $group) }}">
+        <form method="POST" action="{{ route('club.groups.members.store', $group) }}" onsubmit="return groupMemberValid()">
             @csrf
             <div class="modal-body-area">
-                <div class="form-group">
+                <div class="form-group" style="position:relative;">
                     <label class="form-label">Клиент <span style="color:#ef4444">*</span></label>
-                    <select name="client_id" class="form-input" required>
-                        <option value="">— выберите клиента —</option>
-                        @foreach($clients as $c)
-                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                        @endforeach
-                    </select>
+                    <input type="text" id="memberClientSearch" class="form-input" autocomplete="off"
+                           placeholder="Поиск по имени или телефону…" oninput="searchGroupClients(this.value)">
+                    <div id="memberClientResults"
+                         style="position:absolute;left:0;right:0;top:100%;z-index:10;background:#16161a;border:1px solid #27272a;border-radius:10px;margin-top:4px;max-height:220px;overflow-y:auto;display:none;"></div>
+                    <input type="hidden" name="client_id" id="memberClientId">
+                    <div id="memberClientSelected"
+                         style="display:none;align-items:center;justify-content:space-between;margin-top:8px;padding:10px 12px;background:#16161a;border:1px solid #22c55e;border-radius:10px;">
+                        <span id="memberClientSelectedName" style="color:#22c55e;font-weight:700;font-size:14px;"></span>
+                        <button type="button" onclick="clearGroupClient()"
+                                style="background:none;border:none;color:#71717a;cursor:pointer;font-size:14px;">&#10005;</button>
+                    </div>
                 </div>
                 <div class="form-row-2">
                     <div class="form-group">
@@ -275,6 +280,65 @@
         var form = document.getElementById('enrollForm');
         form.action = enrollRoutes[memberId] || '';
         document.getElementById('enrollModal').style.display = 'flex';
+    }
+
+    // Динамический поиск клиента (по имени или телефону) для добавления в группу
+    var groupClientTimer;
+    function searchGroupClients(q) {
+        clearTimeout(groupClientTimer);
+        var box = document.getElementById('memberClientResults');
+        q = (q || '').trim();
+        if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        var field = /\d/.test(q) ? 'phone' : 'name';
+        groupClientTimer = setTimeout(function () {
+            fetch('{{ route("club.clients.search") }}?field=' + field + '&q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (list) {
+                    box.innerHTML = '';
+                    if (!list.length) {
+                        var empty = document.createElement('div');
+                        empty.style.cssText = 'padding:12px;color:#71717a;font-size:13px;';
+                        empty.textContent = 'Ничего не найдено';
+                        box.appendChild(empty);
+                        box.style.display = 'block';
+                        return;
+                    }
+                    list.forEach(function (c) {
+                        var item = document.createElement('div');
+                        item.style.cssText = 'padding:10px 12px;cursor:pointer;border-bottom:1px solid #27272a;display:flex;justify-content:space-between;gap:8px;';
+                        var nm = document.createElement('span');
+                        nm.style.cssText = 'color:#f4f4f5;font-size:14px;';
+                        nm.textContent = c.name || '';
+                        var ph = document.createElement('span');
+                        ph.style.cssText = 'color:#71717a;font-size:13px;';
+                        ph.textContent = c.phone || '';
+                        item.appendChild(nm); item.appendChild(ph);
+                        item.addEventListener('mouseenter', function () { item.style.background = '#1a1a1e'; });
+                        item.addEventListener('mouseleave', function () { item.style.background = 'transparent'; });
+                        item.addEventListener('click', function () { selectGroupClient(c.id, c.name || ''); });
+                        box.appendChild(item);
+                    });
+                    box.style.display = 'block';
+                });
+        }, 250);
+    }
+    function selectGroupClient(id, name) {
+        document.getElementById('memberClientId').value = id;
+        document.getElementById('memberClientSelectedName').textContent = name;
+        document.getElementById('memberClientSelected').style.display = 'flex';
+        document.getElementById('memberClientResults').style.display = 'none';
+        document.getElementById('memberClientSearch').value = '';
+    }
+    function clearGroupClient() {
+        document.getElementById('memberClientId').value = '';
+        document.getElementById('memberClientSelected').style.display = 'none';
+    }
+    function groupMemberValid() {
+        if (!document.getElementById('memberClientId').value) {
+            alert('Выберите клиента (поиск по имени или телефону)');
+            return false;
+        }
+        return true;
     }
 </script>
 
