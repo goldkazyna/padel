@@ -339,6 +339,13 @@
                                        style="background-color: var(--bg-secondary); border-color: var(--border);">
                                 <span class="form-check-label">Менеджеры / Модераторы</span>
                             </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[groups]" value="0">
+                                <input type="checkbox" name="features[groups]" value="1" class="form-check-input"
+                                       {{ old('features.groups', $features['groups'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Групповые занятия</span>
+                            </label>
                         </div>
                     </div>
 

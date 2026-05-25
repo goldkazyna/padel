@@ -87,6 +87,7 @@ class ClubController extends Controller
             'clients' => (bool) ($features['clients'] ?? true),
             'activity_log' => (bool) ($features['activity_log'] ?? true),
             'moderators' => (bool) ($features['moderators'] ?? true),
+            'groups' => (bool) ($features['groups'] ?? true),
         ];
 
         // Удаление текущего логотипа (если поставлен чекбокс)
