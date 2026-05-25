@@ -86,4 +86,75 @@ class ClubGroupController extends Controller
 
         return back()->with('success', 'Группа обновлена');
     }
+
+    public function addMember(Request $request, ClubGroup $group)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id) abort(403);
+
+        $validated = $request->validate([
+            'client_id' => 'required|exists:club_clients,id',
+            'sessions' => 'required|integer|min:1|max:200',
+            'amount' => 'nullable|numeric|min:0',
+            'is_paid' => 'nullable|boolean',
+        ]);
+
+        $client = \App\Models\ClubClient::find($validated['client_id']);
+        if (!$client || $client->club_id !== $club->id) abort(403);
+
+        if ($group->members()->where('client_id', $client->id)->exists()) {
+            return back()->with('error', 'Клиент уже в этой группе');
+        }
+
+        if ($group->capacity !== null
+            && $group->members()->where('status', 'active')->count() >= $group->capacity) {
+            return back()->with('error', 'Группа заполнена (достигнута вместимость)');
+        }
+
+        $member = \App\Models\ClubGroupMember::create([
+            'group_id' => $group->id,
+            'client_id' => $client->id,
+        ]);
+        $this->createEnrollment($member, $validated);
+
+        \App\Models\ActivityLog::log('created', 'ClubGroupMember', $member->id,
+            "В группу «{$group->name}» добавлен {$client->name} ({$validated['sessions']} занятий)", clubId: $club->id);
+
+        return back()->with('success', 'Участник добавлен');
+    }
+
+    public function enroll(Request $request, ClubGroup $group, \App\Models\ClubGroupMember $member)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+
+        $validated = $request->validate([
+            'sessions' => 'required|integer|min:1|max:200',
+            'amount' => 'nullable|numeric|min:0',
+            'is_paid' => 'nullable|boolean',
+        ]);
+        $this->createEnrollment($member, $validated);
+
+        return back()->with('success', 'Пакет занятий добавлен');
+    }
+
+    public function removeMember(ClubGroup $group, \App\Models\ClubGroupMember $member)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+
+        $member->delete();
+        return back()->with('success', 'Участник убран из группы');
+    }
+
+    private function createEnrollment(\App\Models\ClubGroupMember $member, array $validated): void
+    {
+        \App\Models\ClubGroupEnrollment::create([
+            'group_member_id' => $member->id,
+            'sessions' => $validated['sessions'],
+            'amount' => $validated['amount'] ?? 0,
+            'is_paid' => (bool) ($validated['is_paid'] ?? false),
+            'created_by' => auth()->id(),
+        ]);
+    }
 }

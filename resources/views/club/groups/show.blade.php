@@ -51,7 +51,7 @@
         <div class="card-dark h-100">
             <div class="card-header">
                 <h5><i class="bi bi-person-check"></i> Участники</h5>
-                <button class="btn-primary-custom" style="opacity:0.5;cursor:not-allowed;" disabled title="Будет добавлено в следующей задаче">
+                <button class="btn-primary-custom" onclick="document.getElementById('addMemberModal').style.display='flex'">
                     <i class="bi bi-plus-lg"></i> Добавить
                 </button>
             </div>
@@ -69,7 +69,7 @@
                                 <tr>
                                     <th>Клиент</th>
                                     <th>Остаток занятий</th>
-                                    <th style="width:60px;"></th>
+                                    <th style="width:100px;"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -85,7 +85,22 @@
                                             </span>
                                         </td>
                                         <td>
-                                            {{-- Действия будут добавлены в следующей задаче --}}
+                                            <div class="d-flex gap-1 justify-content-end">
+                                                <button class="btn-outline-custom" style="padding:4px 8px;font-size:0.8rem;"
+                                                        onclick="openEnrollModal({{ $member->id }})">
+                                                    <i class="bi bi-plus-circle"></i> Продлить
+                                                </button>
+                                                <form method="POST"
+                                                      action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
+                                                      onsubmit="return confirm('Убрать участника из группы?')"
+                                                      style="display:inline;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn-danger-custom" style="padding:4px 8px;font-size:0.8rem;">
+                                                        <i class="bi bi-person-dash"></i> Убрать
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -159,6 +174,128 @@
 @endsection
 
 @section('modals')
+<!-- Модал добавления участника -->
+<div id="addMemberModal"
+     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div class="card-dark" style="width:100%;max-width:480px;max-height:90vh;overflow-y:auto;margin:20px;">
+        <div class="card-header">
+            <h5><i class="bi bi-person-plus"></i> Добавить участника</h5>
+            <button type="button" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;"
+                    onclick="document.getElementById('addMemberModal').style.display='none'">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ route('club.groups.members.store', $group) }}">
+                @csrf
+
+                <div class="mb-3">
+                    <label class="form-label">Клиент <span style="color:#ef4444">*</span></label>
+                    <select name="client_id" class="form-select" required>
+                        <option value="">— выберите клиента —</option>
+                        @foreach($clients as $c)
+                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Занятий в пакете <span style="color:#ef4444">*</span></label>
+                        <input type="number" name="sessions" class="form-control" min="1" max="200" required
+                               value="{{ old('sessions', 8) }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Сумма (₸)</label>
+                        <input type="number" name="amount" class="form-control" min="0" step="100"
+                               value="{{ old('amount', $group->price_per_session * 8) }}">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" name="is_paid" value="1" id="addIsPaid" class="form-check-input" checked>
+                        <label class="form-check-label" for="addIsPaid">Оплачено</label>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn-primary-custom flex-grow-1">
+                        <i class="bi bi-person-check"></i> Добавить
+                    </button>
+                    <button type="button" class="btn-outline-custom"
+                            onclick="document.getElementById('addMemberModal').style.display='none'">
+                        Отмена
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модал продления пакета -->
+<div id="enrollModal"
+     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div class="card-dark" style="width:100%;max-width:420px;max-height:90vh;overflow-y:auto;margin:20px;">
+        <div class="card-header">
+            <h5><i class="bi bi-plus-circle"></i> Добавить пакет занятий</h5>
+            <button type="button" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer;"
+                    onclick="document.getElementById('enrollModal').style.display='none'">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <form id="enrollForm" method="POST" action="">
+                @csrf
+
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Занятий <span style="color:#ef4444">*</span></label>
+                        <input type="number" name="sessions" class="form-control" min="1" max="200" required value="8">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Сумма (₸)</label>
+                        <input type="number" name="amount" class="form-control" min="0" step="100" value="0">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" name="is_paid" value="1" id="enrollIsPaid" class="form-check-input" checked>
+                        <label class="form-check-label" for="enrollIsPaid">Оплачено</label>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn-primary-custom flex-grow-1">
+                        <i class="bi bi-check-lg"></i> Сохранить
+                    </button>
+                    <button type="button" class="btn-outline-custom"
+                            onclick="document.getElementById('enrollModal').style.display='none'">
+                        Отмена
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var enrollRoutes = {
+        @foreach($group->members->where('status', 'active') as $member)
+        {{ $member->id }}: "{{ route('club.groups.members.enroll', [$group, $member]) }}",
+        @endforeach
+    };
+
+    function openEnrollModal(memberId) {
+        var form = document.getElementById('enrollForm');
+        form.action = enrollRoutes[memberId] || '';
+        document.getElementById('enrollModal').style.display = 'flex';
+    }
+</script>
+
 <!-- Модал редактирования группы -->
 <div id="editGroupModal"
      style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
