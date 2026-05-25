@@ -913,15 +913,7 @@
                 
                 @if(auth()->user()->isClubModerator())
 					@php($modClub = auth()->user()->moderatorClubs()->first())
-					<li class="nav-section-title">Модератор</li>
-					@if(!$modClub || $modClub->hasFeature('tournaments'))
-					<li class="nav-item">
-						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
-							<i class="bi bi-trophy"></i>
-							<span>Турниры клуба</span>
-						</a>
-					</li>
-					@endif
+					<li class="nav-section-title">Работа клуба</li>
 					@if(!$modClub || $modClub->hasFeature('courts'))
 					<li class="nav-item">
 						<a href="{{ route('club.courts.schedule') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}" style="position:relative;">
@@ -939,14 +931,6 @@
 						</a>
 					</li>
 					@endif
-					@if(!$modClub || $modClub->hasFeature('clients'))
-					<li class="nav-item">
-						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
-							<i class="bi bi-person-lines-fill"></i>
-							<span>Клиенты</span>
-						</a>
-					</li>
-					@endif
 					@if(!$modClub || $modClub->hasFeature('groups'))
 					<li class="nav-item">
 						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
@@ -961,6 +945,24 @@
 						</a>
 					</li>
 					@endif
+					<li class="nav-section-title">Клиенты и турниры</li>
+					@if(!$modClub || $modClub->hasFeature('clients'))
+					<li class="nav-item">
+						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
+							<i class="bi bi-person-lines-fill"></i>
+							<span>Клиенты</span>
+						</a>
+					</li>
+					@endif
+					@if(!$modClub || $modClub->hasFeature('tournaments'))
+					<li class="nav-item">
+						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+							<i class="bi bi-trophy"></i>
+							<span>Турниры клуба</span>
+						</a>
+					</li>
+					@endif
+					<li class="nav-section-title">Управление</li>
 					@if($modClub && $modClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($modClub))
 					<li class="nav-item">
 						<a href="{{ route('club.activityLog') }}" class="nav-link {{ request()->routeIs('club.activityLog') ? 'active' : '' }}">
@@ -971,51 +973,7 @@
 					@endif
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
 					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
-					<li class="nav-section-title">Админ клуба</li>
-					<li class="nav-item">
-						<a href="{{ route('club.dashboard') }}" class="nav-link {{ request()->routeIs('club.dashboard') ? 'active' : '' }}">
-							<i class="bi bi-building"></i>
-							<span>Мой клуб</span>
-						</a>
-					</li>
-					@if(!$navClub || $navClub->hasFeature('tournaments'))
-					<li class="nav-item">
-						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
-							<i class="bi bi-trophy"></i>
-							<span>Турниры клуба</span>
-						</a>
-					</li>
-					@endif
-					@if(!$navClub || $navClub->hasFeature('users'))
-					<li class="nav-item">
-						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
-							<i class="bi bi-people"></i>
-							<span>Пользователи</span>
-						</a>
-					</li>
-					@endif
-					@if(!$navClub || $navClub->hasFeature('clients'))
-					<li class="nav-item">
-						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
-							<i class="bi bi-person-lines-fill"></i>
-							<span>Клиенты</span>
-						</a>
-					</li>
-					@endif
-					@if(!$navClub || $navClub->hasFeature('groups'))
-					<li class="nav-item">
-						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
-							<i class="bi bi-people"></i>
-							<span>Группы</span>
-						</a>
-					</li>
-					<li class="nav-item">
-						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
-							<i class="bi bi-journal-check"></i>
-							<span>Журнал занятий</span>
-						</a>
-					</li>
-					@endif
+					<li class="nav-section-title">Работа клуба</li>
 					@if(!$navClub || $navClub->hasFeature('courts'))
 					<li class="nav-item">
 						<a href="{{ route('club.courts.schedule') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}" style="position:relative;">
@@ -1033,6 +991,52 @@
 						</a>
 					</li>
 					@endif
+					@if(!$navClub || $navClub->hasFeature('groups'))
+					<li class="nav-item">
+						<a href="{{ route('club.groups.index') }}" class="nav-link {{ request()->routeIs('club.groups.*') ? 'active' : '' }}">
+							<i class="bi bi-people"></i>
+							<span>Группы</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
+							<i class="bi bi-journal-check"></i>
+							<span>Журнал занятий</span>
+						</a>
+					</li>
+					@endif
+					<li class="nav-section-title">Клиенты и турниры</li>
+					@if(!$navClub || $navClub->hasFeature('clients'))
+					<li class="nav-item">
+						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
+							<i class="bi bi-person-lines-fill"></i>
+							<span>Клиенты</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('users'))
+					<li class="nav-item">
+						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
+							<i class="bi bi-people"></i>
+							<span>Пользователи</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('tournaments'))
+					<li class="nav-item">
+						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
+							<i class="bi bi-trophy"></i>
+							<span>Турниры клуба</span>
+						</a>
+					</li>
+					@endif
+					<li class="nav-section-title">Управление</li>
+					<li class="nav-item">
+						<a href="{{ route('club.reports.index') }}" class="nav-link {{ request()->routeIs('club.reports.*') ? 'active' : '' }}">
+							<i class="bi bi-bar-chart-line"></i>
+							<span>Отчёты</span>
+						</a>
+					</li>
 					@if(!$navClub || $navClub->hasFeature('moderators'))
 					<li class="nav-item">
 						<a href="{{ route('club.moderators.index') }}" class="nav-link {{ request()->routeIs('club.moderators.*') ? 'active' : '' }}">
@@ -1049,12 +1053,6 @@
 						</a>
 					</li>
 					@endif
-					<li class="nav-item">
-						<a href="{{ route('club.reports.index') }}" class="nav-link {{ request()->routeIs('club.reports.*') ? 'active' : '' }}">
-							<i class="bi bi-bar-chart-line"></i>
-							<span>Отчёты</span>
-						</a>
-					</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())
