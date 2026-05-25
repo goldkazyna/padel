@@ -102,4 +102,88 @@ class GroupSessionController extends Controller
 
         return redirect()->route('club.groupSessions.index')->with('success', 'Занятие создано');
     }
+
+    public function show(ClubGroupSession $session)
+    {
+        $club = $this->getClub();
+        $this->authorizeSession($club, $session);
+
+        $session->load(['group.members.client', 'group.members.enrollments', 'group.members.attendance', 'court', 'coach', 'attendance']);
+        $members = $session->group->members()->where('status', 'active')->with('client')->get();
+        $existing = $session->attendance->keyBy('group_member_id');
+
+        return view('club.group-sessions.show', compact('session', 'members', 'existing', 'club'));
+    }
+
+    public function conduct(Request $request, ClubGroupSession $session)
+    {
+        $club = $this->getClub();
+        $this->authorizeSession($club, $session);
+
+        if ($session->status === 'cancelled') {
+            return back()->with('error', 'Занятие отменено');
+        }
+
+        $rows = $request->input('attendance', []);
+
+        // Проверка: у отмеченных «пришёл + списать» должен быть остаток > 0
+        foreach ($rows as $memberId => $row) {
+            $attended = !empty($row['attended']);
+            $charged = !empty($row['charged']);
+            if ($attended && $charged) {
+                $member = \App\Models\ClubGroupMember::find($memberId);
+                if (!$member || $member->group_id !== $session->group_id) abort(403);
+                if ($member->remaining <= 0) {
+                    return back()->with('error', "У участника {$member->client->name} закончились занятия — продлите пакет");
+                }
+            }
+        }
+
+        // Применяем посещаемость
+        foreach ($rows as $memberId => $row) {
+            $member = \App\Models\ClubGroupMember::find($memberId);
+            if (!$member || $member->group_id !== $session->group_id) continue;
+            $attended = !empty($row['attended']);
+            $charged = $attended && !empty($row['charged']);
+
+            \App\Models\ClubGroupAttendance::updateOrCreate(
+                ['session_id' => $session->id, 'group_member_id' => $member->id],
+                ['attended' => $attended, 'charged' => $charged]
+            );
+        }
+
+        $session->update([
+            'status' => 'held',
+            'held_at' => now(),
+            'conducted_by' => auth()->id(),
+        ]);
+
+        \App\Models\ActivityLog::log('updated', 'ClubGroupSession', $session->id,
+            "Занятие проведено: «{$session->group->name}»", clubId: $club->id);
+
+        return redirect()->route('club.groupSessions.index')->with('success', 'Занятие проведено');
+    }
+
+    public function cancel(ClubGroupSession $session)
+    {
+        $club = $this->getClub();
+        $this->authorizeSession($club, $session);
+
+        $session->update(['status' => 'cancelled']);
+        if ($session->courtBooking) {
+            $session->courtBooking->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+        }
+
+        \App\Models\ActivityLog::log('cancelled', 'ClubGroupSession', $session->id,
+            "Занятие отменено: «{$session->group->name}»", clubId: $club->id);
+
+        return back()->with('success', 'Занятие отменено, корт освобождён');
+    }
+
+    private function authorizeSession($club, ClubGroupSession $session): void
+    {
+        if (!$club) abort(403);
+        $courtIds = $club->courts()->pluck('id')->all();
+        if (!in_array($session->court_id, $courtIds, true)) abort(403);
+    }
 }

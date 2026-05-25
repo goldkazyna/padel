@@ -74,10 +74,14 @@
                     </thead>
                     <tbody>
                         @forelse($sessions as $s)
-                            <tr>
+                            <tr style="cursor:pointer" onclick="window.location='{{ route('club.groupSessions.show', $s) }}'">
                                 <td>{{ $s->date->format('d.m.Y') }}</td>
                                 <td>{{ $s->start_time }}–{{ $s->end_time }}</td>
-                                <td>{{ $s->group->name }}</td>
+                                <td>
+                                    <a href="{{ route('club.groupSessions.show', $s) }}" class="text-decoration-none fw-semibold">
+                                        {{ $s->group->name }}
+                                    </a>
+                                </td>
                                 <td>{{ $s->coach?->name ?? '—' }}</td>
                                 <td>{{ $s->court->name }}</td>
                                 <td>
