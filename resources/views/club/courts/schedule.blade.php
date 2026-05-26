@@ -564,6 +564,19 @@
                         </div>
                         <input type="hidden" name="booking_type" id="bookingTypeInput">
 
+                        @if(isset($activeGroups) && $activeGroups->count())
+                            <div class="form-group" id="bookGroupSelectWrap" style="display:none;margin-top:12px;">
+                                <label for="bookGroupSelect" style="display:block;font-size:12px;font-weight:700;color:#a1a1aa;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Группа (создаст занятие в журнале)</label>
+                                <select name="group_id" id="bookGroupSelect"
+                                        style="width:100%;background:#16161a;border:1px solid #27272a;border-radius:10px;padding:11px 14px;font-size:14px;color:#f4f4f5;">
+                                    <option value="">— без привязки к группе —</option>
+                                    @foreach($activeGroups as $g)
+                                        <option value="{{ $g->id }}">{{ $g->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+
                         <div class="modal-section-title">Способ оплаты</div>
                         <div class="payment-methods" id="paymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
@@ -1372,6 +1385,17 @@
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+
+        // Показываем выбор группы только при типе «Групповые»
+        const groupWrap = document.getElementById('bookGroupSelectWrap');
+        if (groupWrap) {
+            const showGroup = input.value === 'group';
+            groupWrap.style.display = showGroup ? 'block' : 'none';
+            if (!showGroup) {
+                const sel = document.getElementById('bookGroupSelect');
+                if (sel) sel.value = '';
+            }
+        }
     }
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');

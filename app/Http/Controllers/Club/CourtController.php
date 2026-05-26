@@ -134,10 +134,14 @@ class CourtController extends Controller
             ->orderBy('start_time')
             ->get();
 
+        $activeGroups = $club->hasFeature('groups')
+            ? \App\Models\ClubGroup::where('club_id', $club->id)->where('status', 'active')->orderBy('name')->get()
+            : collect();
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
-            'unprocessedBookings'
+            'unprocessedBookings', 'activeGroups'
         ));
     }
 
@@ -577,6 +581,7 @@ class CourtController extends Controller
             'is_paid' => 'required|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
+            'group_id' => 'nullable|exists:club_groups,id',
             'coach_id' => 'nullable|exists:users,id',
             'coach_paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
@@ -669,6 +674,26 @@ class CourtController extends Controller
             ]);
             $firstBooking ??= $booking;
             $created[] = ['date' => $date, 'id' => $booking->id];
+
+            // Привязка к группе → автосоздание занятия в журнале (фича 'groups').
+            if (($validated['booking_type'] ?? null) === 'group'
+                && !empty($validated['group_id'])
+                && $club->hasFeature('groups')
+            ) {
+                $group = \App\Models\ClubGroup::find($validated['group_id']);
+                if ($group && $group->club_id === $club->id && $group->status === 'active') {
+                    \App\Models\ClubGroupSession::create([
+                        'group_id' => $group->id,
+                        'court_id' => $court->id,
+                        'court_booking_id' => $booking->id,
+                        'date' => $date,
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                        'coach_id' => $validated['coach_id'] ?? $group->coach_id,
+                        'status' => 'planned',
+                    ]);
+                }
+            }
 
             \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$date} {$startTime}–{$endTime}");
         }
