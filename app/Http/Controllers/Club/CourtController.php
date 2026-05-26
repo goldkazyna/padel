@@ -570,15 +570,18 @@ class CourtController extends Controller
         $club = $this->getClub();
         if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
 
+        $isGroupBooking = ($request->input('booking_type') === 'group');
+
         $validated = $request->validate([
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'slots' => 'required|integer|min:1|max:8',
-            'client_name' => 'required|string|max:255',
-            'client_phone' => 'required|string|max:50',
+            // Клиент/оплата не нужны для типа «Групповые» — оплата идёт через пакеты группы.
+            'client_name' => 'required_unless:booking_type,group|nullable|string|max:255',
+            'client_phone' => 'required_unless:booking_type,group|nullable|string|max:50',
             'client_note' => 'nullable|string|max:1000',
-            'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
-            'is_paid' => 'required|boolean',
+            'payment_method' => 'required_unless:booking_type,group|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'required_unless:booking_type,group|nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'group_id' => 'nullable|exists:club_groups,id',
@@ -589,32 +592,46 @@ class CourtController extends Controller
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
         ], [
-            'client_name.required' => 'Укажите имя клиента',
-            'client_phone.required' => 'Укажите номер телефона',
-            'payment_method.required' => 'Выберите способ оплаты',
+            'client_name.required_unless' => 'Укажите имя клиента',
+            'client_phone.required_unless' => 'Укажите номер телефона',
+            'payment_method.required_unless' => 'Выберите способ оплаты',
             'payment_method.in' => 'Выберите корректный способ оплаты',
-            'is_paid.required' => 'Выберите статус оплаты (оплачено / не оплачено)',
+            'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
         ]);
 
-        $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
-        $linkedUser = $this->findUserByPhone($validated['client_phone']);
-
-        // Карточка клиента — источник истины. Если клиент уже есть по телефону,
-        // в бронь идёт имя из карточки, а введённое игнорируется — это исключает
-        // рассинхрон, когда в карточке одно имя, а в свежей брони другое.
-        // Для новых клиентов (нет в справочнике) требуем имя+фамилию.
-        $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
-            ->where('phone', $validated['client_phone'])
-            ->first();
-        if ($existingClient) {
-            $validated['client_name'] = $existingClient->name;
+        if ($isGroupBooking) {
+            // Для групповой брони — автозаполнение, скидка/цена/клиент игнорируются.
+            $group = !empty($validated['group_id'])
+                ? \App\Models\ClubGroup::find($validated['group_id'])
+                : null;
+            $validated['client_name'] = $group ? ('Группа: ' . $group->name) : 'Группа';
+            $validated['client_phone'] = null;
+            $validated['payment_method'] = null;
+            $validated['is_paid'] = false;
+            $validated['discount'] = 0;
+            $validated['custom_price'] = 0;
+            $linkedUser = null;
         } else {
-            $words = preg_split('/\s+/', trim($validated['client_name']));
-            $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
-            if (count($words) < 2) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
+            $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
+            $linkedUser = $this->findUserByPhone($validated['client_phone']);
+
+            // Карточка клиента — источник истины. Если клиент уже есть по телефону,
+            // в бронь идёт имя из карточки, а введённое игнорируется — это исключает
+            // рассинхрон, когда в карточке одно имя, а в свежей брони другое.
+            // Для новых клиентов (нет в справочнике) требуем имя+фамилию.
+            $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
+                ->where('phone', $validated['client_phone'])
+                ->first();
+            if ($existingClient) {
+                $validated['client_name'] = $existingClient->name;
+            } else {
+                $words = preg_split('/\s+/', trim($validated['client_name']));
+                $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
+                if (count($words) < 2) {
+                    return back()
+                        ->withInput()
+                        ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
+                }
             }
         }
 

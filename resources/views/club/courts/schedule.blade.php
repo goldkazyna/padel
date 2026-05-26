@@ -497,8 +497,8 @@
                         <div class="modal-section-title">Длительность</div>
                         <div class="duration-selector" id="durationSelector"></div>
 
-                        <div class="modal-section-title">Цена и скидка</div>
-                        <div class="price-edit-row">
+                        <div class="modal-section-title js-hide-for-group">Цена и скидка</div>
+                        <div class="price-edit-row js-hide-for-group">
                             <div class="price-edit-group">
                                 <label class="form-label">Цена корта</label>
                                 <input type="number" name="custom_price" id="bookCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
@@ -508,7 +508,7 @@
                                 <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
                             </div>
                         </div>
-                        <div class="total-price">
+                        <div class="total-price js-hide-for-group">
                             <span class="total-price-label">Итого</span>
                             <span class="total-price-value" id="bookTotalPrice"></span>
                         </div>
@@ -537,19 +537,19 @@
 
                     <!-- Right column: client, payment, coach -->
                     <div class="modal-col-right">
-                        <div class="form-group autocomplete-wrap">
+                        <div class="form-group autocomplete-wrap js-hide-for-group">
                             <label class="form-label">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Например: Денис Дудников" required autocomplete="off">
                             <div class="autocomplete-list" id="bookNameList"></div>
                             <small class="form-hint" id="bookClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
-                        <div class="form-group autocomplete-wrap">
+                        <div class="form-group autocomplete-wrap js-hide-for-group">
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="bookClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
                             <div class="autocomplete-list" id="bookPhoneList"></div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group js-hide-for-group">
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="bookClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
@@ -577,8 +577,8 @@
                             </div>
                         @endif
 
-                        <div class="modal-section-title">Способ оплаты</div>
-                        <div class="payment-methods" id="paymentMethods">
+                        <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
+                        <div class="payment-methods js-hide-for-group" id="paymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
                             <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)">Kaspi</button>
@@ -589,13 +589,17 @@
                         </div>
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
 
-                        <div class="form-group" style="margin-top: 14px;">
+                        <div class="form-group js-hide-for-group" style="margin-top: 14px;">
                             <label class="form-label">Статус оплаты *</label>
                             <input type="hidden" name="is_paid" id="isPaidInput" value="">
                             <div class="paid-toggle">
                                 <button type="button" class="paid-btn" data-value="0" onclick="setPaid(this)">Не оплачено</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
                             </div>
+                        </div>
+
+                        <div id="groupBookingHint" class="js-show-for-group" style="display:none;margin-top:12px;padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
+                            Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
                         </div>
 
                         <div class="form-group">
@@ -1386,16 +1390,25 @@
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
 
-        // Показываем выбор группы только при типе «Групповые»
+        const isGroup = input.value === 'group';
+
+        // Селект группы — только при типе «Групповые»
         const groupWrap = document.getElementById('bookGroupSelectWrap');
         if (groupWrap) {
-            const showGroup = input.value === 'group';
-            groupWrap.style.display = showGroup ? 'block' : 'none';
-            if (!showGroup) {
+            groupWrap.style.display = isGroup ? 'block' : 'none';
+            if (!isGroup) {
                 const sel = document.getElementById('bookGroupSelect');
                 if (sel) sel.value = '';
             }
         }
+
+        // При типе group прячем клиента/оплату/скидку, снимаем required.
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = isGroup ? 'none' : '');
+        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
+        ['bookClientName', 'bookClientPhone'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
+        });
     }
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');

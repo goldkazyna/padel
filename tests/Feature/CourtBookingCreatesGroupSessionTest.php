@@ -50,6 +50,36 @@ class CourtBookingCreatesGroupSessionTest extends TestCase
         $this->assertSame('planned', $session->status);
     }
 
+    public function test_group_booking_without_client_and_payment_fields(): void
+    {
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        $court = Court::create([
+            'club_id' => $club->id, 'name' => 'K1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'Утро', 'status' => 'active']);
+
+        // Только корт/время/группа — без client_name/phone/payment_method/is_paid
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'group',
+            'group_id' => $group->id,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $booking = CourtBooking::first();
+        $this->assertNotNull($booking);
+        $this->assertSame('Группа: Утро', $booking->client_name);
+        $this->assertNull($booking->client_phone);
+        $this->assertSame(0.0, (float) $booking->price);
+        $this->assertFalse((bool) $booking->is_paid);
+
+        $this->assertSame(1, ClubGroupSession::count());
+    }
+
     public function test_court_booking_without_group_does_not_create_session(): void
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
