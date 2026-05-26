@@ -87,6 +87,37 @@ class ClubGroupController extends Controller
         return back()->with('success', 'Группа обновлена');
     }
 
+    public function destroy(ClubGroup $group)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id) abort(403);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($group) {
+            // У всех НЕ отменённых занятий — отменяем связанную бронь,
+            // чтобы корты освободились в общем расписании.
+            // (Затем cascadeOnDelete снесёт сами сессии вместе с группой.)
+            $group->sessions()
+                ->where('status', '!=', 'cancelled')
+                ->with('courtBooking')
+                ->get()
+                ->each(function ($session) {
+                    if ($session->courtBooking && $session->courtBooking->status !== 'cancelled') {
+                        $session->courtBooking->update([
+                            'status' => 'cancelled',
+                            'cancelled_at' => now(),
+                        ]);
+                    }
+                });
+
+            $group->delete();
+        });
+
+        \App\Models\ActivityLog::log('deleted', 'ClubGroup', $group->id,
+            "Группа удалена: {$group->name}", clubId: $club->id);
+
+        return redirect()->route('club.groups.index')->with('success', 'Группа удалена');
+    }
+
     public function addMember(Request $request, ClubGroup $group)
     {
         $club = $this->getClub();

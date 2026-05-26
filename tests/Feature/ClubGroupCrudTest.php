@@ -44,4 +44,35 @@ class ClubGroupCrudTest extends TestCase
 
         $this->actingAs($admin)->get(route('club.groups.show', $foreign))->assertForbidden();
     }
+
+    public function test_destroy_group_cancels_future_bookings(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'K', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'G']);
+        $booking = \App\Models\CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'end_time' => '11:00',
+            'client_name' => 'Группа: G', 'status' => 'confirmed',
+            'booked_by' => $admin->id, 'price' => 0, 'booking_type' => 'group',
+        ]);
+        \App\Models\ClubGroupSession::create([
+            'group_id' => $group->id, 'court_id' => $court->id,
+            'court_booking_id' => $booking->id,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'end_time' => '11:00',
+            'status' => 'planned',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('club.groups.destroy', $group))
+            ->assertRedirect();
+
+        $this->assertNull(ClubGroup::find($group->id));
+        $this->assertSame('cancelled', $booking->fresh()->status);
+    }
 }

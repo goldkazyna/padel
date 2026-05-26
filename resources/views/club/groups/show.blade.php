@@ -25,7 +25,16 @@
                 @endif
             </div>
         </div>
-        <button class="btn-edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn-edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
+            <form method="POST" action="{{ route('club.groups.destroy', $group) }}"
+                  onsubmit="return confirm('Удалить группу «{{ $group->name }}» и всю её историю? Будущие занятия будут отменены, корты освободятся.')"
+                  style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn-delete-group">&#10005; Удалить</button>
+            </form>
+        </div>
     </div>
 
     @if(session('success'))
@@ -357,6 +366,8 @@
     .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; }
     .btn-edit { display: flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-edit:hover { border-color: #3b82f6; color: #3b82f6; }
+    .btn-delete-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-delete-group:hover { border-color: #ef4444; color: #ef4444; }
 
     .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
