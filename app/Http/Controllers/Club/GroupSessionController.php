@@ -128,6 +128,12 @@ class GroupSessionController extends Controller
             return back()->with('error', 'Занятие уже проведено');
         }
 
+        // Провести можно только после окончания занятия (по расписанию).
+        $endsAt = Carbon::parse($session->date->format('Y-m-d') . ' ' . $session->end_time);
+        if (now()->lt($endsAt)) {
+            return back()->with('error', 'Занятие ещё не закончилось — отметить посещаемость можно после ' . $endsAt->format('H:i d.m.Y'));
+        }
+
         $rows = $request->input('attendance', []);
 
         // Проверка: у отмеченных «пришёл + списать» должен быть остаток > 0

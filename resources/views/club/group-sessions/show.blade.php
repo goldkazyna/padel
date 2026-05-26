@@ -60,6 +60,19 @@
 
     @if($session->status === 'planned')
 
+        @php
+            $endsAt = \Carbon\Carbon::parse($session->date->format('Y-m-d') . ' ' . $session->end_time);
+            $canConduct = now()->gte($endsAt);
+        @endphp
+
+        @if(!$canConduct)
+            <div class="attendance-card" style="padding:18px 22px;">
+                <div style="display:flex;align-items:center;gap:10px;color:#a1a1aa;font-size:14px;">
+                    <span style="font-size:18px;">⏳</span>
+                    <span>Отметить посещаемость можно после окончания занятия — <b style="color:#f4f4f5;">{{ $endsAt->format('H:i, d.m.Y') }}</b>.</span>
+                </div>
+            </div>
+        @else
         {{-- Conduct form --}}
         <form method="POST" action="{{ route('club.groupSessions.conduct', $session) }}">
             @csrf
@@ -112,6 +125,7 @@
                 <button type="submit" class="btn-conduct">&#10003; Провести занятие</button>
             </div>
         </form>
+        @endif
 
         {{-- Cancel form --}}
         <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" class="cancel-form"

@@ -20,6 +20,8 @@ class ClubGroupAttendanceTest extends TestCase
 
     private function scenario(int $sessions = 2): array
     {
+        // По умолчанию занятие ВЧЕРА 10:00–11:00 — уже закончилось, можно проводить.
+        // Тесты, где надо «ещё не закончилось», переставляют дату через $session->update().
         $club = Club::create(['name' => 'C', 'address' => 'A']);
         $admin = User::factory()->create(['role' => 'club_admin']);
         $admin->adminClubs()->attach($club->id);
@@ -28,8 +30,9 @@ class ClubGroupAttendanceTest extends TestCase
         $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Иван']);
         $member = ClubGroupMember::create(['group_id' => $group->id, 'client_id' => $client->id]);
         ClubGroupEnrollment::create(['group_member_id' => $member->id, 'sessions' => $sessions, 'amount' => $sessions * 1000]);
-        $booking = CourtBooking::create(['court_id' => $court->id, 'date' => now()->addDay()->toDateString(), 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Группа: G', 'status' => 'confirmed', 'booked_by' => $admin->id, 'price' => 0, 'booking_type' => 'group']);
-        $session = ClubGroupSession::create(['group_id' => $group->id, 'court_id' => $court->id, 'court_booking_id' => $booking->id, 'date' => now()->addDay()->toDateString(), 'start_time' => '10:00', 'end_time' => '11:00', 'status' => 'planned']);
+        $date = now()->subDay()->toDateString();
+        $booking = CourtBooking::create(['court_id' => $court->id, 'date' => $date, 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Группа: G', 'status' => 'confirmed', 'booked_by' => $admin->id, 'price' => 0, 'booking_type' => 'group']);
+        $session = ClubGroupSession::create(['group_id' => $group->id, 'court_id' => $court->id, 'court_booking_id' => $booking->id, 'date' => $date, 'start_time' => '10:00', 'end_time' => '11:00', 'status' => 'planned']);
         return [$club, $admin, $group, $member, $session, $booking];
     }
 
@@ -92,5 +95,19 @@ class ClubGroupAttendanceTest extends TestCase
         $booking->update(['status' => 'cancelled']);
 
         $this->assertSame('cancelled', $session->fresh()->status);
+    }
+
+    public function test_conduct_blocked_before_session_end(): void
+    {
+        [, $admin, , $member, $session] = $this->scenario(2);
+        // Переставим в будущее — занятие ещё не закончилось
+        $session->update(['date' => now()->addDay()->toDateString()]);
+
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+        ])->assertSessionHas('error');
+
+        $this->assertSame('planned', $session->fresh()->status);
+        $this->assertSame(2, $member->fresh()->remaining);
     }
 }
