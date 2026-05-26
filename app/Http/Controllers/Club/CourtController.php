@@ -667,13 +667,15 @@ class CourtController extends Controller
                 continue;
             }
 
-            // Проверка тренера
+            // Проверка тренера. Для групповой брони пропускаем проверку графика —
+            // тренер привязан к группе на уровне группы, а не к слот-графику.
             if (!empty($validated['coach_id'])) {
                 $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
                     ->where('user_id', $validated['coach_id'])
                     ->first();
-                if (!$clubCoach || !$clubCoach->isFreeAt($date, $startTime, $endTime)) {
-                    $skipped[$date] = 'тренер занят';
+                $skipSchedule = $isGroupBooking;
+                if (!$clubCoach || !$clubCoach->isFreeAt($date, $startTime, $endTime, null, $skipSchedule)) {
+                    $skipped[$date] = 'тренер занят на это время';
                     continue;
                 }
             }

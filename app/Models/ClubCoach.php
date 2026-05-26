@@ -121,9 +121,11 @@ class ClubCoach extends Model
         return false;
     }
 
-    public function isFreeAt(string $date, string $startTime, string $endTime, ?int $excludeBookingId = null): bool
+    public function isFreeAt(string $date, string $startTime, string $endTime, ?int $excludeBookingId = null, bool $skipScheduleCheck = false): bool
     {
-        if (!$this->isAvailableAt($date, $startTime, $endTime)) {
+        // Для групповых занятий тренер привязан к группе, а не к слот-графику —
+        // проверка регулярного расписания может быть пропущена.
+        if (!$skipScheduleCheck && !$this->isAvailableAt($date, $startTime, $endTime)) {
             return false;
         }
 
