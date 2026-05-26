@@ -513,8 +513,8 @@
                             <span class="total-price-value" id="bookTotalPrice"></span>
                         </div>
 
-                        <div class="modal-section-title">Тренер</div>
-                        <div class="coach-buttons" id="bookCoachButtons">
+                        <div class="modal-section-title js-hide-for-group">Тренер</div>
+                        <div class="coach-buttons js-hide-for-group" id="bookCoachButtons">
                             @foreach($clubCoaches as $cc)
                                 <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
@@ -525,7 +525,7 @@
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
 
-                        <div class="form-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
+                        <div class="form-group js-hide-for-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Оплата тренера</label>
                             <input type="hidden" name="coach_paid" id="bookCoachPaidInput" value="">
                             <div class="paid-toggle">
@@ -583,17 +583,30 @@
                                     <ul id="gmList" class="gm-list"></ul>
                                     <div id="gmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
                                 </div>
+                                <div id="groupCoachBlock" class="form-group" style="display:none;">
+                                    <label for="bookGroupCoachSelect" class="form-label">Тренер</label>
+                                    <select id="bookGroupCoachSelect" class="form-input" onchange="document.getElementById('bookCoachId').value = this.value;">
+                                        <option value="">— без тренера —</option>
+                                        @foreach($clubCoaches as $cc)
+                                            <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="form-hint" id="bookGroupCoachHint" style="display:none;color:#a1a1aa;font-size:12px;margin-top:6px;">По умолчанию — тренер группы</small>
+                                </div>
                             </div>
                             @php
                                 $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
-                                    return [$g->id => $g->members->map(function ($m) {
-                                        $bought = (int) $m->enrollments->sum('sessions');
-                                        $used = (int) $m->attendance->where('charged', true)->count();
-                                        return [
-                                            'name' => optional($m->client)->name ?? '—',
-                                            'remaining' => $bought - $used,
-                                        ];
-                                    })->values()];
+                                    return [$g->id => [
+                                        'coach_id' => $g->coach_id,
+                                        'members' => $g->members->map(function ($m) {
+                                            $bought = (int) $m->enrollments->sum('sessions');
+                                            $used = (int) $m->attendance->where('charged', true)->count();
+                                            return [
+                                                'name' => optional($m->client)->name ?? '—',
+                                                'remaining' => $bought - $used,
+                                            ];
+                                        })->values(),
+                                    ]];
                                 })->toArray();
                             @endphp
                             <script>window.__groupMembers = @json($groupMembersData);</script>
@@ -1440,31 +1453,46 @@
         const list = document.getElementById('gmList');
         const empty = document.getElementById('gmEmpty');
         const count = document.getElementById('gmCount');
+        const coachBlock = document.getElementById('groupCoachBlock');
+        const coachSelect = document.getElementById('bookGroupCoachSelect');
+        const coachHint = document.getElementById('bookGroupCoachHint');
+        const coachIdInput = document.getElementById('bookCoachId');
         if (!block || !list) return;
         if (!groupId) {
             block.style.display = 'none';
             list.innerHTML = '';
+            if (coachBlock) coachBlock.style.display = 'none';
+            if (coachSelect) coachSelect.value = '';
+            if (coachIdInput) coachIdInput.value = '';
             return;
         }
-        const members = (window.__groupMembers && window.__groupMembers[groupId]) || [];
+        const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
+        const members = data.members || [];
         block.style.display = 'block';
         list.innerHTML = '';
         count.textContent = members.length ? members.length : '';
         if (members.length === 0) {
             empty.style.display = 'block';
-            return;
+        } else {
+            empty.style.display = 'none';
+            members.forEach(m => {
+                const li = document.createElement('li');
+                li.className = 'gm-item';
+                const remaining = m.remaining;
+                const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
+                const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                list.appendChild(li);
+            });
         }
-        empty.style.display = 'none';
-        members.forEach(m => {
-            const li = document.createElement('li');
-            li.className = 'gm-item';
-            const remaining = m.remaining;
-            const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
-            const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
-            li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
-                '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
-            list.appendChild(li);
-        });
+        if (coachBlock && coachSelect && coachIdInput) {
+            coachBlock.style.display = 'block';
+            const defaultCoach = data.coach_id ? String(data.coach_id) : '';
+            coachSelect.value = defaultCoach;
+            coachIdInput.value = defaultCoach;
+            if (coachHint) coachHint.style.display = defaultCoach ? 'block' : 'none';
+        }
     }
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1503,6 +1531,8 @@
 
     document.getElementById('bookForm').addEventListener('submit', function(e) {
         const form = e.target;
+        const bookingType = document.getElementById('bookingTypeInput').value;
+        const isGroup = bookingType === 'group';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -1510,34 +1540,39 @@
         const paymentGroup = document.getElementById('paymentMethods');
         const paidGroup = document.getElementById('isPaidInput').parentElement.querySelector('.paid-toggle');
 
-        const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
-        if (words.length < 2) {
-            e.preventDefault();
-            showBookFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
-            return;
+        // Для групповой брони поля клиента/оплаты не нужны — пропускаем эти проверки.
+        if (!isGroup) {
+            const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+            if (words.length < 2) {
+                e.preventDefault();
+                showBookFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                return;
+            }
+            if (!(phoneInput.value || '').trim()) {
+                e.preventDefault();
+                showBookFormError('Укажите номер телефона клиента', phoneInput);
+                return;
+            }
+            if (!paymentInput.value) {
+                e.preventDefault();
+                showBookFormError('Выберите способ оплаты', paymentGroup);
+                return;
+            }
+            if (paidInput.value === '') {
+                e.preventDefault();
+                showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+                return;
+            }
         }
-        if (!(phoneInput.value || '').trim()) {
-            e.preventDefault();
-            showBookFormError('Укажите номер телефона клиента', phoneInput);
-            return;
-        }
-        if (!paymentInput.value) {
-            e.preventDefault();
-            showBookFormError('Выберите способ оплаты', paymentGroup);
-            return;
-        }
-        if (paidInput.value === '') {
-            e.preventDefault();
-            showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
-            return;
-        }
-        // Если выбран тренер — статус его оплаты обязателен
-        const coachId = document.getElementById('bookCoachId').value;
-        const coachPaid = document.getElementById('bookCoachPaidInput').value;
-        if (coachId && coachPaid === '') {
-            e.preventDefault();
-            showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
-            return;
+        // Статус оплаты тренера обязателен только для разовых броней — для group оплата идёт через пакеты.
+        if (!isGroup) {
+            const coachId = document.getElementById('bookCoachId').value;
+            const coachPaid = document.getElementById('bookCoachPaidInput').value;
+            if (coachId && coachPaid === '') {
+                e.preventDefault();
+                showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
+                return;
+            }
         }
         clearBookFormError();
     });
