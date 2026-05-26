@@ -565,15 +565,16 @@
                         <input type="hidden" name="booking_type" id="bookingTypeInput">
 
                         @if(isset($activeGroups) && $activeGroups->count())
-                            <div class="form-group" id="bookGroupSelectWrap" style="display:none;margin-top:12px;">
-                                <label for="bookGroupSelect" style="display:block;font-size:12px;font-weight:700;color:#a1a1aa;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Группа (создаст занятие в журнале)</label>
-                                <select name="group_id" id="bookGroupSelect"
-                                        style="width:100%;background:#16161a;border:1px solid #27272a;border-radius:10px;padding:11px 14px;font-size:14px;color:#f4f4f5;">
-                                    <option value="">— без привязки к группе —</option>
-                                    @foreach($activeGroups as $g)
-                                        <option value="{{ $g->id }}">{{ $g->name }}</option>
-                                    @endforeach
-                                </select>
+                            <div id="bookGroupSelectWrap" style="display:none;">
+                                <div class="modal-section-title">Группа (создаст занятие в журнале)</div>
+                                <div class="form-group">
+                                    <select name="group_id" id="bookGroupSelect" class="form-input">
+                                        <option value="">— без привязки к группе —</option>
+                                        @foreach($activeGroups as $g)
+                                            <option value="{{ $g->id }}">{{ $g->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                             </div>
                         @endif
 
@@ -598,8 +599,10 @@
                             </div>
                         </div>
 
-                        <div id="groupBookingHint" class="js-show-for-group" style="display:none;margin-top:12px;padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
-                            Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
+                        <div id="groupBookingHint" class="form-group js-show-for-group" style="display:none;">
+                            <div style="padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
+                                Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
+                            </div>
                         </div>
 
                         <div class="form-group">
