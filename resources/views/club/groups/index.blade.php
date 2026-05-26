@@ -23,6 +23,17 @@
         </div>
     @endif
 
+    <div class="groups-tabs">
+        <a href="{{ route('club.groups.index') }}"
+           class="tab-link {{ $tab === 'active' ? 'tab-active' : '' }}">
+            Активные <span class="tab-count">{{ $activeCount }}</span>
+        </a>
+        <a href="{{ route('club.groups.index', ['tab' => 'archived']) }}"
+           class="tab-link {{ $tab === 'archived' ? 'tab-active' : '' }}">
+            Архивные <span class="tab-count">{{ $archivedCount }}</span>
+        </a>
+    </div>
+
     @forelse($groups as $group)
         <div class="group-card">
             <div class="group-card-main">
@@ -140,6 +151,13 @@
     .groups-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
     .btn-add { display: flex; align-items: center; gap: 8px; background: #22c55e; color: #0a0a0b; border: none; padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; }
     .btn-add:hover { background: #16a34a; }
+
+    .groups-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #27272a; padding-bottom: 0; }
+    .tab-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; color: #71717a; border: none; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.15s; margin-bottom: -1px; }
+    .tab-link:hover { color: #a1a1aa; }
+    .tab-link.tab-active { color: #22c55e; border-bottom-color: #22c55e; }
+    .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; font-size: 11px; font-weight: 700; color: #a1a1aa; }
+    .tab-link.tab-active .tab-count { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.3); color: #22c55e; }
 
     .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }

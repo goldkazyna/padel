@@ -25,8 +25,21 @@
                 @endif
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <button class="btn-edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
+            @if($group->status === 'active')
+                <form method="POST" action="{{ route('club.groups.archive', $group) }}"
+                      onsubmit="return confirm('Перенести «{{ $group->name }}» в архив? Будущие занятия будут отменены, корты освободятся. История сохранится.')"
+                      style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn-archive-group">&#128193; В архив</button>
+                </form>
+            @else
+                <form method="POST" action="{{ route('club.groups.unarchive', $group) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn-unarchive-group">&#8617; Вернуть из архива</button>
+                </form>
+            @endif
             <form method="POST" action="{{ route('club.groups.destroy', $group) }}"
                   onsubmit="return confirm('Удалить группу «{{ $group->name }}» и всю её историю? Будущие занятия будут отменены, корты освободятся.')"
                   style="display:inline;">
@@ -368,6 +381,10 @@
     .btn-edit:hover { border-color: #3b82f6; color: #3b82f6; }
     .btn-delete-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
     .btn-delete-group:hover { border-color: #ef4444; color: #ef4444; }
+    .btn-archive-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-archive-group:hover { border-color: #eab308; color: #eab308; }
+    .btn-unarchive-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-unarchive-group:hover { border-color: #22c55e; color: #22c55e; }
 
     .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }

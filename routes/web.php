@@ -263,6 +263,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'show'])->name('groups.show');
             Route::put('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'update'])->name('groups.update');
             Route::delete('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'destroy'])->name('groups.destroy');
+            Route::post('/groups/{group}/archive', [App\Http\Controllers\Club\ClubGroupController::class, 'archive'])->name('groups.archive');
+            Route::post('/groups/{group}/unarchive', [App\Http\Controllers\Club\ClubGroupController::class, 'unarchive'])->name('groups.unarchive');
             Route::post('/groups/{group}/members', [App\Http\Controllers\Club\ClubGroupController::class, 'addMember'])->name('groups.members.store');
             Route::post('/groups/{group}/members/{member}/enroll', [App\Http\Controllers\Club\ClubGroupController::class, 'enroll'])->name('groups.members.enroll');
             Route::delete('/groups/{group}/members/{member}', [App\Http\Controllers\Club\ClubGroupController::class, 'removeMember'])->name('groups.members.destroy');

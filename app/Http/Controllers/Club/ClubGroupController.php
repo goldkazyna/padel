@@ -17,20 +17,28 @@ class ClubGroupController extends Controller
         return $user->adminClubs()->first();
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $groups = ClubGroup::where('club_id', $club->id)
+        // Вкладка active|archived (по умолчанию active).
+        $tab = $request->get('tab') === 'archived' ? 'archived' : 'active';
+
+        $base = ClubGroup::where('club_id', $club->id);
+
+        $activeCount = (clone $base)->where('status', 'active')->count();
+        $archivedCount = (clone $base)->where('status', 'archived')->count();
+
+        $groups = $base
+            ->where('status', $tab)
             ->withCount(['members as active_members_count' => fn($q) => $q->where('status', 'active')])
-            ->orderByRaw("status = 'archived'")
             ->orderBy('name')
             ->get();
 
         $coaches = $club->clubCoaches()->with('user')->get();
 
-        return view('club.groups.index', compact('groups', 'club', 'coaches'));
+        return view('club.groups.index', compact('groups', 'club', 'coaches', 'tab', 'activeCount', 'archivedCount'));
     }
 
     public function store(Request $request)
@@ -85,6 +93,51 @@ class ClubGroupController extends Controller
         $group->update($validated);
 
         return back()->with('success', 'Группа обновлена');
+    }
+
+    public function archive(ClubGroup $group)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id) abort(403);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($group) {
+            // Отменяем будущие/не отменённые брони — корты освободятся.
+            // CourtBooking::booted-хук автоматически переведёт сессии в cancelled.
+            $group->sessions()
+                ->where('status', '!=', 'cancelled')
+                ->with('courtBooking')
+                ->get()
+                ->each(function ($session) {
+                    if ($session->courtBooking && $session->courtBooking->status !== 'cancelled') {
+                        $session->courtBooking->update([
+                            'status' => 'cancelled',
+                            'cancelled_at' => now(),
+                        ]);
+                    }
+                });
+
+            $group->update(['status' => 'archived']);
+        });
+
+        \App\Models\ActivityLog::log('updated', 'ClubGroup', $group->id,
+            "Группа в архиве: {$group->name}", clubId: $club->id);
+
+        return redirect()->route('club.groups.index', ['tab' => 'archived'])
+            ->with('success', 'Группа перенесена в архив');
+    }
+
+    public function unarchive(ClubGroup $group)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id) abort(403);
+
+        $group->update(['status' => 'active']);
+
+        \App\Models\ActivityLog::log('updated', 'ClubGroup', $group->id,
+            "Группа возвращена из архива: {$group->name}", clubId: $club->id);
+
+        return redirect()->route('club.groups.show', $group)
+            ->with('success', 'Группа возвращена из архива');
     }
 
     public function destroy(ClubGroup $group)

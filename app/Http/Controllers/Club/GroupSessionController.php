@@ -63,6 +63,10 @@ class GroupSessionController extends Controller
         $court = Court::find($validated['court_id']);
         if ($group->club_id !== $club->id || $court->club_id !== $club->id) abort(403);
 
+        if ($group->status === 'archived') {
+            return back()->with('error', 'Группа в архиве — верните её в активные, чтобы создавать занятия');
+        }
+
         $startTime = $validated['start_time'];
         $endTime = Carbon::parse($startTime)->addMinutes($validated['slots'] * ($court->slot_duration ?: 60))->format('H:i');
 

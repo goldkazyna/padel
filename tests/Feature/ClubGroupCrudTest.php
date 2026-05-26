@@ -75,4 +75,48 @@ class ClubGroupCrudTest extends TestCase
         $this->assertNull(ClubGroup::find($group->id));
         $this->assertSame('cancelled', $booking->fresh()->status);
     }
+
+    public function test_archive_group_cancels_future_bookings_and_sets_status(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'K', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'G', 'status' => 'active']);
+        $booking = \App\Models\CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'end_time' => '11:00',
+            'client_name' => 'Группа: G', 'status' => 'confirmed',
+            'booked_by' => $admin->id, 'price' => 0, 'booking_type' => 'group',
+        ]);
+        $session = \App\Models\ClubGroupSession::create([
+            'group_id' => $group->id, 'court_id' => $court->id,
+            'court_booking_id' => $booking->id,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'end_time' => '11:00',
+            'status' => 'planned',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('club.groups.archive', $group))
+            ->assertRedirect();
+
+        $this->assertSame('archived', $group->fresh()->status);
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertSame('cancelled', $session->fresh()->status);
+    }
+
+    public function test_unarchive_group_sets_active(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'G', 'status' => 'archived']);
+
+        $this->actingAs($admin)
+            ->post(route('club.groups.unarchive', $group))
+            ->assertRedirect();
+
+        $this->assertSame('active', $group->fresh()->status);
+    }
 }
