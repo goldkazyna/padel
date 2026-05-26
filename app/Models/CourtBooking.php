@@ -53,4 +53,22 @@ class CourtBooking extends Model
     {
         return $this->belongsTo(User::class, 'coach_id');
     }
+
+    /**
+     * При отмене брони, к которой привязано групповое занятие, отменяем и его.
+     * Связь хранится в club_group_sessions.court_booking_id.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (CourtBooking $b) {
+            if (!$b->wasChanged('status')) return;
+            if ($b->status !== 'cancelled') return;
+            $session = \App\Models\ClubGroupSession::where('court_booking_id', $b->id)
+                ->where('status', '!=', 'cancelled')
+                ->first();
+            if ($session) {
+                $session->update(['status' => 'cancelled']);
+            }
+        });
+    }
 }

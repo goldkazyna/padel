@@ -83,4 +83,14 @@ class ClubGroupAttendanceTest extends TestCase
         ])->assertSessionHas('error');
         $this->assertSame(1, $member->fresh()->remaining);
     }
+
+    public function test_cancelling_linked_booking_cancels_session(): void
+    {
+        [, , , , $session, $booking] = $this->scenario(2);
+
+        // Отмена брони напрямую (как со страницы кортов)
+        $booking->update(['status' => 'cancelled']);
+
+        $this->assertSame('cancelled', $session->fresh()->status);
+    }
 }
