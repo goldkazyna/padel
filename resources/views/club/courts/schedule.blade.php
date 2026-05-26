@@ -568,14 +568,35 @@
                             <div id="bookGroupSelectWrap" style="display:none;">
                                 <div class="modal-section-title">Группа (создаст занятие в журнале)</div>
                                 <div class="form-group">
-                                    <select name="group_id" id="bookGroupSelect" class="form-input">
+                                    <select name="group_id" id="bookGroupSelect" class="form-input" onchange="renderGroupMembers(this.value)">
                                         <option value="">— без привязки к группе —</option>
                                         @foreach($activeGroups as $g)
                                             <option value="{{ $g->id }}">{{ $g->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
+                                <div id="groupMembersBlock" class="group-members-block" style="display:none;">
+                                    <div class="gm-header">
+                                        <span class="gm-title">Участники</span>
+                                        <span class="gm-count" id="gmCount"></span>
+                                    </div>
+                                    <ul id="gmList" class="gm-list"></ul>
+                                    <div id="gmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                                </div>
                             </div>
+                            @php
+                                $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
+                                    return [$g->id => $g->members->map(function ($m) {
+                                        $bought = (int) $m->enrollments->sum('sessions');
+                                        $used = (int) $m->attendance->where('charged', true)->count();
+                                        return [
+                                            'name' => optional($m->client)->name ?? '—',
+                                            'remaining' => $bought - $used,
+                                        ];
+                                    })->values()];
+                                })->toArray();
+                            @endphp
+                            <script>window.__groupMembers = @json($groupMembersData);</script>
                         @endif
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
@@ -1402,6 +1423,7 @@
             if (!isGroup) {
                 const sel = document.getElementById('bookGroupSelect');
                 if (sel) sel.value = '';
+                renderGroupMembers('');
             }
         }
 
@@ -1413,6 +1435,41 @@
             if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
         });
     }
+    function renderGroupMembers(groupId) {
+        const block = document.getElementById('groupMembersBlock');
+        const list = document.getElementById('gmList');
+        const empty = document.getElementById('gmEmpty');
+        const count = document.getElementById('gmCount');
+        if (!block || !list) return;
+        if (!groupId) {
+            block.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+        const members = (window.__groupMembers && window.__groupMembers[groupId]) || [];
+        block.style.display = 'block';
+        list.innerHTML = '';
+        count.textContent = members.length ? members.length : '';
+        if (members.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        members.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'gm-item';
+            const remaining = m.remaining;
+            const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
+            const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
+            li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+            list.appendChild(li);
+        });
+    }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');
         const wasActive = btn.classList.contains('active');
@@ -2613,6 +2670,84 @@
 
     .form-group {
         margin-bottom: 16px;
+    }
+
+    .group-members-block {
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid #27272a;
+        border-radius: 10px;
+    }
+    .gm-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    .gm-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--sch-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .gm-count {
+        font-size: 12px;
+        color: var(--sch-text-dim);
+        background: rgba(255,255,255,0.05);
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+    .gm-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .gm-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .gm-item:first-child {
+        border-top: none;
+    }
+    .gm-name {
+        font-size: 13px;
+        color: var(--sch-text);
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .gm-rem {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .gm-rem-ok {
+        background: rgba(34,197,94,0.12);
+        color: #4ade80;
+    }
+    .gm-rem-low {
+        background: rgba(234,179,8,0.12);
+        color: #facc15;
+    }
+    .gm-rem-zero {
+        background: rgba(239,68,68,0.12);
+        color: #f87171;
+    }
+    .gm-empty {
+        font-size: 13px;
+        color: var(--sch-text-dim);
+        text-align: center;
+        padding: 4px 0;
     }
 
     .form-label {
