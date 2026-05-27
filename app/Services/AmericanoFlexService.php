@@ -134,7 +134,9 @@ class AmericanoFlexService
 
     /**
      * Сформировать M матчей из массива M*4 AmericanoFlexPlayer.
-     * Минимизирует times_as_partners + times_as_opponents через pair_history.
+     * Минимизирует повторы по системе штрафов из ТЗ:
+     *   Пара (partners):    0=0, 1=100, 2+=100*N
+     *   Соперник (opponents): 0=0, 1=1, 2=50, 3+=500
      * Возвращает массив матчей: [['team1' => [id1, id2], 'team2' => [id3, id4], 'court' => 1], ...]
      */
     private function generatePairsForRound(Tournament $tournament, array $players): array
@@ -146,11 +148,28 @@ class AmericanoFlexService
             ->get()
             ->keyBy(fn($h) => $h->player1_id . '-' . $h->player2_id);
 
-        $cost = function (int $a, int $b) use ($history) {
+        $row = function (int $a, int $b) use ($history) {
             [$lo, $hi] = AmericanoFlexPairHistory::normalizeIds($a, $b);
-            $key = "{$lo}-{$hi}";
-            $row = $history[$key] ?? null;
-            return $row ? ($row->times_as_partners + $row->times_as_opponents) : 0;
+            return $history["{$lo}-{$hi}"] ?? null;
+        };
+
+        // Штраф за повторение пары (партнёры в одной команде).
+        $partnerPenalty = function (int $a, int $b) use ($row) {
+            $r = $row($a, $b);
+            $n = $r ? (int) $r->times_as_partners : 0;
+            return $n === 0 ? 0 : 100 * $n;
+        };
+
+        // Штраф за повторение соперников (игроки в разных командах).
+        $opponentPenalty = function (int $a, int $b) use ($row) {
+            $r = $row($a, $b);
+            $n = $r ? (int) $r->times_as_opponents : 0;
+            return match (true) {
+                $n === 0 => 0,
+                $n === 1 => 1,
+                $n === 2 => 50,
+                default  => 500,
+            };
         };
 
         $matches = [];
@@ -177,13 +196,15 @@ class AmericanoFlexService
                             ];
 
                             foreach ($variants as $v) {
+                                // 2 партнёрские пары
                                 $matchCost =
-                                    $cost($v['t1'][0], $v['t1'][1]) +
-                                    $cost($v['t2'][0], $v['t2'][1]) +
-                                    $cost($v['t1'][0], $v['t2'][0]) +
-                                    $cost($v['t1'][0], $v['t2'][1]) +
-                                    $cost($v['t1'][1], $v['t2'][0]) +
-                                    $cost($v['t1'][1], $v['t2'][1]);
+                                    $partnerPenalty($v['t1'][0], $v['t1'][1]) +
+                                    $partnerPenalty($v['t2'][0], $v['t2'][1]) +
+                                    // 4 кросса (соперники)
+                                    $opponentPenalty($v['t1'][0], $v['t2'][0]) +
+                                    $opponentPenalty($v['t1'][0], $v['t2'][1]) +
+                                    $opponentPenalty($v['t1'][1], $v['t2'][0]) +
+                                    $opponentPenalty($v['t1'][1], $v['t2'][1]);
 
                                 if ($matchCost < $bestCost) {
                                     $bestCost = $matchCost;

@@ -161,4 +161,42 @@ class AmericanoFlexServiceTest extends TestCase
         $intersect = array_intersect($pairsR1, $pairsR2);
         $this->assertEmpty($intersect, "Партнёрские пары не должны повторяться в раунде 2: " . implode(', ', $intersect));
     }
+
+    /**
+     * Прогон на 5 раундов: пока остаются нераскрытые партнёрские пары — алгоритм
+     * не должен повторять одну и ту же пару дважды. Это прямая проверка штрафов из ТЗ.
+     */
+    public function test_partner_pairs_do_not_repeat_while_unused_pairs_exist(): void
+    {
+        // 8 игроков, 2 корта → все играют каждый раунд, никто не отдыхает.
+        // Максимум уникальных пар: C(8,2) = 28. За раунд используется 4 пары (2 матча × 2 пары).
+        // За 5 раундов это 20 пар — заведомо в пределах лимита.
+        $tournament = $this->makeTournament(8, 2);
+        $this->service->startTournament($tournament);
+
+        $allPairs = [];
+        for ($r = 1; $r <= 5; $r++) {
+            $round = $tournament->americanoFlexRounds()->where('round_number', $r)->first();
+            $this->assertNotNull($round, "раунд {$r} должен быть создан");
+
+            foreach ($round->matches as $m) {
+                $p1 = AmericanoFlexPairHistory::normalizeIds($m->team1_player1_id, $m->team1_player2_id);
+                $p2 = AmericanoFlexPairHistory::normalizeIds($m->team2_player1_id, $m->team2_player2_id);
+                $allPairs[] = "{$p1[0]}-{$p1[1]}";
+                $allPairs[] = "{$p2[0]}-{$p2[1]}";
+
+                $this->service->saveMatchResult($m, 24, 18);
+            }
+
+            if ($r < 5) {
+                $this->service->generateNextRound($tournament);
+            }
+        }
+
+        $duplicates = array_filter(array_count_values($allPairs), fn($c) => $c > 1);
+        $this->assertEmpty(
+            $duplicates,
+            "За 5 раундов (20 пар из 28 возможных) ни одна партнёрская пара не должна повториться. Повторы: " . json_encode($duplicates)
+        );
+    }
 }
