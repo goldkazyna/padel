@@ -144,6 +144,9 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'saveBaliKocPairs']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 
+        // Americano Flex — счёт матча (один эндпоинт для save/update), next-round/finish общие выше
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/americano_flex/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoFlexScore']);
+
         // Team (Групповой + Плей-офф) — счёт групповых матчей, плей-офф, генерация
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/team/group-match/{match}/score', [MobileAdminTournamentDetailController::class, 'saveTeamGroupScore']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/team/playoff-match/{match}/score', [MobileAdminTournamentDetailController::class, 'saveTeamPlayoffScore']);

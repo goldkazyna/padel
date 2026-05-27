@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AmericanoFlexMatch;
 use App\Models\AmericanoMatch;
 use App\Models\BaliKocMatch;
 use App\Models\BaliKocPair;
@@ -12,6 +13,7 @@ use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
 use App\Models\User;
+use App\Services\AmericanoFlexService;
 use App\Services\AmericanoService;
 use App\Services\BaliKocService;
 use App\Services\KingOfCourtService;
@@ -115,7 +117,8 @@ class MobileAdminTournamentDetailController extends Controller
         MexicanoService $mexicano,
         TeamTournamentService $team,
         KingOfCourtService $king,
-        BaliKocService $bali
+        BaliKocService $bali,
+        AmericanoFlexService $flex
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -130,6 +133,8 @@ class MobileAdminTournamentDetailController extends Controller
 
         if ($tournament->isAmericano()) {
             $ok = $americano->startTournament($tournament);
+        } elseif ($tournament->isAmericanoFlex()) {
+            $ok = $flex->startTournament($tournament);
         } elseif ($tournament->isMexicano()) {
             $ok = $mexicano->startTournament($tournament);
         } elseif ($tournament->isTeamBased()) {
@@ -785,6 +790,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildKingOfCourtMatches($tournament));
         }
 
+        if ($tournament->isAmericanoFlex()) {
+            return response()->json($this->buildAmericanoFlexMatches($tournament));
+        }
+
         if ($tournament->isBaliKoc()) {
             return response()->json($this->buildBaliKocMatches($tournament));
         }
@@ -1237,7 +1246,8 @@ class MobileAdminTournamentDetailController extends Controller
         MexicanoService $mexicano,
         TeamTournamentService $team,
         KingOfCourtService $king,
-        BaliKocService $bali
+        BaliKocService $bali,
+        AmericanoFlexService $flex
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -1254,6 +1264,11 @@ class MobileAdminTournamentDetailController extends Controller
                 );
             }
             $ok = $americano->finishTournament($tournament);
+        } elseif ($tournament->isAmericanoFlex()) {
+            if (!$flex->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте текущий раунд');
+            }
+            $ok = $flex->completeTournament($tournament);
         } elseif ($tournament->isKingOfCourt()) {
             if (!$king->canFinishTournament($tournament)) {
                 return $this->error('Доиграйте текущий раунд');
@@ -1358,10 +1373,20 @@ class MobileAdminTournamentDetailController extends Controller
         Request $request,
         Tournament $tournament,
         KingOfCourtService $king,
-        BaliKocService $bali
+        BaliKocService $bali,
+        AmericanoFlexService $flex
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
+        }
+
+        if ($tournament->isAmericanoFlex()) {
+            if (!$flex->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            $flex->generateNextRound($tournament);
+            $tournament->refresh();
+            return response()->json($this->buildAmericanoFlexMatches($tournament));
         }
 
         if ($tournament->isKingOfCourt()) {
@@ -1400,7 +1425,7 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         return $this->error(
-            'Генерация следующего раунда из мобилы пока поддерживается только для KOC и Bali'
+            'Генерация следующего раунда из мобилы пока поддерживается только для KOC, Bali и Americano Flex'
         );
     }
 
@@ -2215,5 +2240,188 @@ class MobileAdminTournamentDetailController extends Controller
         if ($s1 === null || $s2 === null) return null;
         if ($s1 === $s2) return null;
         return $s1 > $s2 ? 1 : 2;
+    }
+
+    // -------------------------------------------------------------------------
+    // Americano Flex — ввод счёта и формирование ответа /matches
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/americano_flex/matches/{match}/score
+     * Один эндпоинт для save и update — service переписывает счёт идемпотентно.
+     */
+    public function saveAmericanoFlexScore(
+        Request $request,
+        Tournament $tournament,
+        AmericanoFlexMatch $match,
+        AmericanoFlexService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round');
+        if (!$match->round || (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null && $match->team1_score !== $match->team2_score) {
+            $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    private function buildAmericanoFlexMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'americanoFlexRounds.matches.team1Player1',
+            'americanoFlexRounds.matches.team1Player2',
+            'americanoFlexRounds.matches.team2Player1',
+            'americanoFlexRounds.matches.team2Player2',
+            'americanoFlexRounds.byes.user',
+            'americanoFlexPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->americanoFlexRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                    $matchesTotal++;
+                    if ($m->status === 'completed') {
+                        $matchesPlayed++;
+                    }
+                    return $this->formatAmericanoFlexMatch($m);
+                })->values();
+
+                $byes = $round->byes->map(function ($b) {
+                    return $this->formatMatchPlayer($b->user);
+                })->filter()->values();
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                    'byes' => $byes,
+                ];
+            });
+
+        $leaderboard = $this->buildAmericanoFlexLeaderboard($tournament);
+        $virtualGroup = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $leaderboard,
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+        $flex = app(AmericanoFlexService::class);
+
+        return [
+            'success' => true,
+            'type' => 'americano_flex',
+            'groups' => [$virtualGroup],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $flex->canFinishTournament($tournament),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $isLive && $flex->canGenerateNextRound($tournament),
+            ],
+        ];
+    }
+
+    private function formatAmericanoFlexMatch(AmericanoFlexMatch $m): array
+    {
+        $winner = null;
+        if ($m->status === 'completed' && $m->team1_score !== null && $m->team2_score !== null && $m->team1_score !== $m->team2_score) {
+            $winner = $m->team1_score > $m->team2_score ? 1 : 2;
+        }
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $winner,
+        ];
+    }
+
+    private function buildAmericanoFlexLeaderboard(Tournament $tournament): array
+    {
+        $players = $tournament->americanoFlexPlayers
+            ->sortByDesc(function ($p) {
+                $avg = $p->matches_played > 0 ? $p->total_points / $p->matches_played : 0;
+                return [$avg, (int) $p->total_points];
+            })
+            ->values();
+
+        $rows = [];
+        $position = 1;
+        foreach ($players as $fp) {
+            $u = $fp->user;
+            if (!$u) continue;
+            $matches = (int) $fp->matches_played;
+            $avg = $matches > 0 ? round($fp->total_points / $matches, 2) : 0;
+            $rows[] = [
+                'position' => $position++,
+                'id' => $u->id,
+                'name' => $u->full_name ?? $u->name,
+                'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'rating' => (int) ($u->rating ?? 0),
+                'rating_before' => $fp->rating_before !== null ? (int) $fp->rating_before : null,
+                'rating_after' => $fp->rating_after !== null ? (int) $fp->rating_after : null,
+                'total_points' => (int) $fp->total_points,
+                'matches_played' => $matches,
+                'bye_count' => (int) $fp->bye_count,
+                'bye_streak' => (int) $fp->bye_streak,
+                'avg_points' => $avg,
+            ];
+        }
+        return $rows;
     }
 }

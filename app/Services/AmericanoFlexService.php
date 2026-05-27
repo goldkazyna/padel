@@ -20,9 +20,18 @@ class AmericanoFlexService
     /**
      * Запустить турнир: создать AmericanoFlexPlayer для каждого участника,
      * сгенерировать первый раунд.
+     * Возвращает true при успехе, false если не хватает игроков (нужно min M*4).
      */
-    public function startTournament(Tournament $tournament): void
+    public function startTournament(Tournament $tournament): bool
     {
+        $participantsCount = TournamentParticipant::where('tournament_id', $tournament->id)
+            ->where('status', 'registered')
+            ->count();
+        $required = max(4, (int) $tournament->courts_count * 4);
+        if ($participantsCount < $required) {
+            return false;
+        }
+
         DB::transaction(function () use ($tournament) {
             $participants = TournamentParticipant::where('tournament_id', $tournament->id)
                 ->where('status', 'registered')
@@ -45,6 +54,29 @@ class AmericanoFlexService
             $tournament->update(['status' => 'in_progress']);
             $this->generateNextRound($tournament);
         });
+
+        return true;
+    }
+
+    /**
+     * Можно ли сгенерировать следующий раунд (текущий полностью завершён).
+     */
+    public function canGenerateNextRound(Tournament $tournament): bool
+    {
+        if ($tournament->status !== 'in_progress') return false;
+        $current = $this->getCurrentRound($tournament);
+        return $current && $this->isRoundCompleted($current);
+    }
+
+    /**
+     * Можно ли завершить турнир (есть хоть один раунд и все его матчи сыграны).
+     */
+    public function canFinishTournament(Tournament $tournament): bool
+    {
+        if ($tournament->status !== 'in_progress') return false;
+        $current = $this->getCurrentRound($tournament);
+        if (!$current) return false;
+        return $this->isRoundCompleted($current);
     }
 
     /**
@@ -308,8 +340,9 @@ class AmericanoFlexService
 
     /**
      * Завершить турнир: посчитать ELO для всех игроков, выставить статус.
+     * Возвращает true при успехе.
      */
-    public function completeTournament(Tournament $tournament): void
+    public function completeTournament(Tournament $tournament): bool
     {
         DB::transaction(function () use ($tournament) {
             // Идём по всем матчам в явном порядке: раунды по round_number, внутри раунда — по id.
@@ -372,6 +405,8 @@ class AmericanoFlexService
 
             $tournament->update(['status' => 'completed']);
         });
+
+        return true;
     }
 
     /**
