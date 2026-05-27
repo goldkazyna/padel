@@ -152,6 +152,22 @@
                             <span class="field-label">Дата рождения</span>
                             <span class="field-value">{{ $selectedClient->birth_date ? $selectedClient->birth_date->format('d.m.Y') : '—' }}</span>
                         </div>
+                        @if($selectedClient->email)
+                        <div class="client-detail-field">
+                            <span class="field-label">E-mail</span>
+                            <span class="field-value">
+                                <a href="mailto:{{ $selectedClient->email }}" class="client-email-link">{{ $selectedClient->email }}</a>
+                            </span>
+                        </div>
+                        @endif
+                        @if($selectedClient->card_number)
+                        <div class="client-detail-field">
+                            <span class="field-label">Номер карты</span>
+                            <span class="field-value">
+                                <span class="client-card-badge">{{ $selectedClient->card_number }}</span>
+                            </span>
+                        </div>
+                        @endif
                         <div class="client-detail-field">
                             <span class="field-label">Добавлен</span>
                             <span class="field-value">{{ $selectedClient->created_at->format('d.m.Y') }}</span>
@@ -728,6 +744,25 @@ document.addEventListener('keydown', function(e) {
 .field-value {
     font-size: 14px;
     font-weight: 600;
+}
+.client-email-link {
+    color: #60a5fa;
+    text-decoration: none;
+    font-weight: 600;
+    word-break: break-all;
+}
+.client-email-link:hover { text-decoration: underline; }
+.client-card-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    background: rgba(168,85,247,0.12);
+    border: 1px solid rgba(168,85,247,0.25);
+    border-radius: 999px;
+    color: #c084fc;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
 }
 .client-detail-note {
     padding: 12px 14px;
