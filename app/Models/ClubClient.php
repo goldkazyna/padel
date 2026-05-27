@@ -10,6 +10,8 @@ class ClubClient extends Model
         'club_id',
         'name',
         'phone',
+        'email',
+        'card_number',
         'note',
         'gender',
         'birth_date',

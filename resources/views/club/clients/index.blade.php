@@ -15,6 +15,10 @@
                 <i class="bi bi-people"></i>
                 Дубликаты
             </a>
+            <a href="{{ route('club.clients.import.form') }}" class="btn-export-client">
+                <i class="bi bi-cloud-upload"></i>
+                Импорт
+            </a>
             <a href="{{ route('club.clients.export') }}" class="btn-export-client">
                 <i class="bi bi-file-earmark-excel"></i>
                 Excel
