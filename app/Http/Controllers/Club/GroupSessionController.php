@@ -29,20 +29,118 @@ class GroupSessionController extends Controller
         if (!$club) abort(403);
 
         $courtIds = $club->courts()->pluck('id');
-        $query = ClubGroupSession::whereIn('court_id', $courtIds)
-            ->with(['group', 'court', 'coach'])
-            ->withCount(['attendance as attended_count' => fn($q) => $q->where('attended', true)]);
 
-        if ($gid = $request->get('group_id')) $query->where('group_id', $gid);
-        if ($status = $request->get('status')) $query->where('status', $status);
-        if ($date = $request->get('date')) $query->whereDate('date', $date);
+        // Базовый запрос с фильтрами (группа/статус)
+        $filters = function ($q) use ($courtIds, $request) {
+            $q->whereIn('court_id', $courtIds);
+            if ($gid = $request->get('group_id')) $q->where('group_id', $gid);
+            if ($status = $request->get('status')) $q->where('status', $status);
+        };
 
-        $sessions = $query->orderByDesc('date')->orderByDesc('start_time')->paginate(30)->withQueryString();
+        // Все даты, где есть занятия (по возрастанию) — для столбцов и навигации
+        $allDates = ClubGroupSession::where($filters)
+            ->select('date')->distinct()->orderBy('date')
+            ->pluck('date')
+            ->map(fn($d) => Carbon::parse($d)->format('Y-m-d'))
+            ->values();
+
+        $perPage = 7;
+        $today = now('Asia/Almaty')->format('Y-m-d');
+
+        // Якорь по умолчанию: один день до первой даты >= сегодня
+        $anchor = $allDates->search(fn($d) => $d >= $today);
+        if ($anchor === false) $anchor = max(0, $allDates->count() - 1);
+        $startIdx = max(0, $anchor - 1);
+
+        // Навигация по параметру ?from=Y-m-d
+        if ($from = $request->get('from')) {
+            $idx = $allDates->search($from);
+            if ($idx === false) $idx = $allDates->search(fn($d) => $d >= $from);
+            $startIdx = $idx === false ? max(0, $allDates->count() - 1) : $idx;
+        }
+
+        // Окно столбцов
+        $startIdx = max(0, min($startIdx, max(0, $allDates->count() - $perPage)));
+        $visibleDates = $allDates->slice($startIdx, $perPage)->values();
+
+        $prevFrom = $startIdx > 0 ? $allDates->get(max(0, $startIdx - $perPage)) : null;
+        $nextFrom = ($startIdx + $perPage) < $allDates->count() ? $allDates->get($startIdx + $perPage) : null;
+
+        // Занятия только видимых дат
+        $sessions = ClubGroupSession::where($filters)
+            ->whereIn('date', $visibleDates->all())
+            ->with(['group:id,name', 'court:id,name', 'coach:id,name,first_name,last_name'])
+            ->withCount(['attendance as attended_count' => fn($q) => $q->where('attended', true)])
+            ->get();
+
+        // Тренеры клуба (фото + инициалы + цвет-заглушка)
+        $coaches = $club->clubCoaches()->with('user')->get();
+        $palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e', '#06b6d4', '#ef4444', '#14b8a6'];
+        $coachMeta = [];
+        foreach ($coaches as $cc) {
+            if (!$cc->user) continue;
+            $coachMeta[$cc->user_id] = $this->buildCoachMeta($cc->user, $cc->photo, $palette);
+        }
+        // Тренеры занятий, которых нет в списке клубных тренеров — добиваем по юзеру
+        foreach ($sessions as $s) {
+            if ($s->coach_id && !isset($coachMeta[$s->coach_id]) && $s->coach) {
+                $coachMeta[$s->coach_id] = $this->buildCoachMeta($s->coach, null, $palette);
+            }
+        }
+
+        // Строки = времена начала среди видимых занятий
+        $times = $sessions->map(fn($s) => Carbon::parse($s->start_time)->format('H:i'))
+            ->unique()->sort()->values();
+
+        // Матрица: matrix[time][date] = [сессии]
+        $matrix = [];
+        foreach ($sessions as $s) {
+            $t = Carbon::parse($s->start_time)->format('H:i');
+            $d = $s->date->format('Y-m-d');
+            $matrix[$t][$d][] = $s;
+        }
+
+        // Столбцы с метаданными и дневной сводкой
+        $columns = [];
+        foreach ($visibleDates as $d) {
+            $c = Carbon::parse($d);
+            $dayS = $sessions->filter(fn($s) => $s->date->format('Y-m-d') === $d);
+            $columns[] = [
+                'date'      => $d,
+                'dayNum'    => $c->format('d'),
+                'month'     => $c->locale('ru')->isoFormat('MMMM'),
+                'weekday'   => mb_strtoupper($c->locale('ru')->isoFormat('dd')),
+                'isToday'   => $d === $today,
+                'total'     => $dayS->count(),
+                'attended'  => (int) $dayS->where('status', 'held')->sum('attended_count'),
+                'cancelled' => $dayS->where('status', 'cancelled')->count(),
+            ];
+        }
+
+        $totalSessions = $allDates->isEmpty() ? 0 : ClubGroupSession::where($filters)->count();
+
         $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get();
         $courts = $club->courts()->where('is_active', true)->orderBy('sort_order')->get();
-        $coaches = $club->clubCoaches()->with('user')->get();
 
-        return view('club.group-sessions.index', compact('sessions', 'groups', 'courts', 'coaches', 'club'));
+        return view('club.group-sessions.index', compact(
+            'columns', 'times', 'matrix', 'coachMeta',
+            'prevFrom', 'nextFrom', 'totalSessions', 'today',
+            'groups', 'courts', 'coaches', 'club'
+        ));
+    }
+
+    /** Метаданные тренера для аватарки: фото / инициалы / цвет-заглушка. */
+    private function buildCoachMeta($user, ?string $photo, array $palette): array
+    {
+        $fn = $user->first_name ?: $user->name;
+        $ln = $user->last_name;
+        $initials = mb_strtoupper(mb_substr((string) $fn, 0, 1) . ($ln ? mb_substr($ln, 0, 1) : ''));
+        return [
+            'photo'    => $photo,
+            'initials' => $initials ?: '?',
+            'color'    => $palette[$user->id % count($palette)],
+            'name'     => $user->full_name,
+        ];
     }
 
     public function store(Request $request)
