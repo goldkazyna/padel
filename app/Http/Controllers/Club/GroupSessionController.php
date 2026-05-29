@@ -133,8 +133,13 @@ class GroupSessionController extends Controller
         }
 
         // Провести можно только после окончания занятия (по расписанию).
-        $endsAt = Carbon::parse($session->date->format('Y-m-d') . ' ' . $session->end_time);
-        if (now()->lt($endsAt)) {
+        // Время в БД хранится как локальное клубное (Алматы), сервер живёт в UTC —
+        // парсим end_time явно в Asia/Almaty и сравниваем с now() в том же TZ.
+        $endsAt = Carbon::parse(
+            $session->date->format('Y-m-d') . ' ' . $session->end_time,
+            'Asia/Almaty'
+        );
+        if (now('Asia/Almaty')->lt($endsAt)) {
             return back()->with('error', 'Занятие ещё не закончилось — отметить посещаемость можно после ' . $endsAt->format('H:i d.m.Y'));
         }
 

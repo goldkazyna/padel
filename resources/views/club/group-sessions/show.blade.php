@@ -61,8 +61,13 @@
     @if($session->status === 'planned')
 
         @php
-            $endsAt = \Carbon\Carbon::parse($session->date->format('Y-m-d') . ' ' . $session->end_time);
-            $canConduct = now()->gte($endsAt);
+            // Время хранится как локальное клубное (Алматы); сервер в UTC.
+            // Парсим явно с TZ Алматы, чтобы сравнение совпадало с реальностью клуба.
+            $endsAt = \Carbon\Carbon::parse(
+                $session->date->format('Y-m-d') . ' ' . $session->end_time,
+                'Asia/Almaty'
+            );
+            $canConduct = now('Asia/Almaty')->gte($endsAt);
         @endphp
 
         @if(!$canConduct)
