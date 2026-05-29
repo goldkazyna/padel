@@ -49,29 +49,16 @@
             <span class="gsm-leg"><span class="gsm-dot dot-cancelled"></span> Отменено</span>
         </div>
         <div class="gsm-nav">
-            @if($prevFrom)
-                <a class="gsm-nav-btn" href="{{ route('club.groupSessions.index', array_merge($qf, ['from' => $prevFrom])) }}" title="Раньше">←</a>
-            @else
-                <span class="gsm-nav-btn disabled">←</span>
-            @endif
-            <a class="gsm-nav-btn gsm-today" href="{{ route('club.groupSessions.index', array_merge($qf, ['from' => $today])) }}">Сегодня</a>
-            @if($nextFrom)
-                <a class="gsm-nav-btn" href="{{ route('club.groupSessions.index', array_merge($qf, ['from' => $nextFrom])) }}" title="Позже">→</a>
-            @else
-                <span class="gsm-nav-btn disabled">→</span>
-            @endif
+            <a class="gsm-nav-btn" href="{{ route('club.groupSessions.index', array_merge($qf, ['date' => $prevWeek])) }}" title="Предыдущая неделя">←</a>
+            <span class="gsm-weekrange">{{ $weekRange }}</span>
+            <a class="gsm-nav-btn" href="{{ route('club.groupSessions.index', array_merge($qf, ['date' => $nextWeek])) }}" title="Следующая неделя">→</a>
+            <a class="gsm-nav-btn gsm-today" href="{{ route('club.groupSessions.index', $qf) }}">Сегодня</a>
         </div>
     </div>
 
     {{-- Matrix --}}
-    @if(count($columns) === 0)
-        <div class="gsm-empty">
-            <p>Занятий пока нет.</p>
-            <button type="button" class="gsm-create-btn" onclick="document.getElementById('createSessionModal').style.display='flex'">+ Создать занятие</button>
-        </div>
-    @else
-        <div class="gsm-grid-wrap">
-            <div class="gsm-grid" style="grid-template-columns: 64px repeat({{ count($columns) }}, minmax(160px, 1fr));">
+    <div class="gsm-grid-wrap">
+            <div class="gsm-grid" style="grid-template-columns: 64px repeat({{ count($columns) }}, minmax(0, 1fr));">
 
                 {{-- Corner + day headers --}}
                 <div class="gsm-corner"></div>
@@ -95,6 +82,12 @@
                 @endforeach
 
                 {{-- Time rows --}}
+                @if(count($times) === 0)
+                    <div class="gsm-noweek" style="grid-column: 1 / -1;">
+                        <p>На этой неделе занятий нет.</p>
+                        <button type="button" class="gsm-create-btn" onclick="document.getElementById('createSessionModal').style.display='flex'">+ Создать занятие</button>
+                    </div>
+                @endif
                 @foreach($times as $t)
                     <div class="gsm-timecell">{{ $t }}</div>
                     @foreach($columns as $col)
@@ -130,8 +123,7 @@
                 @endforeach
 
             </div>
-        </div>
-    @endif
+    </div>
 
 </div>
 
@@ -216,7 +208,7 @@
         --bg: #0a0a0b; --card: #111113; --card2: #16161a; --line: #27272a; --line2: #1c1c1f;
         --text: #f4f4f5; --dim: #a1a1aa; --muted: #71717a;
         --green: #22c55e; --blue: #6366f1; --red: #ef4444; --amber: #eab308;
-        max-width: 1200px; margin: 0 auto; padding: 28px 24px; color: var(--text);
+        width: 100%; margin: 0; padding: 28px 24px; color: var(--text);
     }
 
     /* Header */
@@ -247,6 +239,7 @@
     .gsm-nav-btn:hover { border-color: var(--green); color: var(--green); }
     .gsm-nav-btn.disabled { opacity: 0.35; pointer-events: none; }
     .gsm-today { font-size: 13px; }
+    .gsm-weekrange { font-size: 15px; font-weight: 700; color: var(--text); min-width: 220px; text-align: center; text-transform: capitalize; }
 
     /* Grid */
     .gsm-grid-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
@@ -284,9 +277,9 @@
     .gsm-avatar-none { background: #27272a; color: var(--muted); }
     .gsm-court { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* Empty */
-    .gsm-empty { padding: 60px 20px; text-align: center; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
-    .gsm-empty p { margin: 0 0 18px; font-size: 15px; }
+    /* Empty week */
+    .gsm-noweek { padding: 56px 20px; text-align: center; color: var(--muted); border-left: 1px solid var(--line2); }
+    .gsm-noweek p { margin: 0 0 18px; font-size: 15px; }
 
     /* Modal */
     .gsm-modal-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }

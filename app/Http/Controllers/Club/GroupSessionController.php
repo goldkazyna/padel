@@ -37,38 +37,19 @@ class GroupSessionController extends Controller
             if ($status = $request->get('status')) $q->where('status', $status);
         };
 
-        // Все даты, где есть занятия (по возрастанию) — для столбцов и навигации
-        $allDates = ClubGroupSession::where($filters)
-            ->select('date')->distinct()->orderBy('date')
-            ->pluck('date')
-            ->map(fn($d) => Carbon::parse($d)->format('Y-m-d'))
-            ->values();
-
-        $perPage = 7;
+        // Неделя пн–вс для выбранной даты (как в расписании кортов)
         $today = now('Asia/Almaty')->format('Y-m-d');
+        $date = $request->get('date', $today);
+        $selected = Carbon::parse($date);
+        $weekStart = $selected->copy()->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+        $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
+        $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
+        $weekRange = $weekStart->locale('ru')->isoFormat('D MMM') . ' — ' . $weekEnd->locale('ru')->isoFormat('D MMM YYYY');
 
-        // Якорь по умолчанию: один день до первой даты >= сегодня
-        $anchor = $allDates->search(fn($d) => $d >= $today);
-        if ($anchor === false) $anchor = max(0, $allDates->count() - 1);
-        $startIdx = max(0, $anchor - 1);
-
-        // Навигация по параметру ?from=Y-m-d
-        if ($from = $request->get('from')) {
-            $idx = $allDates->search($from);
-            if ($idx === false) $idx = $allDates->search(fn($d) => $d >= $from);
-            $startIdx = $idx === false ? max(0, $allDates->count() - 1) : $idx;
-        }
-
-        // Окно столбцов
-        $startIdx = max(0, min($startIdx, max(0, $allDates->count() - $perPage)));
-        $visibleDates = $allDates->slice($startIdx, $perPage)->values();
-
-        $prevFrom = $startIdx > 0 ? $allDates->get(max(0, $startIdx - $perPage)) : null;
-        $nextFrom = ($startIdx + $perPage) < $allDates->count() ? $allDates->get($startIdx + $perPage) : null;
-
-        // Занятия только видимых дат
+        // Занятия недели
         $sessions = ClubGroupSession::where($filters)
-            ->whereIn('date', $visibleDates->all())
+            ->whereBetween('date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
             ->with(['group:id,name', 'court:id,name', 'coach:id,name,first_name,last_name'])
             ->withCount(['attendance as attended_count' => fn($q) => $q->where('attended', true)])
             ->get();
@@ -100,10 +81,11 @@ class GroupSessionController extends Controller
             $matrix[$t][$d][] = $s;
         }
 
-        // Столбцы с метаданными и дневной сводкой
+        // Столбцы — все 7 дней недели (включая пустые), с дневной сводкой
         $columns = [];
-        foreach ($visibleDates as $d) {
-            $c = Carbon::parse($d);
+        for ($i = 0; $i < 7; $i++) {
+            $c = $weekStart->copy()->addDays($i);
+            $d = $c->format('Y-m-d');
             $dayS = $sessions->filter(fn($s) => $s->date->format('Y-m-d') === $d);
             $columns[] = [
                 'date'      => $d,
@@ -117,14 +99,14 @@ class GroupSessionController extends Controller
             ];
         }
 
-        $totalSessions = $allDates->isEmpty() ? 0 : ClubGroupSession::where($filters)->count();
+        $totalSessions = ClubGroupSession::where($filters)->count();
 
         $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get();
         $courts = $club->courts()->where('is_active', true)->orderBy('sort_order')->get();
 
         return view('club.group-sessions.index', compact(
             'columns', 'times', 'matrix', 'coachMeta',
-            'prevFrom', 'nextFrom', 'totalSessions', 'today',
+            'prevWeek', 'nextWeek', 'weekRange', 'date', 'totalSessions', 'today',
             'groups', 'courts', 'coaches', 'club'
         ));
     }
