@@ -279,8 +279,8 @@
     /* Можно провести — левая полоса наполовину зелёная, наполовину серая */
     .gsm-card.status-ready { border-left-color: transparent; }
     .gsm-card.status-ready::before { content: ''; position: absolute; left: -3px; top: -1px; bottom: -1px; width: 3px; border-radius: 9px 0 0 9px; background: linear-gradient(to bottom, var(--green) 0 50%, var(--muted) 50% 100%); }
-    .gsm-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 14px; }
-    .gsm-card-name { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsm-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 14px; }
+    .gsm-card-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
     .gsm-card.status-cancelled .gsm-card-name { text-decoration: line-through; color: var(--muted); }
     .gsm-card-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
     .gsm-card-badge .b-att { color: var(--green); }
