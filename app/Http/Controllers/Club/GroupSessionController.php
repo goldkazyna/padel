@@ -66,10 +66,19 @@ class GroupSessionController extends Controller
             $coachMeta[$cc->user_id] = $this->buildCoachMeta($cc->user, $cc->photo, $palette);
         }
         // Тренеры занятий, которых нет в списке клубных тренеров — добиваем по юзеру
+        $nowAlmaty = now('Asia/Almaty');
         foreach ($sessions as $s) {
             if ($s->coach_id && !isset($coachMeta[$s->coach_id]) && $s->coach) {
                 $coachMeta[$s->coach_id] = $this->buildCoachMeta($s->coach, null, $palette);
             }
+
+            // UI-статус: запланированное, у которого время уже прошло, можно проводить
+            $ui = $s->status;
+            if ($s->status === 'planned') {
+                $endsAt = Carbon::parse($s->date->format('Y-m-d') . ' ' . $s->end_time, 'Asia/Almaty');
+                if ($nowAlmaty->gte($endsAt)) $ui = 'ready';
+            }
+            $s->ui_status = $ui;
         }
 
         // Строки = времена начала среди видимых занятий

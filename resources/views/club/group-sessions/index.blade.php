@@ -41,13 +41,8 @@
         <div class="gsm-flash gsm-flash-error">{{ session('error') }}</div>
     @endif
 
-    {{-- Legend + navigation --}}
+    {{-- Navigation --}}
     <div class="gsm-legendbar">
-        <div class="gsm-legend">
-            <span class="gsm-leg"><span class="gsm-dot dot-planned"></span> Запланировано</span>
-            <span class="gsm-leg"><span class="gsm-dot dot-held"></span> Проведено</span>
-            <span class="gsm-leg"><span class="gsm-dot dot-cancelled"></span> Отменено</span>
-        </div>
         <div class="gsm-nav">
             <a class="gsm-nav-btn" href="{{ route('club.groupSessions.index', array_merge($qf, ['date' => $prevWeek])) }}" title="Предыдущая неделя">←</a>
             <span class="gsm-weekrange">{{ $weekRange }}</span>
@@ -98,7 +93,7 @@
                             <div class="gsm-cell">
                                 @foreach($cell as $s)
                                     @php $cm = $coachMeta[$s->coach_id] ?? null; @endphp
-                                    <a class="gsm-card status-{{ $s->status }}" href="{{ route('club.groupSessions.show', $s) }}">
+                                    <a class="gsm-card status-{{ $s->ui_status }}" href="{{ route('club.groupSessions.show', $s) }}">
                                         <div class="gsm-card-top">
                                             <span class="gsm-card-name">{{ $s->group->name }}</span>
                                             @if($s->status === 'held')
@@ -106,6 +101,8 @@
                                                     <span class="b-att">✓{{ $s->attended_count }}</span>
                                                     <span class="b-abs">✗{{ $s->absent_count }}</span>
                                                 </span>
+                                            @elseif($s->ui_status === 'ready')
+                                                <span class="gsm-card-ready" title="Время прошло — можно отметить посещаемость">провести ▸</span>
                                             @endif
                                         </div>
                                         <div class="gsm-card-bottom">
@@ -126,6 +123,14 @@
                 @endforeach
 
             </div>
+    </div>
+
+    {{-- Color legend --}}
+    <div class="gsm-legend">
+        <span class="gsm-leg"><span class="gsm-dot dot-planned"></span> Запланировано</span>
+        <span class="gsm-leg"><span class="gsm-dot dot-ready"></span> Можно провести (время прошло)</span>
+        <span class="gsm-leg"><span class="gsm-dot dot-held"></span> Проведено</span>
+        <span class="gsm-leg"><span class="gsm-dot dot-cancelled"></span> Отменено</span>
     </div>
 
 </div>
@@ -230,11 +235,12 @@
     .gsm-flash-error { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
 
     /* Legend + nav */
-    .gsm-legendbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-    .gsm-legend { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-    .gsm-leg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--dim); font-weight: 600; }
-    .gsm-dot { width: 9px; height: 9px; border-radius: 50%; }
-    .dot-planned { background: var(--blue); }
+    .gsm-legendbar { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .gsm-legend { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; margin-top: 18px; padding: 16px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+    .gsm-leg { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); font-weight: 600; }
+    .gsm-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-planned { background: var(--muted); }
+    .dot-ready { background: linear-gradient(to right, var(--green) 0 50%, var(--muted) 50% 100%); }
     .dot-held { background: var(--green); }
     .dot-cancelled { background: var(--red); }
     .gsm-nav { display: flex; align-items: center; gap: 6px; }
@@ -265,17 +271,21 @@
     .gsm-cell-empty:hover { background: var(--card2); }
 
     /* Card */
-    .gsm-card { display: block; background: var(--card2); border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 10px 11px; text-decoration: none; transition: border-color 0.15s, transform 0.1s; }
+    .gsm-card { position: relative; display: block; background: var(--card2); border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 10px 11px; text-decoration: none; transition: border-color 0.15s, transform 0.1s; }
     .gsm-card:hover { transform: translateY(-1px); }
-    .gsm-card.status-planned { border-left-color: var(--blue); }
+    .gsm-card.status-planned { border-left-color: var(--muted); }
     .gsm-card.status-held { border-left-color: var(--green); }
     .gsm-card.status-cancelled { border-left-color: var(--red); }
+    /* Можно провести — левая полоса наполовину зелёная, наполовину серая */
+    .gsm-card.status-ready { border-left-color: transparent; }
+    .gsm-card.status-ready::before { content: ''; position: absolute; left: -3px; top: -1px; bottom: -1px; width: 3px; border-radius: 9px 0 0 9px; background: linear-gradient(to bottom, var(--green) 0 50%, var(--muted) 50% 100%); }
     .gsm-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 14px; }
     .gsm-card-name { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gsm-card.status-cancelled .gsm-card-name { text-decoration: line-through; color: var(--muted); }
     .gsm-card-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
     .gsm-card-badge .b-att { color: var(--green); }
     .gsm-card-badge .b-abs { color: var(--muted); }
+    .gsm-card-ready { flex-shrink: 0; font-size: 10px; font-weight: 800; color: var(--green); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
     .gsm-card-bottom { display: flex; align-items: center; gap: 8px; }
     .gsm-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; overflow: hidden; }
     .gsm-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -286,7 +296,12 @@
     .gsm-noweek { padding: 56px 20px; text-align: center; color: var(--muted); border-left: 1px solid var(--line2); }
     .gsm-noweek p { margin: 0 0 18px; font-size: 15px; }
 
-    /* Modal */
+    /* Modal — переменные дублируем, т.к. окно вынесено за пределы .gsm-page */
+    #createSessionModal {
+        --card: #111113; --card2: #16161a; --line: #27272a;
+        --text: #f4f4f5; --dim: #a1a1aa; --muted: #71717a;
+        --green: #22c55e; --red: #ef4444;
+    }
     .gsm-modal-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }
     .gsm-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--line); }
     .gsm-modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin: 0; }
