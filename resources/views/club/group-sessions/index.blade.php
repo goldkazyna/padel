@@ -101,8 +101,11 @@
                                     <a class="gsm-card status-{{ $s->status }}" href="{{ route('club.groupSessions.show', $s) }}">
                                         <div class="gsm-card-top">
                                             <span class="gsm-card-name">{{ $s->group->name }}</span>
-                                            @if($s->status === 'held' && $s->attended_count > 0)
-                                                <span class="gsm-card-badge">✓{{ $s->attended_count }}</span>
+                                            @if($s->status === 'held')
+                                                <span class="gsm-card-badge">
+                                                    <span class="b-att">✓{{ $s->attended_count }}</span>
+                                                    <span class="b-abs">✗{{ $s->absent_count }}</span>
+                                                </span>
                                             @endif
                                         </div>
                                         <div class="gsm-card-bottom">
@@ -257,25 +260,27 @@
     .gsm-sum-can { color: var(--red); }
 
     .gsm-timecell { padding: 14px 10px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line2); border-right: 1px solid var(--line2); background: var(--card); position: sticky; left: 0; z-index: 2; text-align: center; }
-    .gsm-cell { padding: 8px; border-bottom: 1px solid var(--line2); border-left: 1px solid var(--line2); display: flex; flex-direction: column; gap: 8px; min-height: 64px; }
+    .gsm-cell { padding: 9px; border-bottom: 1px solid var(--line2); border-left: 1px solid var(--line2); display: flex; flex-direction: column; gap: 9px; min-height: 96px; }
     .gsm-cell-empty { cursor: pointer; transition: background 0.15s; }
     .gsm-cell-empty:hover { background: var(--card2); }
 
     /* Card */
-    .gsm-card { display: block; background: var(--card2); border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 8px 10px; text-decoration: none; transition: border-color 0.15s, transform 0.1s; }
+    .gsm-card { display: block; background: var(--card2); border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 10px 11px; text-decoration: none; transition: border-color 0.15s, transform 0.1s; }
     .gsm-card:hover { transform: translateY(-1px); }
     .gsm-card.status-planned { border-left-color: var(--blue); }
     .gsm-card.status-held { border-left-color: var(--green); }
     .gsm-card.status-cancelled { border-left-color: var(--red); }
-    .gsm-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 5px; }
-    .gsm-card-name { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsm-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 14px; }
+    .gsm-card-name { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gsm-card.status-cancelled .gsm-card-name { text-decoration: line-through; color: var(--muted); }
-    .gsm-card-badge { flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--green); }
-    .gsm-card-bottom { display: flex; align-items: center; gap: 7px; }
-    .gsm-avatar { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; overflow: hidden; }
+    .gsm-card-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; }
+    .gsm-card-badge .b-att { color: var(--green); }
+    .gsm-card-badge .b-abs { color: var(--muted); }
+    .gsm-card-bottom { display: flex; align-items: center; gap: 8px; }
+    .gsm-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; overflow: hidden; }
     .gsm-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .gsm-avatar-none { background: #27272a; color: var(--muted); }
-    .gsm-court { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsm-court { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* Empty week */
     .gsm-noweek { padding: 56px 20px; text-align: center; color: var(--muted); border-left: 1px solid var(--line2); }
