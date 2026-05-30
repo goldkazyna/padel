@@ -90,6 +90,22 @@ class MobileClubController extends Controller
         $hiddenIds = $user ? ($user->hidden_club_ids ?? []) : [];
         $isHidden = in_array($club->id, $hiddenIds, true);
 
+        // Тренеры клуба — показываем только тех, у кого есть фото
+        $coaches = $club->clubCoaches()
+            ->with('user:id,name,first_name,last_name')
+            ->whereNotNull('photo')
+            ->where('photo', '!=', '')
+            ->get()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'name' => $c->user?->full_name ?: $c->user?->name,
+                'specialization' => $c->specialization,
+                'photo' => url($c->photo),
+                'rating' => $c->rating,
+            ])
+            ->filter(fn($c) => !empty($c['name']))
+            ->values();
+
         return response()->json([
             'success' => true,
             'club' => [
@@ -112,6 +128,7 @@ class MobileClubController extends Controller
                     ->where('status', 'open')
                     ->where('start_date', '>', now())
                     ->count(),
+                'coaches' => $coaches,
             ],
         ]);
     }

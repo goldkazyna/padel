@@ -40,6 +40,30 @@ class MobileClubShowTest extends TestCase
             ->assertJsonPath('club.cover', url('/covers/c.jpg'));
     }
 
+    public function test_show_returns_only_coaches_with_photo(): void
+    {
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+
+        $withPhoto = User::factory()->create(['first_name' => 'Иван', 'last_name' => 'Петров']);
+        $noPhoto = User::factory()->create(['first_name' => 'Без', 'last_name' => 'Фото']);
+
+        \App\Models\ClubCoach::create([
+            'club_id' => $club->id, 'user_id' => $withPhoto->id,
+            'specialization' => 'Дети', 'photo' => '/coaches/ivan.jpg?v=1',
+        ]);
+        \App\Models\ClubCoach::create([
+            'club_id' => $club->id, 'user_id' => $noPhoto->id,
+            'specialization' => 'Взрослые', 'photo' => null,
+        ]);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $res = $this->getJson("/api/mobile/clubs/{$club->id}")->assertOk();
+        $res->assertJsonCount(1, 'club.coaches')
+            ->assertJsonPath('club.coaches.0.specialization', 'Дети')
+            ->assertJsonPath('club.coaches.0.photo', url('/coaches/ivan.jpg?v=1'));
+    }
+
     public function test_show_cover_null_when_absent(): void
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
