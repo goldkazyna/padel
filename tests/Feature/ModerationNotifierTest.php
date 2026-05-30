@@ -9,7 +9,6 @@ use App\Models\Tournament;
 use App\Models\Notification;
 use App\Services\ModerationNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Kreait\Firebase\Contract\Messaging;
 
 class ModerationNotifierTest extends TestCase
 {
@@ -17,10 +16,6 @@ class ModerationNotifierTest extends TestCase
 
     public function test_pending_notification_created(): void
     {
-        // Firebase не настроен в тестовом окружении — подменяем Messaging заглушкой,
-        // чтобы контейнер мог собрать FCMNotificationService
-        $this->mock(Messaging::class);
-
         $club = Club::create(['name' => 'C', 'address' => 'A']);
         $t = Tournament::create([
             'club_id' => $club->id, 'name' => 'Кубок', 'type' => 'americano',

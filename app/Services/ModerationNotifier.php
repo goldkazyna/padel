@@ -9,8 +9,6 @@ use Carbon\Carbon;
 
 class ModerationNotifier
 {
-    public function __construct(private FCMNotificationService $fcm) {}
-
     public function pending(User $user, Tournament $t, Carbon $deadline): void
     {
         $when = $deadline->copy()->timezone('Asia/Almaty')->format('d.m H:i');
@@ -45,12 +43,12 @@ class ModerationNotifier
             'data' => ['tournament_id' => $t->id],
         ]);
         try {
-            $this->fcm->sendToUser($user, $title, $body, [
+            app(\App\Services\FCMNotificationService::class)->sendToUser($user, $title, $body, [
                 'type' => $type,
                 'tournament_id' => (string) $t->id,
             ]);
         } catch (\Throwable $e) {
-            // пуш не критичен
+            // пуш не критичен (в т.ч. если Firebase не сконфигурирован)
         }
     }
 }
