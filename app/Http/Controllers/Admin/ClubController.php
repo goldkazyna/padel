@@ -11,7 +11,7 @@ class ClubController extends Controller
 {
     public function index()
     {
-        $clubs = Club::withCount(['admins', 'tournaments'])->get();
+        $clubs = Club::withCount(['admins', 'tournaments'])->orderBy('id')->get();
         return view('admin.clubs.index', compact('clubs'));
     }
 

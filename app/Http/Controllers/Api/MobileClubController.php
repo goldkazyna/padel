@@ -42,7 +42,7 @@ class MobileClubController extends Controller
             });
         }
 
-        $clubs = $query->orderBy('name')->get();
+        $clubs = $query->orderBy('id')->get();
 
         $result = $clubs->map(fn($club) => [
             'id' => $club->id,
