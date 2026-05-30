@@ -131,6 +131,8 @@ class TournamentInvitationTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'invitations')
             ->assertJsonPath('invitations.0.tournament.name', 'Кубок')
+            ->assertJsonPath('invitations.0.tournament.club.name', 'C')
+            ->assertJsonPath('invitations.0.tournament.type_name', $tournament->type_name)
             ->assertJsonPath('invitations.0.invited_by_name', $admin->name);
 
         $this->getJson('/api/mobile/tournaments/invitations/count')

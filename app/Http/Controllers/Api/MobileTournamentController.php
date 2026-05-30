@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\FormatsTournaments;
 use App\Models\Tournament;
 use App\Models\TournamentSubscription;
 use App\Models\TournamentTeam;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 class MobileTournamentController extends Controller
 {
     use RatingCalculator;
+    use FormatsTournaments;
     /**
      * Список открытых турниров (предстоящие, с открытой регистрацией)
      * GET /api/mobile/tournaments
@@ -776,57 +778,6 @@ class MobileTournamentController extends Controller
     }
 
     /**
-     * Форматирование турнира для списка
-     */
-    private function formatTournament(Tournament $t, $user, bool $includeRegistration = false): array
-    {
-        $data = [
-            'id' => $t->id,
-            'name' => $t->name,
-            'description' => $t->description,
-            'telegram_registration_url' => $t->telegram_registration_url,
-            'club' => [
-                'id' => $t->club->id ?? null,
-                'name' => $t->club->name ?? 'Клуб',
-                'phone' => $t->club->phone ?? null,
-                'address' => $t->club->address ?? null,
-                'payment_url' => $t->club->payment_url ?? null,
-                'telegram_url' => $t->club->telegram_url ?? null,
-                'logo' => $t->club->logo ? url($t->club->logo) : null,
-                'is_community' => (bool) ($t->club->is_community ?? false),
-            ],
-            'date' => $t->start_date->format('d.m.Y'),
-            'time' => $t->start_date->format('H:i'),
-            'datetime' => $t->start_date->toIso8601String(),
-            'type' => $t->type,
-            'type_name' => $t->type_name,
-            'status' => $t->status,
-            'status_name' => $t->status_name,
-            'min_level' => (float) $t->min_level,
-            'max_level' => (float) $t->max_level,
-            'price' => (float) $t->price,
-            'max_participants' => $t->max_participants,
-            'participants_count' => $this->getParticipantsCount($t),
-            'spots_left' => max(0, $t->max_participants - $this->getParticipantsCount($t)),
-            'waitlist_size' => (int) ($t->waitlist_size ?? 0),
-            'waitlist_count' => $t->waitlistCount(),
-            'waitlist_available' => $t->hasWaitlistSlot(),
-        ];
-
-        if ($user && $includeRegistration) {
-            $registration = $this->getUserRegistration($t, $user);
-            $data['is_registered'] = $registration['is_registered'];
-            $data['registration_status'] = $registration['status'];
-            $data['can_register'] = $registration['can_register'];
-            $data['block_reason'] = $registration['block_reason'];
-            $data['in_waitlist'] = $registration['in_waitlist'];
-            $data['waitlist_position'] = $registration['waitlist_position'];
-        }
-
-        return $data;
-    }
-
-    /**
      * Форматирование архивного турнира с результатом
      */
     private function formatArchiveTournament(Tournament $t, $user): array
@@ -837,22 +788,6 @@ class MobileTournamentController extends Controller
         $data['my_result'] = $this->getUserResult($t, $user);
 
         return $data;
-    }
-
-    /**
-     * Получить количество участников
-     */
-    private function getParticipantsCount(Tournament $t): int
-    {
-        if ($t->type === 'team') {
-            return TournamentTeam::where('tournament_id', $t->id)
-                ->whereIn('status', ['approved', 'pending'])
-                ->count() * 2;
-        }
-
-        return $t->participants()
-            ->wherePivotIn('status', ['registered', 'pending'])
-            ->count();
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\FormatsTournaments;
 use App\Models\Tournament;
 use App\Models\TournamentInvitation;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class MobileTournamentInvitationController extends Controller
 {
+    use FormatsTournaments;
+
     /**
      * GET /api/mobile/tournaments/invitations
      * Список ожидающих ответа приглашений текущего игрока.
@@ -22,7 +25,7 @@ class MobileTournamentInvitationController extends Controller
     {
         $invitations = TournamentInvitation::where('user_id', $request->user()->id)
             ->where('status', 'pending')
-            ->with(['tournament.club:id,name', 'inviter:id,name'])
+            ->with(['tournament.club', 'inviter:id,name'])
             ->whereHas('tournament')
             ->orderByDesc('created_at')
             ->get()
@@ -137,13 +140,8 @@ class MobileTournamentInvitationController extends Controller
             'id' => $inv->id,
             'invited_by_name' => $inv->inviter?->name,
             'created_at' => $inv->created_at?->toIso8601String(),
-            'tournament' => [
-                'id' => $t->id,
-                'name' => $t->name,
-                'type' => $t->type,
-                'start_date' => $t->start_date?->toIso8601String(),
-                'club_name' => $t->club?->name,
-            ],
+            // Полный объект турнира — карточка выглядит как во вкладке турниров
+            'tournament' => $this->formatTournament($t, null, false),
         ];
     }
 }
