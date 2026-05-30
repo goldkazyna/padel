@@ -75,9 +75,17 @@ class MobileTournamentInvitationController extends Controller
         $outcome = DB::transaction(function () use ($tournament, $userId) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();
 
-            if ($tournament->participants()->where('user_id', $userId)->exists()) {
+            // Активной считается только запись в статусах registered/pending/waiting.
+            // Отменённая (cancelled) запись не блокирует принятие приглашения.
+            if ($tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+                ->where('user_id', $userId)->exists()) {
                 return 'already';
             }
+
+            // Подчищаем ранее отменённую запись, чтобы attach не нарушил
+            // уникальный индекс [tournament_id, user_id].
+            $tournament->participants()->wherePivot('status', 'cancelled')->detach($userId);
 
             $takenSlots = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])

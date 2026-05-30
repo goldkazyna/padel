@@ -610,7 +610,11 @@ class TournamentController extends Controller
 				return false;
 			}
 
-			$tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
+			$tournament->participants()->updateExistingPivot($userId, [
+				'status' => 'registered',
+				'moderation_deadline' => null,
+				'reminder_sent_at' => null,
+			]);
 			return true;
 		});
 

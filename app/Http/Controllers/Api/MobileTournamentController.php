@@ -596,8 +596,10 @@ class MobileTournamentController extends Controller
             ], 400);
         }
 
-        // Проверяем, не зарегистрированы ли уже
+        // Проверяем, не зарегистрированы ли уже. Отклонённые (rejected) команды —
+        // терминальный статус, они не блокируют повторную запись.
         $existingTeam = TournamentTeam::where('tournament_id', $tournament->id)
+            ->where('status', '!=', 'rejected')
             ->where(function($q) use ($user, $partner) {
                 $q->where(function($q2) use ($user) {
                     $q2->where('player1_id', $user->id)
@@ -612,6 +614,16 @@ class MobileTournamentController extends Controller
         if ($existingTeam) {
             return response()->json(['success' => false, 'message' => 'Вы или ваш партнёр уже зарегистрированы'], 400);
         }
+
+        // Подчищаем прежние отклонённые команды этой пары (любого из игроков),
+        // чтобы не плодить мусор и stale-дубликаты при повторной записи.
+        TournamentTeam::where('tournament_id', $tournament->id)
+            ->where('status', 'rejected')
+            ->where(function($q) use ($user, $partner) {
+                $q->whereIn('player1_id', [$user->id, $partner->id])
+                  ->orWhereIn('player2_id', [$user->id, $partner->id]);
+            })
+            ->delete();
 
         // Атомарная проверка мест + создание команды (с поддержкой waitlist)
         $result = DB::transaction(function () use ($tournament, $user, $partner, $confirmWaitlist) {
@@ -829,7 +841,10 @@ class MobileTournamentController extends Controller
         ];
 
         if ($t->type === 'team') {
+            // Отклонённые (rejected) команды — терминальный статус: считаем как
+            // «не зарегистрирован», чтобы пара могла записаться повторно.
             $team = TournamentTeam::where('tournament_id', $t->id)
+                ->where('status', '!=', 'rejected')
                 ->where(function($q) use ($user) {
                     $q->where('player1_id', $user->id)
                       ->orWhere('player2_id', $user->id);
@@ -852,7 +867,12 @@ class MobileTournamentController extends Controller
                 $result['can_register'] = $result['block_reason'] === null && $t->isOpen();
             }
         } else {
-            $participant = $t->participants()->where('user_id', $user->id)->first();
+            // Отменённые (cancelled) записи — терминальный статус: считаем как
+            // «не зарегистрирован», чтобы игрок мог записаться повторно.
+            $participant = $t->participants()
+                ->wherePivot('status', '!=', 'cancelled')
+                ->where('user_id', $user->id)
+                ->first();
 
             if ($participant) {
                 $result['is_registered'] = true;
