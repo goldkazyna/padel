@@ -32,6 +32,8 @@ class ClubController extends Controller
             'instagram_url' => 'nullable|url|max:500',
         ]);
 
+        $validated['coming_soon'] = $request->boolean('coming_soon');
+
         Club::create($validated);
 
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб создан!');
@@ -76,6 +78,7 @@ class ClubController extends Controller
 
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
         $validated['online_payment_enabled'] = $request->boolean('online_payment_enabled');
+        $validated['coming_soon'] = $request->boolean('coming_soon');
 
         $features = $request->input('features', []);
         $validated['features'] = [

@@ -240,6 +240,17 @@
                     </div>
 
                     <div class="mb-4">
+                        <label class="form-check">
+                            <input type="hidden" name="coming_soon" value="0">
+                            <input type="checkbox" name="coming_soon" value="1" class="form-check-input"
+                                   {{ old('coming_soon', $club->coming_soon) ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Скоро открытие</span>
+                        </label>
+                        <div class="text-secondary small mt-1">В приложении у клуба будет плашка «Скоро открытие».</div>
+                    </div>
+
+                    <div class="mb-4">
                         <label class="form-label">Телеграм-канал (ссылка)</label>
                         <input type="text" name="telegram_url" class="form-control @error('telegram_url') is-invalid @enderror"
                                value="{{ old('telegram_url', $club->telegram_url) }}" placeholder="https://t.me/yourchannel">

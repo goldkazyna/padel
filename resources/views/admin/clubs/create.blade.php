@@ -62,6 +62,17 @@
                         @enderror
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-check">
+                            <input type="hidden" name="coming_soon" value="0">
+                            <input type="checkbox" name="coming_soon" value="1" class="form-check-input"
+                                   {{ old('coming_soon') ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Скоро открытие</span>
+                        </label>
+                        <div class="text-secondary small mt-1">В приложении у клуба будет плашка «Скоро открытие».</div>
+                    </div>
+
                     <div class="d-flex gap-3">
                         <button type="submit" class="btn-primary-custom">
                             <i class="bi bi-check-lg"></i> Создать клуб

@@ -53,6 +53,7 @@ class MobileClubController extends Controller
             'description' => $club->description,
             'phone' => $club->phone,
             'is_community' => (bool) $club->is_community,
+            'coming_soon' => (bool) $club->coming_soon,
             'telegram_url' => $club->telegram_url,
             'instagram_url' => $club->instagram_url,
         ]);
@@ -124,6 +125,7 @@ class MobileClubController extends Controller
                 'instagram_url' => $club->instagram_url,
                 'cover' => $club->cover ? url($club->cover) : null,
                 'is_community' => (bool) $club->is_community,
+                'coming_soon' => (bool) $club->coming_soon,
                 'open_tournaments_count' => $club->tournaments()
                     ->where('status', 'open')
                     ->where('start_date', '>', now())
