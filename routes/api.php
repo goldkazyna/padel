@@ -122,6 +122,8 @@ Route::prefix('mobile')->group(function () {
         Route::delete('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'removeParticipant']);
         Route::get('/admin/tournaments/{tournament}/players/search', [MobileAdminTournamentDetailController::class, 'searchPlayers']);
         Route::post('/admin/tournaments/{tournament}/invite', [MobileAdminTournamentDetailController::class, 'invite']);
+        Route::get('/admin/tournaments/{tournament}/invitations', [MobileAdminTournamentDetailController::class, 'invitations']);
+        Route::delete('/admin/tournaments/{tournament}/invitations/{invitation}', [MobileAdminTournamentDetailController::class, 'cancelInvitation']);
         Route::post('/admin/tournaments/{tournament}/teams/{team}/approve', [MobileAdminTournamentDetailController::class, 'approveTeam']);
         Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
         Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);

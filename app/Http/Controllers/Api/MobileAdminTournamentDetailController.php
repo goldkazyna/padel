@@ -631,6 +631,52 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * GET /api/mobile/admin/tournaments/{tournament}/invitations
+     * Список приглашённых игроков (все статусы).
+     */
+    public function invitations(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $invitations = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)
+            ->with('user:id,name,phone,level,rating,avatar')
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn($inv) => $inv->user)
+            ->map(fn($inv) => [
+                'id' => $inv->id,
+                'status' => $inv->status,
+                'created_at' => $inv->created_at?->toIso8601String(),
+                'player' => $this->formatUser($inv->user),
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'invitations' => $invitations,
+        ]);
+    }
+
+    /**
+     * DELETE /api/mobile/admin/tournaments/{tournament}/invitations/{invitation}
+     * Убрать игрока из списка приглашённых.
+     */
+    public function cancelInvitation(Request $request, Tournament $tournament, \App\Models\TournamentInvitation $invitation): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if ($invitation->tournament_id !== $tournament->id) {
+            return $this->error('Приглашение не найдено', 404);
+        }
+
+        $invitation->delete();
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * GET /api/mobile/admin/tournaments/{tournament}/players/search?q=...
      */
     public function searchPlayers(Request $request, Tournament $tournament): JsonResponse

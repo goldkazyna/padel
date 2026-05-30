@@ -87,6 +87,37 @@ class TournamentInvitationTest extends TestCase
         $this->assertDatabaseCount('tournament_invitations', 1);
     }
 
+    public function test_admin_lists_tournament_invitations(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+        TournamentInvitation::create([
+            'tournament_id' => $tournament->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$tournament->id}/invitations")
+            ->assertOk()
+            ->assertJsonCount(1, 'invitations')
+            ->assertJsonPath('invitations.0.status', 'pending')
+            ->assertJsonPath('invitations.0.player.id', $player->id);
+    }
+
+    public function test_admin_cancels_invitation(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+        $inv = TournamentInvitation::create([
+            'tournament_id' => $tournament->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/mobile/admin/tournaments/{$tournament->id}/invitations/{$inv->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('tournament_invitations', ['id' => $inv->id]);
+    }
+
     public function test_player_lists_and_counts_pending(): void
     {
         [, $admin, $tournament, $player] = $this->setup3();
