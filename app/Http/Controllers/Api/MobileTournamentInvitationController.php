@@ -84,7 +84,12 @@ class MobileTournamentInvitationController extends Controller
                 ->count();
 
             if (($takenSlots + 1) <= $tournament->max_participants) {
-                $tournament->participants()->attach($userId, ['status' => 'pending']);
+                $deadline = $tournament->moderationDeadline();
+                $pivot = ['status' => 'pending'];
+                if ($deadline) {
+                    $pivot['moderation_deadline'] = $deadline;
+                }
+                $tournament->participants()->attach($userId, $pivot);
                 return 'registered';
             }
 
@@ -108,6 +113,13 @@ class MobileTournamentInvitationController extends Controller
         }
 
         $invitation->update(['status' => 'accepted', 'responded_at' => now()]);
+
+        if ($outcome === 'registered') {
+            $deadline = $tournament->moderationDeadline();
+            if ($deadline) {
+                app(\App\Services\ModerationNotifier::class)->pending($request->user(), $tournament, $deadline);
+            }
+        }
 
         return response()->json([
             'success' => true,

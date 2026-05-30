@@ -17,6 +17,8 @@ class TournamentTeam extends Model
         'rating_before',
         'rating_after',
         'status',
+        'moderation_deadline',
+        'reminder_sent_at',
     ];
 
     // Статусы

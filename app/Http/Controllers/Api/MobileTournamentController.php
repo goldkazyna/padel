@@ -633,6 +633,7 @@ class MobileTournamentController extends Controller
                         'player2_id' => $partner->id,
                         'rating_avg' => intval(($user->rating + $partner->rating) / 2),
                         'status' => 'pending',
+                        'moderation_deadline' => $tournament->moderationDeadline(),
                     ]),
                 ];
             }
