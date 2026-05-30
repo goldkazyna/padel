@@ -265,7 +265,11 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Турнир не открыт для регистрации'], 400);
         }
 
-        if ($tournament->participants()->where('user_id', $user->id)->exists()) {
+        // Активной считается только запись в статусах registered/pending/waiting.
+        // Ранее отменённая (cancelled) запись не блокирует повторную регистрацию.
+        if ($tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+            ->where('user_id', $user->id)->exists()) {
             return response()->json(['success' => false, 'message' => 'Вы уже записаны на этот турнир'], 400);
         }
 
@@ -289,7 +293,9 @@ class MobileTournamentController extends Controller
             if (!$friend) {
                 return response()->json(['success' => false, 'message' => 'Друг не найден'], 404);
             }
-            if ($tournament->participants()->where('user_id', $friend->id)->exists()) {
+            if ($tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+                ->where('user_id', $friend->id)->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => "{$friend->name} уже записан на этот турнир",
@@ -308,8 +314,16 @@ class MobileTournamentController extends Controller
         // Если основных мест нет, но включён confirm_waitlist и в листе ожидания есть место —
         // ставим в очередь со статусом 'waiting'.
         $needSlots = $friend ? 2 : 1;
-        $outcome = DB::transaction(function () use ($tournament, $user, $friend, $needSlots, $confirmWaitlist) {
+        $deadline = $tournament->moderationDeadline();
+        $outcome = DB::transaction(function () use ($tournament, $user, $friend, $needSlots, $confirmWaitlist, $deadline) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            // Подчищаем ранее отменённые записи, чтобы attach не нарушил
+            // уникальный индекс [tournament_id, user_id].
+            $tournament->participants()->wherePivot('status', 'cancelled')->detach($user->id);
+            if ($friend) {
+                $tournament->participants()->wherePivot('status', 'cancelled')->detach($friend->id);
+            }
 
             $takenSlots = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending'])
@@ -318,9 +332,11 @@ class MobileTournamentController extends Controller
             $hasMain = ($takenSlots + $needSlots) <= $tournament->max_participants;
 
             if ($hasMain) {
-                $tournament->participants()->attach($user->id, ['status' => 'pending']);
+                $pivot = ['status' => 'pending'];
+                if ($deadline) $pivot['moderation_deadline'] = $deadline;
+                $tournament->participants()->attach($user->id, $pivot);
                 if ($friend) {
-                    $tournament->participants()->attach($friend->id, ['status' => 'pending']);
+                    $tournament->participants()->attach($friend->id, $pivot);
                 }
                 return 'registered';
             }
@@ -369,6 +385,12 @@ class MobileTournamentController extends Controller
         }
 
         $isWaitlisted = $outcome === 'waitlisted';
+
+        // Пуш «заявка на модерации» себе — только при успешной основной записи
+        // (не для листа ожидания) и только если у турнира включён таймер модерации.
+        if ($outcome === 'registered' && $deadline) {
+            app(\App\Services\ModerationNotifier::class)->pending($user, $tournament, $deadline);
+        }
 
         // Удаляем подписку — пользователь уже записался
         TournamentSubscription::where('tournament_id', $tournament->id)
