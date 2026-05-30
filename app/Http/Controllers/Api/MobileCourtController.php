@@ -151,6 +151,8 @@ class MobileCourtController extends Controller
                 return [
                     'id' => $coach->user_id,
                     'name' => $coach->user->full_name ?? $coach->user->name,
+                    'specialization' => $coach->specialization,
+                    'photo' => $coach->photo ? url($coach->photo) : null,
                     'hourly_rate' => (float) $coach->hourly_rate,
                     'rates' => (object) $rates,
                     'availability' => (object) $availability,
