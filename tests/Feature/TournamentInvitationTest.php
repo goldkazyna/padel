@@ -118,6 +118,34 @@ class TournamentInvitationTest extends TestCase
         $this->assertDatabaseMissing('tournament_invitations', ['id' => $inv->id]);
     }
 
+    public function test_invite_limited_to_ten_per_tournament(): void
+    {
+        [, $admin, $tournament, ] = $this->setup3();
+        // Уже 10 приглашений
+        for ($i = 0; $i < 10; $i++) {
+            TournamentInvitation::create([
+                'tournament_id' => $tournament->id,
+                'user_id' => User::factory()->create()->id,
+                'invited_by' => $admin->id, 'status' => 'pending',
+            ]);
+        }
+        Sanctum::actingAs($admin);
+
+        // 11-й — блок
+        $eleventh = User::factory()->create();
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/invite", [
+            'user_id' => $eleventh->id,
+        ])->assertStatus(422);
+        $this->assertDatabaseCount('tournament_invitations', 10);
+
+        // Повтор уже приглашённого — разрешён (не создаёт нового)
+        $existing = TournamentInvitation::where('tournament_id', $tournament->id)->first();
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/invite", [
+            'user_id' => $existing->user_id,
+        ])->assertOk();
+        $this->assertDatabaseCount('tournament_invitations', 10);
+    }
+
     public function test_player_lists_and_counts_pending(): void
     {
         [, $admin, $tournament, $player] = $this->setup3();
