@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
+use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
 use App\Http\Controllers\Api\MobileDeviceController;
@@ -120,6 +121,7 @@ Route::prefix('mobile')->group(function () {
         Route::put('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'replaceParticipant']);
         Route::delete('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'removeParticipant']);
         Route::get('/admin/tournaments/{tournament}/players/search', [MobileAdminTournamentDetailController::class, 'searchPlayers']);
+        Route::post('/admin/tournaments/{tournament}/invite', [MobileAdminTournamentDetailController::class, 'invite']);
         Route::post('/admin/tournaments/{tournament}/teams/{team}/approve', [MobileAdminTournamentDetailController::class, 'approveTeam']);
         Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
         Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);
@@ -175,6 +177,11 @@ Route::prefix('mobile')->group(function () {
         Route::get('/tournaments/archive', [MobileTournamentController::class, 'archive']);
         Route::get('/tournaments/cancelled', [MobileTournamentController::class, 'cancelled']);
         Route::get('/tournaments/completed', [MobileTournamentController::class, 'completed']);
+        // Приглашения на турнир (до wildcard {tournament})
+        Route::get('/tournaments/invitations', [MobileTournamentInvitationController::class, 'index']);
+        Route::get('/tournaments/invitations/count', [MobileTournamentInvitationController::class, 'count']);
+        Route::post('/tournaments/invitations/{invitation}/accept', [MobileTournamentInvitationController::class, 'accept']);
+        Route::post('/tournaments/invitations/{invitation}/decline', [MobileTournamentInvitationController::class, 'decline']);
         Route::get('/tournaments/{tournament}', [MobileTournamentController::class, 'show']);
         Route::get('/tournaments/{tournament}/results', [MobileTournamentController::class, 'results']);
         Route::get('/tournaments/{tournament}/stats', [MobileTournamentController::class, 'stats']);

@@ -571,6 +571,66 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/invite
+     * body: user_id — пригласить игрока (пуш + запись в tournament_invitations).
+     */
+    public function invite(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ($tournament->type === 'team') {
+            return $this->error('Приглашения доступны только для индивидуальных турниров');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+        $userId = (int) $validator->validated()['user_id'];
+
+        if ($tournament->participants()->where('user_id', $userId)->exists()) {
+            return $this->error('Игрок уже участвует в турнире');
+        }
+
+        $invitation = \App\Models\TournamentInvitation::updateOrCreate(
+            ['tournament_id' => $tournament->id, 'user_id' => $userId],
+            ['invited_by' => $request->user()->id, 'status' => 'pending', 'responded_at' => null],
+        );
+
+        $player = User::find($userId);
+        if ($player) {
+            $title = 'Приглашение на турнир';
+            $body = "Вас пригласили на турнир «{$tournament->name}»";
+            \App\Models\Notification::create([
+                'user_id' => $player->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'tournament_invite',
+                'category' => 'tournament',
+                'data' => [
+                    'tournament_id' => $tournament->id,
+                    'invitation_id' => $invitation->id,
+                ],
+            ]);
+            try {
+                app(\App\Services\FCMNotificationService::class)->sendToUser($player, $title, $body, [
+                    'type' => 'tournament_invite',
+                    'tournament_id' => (string) $tournament->id,
+                    'invitation_id' => (string) $invitation->id,
+                ]);
+            } catch (\Throwable $e) {
+                // пуш не критичен — приглашение уже сохранено
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * GET /api/mobile/admin/tournaments/{tournament}/players/search?q=...
      */
     public function searchPlayers(Request $request, Tournament $tournament): JsonResponse
@@ -600,6 +660,9 @@ class MobileAdminTournamentDetailController extends Controller
             ->where(function ($qq) use ($q) {
                 $qq->where('phone', 'like', "%{$q}%")
                     ->orWhere('name', 'like', "%{$q}%");
+                if (ctype_digit($q)) {
+                    $qq->orWhere('id', (int) $q);
+                }
             })
             ->whereNotIn('id', $excluded)
             ->orderBy('name')
