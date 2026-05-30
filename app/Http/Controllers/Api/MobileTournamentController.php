@@ -825,6 +825,7 @@ class MobileTournamentController extends Controller
             'block_reason' => null,
             'in_waitlist' => false,
             'waitlist_position' => null,
+            'moderation_deadline' => null,
         ];
 
         if ($t->type === 'team') {
@@ -838,6 +839,9 @@ class MobileTournamentController extends Controller
             if ($team) {
                 $result['is_registered'] = true;
                 $result['status'] = $team->status;
+                if ($team->status === 'pending' && $team->moderation_deadline) {
+                    $result['moderation_deadline'] = \Carbon\Carbon::parse($team->moderation_deadline)->toIso8601String();
+                }
                 if ($team->status === 'waiting') {
                     $result['in_waitlist'] = true;
                     $result['waitlist_position'] = $t->getWaitlistPosition($user);
@@ -853,6 +857,9 @@ class MobileTournamentController extends Controller
             if ($participant) {
                 $result['is_registered'] = true;
                 $result['status'] = $participant->pivot->status;
+                if ($participant->pivot->status === 'pending' && $participant->pivot->moderation_deadline) {
+                    $result['moderation_deadline'] = \Carbon\Carbon::parse($participant->pivot->moderation_deadline)->toIso8601String();
+                }
                 if ($participant->pivot->status === 'waiting') {
                     $result['in_waitlist'] = true;
                     $result['waitlist_position'] = $t->getWaitlistPosition($user);

@@ -383,7 +383,7 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $list = $tournament->participants()
-            ->withPivot(['status', 'created_at'])
+            ->withPivot(['status', 'created_at', 'moderation_deadline'])
             ->orderByRaw("CASE tournament_participants.status WHEN 'pending' THEN 0 WHEN 'registered' THEN 1 ELSE 2 END")
             ->get()
             ->map(function ($u) {
@@ -391,6 +391,8 @@ class MobileAdminTournamentDetailController extends Controller
                 $arr['status'] = $u->pivot->status;
                 $arr['registered_at'] = $u->pivot->created_at
                     ? $u->pivot->created_at->toIso8601String() : null;
+                $arr['moderation_deadline'] = $u->pivot->moderation_deadline
+                    ? \Carbon\Carbon::parse($u->pivot->moderation_deadline)->toIso8601String() : null;
                 return $arr;
             });
 

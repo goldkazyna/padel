@@ -55,6 +55,7 @@ trait FormatsTournaments
             $data['block_reason'] = $registration['block_reason'];
             $data['in_waitlist'] = $registration['in_waitlist'];
             $data['waitlist_position'] = $registration['waitlist_position'];
+            $data['moderation_deadline'] = $registration['moderation_deadline'] ?? null;
         }
 
         return $data;
