@@ -32,13 +32,41 @@ class ClubGroupController extends Controller
 
         $groups = $base
             ->where('status', $tab)
+            ->with('coach:id,name,first_name,last_name')
             ->withCount(['members as active_members_count' => fn($q) => $q->where('status', 'active')])
             ->orderBy('name')
             ->get();
 
         $coaches = $club->clubCoaches()->with('user')->get();
 
-        return view('club.groups.index', compact('groups', 'club', 'coaches', 'tab', 'activeCount', 'archivedCount'));
+        // Мета аватарок тренеров: фото / инициалы / цвет-заглушка
+        $palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e', '#06b6d4', '#ef4444', '#14b8a6'];
+        $coachMeta = [];
+        foreach ($coaches as $cc) {
+            if (!$cc->user) continue;
+            $coachMeta[$cc->user_id] = $this->coachMeta($cc->user, $cc->photo, $palette);
+        }
+        foreach ($groups as $g) {
+            if ($g->coach_id && !isset($coachMeta[$g->coach_id]) && $g->coach) {
+                $coachMeta[$g->coach_id] = $this->coachMeta($g->coach, null, $palette);
+            }
+        }
+
+        return view('club.groups.index', compact('groups', 'club', 'coaches', 'coachMeta', 'tab', 'activeCount', 'archivedCount'));
+    }
+
+    /** Метаданные тренера для аватарки: фото / инициалы / цвет-заглушка. */
+    private function coachMeta($user, ?string $photo, array $palette): array
+    {
+        $fn = $user->first_name ?: $user->name;
+        $ln = $user->last_name;
+        $initials = mb_strtoupper(mb_substr((string) $fn, 0, 1) . ($ln ? mb_substr($ln, 0, 1) : ''));
+        return [
+            'photo'    => $photo,
+            'initials' => $initials ?: '?',
+            'color'    => $palette[$user->id % count($palette)],
+            'name'     => $user->full_name,
+        ];
     }
 
     public function store(Request $request)

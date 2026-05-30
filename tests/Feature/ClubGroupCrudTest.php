@@ -36,6 +36,21 @@ class ClubGroupCrudTest extends TestCase
         $this->assertSame(4, (int) $g->capacity);
     }
 
+    public function test_groups_index_renders(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $coach = User::factory()->create(['role' => 'club_coach', 'first_name' => 'Иван', 'last_name' => 'Петров']);
+        ClubGroup::create([
+            'club_id' => $club->id, 'name' => 'Утренняя', 'coach_id' => $coach->id,
+            'price_per_session' => 5000, 'capacity' => 4, 'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)->get(route('club.groups.index'))
+            ->assertOk()
+            ->assertSee('Утренняя')
+            ->assertSee('Тренер');
+    }
+
     public function test_other_club_group_forbidden(): void
     {
         [, $admin] = $this->adminClub();
