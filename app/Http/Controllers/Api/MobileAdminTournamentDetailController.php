@@ -728,7 +728,7 @@ class MobileAdminTournamentDetailController extends Controller
             ->whereNotIn('id', $excluded)
             ->orderBy('name')
             ->limit(20)
-            ->get(['id', 'name', 'phone', 'level', 'rating', 'avatar'])
+            ->get(['id', 'name', 'phone', 'level', 'rating', 'avatar', 'level_verified'])
             ->map(fn($u) => $this->formatUser($u));
 
         return response()->json([
@@ -821,6 +821,7 @@ class MobileAdminTournamentDetailController extends Controller
             'level' => $u->level !== null ? (float) $u->level : null,
             'rating' => $u->rating !== null ? (int) $u->rating : null,
             'avatar_url' => $u->avatar, // в БД уже хранится готовый URL (как в рейтинге)
+            'level_verified' => (bool) $u->level_verified,
         ];
     }
 
