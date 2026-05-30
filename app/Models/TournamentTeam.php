@@ -21,6 +21,11 @@ class TournamentTeam extends Model
         'reminder_sent_at',
     ];
 
+    protected $casts = [
+        'moderation_deadline' => 'datetime',
+        'reminder_sent_at' => 'datetime',
+    ];
+
     // Статусы
     const STATUS_PENDING = 'pending';
     const STATUS_APPROVED = 'approved';

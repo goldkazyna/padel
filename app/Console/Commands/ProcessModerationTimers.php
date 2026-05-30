@@ -22,6 +22,7 @@ class ProcessModerationTimers extends Command
 
         foreach ($tournaments as $t) {
             $this->processSolo($t, $notifier);
+            $this->processTeams($t, $notifier);
         }
 
         return self::SUCCESS;
@@ -76,6 +77,54 @@ class ProcessModerationTimers extends Command
         ]);
         if ($deadline) {
             $notifier->pending($waiter, $t, $deadline);
+        }
+    }
+
+    private function processTeams(Tournament $t, ModerationNotifier $notifier): void
+    {
+        if ($t->type !== 'team') return;
+
+        $now = now();
+        $windowSeconds = (int) $t->moderation_hours * 3600;
+        $reminderLead = max($windowSeconds * 0.2, 1800); // 20% окна, минимум 30 мин
+
+        $pending = \App\Models\TournamentTeam::where('tournament_id', $t->id)
+            ->where('status', 'pending')
+            ->whereNotNull('moderation_deadline')
+            ->get();
+
+        foreach ($pending as $team) {
+            $deadline = $team->moderation_deadline;
+            $remaining = $deadline->getTimestamp() - $now->getTimestamp();
+
+            if ($remaining <= 0) {
+                DB::transaction(function () use ($t, $team, $notifier) {
+                    $team->update(['status' => 'rejected', 'moderation_deadline' => null, 'reminder_sent_at' => null]);
+                    if ($team->player1) $notifier->expired($team->player1, $t);
+                    $this->promoteFirstWaitingTeam($t, $notifier);
+                });
+                continue;
+            }
+
+            if (!$team->reminder_sent_at && $remaining <= $reminderLead) {
+                $team->update(['reminder_sent_at' => $now]);
+                if ($team->player1) $notifier->reminder($team->player1, $t, $deadline);
+            }
+        }
+    }
+
+    private function promoteFirstWaitingTeam(Tournament $t, ModerationNotifier $notifier): void
+    {
+        $team = \App\Models\TournamentTeam::where('tournament_id', $t->id)
+            ->where('status', 'waiting')
+            ->orderBy('created_at')
+            ->first();
+        if (!$team) return;
+
+        $deadline = $t->moderationDeadline();
+        $team->update(['status' => 'pending', 'moderation_deadline' => $deadline, 'reminder_sent_at' => null]);
+        if ($deadline && $team->player1) {
+            $notifier->pending($team->player1, $t, $deadline);
         }
     }
 }
