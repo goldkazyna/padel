@@ -108,6 +108,7 @@ class Tournament extends Model
 		'playoff_format',
 		'reserve_count',
 		'waitlist_size',
+		'moderation_hours',
 		'courts',
 		'courts_count',
 		'has_lower_bracket',
@@ -125,6 +126,7 @@ class Tournament extends Model
 		'has_lower_bracket' => 'boolean',
 		'has_bronze_match' => 'boolean',
 		'courts' => 'array',
+		'moderation_hours' => 'integer',
     ];
 
     // Связи
@@ -136,8 +138,15 @@ class Tournament extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'tournament_participants')
-                    ->withPivot('status')
+                    ->withPivot('status', 'moderation_deadline', 'reminder_sent_at')
                     ->withTimestamps();
+    }
+
+    /** Дедлайн модерации для новой pending-заявки (или null, если таймер выключен). */
+    public function moderationDeadline(): ?\Carbon\Carbon
+    {
+        $hours = (int) ($this->moderation_hours ?? 0);
+        return $hours > 0 ? now()->addHours($hours) : null;
     }
 
     // Проверки статуса
