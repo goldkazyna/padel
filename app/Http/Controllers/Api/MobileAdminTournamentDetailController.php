@@ -434,8 +434,11 @@ class MobileAdminTournamentDetailController extends Controller
                 return false;
             }
 
-            $tournament->participants()
-                ->updateExistingPivot($user->id, ['status' => 'registered']);
+            $tournament->participants()->updateExistingPivot($user->id, [
+                'status' => 'registered',
+                'moderation_deadline' => null,
+                'reminder_sent_at' => null,
+            ]);
             return true;
         });
 
@@ -753,7 +756,7 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Турнир не открыт');
         }
 
-        $team->update(['status' => 'approved']);
+        $team->update(['status' => 'approved', 'moderation_deadline' => null, 'reminder_sent_at' => null]);
         return response()->json(['success' => true]);
     }
 
