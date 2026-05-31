@@ -524,13 +524,56 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Игрок уже в листе ожидания');
         }
 
-        // В конец листа ожидания: created_at = now, таймер модерации снят.
-        $tournament->participants()->updateExistingPivot($user->id, [
-            'status' => 'waiting',
-            'created_at' => now(),
-            'moderation_deadline' => null,
-            'reminder_sent_at' => null,
-        ]);
+        $promoted = \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $user) {
+            // Первый в листе ожидания ДО перемещения (чтобы не продвинуть самого перемещаемого).
+            $nextWaiter = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->orderBy('tournament_participants.created_at')
+                ->first();
+
+            // Перемещаемого — в конец листа ожидания, таймер снят.
+            $tournament->participants()->updateExistingPivot($user->id, [
+                'status' => 'waiting',
+                'created_at' => now(),
+                'moderation_deadline' => null,
+                'reminder_sent_at' => null,
+            ]);
+
+            if (!$nextWaiter) return null;
+
+            // Освободившийся слот занимает первый из листа — на модерацию (со свежим таймером).
+            $deadline = $tournament->moderationDeadline();
+            $tournament->participants()->updateExistingPivot($nextWaiter->id, [
+                'status' => 'pending',
+                'moderation_deadline' => $deadline,
+                'reminder_sent_at' => null,
+            ]);
+
+            return ['user' => $nextWaiter, 'deadline' => $deadline];
+        });
+
+        // Уведомление продвинутому (вне транзакции).
+        if ($promoted) {
+            $u = $promoted['user'];
+            if ($promoted['deadline']) {
+                app(\App\Services\ModerationNotifier::class)->pending($u, $tournament, $promoted['deadline']);
+            } else {
+                $title = 'Место освободилось!';
+                $body = "Вы перешли из листа ожидания на турнир «{$tournament->name}». Заявка на модерации.";
+                \App\Models\Notification::create([
+                    'user_id' => $u->id, 'title' => $title, 'body' => $body,
+                    'type' => 'waitlist_promoted', 'category' => 'tournament',
+                    'data' => ['tournament_id' => $tournament->id],
+                ]);
+                try {
+                    app(\App\Services\FCMNotificationService::class)->sendToUser($u, $title, $body, [
+                        'type' => 'tournament', 'tournament_id' => (string) $tournament->id,
+                    ]);
+                } catch (\Throwable $e) {
+                    // пуш не критичен
+                }
+            }
+        }
 
         return response()->json(['success' => true]);
     }

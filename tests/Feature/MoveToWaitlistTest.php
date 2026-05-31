@@ -56,39 +56,60 @@ class MoveToWaitlistTest extends TestCase
         $this->assertNull($row->pivot->moderation_deadline);
     }
 
-    public function test_moved_to_end_of_waitlist(): void
+    public function test_move_promotes_front_waiter_to_pending(): void
     {
         [$admin, $t, $player] = $this->setup3();
-        // в листе ожидания уже есть старичок
-        $old = User::factory()->create();
-        $t->participants()->attach($old->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
+        $t->update(['moderation_minutes' => 30]); // у турнира есть таймер
+        $w = User::factory()->create(['name' => 'Очередник']);
+        $t->participants()->attach($w->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
         $t->participants()->attach($player->id, ['status' => 'registered']);
         Sanctum::actingAs($admin);
 
         $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
             ->assertOk();
 
-        // первый в очереди (по created_at) — старичок, не перемещённый
-        $first = $t->participants()->wherePivot('status', 'waiting')
-            ->orderBy('tournament_participants.created_at')->first();
-        $this->assertSame($old->id, $first->id);
+        // первый из листа поднялся на модерацию со свежим таймером
+        $wRow = $t->participants()->where('user_id', $w->id)->first();
+        $this->assertSame('pending', $wRow->pivot->status);
+        $this->assertNotNull($wRow->pivot->moderation_deadline);
+
+        // перемещённый — в листе ожидания
+        $pRow = $t->participants()->where('user_id', $player->id)->first();
+        $this->assertSame('waiting', $pRow->pivot->status);
+    }
+
+    public function test_no_promotion_when_waitlist_was_empty(): void
+    {
+        [$admin, $t, $player] = $this->setup3();
+        $t->participants()->attach($player->id, ['status' => 'registered']);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
+            ->assertOk();
+
+        // лист был пуст — перемещённый просто в листе, никто не продвинут в pending
+        $pRow = $t->participants()->where('user_id', $player->id)->first();
+        $this->assertSame('waiting', $pRow->pivot->status);
+        $this->assertSame(0, $t->participants()->wherePivot('status', 'pending')->count());
     }
 
     public function test_participants_endpoint_orders_waitlist_fifo(): void
     {
         [$admin, $t, $player] = $this->setup3();
-        $old = User::factory()->create(['name' => 'Старичок']);
-        $t->participants()->attach($old->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
+        $w1 = User::factory()->create(['name' => 'W1']); // самый старый → продвинется
+        $w2 = User::factory()->create(['name' => 'W2']);
+        $t->participants()->attach($w1->id, ['status' => 'waiting', 'created_at' => now()->subHours(2)]);
+        $t->participants()->attach($w2->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
         $t->participants()->attach($player->id, ['status' => 'registered', 'created_at' => now()->subDay()]);
         Sanctum::actingAs($admin);
 
         $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
             ->assertOk();
 
+        // W1 продвинут; в листе остаются W2 (раньше) и перемещённый player (последним)
         $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/participants")->assertOk();
         $waiting = collect($res->json('participants'))->where('status', 'waiting')->values();
-        // первым в листе — старичок, перемещённый — последним
-        $this->assertSame($old->id, $waiting->first()['id']);
+        $this->assertSame($w2->id, $waiting->first()['id']);
         $this->assertSame($player->id, $waiting->last()['id']);
     }
 
