@@ -49,16 +49,18 @@ class SendTournamentReminders extends Command
 
     private function send(User $user, Tournament $t, string $kind): void
     {
+        // start_date хранится как местное время (Алматы) — форматируем как есть,
+        // без timezone-конвертации (так же делает весь остальной апп).
         $club = $t->club->name ?? '';
-        $time = $t->start_date->copy()->timezone('Asia/Almaty')->format('H:i');
-        $date = $t->start_date->copy()->timezone('Asia/Almaty')->format('d.m');
+        $time = $t->start_date->format('H:i');
+        $date = $t->start_date->format('d.m');
 
         if ($kind === '1d') {
-            $title = 'Турнир завтра';
-            $body = "Напоминаем: «{$t->name}» {$date} в {$time}" . ($club ? ", {$club}" : '') . '. Не забудьте!';
+            $title = 'Напоминание о турнире';
+            $body = "Турнир «{$t->name}» {$date} в {$time}" . ($club ? ", {$club}" : '') . '. Не забудьте!';
         } else {
-            $title = 'Турнир через 2 часа';
-            $body = "«{$t->name}» сегодня в {$time}" . ($club ? ", {$club}" : '') . '.';
+            $title = 'Турнир скоро';
+            $body = "«{$t->name}» начнётся в {$time}" . ($club ? ", {$club}" : '') . ' — меньше чем через 2 часа.';
         }
 
         Notification::create([
