@@ -64,7 +64,7 @@ class MobileTournamentController extends Controller
             ->where('tournament_participants.status', 'pending')
             ->whereNotNull('tournament_participants.moderation_deadline')
             ->where('tournaments.status', 'open')
-            ->select('tournaments.id', 'tournaments.name', 'tournament_participants.moderation_deadline as deadline')
+            ->select('tournaments.id', 'tournaments.name', 'tournaments.start_date', 'tournament_participants.moderation_deadline as deadline')
             ->get();
 
         $team = DB::table('tournament_teams')
@@ -76,7 +76,7 @@ class MobileTournamentController extends Controller
             ->where('tournament_teams.status', 'pending')
             ->whereNotNull('tournament_teams.moderation_deadline')
             ->where('tournaments.status', 'open')
-            ->select('tournaments.id', 'tournaments.name', 'tournament_teams.moderation_deadline as deadline')
+            ->select('tournaments.id', 'tournaments.name', 'tournaments.start_date', 'tournament_teams.moderation_deadline as deadline')
             ->get();
 
         $nearest = $solo->concat($team)
@@ -88,6 +88,7 @@ class MobileTournamentController extends Controller
             'pending' => $nearest ? [
                 'tournament_id' => (int) $nearest->id,
                 'name' => $nearest->name,
+                'date' => \Carbon\Carbon::parse($nearest->start_date)->locale('ru')->isoFormat('D MMMM, HH:mm'),
                 'deadline' => \Carbon\Carbon::parse($nearest->deadline)->toIso8601String(),
             ] : null,
         ]);
