@@ -56,40 +56,47 @@ class MoveToWaitlistTest extends TestCase
         $this->assertNull($row->pivot->moderation_deadline);
     }
 
-    public function test_move_promotes_front_waiter_to_pending(): void
+    public function test_move_promotes_chosen_waiter(): void
     {
         [$admin, $t, $player] = $this->setup3();
         $t->update(['moderation_minutes' => 30]); // у турнира есть таймер
+        $w1 = User::factory()->create(['name' => 'W1']);
+        $w2 = User::factory()->create(['name' => 'W2']);
+        $t->participants()->attach($w1->id, ['status' => 'waiting', 'created_at' => now()->subHours(2)]);
+        $t->participants()->attach($w2->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
+        $t->participants()->attach($player->id, ['status' => 'registered']);
+        Sanctum::actingAs($admin);
+
+        // выбираем НЕ первого, а W2
+        $this->postJson(
+            "/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist",
+            ['promote_user_id' => $w2->id]
+        )->assertOk();
+
+        // W2 поднят на модерацию со свежим таймером
+        $w2Row = $t->participants()->where('user_id', $w2->id)->first();
+        $this->assertSame('pending', $w2Row->pivot->status);
+        $this->assertNotNull($w2Row->pivot->moderation_deadline);
+
+        // W1 остался в листе, перемещённый — в листе
+        $this->assertSame('waiting', $t->participants()->where('user_id', $w1->id)->first()->pivot->status);
+        $this->assertSame('waiting', $t->participants()->where('user_id', $player->id)->first()->pivot->status);
+    }
+
+    public function test_move_without_choice_does_not_promote(): void
+    {
+        [$admin, $t, $player] = $this->setup3();
         $w = User::factory()->create(['name' => 'Очередник']);
         $t->participants()->attach($w->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
         $t->participants()->attach($player->id, ['status' => 'registered']);
         Sanctum::actingAs($admin);
 
+        // без promote_user_id — просто перенос, никого не продвигаем
         $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
             ->assertOk();
 
-        // первый из листа поднялся на модерацию со свежим таймером
-        $wRow = $t->participants()->where('user_id', $w->id)->first();
-        $this->assertSame('pending', $wRow->pivot->status);
-        $this->assertNotNull($wRow->pivot->moderation_deadline);
-
-        // перемещённый — в листе ожидания
-        $pRow = $t->participants()->where('user_id', $player->id)->first();
-        $this->assertSame('waiting', $pRow->pivot->status);
-    }
-
-    public function test_no_promotion_when_waitlist_was_empty(): void
-    {
-        [$admin, $t, $player] = $this->setup3();
-        $t->participants()->attach($player->id, ['status' => 'registered']);
-        Sanctum::actingAs($admin);
-
-        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
-            ->assertOk();
-
-        // лист был пуст — перемещённый просто в листе, никто не продвинут в pending
-        $pRow = $t->participants()->where('user_id', $player->id)->first();
-        $this->assertSame('waiting', $pRow->pivot->status);
+        $this->assertSame('waiting', $t->participants()->where('user_id', $w->id)->first()->pivot->status);
+        $this->assertSame('waiting', $t->participants()->where('user_id', $player->id)->first()->pivot->status);
         $this->assertSame(0, $t->participants()->wherePivot('status', 'pending')->count());
     }
 
@@ -106,10 +113,10 @@ class MoveToWaitlistTest extends TestCase
         $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
             ->assertOk();
 
-        // W1 продвинут; в листе остаются W2 (раньше) и перемещённый player (последним)
+        // без выбора продвижения нет: в листе W1 (старший) … W2 … перемещённый (последним)
         $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/participants")->assertOk();
         $waiting = collect($res->json('participants'))->where('status', 'waiting')->values();
-        $this->assertSame($w2->id, $waiting->first()['id']);
+        $this->assertSame($w1->id, $waiting->first()['id']);
         $this->assertSame($player->id, $waiting->last()['id']);
     }
 

@@ -524,13 +524,11 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Игрок уже в листе ожидания');
         }
 
-        $promoted = \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $user) {
-            // Первый в листе ожидания ДО перемещения (чтобы не продвинуть самого перемещаемого).
-            $nextWaiter = $tournament->participants()
-                ->wherePivot('status', 'waiting')
-                ->orderBy('tournament_participants.created_at')
-                ->first();
+        // Кого из листа ожидания поднять на освободившееся место (выбирает админ).
+        // Если не передан — просто переносим, никого не продвигаем.
+        $promoteId = $request->input('promote_user_id');
 
+        $promoted = \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $user, $promoteId) {
             // Перемещаемого — в конец листа ожидания, таймер снят.
             $tournament->participants()->updateExistingPivot($user->id, [
                 'status' => 'waiting',
@@ -539,17 +537,24 @@ class MobileAdminTournamentDetailController extends Controller
                 'reminder_sent_at' => null,
             ]);
 
-            if (!$nextWaiter) return null;
+            if (!$promoteId || (int) $promoteId === $user->id) return null;
 
-            // Освободившийся слот занимает первый из листа — на модерацию (со свежим таймером).
+            // Выбранный должен сейчас быть в листе ожидания.
+            $target = $tournament->participants()
+                ->wherePivot('status', 'waiting')
+                ->where('users.id', (int) $promoteId)
+                ->first();
+            if (!$target) return null;
+
+            // Выбранный занимает слот — на модерацию (со свежим таймером).
             $deadline = $tournament->moderationDeadline();
-            $tournament->participants()->updateExistingPivot($nextWaiter->id, [
+            $tournament->participants()->updateExistingPivot($target->id, [
                 'status' => 'pending',
                 'moderation_deadline' => $deadline,
                 'reminder_sent_at' => null,
             ]);
 
-            return ['user' => $nextWaiter, 'deadline' => $deadline];
+            return ['user' => $target, 'deadline' => $deadline];
         });
 
         // Уведомление продвинутому (вне транзакции).
