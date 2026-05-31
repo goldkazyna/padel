@@ -140,7 +140,7 @@ class Tournament extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'tournament_participants')
-                    ->withPivot('status', 'moderation_deadline', 'reminder_sent_at')
+                    ->withPivot('status', 'moderation_deadline', 'reminder_sent_at', 'reminded_1d_at', 'reminded_2h_at')
                     ->withTimestamps();
     }
 

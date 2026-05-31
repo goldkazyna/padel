@@ -45,6 +45,7 @@ class MobileDeviceController extends Controller
 
         return response()->json([
             'notify_only_my_level' => (bool) $user->notify_only_my_level,
+            'notify_tournament_reminders' => (bool) $user->notify_tournament_reminders,
             'notify_club_ids' => $user->notify_club_ids,
             'clubs' => $clubs,
         ]);
@@ -54,6 +55,7 @@ class MobileDeviceController extends Controller
     {
         $validated = $request->validate([
             'notify_only_my_level' => 'sometimes|boolean',
+            'notify_tournament_reminders' => 'sometimes|boolean',
             'notify_club_ids' => 'sometimes|nullable|array',
             'notify_club_ids.*' => 'integer|exists:clubs,id',
         ]);

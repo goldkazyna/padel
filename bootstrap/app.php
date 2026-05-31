@@ -32,4 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tournaments:process-moderation')
             ->everyMinute()
             ->withoutOverlapping();
+
+        $schedule->command('tournaments:send-reminders')
+            ->everyMinute()
+            ->withoutOverlapping();
     })->create();
