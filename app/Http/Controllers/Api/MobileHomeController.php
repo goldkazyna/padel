@@ -116,7 +116,7 @@ class MobileHomeController extends Controller
             ->sortBy('start_date')
             ->first();
 
-        return $nearest ? $this->formatTournament($nearest) : null;
+        return $nearest ? $this->formatTournament($nearest, $user) : null;
     }
 
     /**
@@ -151,7 +151,7 @@ class MobileHomeController extends Controller
             ->first();
 
         if ($tournament) {
-            return $this->formatTournament($tournament);
+            return $this->formatTournament($tournament, $user);
         }
 
         // Командные турниры (team) — только идущие сейчас
@@ -170,7 +170,7 @@ class MobileHomeController extends Controller
                 ->first();
 
             if ($tournament) {
-                return $this->formatTournament($tournament);
+                return $this->formatTournament($tournament, $user);
             }
         }
 
@@ -195,7 +195,7 @@ class MobileHomeController extends Controller
 
         return $query->get()
             ->filter(fn($t) => !in_array((int) $t->club_id, $hiddenClubIds, true))
-            ->map(fn($t) => $this->formatTournament($t))
+            ->map(fn($t) => $this->formatTournament($t, $user))
             ->values()
             ->toArray();
     }
@@ -203,7 +203,7 @@ class MobileHomeController extends Controller
     /**
      * Формат турнира для ответа
      */
-    private function formatTournament(Tournament $t): array
+    private function formatTournament(Tournament $t, $user = null): array
     {
         return [
             'id' => $t->id,
@@ -226,7 +226,37 @@ class MobileHomeController extends Controller
             'price' => (float) $t->price,
             'max_participants' => $t->max_participants,
             'participants_count' => $this->getParticipantsCount($t),
+            'moderation_deadline' => $this->userModerationDeadline($t, $user),
         ];
+    }
+
+    /**
+     * Дедлайн модерации для pending-заявки текущего юзера на этом турнире
+     * (solo или пара), либо null.
+     */
+    private function userModerationDeadline(Tournament $t, $user): ?string
+    {
+        if (!$user) return null;
+
+        $solo = \Illuminate\Support\Facades\DB::table('tournament_participants')
+            ->where('tournament_id', $t->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->whereNotNull('moderation_deadline')
+            ->value('moderation_deadline');
+        if ($solo) return \Carbon\Carbon::parse($solo)->toIso8601String();
+
+        $team = \Illuminate\Support\Facades\DB::table('tournament_teams')
+            ->where('tournament_id', $t->id)
+            ->where(function ($q) use ($user) {
+                $q->where('player1_id', $user->id)->orWhere('player2_id', $user->id);
+            })
+            ->where('status', 'pending')
+            ->whereNotNull('moderation_deadline')
+            ->value('moderation_deadline');
+        if ($team) return \Carbon\Carbon::parse($team)->toIso8601String();
+
+        return null;
     }
 
     /**
