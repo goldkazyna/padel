@@ -614,9 +614,15 @@ class MobileAdminTournamentDetailController extends Controller
             $hasFreeSlot = $taken < $tournament->max_participants;
 
             if (!$hasFreeSlot) {
+                // Полный турнир — заменить можно ТОЛЬКО игрока на модерации (pending).
+                $pendingCount = $tournament->participants()
+                    ->wherePivot('status', 'pending')
+                    ->count();
+                if ($pendingCount === 0) return 'full_confirmed';
+
                 if (!$demoteId || (int) $demoteId === $user->id) return 'needs_choice';
                 $target = $tournament->participants()
-                    ->wherePivotIn('status', ['registered', 'pending'])
+                    ->wherePivot('status', 'pending')
                     ->where('users.id', (int) $demoteId)
                     ->first();
                 if (!$target) return 'invalid_demote';
@@ -641,11 +647,14 @@ class MobileAdminTournamentDetailController extends Controller
             return ['deadline' => $deadline];
         });
 
+        if ($result === 'full_confirmed') {
+            return $this->error('Турнир заполнен — все места подтверждены, поднять некого');
+        }
         if ($result === 'needs_choice') {
-            return $this->error('Турнир заполнен — выберите, кого отправить в лист ожидания');
+            return $this->error('Турнир заполнен — выберите, кого с модерации отправить в лист ожидания');
         }
         if ($result === 'invalid_demote') {
-            return $this->error('Выбранный игрок не участвует в турнире');
+            return $this->error('Заменить можно только игрока на модерации');
         }
 
         if (($result['deadline'] ?? null)) {

@@ -42,44 +42,62 @@ class MoveToModerationTest extends TestCase
         $this->assertNotNull($row->pivot->moderation_deadline);
     }
 
-    public function test_full_requires_choice(): void
+    public function test_full_all_confirmed_blocks(): void
     {
         [$admin, $t] = $this->mk(2);
-        $r1 = User::factory()->create();
-        $r2 = User::factory()->create();
-        $t->participants()->attach($r1->id, ['status' => 'registered']);
-        $t->participants()->attach($r2->id, ['status' => 'registered']);
+        // оба места — подтверждённые (registered), на модерации никого
+        $t->participants()->attach(User::factory()->create()->id, ['status' => 'registered']);
+        $t->participants()->attach(User::factory()->create()->id, ['status' => 'registered']);
         $w = User::factory()->create();
         $t->participants()->attach($w->id, ['status' => 'waiting']);
         Sanctum::actingAs($admin);
 
-        // без demote_user_id — ошибка (турнир заполнен)
         $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$w->id}/to-moderation")
             ->assertStatus(422);
 
         $this->assertSame('waiting', $t->participants()->where('user_id', $w->id)->first()->pivot->status);
     }
 
-    public function test_full_with_choice_swaps(): void
+    public function test_full_with_pending_requires_choice(): void
     {
         [$admin, $t] = $this->mk(2);
-        $r1 = User::factory()->create(['name' => 'R1']);
-        $r2 = User::factory()->create(['name' => 'R2']);
-        $t->participants()->attach($r1->id, ['status' => 'registered']);
-        $t->participants()->attach($r2->id, ['status' => 'registered']);
+        $t->participants()->attach(User::factory()->create()->id, ['status' => 'registered']);
+        $t->participants()->attach(User::factory()->create()->id, ['status' => 'pending', 'moderation_deadline' => now()->addHour()]);
+        $w = User::factory()->create();
+        $t->participants()->attach($w->id, ['status' => 'waiting']);
+        Sanctum::actingAs($admin);
+
+        // есть pending, но не указали кого — ошибка выбора
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$w->id}/to-moderation")
+            ->assertStatus(422);
+    }
+
+    public function test_full_demotes_pending_only(): void
+    {
+        [$admin, $t] = $this->mk(2);
+        $reg = User::factory()->create(['name' => 'Подтверждён']);
+        $pend = User::factory()->create(['name' => 'НаМодерации']);
+        $t->participants()->attach($reg->id, ['status' => 'registered']);
+        $t->participants()->attach($pend->id, ['status' => 'pending', 'moderation_deadline' => now()->addHour()]);
         $w = User::factory()->create(['name' => 'W']);
         $t->participants()->attach($w->id, ['status' => 'waiting']);
         Sanctum::actingAs($admin);
 
+        // нельзя вытеснить подтверждённого
         $this->postJson(
             "/api/mobile/admin/tournaments/{$t->id}/participants/{$w->id}/to-moderation",
-            ['demote_user_id' => $r2->id]
+            ['demote_user_id' => $reg->id]
+        )->assertStatus(422);
+
+        // можно вытеснить того, кто на модерации
+        $this->postJson(
+            "/api/mobile/admin/tournaments/{$t->id}/participants/{$w->id}/to-moderation",
+            ['demote_user_id' => $pend->id]
         )->assertOk();
 
-        // W поднят на модерацию, R2 отправлен в лист ожидания, R1 не тронут
         $this->assertSame('pending', $t->participants()->where('user_id', $w->id)->first()->pivot->status);
-        $this->assertSame('waiting', $t->participants()->where('user_id', $r2->id)->first()->pivot->status);
-        $this->assertSame('registered', $t->participants()->where('user_id', $r1->id)->first()->pivot->status);
+        $this->assertSame('waiting', $t->participants()->where('user_id', $pend->id)->first()->pivot->status);
+        $this->assertSame('registered', $t->participants()->where('user_id', $reg->id)->first()->pivot->status);
     }
 
     public function test_not_waiting_rejected(): void
