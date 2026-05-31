@@ -47,9 +47,10 @@
 Artisan-команда `tournaments:process-moderation`, регистрируется в `bootstrap/app.php` через `->withSchedule(fn($s) => $s->command('tournaments:process-moderation')->everyMinute()->withoutOverlapping())`.
 
 Логика за один прогон — по каждому **открытому** турниру с `moderation_hours`:
-1. **Просрочка** (`status = pending`/team `pending`, `moderation_deadline <= now`): в транзации с `lockForUpdate`:
-   - статус → `cancelled` (solo) / `rejected` (team), `moderation_deadline = null` → пуш «вас убрали»;
-   - взять первого из листа ожидания (`status = waiting`, по `created_at` FIFO; для пар — первую `waiting`-команду), перевести в `pending` + новый дедлайн → пуш «ваша очередь, оплатите до …».
+1. **Просрочка** (`status = pending`/team `pending`, `moderation_deadline <= now`): в транзакции:
+   - **запоминаем первого в листе ожидания ДО любых изменений** (`status = waiting`, по `created_at` FIFO; для пар — первую `waiting`-команду);
+   - если у турнира **есть лист ожидания** (`waitlist_size > 0`) → просрочившего **переносим в конец листа ожидания** (`status = waiting`, `created_at = now`, дедлайн/напоминание сброшены) → пуш «перемещены в лист ожидания» (`tournament_moderation_demoted`). Если листа ожидания **нет** → статус `cancelled` (solo) / `rejected` (team) → пуш «вас убрали» (`tournament_moderation_expired`);
+   - **запомненного** первого из листа ожидания (если был) переводим в `pending` + новый дедлайн → пуш «ваша очередь, оплатите до …». Если лист был пуст — продвигать некого, просрочивший просто остаётся в листе ожидания (даже при свободных местах). Запоминание ДО переноса не даёт просрочившему продвинуть самого себя обратно.
 2. **Напоминание**: если `reminder_sent_at IS NULL` и осталось ≤ 20% окна (минимум — за 30 минут до дедлайна) → пуш-напоминание, выставить `reminder_sent_at = now`.
 
 Команда идемпотентна и безопасна при частых запусках (`withoutOverlapping`).
