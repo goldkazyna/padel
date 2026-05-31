@@ -16,8 +16,10 @@ class ProcessModerationTimers extends Command
     public function handle(ModerationNotifier $notifier): int
     {
         $tournaments = Tournament::where('status', 'open')
-            ->whereNotNull('moderation_hours')
-            ->where('moderation_hours', '>', 0)
+            ->where(function ($q) {
+                $q->where('moderation_hours', '>', 0)
+                  ->orWhere('moderation_minutes', '>', 0);
+            })
             ->get();
 
         foreach ($tournaments as $t) {
@@ -31,7 +33,7 @@ class ProcessModerationTimers extends Command
     private function processSolo(Tournament $t, ModerationNotifier $notifier): void
     {
         $now = now();
-        $windowSeconds = (int) $t->moderation_hours * 3600;
+        $windowSeconds = $t->moderationWindowMinutes() * 60;
         $reminderLead = max($windowSeconds * 0.2, 1800); // 20% окна, минимум 30 мин
 
         $pending = $t->participants()
@@ -97,7 +99,7 @@ class ProcessModerationTimers extends Command
         if ($t->type !== 'team') return;
 
         $now = now();
-        $windowSeconds = (int) $t->moderation_hours * 3600;
+        $windowSeconds = $t->moderationWindowMinutes() * 60;
         $reminderLead = max($windowSeconds * 0.2, 1800); // 20% окна, минимум 30 мин
 
         $pending = \App\Models\TournamentTeam::where('tournament_id', $t->id)

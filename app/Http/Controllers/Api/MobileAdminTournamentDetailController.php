@@ -81,6 +81,7 @@ class MobileAdminTournamentDetailController extends Controller
             'max_participants' => 'required|integer|min:2|max:128',
             'price' => 'nullable|numeric|min:0',
             'moderation_hours' => 'nullable|integer|min:0|max:720',
+            'moderation_minutes' => 'nullable|integer|min:0|max:1440',
         ]);
 
         if ($validator->fails()) {

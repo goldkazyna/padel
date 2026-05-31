@@ -107,6 +107,7 @@ class TournamentController extends Controller
 			'reserve_count' => 'nullable|integer|min:0|max:10',
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
+			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
 			'courts_count' => 'nullable|integer|min:1|max:32',
@@ -266,6 +267,7 @@ class TournamentController extends Controller
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
+			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 		]);
 		
 		// Обработка чекбокса плей-офф

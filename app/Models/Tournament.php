@@ -109,6 +109,7 @@ class Tournament extends Model
 		'reserve_count',
 		'waitlist_size',
 		'moderation_hours',
+		'moderation_minutes',
 		'courts',
 		'courts_count',
 		'has_lower_bracket',
@@ -127,6 +128,7 @@ class Tournament extends Model
 		'has_bronze_match' => 'boolean',
 		'courts' => 'array',
 		'moderation_hours' => 'integer',
+		'moderation_minutes' => 'integer',
     ];
 
     // Связи
@@ -142,11 +144,19 @@ class Tournament extends Model
                     ->withTimestamps();
     }
 
+    /** Окно модерации в минутах: moderation_minutes имеет приоритет, иначе moderation_hours*60. 0 = выключен. */
+    public function moderationWindowMinutes(): int
+    {
+        $min = (int) ($this->moderation_minutes ?? 0);
+        if ($min > 0) return $min;
+        return (int) ($this->moderation_hours ?? 0) * 60;
+    }
+
     /** Дедлайн модерации для новой pending-заявки (или null, если таймер выключен). */
     public function moderationDeadline(): ?\Carbon\Carbon
     {
-        $hours = (int) ($this->moderation_hours ?? 0);
-        return $hours > 0 ? now()->addHours($hours) : null;
+        $minutes = $this->moderationWindowMinutes();
+        return $minutes > 0 ? now()->addMinutes($minutes) : null;
     }
 
     // Проверки статуса
