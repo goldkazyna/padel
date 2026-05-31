@@ -439,7 +439,7 @@ class Tournament extends Model
     public function pendingParticipants()
     {
         return $this->belongsToMany(User::class, 'tournament_participants')
-                    ->withPivot('status')
+                    ->withPivot('status', 'moderation_deadline')
                     ->withTimestamps()
                     ->wherePivot('status', 'pending');
     }

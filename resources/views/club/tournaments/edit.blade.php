@@ -86,6 +86,18 @@
                                    value="{{ old('waitlist_size', $tournament->waitlist_size ?? 0) }}" min="0" max="32">
                             <small class="text-secondary">Сколько человек/пар встанут в очередь, когда турнир заполнится</small>
                         </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Таймер модерации, часов</label>
+                            <input type="number" name="moderation_hours" class="form-control"
+                                   value="{{ old('moderation_hours', $tournament->moderation_hours) }}" min="0" max="720" placeholder="Пусто = без таймера">
+                            <small class="text-secondary">Через сколько часов снять неоплаченную заявку (пусто = бессрочно)</small>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Таймер модерации, минут <span style="font-weight:400; color:#a1a1aa;">(для отладки)</span></label>
+                            <input type="number" name="moderation_minutes" class="form-control"
+                                   value="{{ old('moderation_minutes', $tournament->moderation_minutes) }}" min="0" max="1440" placeholder="Если задано — важнее часов">
+                            <small class="text-secondary">Для теста; если задано — приоритетнее часов</small>
+                        </div>
                     </div>
 					@if($tournament->isAmericano())
 					<div class="row">

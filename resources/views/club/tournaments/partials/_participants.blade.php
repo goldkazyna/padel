@@ -66,7 +66,15 @@
                         <small class="text-muted">@phoneFmt($participant->phone)</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
-                            <span class="text-warning">На модерации</span>
+                            @if($participant->pivot->moderation_deadline)
+                                <span class="text-warning">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    оплата:
+                                    <span class="mod-countdown fw-bold" data-deadline="{{ \Carbon\Carbon::parse($participant->pivot->moderation_deadline)->toIso8601String() }}">…</span>
+                                </span>
+                            @else
+                                <span class="text-warning">На модерации</span>
+                            @endif
                         </div>
                     </div>
                     <div class="participant-rating">{{ $participant->rating }}</div>
@@ -600,4 +608,29 @@ function toggleParticipants() {
         icon.classList.remove('rotated');
     }
 }
+</script>
+{{-- Live-отсчёт таймера модерации --}}
+<script>
+(function () {
+    function fmt(ms) {
+        if (ms <= 0) return 'время вышло';
+        var s = Math.floor(ms / 1000);
+        var d = Math.floor(s / 86400); s %= 86400;
+        var h = Math.floor(s / 3600); s %= 3600;
+        var m = Math.floor(s / 60); s %= 60;
+        if (d > 0) return d + 'д ' + h + 'ч ' + m + 'м';
+        if (h > 0) return h + 'ч ' + m + 'м ' + s + 'с';
+        return m + 'м ' + s + 'с';
+    }
+    function tick() {
+        document.querySelectorAll('.mod-countdown').forEach(function (el) {
+            var dl = new Date(el.dataset.deadline).getTime();
+            var left = dl - Date.now();
+            el.textContent = fmt(left);
+            el.style.color = left <= 0 ? '#f0554d' : (left < 3 * 3600 * 1000 ? '#eab34e' : '');
+        });
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
 </script>
