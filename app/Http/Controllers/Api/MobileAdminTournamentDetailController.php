@@ -502,6 +502,39 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/participants/{user}/to-waitlist
+     * Переместить участника в конец листа ожидания.
+     */
+    public function moveToWaitlist(Request $request, Tournament $tournament, User $user): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+            return $this->error('Группы уже сформированы. Используйте редактор групп в Web.');
+        }
+
+        $row = $tournament->participants()->where('user_id', $user->id)->first();
+        if (!$row) {
+            return $this->error('Участник не найден', 404);
+        }
+        if ($row->pivot->status === 'waiting') {
+            return $this->error('Игрок уже в листе ожидания');
+        }
+
+        // В конец листа ожидания: created_at = now, таймер модерации снят.
+        $tournament->participants()->updateExistingPivot($user->id, [
+            'status' => 'waiting',
+            'created_at' => now(),
+            'moderation_deadline' => null,
+            'reminder_sent_at' => null,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * POST /api/mobile/admin/tournaments/{tournament}/participants
      * body: user_id
      */
