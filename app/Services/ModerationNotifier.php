@@ -32,6 +32,13 @@ class ModerationNotifier
             "Заявка на «{$t->name}» снята — оплата не поступила вовремя");
     }
 
+    public function demoted(User $user, Tournament $t): void
+    {
+        $this->send($user, $t, 'tournament_moderation_demoted',
+            'Перемещены в лист ожидания',
+            "Оплата по «{$t->name}» не поступила вовремя — вы перемещены в лист ожидания");
+    }
+
     private function send(User $user, Tournament $t, string $type, string $title, string $body): void
     {
         Notification::create([

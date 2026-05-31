@@ -23,9 +23,9 @@ class ProcessModerationTimersTest extends TestCase
         ]);
     }
 
-    public function test_expired_pending_cancelled_and_waitlist_promoted(): void
+    public function test_expired_demoted_to_waitlist_and_front_promoted(): void
     {
-        $t = $this->tournament();
+        $t = $this->tournament(); // waitlist_size=4
         $late = User::factory()->create();
         $waiter = User::factory()->create();
         $t->participants()->attach($late->id, [
@@ -36,7 +36,7 @@ class ProcessModerationTimersTest extends TestCase
         $this->artisan('tournaments:process-moderation')->assertExitCode(0);
 
         $lateRow = $t->participants()->where('user_id', $late->id)->first();
-        $this->assertSame('cancelled', $lateRow->pivot->status);
+        $this->assertSame('waiting', $lateRow->pivot->status);
         $this->assertNull($lateRow->pivot->moderation_deadline);
 
         $waiterRow = $t->participants()->where('user_id', $waiter->id)->first();
@@ -44,10 +44,49 @@ class ProcessModerationTimersTest extends TestCase
         $this->assertNotNull($waiterRow->pivot->moderation_deadline);
 
         $this->assertDatabaseHas('notifications', [
-            'user_id' => $late->id, 'type' => 'tournament_moderation_expired',
+            'user_id' => $late->id, 'type' => 'tournament_moderation_demoted',
         ]);
         $this->assertDatabaseHas('notifications', [
             'user_id' => $waiter->id, 'type' => 'tournament_moderation_pending',
+        ]);
+    }
+
+    public function test_expired_with_empty_waitlist_goes_to_waitlist_no_promotion(): void
+    {
+        $t = $this->tournament(); // waitlist_size=4, no waiters
+        $late = User::factory()->create();
+        $t->participants()->attach($late->id, [
+            'status' => 'pending', 'moderation_deadline' => now()->subMinute(),
+        ]);
+
+        $this->artisan('tournaments:process-moderation')->assertExitCode(0);
+
+        $lateRow = $t->participants()->where('user_id', $late->id)->first();
+        $this->assertSame('waiting', $lateRow->pivot->status);
+        // никого не продвинули обратно в pending
+        $this->assertSame(0, $t->participants()->wherePivot('status', 'pending')->count());
+    }
+
+    public function test_expired_without_waitlist_is_cancelled(): void
+    {
+        $club = \App\Models\Club::create(['name' => 'C', 'address' => 'A']);
+        $t = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Кубок', 'type' => 'americano',
+            'status' => 'open', 'max_participants' => 4, 'waitlist_size' => 0,
+            'start_date' => now()->addDays(3), 'registration_deadline' => now()->addDay(),
+            'moderation_hours' => 48,
+        ]);
+        $late = User::factory()->create();
+        $t->participants()->attach($late->id, [
+            'status' => 'pending', 'moderation_deadline' => now()->subMinute(),
+        ]);
+
+        $this->artisan('tournaments:process-moderation')->assertExitCode(0);
+
+        $lateRow = $t->participants()->where('user_id', $late->id)->first();
+        $this->assertSame('cancelled', $lateRow->pivot->status);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $late->id, 'type' => 'tournament_moderation_expired',
         ]);
     }
 

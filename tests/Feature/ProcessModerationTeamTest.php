@@ -36,8 +36,28 @@ class ProcessModerationTeamTest extends TestCase
 
         $this->artisan('tournaments:process-moderation')->assertExitCode(0);
 
-        $this->assertSame('rejected', $late->fresh()->status);
+        $this->assertSame('waiting', $late->fresh()->status);
         $this->assertSame('pending', $waiting->fresh()->status);
         $this->assertNotNull($waiting->fresh()->moderation_deadline);
+    }
+
+    public function test_team_without_waitlist_is_rejected(): void
+    {
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+        $t = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Team', 'type' => 'team',
+            'status' => 'open', 'max_participants' => 4, 'waitlist_size' => 0,
+            'start_date' => now()->addDays(3), 'registration_deadline' => now()->addDay(),
+            'moderation_hours' => 24,
+        ]);
+        $late = TournamentTeam::create([
+            'tournament_id' => $t->id, 'player1_id' => User::factory()->create()->id,
+            'player2_id' => User::factory()->create()->id, 'status' => 'pending',
+            'moderation_deadline' => now()->subMinute(),
+        ]);
+
+        $this->artisan('tournaments:process-moderation')->assertExitCode(0);
+
+        $this->assertSame('rejected', $late->fresh()->status);
     }
 }
