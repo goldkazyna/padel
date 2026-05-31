@@ -49,6 +49,50 @@ class MobileTournamentController extends Controller
      * Мои турниры (на которые записан, предстоящие и текущие)
      * GET /api/mobile/tournaments/my
      */
+    /**
+     * Ближайшая неоплаченная заявка с запущенным таймером модерации
+     * (соло или команда) — для баннера на экране профиля.
+     * GET /api/mobile/tournaments/moderation-pending
+     */
+    public function moderationPending(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $solo = DB::table('tournament_participants')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_participants.tournament_id')
+            ->where('tournament_participants.user_id', $userId)
+            ->where('tournament_participants.status', 'pending')
+            ->whereNotNull('tournament_participants.moderation_deadline')
+            ->where('tournaments.status', 'open')
+            ->select('tournaments.id', 'tournaments.name', 'tournament_participants.moderation_deadline as deadline')
+            ->get();
+
+        $team = DB::table('tournament_teams')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
+            ->where(function ($q) use ($userId) {
+                $q->where('tournament_teams.player1_id', $userId)
+                  ->orWhere('tournament_teams.player2_id', $userId);
+            })
+            ->where('tournament_teams.status', 'pending')
+            ->whereNotNull('tournament_teams.moderation_deadline')
+            ->where('tournaments.status', 'open')
+            ->select('tournaments.id', 'tournaments.name', 'tournament_teams.moderation_deadline as deadline')
+            ->get();
+
+        $nearest = $solo->concat($team)
+            ->sortBy('deadline')
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'pending' => $nearest ? [
+                'tournament_id' => (int) $nearest->id,
+                'name' => $nearest->name,
+                'deadline' => \Carbon\Carbon::parse($nearest->deadline)->toIso8601String(),
+            ] : null,
+        ]);
+    }
+
     public function my(Request $request)
     {
         $user = $request->user();
