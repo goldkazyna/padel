@@ -584,6 +584,78 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/participants/{user}/to-moderation
+     * Поднять игрока из листа ожидания на модерацию. Если турнир заполнен —
+     * нужно указать demote_user_id (кого отправить в лист ожидания вместо него).
+     */
+    public function moveToModeration(Request $request, Tournament $tournament, User $user): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+            return $this->error('Группы уже сформированы. Используйте редактор групп в Web.');
+        }
+
+        $row = $tournament->participants()->where('user_id', $user->id)->first();
+        if (!$row) {
+            return $this->error('Участник не найден', 404);
+        }
+        if ($row->pivot->status !== 'waiting') {
+            return $this->error('Игрок не в листе ожидания');
+        }
+
+        $demoteId = $request->input('demote_user_id');
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $user, $demoteId) {
+            $taken = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending'])
+                ->count();
+            $hasFreeSlot = $taken < $tournament->max_participants;
+
+            if (!$hasFreeSlot) {
+                if (!$demoteId || (int) $demoteId === $user->id) return 'needs_choice';
+                $target = $tournament->participants()
+                    ->wherePivotIn('status', ['registered', 'pending'])
+                    ->where('users.id', (int) $demoteId)
+                    ->first();
+                if (!$target) return 'invalid_demote';
+
+                // выбранного — в конец листа ожидания
+                $tournament->participants()->updateExistingPivot($target->id, [
+                    'status' => 'waiting',
+                    'created_at' => now(),
+                    'moderation_deadline' => null,
+                    'reminder_sent_at' => null,
+                ]);
+            }
+
+            // игрока из листа — на модерацию (со свежим таймером)
+            $deadline = $tournament->moderationDeadline();
+            $tournament->participants()->updateExistingPivot($user->id, [
+                'status' => 'pending',
+                'moderation_deadline' => $deadline,
+                'reminder_sent_at' => null,
+            ]);
+
+            return ['deadline' => $deadline];
+        });
+
+        if ($result === 'needs_choice') {
+            return $this->error('Турнир заполнен — выберите, кого отправить в лист ожидания');
+        }
+        if ($result === 'invalid_demote') {
+            return $this->error('Выбранный игрок не участвует в турнире');
+        }
+
+        if (($result['deadline'] ?? null)) {
+            app(\App\Services\ModerationNotifier::class)->pending($user, $tournament, $result['deadline']);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * POST /api/mobile/admin/tournaments/{tournament}/participants
      * body: user_id
      */
