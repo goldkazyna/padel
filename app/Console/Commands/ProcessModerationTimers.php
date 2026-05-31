@@ -34,7 +34,7 @@ class ProcessModerationTimers extends Command
     {
         $now = now();
         $windowSeconds = $t->moderationWindowMinutes() * 60;
-        $reminderLead = max($windowSeconds * 0.2, 1800); // 20% окна, минимум 30 мин
+        $reminderLead = $windowSeconds * 0.2; // напоминание когда осталось ≤ 20% окна
 
         $pending = $t->participants()
             ->wherePivot('status', 'pending')
@@ -100,7 +100,7 @@ class ProcessModerationTimers extends Command
 
         $now = now();
         $windowSeconds = $t->moderationWindowMinutes() * 60;
-        $reminderLead = max($windowSeconds * 0.2, 1800); // 20% окна, минимум 30 мин
+        $reminderLead = $windowSeconds * 0.2; // напоминание когда осталось ≤ 20% окна
 
         $pending = \App\Models\TournamentTeam::where('tournament_id', $t->id)
             ->where('status', 'pending')
