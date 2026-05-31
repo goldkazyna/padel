@@ -365,7 +365,7 @@ class MobileAdminTournamentDetailController extends Controller
             $teams = $tournament->teams()
                 ->with(['player1', 'player2'])
                 ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END")
-                ->orderBy('id')
+                ->orderBy('created_at') // внутри статуса — FIFO (лист ожидания по очереди)
                 ->get()
                 ->map(fn($t) => [
                     'id' => $t->id,
@@ -386,6 +386,7 @@ class MobileAdminTournamentDetailController extends Controller
         $list = $tournament->participants()
             ->withPivot(['status', 'created_at', 'moderation_deadline'])
             ->orderByRaw("CASE tournament_participants.status WHEN 'pending' THEN 0 WHEN 'registered' THEN 1 ELSE 2 END")
+            ->orderBy('tournament_participants.created_at') // внутри статуса — FIFO (лист ожидания по очереди)
             ->get()
             ->map(function ($u) {
                 $arr = $this->formatUser($u);

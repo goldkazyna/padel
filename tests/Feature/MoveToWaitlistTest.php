@@ -74,6 +74,24 @@ class MoveToWaitlistTest extends TestCase
         $this->assertSame($old->id, $first->id);
     }
 
+    public function test_participants_endpoint_orders_waitlist_fifo(): void
+    {
+        [$admin, $t, $player] = $this->setup3();
+        $old = User::factory()->create(['name' => 'Старичок']);
+        $t->participants()->attach($old->id, ['status' => 'waiting', 'created_at' => now()->subHour()]);
+        $t->participants()->attach($player->id, ['status' => 'registered', 'created_at' => now()->subDay()]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/participants/{$player->id}/to-waitlist")
+            ->assertOk();
+
+        $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/participants")->assertOk();
+        $waiting = collect($res->json('participants'))->where('status', 'waiting')->values();
+        // первым в листе — старичок, перемещённый — последним
+        $this->assertSame($old->id, $waiting->first()['id']);
+        $this->assertSame($player->id, $waiting->last()['id']);
+    }
+
     public function test_already_waiting_rejected(): void
     {
         [$admin, $t, $player] = $this->setup3();
