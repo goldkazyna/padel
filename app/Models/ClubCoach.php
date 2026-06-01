@@ -53,9 +53,71 @@ class ClubCoach extends Model
     }
 
     /**
-     * Получить ставку за указанное кол-во часов.
-     * Если точной ставки нет — берёт ближайшую меньшую или hourly_rate * hours.
+     * Построить расписание тренера на конкретный день:
+     * массив слотов по часам со статусами free/booked/blocked.
+     * Возвращает ['timeSlots' => [...], 'schedule' => ['HH:MM' => [...]]].
      */
+    public function daySchedule(string $date): array
+    {
+        $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeekIso;
+
+        $override = $this->overrides()->whereDate('date', $date)->first();
+        $weekSchedules = $this->schedules()->where('day_of_week', $dayOfWeek)->orderBy('start_time')->get();
+
+        $intervals = [];
+        if ($override && !$override->is_available && !$override->start_time) {
+            // Полный выходной — слотов нет
+        } elseif ($override && $override->is_available && $override->start_time) {
+            $intervals[] = [$this->toMinutes($override->start_time), $this->toMinutes($override->end_time)];
+        } elseif ($weekSchedules->isNotEmpty()) {
+            foreach ($weekSchedules as $ws) {
+                $intervals[] = [$this->toMinutes($ws->start_time), $this->toMinutes($ws->end_time)];
+            }
+        }
+
+        $timeSlots = [];
+        foreach ($intervals as [$startMin, $endMin]) {
+            for ($m = $startMin; $m + 60 <= $endMin; $m += 60) {
+                $timeSlots[] = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+            }
+        }
+
+        $bookings = CourtBooking::where('coach_id', $this->user_id)
+            ->whereDate('date', $date)
+            ->where('status', 'confirmed')
+            ->with('court')
+            ->get();
+
+        $blocks = CoachBlock::where('club_coach_id', $this->id)
+            ->whereDate('date', $date)
+            ->get();
+
+        $schedule = [];
+        foreach ($timeSlots as $time) {
+            $slotStart = $this->toMinutes($time);
+
+            $booking = $bookings->first(function ($b) use ($slotStart) {
+                $bStart = $this->toMinutes($b->start_time);
+                $bEnd = $this->toMinutes($b->end_time);
+                if ($bEnd <= $bStart) $bEnd += 1440;
+                return $slotStart >= $bStart && $slotStart < $bEnd;
+            });
+            if ($booking) { $schedule[$time] = ['status' => 'booked', 'booking' => $booking]; continue; }
+
+            $block = $blocks->first(function ($bl) use ($slotStart) {
+                $blStart = $this->toMinutes($bl->start_time);
+                $blEnd = $this->toMinutes($bl->end_time);
+                if ($blEnd <= $blStart) $blEnd += 1440;
+                return $slotStart >= $blStart && $slotStart < $blEnd;
+            });
+            if ($block) { $schedule[$time] = ['status' => 'blocked', 'block' => $block]; continue; }
+
+            $schedule[$time] = ['status' => 'free'];
+        }
+
+        return ['timeSlots' => $timeSlots, 'schedule' => $schedule];
+    }
+
     /**
      * Получить общую стоимость тренера за указанное кол-во часов.
      * Ставка хранится за час, умножается на кол-во часов.

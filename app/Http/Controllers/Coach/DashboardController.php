@@ -4,21 +4,50 @@ namespace App\Http\Controllers\Coach;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClubCoach;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 
 class DashboardController extends Controller
 {
     /**
-     * Своя карточка тренера + расписание (просмотр) + смена пароля.
+     * Расписание тренера (просмотр, как у админа) + смена пароля.
      */
-    public function index()
+    public function index(Request $request)
     {
         $cc = ClubCoach::where('user_id', auth()->id())
-            ->with(['user', 'schedules', 'rates', 'club'])
+            ->with(['user', 'schedules', 'overrides', 'rates', 'club'])
             ->first();
 
-        return view('coach.schedule', ['cc' => $cc]);
+        if (!$cc) {
+            return view('coach.schedule', ['cc' => null]);
+        }
+
+        $date = $request->get('date', now()->format('Y-m-d'));
+        ['timeSlots' => $timeSlots, 'schedule' => $schedule] = $cc->daySchedule($date);
+
+        // Навигация по неделе
+        $selectedDate = Carbon::parse($date);
+        $weekStart = $selectedDate->copy()->startOfWeek(Carbon::MONDAY);
+        $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
+        $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
+
+        $weekDays = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = $weekStart->copy()->addDays($i);
+            $weekDays[] = [
+                'date' => $d->format('Y-m-d'),
+                'dayName' => $d->locale('ru')->isoFormat('dd'),
+                'dayNum' => $d->format('d'),
+                'month' => $d->locale('ru')->isoFormat('MMM'),
+                'isSelected' => $d->format('Y-m-d') === $date,
+                'isToday' => $d->format('Y-m-d') === now()->format('Y-m-d'),
+            ];
+        }
+
+        return view('coach.schedule', compact(
+            'cc', 'date', 'schedule', 'timeSlots', 'weekDays', 'prevWeek', 'nextWeek'
+        ));
     }
 
     /**
