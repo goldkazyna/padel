@@ -17,6 +17,9 @@ class AccountController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+        ], [
+            'name.required' => 'Введите имя',
+            'name.max' => 'Имя слишком длинное (максимум :max символов)',
         ]);
         auth()->user()->update($validated);
 
@@ -28,6 +31,12 @@ class AccountController extends Controller
         $request->validate([
             'current_password' => ['required', 'current_password'],
             'password' => ['required', 'confirmed', Password::min(6)],
+        ], [
+            'current_password.required' => 'Введите текущий пароль',
+            'current_password.current_password' => 'Текущий пароль указан неверно',
+            'password.required' => 'Введите новый пароль',
+            'password.confirmed' => 'Новый пароль и подтверждение не совпадают',
+            'password.min' => 'Новый пароль должен быть не менее :min символов',
         ]);
 
         // password имеет cast 'hashed' — хешируется автоматически.
