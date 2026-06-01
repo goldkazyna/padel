@@ -59,6 +59,44 @@ class CoachController extends Controller
         return back()->with('success', 'Тренер добавлен!');
     }
 
+    /**
+     * Сменить логин-данные тренера: email и/или пароль. Телефон не меняется.
+     */
+    public function updateCredentials(Request $request, User $user)
+    {
+        $club = $this->getClub();
+        if (!$club) return back()->with('error', 'Клуб не найден');
+
+        // Тренер должен принадлежать этому клубу.
+        ClubCoach::where('club_id', $club->id)->where('user_id', $user->id)->firstOrFail();
+
+        $validated = $request->validate([
+            'email' => ['nullable', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['nullable', 'string', 'min:6'],
+        ], [
+            'email.email' => 'Некорректный email',
+            'email.unique' => 'Этот email уже занят другим пользователем',
+            'password.min' => 'Пароль должен быть не менее :min символов',
+        ]);
+
+        $data = [];
+        if ($request->filled('email')) {
+            $data['email'] = $validated['email'];
+        }
+        if ($request->filled('password')) {
+            // password имеет cast 'hashed' — хешируется автоматически.
+            $data['password'] = $validated['password'];
+        }
+
+        if (empty($data)) {
+            return back()->with('error', 'Укажите новый email или пароль');
+        }
+
+        $user->update($data);
+
+        return back()->with('success', 'Данные для входа тренера обновлены');
+    }
+
     public function edit(User $user)
     {
         $club = $this->getClub();

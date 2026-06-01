@@ -303,6 +303,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/coaches', [App\Http\Controllers\Club\CoachController::class, 'store'])->name('coaches.store');
             Route::get('/coaches/{user}/edit', [App\Http\Controllers\Club\CoachController::class, 'edit'])->name('coaches.edit');
             Route::put('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'update'])->name('coaches.update');
+            Route::put('/coaches/{user}/credentials', [App\Http\Controllers\Club\CoachController::class, 'updateCredentials'])->name('coaches.credentials');
             Route::delete('/coaches/{user}', [App\Http\Controllers\Club\CoachController::class, 'destroy'])->name('coaches.destroy');
             Route::get('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'schedule'])->name('coaches.schedule');
             Route::put('/coaches/{user}/schedule', [App\Http\Controllers\Club\CoachController::class, 'updateSchedule'])->name('coaches.updateSchedule');

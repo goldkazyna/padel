@@ -65,6 +65,7 @@
                     @endif
                 </div>
                 <div class="coach-card-actions">
+                    <button type="button" class="action-btn password" title="Логин и пароль" data-bs-toggle="modal" data-bs-target="#credModal{{ $cc->user_id }}">&#128273;</button>
                     <a href="{{ route('club.coaches.schedule', $cc->user_id) }}" class="action-btn schedule" title="Расписание">&#128197;</a>
                     <a href="{{ route('club.coaches.edit', $cc->user_id) }}" class="action-btn edit" title="Редактировать">&#9998;</a>
                     <form action="{{ route('club.coaches.destroy', $cc->user_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Удалить тренера {{ $cc->user->full_name }}?')">
@@ -84,6 +85,42 @@
                     </div>
                 </div>
             @endif
+        </div>
+
+        <!-- Модалка: логин и пароль тренера -->
+        <div class="modal fade" id="credModal{{ $cc->user_id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background: #111113; border: 1px solid #27272a; border-radius: 16px;">
+                    <div class="modal-header" style="border-bottom: 1px solid #27272a; padding: 20px 24px;">
+                        <h5 class="modal-title" style="font-weight: 700;">Логин и пароль — {{ $cc->user->full_name }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ route('club.coaches.credentials', $cc->user_id) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-body" style="padding: 24px;">
+                            <div class="form-group">
+                                <label class="form-label">Телефон</label>
+                                <input type="text" class="form-input form-input-readonly" value="@phoneFmt($cc->user->phone)" readonly>
+                                <small class="form-hint">Телефон менять нельзя — это логин в систему</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-input" value="{{ $cc->user->email }}" placeholder="email@example.com" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Новый пароль</label>
+                                <input type="text" name="password" class="form-input" placeholder="Оставьте пустым, чтобы не менять" autocomplete="new-password">
+                                <small class="form-hint">Минимум 6 символов. По нему тренер сможет войти.</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
+                            <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn-save">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     @empty
         <div class="empty-state">
@@ -200,6 +237,7 @@ function clearSelectedUser() {
     .action-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 8px; cursor: pointer; color: #a1a1aa; font-size: 16px; transition: all 0.2s; text-decoration: none; }
     .action-btn.schedule:hover { border-color: #3b82f6; color: #3b82f6; }
     .action-btn.edit:hover { border-color: #3b82f6; color: #3b82f6; }
+    .action-btn.password:hover { border-color: #f59e0b; color: #f59e0b; }
     .action-btn.delete:hover { border-color: #ef4444; color: #ef4444; }
 
     .coach-schedule { padding: 0 24px 20px; display: flex; flex-direction: column; gap: 8px; }
@@ -215,6 +253,9 @@ function clearSelectedUser() {
     .form-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f4f5; font-weight: 500; font-family: inherit; }
     .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
     .form-input::placeholder { color: #52525b; }
+    .form-input-readonly { background: #0e0e10; color: #71717a; cursor: not-allowed; }
+    .form-input-readonly:focus { border-color: #27272a; box-shadow: none; }
+    .form-hint { color: #52525b; font-size: 11px; display: block; margin-top: 6px; }
     .rates-grid { display: flex; flex-direction: column; gap: 6px; }
     .rate-row { display: flex; align-items: center; gap: 10px; }
     .rate-label { font-size: 13px; font-weight: 600; color: #a1a1aa; min-width: 70px; }
