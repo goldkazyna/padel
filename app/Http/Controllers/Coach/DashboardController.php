@@ -26,6 +26,20 @@ class DashboardController extends Controller
         $date = $request->get('date', now()->format('Y-m-d'));
         ['timeSlots' => $timeSlots, 'schedule' => $schedule] = $cc->daySchedule($date);
 
+        // Кол-во часов занятий (брони) на выбранный день — по фактическим броням.
+        $busyHours = 0.0;
+        $dayBookings = \App\Models\CourtBooking::where('coach_id', $cc->user_id)
+            ->whereDate('date', $date)
+            ->where('status', 'confirmed')
+            ->get();
+        foreach ($dayBookings as $b) {
+            $start = Carbon::parse($b->start_time);
+            $end = Carbon::parse($b->end_time);
+            $mins = $end->diffInMinutes($start, false);
+            if ($mins <= 0) $mins += 1440; // переход через полночь
+            $busyHours += $mins / 60;
+        }
+
         // Навигация по неделе
         $selectedDate = Carbon::parse($date);
         $weekStart = $selectedDate->copy()->startOfWeek(Carbon::MONDAY);
@@ -46,7 +60,7 @@ class DashboardController extends Controller
         }
 
         return view('coach.schedule', compact(
-            'cc', 'date', 'schedule', 'timeSlots', 'weekDays', 'prevWeek', 'nextWeek'
+            'cc', 'date', 'schedule', 'timeSlots', 'weekDays', 'prevWeek', 'nextWeek', 'busyHours'
         ));
     }
 

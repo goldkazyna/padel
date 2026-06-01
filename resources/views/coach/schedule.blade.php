@@ -39,6 +39,12 @@
         <div class="week-nav">
             <div class="week-nav-tools">
                 <input type="text" id="datePicker" value="{{ $date }}" class="date-picker-input" readonly>
+                @php $hoursLabel = rtrim(rtrim(number_format($busyHours, 1, '.', ''), '0'), '.'); @endphp
+                @if($busyHours > 0)
+                    <span class="hours-badge has-hours">{{ $hoursLabel }} ч занятий</span>
+                @else
+                    <span class="hours-badge">Нет занятий</span>
+                @endif
                 @if($date !== now()->format('Y-m-d'))
                     <a href="{{ route('coach.schedule') }}" class="today-btn">Сегодня</a>
                 @endif
@@ -58,8 +64,9 @@
             </div>
         </div>
 
-        <!-- Schedule Table (read-only) -->
-        @if(count($timeSlots) > 0)
+        <!-- Schedule Table (только занятые слоты) -->
+        @php $busySlots = collect($timeSlots)->filter(fn($t) => ($schedule[$t]['status'] ?? 'free') !== 'free'); @endphp
+        @if($busySlots->count() > 0)
         <div class="schedule-wrap">
             <table class="schedule-table">
                 <thead>
@@ -69,8 +76,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($timeSlots as $time)
-                        @php $slot = $schedule[$time] ?? ['status' => 'free']; @endphp
+                    @foreach($busySlots as $time)
+                        @php $slot = $schedule[$time]; @endphp
                         <tr>
                             <td class="time-cell">{{ $time }}</td>
                             <td>
@@ -79,15 +86,9 @@
                                         <span class="slot-client">{{ $slot['booking']->client_name ?? 'Тренировка' }}</span>
                                         <span class="slot-court">{{ $slot['booking']->court->name ?? '' }}</span>
                                     </div>
-                                @elseif($slot['status'] === 'blocked')
+                                @else
                                     <div class="slot slot-blocked">
                                         <span class="slot-reason">{{ $slot['block']->reason ?? 'Занят' }}</span>
-                                    </div>
-                                @else
-                                    <div class="slot slot-free">
-                                        @if($cc->hourly_rate)
-                                            <span class="slot-price">{{ number_format($cc->hourly_rate, 0, '', ' ') }} &#8376;</span>
-                                        @endif
                                     </div>
                                 @endif
                             </td>
@@ -98,13 +99,12 @@
         </div>
         @else
         <div class="empty-state">
-            <p>На этот день нет рабочих часов</p>
+            <p>В этот день занятий нет</p>
         </div>
         @endif
 
         <!-- Legend -->
         <div class="legend">
-            <div class="legend-item"><span class="legend-dot free"></span>Свободен</div>
             <div class="legend-item"><span class="legend-dot booked"></span>На тренировке</div>
             <div class="legend-item"><span class="legend-dot blocked"></span>Занят</div>
         </div>
@@ -185,6 +185,8 @@
     .week-nav { margin-bottom: 24px; }
     .week-nav-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
     .date-picker-input { background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 8px 14px; color: #f4f4f5; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .hours-badge { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; background: #16161a; border: 1px solid #27272a; color: #71717a; }
+    .hours-badge.has-hours { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3); color: #3b82f6; }
     .today-btn { padding: 7px 16px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; }
     .today-btn:hover { border-color: #22c55e; color: #22c55e; }
     .week-nav-days { display: flex; align-items: center; gap: 8px; }
