@@ -59,6 +59,7 @@
             left: 0;
             width: 260px;
             height: 100vh;
+            height: 100dvh; /* учитывает панели браузера на мобильных */
             background: var(--bg-sidebar);
             border-right: 1px solid var(--border);
             padding: 24px 0;
@@ -727,9 +728,19 @@
         /* ===== MOBILE BREAKPOINT ===== */
         @media (max-width: 991px) {
             /* Sidebar скрыт по умолчанию */
-            .sidebar { 
-                transform: translateX(-100%); 
+            .sidebar {
+                transform: translateX(-100%);
                 width: 260px !important; /* Всегда полная ширина на мобильных */
+                overflow-y: auto; /* весь сайдбар скроллится — чтобы достать «Выйти» */
+                -webkit-overflow-scrolling: touch;
+            }
+            /* На мобильных не отдельный скролл навигации, а скролл всего сайдбара */
+            .sidebar-nav {
+                flex: 0 0 auto;
+                overflow-y: visible;
+            }
+            .sidebar-footer {
+                margin-top: 0; /* не прибиваем к низу — пусть идёт сразу под меню */
             }
             .sidebar.show { 
                 transform: translateX(0); 
