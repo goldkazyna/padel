@@ -186,6 +186,11 @@ Route::middleware('auth')->group(function () {
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
 
+        // Настройки аккаунта (имя + смена пароля)
+        Route::get('/settings', [App\Http\Controllers\Club\AccountController::class, 'index'])->name('settings');
+        Route::put('/settings/profile', [App\Http\Controllers\Club\AccountController::class, 'updateProfile'])->name('settings.profile');
+        Route::put('/settings/password', [App\Http\Controllers\Club\AccountController::class, 'updatePassword'])->name('settings.password');
+
         // Журнал действий — доступен модератору с флагом can_view_activity_log
         // (проверка доступа внутри контроллера). Поэтому вне группы только-admin.
         Route::middleware('club.feature:activity_log')->group(function () {

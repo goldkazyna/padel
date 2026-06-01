@@ -87,7 +87,17 @@
             flex: 1;
             padding: 0 12px;
             overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.12) transparent;
         }
+        .sidebar-nav::-webkit-scrollbar { width: 6px; }
+        .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.12);
+            border-radius: 3px;
+        }
+        .sidebar-nav:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
+        .sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
         
         .nav-item { margin-bottom: 4px; }
         
@@ -1035,6 +1045,12 @@
 						<a href="{{ route('club.reports.index') }}" class="nav-link {{ request()->routeIs('club.reports.*') ? 'active' : '' }}">
 							<i class="bi bi-bar-chart-line"></i>
 							<span>Отчёты</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.settings') }}" class="nav-link {{ request()->routeIs('club.settings') ? 'active' : '' }}">
+							<i class="bi bi-gear"></i>
+							<span>Настройки</span>
 						</a>
 					</li>
 					@if(!$navClub || $navClub->hasFeature('moderators'))
