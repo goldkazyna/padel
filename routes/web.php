@@ -178,6 +178,16 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Тренер (coach) — своя карточка, расписание (просмотр), смена пароля
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('role:coach')->prefix('coach')->name('coach.')->group(function () {
+        Route::get('/schedule', [App\Http\Controllers\Coach\DashboardController::class, 'index'])->name('schedule');
+        Route::put('/password', [App\Http\Controllers\Coach\DashboardController::class, 'updatePassword'])->name('password');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Админ клуба (club_admin, super_admin)
     |--------------------------------------------------------------------------
     */

@@ -920,7 +920,16 @@
 					</a>
 				</li>
 				@endif
-                
+
+                @if(auth()->user()->isCoach())
+                    <li class="nav-item">
+                        <a href="{{ route('coach.schedule') }}" class="nav-link {{ request()->routeIs('coach.*') ? 'active' : '' }}">
+                            <i class="bi bi-calendar-week"></i>
+                            <span>Расписание</span>
+                        </a>
+                    </li>
+                @endif
+
                 @if(auth()->user()->isClubModerator())
 					@php($modClub = auth()->user()->moderatorClubs()->first())
 					<li class="nav-section-title">Работа клуба</li>
