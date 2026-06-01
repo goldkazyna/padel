@@ -53,10 +53,16 @@
                 <a href="{{ route('coach.schedule', ['date' => $prevWeek]) }}" class="date-btn">&#8249;</a>
                 <div class="week-days">
                     @foreach($weekDays as $wd)
+                        @php $wdHours = rtrim(rtrim(number_format($wd['hours'], 1, '.', ''), '0'), '.'); @endphp
                         <a href="{{ route('coach.schedule', ['date' => $wd['date']]) }}"
                            class="week-day-btn{{ $wd['isSelected'] ? ' active' : '' }}{{ $wd['isToday'] ? ' today' : '' }}">
                             <span class="week-day-name">{{ $wd['dayName'] }}</span>
                             <span class="week-day-num">{{ $wd['dayNum'] }} {{ $wd['month'] }}</span>
+                            @if($wd['hours'] > 0)
+                                <span class="week-day-hours">{{ $wdHours }} ч</span>
+                            @else
+                                <span class="week-day-hours empty">—</span>
+                            @endif
                         </a>
                     @endforeach
                 </div>
@@ -201,6 +207,9 @@
     .week-day-btn .week-day-num { font-size: 15px; font-weight: 800; color: #d4d4d8; line-height: 1.2; }
     .week-day-btn.active .week-day-name, .week-day-btn.active .week-day-num { color: #fff; }
     .week-day-btn.today:not(.active) .week-day-num { color: #22c55e; }
+    .week-day-hours { font-size: 11px; font-weight: 800; color: #3b82f6; margin-top: 2px; }
+    .week-day-hours.empty { color: #3f3f46; }
+    .week-day-btn.active .week-day-hours { color: #fff; }
 
     .schedule-wrap { background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
     .schedule-table { width: 100%; border-collapse: collapse; table-layout: fixed; }

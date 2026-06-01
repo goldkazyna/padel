@@ -46,16 +46,33 @@ class DashboardController extends Controller
         $prevWeek = $weekStart->copy()->subWeek()->format('Y-m-d');
         $nextWeek = $weekStart->copy()->addWeek()->format('Y-m-d');
 
+        // Часы занятий по каждому дню недели (для бейджей в навигации).
+        $weekEnd = $weekStart->copy()->addDays(6);
+        $weekBookings = \App\Models\CourtBooking::where('coach_id', $cc->user_id)
+            ->whereDate('date', '>=', $weekStart->format('Y-m-d'))
+            ->whereDate('date', '<=', $weekEnd->format('Y-m-d'))
+            ->where('status', 'confirmed')
+            ->get();
+        $hoursByDate = [];
+        foreach ($weekBookings as $b) {
+            $key = Carbon::parse($b->date)->format('Y-m-d');
+            $mins = Carbon::parse($b->end_time)->diffInMinutes(Carbon::parse($b->start_time), false);
+            if ($mins <= 0) $mins += 1440;
+            $hoursByDate[$key] = ($hoursByDate[$key] ?? 0) + $mins / 60;
+        }
+
         $weekDays = [];
         for ($i = 0; $i < 7; $i++) {
             $d = $weekStart->copy()->addDays($i);
+            $key = $d->format('Y-m-d');
             $weekDays[] = [
-                'date' => $d->format('Y-m-d'),
+                'date' => $key,
                 'dayName' => $d->locale('ru')->isoFormat('dd'),
                 'dayNum' => $d->format('d'),
                 'month' => $d->locale('ru')->isoFormat('MMM'),
-                'isSelected' => $d->format('Y-m-d') === $date,
-                'isToday' => $d->format('Y-m-d') === now()->format('Y-m-d'),
+                'isSelected' => $key === $date,
+                'isToday' => $key === now()->format('Y-m-d'),
+                'hours' => $hoursByDate[$key] ?? 0,
             ];
         }
 
