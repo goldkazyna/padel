@@ -33,11 +33,7 @@ class DashboardController extends Controller
             ->where('status', 'confirmed')
             ->get();
         foreach ($dayBookings as $b) {
-            $start = Carbon::parse($b->start_time);
-            $end = Carbon::parse($b->end_time);
-            $mins = $end->diffInMinutes($start, false);
-            if ($mins <= 0) $mins += 1440; // переход через полночь
-            $busyHours += $mins / 60;
+            $busyHours += $this->bookingMinutes($b) / 60;
         }
 
         // Навигация по неделе
@@ -56,9 +52,7 @@ class DashboardController extends Controller
         $hoursByDate = [];
         foreach ($weekBookings as $b) {
             $key = Carbon::parse($b->date)->format('Y-m-d');
-            $mins = Carbon::parse($b->end_time)->diffInMinutes(Carbon::parse($b->start_time), false);
-            if ($mins <= 0) $mins += 1440;
-            $hoursByDate[$key] = ($hoursByDate[$key] ?? 0) + $mins / 60;
+            $hoursByDate[$key] = ($hoursByDate[$key] ?? 0) + $this->bookingMinutes($b) / 60;
         }
 
         $weekDays = [];
@@ -79,6 +73,18 @@ class DashboardController extends Controller
         return view('coach.schedule', compact(
             'cc', 'date', 'schedule', 'timeSlots', 'weekDays', 'prevWeek', 'nextWeek', 'busyHours'
         ));
+    }
+
+    /**
+     * Длительность брони в минутах (по времени суток, с учётом перехода через полночь).
+     */
+    private function bookingMinutes($booking): int
+    {
+        $s = Carbon::parse($booking->start_time);
+        $e = Carbon::parse($booking->end_time);
+        $mins = ($e->hour * 60 + $e->minute) - ($s->hour * 60 + $s->minute);
+        if ($mins <= 0) $mins += 1440; // бронь через полночь
+        return $mins;
     }
 
     /**
