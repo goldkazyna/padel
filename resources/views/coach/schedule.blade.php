@@ -247,5 +247,40 @@
     .btn-cancel { flex: 1; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
     .btn-save:hover { background: #16a34a; }
+
+    /* ===== Мобильная адаптация ===== */
+    @media (max-width: 640px) {
+        .coach-schedule-container { padding: 6px 0 20px; }
+
+        /* Шапка: заголовок уводим вправо от кнопки-гамбургера, кнопка пароля — на всю ширину */
+        .coach-schedule-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 18px; }
+        .header-left { padding-left: 56px; min-height: 44px; }
+        .page-title { font-size: 18px; }
+        .page-subtitle { font-size: 12px; }
+        .btn-settings { width: 100%; justify-content: center; padding: 12px; }
+
+        /* Дата + бейдж часов */
+        .week-nav-tools { flex-wrap: wrap; gap: 8px; }
+        .date-picker-input { flex: 1; min-width: 140px; }
+
+        /* Кнопки дней недели — компактнее, чтобы все 7 поместились */
+        .week-nav-days { gap: 4px; }
+        .date-btn { width: 28px; min-width: 28px; height: 44px; border-radius: 8px; font-size: 15px; }
+        .week-days { gap: 3px; }
+        .week-day-btn { padding: 7px 1px 6px; border-radius: 10px; gap: 1px; }
+        .week-day-btn .week-day-name { font-size: 9px; }
+        .week-day-btn .week-day-num { font-size: 12px; }
+        .week-day-hours { font-size: 9px; margin-top: 1px; }
+
+        /* Таблица занятий */
+        .schedule-table th { padding: 10px 6px; font-size: 11px; }
+        .schedule-table th.time-col { width: 56px; padding-left: 12px; }
+        .schedule-table td { height: auto; padding: 3px; }
+        .schedule-table td.time-cell { padding-left: 12px; font-size: 13px; }
+        .slot { min-height: 46px; }
+        .slot-client { font-size: 12px; white-space: normal; }
+
+        .legend { gap: 16px; }
+    }
 </style>
 @endsection
