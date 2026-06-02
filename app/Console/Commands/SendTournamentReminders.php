@@ -7,6 +7,7 @@ use App\Models\Tournament;
 use App\Models\User;
 use App\Services\FCMNotificationService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class SendTournamentReminders extends Command
 {
@@ -30,21 +31,47 @@ class SendTournamentReminders extends Command
                 ->wherePivot('status', 'registered')
                 ->get();
 
+            $sent1d = 0;
+            $sent2h = 0;
+
             foreach ($participants as $p) {
                 if (!$p->notify_tournament_reminders) continue;
 
                 if ($secondsUntil <= 86400 && !$p->pivot->reminded_1d_at) {
                     $t->participants()->updateExistingPivot($p->id, ['reminded_1d_at' => $now]);
                     $this->send($p, $t, '1d');
+                    $sent1d++;
                 }
                 if ($secondsUntil <= 7200 && !$p->pivot->reminded_2h_at) {
                     $t->participants()->updateExistingPivot($p->id, ['reminded_2h_at' => $now]);
                     $this->send($p, $t, '2h');
+                    $sent2h++;
                 }
             }
+
+            if ($sent1d > 0) $this->logReminder($t, '24-часовое', $sent1d);
+            if ($sent2h > 0) $this->logReminder($t, '2-часовое', $sent2h);
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Запись в лог: id турнира, тип напоминания, кол-во получателей,
+     * время отправки по Алматы (+5, app.timezone=UTC).
+     */
+    private function logReminder(Tournament $t, string $kind, int $count): void
+    {
+        $almaty = now()->timezone('Asia/Almaty')->format('Y-m-d H:i:s');
+
+        Log::channel('tournament_reminders')->info(sprintf(
+            'Турнир #%d «%s» | %s напоминание | отправлено %d участникам | время (Алматы, +5): %s',
+            $t->id,
+            $t->name,
+            $kind,
+            $count,
+            $almaty
+        ));
     }
 
     private function send(User $user, Tournament $t, string $kind): void

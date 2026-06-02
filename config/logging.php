@@ -65,6 +65,15 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Лог напоминаний о турнирах (за 24ч и за 2ч)
+        'tournament_reminders' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tournament-reminders.log'),
+            'level' => 'info',
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
