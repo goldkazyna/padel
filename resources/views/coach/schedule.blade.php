@@ -170,6 +170,15 @@
             window.location.href = '{{ route("coach.schedule") }}?date=' + dateStr;
         }
     });
+
+    // На мобильных прокручиваем ленту дней так, чтобы выбранный день был по центру
+    document.addEventListener('DOMContentLoaded', function () {
+        var strip = document.querySelector('.week-days');
+        var active = document.querySelector('.week-day-btn.active');
+        if (strip && active) {
+            strip.scrollLeft = active.offsetLeft - (strip.clientWidth - active.clientWidth) / 2;
+        }
+    });
 </script>
 @endif
 
@@ -263,14 +272,23 @@
         .week-nav-tools { flex-wrap: wrap; gap: 8px; }
         .date-picker-input { flex: 1; min-width: 140px; }
 
-        /* Кнопки дней недели — компактнее, чтобы все 7 поместились */
-        .week-nav-days { gap: 4px; }
-        .date-btn { width: 28px; min-width: 28px; height: 44px; border-radius: 8px; font-size: 15px; }
-        .week-days { gap: 3px; }
-        .week-day-btn { padding: 7px 1px 6px; border-radius: 10px; gap: 1px; }
-        .week-day-btn .week-day-name { font-size: 9px; }
-        .week-day-btn .week-day-num { font-size: 12px; }
-        .week-day-hours { font-size: 9px; margin-top: 1px; }
+        /* Дни недели — горизонтальная лента (свайп), дни нормального размера */
+        .week-nav-days { gap: 6px; }
+        .date-btn { width: 32px; min-width: 32px; height: 56px; border-radius: 10px; font-size: 16px; }
+        .week-days {
+            flex: 1;
+            gap: 7px;
+            overflow-x: auto;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+        }
+        .week-days::-webkit-scrollbar { display: none; }
+        .week-day-btn { flex: 0 0 auto; min-width: 60px; scroll-snap-align: center; padding: 9px 6px 8px; border-radius: 12px; gap: 2px; }
+        .week-day-btn .week-day-name { font-size: 10px; }
+        .week-day-btn .week-day-num { font-size: 14px; }
+        .week-day-hours { font-size: 10px; margin-top: 2px; }
 
         /* Таблица занятий */
         .schedule-table th { padding: 10px 6px; font-size: 11px; }
