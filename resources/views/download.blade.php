@@ -10,7 +10,12 @@
     <meta property="og:description" content="Турниры, рейтинг, бронирование кортов — всё в одном приложении.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ url('/download') }}">
-    <meta property="og:image" content="{{ asset('logos/add-padel-almaty.jpg') }}">
+    <meta property="og:image" content="{{ asset('logos/padel-kz-logo.jpg') }}">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Скачать приложение Padel KZ">
+    <meta name="twitter:description" content="Турниры, рейтинг, бронирование кортов — всё в одном приложении.">
+    <meta name="twitter:image" content="{{ asset('logos/padel-kz-logo.jpg') }}">
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
