@@ -1951,9 +1951,10 @@
         }
 
         function pollNew() {
-            fetch('{{ route("club.unprocessedCount") }}', { cache: 'no-store' })
-                .then(r => r.json())
+            fetch('{{ route("club.unprocessedCount") }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+                .then(r => r.ok ? r.json() : null)
                 .then(data => {
+                    if (!data) return;
                     const byDate = data.by_date || {};
 
                     let hasNew = false;

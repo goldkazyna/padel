@@ -1702,9 +1702,10 @@
 
     // Polling необработанных — бейджи на днях
     function updateDayBadges() {
-        fetch('{{ route("club.unprocessedCount") }}')
-            .then(r => r.json())
+        fetch('{{ route("club.unprocessedCount") }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+            .then(r => r.ok ? r.json() : null)
             .then(data => {
+                if (!data) return;
                 const byDate = data.by_date || {};
                 document.querySelectorAll('[data-date-badge]').forEach(badge => {
                     const date = badge.getAttribute('data-date-badge');

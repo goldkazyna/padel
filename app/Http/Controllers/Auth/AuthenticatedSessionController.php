@@ -17,6 +17,13 @@ class AuthenticatedSessionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // Подстраховка: не редиректить после логина на фоновые JSON-эндпоинты
+        // (polling счётчика мог сохраниться как intended при истёкшей сессии).
+        $intended = session('url.intended');
+        if ($intended && str_contains($intended, 'unprocessed-count')) {
+            session()->forget('url.intended');
+        }
+
         $loginType = $request->input('login_type', 'phone');
 
         if ($loginType === 'email') {

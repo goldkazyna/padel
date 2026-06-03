@@ -1308,9 +1308,10 @@
 	// Polling необработанных бронирований
 	@if(auth()->check() && (auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin() || auth()->user()->isClubModerator()))
 	function checkUnprocessed() {
-		fetch('{{ route("club.unprocessedCount") }}')
-			.then(r => r.json())
+		fetch('{{ route("club.unprocessedCount") }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+			.then(r => r.ok ? r.json() : null)
 			.then(data => {
+				if (!data) return;
 				['unprocessedBadge', 'unprocessedBadgeMod'].forEach(id => {
 					const badge = document.getElementById(id);
 					if (badge) {
