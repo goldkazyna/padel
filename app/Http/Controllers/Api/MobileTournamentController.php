@@ -2166,6 +2166,14 @@ class MobileTournamentController extends Controller
     public function live(Request $request, Tournament $tournament)
     {
         $user = $request->user();
+
+        // Подсветка конкретного игрока (открытие live из чужого профиля):
+        // is_me / has_me / дельты рейтинга считаются для этого игрока.
+        $playerId = (int) $request->input('player_id', 0);
+        if ($playerId > 0) {
+            $user = \App\Models\User::find($playerId) ?? $user;
+        }
+
         $tournament->load('club');
 
         if ($tournament->type === 'mexicano') {
