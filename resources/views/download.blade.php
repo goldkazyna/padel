@@ -39,11 +39,13 @@
         }
         .subtitle { color: #A1A1AA; font-size: 15px; line-height: 1.5; margin-bottom: 32px; }
 
-        .stores { display: flex; flex-direction: column; gap: 14px; }
+        .stores { display: flex; flex-direction: row; gap: 14px; }
         .store-btn {
-            display: flex; align-items: center; gap: 14px;
-            padding: 14px 20px;
-            border-radius: 16px;
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+            aspect-ratio: 1 / 1;
+            padding: 18px;
+            border-radius: 18px;
             background: #16161A;
             border: 1px solid #27272A;
             text-decoration: none;
@@ -51,10 +53,9 @@
             transition: transform 0.15s, border-color 0.2s, background 0.2s;
         }
         .store-btn:hover { transform: translateY(-2px); border-color: #3F3F46; background: #1C1C21; }
-        .store-btn svg { width: 28px; height: 28px; flex-shrink: 0; fill: #fff; }
-        .store-btn .txt { text-align: left; line-height: 1.25; }
-        .store-btn .txt .small { font-size: 11px; color: #A1A1AA; text-transform: uppercase; letter-spacing: 0.4px; }
-        .store-btn .txt .big { font-size: 17px; font-weight: 700; }
+        .store-btn svg { width: 44px; height: 44px; flex-shrink: 0; fill: #fff; }
+        .store-btn .txt { text-align: center; line-height: 1.25; }
+        .store-btn .txt .big { font-size: 16px; font-weight: 700; }
 
         /* Рекомендованный магазин под платформу устройства */
         .store-btn.recommended {
