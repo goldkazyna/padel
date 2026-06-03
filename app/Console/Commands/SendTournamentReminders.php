@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class SendTournamentReminders extends Command
 {
     protected $signature = 'tournaments:send-reminders';
-    protected $description = 'Напоминания участникам о турнире за день и за 2 часа';
+    protected $description = 'Напоминания участникам о турнире за день, за 2 часа и за час';
 
     public function handle(): int
     {
@@ -40,6 +40,7 @@ class SendTournamentReminders extends Command
 
             $sent1d = 0;
             $sent2h = 0;
+            $sent1h = 0;
 
             foreach ($participants as $p) {
                 if (!$p->notify_tournament_reminders) continue;
@@ -54,10 +55,16 @@ class SendTournamentReminders extends Command
                     $this->send($p, $t, '2h');
                     $sent2h++;
                 }
+                if ($secondsUntil <= 3600 && !$p->pivot->reminded_1h_at) {
+                    $t->participants()->updateExistingPivot($p->id, ['reminded_1h_at' => $now]);
+                    $this->send($p, $t, '1h');
+                    $sent1h++;
+                }
             }
 
             if ($sent1d > 0) $this->logReminder($t, '24-часовое', $sent1d);
             if ($sent2h > 0) $this->logReminder($t, '2-часовое', $sent2h);
+            if ($sent1h > 0) $this->logReminder($t, '1-часовое', $sent1h);
         }
 
         return self::SUCCESS;
@@ -92,9 +99,12 @@ class SendTournamentReminders extends Command
         if ($kind === '1d') {
             $title = 'Напоминание о турнире';
             $body = "Турнир «{$t->name}» {$date} в {$time}" . ($club ? ", {$club}" : '') . '. Не забудьте!';
-        } else {
+        } elseif ($kind === '2h') {
             $title = 'Турнир скоро';
             $body = "«{$t->name}» начнётся в {$time}" . ($club ? ", {$club}" : '') . ' — меньше чем через 2 часа.';
+        } else {
+            $title = 'Турнир через час';
+            $body = "«{$t->name}» начнётся в {$time}" . ($club ? ", {$club}" : '') . ' — меньше чем через час. Пора собираться!';
         }
 
         Notification::create([
