@@ -721,6 +721,21 @@ class MobileRatingController extends Controller
             }
         }
 
+        // Americano Flex — место по среднему за матч → суммарным очкам
+        if ($tournament->type === 'americano_flex') {
+            $players = $tournament->americanoFlexPlayers()->get()
+                ->sort(function ($a, $b) {
+                    $avgA = $a->matches_played > 0 ? $a->total_points / $a->matches_played : 0;
+                    $avgB = $b->matches_played > 0 ? $b->total_points / $b->matches_played : 0;
+                    if ($avgA != $avgB) return $avgB <=> $avgA;
+                    return $b->total_points <=> $a->total_points;
+                })
+                ->values();
+            foreach ($players as $i => $fp) {
+                if ((int) $fp->user_id === $userId) return $i + 1;
+            }
+        }
+
         return null;
     }
 
