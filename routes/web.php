@@ -81,6 +81,20 @@ Route::get('/c/{club}', function (\App\Models\Club $club) {
     ]);
 })->name('club.share');
 
+// Страница скачивания приложения (QR-код ведёт сюда) — публичная.
+Route::get('/download', function () {
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+    $isAndroid = (bool) preg_match('/android/i', $ua);
+
+    return view('download', [
+        'iosUrl' => config('mobile_app.store_url_ios'),
+        'androidUrl' => config('mobile_app.store_url_android'),
+        'platform' => $isIOS ? 'ios' : ($isAndroid ? 'android' : 'other'),
+    ]);
+})->name('app.download');
+Route::get('/app', fn () => redirect()->route('app.download'));
+
 // Удаление аккаунта (публичная страница для App Store / Google Play)
 Route::get('/delete-account', [DeleteAccountController::class, 'show'])->name('delete-account');
 Route::post('/delete-account/send-code', [DeleteAccountController::class, 'sendCode'])->name('delete-account.send-code');
