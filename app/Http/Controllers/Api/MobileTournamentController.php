@@ -2112,6 +2112,9 @@ class MobileTournamentController extends Controller
         if ($tournament->type === 'bali_koc') {
             return $this->liveBaliKoc($tournament, $user);
         }
+        if ($tournament->type === 'americano_flex') {
+            return $this->liveAmericanoFlex($tournament, $user);
+        }
         if ($tournament->type !== 'americano') {
             return response()->json([
                 'success' => false,
@@ -2277,6 +2280,158 @@ class MobileTournamentController extends Controller
             ],
             'groups' => $groups,
             'playoff' => $playoff,
+        ]);
+    }
+
+    /**
+     * Live для Americano Flex: одна виртуальная группа, раунды с матчами и
+     * отдыхающими (byes), таблица в формате обычного американо.
+     * Без плей-офф. Рейтинг таблицы — по среднему за матч (особенность flex).
+     */
+    private function liveAmericanoFlex(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+
+        // Базовая инфа по игрокам flex
+        $flexPlayers = $tournament->americanoFlexPlayers()->with('user')->get();
+        $playerStats = [];
+        foreach ($flexPlayers as $fp) {
+            $u = $fp->user;
+            if (!$u) continue;
+            $playerStats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'wins' => 0,
+                'losses' => 0,
+                'draws' => 0,
+                'points_for' => 0,
+                'points_against' => 0,
+                'total_points' => 0,
+                'matches_played' => (int) $fp->matches_played,
+            ];
+        }
+
+        $flexRounds = $tournament->americanoFlexRounds()
+            ->with(['matches', 'byes'])
+            ->orderBy('round_number')
+            ->get();
+
+        // Статистика по завершённым матчам
+        foreach ($flexRounds as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $this->countMatchStats($playerStats, $m);
+                if ((int) $m->team1_score === (int) $m->team2_score) {
+                    foreach ([$m->team1_player1_id, $m->team1_player2_id, $m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                        if (isset($playerStats[$pId])) $playerStats[$pId]['draws']++;
+                    }
+                }
+            }
+        }
+        // В flex «очки» = сумма забитых (points_for)
+        foreach ($playerStats as &$s) {
+            $s['total_points'] = $s['points_for'];
+        }
+        unset($s);
+
+        // Сортировка flex: среднее за матч → суммарные очки
+        uasort($playerStats, function ($a, $b) {
+            $avgA = $a['matches_played'] > 0 ? $a['total_points'] / $a['matches_played'] : 0;
+            $avgB = $b['matches_played'] > 0 ? $b['total_points'] / $b['matches_played'] : 0;
+            if ($avgA != $avgB) return $avgB <=> $avgA;
+            return $b['total_points'] <=> $a['total_points'];
+        });
+
+        $position = 1;
+        $leaderboard = [];
+        foreach ($playerStats as $s) {
+            $totalBalls = $s['points_for'] + $s['points_against'];
+            $ballPercent = $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0;
+            $leaderboard[] = [
+                'position' => $position++,
+                'id' => $s['id'],
+                'name' => $s['name'],
+                'avatar' => $s['avatar'],
+                'rating' => $s['rating'],
+                'wins' => $s['wins'],
+                'losses' => $s['losses'],
+                'draws' => $s['draws'],
+                'points_for' => $s['points_for'],
+                'points_against' => $s['points_against'],
+                'point_diff' => $s['points_for'] - $s['points_against'],
+                'ball_percent' => $ballPercent,
+                'total_points' => $s['total_points'],
+                'games_played' => $s['matches_played'],
+                'is_me' => $userId !== null && (int) $s['id'] === $userId,
+            ];
+        }
+
+        // Раунды с матчами и отдыхающими
+        $rounds = [];
+        foreach ($flexRounds as $round) {
+            $matches = [];
+            foreach ($round->matches as $m) {
+                $t1HasMe = $userId !== null && in_array($userId, [(int) $m->team1_player1_id, (int) $m->team1_player2_id], true);
+                $t2HasMe = $userId !== null && in_array($userId, [(int) $m->team2_player1_id, (int) $m->team2_player2_id], true);
+
+                $matches[] = [
+                    'id' => $m->id,
+                    'court_number' => $m->court_number,
+                    'status' => $m->status,
+                    'team1' => [
+                        'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                        'has_me' => $t1HasMe,
+                    ],
+                    'team2' => [
+                        'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                        'has_me' => $t2HasMe,
+                    ],
+                    'has_me' => $t1HasMe || $t2HasMe,
+                    'my_rating_change' => null,
+                ];
+            }
+
+            $byes = [];
+            foreach ($round->byes as $bye) {
+                $byes[] = $this->formatPlayerForLive($bye->user_id, $playerStats, $tournament);
+            }
+
+            $rounds[] = [
+                'id' => $round->id,
+                'round_number' => $round->round_number,
+                'status' => $round->status,
+                'matches' => $matches,
+                'byes' => array_values(array_filter($byes)),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'has_playoff' => false,
+            ],
+            'groups' => [[
+                'id' => 0,
+                'name' => '',
+                'leaderboard' => array_values($leaderboard),
+                'rounds' => $rounds,
+            ]],
+            'playoff' => [],
         ]);
     }
 
