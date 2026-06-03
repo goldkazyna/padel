@@ -65,9 +65,9 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label class="form-label">Email игрока</label>
+                    <label class="form-label">Email, телефон или имя</label>
                     <div class="input-group">
-                        <input type="email" id="searchAdminEmail" class="form-control" placeholder="player@example.com">
+                        <input type="text" id="searchAdminEmail" class="form-control" placeholder="email, +7 777…, или имя">
                         <button type="button" class="btn-primary-custom" onclick="searchAdmin()">
                             <i class="bi bi-search"></i> Найти
                         </button>
@@ -130,9 +130,9 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label class="form-label">Email игрока</label>
+                    <label class="form-label">Email, телефон или имя</label>
                     <div class="input-group">
-                        <input type="email" id="searchModeratorEmail" class="form-control" placeholder="player@example.com">
+                        <input type="text" id="searchModeratorEmail" class="form-control" placeholder="email, +7 777…, или имя">
                         <button type="button" class="btn-primary-custom" onclick="searchModerator()">
                             <i class="bi bi-search"></i> Найти
                         </button>
@@ -145,110 +145,87 @@
 </div>
 
 <script>
-// Поиск админа
-function searchAdmin() {
-    const email = document.getElementById('searchAdminEmail').value;
-    const resultDiv = document.getElementById('searchAdminResult');
-    
-    if (!email) {
-        resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
+const ADD_ADMIN_URL = "{{ route('admin.clubs.admins.add', $club) }}";
+const ADD_MODERATOR_URL = "{{ route('admin.clubs.moderators.add', $club) }}";
+const CSRF = "{{ csrf_token() }}";
+const SEARCH_URL = "{{ route('admin.players.search') }}";
+
+function escapeHtml(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function formatPhone(p) {
+    const d = (p || '').replace(/\D/g, '');
+    if (d.length === 11) return `+${d[0]} ${d.slice(1,4)} ${d.slice(4,7)} ${d.slice(7,9)} ${d.slice(9,11)}`;
+    return p || '';
+}
+
+function initials(name) {
+    return (name || '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0,2).toUpperCase();
+}
+
+// Универсальный поиск + рендер списка
+function runSearch(inputId, resultId, actionUrl, btnLabel) {
+    const q = document.getElementById(inputId).value.trim();
+    const resultDiv = document.getElementById(resultId);
+
+    if (q.length < 2) {
+        resultDiv.innerHTML = '<div class="alert-danger-custom">Введите минимум 2 символа</div>';
         return;
     }
-    
-    fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
-        .then(response => response.json())
+
+    resultDiv.innerHTML = '<div class="text-secondary py-2">Поиск…</div>';
+
+    fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
         .then(data => {
-            if (data.found) {
-                resultDiv.innerHTML = `
-                    <form action="{{ route('admin.clubs.admins.add', $club) }}" method="POST"
-                          class="p-3 rounded-3" style="background: var(--bg-secondary);">
-                        @csrf
-                        <input type="hidden" name="user_id" value="${data.player.id}">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
-                            <div>
-                                <div class="fw-medium">${data.player.name}</div>
-                                <small class="text-secondary">${data.player.email}</small>
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small text-secondary">Пароль (необязательно, мин. 6 симв.)</label>
-                            <input type="text" name="password" class="form-control"
-                                   placeholder="Оставьте пустым, чтобы не менять"
-                                   autocomplete="new-password" minlength="6">
-                        </div>
-                        <button type="submit" class="btn-primary-custom btn-sm">
-                            <i class="bi bi-plus"></i> Назначить админом
-                        </button>
-                    </form>
-                `;
-            } else {
+            const players = data.players || [];
+            if (players.length === 0) {
                 resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
+                return;
             }
+            resultDiv.innerHTML = players.map(p => `
+                <form action="${actionUrl}" method="POST" class="p-3 rounded-3 mb-2" style="background: var(--bg-secondary);">
+                    <input type="hidden" name="_token" value="${CSRF}">
+                    <input type="hidden" name="user_id" value="${p.id}">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="user-avatar">${initials(p.name)}</div>
+                        <div>
+                            <div class="fw-medium">${escapeHtml(p.name)}</div>
+                            <small class="text-secondary d-block">${escapeHtml(p.email || '—')}</small>
+                            <small class="text-secondary">${escapeHtml(formatPhone(p.phone))}</small>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-secondary">Пароль (необязательно, мин. 6 симв.)</label>
+                        <input type="text" name="password" class="form-control"
+                               placeholder="Оставьте пустым, чтобы не менять"
+                               autocomplete="new-password" minlength="6">
+                    </div>
+                    <button type="submit" class="btn-primary-custom btn-sm">
+                        <i class="bi bi-plus"></i> ${btnLabel}
+                    </button>
+                </form>
+            `).join('');
         })
-        .catch(error => {
+        .catch(() => {
             resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
         });
 }
 
-// Поиск модератора
+function searchAdmin() {
+    runSearch('searchAdminEmail', 'searchAdminResult', ADD_ADMIN_URL, 'Назначить админом');
+}
+
 function searchModerator() {
-    const email = document.getElementById('searchModeratorEmail').value;
-    const resultDiv = document.getElementById('searchModeratorResult');
-    
-    if (!email) {
-        resultDiv.innerHTML = '<div class="alert-danger-custom">Введите email</div>';
-        return;
-    }
-    
-    fetch(`{{ route('admin.players.search') }}?email=${encodeURIComponent(email)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.found) {
-                resultDiv.innerHTML = `
-                    <form action="{{ route('admin.clubs.moderators.add', $club) }}" method="POST"
-                          class="p-3 rounded-3" style="background: var(--bg-secondary);">
-                        @csrf
-                        <input type="hidden" name="user_id" value="${data.player.id}">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="user-avatar">${data.player.name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
-                            <div>
-                                <div class="fw-medium">${data.player.name}</div>
-                                <small class="text-secondary">${data.player.email}</small>
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small text-secondary">Пароль (необязательно, мин. 6 симв.)</label>
-                            <input type="text" name="password" class="form-control"
-                                   placeholder="Оставьте пустым, чтобы не менять"
-                                   autocomplete="new-password" minlength="6">
-                        </div>
-                        <button type="submit" class="btn-primary-custom btn-sm">
-                            <i class="bi bi-plus"></i> Назначить модератором
-                        </button>
-                    </form>
-                `;
-            } else {
-                resultDiv.innerHTML = '<div class="alert-danger-custom">Игрок не найден</div>';
-            }
-        })
-        .catch(error => {
-            resultDiv.innerHTML = '<div class="alert-danger-custom">Ошибка поиска</div>';
-        });
+    runSearch('searchModeratorEmail', 'searchModeratorResult', ADD_MODERATOR_URL, 'Назначить модератором');
 }
 
 document.getElementById('searchAdminEmail').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        searchAdmin();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); searchAdmin(); }
 });
-
 document.getElementById('searchModeratorEmail').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        searchModerator();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); searchModerator(); }
 });
 </script>
 @endsection

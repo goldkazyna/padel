@@ -298,22 +298,38 @@ class ClubController extends Controller
         $club->delete();
         return redirect()->route('admin.clubs.index')->with('success', 'Клуб удалён!');
     }
-	// Поиск игрока по email
+	// Поиск игрока по email, телефону или имени (для назначения админом/модератором)
 	public function searchPlayer(Request $request)
 	{
-		$email = $request->get('email');
-		
-		$player = User::where('email', $email)
-					  ->where('role', 'player')
-					  ->first();
-		
+		$q = trim((string) ($request->get('q') ?? $request->get('email', '')));
+
+		if (mb_strlen($q) < 2) {
+			return response()->json(['players' => []]);
+		}
+
+		$digits = preg_replace('/\D/', '', $q);
+
+		$players = User::where('role', 'player')
+			->where(function ($w) use ($q, $digits) {
+				$w->where('email', 'like', "%{$q}%")
+				  ->orWhere('name', 'like', "%{$q}%")
+				  ->orWhere('first_name', 'like', "%{$q}%")
+				  ->orWhere('last_name', 'like', "%{$q}%");
+				if ($digits !== '') {
+					$w->orWhere('phone', 'like', "%{$digits}%");
+				}
+			})
+			->orderBy('first_name')
+			->limit(10)
+			->get();
+
 		return response()->json([
-			'found' => $player ? true : false,
-			'player' => $player ? [
-				'id' => $player->id,
-				'name' => $player->full_name,
-				'email' => $player->email,
-			] : null
+			'players' => $players->map(fn ($p) => [
+				'id' => $p->id,
+				'name' => $p->full_name,
+				'email' => $p->email,
+				'phone' => $p->phone,
+			])->values(),
 		]);
 	}
 	public function addModerator(Request $request, Club $club)
