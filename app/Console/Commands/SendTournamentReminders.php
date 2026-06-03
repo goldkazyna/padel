@@ -6,6 +6,7 @@ use App\Models\Notification;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Services\FCMNotificationService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -16,16 +17,22 @@ class SendTournamentReminders extends Command
 
     public function handle(): int
     {
-        $now = now();
+        // start_date хранится как настенное время Алматы (app.timezone=UTC),
+        // поэтому и «сейчас» берём в Алматы — иначе сравнение уезжает на +5 часов.
+        $tz = 'Asia/Almaty';
+        $now = now()->timezone($tz);
+
         $tournaments = Tournament::whereIn('status', ['open', 'closed'])
             ->where('type', '!=', 'team')
-            ->where('start_date', '>', $now)
-            ->where('start_date', '<=', $now->copy()->addDay())
+            ->where('start_date', '>', $now->format('Y-m-d H:i:s'))
+            ->where('start_date', '<=', $now->copy()->addDay()->format('Y-m-d H:i:s'))
             ->with('club')
             ->get();
 
         foreach ($tournaments as $t) {
-            $secondsUntil = $t->start_date->getTimestamp() - $now->getTimestamp();
+            // Трактуем настенное время старта как Алматы, чтобы получить верный момент.
+            $start = Carbon::parse($t->start_date->format('Y-m-d H:i:s'), $tz);
+            $secondsUntil = $start->getTimestamp() - $now->getTimestamp();
 
             $participants = $t->participants()
                 ->wherePivot('status', 'registered')
