@@ -2153,6 +2153,7 @@ class MobileTournamentController extends Controller
                     'avatar' => $p->avatar,
                     'rating' => $p->rating,
                     'level' => $p->level,
+                    'verified' => (bool) $p->level_verified,
                     'wins' => 0,
                     'losses' => 0,
                     'draws' => 0,
@@ -2304,6 +2305,7 @@ class MobileTournamentController extends Controller
                 'avatar' => $u->avatar,
                 'rating' => $u->rating,
                 'level' => $u->level,
+                'verified' => (bool) $u->level_verified,
                 'wins' => 0,
                 'losses' => 0,
                 'draws' => 0,
@@ -2365,6 +2367,7 @@ class MobileTournamentController extends Controller
                 'ball_percent' => $ballPercent,
                 'total_points' => $s['total_points'],
                 'games_played' => $s['matches_played'],
+                'verified' => $s['verified'],
                 'is_me' => $userId !== null && (int) $s['id'] === $userId,
             ];
         }
