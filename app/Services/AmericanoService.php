@@ -902,8 +902,11 @@ public function previewRatingChanges(Tournament $tournament): array
 				}
 			}
 			
-			// Сортируем: очки → победы → разница мячей
-			uasort($playerStats, function($a, $b) {
+			// Личные встречи для тай-брейка
+			$h2h = \App\Support\AmericanoTie::fromGroups([$group]);
+
+			// Сортируем: очки → победы → разница мячей → личная встреча
+			uasort($playerStats, function($a, $b) use ($h2h) {
 				if ($a['total_points'] !== $b['total_points']) {
 					return $b['total_points'] <=> $a['total_points'];
 				}
@@ -912,7 +915,10 @@ public function previewRatingChanges(Tournament $tournament): array
 				}
 				$diffA = $a['points_for'] - $a['points_against'];
 				$diffB = $b['points_for'] - $b['points_against'];
-				return $diffB <=> $diffA;
+				if ($diffA !== $diffB) {
+					return $diffB <=> $diffA;
+				}
+				return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
 			});
 			
 			// Берём топ-4 игроков

@@ -1281,9 +1281,11 @@ class MobileTournamentController extends Controller
         }
 
         $playerStats = [];
+        $h2h = [];
 
         if ($tournament->type === 'americano') {
             $groups = $tournament->groups()->with(['players', 'rounds.matches'])->get();
+            $h2h = \App\Support\AmericanoTie::fromGroups($groups);
 
             foreach ($groups as $group) {
                 foreach ($group->players as $player) {
@@ -1336,10 +1338,13 @@ class MobileTournamentController extends Controller
             }
         }
 
-        usort($playerStats, function ($a, $b) {
+        usort($playerStats, function ($a, $b) use ($h2h) {
             if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
             if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            $diffA = $a['points_for'] - $a['points_against'];
+            $diffB = $b['points_for'] - $b['points_against'];
+            if ($diffA !== $diffB) return $diffB <=> $diffA;
+            return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
         });
 
         return array_values(array_map(function ($s, $i) {
@@ -2168,11 +2173,15 @@ class MobileTournamentController extends Controller
                 }
             }
 
-            // Сортируем: очки → победы → разница мячей
-            uasort($playerStats, function ($a, $b) {
+            // Сортируем: очки → победы → разница мячей → личная встреча
+            $h2h = \App\Support\AmericanoTie::fromGroups([$group]);
+            uasort($playerStats, function ($a, $b) use ($h2h) {
                 if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
                 if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+                $diffA = $a['points_for'] - $a['points_against'];
+                $diffB = $b['points_for'] - $b['points_against'];
+                if ($diffA !== $diffB) return $diffB <=> $diffA;
+                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
             });
 
             $position = 1;

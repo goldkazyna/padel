@@ -1389,10 +1389,14 @@ class MobileAdminTournamentDetailController extends Controller
             }
         }
 
-        uasort($stats, function ($a, $b) {
+        $h2h = \App\Support\AmericanoTie::fromGroups([$group]);
+        uasort($stats, function ($a, $b) use ($h2h) {
             if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
             if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            $diffA = $a['points_for'] - $a['points_against'];
+            $diffB = $b['points_for'] - $b['points_against'];
+            if ($diffA !== $diffB) return $diffB <=> $diffA;
+            return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
         });
 
         $position = 1;
