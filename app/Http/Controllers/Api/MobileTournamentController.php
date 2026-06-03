@@ -992,7 +992,7 @@ class MobileTournamentController extends Controller
         // Собираем матчи пользователя с rating_change
         $userMatches = [];
 
-        if (in_array($tournament->type, ['americano', 'mexicano'])) {
+        if (in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
             $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
         } elseif ($tournament->type === 'team') {
             $userMatches = $this->getTeamBasedMatches($tournament, $userId);
@@ -1276,7 +1276,7 @@ class MobileTournamentController extends Controller
      */
     private function getLeaderboard(Tournament $tournament): array
     {
-        if (!in_array($tournament->type, ['americano', 'mexicano'])) {
+        if (!in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
             return [];
         }
 
@@ -1296,6 +1296,7 @@ class MobileTournamentController extends Controller
                             'avatar' => $player->avatar,
                             'rating' => $player->rating,
                             'level' => $player->level,
+                            'verified' => (bool) $player->level_verified,
                             'wins' => 0, 'losses' => 0,
                             'points_for' => 0, 'points_against' => 0,
                             'total_points' => (int) ($player->pivot->total_points ?? 0),
@@ -1323,6 +1324,7 @@ class MobileTournamentController extends Controller
                     'avatar' => $user->avatar,
                     'rating' => $user->rating,
                     'level' => $user->level,
+                    'verified' => (bool) $user->level_verified,
                     'wins' => 0, 'losses' => 0,
                     'points_for' => 0, 'points_against' => 0,
                     'total_points' => (int) ($mp->total_points ?? 0),
@@ -1336,16 +1338,56 @@ class MobileTournamentController extends Controller
                     $this->countMatchStats($playerStats, $match);
                 }
             }
+        } elseif ($tournament->type === 'americano_flex') {
+            $flexPlayers = $tournament->americanoFlexPlayers()->with('user')->get();
+            foreach ($flexPlayers as $fp) {
+                $user = $fp->user;
+                if (!$user) continue;
+                $playerStats[$user->id] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar,
+                    'rating' => $user->rating,
+                    'level' => $user->level,
+                    'verified' => (bool) $user->level_verified,
+                    'wins' => 0, 'losses' => 0,
+                    'points_for' => 0, 'points_against' => 0,
+                    'total_points' => 0,
+                    'matches_played' => (int) $fp->matches_played,
+                ];
+            }
+
+            foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
+                foreach ($round->matches as $match) {
+                    if ($match->status !== 'completed') continue;
+                    $this->countMatchStats($playerStats, $match);
+                }
+            }
+            // В flex «очки» = сумма забитых
+            foreach ($playerStats as &$s) {
+                $s['total_points'] = $s['points_for'];
+            }
+            unset($s);
         }
 
-        usort($playerStats, function ($a, $b) use ($h2h) {
-            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
-            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-            $diffA = $a['points_for'] - $a['points_against'];
-            $diffB = $b['points_for'] - $b['points_against'];
-            if ($diffA !== $diffB) return $diffB <=> $diffA;
-            return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
-        });
+        if ($tournament->type === 'americano_flex') {
+            // Flex: рейтинг по среднему за матч → суммарные очки
+            usort($playerStats, function ($a, $b) {
+                $avgA = $a['matches_played'] > 0 ? $a['total_points'] / $a['matches_played'] : 0;
+                $avgB = $b['matches_played'] > 0 ? $b['total_points'] / $b['matches_played'] : 0;
+                if ($avgA != $avgB) return $avgB <=> $avgA;
+                return $b['total_points'] <=> $a['total_points'];
+            });
+        } else {
+            usort($playerStats, function ($a, $b) use ($h2h) {
+                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+                $diffA = $a['points_for'] - $a['points_against'];
+                $diffB = $b['points_for'] - $b['points_against'];
+                if ($diffA !== $diffB) return $diffB <=> $diffA;
+                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+            });
+        }
 
         return array_values(array_map(function ($s, $i) {
             $totalGames = $s['wins'] + $s['losses'];
@@ -1478,6 +1520,20 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Раунды Americano Flex
+        if ($tournament->type === 'americano_flex') {
+            foreach ($tournament->americanoFlexRounds()->orderBy('round_number')->with('matches')->get() as $round) {
+                $roundCounter++;
+                foreach ($round->matches as $match) {
+                    if (!$match->isCompleted()) continue;
+                    $change = $this->processPlayerMatch($match, $ratings);
+                    if ($this->isPlayerInMatch($match, $userId)) {
+                        $userMatches[] = $this->formatResultMatch($match, $userId, $roundCounter, $change, false);
+                    }
+                }
+            }
+        }
+
         // Плей-офф (player-based)
         $playoffMatches = $tournament->playoffMatches()
             ->where('status', 'completed')
@@ -1584,6 +1640,11 @@ class MobileTournamentController extends Controller
         } elseif ($tournament->type === 'mexicano') {
             foreach ($tournament->mexicanoPlayers()->with('user')->get() as $mp) {
                 $ratings[$mp->user_id] = (int) $mp->rating_before;
+            }
+        } elseif ($tournament->type === 'americano_flex') {
+            foreach ($tournament->americanoFlexPlayers()->with('user')->get() as $fp) {
+                $rb = (int) $fp->rating_before;
+                $ratings[$fp->user_id] = $rb > 0 ? $rb : (int) ($fp->user->rating ?? 1000);
             }
         }
 
@@ -1871,6 +1932,13 @@ class MobileTournamentController extends Controller
                 if ((int) $pair->player1_id === $userId || (int) $pair->player2_id === $userId) {
                     return $i + 1;
                 }
+            }
+        }
+
+        // Americano Flex — место по таблице лидеров
+        if ($tournament->type === 'americano_flex') {
+            foreach ($this->getLeaderboard($tournament) as $row) {
+                if ((int) $row['id'] === $userId) return (int) $row['position'];
             }
         }
 
