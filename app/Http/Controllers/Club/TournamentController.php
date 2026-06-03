@@ -917,65 +917,11 @@ class TournamentController extends Controller
 			return back()->with('error', 'Push не отправляется для тестовых клубов');
 		}
 
-		$fcm = app(\App\Services\FCMNotificationService::class);
-		$date = $tournament->start_date->format('d.m.Y H:i');
-		$title = 'Новый турнир!';
-		$body = "{$tournament->name} — {$date}";
-		$data = [
-			'type' => 'tournament',
-			'tournament_id' => (string) $tournament->id,
-		];
-
-		// Фильтруем пользователей с учётом города клуба и настроек уведомлений
-		$query = \App\Models\User::whereHas('deviceTokens')
-			->with('deviceTokens');
-
-		if ($club && $club->city) {
-			if ($club->city === 'Алматы') {
-				$query->where(fn($q) => $q->where('city', 'Алматы')->orWhereNull('city'));
-			} else {
-				$query->where('city', $club->city);
-			}
-		}
-
-		$users = $query->get(['id', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
-
-		$recipients = $users->filter(function ($user) use ($tournament) {
-			// Фильтр по клубам
-			if (!empty($user->notify_club_ids) && !in_array($tournament->club_id, $user->notify_club_ids)) {
-				return false;
-			}
-			// Фильтр по уровню
-			if ($user->notify_only_my_level) {
-				return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
-			}
-			return true;
-		});
-
-		// Собираем все токены отфильтрованных пользователей
-		$tokens = $recipients->flatMap(fn($user) => $user->deviceTokens->pluck('token'))->toArray();
-
-		// Отправляем одним multicast — все получают одновременно
-		$fcm->sendMulticastToTokens($tokens, $title, $body, $data);
-
-		// Записи в колокольчик — одним запросом
-		$now = now();
-		$notifications = $recipients->map(fn($user) => [
-			'user_id' => $user->id,
-			'title' => $title,
-			'body' => $body,
-			'type' => 'tournament',
-			'category' => 'tournament',
-			'data' => json_encode(['tournament_id' => $tournament->id]),
-			'created_at' => $now,
-			'updated_at' => $now,
-		])->toArray();
-
-		\App\Models\Notification::insert($notifications);
-
-		$total = $users->count();
-		$sent = $recipients->count();
-		$filtered = $total - $sent;
+		// Единая логика рассылки (общая с мобильным API)
+		$result = app(\App\Services\TournamentPushService::class)->send($tournament);
+		$total = $result['total'];
+		$sent = $result['sent'];
+		$filtered = $result['filtered'];
 
 		$cityLabel = ($club && $club->city) ? ", город: {$club->city}" : "";
 		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей{$cityLabel}" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");

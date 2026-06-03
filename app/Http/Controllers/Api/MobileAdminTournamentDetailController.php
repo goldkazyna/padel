@@ -1003,6 +1003,37 @@ class MobileAdminTournamentDetailController extends Controller
         ], $code);
     }
 
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/send-push
+     * Push «Новый турнир!» всем подходящим пользователям (как колокольчик в вебе).
+     */
+    public function sendPush(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if ($tournament->status !== 'open') {
+            return $this->error('Уведомление можно отправить только для открытого турнира');
+        }
+
+        $tournament->loadMissing('club');
+        if ($tournament->club && $tournament->club->is_test) {
+            return $this->error('Уведомление не отправляется для тестовых клубов');
+        }
+
+        $result = app(\App\Services\TournamentPushService::class)->send($tournament);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Уведомление отправлено: {$result['sent']} из {$result['total']} пользователей"
+                . ($result['filtered'] ? ", {$result['filtered']} отфильтровано по настройкам" : ''),
+            'sent' => $result['sent'],
+            'total' => $result['total'],
+            'filtered' => $result['filtered'],
+        ]);
+    }
+
     private function notifyApproved(Tournament $tournament, User $user): void
     {
         try {
