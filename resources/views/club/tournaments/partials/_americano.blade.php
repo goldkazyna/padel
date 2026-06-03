@@ -88,8 +88,31 @@
 					}
 				}
 				
-				// Сортируем по очкам
-				uasort($playerStats, function($a, $b) {
+				// Личные встречи (head-to-head): игроки считаются встретившимися,
+				// когда играли в РАЗНЫХ командах. Победа в матче = личная победа над
+				// каждым соперником из команды напротив. $h2h[A][B] = нетто личных
+				// побед A над B (ничьи в матче не учитываются).
+				$h2h = [];
+				foreach ($group->rounds as $round) {
+					foreach ($round->matches as $match) {
+						if (!$match->isCompleted()) continue;
+						if ($match->team1_score === $match->team2_score) continue;
+						$t1 = [$match->team1_player1_id, $match->team1_player2_id];
+						$t2 = [$match->team2_player1_id, $match->team2_player2_id];
+						$winners = $match->team1_score > $match->team2_score ? $t1 : $t2;
+						$losers  = $match->team1_score > $match->team2_score ? $t2 : $t1;
+						foreach ($winners as $w) {
+							foreach ($losers as $l) {
+								if (!isset($playerStats[$w]) || !isset($playerStats[$l])) continue;
+								$h2h[$w][$l] = ($h2h[$w][$l] ?? 0) + 1;
+								$h2h[$l][$w] = ($h2h[$l][$w] ?? 0) - 1;
+							}
+						}
+					}
+				}
+
+				// Сортируем: очки → победы → разница мячей → личная встреча
+				uasort($playerStats, function($a, $b) use ($h2h) {
 					// 1. По очкам
 					if ($a['total_points'] !== $b['total_points']) {
 						return $b['total_points'] <=> $a['total_points'];
@@ -101,7 +124,18 @@
 					// 3. По разнице мячей
 					$diffA = $a['points_for'] - $a['points_against'];
 					$diffB = $b['points_for'] - $b['points_against'];
-					return $diffB <=> $diffA;
+					if ($diffA !== $diffB) {
+						return $diffB <=> $diffA;
+					}
+					// 4. Личная встреча: у кого больше личных побед — выше.
+					//    Если ничья по личкам (например 1-1) — порядок не меняем.
+					$aId = $a['player']->id;
+					$bId = $b['player']->id;
+					$net = $h2h[$aId][$bId] ?? 0;
+					if ($net !== 0) {
+						return $net > 0 ? -1 : 1;
+					}
+					return 0;
 				});
 			@endphp
 
