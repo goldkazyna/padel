@@ -79,6 +79,7 @@ class ClubController extends Controller
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
         $validated['online_payment_enabled'] = $request->boolean('online_payment_enabled');
         $validated['coming_soon'] = $request->boolean('coming_soon');
+        $validated['is_community'] = $request->boolean('is_community');
 
         $features = $request->input('features', []);
         $validated['features'] = [
