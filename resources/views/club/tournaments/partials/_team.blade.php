@@ -5,6 +5,12 @@
     $waitlistTeams = $tournament->teams()->where('status', 'waiting')->orderBy('created_at', 'asc')->get();
 @endphp
 
+{{-- Ручной сбор пар: показываем одиночных зарегистрированных игроков и
+     заявки на модерации (как в обычном одиночном турнире). --}}
+@if($tournament->pairing_mode === 'admin' && $tournament->status === 'open' && $tournament->teamGroups->count() === 0)
+    @include('club.tournaments.partials._participants', ['hasGroups' => false])
+@endif
+
 @if($tournament->status === 'open' && $pendingTeams->count() > 0)
 <section class="pending-teams mb-4">
     <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 16px;">
