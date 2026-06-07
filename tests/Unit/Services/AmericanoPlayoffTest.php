@@ -134,4 +134,43 @@ class AmericanoPlayoffTest extends TestCase
             ->where('bracket', 'lower')->count();
         $this->assertEquals(0, $lower, 'нижняя сетка не строится при нехватке игроков');
     }
+
+    public function test_semifinal_updates_only_its_own_bracket_final(): void
+    {
+        $t = $this->makeFinishedSingleGroup(16, [
+            'playoff_type' => 'semifinal_final', 'playoff_format' => 'mix',
+            'has_lower_bracket' => true,
+        ]);
+        $this->service->generatePlayoff($t);
+
+        $upperSemis = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('stage', 'Полуфинал')->where('bracket', 'upper')->get();
+        foreach ($upperSemis as $s) {
+            $s->update(['team1_score' => 6, 'team2_score' => 3, 'status' => 'completed']);
+            $this->service->updateFinalAfterSemifinal($s->fresh());
+        }
+
+        $upperFinal = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('stage', 'Финал')->where('bracket', 'upper')->first();
+        $lowerFinal = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('stage', 'Финал')->where('bracket', 'lower')->first();
+
+        $this->assertNotNull($upperFinal->team1_player1_id, 'верхний финал заполнен');
+        $this->assertNull($lowerFinal->team1_player1_id, 'нижний финал ещё пуст');
+    }
+
+    public function test_can_finish_requires_only_upper_final(): void
+    {
+        $t = $this->makeFinishedSingleGroup(8, [
+            'playoff_type' => 'final_only', 'playoff_format' => 'cross',
+            'has_lower_bracket' => true,
+        ]);
+        $this->service->generatePlayoff($t);
+
+        $upperFinal = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('stage', 'Финал')->where('bracket', 'upper')->first();
+        $upperFinal->update(['team1_score' => 6, 'team2_score' => 2, 'status' => 'completed']);
+
+        $this->assertTrue($this->service->canFinishTournament($t->fresh()));
+    }
 }

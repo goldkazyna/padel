@@ -446,20 +446,26 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 			}
 		}
 		
-		// Если есть плей-офф — проверяем что финал сыгран
+		// Если есть плей-офф — проверяем что финал верхней сетки сыгран
 		if ($tournament->hasPlayoff()) {
 			$final = $tournament->playoffMatches()
 				->where('stage', 'Финал')
+				->where(function ($q) {
+					$q->where('bracket', 'upper')->orWhereNull('bracket');
+				})
 				->first();
 
 			if (!$final || $final->status !== 'completed') {
 				return false;
 			}
 
-			// Если есть матч за 3-е место — он тоже должен быть сыгран
+			// Если есть матч за 3-е место верхней сетки — он тоже должен быть сыгран
 			if ($tournament->has_bronze_match) {
 				$bronze = $tournament->playoffMatches()
 					->where('is_bronze', true)
+					->where(function ($q) {
+						$q->where('bracket', 'upper')->orWhereNull('bracket');
+					})
 					->first();
 				if (!$bronze || $bronze->status !== 'completed') {
 					return false;
@@ -1177,18 +1183,20 @@ public function previewRatingChanges(Tournament $tournament): array
 	public function updateFinalAfterSemifinal(TournamentPlayoffMatch $semifinalMatch): void
 	{
 		$tournament = $semifinalMatch->tournament;
-		
-		// Проверяем что оба полуфинала сыграны
+		$bracket = $semifinalMatch->bracket ?? 'upper';
+
+		// Проверяем что оба полуфинала сыграны (только в своей сетке)
 		$semifinals = $tournament->playoffMatches()
 			->where('stage', 'Полуфинал')
+			->where('bracket', $bracket)
 			->get();
-		
+
 		$allCompleted = $semifinals->every(fn($m) => $m->status === 'completed');
-		
+
 		if (!$allCompleted) {
 			return;
 		}
-		
+
 		// Получаем победителей и проигравших полуфиналов
 		$winners = [];
 		$losers = [];
@@ -1214,9 +1222,10 @@ public function previewRatingChanges(Tournament $tournament): array
 			}
 		}
 
-		// Обновляем финал
+		// Обновляем финал той же сетки
 		$final = $tournament->playoffMatches()
 			->where('stage', 'Финал')
+			->where('bracket', $bracket)
 			->first();
 
 		if ($final && count($winners) >= 2) {
@@ -1229,10 +1238,11 @@ public function previewRatingChanges(Tournament $tournament): array
 			]);
 		}
 
-		// Обновляем матч за 3-е место (если включён) — заполняем проигравшими
+		// Обновляем матч за 3-е место той же сетки (если включён) — заполняем проигравшими
 		if ($tournament->has_bronze_match && count($losers) >= 2) {
 			$bronze = $tournament->playoffMatches()
 				->where('is_bronze', true)
+				->where('bracket', $bracket)
 				->first();
 			if ($bronze) {
 				$bronze->update([
