@@ -263,20 +263,26 @@ class TournamentController extends Controller
 			'status' => 'required|in:draft,open,closed,in_progress,completed,cancelled',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'has_playoff' => 'nullable|boolean',
+			'has_lower_bracket' => 'nullable|boolean',
+			'has_bronze_match' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
-			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross',
+			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
 			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 		]);
 		
-		// Обработка чекбокса плей-офф
+		// Обработка чекбоксов плей-офф
 		$validated['has_playoff'] = $request->has('has_playoff');
-		
-		// Если плей-офф не включен, убираем тип и формат
+		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
+		$validated['has_bronze_match'] = $request->has('has_bronze_match');
+
+		// Если плей-офф не включен, убираем тип, формат и сетки
 		if (!$validated['has_playoff']) {
 			$validated['playoff_type'] = null;
 			$validated['playoff_format'] = null;
+			$validated['has_lower_bracket'] = false;
+			$validated['has_bronze_match'] = false;
 		}
 		
 		// Если не полуфинал+финал, убираем формат

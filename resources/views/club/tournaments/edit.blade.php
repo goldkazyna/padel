@@ -36,10 +36,10 @@
                     <div class="row">
 						<div class="col-md-6 mb-4">
 							<label class="form-label">Дата и время *</label>
-							<input type="datetime-local" 
-								   name="start_date" 
-								   class="form-control" 
-								   value="{{ old('start_date', $tournament->start_date->format('Y-m-d\TH:i')) }}" 
+							<input type="datetime-local"
+								   name="start_date"
+								   class="form-control"
+								   value="{{ old('start_date', $tournament->start_date->format('Y-m-d\TH:i')) }}"
 								   required
 								   style="cursor: pointer;"
 								   onclick="this.showPicker()">
@@ -72,7 +72,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Макс. участников *</label>
-                            <input type="number" name="max_participants" class="form-control" 
+                            <input type="number" name="max_participants" class="form-control"
                                    value="{{ old('max_participants', $tournament->max_participants) }}" min="2" max="128" required>
                         </div>
                         <div class="col-md-6 mb-4">
@@ -109,48 +109,97 @@
 					</div>
 
 					{{-- Плей-офф опции --}}
+					@php
+						$editGroups      = $tournament->groups_count;
+						$editPlayoffType = old('playoff_type', $tournament->playoff_type);
+						$editHasPlayoff  = old('has_playoff', $tournament->has_playoff);
+						$editIsSemi      = $editPlayoffType === 'semifinal_final';
+						$showFormatBlock = $editIsSemi || ($editPlayoffType === 'final_only' && $editGroups === 1);
+					@endphp
 					<div class="mb-4">
 						<label class="form-label">Плей-офф</label>
 						<div class="playoff-options">
 							<div class="form-check">
-								<input type="checkbox" class="form-check-input" name="has_playoff" id="hasPlayoff" value="1" 
-									   {{ old('has_playoff', $tournament->has_playoff) ? 'checked' : '' }} onchange="togglePlayoffType()">
+								<input type="checkbox" class="form-check-input" name="has_playoff" id="hasPlayoff" value="1"
+									   {{ $editHasPlayoff ? 'checked' : '' }} onchange="togglePlayoffType()">
 								<label class="form-check-label" for="hasPlayoff">
 									Добавить плей-офф после группового этапа
 								</label>
 							</div>
-							
-							<div id="playoffTypeOptions" class="mt-3 ms-4" style="{{ old('has_playoff', $tournament->has_playoff) ? '' : 'display: none;' }}">
+
+							<div id="playoffTypeOptions" class="mt-3 ms-4" style="{{ $editHasPlayoff ? '' : 'display: none;' }}">
 								<div class="form-check">
-									<input type="radio" class="form-check-input" name="playoff_type" id="finalOnly" value="final_only" 
-										   {{ old('playoff_type', $tournament->playoff_type ?? 'final_only') === 'final_only' ? 'checked' : '' }} onchange="togglePlayoffFormat()">
+									<input type="radio" class="form-check-input" name="playoff_type" id="finalOnly" value="final_only"
+										   {{ (!$editIsSemi) ? 'checked' : '' }} onchange="togglePlayoffFormat()">
 									<label class="form-check-label" for="finalOnly">
 										Только финал
 									</label>
 								</div>
-								@if($tournament->groups_count >= 2)
 								<div class="form-check mt-2">
 									<input type="radio" class="form-check-input" name="playoff_type" id="semifinalFinal" value="semifinal_final"
-										   {{ old('playoff_type', $tournament->playoff_type) === 'semifinal_final' ? 'checked' : '' }} onchange="togglePlayoffFormat()">
+										   {{ $editIsSemi ? 'checked' : '' }} onchange="togglePlayoffFormat()">
 									<label class="form-check-label" for="semifinalFinal">
 										Полуфинал + Финал
 									</label>
 								</div>
-								
+
 								{{-- Выбор формата пар --}}
-								<div id="playoffFormatOptions" class="mt-3" style="{{ old('playoff_type', $tournament->playoff_type) === 'semifinal_final' ? '' : 'display: none;' }}">
-									<label class="form-label">Формат пар в полуфиналах</label>
+								<div id="playoffFormatOptions" class="mt-3" style="{{ $showFormatBlock ? '' : 'display: none;' }}">
+									<label class="form-label" id="playoffFormatLabel">
+										@if($editGroups >= 2)
+											Формат пар в полуфиналах
+										@elseif($editIsSemi)
+											Формат пар в полуфиналах
+										@else
+											Формат пар в финале
+										@endif
+									</label>
 									<select name="playoff_format" id="playoffFormat" class="form-select">
-										<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
-										<option value="group_vs" {{ old('playoff_format', $tournament->playoff_format) === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
-										<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
-										<option value="cross" {{ old('playoff_format', $tournament->playoff_format) === 'cross' ? 'selected' : '' }}>Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+										@if($editGroups >= 2)
+											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
+											<option value="group_vs" {{ old('playoff_format', $tournament->playoff_format) === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
+											<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
+											<option value="cross" {{ old('playoff_format', $tournament->playoff_format) === 'cross' ? 'selected' : '' }}>Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+										@elseif($editIsSemi)
+											{{-- 1 группа + полуфинал+финал --}}
+											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>Микс (1+8 vs 4+5, 2+7 vs 3+6)</option>
+											<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>Топы вместе (1+2 vs 7+8, 3+4 vs 5+6)</option>
+											<option value="balanced" {{ old('playoff_format', $tournament->playoff_format) === 'balanced' ? 'selected' : '' }}>Сбалансированный (1+4 vs 5+8, 2+3 vs 6+7)</option>
+										@else
+											{{-- 1 группа + только финал --}}
+											<option value="cross" {{ old('playoff_format', $tournament->playoff_format) === 'cross' ? 'selected' : '' }}>1+4 vs 2+3 (крест)</option>
+											<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>1+2 vs 3+4 (топы вместе)</option>
+											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>1+3 vs 2+4 (микс)</option>
+										@endif
 									</select>
 									<small class="text-secondary mt-2 d-block">
-										A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.
+										@if($editGroups >= 2)
+											A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.
+										@else
+											Цифры = места в таблице лидеров после основных раундов
+										@endif
 									</small>
 								</div>
-								@endif
+							</div>
+						</div>
+					</div>
+
+					{{-- Нижняя сетка и матч за 3-е место --}}
+					<div class="row mt-2" id="americanoBracketOptions" style="{{ $editHasPlayoff ? '' : 'display: none;' }}">
+						<div class="col-md-6 mb-2">
+							<div class="form-check">
+								<input type="checkbox" name="has_lower_bracket" value="1" id="americanoLowerBracket" class="form-check-input"
+									{{ old('has_lower_bracket', $tournament->has_lower_bracket) ? 'checked' : '' }}>
+								<label for="americanoLowerBracket" class="form-check-label">
+									Нижняя сетка <small class="text-muted">(утешительная — для следующего тира игроков)</small>
+								</label>
+							</div>
+						</div>
+						<div class="col-md-6 mb-2" id="americanoBronzeWrap" style="{{ $editIsSemi ? '' : 'display: none;' }}">
+							<div class="form-check">
+								<input type="checkbox" name="has_bronze_match" value="1" id="americanoBronze" class="form-check-input"
+									{{ old('has_bronze_match', $tournament->has_bronze_match) ? 'checked' : '' }}>
+								<label for="americanoBronze" class="form-check-label">Матч за 3-е место</label>
 							</div>
 						</div>
 					</div>
@@ -171,7 +220,7 @@
 							<small class="text-secondary">Нельзя изменить после создания</small>
 						</div>
 					</div>
-					@endif	
+					@endif
 					@if($tournament->isTeamBased())
 					<div class="row">
 						<div class="col-md-4 mb-4">
@@ -193,7 +242,7 @@
 							</select>
 						</div>
 					</div>
-					@endif					
+					@endif
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
                         <select name="status" class="form-select" required>
@@ -231,9 +280,13 @@
 function togglePlayoffType() {
     const hasPlayoff = document.getElementById('hasPlayoff');
     const playoffTypeOptions = document.getElementById('playoffTypeOptions');
-    
+    const bracketOptions = document.getElementById('americanoBracketOptions');
+
     if (hasPlayoff && playoffTypeOptions) {
         playoffTypeOptions.style.display = hasPlayoff.checked ? 'block' : 'none';
+        if (bracketOptions) {
+            bracketOptions.style.display = hasPlayoff.checked ? 'flex' : 'none';
+        }
         togglePlayoffFormat();
     }
 }
@@ -241,9 +294,16 @@ function togglePlayoffType() {
 function togglePlayoffFormat() {
     const semifinalFinal = document.getElementById('semifinalFinal');
     const playoffFormatOptions = document.getElementById('playoffFormatOptions');
-    
+    const bronzeWrap = document.getElementById('americanoBronzeWrap');
+    const bronze = document.getElementById('americanoBronze');
+
     if (playoffFormatOptions && semifinalFinal) {
         playoffFormatOptions.style.display = semifinalFinal.checked ? 'block' : 'none';
+    }
+    if (bronzeWrap) {
+        const isSemi = semifinalFinal && semifinalFinal.checked;
+        bronzeWrap.style.display = isSemi ? 'block' : 'none';
+        if (!isSemi && bronze) bronze.checked = false;
     }
 }
 </script>
