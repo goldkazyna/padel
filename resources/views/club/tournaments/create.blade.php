@@ -294,6 +294,16 @@
 					</div>
 					<div id="teamFields" style="display: none;">
 						<div class="row">
+							<div class="col-md-12 mb-4">
+								<label class="form-label">Кто собирает пары *</label>
+								<select name="pairing_mode" id="teamPairingMode" class="form-select">
+									<option value="self" {{ old('pairing_mode', 'self') === 'self' ? 'selected' : '' }}>Сами игроки (поиск партнёра)</option>
+									<option value="admin" {{ old('pairing_mode') === 'admin' ? 'selected' : '' }}>Админ собирает (запись по одному)</option>
+								</select>
+								<small class="text-secondary">«Админ собирает» — игроки записываются поодиночке, пары вы соберёте перед стартом.</small>
+							</div>
+						</div>
+						<div class="row">
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
 								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
