@@ -1481,9 +1481,14 @@ class MobileAdminTournamentDetailController extends Controller
             $winner = $m->team1_score > $m->team2_score ? 1 : 2;
         }
 
+        $stage = $m->stage;
+        if ($m->bracket === 'lower') {
+            $stage .= ' (нижняя сетка)';
+        }
+
         return [
             'id' => $m->id,
-            'stage' => $m->stage,
+            'stage' => $stage,
             'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
             'team1' => [
                 'players' => array_filter([
