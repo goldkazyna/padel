@@ -58,4 +58,15 @@ return [
 		'bundle_id' => env('APPLE_BUNDLE_ID', 'com.padelkz.app'),
 	],
 
+	// SMS-шлюз KazInfoTeh (HTTP). Документация: http://docs.kazinfoteh.kz/protocols/http/outbox/
+	'kazinfoteh' => [
+		'scheme' => env('KAZINFOTEH_SCHEME', 'http'),
+		'host' => env('KAZINFOTEH_HOST', 'kazinfoteh.org'),
+		'port' => env('KAZINFOTEH_PORT', '9507'),
+		'username' => env('KAZINFOTEH_USERNAME'),
+		'password' => env('KAZINFOTEH_PASSWORD'),
+		// Имя отправителя (альфа-имя), зарегистрированное у оператора.
+		'originator' => env('KAZINFOTEH_ORIGINATOR', 'INFO_KAZ'),
+	],
+
 ];
