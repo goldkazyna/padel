@@ -180,6 +180,7 @@ class MobileAdminTournamentController extends Controller
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
             'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
             'telegram_registration_url' => 'nullable|url|max:500',
+            'is_rated' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -192,6 +193,8 @@ class MobileAdminTournamentController extends Controller
 
         $validated = $validator->validated();
         $validated['club_id'] = $club->id;
+        // Рейтинговый по умолчанию; веб-админка флаг не шлёт — остаётся true.
+        $validated['is_rated'] = $request->boolean('is_rated', true);
 
         // price в БД NOT NULL — если не передали, ставим 0.
         if (!isset($validated['price']) || $validated['price'] === null) {

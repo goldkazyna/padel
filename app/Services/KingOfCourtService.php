@@ -316,6 +316,12 @@ class KingOfCourtService
     {
         if (!$this->canFinishTournament($tournament)) return false;
 
+        // Не рейтинговый турнир — завершаем без начисления рейтинга.
+        if (!$tournament->is_rated) {
+            $tournament->update(['status' => 'completed']);
+            return true;
+        }
+
         $players = $tournament->kingOfCourtPlayers()->with('user')->get();
         $ratingChanges = [];
 

@@ -136,4 +136,55 @@ class MobileAdminAmericanoFlexTest extends TestCase
         $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/start")
             ->assertStatus(422);
     }
+
+    public function test_non_rated_tournament_does_not_change_ratings(): void
+    {
+        [$club, $admin, $tournament] = $this->setupTournament(10, 2);
+        $tournament->update(['is_rated' => false]);
+        Sanctum::actingAs($admin);
+
+        $userIds = TournamentParticipant::where('tournament_id', $tournament->id)
+            ->pluck('user_id');
+        $beforeRatings = User::whereIn('id', $userIds)->pluck('rating', 'id');
+
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/start")->assertOk();
+
+        $playRound = function (int $roundNumber) use ($tournament) {
+            $matches = AmericanoFlexMatch::query()
+                ->whereHas('round', fn($q) => $q->where('tournament_id', $tournament->id)
+                    ->where('round_number', $roundNumber))
+                ->get();
+            foreach ($matches as $m) {
+                $this->postJson(
+                    "/api/mobile/admin/tournaments/{$tournament->id}/americano_flex/matches/{$m->id}/score",
+                    ['team1_score' => 24, 'team2_score' => 18]
+                )->assertOk();
+            }
+        };
+
+        $playRound(1);
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/next-round")->assertOk();
+        $playRound(2);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/finish")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        // Турнир завершён...
+        $this->assertSame('completed', $tournament->fresh()->status);
+
+        // ...но рейтинги игроков НЕ изменились и истории рейтинга нет.
+        foreach ($beforeRatings as $userId => $ratingBefore) {
+            $this->assertSame(
+                (int) $ratingBefore,
+                (int) User::find($userId)->rating,
+                "рейтинг игрока $userId не должен меняться в нерейтинговом турнире"
+            );
+        }
+        $this->assertSame(
+            0,
+            \App\Models\RatingHistory::where('tournament_id', $tournament->id)->count(),
+            'история рейтинга для нерейтингового турнира не пишется'
+        );
+    }
 }

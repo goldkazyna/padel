@@ -254,6 +254,12 @@ class BaliKocService
     {
         if (!$this->canFinishTournament($tournament)) return false;
 
+        // Не рейтинговый турнир — завершаем без начисления рейтинга.
+        if (!$tournament->is_rated) {
+            $tournament->update(['status' => 'completed']);
+            return true;
+        }
+
         $pairs = $tournament->baliKocPairs()->with(['player1', 'player2'])->get();
 
         // Стартовые рейтинги (по нашему трекеру эволюции внутри турнира)

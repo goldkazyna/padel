@@ -365,6 +365,12 @@ class AmericanoFlexService
      */
     public function completeTournament(Tournament $tournament): bool
     {
+        // Не рейтинговый турнир — завершаем без начисления рейтинга.
+        if (!$tournament->is_rated) {
+            $tournament->update(['status' => 'completed']);
+            return true;
+        }
+
         DB::transaction(function () use ($tournament) {
             // Идём по всем матчам в явном порядке: раунды по round_number, внутри раунда — по id.
             $roundIds = $tournament->americanoFlexRounds()

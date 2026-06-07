@@ -495,6 +495,12 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 			return false;
 		}
 
+		// Не рейтинговый турнир — завершаем без начисления рейтинга.
+		if (!$tournament->is_rated) {
+			$tournament->update(['status' => 'completed']);
+			return true;
+		}
+
 		// Собираем все изменения рейтинга
 		$ratingChanges = [];
 

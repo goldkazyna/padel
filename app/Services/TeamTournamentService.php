@@ -957,6 +957,12 @@ class TeamTournamentService
 			return false;
 		}
 
+		// Не рейтинговый турнир — завершаем без начисления рейтинга.
+		if (!$tournament->is_rated) {
+			$tournament->update(['status' => 'completed']);
+			return true;
+		}
+
 		// Рассчитываем Эло
 		$ratingChanges = $this->previewRatingChanges($tournament);
 

@@ -221,6 +221,7 @@ class MobileHomeController extends Controller
             'type_name' => $t->type_name,
             'status' => $t->status,
             'status_name' => $t->status_name,
+            'is_rated' => (bool) $t->is_rated,
             'min_level' => (float) $t->min_level,
             'max_level' => (float) $t->max_level,
             'price' => (float) $t->price,
