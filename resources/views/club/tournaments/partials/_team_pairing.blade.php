@@ -10,8 +10,22 @@
         ->values();
     $maxPairs = (int) ($tournament->max_participants / 2);
     $canStart = $approvedTeams->count() === $maxPairs && $maxPairs > 0;
+    $approvedCount = $tournament->approvedParticipantsCount();
+    $pendingCount = $tournament->pendingParticipantsCount();
+    // Полный состав: все места подтверждены (без заявок на модерации).
+    $rosterReady = $approvedCount >= (int) $tournament->max_participants;
 @endphp
 
+@if(!$rosterReady)
+    <div class="admin-pairing mb-4" style="background:#18181b;border:1px solid #2a2a2a;border-radius:14px;padding:16px;">
+        <strong style="color:#fff;">Сбор пар откроется при полном составе</strong>
+        <p class="mb-0 mt-1" style="color:#a1a1aa;">
+            Подтверждено {{ $approvedCount }} из {{ $tournament->max_participants }}
+            @if($pendingCount > 0) · {{ $pendingCount }} на модерации @endif.
+            Сначала подтвердите всех участников, затем собирайте пары.
+        </p>
+    </div>
+@else
 <div class="admin-pairing mb-4" style="background:#18181b;border:1px solid #2a2a2a;border-radius:14px;padding:16px;">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <strong style="color:#fff;">Сбор пар — свободных игроков: {{ $soloPlayers->count() }}</strong>
@@ -62,3 +76,4 @@
         </form>
     @endif
 </div>
+@endif

@@ -109,6 +109,25 @@ class TeamAdminPairingTest extends TestCase
         $this->assertCount(0, $state['unpaired']);
     }
 
+    public function test_pairing_blocked_until_full_roster(): void
+    {
+        [$tournament, $users] = $this->makeTournament(8, 2);
+        // Один игрок ещё на модерации — состав не полный.
+        TournamentParticipant::where('tournament_id', $tournament->id)
+            ->where('user_id', $users[0]->id)
+            ->update(['status' => 'pending']);
+
+        $state = $this->service->getPairingState($tournament->fresh());
+        $this->assertFalse($state['roster_ready'], 'состав не полный');
+        $this->assertSame(7, $state['approved_count']);
+
+        [$ok, ] = $this->service->createPair($tournament->fresh(), $users[1]->id, $users[2]->id);
+        $this->assertFalse($ok, 'сбор пар заблокирован до полного состава');
+
+        [$okAuto, ] = $this->service->autoBalancePairs($tournament->fresh());
+        $this->assertFalse($okAuto, 'авто-сбор заблокирован до полного состава');
+    }
+
     public function test_full_flow_pair_then_start_creates_groups(): void
     {
         [$tournament, $users] = $this->makeTournament(8, 2);

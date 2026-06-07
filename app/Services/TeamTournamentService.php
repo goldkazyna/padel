@@ -163,9 +163,18 @@ class TeamTournamentService
             'rating' => (int) $u->rating,
         ] : null;
 
+        $approvedCount = $tournament->approvedParticipantsCount();
+        $pendingCount = $tournament->pendingParticipantsCount();
+        // Полный состав: все места подтверждены (нет заявок на модерации).
+        $rosterReady = $approvedCount >= (int) $tournament->max_participants;
+
         return [
             'max_pairs' => $maxPairs,
             'pairs_count' => $teams->count(),
+            'approved_count' => $approvedCount,
+            'pending_count' => $pendingCount,
+            'max_participants' => (int) $tournament->max_participants,
+            'roster_ready' => $rosterReady,
             'unpaired' => $unpaired,
             'teams' => $teams->map(fn($t) => [
                 'id' => $t->id,
@@ -191,6 +200,9 @@ class TeamTournamentService
         }
         if ($tournament->teamGroups()->count() > 0) {
             return [false, 'Турнир уже стартовал.'];
+        }
+        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
+            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
         }
 
         $registeredIds = $tournament->participants()
@@ -258,6 +270,9 @@ class TeamTournamentService
         }
         if ($tournament->teamGroups()->count() > 0) {
             return [false, 'Турнир уже стартовал.'];
+        }
+        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
+            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
         }
 
         $teams = $tournament->teams()->get();
