@@ -395,7 +395,7 @@ class MobileAdminTournamentDetailController extends Controller
 
     private function getParticipantsCount(Tournament $t): int
     {
-        if ($t->type === 'team') {
+        if (!$t->usesSoloRegistration()) {
             return TournamentTeam::where('tournament_id', $t->id)
                 ->whereIn('status', ['approved', 'pending'])
                 ->count() * 2;
@@ -407,7 +407,7 @@ class MobileAdminTournamentDetailController extends Controller
 
     private function getPendingCount(Tournament $t): int
     {
-        if ($t->type === 'team') {
+        if (!$t->usesSoloRegistration()) {
             return TournamentTeam::where('tournament_id', $t->id)
                 ->where('status', 'pending')
                 ->count();
@@ -430,7 +430,7 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->forbidden();
         }
 
-        if ($tournament->type === 'team') {
+        if (!$tournament->usesSoloRegistration()) {
             $teams = $tournament->teams()
                 ->with(['player1', 'player2'])
                 ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END")
