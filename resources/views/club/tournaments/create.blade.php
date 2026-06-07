@@ -195,7 +195,27 @@
 								</div>
 							</div>
 						</div>
-						
+
+						<div class="row mt-2" id="americanoBracketOptions" style="display:none;">
+							<div class="col-md-6 mb-2">
+								<div class="form-check">
+									<input type="checkbox" name="has_lower_bracket" value="1" id="americanoLowerBracket" class="form-check-input"
+										{{ old('has_lower_bracket') ? 'checked' : '' }}>
+									<label for="americanoLowerBracket" class="form-check-label">
+										Нижняя сетка <small class="text-muted">(утешительная — для следующего тира игроков)</small>
+									</label>
+								</div>
+								<small class="text-secondary d-block" id="americanoLowerHint"></small>
+							</div>
+							<div class="col-md-6 mb-2" id="americanoBronzeWrap">
+								<div class="form-check">
+									<input type="checkbox" name="has_bronze_match" value="1" id="americanoBronze" class="form-check-input"
+										{{ old('has_bronze_match') ? 'checked' : '' }}>
+									<label for="americanoBronze" class="form-check-label">Матч за 3-е место</label>
+								</div>
+							</div>
+						</div>
+
 						<div class="alert-success-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
 							<strong>Американо:</strong> Участники делятся на группы по рейтингу. Каждый играет с каждым в паре. Очки считаются индивидуально.
@@ -485,20 +505,9 @@ function togglePlayoffType() {
 }
 
 function togglePlayoffOptions() {
-    const groupsCount = document.getElementById('americanoGroupsCount');
     const semifinalOption = document.getElementById('semifinalOption');
-    const finalOnly = document.getElementById('finalOnly');
-    
-    if (groupsCount && semifinalOption) {
-        const groups = parseInt(groupsCount.value);
-        
-        if (groups >= 2) {
-            semifinalOption.style.display = 'block';
-        } else {
-            semifinalOption.style.display = 'none';
-            if (finalOnly) finalOnly.checked = true;
-            togglePlayoffFormat();
-        }
+    if (semifinalOption) {
+        semifinalOption.style.display = 'block';
     }
 }
 
@@ -516,9 +525,13 @@ function togglePlayoffFormat() {
     
     // Скрываем по умолчанию
     playoffFormatOptions.style.display = 'none';
-    
-    // Если плей-офф не включен - выходим
-    if (!hasPlayoff.checked) return;
+
+    // Если плей-офф не включен - скрываем сеточные опции и выходим
+    if (!hasPlayoff.checked) {
+        const bracketOptionsEl = document.getElementById('americanoBracketOptions');
+        if (bracketOptionsEl) bracketOptionsEl.style.display = 'none';
+        return;
+    }
     
     const groups = parseInt(groupsCount.value);
     
@@ -544,6 +557,34 @@ function togglePlayoffFormat() {
             <option value="tops">1+2 vs 3+4 (топы вместе)</option>
             <option value="mix">1+3 vs 2+4 (микс)</option>
         `;
+    }
+    // 1 группа и полуфинал+финал (топ-8)
+    else if (groups === 1 && semifinalFinal && semifinalFinal.checked) {
+        playoffFormatOptions.style.display = 'block';
+        playoffFormatLabel.textContent = 'Формат пар в полуфиналах';
+        playoffFormatHint.textContent = 'Цифры = места в таблице после групп';
+        playoffFormatSelect.innerHTML = `
+            <option value="mix">Микс (1+8 vs 4+5, 2+7 vs 3+6)</option>
+            <option value="tops">Топы вместе (1+2 vs 7+8, 3+4 vs 5+6)</option>
+            <option value="balanced">Сбалансированный (1+4 vs 5+8, 2+3 vs 6+7)</option>
+        `;
+    }
+
+    // Опции сеток Американо
+    const bracketOptions = document.getElementById('americanoBracketOptions');
+    const bronzeWrap = document.getElementById('americanoBronzeWrap');
+    const lowerHint = document.getElementById('americanoLowerHint');
+    if (bracketOptions && hasPlayoff) {
+        bracketOptions.style.display = hasPlayoff.checked ? 'flex' : 'none';
+        const isSemi = semifinalFinal && semifinalFinal.checked;
+        // матч за 3-е место осмыслен только при ПФ+финал
+        if (bronzeWrap) bronzeWrap.style.display = isSemi ? 'block' : 'none';
+        if (!isSemi) {
+            const bronze = document.getElementById('americanoBronze');
+            if (bronze) bronze.checked = false;
+        }
+        const minPlayers = isSemi ? 16 : 8;
+        if (lowerHint) lowerHint.textContent = 'Для нижней сетки нужно минимум ' + minPlayers + ' участников';
     }
 }
 function generateCourtsInputs() {
