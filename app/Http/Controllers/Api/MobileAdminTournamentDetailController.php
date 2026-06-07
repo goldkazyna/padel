@@ -366,6 +366,8 @@ class MobileAdminTournamentDetailController extends Controller
             'type_name' => $t->type_name,
             'status' => $t->status,
             'status_name' => $t->status_name,
+            'pairing_mode' => $t->pairing_mode ?? 'self',
+            'is_admin_pairing' => $t->isAdminPairing(),
             'club' => $t->club ? [
                 'id' => $t->club->id,
                 'name' => $t->club->name,
