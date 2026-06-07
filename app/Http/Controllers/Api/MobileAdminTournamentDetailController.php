@@ -1097,6 +1097,11 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->forbidden();
         }
 
+        // Личные турниры игроков не рассылают пуши всем пользователям.
+        if ($tournament->isPersonal()) {
+            return $this->error('Личные турниры не отправляют уведомления');
+        }
+
         if ($tournament->status !== 'open') {
             return $this->error('Уведомление можно отправить только для открытого турнира');
         }
