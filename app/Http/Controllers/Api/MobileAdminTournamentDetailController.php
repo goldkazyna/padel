@@ -177,6 +177,73 @@ class MobileAdminTournamentDetailController extends Controller
         ]);
     }
 
+    // -------------------------------------------------------------------------
+    // Ручной сбор пар (групповой турнир, pairing_mode=admin)
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/pairing
+     */
+    public function pairingState(Request $request, Tournament $tournament, TeamTournamentService $team): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isAdminPairing()) {
+            return response()->json(['success' => false, 'message' => 'Сбор пар недоступен для этого турнира'], 422);
+        }
+        return response()->json(['success' => true, 'pairing' => $team->getPairingState($tournament)]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairing/teams
+     */
+    public function createPairing(Request $request, Tournament $tournament, TeamTournamentService $team): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        $data = $request->validate([
+            'player1_id' => 'required|integer',
+            'player2_id' => 'required|integer',
+        ]);
+        [$ok, $msg] = $team->createPair($tournament, (int) $data['player1_id'], (int) $data['player2_id']);
+        if (!$ok) {
+            return response()->json(['success' => false, 'message' => $msg], 422);
+        }
+        return response()->json(['success' => true, 'message' => $msg, 'pairing' => $team->getPairingState($tournament)]);
+    }
+
+    /**
+     * DELETE /api/mobile/admin/tournaments/{tournament}/pairing/teams/{pair}
+     */
+    public function deletePairing(Request $request, Tournament $tournament, TournamentTeam $pair, TeamTournamentService $team): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        [$ok, $msg] = $team->deletePair($tournament, $pair);
+        if (!$ok) {
+            return response()->json(['success' => false, 'message' => $msg], 422);
+        }
+        return response()->json(['success' => true, 'message' => $msg, 'pairing' => $team->getPairingState($tournament)]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairing/auto
+     */
+    public function autoPairing(Request $request, Tournament $tournament, TeamTournamentService $team): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        [$ok, $msg] = $team->autoBalancePairs($tournament);
+        if (!$ok) {
+            return response()->json(['success' => false, 'message' => $msg], 422);
+        }
+        return response()->json(['success' => true, 'message' => $msg, 'pairing' => $team->getPairingState($tournament)]);
+    }
+
     /**
      * POST /api/mobile/admin/tournaments/{tournament}/restart
      */

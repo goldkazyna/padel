@@ -181,6 +181,7 @@ class MobileAdminTournamentController extends Controller
             'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
             'telegram_registration_url' => 'nullable|url|max:500',
             'is_rated' => 'nullable|boolean',
+            'pairing_mode' => 'nullable|in:self,admin',
         ]);
 
         if ($validator->fails()) {

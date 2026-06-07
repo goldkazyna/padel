@@ -122,6 +122,181 @@ class TeamTournamentService
         return [true, 'Турнир начался!'];
     }
 
+    // =====================================================================
+    // Ручной сбор пар (pairing_mode = admin): игроки регистрируются поодиночке,
+    // админ собирает пары до старта. После старта — обычный групповой турнир.
+    // =====================================================================
+
+    /**
+     * Состояние сбора пар: нераспределённые игроки + собранные пары + can_start.
+     */
+    public function getPairingState(Tournament $tournament): array
+    {
+        $maxPairs = (int) ($tournament->max_participants / 2);
+
+        $teams = $tournament->teams()->with(['player1', 'player2'])->get();
+        $pairedIds = [];
+        foreach ($teams as $t) {
+            $pairedIds[] = $t->player1_id;
+            $pairedIds[] = $t->player2_id;
+        }
+
+        $unpaired = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->get()
+            ->reject(fn($u) => in_array($u->id, $pairedIds, true))
+            ->sortByDesc('rating')
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => (int) $u->rating,
+                'level' => $u->level,
+            ])
+            ->values()
+            ->all();
+
+        $fmtP = fn($u) => $u ? [
+            'id' => $u->id,
+            'name' => $u->name,
+            'avatar' => $u->avatar,
+            'rating' => (int) $u->rating,
+        ] : null;
+
+        return [
+            'max_pairs' => $maxPairs,
+            'pairs_count' => $teams->count(),
+            'unpaired' => $unpaired,
+            'teams' => $teams->map(fn($t) => [
+                'id' => $t->id,
+                'rating_avg' => (int) $t->rating_avg,
+                'player1' => $fmtP($t->player1),
+                'player2' => $fmtP($t->player2),
+            ])->values()->all(),
+            'can_start' => $teams->count() === $maxPairs && $maxPairs > 0,
+        ];
+    }
+
+    /**
+     * Создать пару из двух зарегистрированных игроков.
+     * @return array{0: bool, 1: string}
+     */
+    public function createPair(Tournament $tournament, int $player1Id, int $player2Id): array
+    {
+        if (!$tournament->isAdminPairing()) {
+            return [false, 'Сбор пар недоступен для этого турнира.'];
+        }
+        if ($player1Id === $player2Id) {
+            return [false, 'Нельзя поставить игрока в пару с самим собой.'];
+        }
+        if ($tournament->teamGroups()->count() > 0) {
+            return [false, 'Турнир уже стартовал.'];
+        }
+
+        $registeredIds = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->pluck('users.id')->all();
+        foreach ([$player1Id, $player2Id] as $pid) {
+            if (!in_array($pid, $registeredIds, true)) {
+                return [false, 'Оба игрока должны быть записаны на турнир.'];
+            }
+        }
+
+        $alreadyPaired = $tournament->teams()
+            ->where(function ($q) use ($player1Id, $player2Id) {
+                $q->whereIn('player1_id', [$player1Id, $player2Id])
+                  ->orWhereIn('player2_id', [$player1Id, $player2Id]);
+            })->exists();
+        if ($alreadyPaired) {
+            return [false, 'Один из игроков уже в паре.'];
+        }
+
+        $maxPairs = (int) ($tournament->max_participants / 2);
+        if ($tournament->teams()->count() >= $maxPairs) {
+            return [false, 'Все пары уже собраны.'];
+        }
+
+        $r1 = (int) (\App\Models\User::find($player1Id)?->rating ?? 0);
+        $r2 = (int) (\App\Models\User::find($player2Id)?->rating ?? 0);
+
+        TournamentTeam::create([
+            'tournament_id' => $tournament->id,
+            'player1_id' => $player1Id,
+            'player2_id' => $player2Id,
+            'status' => 'approved',
+            'rating_avg' => (int) round(($r1 + $r2) / 2),
+        ]);
+
+        return [true, 'Пара создана.'];
+    }
+
+    /**
+     * Удалить пару (только до старта турнира).
+     * @return array{0: bool, 1: string}
+     */
+    public function deletePair(Tournament $tournament, TournamentTeam $team): array
+    {
+        if ((int) $team->tournament_id !== (int) $tournament->id) {
+            return [false, 'Пара не из этого турнира.'];
+        }
+        if ($tournament->teamGroups()->count() > 0) {
+            return [false, 'Турнир уже стартовал — пары менять нельзя.'];
+        }
+        $team->delete();
+        return [true, 'Пара удалена.'];
+    }
+
+    /**
+     * Авто-сбор: всех свободных игроков разбивает на пары, балансируя по рейтингу
+     * (сильнейший + слабейший), чтобы средний рейтинг пар был ровнее.
+     * @return array{0: bool, 1: string}
+     */
+    public function autoBalancePairs(Tournament $tournament): array
+    {
+        if (!$tournament->isAdminPairing()) {
+            return [false, 'Недоступно для этого турнира.'];
+        }
+        if ($tournament->teamGroups()->count() > 0) {
+            return [false, 'Турнир уже стартовал.'];
+        }
+
+        $teams = $tournament->teams()->get();
+        $pairedIds = [];
+        foreach ($teams as $t) {
+            $pairedIds[] = $t->player1_id;
+            $pairedIds[] = $t->player2_id;
+        }
+
+        $pool = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->get()
+            ->reject(fn($u) => in_array($u->id, $pairedIds, true))
+            ->sortByDesc('rating')
+            ->values();
+
+        if ($pool->count() < 2) {
+            return [false, 'Недостаточно свободных игроков.'];
+        }
+
+        $i = 0;
+        $j = $pool->count() - 1;
+        while ($i < $j) {
+            $a = $pool[$i];
+            $b = $pool[$j];
+            TournamentTeam::create([
+                'tournament_id' => $tournament->id,
+                'player1_id' => $a->id,
+                'player2_id' => $b->id,
+                'status' => 'approved',
+                'rating_avg' => (int) round(((int) $a->rating + (int) $b->rating) / 2),
+            ]);
+            $i++;
+            $j--;
+        }
+
+        return [true, 'Пары собраны по рейтингу.'];
+    }
+
     /**
      * Создать группы и распределить команды (змейкой по рейтингу)
      */

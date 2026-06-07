@@ -112,6 +112,7 @@ class TournamentController extends Controller
 			'courts.*' => 'nullable|string|max:50',
 			'courts_count' => 'nullable|integer|min:1|max:32',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
+			'pairing_mode' => 'nullable|in:self,admin',
 		]);
 
 		// Americano Flex: количество кортов задаётся вручную отдельным полем,

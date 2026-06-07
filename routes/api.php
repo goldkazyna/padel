@@ -131,6 +131,12 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
         Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);
 
+        // Ручной сбор пар (групповой турнир, pairing_mode=admin)
+        Route::get('/admin/tournaments/{tournament}/pairing', [MobileAdminTournamentDetailController::class, 'pairingState']);
+        Route::post('/admin/tournaments/{tournament}/pairing/teams', [MobileAdminTournamentDetailController::class, 'createPairing']);
+        Route::delete('/admin/tournaments/{tournament}/pairing/teams/{pair}', [MobileAdminTournamentDetailController::class, 'deletePairing']);
+        Route::post('/admin/tournaments/{tournament}/pairing/auto', [MobileAdminTournamentDetailController::class, 'autoPairing']);
+
         // Матчи турнира (Этап 3c-1: Американо)
         Route::get('/admin/tournaments/{tournament}/matches', [MobileAdminTournamentDetailController::class, 'matches']);
         Route::post('/admin/tournaments/{tournament}/americano/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoScore']);

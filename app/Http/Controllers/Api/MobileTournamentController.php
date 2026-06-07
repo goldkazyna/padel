@@ -261,7 +261,7 @@ class MobileTournamentController extends Controller
         ];
 
         // Добавляем участников/команды (основные + лист ожидания)
-        if ($tournament->type === 'team') {
+        if (!$tournament->usesSoloRegistration()) {
             $data['teams'] = $tournament->teams()
                 ->with(['player1', 'player2'])
                 ->whereIn('status', ['approved', 'pending'])
@@ -612,8 +612,8 @@ class MobileTournamentController extends Controller
         ]);
         $confirmWaitlist = $request->boolean('confirm_waitlist');
 
-        if ($tournament->type !== 'team') {
-            return response()->json(['success' => false, 'message' => 'Это не командный турнир'], 400);
+        if ($tournament->type !== 'team' || $tournament->isAdminPairing()) {
+            return response()->json(['success' => false, 'message' => 'Парная регистрация для этого турнира недоступна'], 400);
         }
 
         if ($tournament->status !== 'open') {
@@ -885,7 +885,7 @@ class MobileTournamentController extends Controller
             'moderation_deadline' => null,
         ];
 
-        if ($t->type === 'team') {
+        if (!$t->usesSoloRegistration()) {
             // Отклонённые (rejected) команды — терминальный статус: считаем как
             // «не зарегистрирован», чтобы пара могла записаться повторно.
             $team = TournamentTeam::where('tournament_id', $t->id)

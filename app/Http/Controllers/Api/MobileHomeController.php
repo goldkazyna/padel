@@ -222,6 +222,8 @@ class MobileHomeController extends Controller
             'status' => $t->status,
             'status_name' => $t->status_name,
             'is_rated' => (bool) $t->is_rated,
+            'pairing_mode' => $t->pairing_mode ?? 'self',
+            'is_admin_pairing' => $t->isAdminPairing(),
             'min_level' => (float) $t->min_level,
             'max_level' => (float) $t->max_level,
             'price' => (float) $t->price,

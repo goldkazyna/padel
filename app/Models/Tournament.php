@@ -104,6 +104,7 @@ class Tournament extends Model
 		'groups_count',
 		'rounds_count',
 		'teams_advance',
+		'pairing_mode',
 		'has_playoff',
 		'playoff_type',
 		'playoff_format',
@@ -132,6 +133,23 @@ class Tournament extends Model
 		'moderation_hours' => 'integer',
 		'moderation_minutes' => 'integer',
     ];
+
+    /**
+     * Групповой турнир, где пары собирает админ (игроки регистрируются поодиночке).
+     */
+    public function isAdminPairing(): bool
+    {
+        return $this->type === 'team' && $this->pairing_mode === 'admin';
+    }
+
+    /**
+     * Регистрация одиночная (а не парная): любой тип кроме team-с-самосбором.
+     * Используется на фазе регистрации (счётчик, детали, can_register).
+     */
+    public function usesSoloRegistration(): bool
+    {
+        return $this->type !== 'team' || $this->pairing_mode === 'admin';
+    }
 
     // Связи
     public function club()
