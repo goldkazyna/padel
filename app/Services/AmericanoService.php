@@ -363,14 +363,24 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
      */
     public function saveMatchResult(AmericanoMatch $match, int $team1Score, int $team2Score): void
     {
+        $group = $match->round->group;
+
+        // Идемпотентность: если матч уже сыгран (повторный сабмит, двойной клик,
+        // обрыв связи и повторная отправка) — сначала откатываем старые очки,
+        // иначе total_points задвоится.
+        if ($match->isCompleted()) {
+            $this->addPlayerPoints($group, $match->team1_player1_id, -$match->team1_score);
+            $this->addPlayerPoints($group, $match->team1_player2_id, -$match->team1_score);
+            $this->addPlayerPoints($group, $match->team2_player1_id, -$match->team2_score);
+            $this->addPlayerPoints($group, $match->team2_player2_id, -$match->team2_score);
+        }
+
         $match->update([
             'team1_score' => $team1Score,
             'team2_score' => $team2Score,
             'status' => 'completed',
         ]);
 
-        $group = $match->round->group;
-        
         // Обновляем только очки в группе
         $this->addPlayerPoints($group, $match->team1_player1_id, $team1Score);
         $this->addPlayerPoints($group, $match->team1_player2_id, $team1Score);

@@ -314,13 +314,23 @@ class MexicanoService
      */
     public function saveMatchResult(MexicanoMatch $match, int $team1Score, int $team2Score): void
     {
+        $tournament = $match->round->tournament;
+
+        // Идемпотентность: если матч уже сыгран (повторный сабмит, двойной клик,
+        // обрыв связи и повторная отправка) — сначала откатываем старые очки,
+        // иначе total_points задвоится.
+        if ($match->isCompleted()) {
+            $this->addPlayerPoints($tournament->id, $match->team1_player1_id, -$match->team1_score);
+            $this->addPlayerPoints($tournament->id, $match->team1_player2_id, -$match->team1_score);
+            $this->addPlayerPoints($tournament->id, $match->team2_player1_id, -$match->team2_score);
+            $this->addPlayerPoints($tournament->id, $match->team2_player2_id, -$match->team2_score);
+        }
+
         $match->update([
             'team1_score' => $team1Score,
             'team2_score' => $team2Score,
             'status' => 'completed',
         ]);
-
-        $tournament = $match->round->tournament;
 
         // Обновляем очки игроков
         $this->addPlayerPoints($tournament->id, $match->team1_player1_id, $team1Score);

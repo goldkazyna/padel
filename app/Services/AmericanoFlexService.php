@@ -272,33 +272,54 @@ class AmericanoFlexService
     public function saveMatchResult(AmericanoFlexMatch $match, int $score1, int $score2): void
     {
         DB::transaction(function () use ($match, $score1, $score2) {
+            $tournamentId = $match->round->tournament_id;
+            $team1Ids = [$match->team1_player1_id, $match->team1_player2_id];
+            $team2Ids = [$match->team2_player1_id, $match->team2_player2_id];
+
+            // Идемпотентность: если матч уже был сыгран (повторный сабмит, двойной
+            // клик, обрыв связи и повторная отправка) — откатываем старые очки,
+            // иначе total_points задвоится. matches_played и pair_history НЕ трогаем:
+            // состав игроков тот же, матч уже был учтён ранее.
+            $wasCompleted = $match->status === 'completed';
+            if ($wasCompleted) {
+                AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                    ->whereIn('user_id', $team1Ids)
+                    ->decrement('total_points', (int) $match->team1_score);
+                AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                    ->whereIn('user_id', $team2Ids)
+                    ->decrement('total_points', (int) $match->team2_score);
+            }
+
             $match->update([
                 'team1_score' => $score1,
                 'team2_score' => $score2,
                 'status' => 'completed',
             ]);
 
-            $tournamentId = $match->round->tournament_id;
-            $team1Ids = [$match->team1_player1_id, $match->team1_player2_id];
-            $team2Ids = [$match->team2_player1_id, $match->team2_player2_id];
+            // Очки игроков: команда получает свой счёт
+            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team1Ids)
+                ->increment('total_points', $score1);
+            AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                ->whereIn('user_id', $team2Ids)
+                ->increment('total_points', $score2);
 
-            // Очки игроков: команда получает свой счёт; matches_played +1
-            $query1 = AmericanoFlexPlayer::where('tournament_id', $tournamentId)
-                ->whereIn('user_id', $team1Ids);
-            $query1->increment('total_points', $score1);
-            $query1->increment('matches_played');
+            // matches_played и pair_history — только при ПЕРВОМ сохранении матча
+            if (!$wasCompleted) {
+                AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                    ->whereIn('user_id', $team1Ids)
+                    ->increment('matches_played');
+                AmericanoFlexPlayer::where('tournament_id', $tournamentId)
+                    ->whereIn('user_id', $team2Ids)
+                    ->increment('matches_played');
 
-            $query2 = AmericanoFlexPlayer::where('tournament_id', $tournamentId)
-                ->whereIn('user_id', $team2Ids);
-            $query2->increment('total_points', $score2);
-            $query2->increment('matches_played');
-
-            // pair_history: +1 partners для команд, +1 opponents для крестов
-            $this->incrementPairHistory($tournamentId, $team1Ids[0], $team1Ids[1], 'partners');
-            $this->incrementPairHistory($tournamentId, $team2Ids[0], $team2Ids[1], 'partners');
-            foreach ($team1Ids as $a) {
-                foreach ($team2Ids as $b) {
-                    $this->incrementPairHistory($tournamentId, $a, $b, 'opponents');
+                // pair_history: +1 partners для команд, +1 opponents для крестов
+                $this->incrementPairHistory($tournamentId, $team1Ids[0], $team1Ids[1], 'partners');
+                $this->incrementPairHistory($tournamentId, $team2Ids[0], $team2Ids[1], 'partners');
+                foreach ($team1Ids as $a) {
+                    foreach ($team2Ids as $b) {
+                        $this->incrementPairHistory($tournamentId, $a, $b, 'opponents');
+                    }
                 }
             }
 
