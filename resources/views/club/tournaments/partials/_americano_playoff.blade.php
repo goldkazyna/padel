@@ -344,8 +344,10 @@
 </div>
 
 <style>
-/* ===== PLAYOFF ПЕРЕМЕННЫЕ ===== */
-:root {
+/* Стили плей-оффа Американо — ВСЁ заскоуплено под .playoff-container,
+   чтобы не задевать раунды и другие части страницы (общие имена классов:
+   .round-header, .round-matches, .match-court встречаются и в раундах). */
+.playoff-container {
     --playoff-bg: #0a0a0b;
     --playoff-bg-dark: #111113;
     --playoff-card: #18181b;
@@ -360,34 +362,32 @@
     --playoff-gold: #fbbf24;
     --playoff-yellow: #facc15;
     --playoff-red: #ef4444;
-}
 
-.playoff-container {
     width: 100%;
     padding: 32px 40px;
     overflow-x: auto;
 }
 
-.playoff-header {
+.playoff-container .playoff-header {
     display: flex;
     align-items: center;
     gap: 14px;
     margin-bottom: 40px;
 }
 
-.playoff-header svg {
+.playoff-container .playoff-header svg {
     width: 28px;
     height: 28px;
     color: var(--playoff-accent);
 }
 
-.playoff-header h1 {
+.playoff-container .playoff-header h1 {
     font-size: 26px;
     font-weight: 800;
     letter-spacing: -0.5px;
 }
 
-.bracket-wrapper {
+.playoff-container .bracket-wrapper {
     display: flex;
     align-items: stretch;
     min-width: max-content;
@@ -395,12 +395,12 @@
     gap: 40px;
 }
 
-.bracket-round {
+.playoff-container .bracket-round {
     display: flex;
     flex-direction: column;
 }
 
-.round-header {
+.playoff-container .round-header {
     text-align: center;
     padding: 14px 50px;
     background: linear-gradient(135deg, var(--playoff-accent), var(--playoff-accent-dark));
@@ -414,14 +414,14 @@
     flex-shrink: 0;
 }
 
-.round-matches {
+.playoff-container .round-matches {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
     flex: 1;
 }
 
-.bracket-match {
+.playoff-container .bracket-match {
     background: var(--playoff-card);
     border: 1px solid var(--playoff-border);
     border-radius: 12px;
@@ -430,22 +430,22 @@
     transition: all 0.2s ease;
 }
 
-.bracket-match:hover {
+.playoff-container .bracket-match:hover {
     border-color: var(--playoff-border-light);
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-.bracket-match.final-match {
+.playoff-container .bracket-match.final-match {
     border-color: var(--playoff-gold);
     box-shadow: 0 0 20px rgba(251, 191, 36, 0.15);
 }
 
-.bracket-match.final-match:hover {
+.playoff-container .bracket-match.final-match:hover {
     box-shadow: 0 0 30px rgba(251, 191, 36, 0.25);
 }
 
-.match-head {
+.playoff-container .match-head {
     background: var(--playoff-bg-dark);
     padding: 10px 14px;
     display: flex;
@@ -454,7 +454,7 @@
     border-bottom: 1px solid var(--playoff-border);
 }
 
-.match-num {
+.playoff-container .match-num {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -463,26 +463,26 @@
     color: var(--playoff-accent);
 }
 
-.match-num svg {
+.playoff-container .match-num svg {
     width: 16px;
     height: 16px;
 }
 
-.match-court {
+.playoff-container .match-court {
     font-size: 12px;
     color: var(--playoff-text-muted);
     font-weight: 600;
 }
 
-.match-court.has-court {
+.playoff-container .match-court.has-court {
     color: var(--playoff-yellow);
 }
 
-.match-players {
+.playoff-container .match-players {
     padding: 4px 0;
 }
 
-.player-row {
+.playoff-container .player-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -491,57 +491,57 @@
     transition: background 0.15s;
 }
 
-.player-row:last-child {
+.playoff-container .player-row:last-child {
     border-bottom: none;
 }
 
-.player-row:hover {
+.playoff-container .player-row:hover {
     background: var(--playoff-card-hover);
 }
 
-.player-data {
+.playoff-container .player-data {
     display: flex;
     align-items: center;
     gap: 10px;
     flex: 1;
 }
 
-.player-label {
+.playoff-container .player-label {
     font-size: 15px;
     font-weight: 600;
     color: var(--playoff-text);
     line-height: 1.3;
 }
 
-.player-label.is-winner {
+.playoff-container .player-label.is-winner {
     color: var(--playoff-accent);
 }
 
-.player-label.is-loser {
+.playoff-container .player-label.is-loser {
     color: var(--playoff-text-muted);
 }
 
-.player-label.is-pending {
+.playoff-container .player-label.is-pending {
     color: var(--playoff-text-muted);
     font-style: italic;
 }
 
-.player-pts {
+.playoff-container .player-pts {
     font-size: 18px;
     font-weight: 800;
     min-width: 28px;
     text-align: center;
 }
 
-.player-pts.is-winner {
+.playoff-container .player-pts.is-winner {
     color: var(--playoff-accent);
 }
 
-.player-pts.is-loser {
+.playoff-container .player-pts.is-loser {
     color: var(--playoff-red);
 }
 
-.match-foot {
+.playoff-container .match-foot {
     padding: 10px 14px;
     background: var(--playoff-bg-dark);
     border-top: 1px solid var(--playoff-border);
@@ -550,7 +550,7 @@
     justify-content: space-between;
 }
 
-.enter-score-btn {
+.playoff-container .enter-score-btn {
     width: 100%;
     background: var(--playoff-accent);
     color: var(--playoff-bg);
@@ -567,45 +567,45 @@
     gap: 8px;
 }
 
-.enter-score-btn:hover {
+.playoff-container .enter-score-btn:hover {
     background: var(--playoff-accent-dark);
     transform: translateY(-1px);
 }
 
-.enter-score-btn svg {
+.playoff-container .enter-score-btn svg {
     width: 16px;
     height: 16px;
 }
 
-.match-state {
+.playoff-container .match-state {
     text-align: center;
     font-size: 12px;
     font-weight: 600;
     color: var(--playoff-text-muted);
 }
 
-.match-state.is-done {
+.playoff-container .match-state.is-done {
     color: var(--playoff-accent);
 }
 
-.trophy-box {
+.playoff-container .trophy-box {
     display: flex;
     justify-content: center;
     margin-bottom: 16px;
 }
 
-.trophy-box svg {
+.playoff-container .trophy-box svg {
     width: 48px;
     height: 48px;
     color: var(--playoff-gold);
     filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.4));
 }
 
-.round-final .round-matches {
+.playoff-container .round-final .round-matches {
     justify-content: center;
 }
 
-.edit-score-btn {
+.playoff-container .edit-score-btn {
     background: transparent;
     border: 1px solid var(--playoff-border);
     color: var(--playoff-text-muted);
@@ -618,13 +618,13 @@
     justify-content: center;
 }
 
-.edit-score-btn:hover {
+.playoff-container .edit-score-btn:hover {
     background: var(--playoff-card-hover);
     border-color: var(--playoff-accent);
     color: var(--playoff-accent);
 }
 
-.edit-score-btn svg {
+.playoff-container .edit-score-btn svg {
     width: 14px;
     height: 14px;
 }
@@ -634,11 +634,11 @@
         padding: 24px 20px;
     }
 
-    .bracket-match {
+    .playoff-container .bracket-match {
         width: 300px;
     }
 
-    .round-header {
+    .playoff-container .round-header {
         padding: 12px 40px;
         font-size: 13px;
     }
