@@ -695,6 +695,7 @@ class User extends Authenticatable
 
 		// Американо
 		$americanoCount = \App\Models\Tournament::where('type', 'americano')
+			->where('is_rated', true)
 			->where('status', 'completed')
 			->whereHas('groups.players', function($q) {
 				$q->where('users.id', $this->id);
@@ -707,6 +708,7 @@ class User extends Authenticatable
 
 		// Мексикано
 		$mexicanoTournaments = \App\Models\Tournament::where('type', 'mexicano')
+			->where('is_rated', true)
 			->where('status', 'completed')
 			->whereHas('mexicanoPlayers', function($q) {
 				$q->where('user_id', $this->id);
@@ -725,6 +727,7 @@ class User extends Authenticatable
 
 		// Король корта
 		$kocTournaments = \App\Models\Tournament::where('type', 'king_of_court')
+			->where('is_rated', true)
 			->where('status', 'completed')
 			->whereHas('kingOfCourtPlayers', function($q) {
 				$q->where('user_id', $this->id);
@@ -745,6 +748,7 @@ class User extends Authenticatable
 
 		// Групповой
 		$teamTournaments = \App\Models\Tournament::where('type', 'team')
+			->where('is_rated', true)
 			->where('status', 'completed')
 			->whereHas('teams', function($q) {
 				$q->where('player1_id', $this->id)

@@ -382,7 +382,7 @@ class MobileRatingController extends Controller
         // История рейтинга — показываем турниры + ручные правки
         // (reason = 'Ручная корректировка', tournament_id = null).
         // Если turn_id есть, но турнир физически удалён — это руины, прячем.
-        $history = \App\Models\RatingHistory::where('user_id', $user->id)
+        $ratedHistory = \App\Models\RatingHistory::where('user_id', $user->id)
             ->with('tournament:id,name,type,has_playoff')
             ->orderBy('created_at', 'desc')
             ->limit(50)
@@ -399,6 +399,8 @@ class MobileRatingController extends Controller
                         'rating_after' => $h->rating_after,
                         'place' => null,
                         'is_manual' => true,
+                        'is_rated' => true,
+                        '_ts' => $h->created_at->timestamp,
                     ];
                 }
                 return [
@@ -410,7 +412,46 @@ class MobileRatingController extends Controller
                     'rating_after' => $h->rating_after,
                     'place' => $this->getTournamentPlace($h->tournament, $user->id),
                     'is_manual' => false,
+                    'is_rated' => true,
+                    '_ts' => $h->created_at->timestamp,
                 ];
+            });
+
+        // Нерейтинговые завершённые турниры с участием игрока — в rating_history
+        // их нет, подмешиваем отдельно (без изменения рейтинга, с местом).
+        $uid = $user->id;
+        $nonRatedHistory = \App\Models\Tournament::where('is_rated', false)
+            ->where('status', 'completed')
+            ->where(function ($q) use ($uid) {
+                $q->whereHas('groups.players', fn($x) => $x->where('users.id', $uid))
+                  ->orWhereHas('mexicanoPlayers', fn($x) => $x->where('user_id', $uid))
+                  ->orWhereHas('kingOfCourtPlayers', fn($x) => $x->where('user_id', $uid))
+                  ->orWhereHas('americanoFlexPlayers', fn($x) => $x->where('user_id', $uid))
+                  ->orWhereHas('baliKocPairs', fn($x) => $x->where('player1_id', $uid)->orWhere('player2_id', $uid))
+                  ->orWhereHas('teams', fn($x) => $x->where('player1_id', $uid)->orWhere('player2_id', $uid));
+            })
+            ->orderBy('start_date', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(fn($t) => [
+                'tournament_id' => $t->id,
+                'tournament_name' => $t->name,
+                'tournament_type' => $t->type,
+                'date' => $t->start_date->format('d.m.Y'),
+                'change' => null,
+                'rating_after' => null,
+                'place' => $this->getTournamentPlace($t, $user->id),
+                'is_manual' => false,
+                'is_rated' => false,
+                '_ts' => $t->start_date->timestamp,
+            ]);
+
+        $history = $ratedHistory->concat($nonRatedHistory)
+            ->sortByDesc('_ts')
+            ->take(50)
+            ->map(function ($i) {
+                unset($i['_ts']);
+                return $i;
             })
             ->values();
 
