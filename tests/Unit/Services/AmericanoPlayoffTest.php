@@ -102,4 +102,36 @@ class AmericanoPlayoffTest extends TestCase
             [$semi1->team2_player1_id, $semi1->team2_player2_id]
         );
     }
+
+    public function test_single_group_final_lower_bracket_uses_places_5_to_8(): void
+    {
+        $t = $this->makeFinishedSingleGroup(8, [
+            'playoff_type' => 'final_only', 'playoff_format' => 'cross',
+            'has_lower_bracket' => true,
+        ]);
+        $this->service->generatePlayoff($t);
+
+        $lowerFinal = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('stage', 'Финал')->where('bracket', 'lower')->first();
+        $this->assertNotNull($lowerFinal, 'нижний финал создан');
+
+        $lowerIds = [$lowerFinal->team1_player1_id, $lowerFinal->team1_player2_id,
+                     $lowerFinal->team2_player1_id, $lowerFinal->team2_player2_id];
+        $expected = [$this->getSeed($t,5)->id, $this->getSeed($t,6)->id,
+                     $this->getSeed($t,7)->id, $this->getSeed($t,8)->id];
+        $this->assertEqualsCanonicalizing($expected, $lowerIds);
+    }
+
+    public function test_lower_bracket_skipped_when_not_enough_players(): void
+    {
+        $t = $this->makeFinishedSingleGroup(6, [
+            'playoff_type' => 'final_only', 'playoff_format' => 'cross',
+            'has_lower_bracket' => true,
+        ]);
+        $this->service->generatePlayoff($t);
+
+        $lower = TournamentPlayoffMatch::where('tournament_id', $t->id)
+            ->where('bracket', 'lower')->count();
+        $this->assertEquals(0, $lower, 'нижняя сетка не строится при нехватке игроков');
+    }
 }

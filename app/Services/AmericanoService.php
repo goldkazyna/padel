@@ -855,86 +855,100 @@ public function previewRatingChanges(Tournament $tournament): array
 			return false;
 		}
 
-		// Собираем топ-4 из каждой группы с правильной сортировкой
-		$leaders = [];
-
-		foreach ($tournament->groups as $group) {
-			// Считаем статистику для каждого игрока
-			$playerStats = [];
-			
-			foreach ($group->players as $player) {
-				$playerStats[$player->id] = [
-					'player' => $player,
-					'total_points' => $player->pivot->total_points,
-					'wins' => 0,
-					'points_for' => 0,
-					'points_against' => 0,
-				];
-			}
-			
-			// Собираем статистику из матчей
-			foreach ($group->rounds as $round) {
-				foreach ($round->matches as $match) {
-					if ($match->status !== 'completed') continue;
-					
-					$team1Players = [$match->team1_player1_id, $match->team1_player2_id];
-					$team2Players = [$match->team2_player1_id, $match->team2_player2_id];
-					
-					foreach ($team1Players as $pId) {
-						if (isset($playerStats[$pId])) {
-							$playerStats[$pId]['points_for'] += $match->team1_score;
-							$playerStats[$pId]['points_against'] += $match->team2_score;
-							if ($match->team1_score > $match->team2_score) {
-								$playerStats[$pId]['wins']++;
-							}
-						}
-					}
-					
-					foreach ($team2Players as $pId) {
-						if (isset($playerStats[$pId])) {
-							$playerStats[$pId]['points_for'] += $match->team2_score;
-							$playerStats[$pId]['points_against'] += $match->team1_score;
-							if ($match->team2_score > $match->team1_score) {
-								$playerStats[$pId]['wins']++;
-							}
-						}
-					}
-				}
-			}
-			
-			// Личные встречи для тай-брейка
-			$h2h = \App\Support\AmericanoTie::fromGroups([$group]);
-
-			// Сортируем: очки → победы → разница мячей → личная встреча
-			uasort($playerStats, function($a, $b) use ($h2h) {
-				if ($a['total_points'] !== $b['total_points']) {
-					return $b['total_points'] <=> $a['total_points'];
-				}
-				if ($a['wins'] !== $b['wins']) {
-					return $b['wins'] <=> $a['wins'];
-				}
-				$diffA = $a['points_for'] - $a['points_against'];
-				$diffB = $b['points_for'] - $b['points_against'];
-				if ($diffA !== $diffB) {
-					return $diffB <=> $diffA;
-				}
-				return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
-			});
-			
-			// Берём топ-8 игроков (для полуфиналов нужно 8, для финала хватит 4)
-			$topPlayers = collect(array_slice($playerStats, 0, 8))
-				->map(fn($stat) => $stat['player']);
-
-			$leaders[$group->name] = $topPlayers;
-		}
+		$perGroupUpperSize = $this->upperBracketSize($tournament);
+		$upperLeaders = $this->collectLeaders($tournament, 0, $perGroupUpperSize);
 
 		if ($tournament->isFinalOnly()) {
-			$this->createFinalMatch($tournament, $leaders, 'upper');
+			$this->createFinalMatch($tournament, $upperLeaders, 'upper');
 		} else {
-			$this->createSemifinalMatches($tournament, $leaders, 'upper');
+			$this->createSemifinalMatches($tournament, $upperLeaders, 'upper');
+		}
+
+		if ($tournament->has_lower_bracket) {
+			$lowerLeaders = $this->collectLeaders($tournament, $perGroupUpperSize, $perGroupUpperSize);
+			$enough = collect($lowerLeaders)->every(fn($c) => $c->count() >= $perGroupUpperSize);
+			if ($enough) {
+				if ($tournament->isFinalOnly()) {
+					$this->createFinalMatch($tournament, $lowerLeaders, 'lower');
+				} else {
+					$this->createSemifinalMatches($tournament, $lowerLeaders, 'lower');
+				}
+			}
 		}
 
 		return true;
+	}
+
+	/** Сколько игроков из группы идёт в верхнюю сетку (на тир). */
+	protected function upperBracketSize(Tournament $tournament): int
+	{
+		$groups = $tournament->groups->count();
+		if ($tournament->isFinalOnly()) {
+			return $groups === 1 ? 4 : 2;
+		}
+		return $groups === 1 ? 8 : 4;
+	}
+
+	/**
+	 * Лидеры по группам: для каждой группы — Collection из $size игроков,
+	 * начиная с позиции $offset (0-based) в отсортированном рейтинге группы.
+	 * @return array<string, \Illuminate\Support\Collection>
+	 */
+	protected function collectLeaders(Tournament $tournament, int $offset, int $size): array
+	{
+		$leaders = [];
+		foreach ($tournament->groups as $group) {
+			$ranked = $this->rankGroupPlayers($group);
+			$leaders[$group->name] = $ranked->slice($offset, $size)->values();
+		}
+		return $leaders;
+	}
+
+	/**
+	 * Игроки группы, отсортированные: очки → победы → разница → личная встреча.
+	 * @return \Illuminate\Support\Collection<int, \App\Models\User>
+	 */
+	protected function rankGroupPlayers(TournamentGroup $group): \Illuminate\Support\Collection
+	{
+		$playerStats = [];
+		foreach ($group->players as $player) {
+			$playerStats[$player->id] = [
+				'player' => $player,
+				'total_points' => $player->pivot->total_points,
+				'wins' => 0, 'points_for' => 0, 'points_against' => 0,
+			];
+		}
+		foreach ($group->rounds as $round) {
+			foreach ($round->matches as $match) {
+				if ($match->status !== 'completed') continue;
+				$t1 = [$match->team1_player1_id, $match->team1_player2_id];
+				$t2 = [$match->team2_player1_id, $match->team2_player2_id];
+				foreach ($t1 as $pId) {
+					if (isset($playerStats[$pId])) {
+						$playerStats[$pId]['points_for'] += $match->team1_score;
+						$playerStats[$pId]['points_against'] += $match->team2_score;
+						if ($match->team1_score > $match->team2_score) $playerStats[$pId]['wins']++;
+					}
+				}
+				foreach ($t2 as $pId) {
+					if (isset($playerStats[$pId])) {
+						$playerStats[$pId]['points_for'] += $match->team2_score;
+						$playerStats[$pId]['points_against'] += $match->team1_score;
+						if ($match->team2_score > $match->team1_score) $playerStats[$pId]['wins']++;
+					}
+				}
+			}
+		}
+		$h2h = \App\Support\AmericanoTie::fromGroups([$group]);
+		uasort($playerStats, function ($a, $b) use ($h2h) {
+			if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+			if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+			$diffA = $a['points_for'] - $a['points_against'];
+			$diffB = $b['points_for'] - $b['points_against'];
+			if ($diffA !== $diffB) return $diffB <=> $diffA;
+			return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+		});
+		return collect(array_values($playerStats))->map(fn($s) => $s['player']);
 	}
 
 	/**
