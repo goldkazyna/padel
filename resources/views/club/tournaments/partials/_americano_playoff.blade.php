@@ -389,9 +389,8 @@
 
 .playoff-container .bracket-wrapper {
     display: flex;
-    align-items: stretch;
+    align-items: flex-start;
     min-width: max-content;
-    min-height: 700px;
     gap: 40px;
 }
 
@@ -417,8 +416,8 @@
 .playoff-container .round-matches {
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
-    flex: 1;
+    justify-content: flex-start;
+    gap: 16px;
 }
 
 .playoff-container .bracket-match {
@@ -599,10 +598,6 @@
     height: 48px;
     color: var(--playoff-gold);
     filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.4));
-}
-
-.playoff-container .round-final .round-matches {
-    justify-content: center;
 }
 
 .playoff-container .edit-score-btn {
