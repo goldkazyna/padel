@@ -141,6 +141,9 @@ class TournamentController extends Controller
 			$validated['has_bronze_match'] = false;
 		}
 
+		// Рейтинговый ли турнир. Чекбокс предотмечен — снят = не рейтинговый.
+		$validated['is_rated'] = $request->has('is_rated');
+
 
         // Проверяем доступ к клубу
         if ($club && $validated['club_id'] != $club->id) {

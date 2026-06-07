@@ -139,7 +139,15 @@
 							<small class="text-secondary">Оставьте пустым для "Корт 1", "Корт 2" и т.д.</small>
 						</div>
                     </div>
-					<div id="americanoFields" style="display: none;">
+					<div class="mb-4">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" name="is_rated" id="isRated" value="1" {{ old('is_rated', '1') ? 'checked' : '' }}>
+								<label class="form-check-label" for="isRated">Рейтинговый турнир</label>
+								<div><small class="text-secondary">Снимите галочку, чтобы турнир не влиял на рейтинг игроков</small></div>
+							</div>
+						</div>
+
+						<div id="americanoFields" style="display: none;">
 						<div class="row">
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
