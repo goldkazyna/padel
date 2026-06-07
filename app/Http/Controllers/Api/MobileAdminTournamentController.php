@@ -52,6 +52,28 @@ class MobileAdminTournamentController extends Controller
     }
 
     /**
+     * GET /api/mobile/personal/tournaments
+     * Список личных турниров текущего игрока (созданных им).
+     */
+    public function personalTournaments(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->can_create_tournaments) {
+            return response()->json(['success' => false, 'message' => 'Нет доступа'], 403);
+        }
+
+        $tournaments = Tournament::where('creator_id', $user->id)
+            ->orderBy('start_date', 'desc')
+            ->get()
+            ->map(fn($t) => $this->formatSummary($t));
+
+        return response()->json([
+            'success' => true,
+            'tournaments' => $tournaments,
+        ]);
+    }
+
+    /**
      * Может ли пользователь управлять клубом (читать его данные).
      * Доступ есть у:
      *  - super_admin
@@ -153,7 +175,70 @@ class MobileAdminTournamentController extends Controller
             ], 403);
         }
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), $this->tournamentValidationRules());
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $validated['club_id'] = $club->id;
+        // Рейтинговый по умолчанию; веб-админка флаг не шлёт — остаётся true.
+        $validated['is_rated'] = $request->boolean('is_rated', true);
+
+        $tournament = $this->finalizeTournamentCreate($request, $validated);
+
+        return response()->json([
+            'success' => true,
+            'tournament_id' => $tournament->id,
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/personal/tournaments
+     * Создание ЛИЧНОГО (приватного) турнира обычным игроком с грантом
+     * can_create_tournaments. Клуба нет (creator_id = игрок), всегда
+     * нерейтинговый, в публичной вкладке не показывается.
+     */
+    public function storePersonal(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->can_create_tournaments) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет доступа к созданию турниров',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), $this->tournamentValidationRules());
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $validated['club_id'] = null;
+        $validated['creator_id'] = $user->id;
+        $validated['is_rated'] = false; // личные турниры всегда нерейтинговые
+
+        $tournament = $this->finalizeTournamentCreate($request, $validated);
+
+        return response()->json([
+            'success' => true,
+            'tournament_id' => $tournament->id,
+        ]);
+    }
+
+    private function tournamentValidationRules(): array
+    {
+        return [
             'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -170,7 +255,6 @@ class MobileAdminTournamentController extends Controller
             'waitlist_size' => 'nullable|integer|min:0|max:32',
             'moderation_hours' => 'nullable|integer|min:0|max:720',
             'moderation_minutes' => 'nullable|integer|min:0|max:1440',
-            // Поля Американо / Team
             'groups_count' => 'nullable|integer|in:1,2,3,4',
             'rounds_count' => 'nullable|integer|min:1|max:30',
             'teams_advance' => 'nullable|integer|in:1,2,3,4',
@@ -182,28 +266,21 @@ class MobileAdminTournamentController extends Controller
             'telegram_registration_url' => 'nullable|url|max:500',
             'is_rated' => 'nullable|boolean',
             'pairing_mode' => 'nullable|in:self,admin',
-        ]);
+        ];
+    }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first(),
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $validated = $validator->validated();
-        $validated['club_id'] = $club->id;
-        // Рейтинговый по умолчанию; веб-админка флаг не шлёт — остаётся true.
-        $validated['is_rated'] = $request->boolean('is_rated', true);
-
+    /**
+     * Общая часть создания турнира: нормализация полей + create + резервы.
+     * $validated уже содержит club_id ИЛИ creator_id и is_rated.
+     */
+    private function finalizeTournamentCreate(Request $request, array $validated): Tournament
+    {
         // price в БД NOT NULL — если не передали, ставим 0.
         if (!isset($validated['price']) || $validated['price'] === null) {
             $validated['price'] = 0;
         }
 
-        // Нормализация плей-офф (копия из Web Club\TournamentController::store).
-        // Для team — playoff всегда включён (парный без него бессмыслен).
+        // Нормализация плей-офф. Для team — playoff всегда включён.
         $isTeamType = ($validated['type'] ?? null) === 'team';
         $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
         $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
@@ -220,10 +297,7 @@ class MobileAdminTournamentController extends Controller
 
         // Названия кортов — пустые слоты обнуляем, если массив целиком пустой — null
         if (isset($validated['courts'])) {
-            $validated['courts'] = array_map(
-                fn($c) => $c ?: null,
-                $validated['courts']
-            );
+            $validated['courts'] = array_map(fn($c) => $c ?: null, $validated['courts']);
             if (empty(array_filter($validated['courts']))) {
                 $validated['courts'] = null;
             }
@@ -231,15 +305,12 @@ class MobileAdminTournamentController extends Controller
 
         $tournament = Tournament::create($validated);
 
-        // Резервные игроки/пары (как в Web Club\TournamentController::store)
+        // Резервные игроки/пары
         $reserveCount = (int) ($validated['reserve_count'] ?? 0);
         if ($reserveCount > 0) {
-            $reserves = \App\Models\User::where('role', 'reserve')
-                ->orderBy('id')
-                ->get();
+            $reserves = \App\Models\User::where('role', 'reserve')->orderBy('id')->get();
 
             if ($tournament->type === 'team') {
-                // Для командных турниров создаём резервные пары — по 2 игрока на пару
                 $needed = $reserveCount * 2;
                 $reservePairs = $reserves->take($needed);
                 for ($i = 0; $i + 1 < $reservePairs->count(); $i += 2) {
@@ -252,16 +323,11 @@ class MobileAdminTournamentController extends Controller
                 }
             } else {
                 foreach ($reserves->take($reserveCount) as $reserve) {
-                    $tournament->participants()->attach($reserve->id, [
-                        'status' => 'registered',
-                    ]);
+                    $tournament->participants()->attach($reserve->id, ['status' => 'registered']);
                 }
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'tournament_id' => $tournament->id,
-        ]);
+        return $tournament;
     }
 }

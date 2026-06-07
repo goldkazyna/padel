@@ -41,11 +41,21 @@ class MobileAuthController extends Controller
             ], 404);
         }
 
-        // Генерируем код (пока тестовый 1111)
-        $code = '1111'; // TODO: Заменить на реальную отправку SMS
+        // Генерируем случайный 4-значный код
+        $code = (string) random_int(1000, 9999);
 
         // Сохраняем код в кэш на 5 минут
         Cache::put("sms_code_{$phone}", $code, now()->addMinutes(5));
+
+        // Отправляем SMS через KazInfoTeh.
+        // Тестовый код 1111 в verifyCode работает всегда — поэтому даже если
+        // отправка упадёт, тестовый вход сохраняется.
+        $sent = app(\App\Services\SmsService::class)
+            ->send($phone, "Padel: ваш код {$code}");
+
+        if (!$sent) {
+            Log::warning('SMS code not sent', ['phone' => $this->maskPhone($phone)]);
+        }
 
         return response()->json([
             'success' => true,
@@ -190,6 +200,7 @@ class MobileAuthController extends Controller
                 'admin_clubs' => $adminClubs,
                 'is_club_moderator' => $isClubModerator,
                 'moderator_clubs' => $moderatorClubs,
+                'can_create_tournaments' => (bool) $user->can_create_tournaments,
             ],
         ]);
     }

@@ -89,6 +89,7 @@ class Tournament extends Model
 	
     protected $fillable = [
         'club_id',
+        'creator_id',
         'name',
         'description',
         'start_date',
@@ -133,6 +134,23 @@ class Tournament extends Model
 		'moderation_hours' => 'integer',
 		'moderation_minutes' => 'integer',
     ];
+
+    /**
+     * Личный (приватный) турнир обычного игрока: создан не от клуба, а от
+     * пользователя. В публичной вкладке не показывается, всегда нерейтинговый.
+     */
+    public function isPersonal(): bool
+    {
+        return $this->creator_id !== null;
+    }
+
+    /**
+     * Создатель личного турнира (или null для клубных).
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'creator_id');
+    }
 
     /**
      * Групповой турнир, где пары собирает админ (игроки регистрируются поодиночке).

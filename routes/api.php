@@ -90,6 +90,9 @@ Route::prefix('mobile')->group(function () {
         // Админка клуба (только для club_admin данного клуба или super_admin)
         Route::get('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'index']);
         Route::post('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'store']);
+        // Личные (приватные) турниры обычного игрока с грантом can_create_tournaments
+        Route::get('/personal/tournaments', [MobileAdminTournamentController::class, 'personalTournaments']);
+        Route::post('/personal/tournaments', [MobileAdminTournamentController::class, 'storePersonal']);
 
         // Управление игроками клуба (нужен feature 'users')
         Route::get('/admin/clubs/{club}/users', [MobileAdminUserController::class, 'index']);

@@ -14,21 +14,27 @@ trait FormatsTournaments
 {
     private function formatTournament(Tournament $t, $user, bool $includeRegistration = false): array
     {
+        $club = $t->club; // null для личных турниров
+        $creator = $t->creator; // задан для личных турниров
         $data = [
             'id' => $t->id,
             'name' => $t->name,
             'description' => $t->description,
             'telegram_registration_url' => $t->telegram_registration_url,
+            // Для личного турнира клуба нет — в качестве «организатора»
+            // показываем имя создателя.
             'club' => [
-                'id' => $t->club->id ?? null,
-                'name' => $t->club->name ?? 'Клуб',
-                'phone' => $t->club->phone ?? null,
-                'address' => $t->club->address ?? null,
-                'payment_url' => $t->club->payment_url ?? null,
-                'telegram_url' => $t->club->telegram_url ?? null,
-                'logo' => $t->club->logo ? url($t->club->logo) : null,
-                'is_community' => (bool) ($t->club->is_community ?? false),
+                'id' => $club?->id,
+                'name' => $club?->name ?? ($creator?->name ?? 'Личный турнир'),
+                'phone' => $club?->phone,
+                'address' => $club?->address,
+                'payment_url' => $club?->payment_url,
+                'telegram_url' => $club?->telegram_url,
+                'logo' => $club?->logo ? url($club->logo) : null,
+                'is_community' => (bool) ($club?->is_community ?? false),
             ],
+            'is_personal' => $t->isPersonal(),
+            'creator' => $creator ? ['id' => $creator->id, 'name' => $creator->name] : null,
             'date' => $t->start_date->format('d.m.Y'),
             'time' => $t->start_date->format('H:i'),
             'datetime' => $t->start_date->toIso8601String(),

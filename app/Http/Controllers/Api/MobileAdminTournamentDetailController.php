@@ -306,7 +306,12 @@ class MobileAdminTournamentDetailController extends Controller
     {
         if (!$user) return false;
         if ($user->isSuperAdmin()) return true;
+        // Создатель личного турнира управляет им сам.
+        if ($tournament->creator_id && (int) $tournament->creator_id === (int) $user->id) {
+            return true;
+        }
         $clubId = $tournament->club_id;
+        if (!$clubId) return false;
         if ($user->adminClubs()->where('clubs.id', $clubId)->exists()) {
             return true;
         }
@@ -319,7 +324,12 @@ class MobileAdminTournamentDetailController extends Controller
     private function hasTournamentsFullAccess($user, Tournament $tournament): bool
     {
         if (!$user) return false;
-        $club = $tournament->club ?? \App\Models\Club::find($tournament->club_id);
+        // Создатель личного турнира имеет полные права на него.
+        if ($tournament->creator_id && (int) $tournament->creator_id === (int) $user->id) {
+            return true;
+        }
+        $club = $tournament->club
+            ?? ($tournament->club_id ? \App\Models\Club::find($tournament->club_id) : null);
         if (!$club) return false;
         return $user->hasTournamentsFullAccess($club);
     }
@@ -371,6 +381,11 @@ class MobileAdminTournamentDetailController extends Controller
             'club' => $t->club ? [
                 'id' => $t->club->id,
                 'name' => $t->club->name,
+            ] : null,
+            'is_personal' => $t->isPersonal(),
+            'creator' => $t->creator ? [
+                'id' => $t->creator->id,
+                'name' => $t->creator->name,
             ] : null,
             'start_date' => $t->start_date?->toIso8601String(),
             'min_level' => (float) $t->min_level,

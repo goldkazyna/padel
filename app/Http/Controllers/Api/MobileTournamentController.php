@@ -28,6 +28,7 @@ class MobileTournamentController extends Controller
 
         $query = Tournament::where('status', 'open')
             ->where('start_date', '>', now())
+            ->whereNull('creator_id') // личные (приватные) турниры не показываем
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
             ->with('club');

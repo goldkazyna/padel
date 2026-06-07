@@ -350,6 +350,7 @@ class MobileProfileController extends Controller
             'admin_clubs' => $adminClubs,
             'is_club_moderator' => $isClubModerator,
             'moderator_clubs' => $moderatorClubs,
+            'can_create_tournaments' => (bool) $user->can_create_tournaments,
         ];
     }
 }
