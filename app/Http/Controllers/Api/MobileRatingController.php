@@ -617,9 +617,10 @@ class MobileRatingController extends Controller
             })
             ->pluck('id');
 
-        // Проверяем финал
+        // Проверяем финал (только верхняя сетка — чемпион/призёры из неё)
         $finalMatch = $tournament->playoffMatches()
             ->whereIn('stage', ['final', 'Финал'])
+            ->where(function ($q) { $q->where('bracket', 'upper')->orWhereNull('bracket'); })
             ->where('status', 'completed')
             ->first();
 
@@ -646,9 +647,10 @@ class MobileRatingController extends Controller
                 }
             }
 
-            // Полуфинал — 3-4 место
+            // Полуфинал — 3-4 место (только верхняя сетка)
             $semiMatches = $tournament->playoffMatches()
                 ->whereIn('stage', ['semi', 'Полуфинал'])
+                ->where(function ($q) { $q->where('bracket', 'upper')->orWhereNull('bracket'); })
                 ->where('status', 'completed')
                 ->get();
 

@@ -1235,8 +1235,13 @@ class MobileTournamentController extends Controller
                 ]));
             }
 
+            $stageLabel = $m->stage_name ?? $m->stage;
+            if ($m->bracket === 'lower') {
+                $stageLabel .= ' (нижняя сетка)';
+            }
+
             $result[] = [
-                'stage' => $m->stage_name ?? $m->stage,
+                'stage' => $stageLabel,
                 'round' => null,
                 'team1_players' => $team1Names,
                 'team2_players' => $team2Names,
@@ -1411,6 +1416,9 @@ class MobileTournamentController extends Controller
         $result = [];
         foreach ($matches as $m) {
             $stageName = $m->stage_name;
+            if ($m->bracket === 'lower') {
+                $stageName .= ' (нижняя сетка)';
+            }
 
             $team1Players = array_filter([
                 $m->team1Player1 ? ['id' => $m->team1Player1->id, 'name' => $m->team1Player1->name, 'initials' => mb_strtoupper(mb_substr($m->team1Player1->first_name ?? '', 0, 1) . mb_substr($m->team1Player1->last_name ?? '', 0, 1))] : null,
@@ -1825,9 +1833,10 @@ class MobileTournamentController extends Controller
             })
             ->pluck('id');
 
-        // Проверяем финал
+        // Проверяем финал (только верхняя сетка — чемпион/призёры из неё)
         $finalMatch = $tournament->playoffMatches()
             ->whereIn('stage', ['final', 'Финал'])
+            ->where(function ($q) { $q->where('bracket', 'upper')->orWhereNull('bracket'); })
             ->where('status', 'completed')
             ->first();
 
@@ -1853,9 +1862,10 @@ class MobileTournamentController extends Controller
                 }
             }
 
-            // Полуфинал — 3-4 место
+            // Полуфинал — 3-4 место (только верхняя сетка)
             $semiMatches = $tournament->playoffMatches()
                 ->whereIn('stage', ['semi', 'Полуфинал'])
+                ->where(function ($q) { $q->where('bracket', 'upper')->orWhereNull('bracket'); })
                 ->where('status', 'completed')
                 ->get();
 
