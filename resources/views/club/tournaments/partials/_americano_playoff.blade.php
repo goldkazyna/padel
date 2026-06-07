@@ -46,8 +46,7 @@
             <div class="winner-block mt-4">
                 <div class="winner-trophy"><i class="bi bi-trophy-fill"></i></div>
                 <div class="winner-title">Победители турнира</div>
-                <div class="winner-name">{{ $winnerP1->first_name }} / {{ $winnerP2->first_name }}</div>
-                <div class="winner-players">{{ $winnerP1->name }} & {{ $winnerP2->name }}</div>
+                <div class="winner-name">{{ $winnerP1->name }} / {{ $winnerP2->name }}</div>
             </div>
         @endif
     </div>
