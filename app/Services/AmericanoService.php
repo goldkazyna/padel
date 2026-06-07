@@ -921,17 +921,17 @@ public function previewRatingChanges(Tournament $tournament): array
 				return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
 			});
 			
-			// Берём топ-4 игроков
-			$topPlayers = collect(array_slice($playerStats, 0, 4))
+			// Берём топ-8 игроков (для полуфиналов нужно 8, для финала хватит 4)
+			$topPlayers = collect(array_slice($playerStats, 0, 8))
 				->map(fn($stat) => $stat['player']);
-			
+
 			$leaders[$group->name] = $topPlayers;
 		}
 
 		if ($tournament->isFinalOnly()) {
-			$this->createFinalMatch($tournament, $leaders);
+			$this->createFinalMatch($tournament, $leaders, 'upper');
 		} else {
-			$this->createSemifinalMatches($tournament, $leaders);
+			$this->createSemifinalMatches($tournament, $leaders, 'upper');
 		}
 
 		return true;
@@ -940,19 +940,20 @@ public function previewRatingChanges(Tournament $tournament): array
 	/**
 	 * Создать только финальный матч
 	 */
-	protected function createFinalMatch(Tournament $tournament, array $leaders): void
+	protected function createFinalMatch(Tournament $tournament, array $leaders, string $bracket = 'upper'): void
 	{
 		$groupNames = array_keys($leaders);
-		
+
 		if (count($groupNames) >= 2) {
 			// 2 группы: A1+A2 vs B1+B2
 			$A = $leaders[$groupNames[0]];
 			$B = $leaders[$groupNames[1]];
-			
+
 			if ($A->count() >= 2 && $B->count() >= 2) {
 				\App\Models\TournamentPlayoffMatch::create([
 					'tournament_id' => $tournament->id,
 					'stage' => 'Финал',
+					'bracket' => $bracket,
 					'match_number' => 1,
 					'team1_player1_id' => $A[0]->id,
 					'team1_player2_id' => $A[1]->id,
@@ -964,23 +965,23 @@ public function previewRatingChanges(Tournament $tournament): array
 		} elseif (count($groupNames) === 1) {
 			// Одна группа — формат зависит от настроек
 			$players = $leaders[$groupNames[0]];
-			
+
 			if ($players->count() >= 4) {
 				$format = $tournament->playoff_format ?? 'cross';
-				
+
 				switch ($format) {
 					case 'tops':
 						// 1+2 vs 3+4
 						$team1 = [$players[0]->id, $players[1]->id];
 						$team2 = [$players[2]->id, $players[3]->id];
 						break;
-						
+
 					case 'mix':
 						// 1+3 vs 2+4
 						$team1 = [$players[0]->id, $players[2]->id];
 						$team2 = [$players[1]->id, $players[3]->id];
 						break;
-						
+
 					case 'cross':
 					default:
 						// 1+4 vs 2+3
@@ -988,10 +989,11 @@ public function previewRatingChanges(Tournament $tournament): array
 						$team2 = [$players[1]->id, $players[2]->id];
 						break;
 				}
-				
+
 				\App\Models\TournamentPlayoffMatch::create([
 					'tournament_id' => $tournament->id,
 					'stage' => 'Финал',
+					'bracket' => $bracket,
 					'match_number' => 1,
 					'team1_player1_id' => $team1[0],
 					'team1_player2_id' => $team1[1],
@@ -1006,26 +1008,55 @@ public function previewRatingChanges(Tournament $tournament): array
 	/**
 	 * Создать полуфиналы и финал
 	 */
-	protected function createSemifinalMatches(Tournament $tournament, array $leaders): void
+	protected function createSemifinalMatches(Tournament $tournament, array $leaders, string $bracket = 'upper'): void
 	{
 		$groupNames = array_keys($leaders);
-		
+
+		// === 1 группа: топ-8 → 2 полуфинала (форматы mix/tops/balanced) ===
+		if (count($groupNames) === 1) {
+			$p = $leaders[$groupNames[0]]->values();
+			if ($p->count() < 8) {
+				return; // недостаточно игроков на полуфинал
+			}
+			// Формат пар для топ-8 (отличается от топ-4 в createFinalMatch):
+			// здесь распределяем 8 игроков на 2 полуфинала.
+			$format = $tournament->playoff_format ?? 'mix';
+			switch ($format) {
+				case 'tops': // 1+2 vs 7+8 | 3+4 vs 5+6
+					$semi1 = ['team1' => [$p[0]->id, $p[1]->id], 'team2' => [$p[6]->id, $p[7]->id]];
+					$semi2 = ['team1' => [$p[2]->id, $p[3]->id], 'team2' => [$p[4]->id, $p[5]->id]];
+					break;
+				case 'balanced': // 1+4 vs 5+8 | 2+3 vs 6+7
+					$semi1 = ['team1' => [$p[0]->id, $p[3]->id], 'team2' => [$p[4]->id, $p[7]->id]];
+					$semi2 = ['team1' => [$p[1]->id, $p[2]->id], 'team2' => [$p[5]->id, $p[6]->id]];
+					break;
+				case 'mix':
+				default: // 1+8 vs 4+5 | 2+7 vs 3+6
+					$semi1 = ['team1' => [$p[0]->id, $p[7]->id], 'team2' => [$p[3]->id, $p[4]->id]];
+					$semi2 = ['team1' => [$p[1]->id, $p[6]->id], 'team2' => [$p[2]->id, $p[5]->id]];
+					break;
+			}
+			$this->persistSemifinalSet($tournament, $semi1, $semi2, $bracket);
+			return;
+		}
+
+		// 0 групп (не должно случаться) — нечего генерировать
 		if (count($groupNames) < 2) {
 			return;
 		}
-		
+
 		// Группа A: A1, A2, A3, A4 (топ-4)
 		// Группа B: B1, B2, B3, B4 (топ-4)
 		$A = $leaders[$groupNames[0]];
 		$B = $leaders[$groupNames[1]];
-		
+
 		if ($A->count() < 4 || $B->count() < 4) {
 			return; // Недостаточно игроков
 		}
-		
+
 		// Получаем формат плей-офф (по умолчанию mix)
 		$format = $tournament->playoff_format ?? 'mix';
-		
+
 		// Формируем пары в зависимости от формата
 		switch ($format) {
 			case 'group_vs':
@@ -1039,7 +1070,7 @@ public function previewRatingChanges(Tournament $tournament): array
 					'team2' => [$B[2]->id, $B[3]->id],
 				];
 				break;
-				
+
 			case 'tops':
 				// Топы вместе: A1+B1 vs A3+B3, A2+B2 vs A4+B4
 				$semi1 = [
@@ -1051,7 +1082,7 @@ public function previewRatingChanges(Tournament $tournament): array
 					'team2' => [$A[3]->id, $B[3]->id],
 				];
 				break;
-				
+
 			case 'cross':
 				// Крест: A1+B4 vs B1+A4, A2+B3 vs B2+A3
 				$semi1 = [
@@ -1063,7 +1094,7 @@ public function previewRatingChanges(Tournament $tournament): array
 					'team2' => [$B[1]->id, $A[2]->id],
 				];
 				break;
-				
+
 			case 'mix':
 			default:
 				// Микс: A1+B2 vs A3+B4, A2+B1 vs B3+A4
@@ -1077,11 +1108,19 @@ public function previewRatingChanges(Tournament $tournament): array
 				];
 				break;
 		}
-		
-		// Создаём полуфинал 1
+
+		$this->persistSemifinalSet($tournament, $semi1, $semi2, $bracket);
+	}
+
+	/**
+	 * Записать пару полуфиналов + пустой финал + опц. матч за 3-е место для заданной сетки.
+	 */
+	protected function persistSemifinalSet(Tournament $tournament, array $semi1, array $semi2, string $bracket): void
+	{
 		\App\Models\TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'stage' => 'Полуфинал',
+			'bracket' => $bracket,
 			'match_number' => 1,
 			'team1_player1_id' => $semi1['team1'][0],
 			'team1_player2_id' => $semi1['team1'][1],
@@ -1089,11 +1128,10 @@ public function previewRatingChanges(Tournament $tournament): array
 			'team2_player2_id' => $semi1['team2'][1],
 			'status' => 'pending',
 		]);
-		
-		// Создаём полуфинал 2
 		\App\Models\TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'stage' => 'Полуфинал',
+			'bracket' => $bracket,
 			'match_number' => 2,
 			'team1_player1_id' => $semi2['team1'][0],
 			'team1_player2_id' => $semi2['team1'][1],
@@ -1101,21 +1139,18 @@ public function previewRatingChanges(Tournament $tournament): array
 			'team2_player2_id' => $semi2['team2'][1],
 			'status' => 'pending',
 		]);
-		
-		// Финал — пустой, заполнится после полуфиналов
 		\App\Models\TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'stage' => 'Финал',
+			'bracket' => $bracket,
 			'match_number' => 1,
 			'status' => 'pending',
 		]);
-
-		// Матч за 3-е место (опционально) — пустой, заполнится проигравшими
-		// полуфиналов в updateFinalAfterSemifinal.
 		if ($tournament->has_bronze_match) {
 			\App\Models\TournamentPlayoffMatch::create([
 				'tournament_id' => $tournament->id,
 				'stage' => 'Матч за 3-е место',
+				'bracket' => $bracket,
 				'match_number' => 1,
 				'is_bronze' => true,
 				'status' => 'pending',

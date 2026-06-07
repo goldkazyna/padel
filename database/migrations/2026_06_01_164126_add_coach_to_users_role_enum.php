@@ -13,22 +13,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('player','club_admin','super_admin','reserve','club_moderator','coach') NOT NULL DEFAULT 'player'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('player','club_admin','super_admin','reserve','club_moderator','coach') NOT NULL DEFAULT 'player'");
 
-        // Чиним уже сломанных тренеров: у кого есть запись в club_coaches,
-        // но роль пустая/player — выставляем корректную 'coach'.
-        DB::statement("
-            UPDATE users u
-            JOIN club_coaches cc ON cc.user_id = u.id
-            SET u.role = 'coach'
-            WHERE u.role NOT IN ('club_admin','super_admin','club_moderator')
-        ");
+            // Чиним уже сломанных тренеров: у кого есть запись в club_coaches,
+            // но роль пустая/player — выставляем корректную 'coach'.
+            DB::statement("
+                UPDATE users u
+                JOIN club_coaches cc ON cc.user_id = u.id
+                SET u.role = 'coach'
+                WHERE u.role NOT IN ('club_admin','super_admin','club_moderator')
+            ");
+        }
     }
 
     public function down(): void
     {
-        // Возвращаем тренеров в player, затем сужаем enum обратно.
-        DB::statement("UPDATE users SET role = 'player' WHERE role = 'coach'");
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('player','club_admin','super_admin','reserve','club_moderator') NOT NULL DEFAULT 'player'");
+        if (DB::getDriverName() === 'mysql') {
+            // Возвращаем тренеров в player, затем сужаем enum обратно.
+            DB::statement("UPDATE users SET role = 'player' WHERE role = 'coach'");
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('player','club_admin','super_admin','reserve','club_moderator') NOT NULL DEFAULT 'player'");
+        }
     }
 };
