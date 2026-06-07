@@ -362,5 +362,25 @@ class TeamTournamentController extends Controller
 
 		return back()->with('success', 'Заявка отклонена');
 	}
-	
+
+	// =====================================================================
+	// Ручной сбор пар (pairing_mode=admin)
+	// =====================================================================
+
+	public function createPairing(Request $request, Tournament $tournament, TeamTournamentService $service)
+	{
+		$data = $request->validate([
+			'player1_id' => 'required|integer',
+			'player2_id' => 'required|integer',
+		]);
+		[$ok, $msg] = $service->createPair($tournament, (int) $data['player1_id'], (int) $data['player2_id']);
+		return back()->with($ok ? 'success' : 'error', $msg);
+	}
+
+	public function autoPairing(Tournament $tournament, TeamTournamentService $service)
+	{
+		[$ok, $msg] = $service->autoBalancePairs($tournament);
+		return back()->with($ok ? 'success' : 'error', $msg);
+	}
+
 }

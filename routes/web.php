@@ -442,6 +442,11 @@ Route::middleware('auth')->group(function () {
                 ->name('tournaments.updateTeam');
             Route::post('/tournaments/{tournament}/add-test-teams', [TeamTournamentController::class, 'addTestTeams'])
                 ->name('tournaments.addTestTeams');
+            // Ручной сбор пар (pairing_mode=admin)
+            Route::post('/tournaments/{tournament}/pairing/create', [TeamTournamentController::class, 'createPairing'])
+                ->name('tournaments.pairing.create');
+            Route::post('/tournaments/{tournament}/pairing/auto', [TeamTournamentController::class, 'autoPairing'])
+                ->name('tournaments.pairing.auto');
             Route::post('/team/group-match/{match}/score', [TeamTournamentController::class, 'saveGroupMatchScore'])
                 ->name('team.saveGroupMatchScore');
             Route::put('/team/group-match/{match}/score', [TeamTournamentController::class, 'updateGroupMatchScore'])

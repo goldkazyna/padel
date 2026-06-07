@@ -60,9 +60,13 @@
     </div>
     
     @if($tournament->status === 'open')
-        @include('club.tournaments.partials._team_form')
+        @if($tournament->pairing_mode === 'admin')
+            @include('club.tournaments.partials._team_pairing')
+        @else
+            @include('club.tournaments.partials._team_form')
+        @endif
     @endif
-    
+
     @if($approvedTeams->count() > 0)
         <div class="pairs-grid">
             @foreach($approvedTeams as $index => $team)
