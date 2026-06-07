@@ -469,7 +469,7 @@ class Tournament extends Model
      */
     public function totalParticipantsCount(): int
     {
-        if ($this->isTeamBased()) {
+        if (!$this->usesSoloRegistration()) {
             return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
         }
         return $this->participants()->count();
@@ -480,7 +480,7 @@ class Tournament extends Model
      */
     public function approvedParticipantsCount(): int
     {
-        if ($this->isTeamBased()) {
+        if (!$this->usesSoloRegistration()) {
             return $this->teams()->where('status', 'approved')->count() * 2;
         }
         return $this->participants()->wherePivot('status', 'registered')->count();
@@ -491,7 +491,7 @@ class Tournament extends Model
      */
     public function pendingParticipantsCount(): int
     {
-        if ($this->isTeamBased()) {
+        if (!$this->usesSoloRegistration()) {
             return $this->teams()->where('status', 'pending')->count() * 2;
         }
         return $this->participants()->wherePivot('status', 'pending')->count();
