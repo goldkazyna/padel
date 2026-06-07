@@ -195,7 +195,7 @@ class Tournament extends Model
 	 */
 	public function takenSlotsCount(): int
 	{
-		if ($this->isTeamBased()) {
+		if (!$this->usesSoloRegistration()) {
 			return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
 		}
 		return $this->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
@@ -206,7 +206,7 @@ class Tournament extends Model
 	 */
 	public function waitlistCount(): int
 	{
-		if ($this->isTeamBased()) {
+		if (!$this->usesSoloRegistration()) {
 			return $this->teams()->where('status', 'waiting')->count() * 2;
 		}
 		return $this->participants()->wherePivot('status', 'waiting')->count();
@@ -221,7 +221,7 @@ class Tournament extends Model
 		$size = (int) ($this->waitlist_size ?? 0);
 		if ($size <= 0) return false;
 		// waitlist_size для team задаётся в парах, для solo в людях.
-		$capacity = $this->isTeamBased() ? $size * 2 : $size;
+		$capacity = !$this->usesSoloRegistration() ? $size * 2 : $size;
 		return ($this->waitlistCount() + $needSlots) <= $capacity;
 	}
 
@@ -230,7 +230,7 @@ class Tournament extends Model
 	 */
 	public function getWaitlistPosition(User $user): ?int
 	{
-		if ($this->isTeamBased()) {
+		if (!$this->usesSoloRegistration()) {
 			$teams = $this->teams()->where('status', 'waiting')
 				->orderBy('created_at')->orderBy('id')->get(['id', 'player1_id', 'player2_id']);
 			$pos = 1;
