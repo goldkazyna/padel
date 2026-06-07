@@ -1029,6 +1029,7 @@ class MobileTournamentController extends Controller
                 'club_name' => $tournament->club->name ?? 'Клуб',
                 'format' => $tournament->type,
                 'format_name' => $tournament->type_name,
+                'is_rated' => (bool) $tournament->is_rated,
             ],
             'summary' => [
                 'matches_count' => count($userMatches),
@@ -2210,7 +2211,7 @@ class MobileTournamentController extends Controller
 
         // Карта дельт рейтинга для каждого матча текущего юзера (если он auth)
         $myMatchDeltas = [];
-        if ($user) {
+        if ($user && $tournament->is_rated) {
             try {
                 $userMatchesForDelta = $this->getPlayerBasedMatches($tournament, (int) $user->id);
                 foreach ($userMatchesForDelta as $um) {
@@ -2533,7 +2534,7 @@ class MobileTournamentController extends Controller
 
         // Карта дельт рейтинга по match_id для текущего юзера
         $myMatchDeltas = [];
-        if ($user) {
+        if ($user && $tournament->is_rated) {
             try {
                 if ($tournament->type === 'team') {
                     $userMatchesForDelta = $this->getTeamBasedMatches($tournament, (int) $user->id);
@@ -2671,7 +2672,7 @@ class MobileTournamentController extends Controller
 
         // Карта дельт рейтинга для каждого матча текущего юзера
         $myMatchDeltas = [];
-        if ($user) {
+        if ($user && $tournament->is_rated) {
             try {
                 $userMatchesForDelta = $this->getPlayerBasedMatches($tournament, (int) $user->id);
                 foreach ($userMatchesForDelta as $um) {
@@ -2869,6 +2870,7 @@ class MobileTournamentController extends Controller
             $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
             $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
         }
+        if (!$tournament->is_rated) { $roundDeltas = []; }
 
         $roundsOut = [];
         foreach ($rounds as $r) {
@@ -3023,6 +3025,7 @@ class MobileTournamentController extends Controller
             $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
             $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
         }
+        if (!$tournament->is_rated) { $roundDeltas = []; }
 
         // Сборка раундов с матчами
         $roundsOut = [];
@@ -3143,7 +3146,7 @@ class MobileTournamentController extends Controller
 
         // Карта дельт рейтинга для каждого матча текущего юзера (team-based)
         $myMatchDeltas = [];
-        if ($user) {
+        if ($user && $tournament->is_rated) {
             try {
                 $userMatchesForDelta = $this->getTeamBasedMatches($tournament, (int) $user->id);
                 foreach ($userMatchesForDelta as $um) {
