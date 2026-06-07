@@ -58,12 +58,12 @@
 }
 .playoff-team-name{
 	    max-width: 700px;
-		font-size:35px;
+		font-size:24px;
 }
 .score-team-names{
 	font-size:24px;
 }
 .playoff-score{
-	font-size:40px;
+	font-size:24px;
 }
 </style>
