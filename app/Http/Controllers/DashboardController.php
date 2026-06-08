@@ -11,9 +11,10 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         
-        // Ближайшие открытые турниры
+        // Ближайшие открытые турниры (личные/приватные не показываем)
         $upcomingTournaments = Tournament::where('status', 'open')
             ->where('start_date', '>=', now())
+            ->whereNull('creator_id')
             ->orderBy('start_date', 'asc')
             ->limit(5)
             ->get();

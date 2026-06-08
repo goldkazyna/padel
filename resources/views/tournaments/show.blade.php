@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h2>{{ $tournament->name }}</h2>
-        <p>{{ $tournament->club->name }}</p>
+        <p>{{ $tournament->club?->name ?? 'Личный турнир' }}</p>
     </div>
     <a href="{{ route('tournaments.index') }}" class="btn-outline-custom">
         <i class="bi bi-arrow-left"></i> Назад
@@ -32,7 +32,7 @@
                     </div>
                     <div class="col-sm-6">
                         <div class="text-secondary mb-1">Место</div>
-                        <div>{{ $tournament->club->address }}</div>
+                        <div>{{ $tournament->club?->address ?? '—' }}</div>
                     </div>
                     <div class="col-sm-6">
                         <div class="text-secondary mb-1">Стоимость</div>

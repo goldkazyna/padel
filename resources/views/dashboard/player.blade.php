@@ -91,7 +91,7 @@
                         <div class="tournament-info">
                             <div class="tournament-name">{{ $tournament->name }}</div>
                             <div class="tournament-meta">
-                                <span><i class="bi bi-geo-alt"></i> {{ $tournament->club->name }}</span>
+                                <span><i class="bi bi-geo-alt"></i> {{ $tournament->club?->name ?? ($tournament->creator?->name ?? 'Личный турнир') }}</span>
                                 <span><i class="bi bi-people"></i> {{ $tournament->participants->count() }}/{{ $tournament->max_participants }}</span>
                                 <span><i class="bi bi-bar-chart"></i> {{ $tournament->min_level }}-{{ $tournament->max_level }}</span>
                             </div>
@@ -131,7 +131,7 @@
                     <div class="tournament-info">
                         <div class="tournament-name">{{ $tournament->name }}</div>
                         <div class="tournament-meta">
-                            <span><i class="bi bi-geo-alt"></i> {{ $tournament->club->name }}</span>
+                            <span><i class="bi bi-geo-alt"></i> {{ $tournament->club?->name ?? ($tournament->creator?->name ?? 'Личный турнир') }}</span>
                             <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
                         </div>
                     </div>

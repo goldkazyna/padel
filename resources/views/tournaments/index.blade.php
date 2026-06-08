@@ -18,14 +18,14 @@
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h5 class="mb-1">{{ $tournament->name }}</h5>
-                            <small class="text-secondary">{{ $tournament->club->name }}</small>
+                            <small class="text-secondary">{{ $tournament->club?->name ?? 'Личный турнир' }}</small>
                         </div>
                         <span class="badge-{{ $tournament->status_color }}-custom">{{ $tournament->status_name }}</span>
                     </div>
                     
                     <div class="mb-3 text-secondary">
                         <div class="mb-1"><i class="bi bi-calendar3 me-2"></i>{{ $tournament->start_date->format('d.m.Y H:i') }}</div>
-                        <div class="mb-1"><i class="bi bi-geo-alt me-2"></i>{{ $tournament->club->address }}</div>
+                        <div class="mb-1"><i class="bi bi-geo-alt me-2"></i>{{ $tournament->club?->address ?? '' }}</div>
                         <div class="mb-1"><i class="bi bi-people me-2"></i>{{ $tournament->participants->count() }}/{{ $tournament->max_participants }} участников</div>
                         <div><i class="bi bi-bar-chart me-2"></i>Уровень: {{ $tournament->min_level }} — {{ $tournament->max_level }}</div>
                     </div>

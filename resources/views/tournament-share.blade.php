@@ -6,7 +6,7 @@
     <title>Открыть турнир «{{ $tournament->name }}» — Padel KZ</title>
 
     @php
-        $clubName = $tournament->club->name ?? 'Padel KZ';
+        $clubName = $tournament->club?->name ?? ($tournament->creator?->name ?? 'Padel KZ');
         $dateStr = $tournament->start_date->translatedFormat('j F Y, H:i');
         $levelStr = trim((string) $tournament->min_level) === trim((string) $tournament->max_level)
             ? 'Уровень ' . $tournament->min_level
@@ -95,7 +95,7 @@
     <div class="logo">🎾</div>
     <h1>{{ $tournament->name }}</h1>
     <div class="meta">
-        {{ $tournament->club->name ?? 'Padel-турнир' }}<br>
+        {{ $tournament->club?->name ?? 'Padel-турнир' }}<br>
         {{ $tournament->start_date->translatedFormat('j F Y, H:i') }}
     </div>
 

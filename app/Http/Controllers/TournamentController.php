@@ -13,6 +13,7 @@ class TournamentController extends Controller
     {
         $tournaments = Tournament::with('club')
             ->where('status', '!=', 'draft')
+            ->whereNull('creator_id') // личные/приватные турниры не показываем
             ->orderBy('created_at', 'desc')
             ->get();
 
