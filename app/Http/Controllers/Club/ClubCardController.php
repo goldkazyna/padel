@@ -52,7 +52,10 @@ class ClubCardController extends Controller
     public function forClient(Request $request)
     {
         $club = $this->getClub();
-        if (!$club) return response()->json(['cards' => []]);
+        $debug = $request->boolean('debug');
+        if (!$club) {
+            return response()->json($debug ? ['cards' => [], 'debug' => ['club' => null]] : ['cards' => []]);
+        }
 
         $digits = preg_replace('/\D/', '', (string) $request->get('phone'));
         if (strlen($digits) < 5) return response()->json(['cards' => []]);
@@ -61,6 +64,28 @@ class ClubCardController extends Controller
         $client = ClubClient::where('club_id', $club->id)
             ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
             ->first();
+
+        if ($debug) {
+            $anyClient = ClubClient::where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))->first();
+            $allCardsForAnyClient = $anyClient
+                ? ClubCard::where('club_client_id', $anyClient->id)->with('type')->get()
+                : collect();
+            return response()->json(['cards' => [], 'debug' => [
+                'resolved_club_id' => $club->id,
+                'resolved_club_name' => $club->name,
+                'is_super_admin' => (bool) auth()->user()?->isSuperAdmin(),
+                'digits' => $digits,
+                'client_in_resolved_club' => $client?->only(['id', 'name', 'club_id']),
+                'any_client_any_club' => $anyClient?->only(['id', 'name', 'club_id']),
+                'cards_for_any_client' => $allCardsForAnyClient->map(fn($c) => [
+                    'id' => $c->id, 'code' => $c->code, 'club_id' => $c->club_id,
+                    'status' => $c->status, 'balance' => $c->balance,
+                    'expires_at' => $c->expires_at?->toDateString(),
+                    'is_actual' => $c->isActual(),
+                ])->values(),
+            ]]);
+        }
+
         if (!$client) return response()->json(['cards' => []]);
 
         $cards = ClubCard::where('club_client_id', $client->id)
