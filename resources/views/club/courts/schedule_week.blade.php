@@ -937,30 +937,30 @@
         border-radius: 10px;
     }
     .gm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .gm-title { font-size: 11px; font-weight: 700; color: var(--sch-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .gm-count { font-size: 12px; color: var(--sch-text-dim); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px; }
+    .gm-title { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .gm-count { font-size: 12px; color: #a1a1aa; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px; }
     .gm-list { list-style: none; margin: 0; padding: 0; }
     .gm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.05); }
     .gm-item:first-child { border-top: none; }
-    .gm-name { font-size: 13px; color: var(--sch-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gm-name { font-size: 13px; color: #f4f4f5; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gm-rem { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
     .gm-rem-ok { background: rgba(34,197,94,0.12); color: #4ade80; }
     .gm-rem-low { background: rgba(234,179,8,0.12); color: #facc15; }
     .gm-rem-zero { background: rgba(239,68,68,0.12); color: #f87171; }
-    .gm-empty { font-size: 13px; color: var(--sch-text-dim); text-align: center; padding: 4px 0; }
+    .gm-empty { font-size: 13px; color: #a1a1aa; text-align: center; padding: 4px 0; }
 
-    /* Кнопки клубных карт клиента (идентично дневному виду) */
+    /* Кнопки клубных карт клиента — хардкод-цвета (модалка вне .ws-page, var(--sch-*) недоступны) */
     .client-card-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
     .client-card-btn {
         display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-        padding: 9px 14px; background: var(--sch-card-alt); border: 1px solid var(--sch-border);
+        padding: 9px 14px; background: #16161a; border: 1px solid #27272a;
         border-radius: 10px; cursor: pointer; transition: all 0.15s; min-width: 150px;
     }
-    .client-card-btn .ccb-name { color: var(--sch-text); font-weight: 700; font-size: 13px; }
-    .client-card-btn .ccb-code { color: var(--sch-text-dim); font-size: 11px; font-family: monospace; letter-spacing: 1px; }
-    .client-card-btn .ccb-sub { color: var(--sch-accent); font-size: 12px; font-weight: 600; }
-    .client-card-btn:hover:not(.active) { border-color: var(--sch-accent); }
-    .client-card-btn.active { border-color: var(--sch-accent); background: rgba(34,197,94,.14); box-shadow: 0 0 0 1px var(--sch-accent) inset; }
+    .client-card-btn .ccb-name { color: #f4f4f5; font-weight: 700; font-size: 13px; }
+    .client-card-btn .ccb-code { color: #a1a1aa; font-size: 11px; font-family: monospace; letter-spacing: 1px; }
+    .client-card-btn .ccb-sub { color: #22c55e; font-size: 12px; font-weight: 600; }
+    .client-card-btn:hover:not(.active) { border-color: #22c55e; }
+    .client-card-btn.active { border-color: #22c55e; background: rgba(34,197,94,.14); box-shadow: 0 0 0 1px #22c55e inset; }
 </style>
 
 <!-- Book Modal -->
