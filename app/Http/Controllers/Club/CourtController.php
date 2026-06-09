@@ -340,10 +340,28 @@ class CourtController extends Controller
             }
         }
 
+        // Группы (как в дневном виде) — для создания/редактирования групповой брони.
+        $activeGroups = $club->hasFeature('groups')
+            ? \App\Models\ClubGroup::where('club_id', $club->id)
+                ->where('status', 'active')
+                ->with(['members' => function ($q) {
+                    $q->where('status', 'active')->with('client:id,name');
+                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance'])
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        // Карта court_booking_id => group_id — чтобы окно редактирования
+        // групповой брони показывало участников и тренера группы.
+        $bookingGroupIds = \App\Models\ClubGroupSession::whereNotNull('court_booking_id')
+            ->where('status', '!=', 'cancelled')
+            ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
+            ->pluck('group_id', 'court_booking_id');
+
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
-            'unprocessedBookings'
+            'unprocessedBookings', 'activeGroups', 'bookingGroupIds'
         ));
     }
 

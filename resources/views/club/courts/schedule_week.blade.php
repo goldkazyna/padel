@@ -581,7 +581,7 @@
                                 }
                             @endphp
                             <div class="ws-card {{ $cls }}"
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, discount: {{ $b->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -708,6 +708,56 @@
 <style>
     .modal-wide { max-width: 1000px; }
     #bookModal .modal-content, #viewModal .modal-content, #unblockModal .modal-content { overflow: hidden; }
+
+    /* ===== Бронирование/просмотр — выезжающая справа панель (drawer), как в дневном виде ===== */
+    #bookModal .modal-dialog,
+    #viewModal .modal-dialog {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        width: 94vw;
+        max-width: 1600px;
+        height: 100vh;
+        height: 100dvh;
+        align-items: stretch;
+    }
+    #bookModal .modal-content,
+    #viewModal .modal-content {
+        height: 100%;
+        width: 100%;
+        border-radius: 0 !important;
+        border-top: none;
+        border-right: none;
+        border-bottom: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    #bookModal .sch-modal-header,
+    #viewModal .sch-modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #111113;
+    }
+    #bookModal.fade .modal-dialog,
+    #viewModal.fade .modal-dialog {
+        transform: translateX(100%);
+        transition: transform 0.3s ease-out;
+    }
+    #bookModal.show .modal-dialog,
+    #viewModal.show .modal-dialog {
+        transform: none;
+    }
+    @media (max-width: 575.98px) {
+        #bookModal .modal-dialog,
+        #viewModal .modal-dialog {
+            width: 100vw;
+            max-width: 100vw;
+        }
+    }
+
     .modal-two-col { display: grid; grid-template-columns: 1fr 1fr; }
     .modal-col-left { padding: 20px 24px; border-right: 1px solid #27272a; }
     .modal-col-right { padding: 20px 24px; }
@@ -877,6 +927,40 @@
         25%      { transform: translateX(-4px); }
         75%      { transform: translateX(4px); }
     }
+
+    /* Участники группы (идентично дневному виду) */
+    .group-members-block {
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid #27272a;
+        border-radius: 10px;
+    }
+    .gm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .gm-title { font-size: 11px; font-weight: 700; color: var(--sch-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .gm-count { font-size: 12px; color: var(--sch-text-dim); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px; }
+    .gm-list { list-style: none; margin: 0; padding: 0; }
+    .gm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+    .gm-item:first-child { border-top: none; }
+    .gm-name { font-size: 13px; color: var(--sch-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gm-rem { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+    .gm-rem-ok { background: rgba(34,197,94,0.12); color: #4ade80; }
+    .gm-rem-low { background: rgba(234,179,8,0.12); color: #facc15; }
+    .gm-rem-zero { background: rgba(239,68,68,0.12); color: #f87171; }
+    .gm-empty { font-size: 13px; color: var(--sch-text-dim); text-align: center; padding: 4px 0; }
+
+    /* Кнопки клубных карт клиента (идентично дневному виду) */
+    .client-card-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .client-card-btn {
+        display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+        padding: 9px 14px; background: var(--sch-card-alt); border: 1px solid var(--sch-border);
+        border-radius: 10px; cursor: pointer; transition: all 0.15s; min-width: 150px;
+    }
+    .client-card-btn .ccb-name { color: var(--sch-text); font-weight: 700; font-size: 13px; }
+    .client-card-btn .ccb-code { color: var(--sch-text-dim); font-size: 11px; font-family: monospace; letter-spacing: 1px; }
+    .client-card-btn .ccb-sub { color: var(--sch-accent); font-size: 12px; font-weight: 600; }
+    .client-card-btn:hover:not(.active) { border-color: var(--sch-accent); }
+    .client-card-btn.active { border-color: var(--sch-accent); background: rgba(34,197,94,.14); box-shadow: 0 0 0 1px var(--sch-accent) inset; }
 </style>
 
 <!-- Book Modal -->
@@ -944,22 +1028,29 @@
                     </div>
 
                     <div class="modal-col-right">
-                        <div class="form-group autocomplete-wrap">
+                        <div class="form-group autocomplete-wrap js-hide-for-group">
                             <label class="form-label">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="bookClientName" class="form-input" placeholder="Например: Денис Дудников" required autocomplete="off">
                             <div class="autocomplete-list" id="bookNameList"></div>
                             <small class="form-hint" id="bookClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
-                        <div class="form-group autocomplete-wrap">
+                        <div class="form-group autocomplete-wrap js-hide-for-group">
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="bookClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
                             <div class="autocomplete-list" id="bookPhoneList"></div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group js-hide-for-group">
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="bookClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
+                        </div>
+
+                        <div class="form-group" id="bookCardWrap" style="display:none;">
+                            <label class="form-label">Клубная карта клиента</label>
+                            <input type="hidden" name="club_card_id" id="bookCardInput" value="">
+                            <div class="client-card-buttons" id="bookCardButtons"></div>
+                            <small class="form-hint" id="bookCardHint" style="display:none;"></small>
                         </div>
 
                         <div class="modal-section-title">Тип брони</div>
@@ -971,8 +1062,57 @@
                         </div>
                         <input type="hidden" name="booking_type" id="bookingTypeInput">
 
-                        <div class="modal-section-title">Способ оплаты</div>
-                        <div class="payment-methods" id="paymentMethods">
+                        @if(isset($activeGroups) && $activeGroups->count())
+                            <div id="bookGroupSelectWrap" style="display:none;">
+                                <div class="modal-section-title">Группа (создаст занятие в журнале)</div>
+                                <div class="form-group">
+                                    <select name="group_id" id="bookGroupSelect" class="form-input" onchange="renderGroupMembers(this.value)">
+                                        <option value="">— без привязки к группе —</option>
+                                        @foreach($activeGroups as $g)
+                                            <option value="{{ $g->id }}">{{ $g->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div id="groupMembersBlock" class="group-members-block" style="display:none;">
+                                    <div class="gm-header">
+                                        <span class="gm-title">Участники</span>
+                                        <span class="gm-count" id="gmCount"></span>
+                                    </div>
+                                    <ul id="gmList" class="gm-list"></ul>
+                                    <div id="gmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                                </div>
+                                <div id="groupCoachBlock" class="form-group" style="display:none;">
+                                    <label for="bookGroupCoachSelect" class="form-label">Тренер</label>
+                                    <select id="bookGroupCoachSelect" class="form-input" onchange="document.getElementById('bookCoachId').value = this.value;">
+                                        <option value="">— без тренера —</option>
+                                        @foreach($clubCoaches as $cc)
+                                            <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="form-hint" id="bookGroupCoachHint" style="display:none;color:#a1a1aa;font-size:12px;margin-top:6px;">По умолчанию — тренер группы</small>
+                                </div>
+                            </div>
+                            @php
+                                $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
+                                    return [$g->id => [
+                                        'coach_id' => $g->coach_id,
+                                        'members' => $g->members->map(function ($m) {
+                                            $bought = (int) $m->enrollments->sum('sessions');
+                                            $used = (int) $m->attendance->where('charged', true)->count();
+                                            return [
+                                                'name' => optional($m->client)->name ?? '—',
+                                                'remaining' => $bought - $used,
+                                            ];
+                                        })->values(),
+                                    ]];
+                                })->toArray();
+                            @endphp
+                            <script>window.__groupMembers = @json($groupMembersData);</script>
+                        @endif
+                        <script>window.__coachNames = @json($clubCoaches->mapWithKeys(fn($cc) => [$cc->user_id => ($cc->user->full_name ?? '')])->toArray());</script>
+
+                        <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
+                        <div class="payment-methods js-hide-for-group" id="paymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
                             <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)">Kaspi</button>
@@ -983,12 +1123,18 @@
                         </div>
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
 
-                        <div class="form-group" style="margin-top: 14px;">
+                        <div class="form-group js-hide-for-group" style="margin-top: 14px;">
                             <label class="form-label">Статус оплаты *</label>
                             <input type="hidden" name="is_paid" id="isPaidInput" value="">
                             <div class="paid-toggle">
                                 <button type="button" class="paid-btn" data-value="0" onclick="setPaid(this)">Не оплачено</button>
                                 <button type="button" class="paid-btn" data-value="1" onclick="setPaid(this)">Оплачено</button>
+                            </div>
+                        </div>
+
+                        <div id="groupBookingHint" class="form-group js-show-for-group" style="display:none;">
+                            <div style="padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
+                                Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
                             </div>
                         </div>
 
@@ -1097,21 +1243,42 @@
 
                     <div class="modal-col-right">
                         <div class="form-group autocomplete-wrap">
-                            <label class="form-label">Напишите имя и фамилию клиента *</label>
+                            <label class="form-label" id="editClientLabel">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="editClientName" class="form-input" placeholder="Например: Денис Дудников" autocomplete="off" required>
                             <div class="autocomplete-list" id="editNameList"></div>
                             <small class="form-hint" id="editClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
-                        <div class="form-group autocomplete-wrap">
+                        <!-- Группа: тренер + участники (только для групповой брони) -->
+                        <div id="editGroupBlock" style="display:none;">
+                            <div class="modal-section-title">Тренер</div>
+                            <div class="form-input" id="editGroupCoach" style="background:#18181b;">—</div>
+                            <div class="group-members-block" style="margin-top:14px;">
+                                <div class="gm-header">
+                                    <span class="gm-title">Участники</span>
+                                    <span class="gm-count" id="editGmCount"></span>
+                                </div>
+                                <ul id="editGmList" class="gm-list"></ul>
+                                <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group autocomplete-wrap js-edit-hide-for-group">
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" autocomplete="off" required>
                             <div class="autocomplete-list" id="editPhoneList"></div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group js-edit-hide-for-group">
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="editClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
+                        </div>
+
+                        <div class="form-group" id="editCardWrap" style="display:none;">
+                            <label class="form-label">Клубная карта клиента</label>
+                            <input type="hidden" name="club_card_id" id="editCardInput" value="">
+                            <div class="client-card-buttons" id="editCardButtons"></div>
+                            <small class="form-hint" id="editCardHint" style="display:none;"></small>
                         </div>
 
                         <div class="modal-section-title">Тип брони</div>
@@ -1123,8 +1290,8 @@
                         </div>
                         <input type="hidden" name="booking_type" id="editBookingTypeInput">
 
-                        <div class="modal-section-title">Способ оплаты *</div>
-                        <div class="payment-methods" id="editPaymentMethods">
+                        <div class="modal-section-title js-edit-hide-for-group">Способ оплаты *</div>
+                        <div class="payment-methods js-edit-hide-for-group" id="editPaymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
                             <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
@@ -1135,7 +1302,7 @@
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
 
-                        <div class="form-group" style="margin-top: 14px;">
+                        <div class="form-group js-edit-hide-for-group" style="margin-top: 14px;">
                             <label class="form-label">Статус оплаты *</label>
                             <input type="hidden" name="is_paid" id="editIsPaidInput" value="">
                             <div class="paid-toggle">
@@ -1250,6 +1417,8 @@
         document.getElementById('bookDiscount').value = 0;
         updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
+        // Длительность сбросила цену/скидку — переприменим выбранную карту.
+        if (typeof selectedCard === 'object' && selectedCard.book) applyCardPricing('book');
     }
 
     function updateFinalPrice() {
@@ -1322,6 +1491,7 @@
             noteEl.removeAttribute('title');
         }
         if (noteHint) noteHint.style.display = 'none';
+        loadClientCards('book', '', null); // сброс карт клиента
         form.querySelector('textarea[name="comment"]').value = '';
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
@@ -1329,6 +1499,13 @@
         document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('bookingTypeInput').value = '';
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
+        // Свежая бронь — негрупповая: показываем поля клиента/оплаты, прячем блок группы.
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = '');
+        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = 'none');
+        const bgsw = document.getElementById('bookGroupSelectWrap');
+        if (bgsw) bgsw.style.display = 'none';
+        if (typeof renderGroupMembers === 'function') renderGroupMembers('');
+        ['bookClientName', 'bookClientPhone'].forEach(id => { const e = document.getElementById(id); if (e) e.required = true; });
         document.getElementById('bookCoachId').value = '';
         document.getElementById('bookCoachPaidGroup').style.display = 'none';
         document.getElementById('bookCoachPaidInput').value = '';
@@ -1367,6 +1544,8 @@
                 })
                 .catch(() => {});
         }
+        // Клубные карты клиента (с предвыбором текущей карты брони).
+        loadClientCards('edit', phoneNorm, data.clubCardId || null);
 
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
@@ -1419,6 +1598,10 @@
 
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
+
+        // Группа: тренер + участники + скрытие полей клиента/оплаты для групповой брони.
+        renderEditGroup(data);
+        applyEditGroupVisibility((data.bookingType || '') === 'group');
 
         renderEditDurationButtons(data);
 
@@ -1642,13 +1825,17 @@
                 unlockClientFields('edit');
                 document.getElementById('editClientNote').value = '';
             }
+            clearTimeout(cardLoadTimer);
+            cardLoadTimer = setTimeout(() => loadClientCards('edit', this.value, null), 400);
         });
     }
 
     function selectEditPayment(btn) {
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('editPaymentMethodInput').value = btn.getAttribute('data-value');
+        const val = btn.getAttribute('data-value');
+        document.getElementById('editPaymentMethodInput').value = val;
+        if (val !== 'club_card') deselectCard('edit');
     }
 
     function setEditPaid(btn) {
@@ -1687,7 +1874,10 @@
     function selectPayment(btn) {
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('paymentMethodInput').value = btn.getAttribute('data-value');
+        const val = btn.getAttribute('data-value');
+        document.getElementById('paymentMethodInput').value = val;
+        // Выбран не «Клубная карта» — снимаем карту и возвращаем обычную цену.
+        if (val !== 'club_card') deselectCard('book');
     }
 
     function setPaid(btn) {
@@ -1696,12 +1886,37 @@
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
     }
 
+    // Тип брони (опционально, повторный клик снимает выбор)
     function selectBookingType(btn) {
         const input = document.getElementById('bookingTypeInput');
         const wasActive = btn.classList.contains('active');
         document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+
+        const isGroup = input.value === 'group';
+
+        // Селект группы — только при типе «Групповые»
+        const groupWrap = document.getElementById('bookGroupSelectWrap');
+        if (groupWrap) {
+            groupWrap.style.display = isGroup ? 'block' : 'none';
+            if (!isGroup) {
+                const sel = document.getElementById('bookGroupSelect');
+                if (sel) sel.value = '';
+                renderGroupMembers('');
+            }
+        }
+
+        // При типе group прячем клиента/оплату/скидку, снимаем required.
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = isGroup ? 'none' : '');
+        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
+        ['bookClientName', 'bookClientPhone'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
+        });
+        // Блок карты — показываем только если есть карты и не групповая бронь.
+        const cardWrap = document.getElementById('bookCardWrap');
+        if (cardWrap) cardWrap.style.display = (!isGroup && (cardCache.book || []).length) ? '' : 'none';
     }
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');
@@ -1709,6 +1924,241 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+        applyEditGroupVisibility(input.value === 'group');
+    }
+
+    // ====== Клубные карты в окне брони (кнопки) — идентично дневному виду ======
+    const cardsForClientUrl = @json(route('club.cards.forClient'));
+    const cardCache = { book: [], edit: [] };
+    const selectedCard = { book: null, edit: null };
+    let cardLoadTimer = null;
+
+    function cardEsc(s) {
+        const d = document.createElement('div');
+        d.textContent = (s == null ? '' : String(s));
+        return d.innerHTML;
+    }
+
+    function loadClientCards(prefix, phone, preselectId) {
+        const wrap = document.getElementById(prefix + 'CardWrap');
+        const box = document.getElementById(prefix + 'CardButtons');
+        const input = document.getElementById(prefix + 'CardInput');
+        const hint = document.getElementById(prefix + 'CardHint');
+        if (!wrap || !box) return;
+        const reset = () => {
+            wrap.style.display = 'none'; box.innerHTML = '';
+            if (input) input.value = '';
+            if (hint) hint.style.display = 'none';
+            selectedCard[prefix] = null; cardCache[prefix] = [];
+        };
+        const digits = (phone || '').replace(/\D/g, '');
+        if (digits.length < 5) { reset(); return; }
+        fetch(cardsForClientUrl + '?phone=' + encodeURIComponent(digits))
+            .then(r => r.json())
+            .then(d => {
+                const cards = (d && d.cards) ? d.cards : [];
+                cardCache[prefix] = cards;
+                selectedCard[prefix] = null;
+                if (input) input.value = '';
+                if (!cards.length) { reset(); return; }
+                box.innerHTML = cards.map(c => {
+                    const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal + ' ч')
+                                             : ('скидка −' + c.discount_percent + '%');
+                    return '<button type="button" class="client-card-btn" data-id="' + c.id + '" ' +
+                        'onclick="onCardButton(\'' + prefix + '\',' + c.id + ')">' +
+                        '<span class="ccb-name">' + cardEsc(c.type_name || 'Карта') + '</span>' +
+                        '<span class="ccb-code">' + cardEsc(c.code) + '</span>' +
+                        '<span class="ccb-sub">' + sub + '</span></button>';
+                }).join('');
+                wrap.style.display = '';
+                if (preselectId) onCardButton(prefix, preselectId, true);
+            })
+            .catch(() => reset());
+    }
+
+    function onCardButton(prefix, cardId, keepIfSelected) {
+        const card = (cardCache[prefix] || []).find(c => String(c.id) === String(cardId));
+        if (!card) return;
+        const box = document.getElementById(prefix + 'CardButtons');
+        const input = document.getElementById(prefix + 'CardInput');
+        const hint = document.getElementById(prefix + 'CardHint');
+        const already = selectedCard[prefix] && String(selectedCard[prefix].id) === String(cardId);
+
+        if (already && !keepIfSelected) {
+            selectedCard[prefix] = null;
+            if (input) input.value = '';
+            if (box) box.querySelectorAll('.client-card-btn').forEach(b => b.classList.remove('active'));
+            if (hint) hint.style.display = 'none';
+            applyCardPricing(prefix);
+            return;
+        }
+
+        selectedCard[prefix] = card;
+        if (input) input.value = card.id;
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b =>
+            b.classList.toggle('active', String(b.dataset.id) === String(cardId)));
+
+        setPaymentClubCard(prefix);
+        applyCardPricing(prefix);
+
+        if (hint) {
+            hint.textContent = card.is_counter
+                ? ('Спишутся часы по длительности брони после её завершения (остаток: ' + card.balance + ' ч).')
+                : ('Скидка −' + card.discount_percent + '% применена к цене.');
+            hint.style.display = '';
+        }
+    }
+
+    function deselectCard(prefix) {
+        if (!selectedCard[prefix]) return;
+        selectedCard[prefix] = null;
+        const input = document.getElementById(prefix + 'CardInput');
+        const box = document.getElementById(prefix + 'CardButtons');
+        const hint = document.getElementById(prefix + 'CardHint');
+        if (input) input.value = '';
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b => b.classList.remove('active'));
+        if (hint) hint.style.display = 'none';
+        applyCardPricing(prefix);
+    }
+
+    function setPaymentClubCard(prefix) {
+        const sel = (prefix === 'book') ? '#paymentMethods' : '#editPaymentMethods';
+        const inputId = (prefix === 'book') ? 'paymentMethodInput' : 'editPaymentMethodInput';
+        document.querySelectorAll(sel + ' .pay-btn').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-value') === 'club_card'));
+        const inp = document.getElementById(inputId);
+        if (inp) inp.value = 'club_card';
+    }
+
+    function applyCardPricing(prefix) {
+        const card = selectedCard[prefix];
+        const priceEl = document.getElementById(prefix === 'book' ? 'bookCustomPrice' : 'editCustomPrice');
+        const discEl = document.getElementById(prefix === 'book' ? 'bookDiscount' : 'editDiscount');
+        if (!priceEl || !discEl) return;
+
+        if (!card) {
+            discEl.value = 0;
+            if (prefix === 'book') {
+                if (typeof calcTotalPrice === 'function') priceEl.value = calcTotalPrice();
+                updateFinalPrice();
+            }
+            return;
+        }
+        if (card.is_counter) {
+            const nominal = parseInt(card.nominal) || 0;
+            const cardPrice = parseInt(card.price) || 0;
+            if (nominal > 0 && cardPrice > 0) {
+                const perHour = Math.round(cardPrice / nominal);
+                const slots = (prefix === 'book' && typeof currentBook === 'object') ? (currentBook.duration || 1) : 1;
+                priceEl.value = perHour * slots;
+            }
+            discEl.value = 0;
+        } else if (card.is_discount) {
+            const price = parseInt(priceEl.value) || 0;
+            discEl.value = Math.round(price * (card.discount_percent || 0) / 100);
+        }
+        if (prefix === 'book') updateFinalPrice();
+    }
+
+    // ====== Группы (идентично дневному виду) ======
+    function renderGroupMembers(groupId) {
+        const block = document.getElementById('groupMembersBlock');
+        const list = document.getElementById('gmList');
+        const empty = document.getElementById('gmEmpty');
+        const count = document.getElementById('gmCount');
+        const coachBlock = document.getElementById('groupCoachBlock');
+        const coachSelect = document.getElementById('bookGroupCoachSelect');
+        const coachHint = document.getElementById('bookGroupCoachHint');
+        const coachIdInput = document.getElementById('bookCoachId');
+        if (!block || !list) return;
+        if (!groupId) {
+            block.style.display = 'none';
+            list.innerHTML = '';
+            if (coachBlock) coachBlock.style.display = 'none';
+            if (coachSelect) coachSelect.value = '';
+            if (coachIdInput) coachIdInput.value = '';
+            return;
+        }
+        const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
+        const members = data.members || [];
+        block.style.display = 'block';
+        list.innerHTML = '';
+        count.textContent = members.length ? members.length : '';
+        if (members.length === 0) {
+            empty.style.display = 'block';
+        } else {
+            empty.style.display = 'none';
+            members.forEach(m => {
+                const li = document.createElement('li');
+                li.className = 'gm-item';
+                const remaining = m.remaining;
+                const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
+                const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                list.appendChild(li);
+            });
+        }
+        if (coachBlock && coachSelect && coachIdInput) {
+            coachBlock.style.display = 'block';
+            const defaultCoach = data.coach_id ? String(data.coach_id) : '';
+            coachSelect.value = defaultCoach;
+            coachIdInput.value = defaultCoach;
+            if (coachHint) coachHint.style.display = defaultCoach ? 'block' : 'none';
+        }
+    }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function applyEditGroupVisibility(isGroup) {
+        document.querySelectorAll('.js-edit-hide-for-group').forEach(function (el) {
+            el.style.display = isGroup ? 'none' : '';
+        });
+        const phone = document.getElementById('editClientPhone');
+        if (phone) { phone.required = !isGroup; }
+        const name = document.getElementById('editClientName');
+        if (name) { name.readOnly = isGroup; }
+        const label = document.getElementById('editClientLabel');
+        if (label) {
+            label.textContent = isGroup ? 'Группа' : 'Напишите имя и фамилию клиента *';
+        }
+        const groupBlock = document.getElementById('editGroupBlock');
+        if (groupBlock) groupBlock.style.display = isGroup ? 'block' : 'none';
+        if (isGroup) {
+            const cp = document.getElementById('editCoachPaidGroup');
+            if (cp) cp.style.display = 'none';
+        }
+    }
+
+    function renderEditGroup(data) {
+        const coachEl = document.getElementById('editGroupCoach');
+        if (coachEl) {
+            coachEl.textContent = (window.__coachNames && window.__coachNames[data.coachId]) || '— без тренера —';
+        }
+        const list = document.getElementById('editGmList');
+        const empty = document.getElementById('editGmEmpty');
+        const count = document.getElementById('editGmCount');
+        if (!list) return;
+        list.innerHTML = '';
+        const g = (window.__groupMembers && data.groupId && window.__groupMembers[data.groupId]) || null;
+        const members = g ? (g.members || []) : [];
+        if (count) count.textContent = members.length ? members.length : '';
+        if (!members.length) {
+            if (empty) empty.style.display = 'block';
+        } else {
+            if (empty) empty.style.display = 'none';
+            members.forEach(function (m) {
+                const li = document.createElement('li');
+                li.className = 'gm-item';
+                const remaining = m.remaining;
+                const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
+                const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                list.appendChild(li);
+            });
+        }
     }
 
     // Валидация формы бронирования: имя+фамилия, способ оплаты, статус оплаты
@@ -1736,6 +2186,8 @@
 
     document.getElementById('bookForm').addEventListener('submit', function(e) {
         const form = e.target;
+        const bookingType = document.getElementById('bookingTypeInput').value;
+        const isGroup = bookingType === 'group';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -1743,33 +2195,39 @@
         const paymentGroup = document.getElementById('paymentMethods');
         const paidGroup = document.getElementById('isPaidInput').parentElement.querySelector('.paid-toggle');
 
-        const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
-        if (words.length < 2) {
-            e.preventDefault();
-            showBookFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
-            return;
+        // Для групповой брони поля клиента/оплаты не нужны — пропускаем эти проверки.
+        if (!isGroup) {
+            const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+            if (words.length < 2) {
+                e.preventDefault();
+                showBookFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                return;
+            }
+            if (!(phoneInput.value || '').trim()) {
+                e.preventDefault();
+                showBookFormError('Укажите номер телефона клиента', phoneInput);
+                return;
+            }
+            if (!paymentInput.value) {
+                e.preventDefault();
+                showBookFormError('Выберите способ оплаты', paymentGroup);
+                return;
+            }
+            if (paidInput.value === '') {
+                e.preventDefault();
+                showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+                return;
+            }
         }
-        if (!(phoneInput.value || '').trim()) {
-            e.preventDefault();
-            showBookFormError('Укажите номер телефона клиента', phoneInput);
-            return;
-        }
-        if (!paymentInput.value) {
-            e.preventDefault();
-            showBookFormError('Выберите способ оплаты', paymentGroup);
-            return;
-        }
-        if (paidInput.value === '') {
-            e.preventDefault();
-            showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
-            return;
-        }
-        const coachId = document.getElementById('bookCoachId').value;
-        const coachPaid = document.getElementById('bookCoachPaidInput').value;
-        if (coachId && coachPaid === '') {
-            e.preventDefault();
-            showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
-            return;
+        // Статус оплаты тренера обязателен только для разовых броней.
+        if (!isGroup) {
+            const coachId = document.getElementById('bookCoachId').value;
+            const coachPaid = document.getElementById('bookCoachPaidInput').value;
+            if (coachId && coachPaid === '') {
+                e.preventDefault();
+                showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
+                return;
+            }
         }
         clearBookFormError();
     });
@@ -2037,6 +2495,8 @@
                                     const isEdit = (inputId === 'editClientName' || inputId === 'editClientPhone');
                                     if (isBook || isEdit) {
                                         lockClientFields(isBook ? 'book' : 'edit', this.dataset.note || '');
+                                        const ph = this.dataset.phone || '';
+                                        loadClientCards(isBook ? 'book' : 'edit', ph, null);
                                     }
                                     list.classList.remove('show');
                                 });
@@ -2077,6 +2537,9 @@
                     noteInput.removeAttribute('title');
                 }
                 if (noteHint) noteHint.style.display = 'none';
+                // Подгрузка карт клиента по введённому телефону (с дебаунсом).
+                clearTimeout(cardLoadTimer);
+                cardLoadTimer = setTimeout(() => loadClientCards('book', this.value, null), 400);
             });
         }
     })();
