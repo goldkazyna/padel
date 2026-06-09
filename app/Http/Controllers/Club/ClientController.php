@@ -48,14 +48,28 @@ class ClientController extends Controller
             : $clients->first();
 
         $clientGroups = collect();
+        $clientCards = collect();
+        $cardTypes = collect();
         if ($selectedClient) {
             $clientGroups = \App\Models\ClubGroupMember::where('client_id', $selectedClient->id)
                 ->whereHas('group', fn($q) => $q->where('club_id', $club->id))
                 ->with('group')
                 ->get();
+
+            $clientCards = \App\Models\ClubCard::where('club_client_id', $selectedClient->id)
+                ->where('club_id', $club->id)
+                ->with('type')
+                ->orderByDesc('created_at')
+                ->get();
+
+            // Активные типы карт клуба — для модалки выпуска.
+            $cardTypes = \App\Models\ClubCardType::where('club_id', $club->id)
+                ->active()
+                ->orderBy('name')
+                ->get();
         }
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups'));
+        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientCards', 'cardTypes'));
     }
 
     /**

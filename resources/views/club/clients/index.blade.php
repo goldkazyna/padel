@@ -189,6 +189,46 @@
                 </div>
                 @endif
 
+                <div class="client-detail-section">
+                    <div class="client-detail-label client-cards-head">
+                        <span>Клубные карты</span>
+                        <button type="button" class="btn-attach-card" onclick="openIssueCardModal()">+ Привязать</button>
+                    </div>
+                    @if($clientCards->isEmpty())
+                        <div class="client-cards-empty">Карт нет</div>
+                    @else
+                    <div class="client-cards-list">
+                        @foreach($clientCards as $card)
+                        @php $actual = $card->isActual(); @endphp
+                        <div class="client-card-item {{ $actual ? '' : 'is-inactive' }}">
+                            <div class="cci-main">
+                                <div class="cci-name">{{ $card->type?->name ?? 'Карта' }}</div>
+                                <div class="cci-sub">
+                                    <span class="cci-code">{{ $card->code }}</span>
+                                    @if($card->expires_at)
+                                        · до {{ $card->expires_at->format('d.m.Y') }}
+                                    @endif
+                                    @unless($actual) · <span class="cci-dead">не активна</span> @endunless
+                                </div>
+                            </div>
+                            <div class="cci-right">
+                                @if($card->isCounter())
+                                    <span class="cci-balance">{{ (int) $card->balance }}<span class="cci-of">/{{ (int) $card->initial_balance }}</span></span>
+                                @else
+                                    <span class="cci-balance cci-discount">−{{ $card->type?->discount_percent }}%</span>
+                                @endif
+                                <form action="{{ route('club.cards.destroy', $card) }}" method="POST"
+                                      onsubmit="return confirm('Отвязать карту «{{ $card->type?->name }}» (код {{ $card->code }})?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="cci-unlink" title="Отвязать"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
+
                 @if($selectedClient->note)
                 <div class="client-detail-section">
                     <div class="client-detail-label">Заметка</div>
@@ -320,6 +360,59 @@
         </form>
     </div>
 </div>
+
+<!-- Issue Card Modal -->
+<div class="modal-overlay" id="issueCardModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Привязать карту</h2>
+            <button class="modal-close" onclick="closeModal('issueCardModal')">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <form action="{{ route('club.cards.issue') }}" method="POST">
+            @csrf
+            <input type="hidden" name="club_client_id" value="{{ $selectedClient->id }}">
+            <div class="modal-body">
+                @if($cardTypes->isEmpty())
+                    <div class="client-cards-empty">Сначала создайте типы карт в разделе «Клубные карты».</div>
+                @else
+                <div class="form-group">
+                    <label class="form-label">Тип карты *</label>
+                    <select name="club_card_type_id" id="issueType" class="form-input" onchange="issueToggle()" required>
+                        @foreach($cardTypes as $ct)
+                        <option value="{{ $ct->id }}"
+                            data-counter="{{ $ct->isCounter() ? 1 : 0 }}"
+                            data-nominal="{{ (int) $ct->nominal }}"
+                            data-discount="{{ (int) $ct->discount_percent }}"
+                            data-days="{{ (int) $ct->default_validity_days }}"
+                            data-date="{{ $ct->default_expires_at?->format('Y-m-d') }}">
+                            {{ $ct->name }} ({{ $ct->kindName() }})
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-group" id="issueBalanceField">
+                    <label class="form-label">Остаток (число занятий)</label>
+                    <input type="number" name="balance" id="issueBalance" class="form-input" min="0" max="100000">
+                    <div class="issue-hint">Пусто = номинал типа</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Действует до (необязательно)</label>
+                    <input type="date" name="expires_at" id="issueExpires" class="form-input">
+                    <div class="issue-hint" id="issueExpiresHint"></div>
+                </div>
+                @endif
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeModal('issueCardModal')">Отмена</button>
+                @if($cardTypes->isNotEmpty())
+                <button type="submit" class="btn-save">Привязать</button>
+                @endif
+            </div>
+        </form>
+    </div>
+</div>
 @endif
 
 <script>
@@ -328,6 +421,24 @@ function openAddModal() {
 }
 function openEditModal() {
     document.getElementById('editModal').classList.add('active');
+}
+function openIssueCardModal() {
+    document.getElementById('issueCardModal').classList.add('active');
+    issueToggle();
+}
+function issueToggle() {
+    const sel = document.getElementById('issueType');
+    if (!sel) return;
+    const opt = sel.options[sel.selectedIndex];
+    const counter = opt.dataset.counter === '1';
+    document.getElementById('issueBalanceField').style.display = counter ? '' : 'none';
+    const bal = document.getElementById('issueBalance');
+    if (counter && !bal.value) bal.placeholder = opt.dataset.nominal || '';
+    // Подсказка срока по умолчанию из типа.
+    const hint = document.getElementById('issueExpiresHint');
+    if (opt.dataset.date) hint.textContent = 'По умолчанию: до ' + opt.dataset.date.split('-').reverse().join('.');
+    else if (opt.dataset.days && opt.dataset.days !== '0') hint.textContent = 'По умолчанию: ' + opt.dataset.days + ' дн. с сегодня';
+    else hint.textContent = 'По умолчанию: бессрочно';
 }
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
@@ -959,6 +1070,26 @@ document.addEventListener('keydown', function(e) {
     transition: all 0.2s;
 }
 .btn-save:hover { background: var(--cl-accent-dark); }
+
+/* Клубные карты в карточке клиента */
+.client-cards-head { display:flex; align-items:center; justify-content:space-between; }
+.btn-attach-card { background:rgba(34,197,94,.14); color:var(--cl-accent); border:1px solid rgba(34,197,94,.3); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; }
+.client-cards-empty { color:var(--cl-text-muted); font-size:13px; padding:6px 0; }
+.client-cards-list { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.client-card-item { display:flex; align-items:center; gap:10px; background:var(--cl-card); border:1px solid var(--cl-border); border-radius:10px; padding:10px 12px; }
+.client-card-item.is-inactive { opacity:.55; }
+.cci-main { flex:1; min-width:0; }
+.cci-name { color:var(--cl-text); font-weight:600; font-size:14px; }
+.cci-sub { color:var(--cl-text-muted); font-size:11px; margin-top:2px; }
+.cci-code { font-family:monospace; letter-spacing:1px; color:var(--cl-text-dim); }
+.cci-dead { color:#ef4444; }
+.cci-right { display:flex; align-items:center; gap:10px; }
+.cci-balance { color:var(--cl-accent); font-weight:800; font-size:16px; }
+.cci-balance.cci-discount { color:#f08446; font-size:14px; }
+.cci-of { color:var(--cl-text-muted); font-weight:500; font-size:12px; }
+.cci-unlink { background:transparent; border:none; color:var(--cl-text-muted); cursor:pointer; padding:4px; }
+.cci-unlink:hover { color:#ef4444; }
+.issue-hint { color:var(--cl-text-muted); font-size:11px; margin-top:4px; }
 
 /* Responsive */
 @media (max-width: 900px) {

@@ -45,7 +45,9 @@ class ClubCard extends Model
 
     public function isExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        // expires_at — последний день действия включительно.
+        return $this->expires_at !== null
+            && $this->expires_at->startOfDay()->lt(now()->startOfDay());
     }
 
     /** Карта актуальна: активна, не истекла, и (для счётчиков) есть остаток. */

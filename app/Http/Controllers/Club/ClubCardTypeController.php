@@ -26,10 +26,25 @@ class ClubCardTypeController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Статистика по выпущенным картам (наполним больше в Этапе 2).
+        // Статистика по выпущенным картам.
         $issuedCount = \App\Models\ClubCard::where('club_id', $club->id)->count();
 
-        return view('club.cards.index', compact('club', 'types', 'issuedCount'));
+        // «Актуально сейчас»: активна, не истекла, у счётчиков остаток > 0.
+        $today = now()->toDateString();
+        $actualCount = \App\Models\ClubCard::where('club_id', $club->id)
+            ->where('status', 'active')
+            ->where(fn($q) => $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', $today))
+            ->where(fn($q) => $q->whereNull('balance')->orWhere('balance', '>', 0))
+            ->count();
+
+        // Список выпущенных карт (последние) с клиентом и типом.
+        $issuedCards = \App\Models\ClubCard::where('club_id', $club->id)
+            ->with(['type', 'client'])
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+
+        return view('club.cards.index', compact('club', 'types', 'issuedCount', 'actualCount', 'issuedCards'));
     }
 
     public function store(Request $request)

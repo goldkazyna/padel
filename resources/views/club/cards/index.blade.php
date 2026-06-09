@@ -16,6 +16,8 @@
 
     <div class="cards-stat-row">
         <div class="cards-stat"><span class="cards-stat-num">{{ $issuedCount }}</span><span class="cards-stat-label">Выпущено карт</span></div>
+        <div class="cards-stat"><span class="cards-stat-num cards-stat-green">{{ $actualCount }}</span><span class="cards-stat-label">Актуально сейчас</span></div>
+        <div class="cards-stat"><span class="cards-stat-num">{{ $types->count() }}</span><span class="cards-stat-label">Типов карт</span></div>
     </div>
 
     <h2 class="cards-section-title">Типы карт</h2>
@@ -57,6 +59,35 @@
                 </form>
             </div>
         </div>
+        @endforeach
+    </div>
+    @endif
+
+    <h2 class="cards-section-title">Выпущенные карты</h2>
+    @if($issuedCards->isEmpty())
+        <div class="cards-empty">Пока не выпущено ни одной карты. Привязать карту можно в карточке клиента.</div>
+    @else
+    <div class="issued-list">
+        @foreach($issuedCards as $card)
+        @php $actual = $card->isActual(); @endphp
+        <a href="{{ $card->client ? route('club.clients.index', ['selected' => $card->client->id]) : '#' }}"
+           class="issued-row {{ $actual ? '' : 'is-inactive' }}">
+            <div class="ir-client">
+                <span class="ir-name">{{ $card->client?->name ?? '— клиент удалён —' }}</span>
+                <span class="ir-type">{{ $card->type?->name ?? 'Карта' }} · <span class="ir-code">{{ $card->code }}</span></span>
+            </div>
+            <div class="ir-meta">
+                @if($card->expires_at)<span class="ir-exp">до {{ $card->expires_at->format('d.m.Y') }}</span>@else<span class="ir-exp">бессрочно</span>@endif
+            </div>
+            <div class="ir-bal">
+                @if($card->isCounter())
+                    <span class="ct-badge">{{ (int) $card->balance }}/{{ (int) $card->initial_balance }}</span>
+                @else
+                    <span class="ct-badge ct-badge-discount">−{{ $card->type?->discount_percent }}%</span>
+                @endif
+                @unless($actual)<span class="ir-dead">не активна</span>@endunless
+            </div>
+        </a>
         @endforeach
     </div>
     @endif
@@ -135,7 +166,19 @@
 .cards-stat-row { display:flex; gap:12px; margin-bottom:20px; }
 .cards-stat { background:#18181b; border:1px solid #27272a; border-radius:12px; padding:14px 20px; min-width:140px; }
 .cards-stat-num { display:block; font-size:26px; font-weight:800; color:#fff; }
+.cards-stat-num.cards-stat-green { color:#22c55e; }
 .cards-stat-label { color:#a1a1aa; font-size:12px; }
+.issued-list { display:flex; flex-direction:column; gap:8px; }
+.issued-row { display:flex; align-items:center; gap:14px; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:11px 14px; text-decoration:none; }
+.issued-row:hover { background:#1c1c21; }
+.issued-row.is-inactive { opacity:.55; }
+.ir-client { flex:1; min-width:0; }
+.ir-name { display:block; color:#fff; font-weight:600; font-size:14px; }
+.ir-type { color:#a1a1aa; font-size:12px; }
+.ir-code { font-family:monospace; letter-spacing:1px; color:#71717a; }
+.ir-meta { color:#71717a; font-size:12px; }
+.ir-bal { display:flex; align-items:center; gap:8px; }
+.ir-dead { color:#ef4444; font-size:11px; }
 .cards-section-title { color:#a1a1aa; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin:8px 0 12px; }
 .cards-empty { color:#71717a; padding:24px; text-align:center; background:#18181b; border:1px solid #27272a; border-radius:12px; }
 .cards-types { display:flex; flex-direction:column; gap:10px; }
