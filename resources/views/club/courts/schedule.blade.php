@@ -984,6 +984,13 @@
     const selectedCard = { book: null, edit: null };
     let cardLoadTimer = null;
 
+    // Локальный escape (escHtml из автокомплита заперт в своём IIFE и здесь недоступен).
+    function cardEsc(s) {
+        const d = document.createElement('div');
+        d.textContent = (s == null ? '' : String(s));
+        return d.innerHTML;
+    }
+
     function loadClientCards(prefix, phone, preselectId) {
         const wrap = document.getElementById(prefix + 'CardWrap');
         const box = document.getElementById(prefix + 'CardButtons');
@@ -1011,8 +1018,8 @@
                                              : ('скидка −' + c.discount_percent + '%');
                     return '<button type="button" class="client-card-btn" data-id="' + c.id + '" ' +
                         'onclick="onCardButton(\'' + prefix + '\',' + c.id + ')">' +
-                        '<span class="ccb-name">' + escHtml(c.type_name || 'Карта') + '</span>' +
-                        '<span class="ccb-code">' + escHtml(c.code) + '</span>' +
+                        '<span class="ccb-name">' + cardEsc(c.type_name || 'Карта') + '</span>' +
+                        '<span class="ccb-code">' + cardEsc(c.code) + '</span>' +
                         '<span class="ccb-sub">' + sub + '</span></button>';
                 }).join('');
                 wrap.style.display = '';
