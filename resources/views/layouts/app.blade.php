@@ -984,6 +984,12 @@
 						</a>
 					</li>
 					@endif
+					<li class="nav-item">
+						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}">
+							<i class="bi bi-credit-card-2-front"></i>
+							<span>Клубные карты</span>
+						</a>
+					</li>
 					@if(!$modClub || $modClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
@@ -1052,6 +1058,12 @@
 						</a>
 					</li>
 					@endif
+					<li class="nav-item">
+						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}">
+							<i class="bi bi-credit-card-2-front"></i>
+							<span>Клубные карты</span>
+						</a>
+					</li>
 					@if(!$navClub || $navClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">

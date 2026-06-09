@@ -26,6 +26,8 @@ class CourtBooking extends Model
         'coach_id',
         'coach_paid',
         'needs_coach',
+        'club_card_id',
+        'card_charged_at',
     ];
 
     protected $casts = [
@@ -37,6 +39,7 @@ class CourtBooking extends Model
         'is_processed' => 'boolean',
         'needs_coach' => 'boolean',
         'coach_paid' => 'boolean',
+        'card_charged_at' => 'datetime',
     ];
 
     public function court()
@@ -52,6 +55,11 @@ class CourtBooking extends Model
     public function coach()
     {
         return $this->belongsTo(User::class, 'coach_id');
+    }
+
+    public function clubCard()
+    {
+        return $this->belongsTo(ClubCard::class, 'club_card_id');
     }
 
     /**

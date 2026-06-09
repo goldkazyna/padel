@@ -287,6 +287,12 @@ Route::middleware('auth')->group(function () {
             Route::delete('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'destroy'])->name('clients.destroy');
         });
 
+        // Клубные карты
+        Route::get('/cards', [App\Http\Controllers\Club\ClubCardTypeController::class, 'index'])->name('cards.index');
+        Route::post('/card-types', [App\Http\Controllers\Club\ClubCardTypeController::class, 'store'])->name('cardTypes.store');
+        Route::put('/card-types/{cardType}', [App\Http\Controllers\Club\ClubCardTypeController::class, 'update'])->name('cardTypes.update');
+        Route::delete('/card-types/{cardType}', [App\Http\Controllers\Club\ClubCardTypeController::class, 'destroy'])->name('cardTypes.destroy');
+
         // Групповые занятия
         Route::middleware('club.feature:groups')->group(function () {
             Route::get('/groups', [App\Http\Controllers\Club\ClubGroupController::class, 'index'])->name('groups.index');

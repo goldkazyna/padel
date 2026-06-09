@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Http\Controllers\Club;
+
+use App\Http\Controllers\Controller;
+use App\Models\ClubCardType;
+use Illuminate\Http\Request;
+
+class ClubCardTypeController extends Controller
+{
+    private function getClub()
+    {
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) return \App\Models\Club::first();
+        if ($user->isClubModerator()) return $user->moderatorClubs()->first();
+        return $user->adminClubs()->first();
+    }
+
+    public function index()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $types = ClubCardType::where('club_id', $club->id)
+            ->withCount(['cards as active_cards_count' => fn($q) => $q->where('status', 'active')])
+            ->orderBy('name')
+            ->get();
+
+        // Статистика по выпущенным картам (наполним больше в Этапе 2).
+        $issuedCount = \App\Models\ClubCard::where('club_id', $club->id)->count();
+
+        return view('club.cards.index', compact('club', 'types', 'issuedCount'));
+    }
+
+    public function store(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $data = $this->validateType($request);
+        $data['club_id'] = $club->id;
+        $this->normalizeByKind($data);
+
+        ClubCardType::create($data);
+
+        return back()->with('success', 'Тип карты создан');
+    }
+
+    public function update(Request $request, ClubCardType $cardType)
+    {
+        $club = $this->getClub();
+        if (!$club || $cardType->club_id !== $club->id) abort(403);
+
+        $data = $this->validateType($request);
+        $this->normalizeByKind($data);
+
+        $cardType->update($data);
+
+        return back()->with('success', 'Тип карты обновлён');
+    }
+
+    public function destroy(ClubCardType $cardType)
+    {
+        $club = $this->getClub();
+        if (!$club || $cardType->club_id !== $club->id) abort(403);
+
+        // Нельзя удалить тип, пока есть активные выпущенные карты этого типа.
+        $active = $cardType->cards()->where('status', 'active')->count();
+        if ($active > 0) {
+            return back()->with('error', 'Сначала отвяжите карты этого типа от клиентов (активных: ' . $active . ')');
+        }
+
+        $cardType->delete();
+
+        return back()->with('success', 'Тип карты удалён');
+    }
+
+    private function validateType(Request $request): array
+    {
+        return $request->validate([
+            'name' => 'required|string|max:255',
+            'kind' => 'required|in:visits,trainer,discount_court,discount_trainer',
+            'nominal' => 'nullable|integer|min:1|max:10000',
+            'discount_percent' => 'nullable|integer|min:1|max:100',
+            'default_validity_days' => 'nullable|integer|min:1|max:3650',
+        ]);
+    }
+
+    /** Очищаем неактуальные для вида поля. */
+    private function normalizeByKind(array &$data): void
+    {
+        $isCounter = in_array($data['kind'], ['visits', 'trainer'], true);
+        if ($isCounter) {
+            $data['discount_percent'] = null;
+            $data['nominal'] = $data['nominal'] ?? 1;
+        } else {
+            $data['nominal'] = null;
+            $data['discount_percent'] = $data['discount_percent'] ?? 1;
+        }
+    }
+}
