@@ -9,6 +9,8 @@ class ClubCardType extends Model
     protected $fillable = [
         'club_id',
         'name',
+        'code_prefix',
+        'last_card_number',
         'kind',
         'nominal',
         'discount_percent',
@@ -22,6 +24,7 @@ class ClubCardType extends Model
         'is_active' => 'boolean',
         'nominal' => 'integer',
         'discount_percent' => 'integer',
+        'last_card_number' => 'integer',
         'price' => 'integer',
         'default_expires_at' => 'date',
         'default_validity_days' => 'integer',

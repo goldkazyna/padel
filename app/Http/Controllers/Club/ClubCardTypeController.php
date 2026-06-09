@@ -52,7 +52,7 @@ class ClubCardTypeController extends Controller
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $data = $this->validateType($request);
+        $data = $this->validateType($request, $club);
         $data['club_id'] = $club->id;
         $this->normalizeByKind($data);
         $this->normalizeValidity($data);
@@ -67,7 +67,7 @@ class ClubCardTypeController extends Controller
         $club = $this->getClub();
         if (!$club || $cardType->club_id !== $club->id) abort(403);
 
-        $data = $this->validateType($request);
+        $data = $this->validateType($request, $club, $cardType->id);
         $this->normalizeByKind($data);
         $this->normalizeValidity($data);
 
@@ -92,10 +92,21 @@ class ClubCardTypeController extends Controller
         return back()->with('success', 'Тип карты удалён');
     }
 
-    private function validateType(Request $request): array
+    private function validateType(Request $request, $club, ?int $ignoreId = null): array
     {
+        // Префикс нормализуем в верхний регистр без пробелов до проверки уникальности.
+        $request->merge([
+            'code_prefix' => strtoupper(trim((string) $request->input('code_prefix'))),
+        ]);
+
         return $request->validate([
             'name' => 'required|string|max:255',
+            'code_prefix' => [
+                'required', 'string', 'max:12', 'regex:/^[A-Z0-9]+$/',
+                \Illuminate\Validation\Rule::unique('club_card_types', 'code_prefix')
+                    ->where('club_id', $club->id)
+                    ->ignore($ignoreId),
+            ],
             'kind' => 'required|in:visits,trainer,discount_court,discount_trainer',
             'nominal' => 'nullable|integer|min:1|max:10000',
             'discount_percent' => 'nullable|integer|min:1|max:100',
@@ -103,6 +114,9 @@ class ClubCardTypeController extends Controller
             'validity_mode' => 'nullable|in:forever,date,days',
             'default_expires_at' => 'nullable|date|after:today',
             'default_validity_days' => 'nullable|integer|min:1|max:3650',
+        ], [
+            'code_prefix.regex' => 'Префикс — только латинские буквы и цифры (напр. VIP).',
+            'code_prefix.unique' => 'Такой префикс уже используется другим типом карты.',
         ]);
     }
 

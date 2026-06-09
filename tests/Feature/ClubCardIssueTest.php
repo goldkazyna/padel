@@ -27,16 +27,37 @@ class ClubCardIssueTest extends TestCase
     public function test_issue_counter_from_nominal(): void
     {
         [$club, , $client] = $this->setup_club();
-        $type = ClubCardType::create(['club_id' => $club->id, 'name' => '10 пос.', 'kind' => 'visits', 'nominal' => 10]);
+        $type = ClubCardType::create(['club_id' => $club->id, 'name' => '10 пос.', 'code_prefix' => 'VIS', 'kind' => 'visits', 'nominal' => 10]);
 
         $card = (new ClubCardService())->issue($client, $type);
 
         $this->assertSame(10, $card->balance);
         $this->assertSame(10, $card->initial_balance);
-        $this->assertSame(8, strlen($card->code));
+        $this->assertSame('VIS000001', $card->code, 'префикс + 6-значный номер');
         $this->assertSame('active', $card->status);
         $this->assertSame($client->id, $card->club_client_id);
         $this->assertNull($card->expires_at, 'бессрочно без срока в типе');
+    }
+
+    public function test_card_numbers_are_sequential_per_type(): void
+    {
+        [$club, , $client] = $this->setup_club();
+        $type = ClubCardType::create(['club_id' => $club->id, 'name' => 'A', 'code_prefix' => 'VIP', 'kind' => 'visits', 'nominal' => 5]);
+        $other = ClubCardType::create(['club_id' => $club->id, 'name' => 'B', 'code_prefix' => 'GOLD', 'kind' => 'visits', 'nominal' => 5]);
+        $svc = new ClubCardService();
+
+        $c1 = $svc->issue($client, $type);
+        $c2 = $svc->issue($client, $type);
+        $g1 = $svc->issue($client, $other);
+
+        $this->assertSame('VIP000001', $c1->code);
+        $this->assertSame('VIP000002', $c2->code);
+        $this->assertSame('GOLD000001', $g1->code, 'серия отдельная по типу');
+
+        // После отвязки номер не переиспользуется.
+        $c2->delete();
+        $c3 = $svc->issue($client, $type);
+        $this->assertSame('VIP000003', $c3->code);
     }
 
     public function test_issue_with_balance_override(): void

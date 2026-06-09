@@ -30,6 +30,7 @@
             <div class="ct-main">
                 <div class="ct-name">{{ $t->name }}</div>
                 <div class="ct-kind">{{ $t->kindName() }}</div>
+                @if($t->code_prefix)<div class="ct-prefix-tag">{{ $t->code_prefix }}{{ str_pad((string)((int)$t->last_card_number + 1), 6, '0', STR_PAD_LEFT) }} →</div>@endif
             </div>
             <div class="ct-val">
                 @if($t->isCounter())
@@ -107,6 +108,13 @@
                 <div class="ct-field">
                     <label>Название *</label>
                     <input type="text" name="name" id="ctName" required placeholder="Напр.: 10 посещений">
+                </div>
+                <div class="ct-field">
+                    <label>Префикс номера карты *</label>
+                    <input type="text" name="code_prefix" id="ctPrefix" required maxlength="12"
+                           placeholder="Напр.: VIP" style="text-transform:uppercase;"
+                           oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,''); ctPrefixPreview()">
+                    <div class="ct-hint">Номера карт этого типа будут <b id="ctPrefixPreviewBox">VIP000001</b>, далее по порядку.</div>
                 </div>
                 <div class="ct-field">
                     <label>Вид карты *</label>
@@ -205,6 +213,9 @@
 .ct-field label { display:block; color:#a1a1aa; font-size:12px; margin-bottom:6px; }
 .ct-field input, .ct-field select { width:100%; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:10px 12px; color:#fff; }
 .ct-field input.ct-date { color-scheme: dark; }
+.ct-hint { color:#71717a; font-size:11px; margin-top:5px; }
+.ct-hint b { color:#a78bfa; font-family:monospace; letter-spacing:1px; }
+.ct-prefix-tag { display:inline-block; font-family:monospace; letter-spacing:1px; color:#a78bfa; background:rgba(124,58,237,.14); padding:1px 7px; border-radius:5px; font-size:11px; margin-top:3px; }
 .ct-modal-foot { display:flex; gap:12px; padding:14px 20px; border-top:1px solid #27272a; }
 .btn-cancel { flex:1; background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:11px; cursor:pointer; }
 .btn-save { flex:2; background:#22c55e; color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; cursor:pointer; }
@@ -216,6 +227,10 @@ function ctToggleKind() {
     const counter = (kind === 'visits' || kind === 'trainer');
     document.getElementById('ctNominalField').style.display = counter ? '' : 'none';
     document.getElementById('ctDiscountField').style.display = counter ? 'none' : '';
+}
+function ctPrefixPreview() {
+    const p = (document.getElementById('ctPrefix').value || 'XXX');
+    document.getElementById('ctPrefixPreviewBox').textContent = p + '000001';
 }
 function ctToggleValidity() {
     const mode = document.getElementById('ctValidityMode').value;
@@ -229,6 +244,7 @@ function openCardTypeModal(t) {
         form.action = '{{ url("club/card-types") }}/' + t.id;
         document.getElementById('ctMethod').value = 'PUT';
         document.getElementById('ctName').value = t.name || '';
+        document.getElementById('ctPrefix').value = t.code_prefix || '';
         document.getElementById('ctKind').value = t.kind;
         document.getElementById('ctNominal').value = t.nominal || 10;
         document.getElementById('ctDiscount').value = t.discount_percent || 10;
@@ -251,6 +267,7 @@ function openCardTypeModal(t) {
     }
     ctToggleKind();
     ctToggleValidity();
+    ctPrefixPreview();
     document.getElementById('cardTypeModal').style.display = 'flex';
 }
 </script>

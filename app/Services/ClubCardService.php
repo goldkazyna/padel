@@ -6,6 +6,7 @@ use App\Models\ClubCard;
 use App\Models\ClubCardType;
 use App\Models\ClubClient;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ClubCardService
 {
@@ -33,12 +34,32 @@ class ClubCardService
             'club_id' => $type->club_id,
             'club_card_type_id' => $type->id,
             'club_client_id' => $client->id,
-            'code' => $this->generateCode(),
+            'code' => $this->nextCardCode($type),
             'balance' => $balance,
             'initial_balance' => $initial,
             'expires_at' => $this->resolveExpiry($type, $expiresAt),
             'status' => 'active',
         ]);
+    }
+
+    /**
+     * Следующий номер карты серии типа: префикс + 6-значный номер (VIP000001).
+     * Счётчик last_card_number персистентный (не переиспользуется после отвязки).
+     */
+    public function nextCardCode(ClubCardType $type): string
+    {
+        return DB::transaction(function () use ($type) {
+            $locked = ClubCardType::where('id', $type->id)->lockForUpdate()->first();
+            $prefix = $locked->code_prefix ?? '';
+            do {
+                $number = (int) $locked->last_card_number + 1;
+                $locked->last_card_number = $number;
+                $code = $prefix . str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+            } while (ClubCard::where('code', $code)->exists()); // защита от ручных коллизий
+            $locked->save();
+            $type->last_card_number = $number; // синхронизируем переданную модель
+            return $code;
+        });
     }
 
     /** Срок: явная дата → она; иначе фикс. дата типа; иначе N дней с сегодня; иначе бессрочно. */

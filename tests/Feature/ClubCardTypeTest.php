@@ -36,6 +36,7 @@ class ClubCardTypeTest extends TestCase
 
         $this->actingAs($admin)->post(route('club.cardTypes.store'), [
             'name' => '10 посещений',
+            'code_prefix' => 'pas', // нормализуется в PAS
             'kind' => 'visits',
             'nominal' => 10,
         ])->assertRedirect();
@@ -45,6 +46,7 @@ class ClubCardTypeTest extends TestCase
         $this->assertSame('visits', $t->kind);
         $this->assertSame(10, (int) $t->nominal);
         $this->assertNull($t->discount_percent); // очищается для счётчика
+        $this->assertSame('PAS', $t->code_prefix); // верхний регистр
     }
 
     public function test_discount_type_clears_nominal(): void
@@ -53,6 +55,7 @@ class ClubCardTypeTest extends TestCase
 
         $this->actingAs($admin)->post(route('club.cardTypes.store'), [
             'name' => 'VIP −15%',
+            'code_prefix' => 'VIP',
             'kind' => 'discount_court',
             'discount_percent' => 15,
         ])->assertRedirect();
@@ -68,6 +71,7 @@ class ClubCardTypeTest extends TestCase
 
         $this->actingAs($admin)->post(route('club.cardTypes.store'), [
             'name' => 'Сезонная',
+            'code_prefix' => 'SEZ',
             'kind' => 'visits',
             'nominal' => 10,
             'price' => 50000,
@@ -88,6 +92,7 @@ class ClubCardTypeTest extends TestCase
 
         $this->actingAs($admin)->post(route('club.cardTypes.store'), [
             'name' => 'Месячная',
+            'code_prefix' => 'MES',
             'kind' => 'trainer',
             'nominal' => 8,
             'validity_mode' => 'days',
@@ -98,6 +103,26 @@ class ClubCardTypeTest extends TestCase
         $t = ClubCardType::where('club_id', $club->id)->first();
         $this->assertSame(30, (int) $t->default_validity_days);
         $this->assertNull($t->default_expires_at, 'режим days очищает дату');
+    }
+
+    public function test_prefix_required_and_unique_per_club(): void
+    {
+        [$club, $admin] = $this->adminClub();
+
+        // Без префикса — ошибка валидации.
+        $this->actingAs($admin)
+            ->post(route('club.cardTypes.store'), ['name' => 'X', 'kind' => 'visits', 'nominal' => 5])
+            ->assertSessionHasErrors('code_prefix');
+
+        // Создаём с VIP.
+        ClubCardType::create(['club_id' => $club->id, 'name' => 'A', 'code_prefix' => 'VIP', 'kind' => 'visits', 'nominal' => 5]);
+
+        // Повторный VIP (в т.ч. в нижнем регистре) — ошибка уникальности.
+        $this->actingAs($admin)
+            ->post(route('club.cardTypes.store'), ['name' => 'B', 'code_prefix' => 'vip', 'kind' => 'visits', 'nominal' => 5])
+            ->assertSessionHasErrors('code_prefix');
+
+        $this->assertSame(1, ClubCardType::where('club_id', $club->id)->count());
     }
 
     public function test_cannot_delete_type_with_active_card(): void
