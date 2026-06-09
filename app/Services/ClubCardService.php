@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\ClubCard;
+use App\Models\ClubCardTransaction;
 use App\Models\ClubCardType;
 use App\Models\ClubClient;
+use App\Models\CourtBooking;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -60,6 +62,76 @@ class ClubCardService
             $type->last_card_number = $number; // синхронизируем переданную модель
             return $code;
         });
+    }
+
+    /**
+     * Списать часы карты-счётчика за завершённую бронь. Идемпотентно.
+     *
+     * Возвращает транзакцию списания или null (нечего/нельзя списывать).
+     * Скидочные карты списания не требуют — просто помечаем бронь обработанной.
+     */
+    public function chargeBooking(CourtBooking $booking): ?ClubCardTransaction
+    {
+        if (!$booking->club_card_id) return null;
+        if ($booking->card_charged_at) return null;        // уже обработана
+        if ($booking->status !== 'confirmed') return null;  // отменённые не списываем
+
+        $card = ClubCard::with('type')->find($booking->club_card_id);
+        if (!$card) {
+            $this->markCharged($booking);
+            return null;
+        }
+
+        // Скидочная карта — списывать нечего.
+        if (!$card->isCounter()) {
+            $this->markCharged($booking);
+            return null;
+        }
+
+        $hours = $this->bookingHours($booking);
+        if ($hours <= 0) {
+            $this->markCharged($booking);
+            return null;
+        }
+
+        return DB::transaction(function () use ($booking, $card, $hours) {
+            $locked = ClubCard::lockForUpdate()->find($card->id);
+            // Перепроверяем идемпотентность под блокировкой брони.
+            $freshBooking = CourtBooking::lockForUpdate()->find($booking->id);
+            if (!$freshBooking || $freshBooking->card_charged_at) return null;
+
+            $before = (int) $locked->balance;
+            $charge = max(0, min($hours, $before)); // не уходим в минус
+            $after = $before - $charge;
+            $locked->balance = $after;
+            $locked->save();
+
+            $tx = ClubCardTransaction::create([
+                'club_id' => $locked->club_id,
+                'club_card_id' => $locked->id,
+                'court_booking_id' => $freshBooking->id,
+                'amount' => -$charge,
+                'balance_after' => $after,
+                'note' => 'Списание за бронь (' . $hours . ' ч)',
+            ]);
+
+            $freshBooking->forceFill(['card_charged_at' => now()])->save();
+            return $tx;
+        });
+    }
+
+    private function markCharged(CourtBooking $booking): void
+    {
+        $booking->forceFill(['card_charged_at' => now()])->save();
+    }
+
+    /** Длительность брони в часах (округление до целого). */
+    private function bookingHours(CourtBooking $booking): int
+    {
+        $start = Carbon::parse(substr((string) $booking->start_time, 0, 5));
+        $end = Carbon::parse(substr((string) $booking->end_time, 0, 5));
+        $minutes = $end->greaterThan($start) ? $start->diffInMinutes($end) : 0;
+        return (int) round($minutes / 60);
     }
 
     /** Срок: явная дата → она; иначе фикс. дата типа; иначе N дней с сегодня; иначе бессрочно. */

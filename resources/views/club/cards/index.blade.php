@@ -5,7 +5,10 @@
 <div class="cards-page">
     <div class="cards-header">
         <h1 class="cards-title">Клубные карты <span class="cards-title-club">— {{ $club->name }}</span></h1>
-        <button class="btn-add" onclick="openCardTypeModal()">+ Создать тип карты</button>
+        <div class="cards-header-actions">
+            <a href="{{ route('club.cards.journal') }}" class="btn-journal">Журнал</a>
+            <button class="btn-add" onclick="openCardTypeModal()">+ Создать тип карты</button>
+        </div>
     </div>
 
     @if(session('success'))<div class="flash-message flash-success">{{ session('success') }}</div>@endif
@@ -167,6 +170,8 @@
 .cards-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
 .cards-title { font-size:24px; font-weight:800; color:#fff; margin:0; }
 .cards-title-club { color:#71717a; font-weight:500; font-size:16px; }
+.cards-header-actions { display:flex; gap:10px; align-items:center; }
+.btn-journal { background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:10px 16px; font-weight:700; text-decoration:none; }
 .btn-add { background:#22c55e; color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
 .flash-message { padding:10px 14px; border-radius:10px; margin-bottom:14px; }
 .flash-success { background:rgba(34,197,94,.12); color:#22c55e; border:1px solid rgba(34,197,94,.3); }

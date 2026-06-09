@@ -36,4 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tournaments:send-reminders')
             ->everyMinute()
             ->withoutOverlapping();
+
+        // Списание часов клубных карт за завершённые брони.
+        $schedule->command('cards:charge-due')
+            ->hourly()
+            ->withoutOverlapping();
     })->create();

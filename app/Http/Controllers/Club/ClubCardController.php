@@ -86,6 +86,20 @@ class ClubCardController extends Controller
         return response()->json(['cards' => $cards]);
     }
 
+    /** Журнал клубных карт — все списания/операции клуба. */
+    public function journal()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $transactions = \App\Models\ClubCardTransaction::where('club_id', $club->id)
+            ->with(['card.client', 'card.type', 'booking.court'])
+            ->orderByDesc('created_at')
+            ->paginate(50);
+
+        return view('club.cards.journal', compact('club', 'transactions'));
+    }
+
     /** Отвязать (удалить) карту клиента. */
     public function destroy(ClubCard $card)
     {
