@@ -17,9 +17,7 @@ return new class extends Migration
             $table->enum('kind', ['visits', 'trainer', 'discount_court', 'discount_trainer']);
             $table->integer('nominal')->nullable();           // число занятий (visits/trainer)
             $table->integer('discount_percent')->nullable();  // % (discount_*)
-            $table->integer('price')->nullable();             // стоимость карты, ₸ (клиент покупает)
-            $table->date('default_expires_at')->nullable();   // фиксированная дата окончания
-            $table->integer('default_validity_days')->nullable(); // или срок N дней с выдачи
+            $table->integer('default_validity_days')->nullable(); // подсказка срока
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
