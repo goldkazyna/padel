@@ -78,6 +78,8 @@ class ClubCardController extends Controller
                 'is_discount' => (bool) $c->type?->isDiscount(),
                 'balance' => $c->balance,
                 'discount_percent' => $c->type?->discount_percent,
+                'price' => $c->type?->price,          // стоимость карты
+                'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)
             ])
             ->values();
 

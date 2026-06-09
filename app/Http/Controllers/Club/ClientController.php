@@ -16,6 +16,9 @@ class ClientController extends Controller
     private function getClub()
     {
         $user = auth()->user();
+        // Едино с CourtController/ClubCardController: супер-админ работает с Club::first(),
+        // иначе карты клиента в окне брони не находятся (разные клубы у автокомплита и эндпоинта).
+        if ($user->isSuperAdmin()) return \App\Models\Club::first();
         if ($user->isClubModerator()) return $user->moderatorClubs()->first();
         return $user->adminClubs()->first();
     }

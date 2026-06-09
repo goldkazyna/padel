@@ -556,11 +556,10 @@
                             <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
 
-                        <div class="form-group js-hide-for-group" id="bookCardWrap" style="display:none;">
+                        <div class="form-group" id="bookCardWrap" style="display:none;">
                             <label class="form-label">Клубная карта клиента</label>
-                            <select id="bookCardSelect" name="club_card_id" class="form-input" onchange="onCardSelect('book')">
-                                <option value="">— без карты —</option>
-                            </select>
+                            <input type="hidden" name="club_card_id" id="bookCardInput" value="">
+                            <div class="client-card-buttons" id="bookCardButtons"></div>
                             <small class="form-hint" id="bookCardHint" style="display:none;"></small>
                         </div>
 
@@ -796,11 +795,10 @@
                             <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
 
-                        <div class="form-group js-edit-hide-for-group" id="editCardWrap" style="display:none;">
+                        <div class="form-group" id="editCardWrap" style="display:none;">
                             <label class="form-label">Клубная карта клиента</label>
-                            <select id="editCardSelect" name="club_card_id" class="form-input" onchange="onCardSelect('edit')">
-                                <option value="">— без карты —</option>
-                            </select>
+                            <input type="hidden" name="club_card_id" id="editCardInput" value="">
+                            <div class="client-card-buttons" id="editCardButtons"></div>
                             <small class="form-hint" id="editCardHint" style="display:none;"></small>
                         </div>
 
@@ -969,9 +967,8 @@
         document.getElementById('bookDiscount').value = 0;
         updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
-        // Длительность сбросила скидку — если выбрана скидочная карта, применим заново.
-        const cardSel = document.getElementById('bookCardSelect');
-        if (cardSel && cardSel.value) onCardSelect('book');
+        // Длительность сбросила цену/скидку — переприменим выбранную карту.
+        if (selectedCard.book) applyCardPricing('book');
     }
 
     function updateFinalPrice() {
@@ -981,55 +978,116 @@
         document.getElementById('bookTotalPrice').innerHTML = formatPrice(final_price) + ' &#8376;';
     }
 
-    // ====== Клубные карты в окне брони ======
+    // ====== Клубные карты в окне брони (кнопки) ======
     const cardsForClientUrl = @json(route('club.cards.forClient'));
     const cardCache = { book: [], edit: [] };
+    const selectedCard = { book: null, edit: null };
     let cardLoadTimer = null;
 
     function loadClientCards(prefix, phone, preselectId) {
         const wrap = document.getElementById(prefix + 'CardWrap');
-        const sel = document.getElementById(prefix + 'CardSelect');
-        if (!wrap || !sel) return;
+        const box = document.getElementById(prefix + 'CardButtons');
+        const input = document.getElementById(prefix + 'CardInput');
+        const hint = document.getElementById(prefix + 'CardHint');
+        if (!wrap || !box) return;
+        const reset = () => {
+            wrap.style.display = 'none'; box.innerHTML = '';
+            if (input) input.value = '';
+            if (hint) hint.style.display = 'none';
+            selectedCard[prefix] = null; cardCache[prefix] = [];
+        };
         const digits = (phone || '').replace(/\D/g, '');
-        const reset = () => { wrap.style.display = 'none'; sel.innerHTML = '<option value="">— без карты —</option>'; cardCache[prefix] = []; };
         if (digits.length < 5) { reset(); return; }
         fetch(cardsForClientUrl + '?phone=' + encodeURIComponent(digits))
             .then(r => r.json())
             .then(d => {
                 const cards = (d && d.cards) ? d.cards : [];
                 cardCache[prefix] = cards;
+                selectedCard[prefix] = null;
+                if (input) input.value = '';
                 if (!cards.length) { reset(); return; }
-                sel.innerHTML = '<option value="">— без карты —</option>' + cards.map(c => {
-                    let label = c.code + ' · ' + (c.type_name || '');
-                    if (c.is_counter) label += ' (осталось ' + c.balance + ')';
-                    else if (c.is_discount) label += ' (−' + c.discount_percent + '%)';
-                    return '<option value="' + c.id + '">' + escHtml(label) + '</option>';
+                box.innerHTML = cards.map(c => {
+                    const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal)
+                                             : ('скидка −' + c.discount_percent + '%');
+                    return '<button type="button" class="client-card-btn" data-id="' + c.id + '" ' +
+                        'onclick="onCardButton(\'' + prefix + '\',' + c.id + ')">' +
+                        '<span class="ccb-name">' + escHtml(c.type_name || 'Карта') + '</span>' +
+                        '<span class="ccb-code">' + escHtml(c.code) + '</span>' +
+                        '<span class="ccb-sub">' + sub + '</span></button>';
                 }).join('');
-                if (preselectId) sel.value = String(preselectId);
                 wrap.style.display = '';
-                onCardSelect(prefix);
+                if (preselectId) onCardButton(prefix, preselectId, true);
             })
             .catch(() => reset());
     }
 
-    function onCardSelect(prefix) {
-        const sel = document.getElementById(prefix + 'CardSelect');
+    function onCardButton(prefix, cardId, keepIfSelected) {
+        const card = (cardCache[prefix] || []).find(c => String(c.id) === String(cardId));
+        if (!card) return;
+        const box = document.getElementById(prefix + 'CardButtons');
+        const input = document.getElementById(prefix + 'CardInput');
         const hint = document.getElementById(prefix + 'CardHint');
-        if (!sel) return;
-        const card = (cardCache[prefix] || []).find(c => String(c.id) === String(sel.value));
+        const already = selectedCard[prefix] && String(selectedCard[prefix].id) === String(cardId);
+
+        if (already && !keepIfSelected) {
+            // Повторный клик — снять выбор.
+            selectedCard[prefix] = null;
+            if (input) input.value = '';
+            if (box) box.querySelectorAll('.client-card-btn').forEach(b => b.classList.remove('active'));
+            if (hint) hint.style.display = 'none';
+            applyCardPricing(prefix);
+            return;
+        }
+
+        selectedCard[prefix] = card;
+        if (input) input.value = card.id;
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b =>
+            b.classList.toggle('active', String(b.dataset.id) === String(cardId)));
+
+        setPaymentClubCard(prefix);   // способ оплаты → «Клубная карта»
+        applyCardPricing(prefix);     // цена/скидка из карты
+
+        if (hint) {
+            hint.textContent = card.is_counter
+                ? ('Спишется 1 занятие после прошедшей брони (остаток: ' + card.balance + ').')
+                : ('Скидка −' + card.discount_percent + '% применена к цене.');
+            hint.style.display = '';
+        }
+    }
+
+    function setPaymentClubCard(prefix) {
+        const sel = (prefix === 'book') ? '#paymentMethods' : '#editPaymentMethods';
+        const inputId = (prefix === 'book') ? 'paymentMethodInput' : 'editPaymentMethodInput';
+        document.querySelectorAll(sel + ' .pay-btn').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-value') === 'club_card'));
+        const inp = document.getElementById(inputId);
+        if (inp) inp.value = 'club_card';
+    }
+
+    function applyCardPricing(prefix) {
+        const card = selectedCard[prefix];
         const priceEl = document.getElementById(prefix === 'book' ? 'bookCustomPrice' : 'editCustomPrice');
         const discEl = document.getElementById(prefix === 'book' ? 'bookDiscount' : 'editDiscount');
+        if (!priceEl || !discEl) return;
+
         if (!card) {
-            if (hint) hint.style.display = 'none';
+            discEl.value = 0;
             if (prefix === 'book') updateFinalPrice();
             return;
         }
-        if (card.is_discount && priceEl && discEl) {
+        if (card.is_counter) {
+            // Цена за час = стоимость карты ÷ число занятий, ×длительность.
+            const nominal = parseInt(card.nominal) || 0;
+            const cardPrice = parseInt(card.price) || 0;
+            if (nominal > 0 && cardPrice > 0) {
+                const perHour = Math.round(cardPrice / nominal);
+                const slots = (prefix === 'book' && typeof currentBook === 'object') ? (currentBook.duration || 1) : 1;
+                priceEl.value = perHour * slots;
+            }
+            discEl.value = 0;
+        } else if (card.is_discount) {
             const price = parseInt(priceEl.value) || 0;
             discEl.value = Math.round(price * (card.discount_percent || 0) / 100);
-            if (hint) { hint.textContent = 'Скидка −' + card.discount_percent + '% применена к цене.'; hint.style.display = ''; }
-        } else if (card.is_counter) {
-            if (hint) { hint.textContent = 'Спишется 1 занятие после прошедшей брони (остаток: ' + card.balance + ').'; hint.style.display = ''; }
         }
         if (prefix === 'book') updateFinalPrice();
     }
@@ -1543,6 +1601,9 @@
             const e = document.getElementById(id);
             if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
         });
+        // Блок карты — показываем только если есть карты и не групповая бронь.
+        const cardWrap = document.getElementById('bookCardWrap');
+        if (cardWrap) cardWrap.style.display = (!isGroup && (cardCache.book || []).length) ? '' : 'none';
     }
     function renderGroupMembers(groupId) {
         const block = document.getElementById('groupMembersBlock');
@@ -3115,6 +3176,34 @@
     .pay-btn:hover:not(.active) {
         border-color: var(--sch-accent);
         color: var(--sch-accent);
+    }
+
+    .client-card-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .client-card-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 9px 14px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+        min-width: 150px;
+    }
+    .client-card-btn .ccb-name { color: var(--sch-text); font-weight: 700; font-size: 13px; }
+    .client-card-btn .ccb-code { color: var(--sch-text-dim); font-size: 11px; font-family: monospace; letter-spacing: 1px; }
+    .client-card-btn .ccb-sub { color: var(--sch-accent); font-size: 12px; font-weight: 600; }
+    .client-card-btn:hover:not(.active) { border-color: var(--sch-accent); }
+    .client-card-btn.active {
+        border-color: var(--sch-accent);
+        background: rgba(34,197,94,.14);
+        box-shadow: 0 0 0 1px var(--sch-accent) inset;
     }
 
     .coach-buttons {
