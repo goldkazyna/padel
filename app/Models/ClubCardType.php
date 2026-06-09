@@ -60,8 +60,8 @@ class ClubCardType extends Model
     public function kindName(): string
     {
         return match ($this->kind) {
-            'visits' => 'Посещения корта',
-            'trainer' => 'Занятия с тренером',
+            'visits' => 'Часы корта',
+            'trainer' => 'Часы с тренером',
             'discount_court' => 'Скидка на корт',
             'discount_trainer' => 'Скидка на тренера',
             default => $this->kind,

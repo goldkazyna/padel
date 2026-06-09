@@ -213,7 +213,7 @@
                             </div>
                             <div class="cci-right">
                                 @if($card->isCounter())
-                                    <span class="cci-balance">{{ (int) $card->balance }}<span class="cci-of">/{{ (int) $card->initial_balance }}</span></span>
+                                    <span class="cci-balance">{{ (int) $card->balance }}<span class="cci-of">/{{ (int) $card->initial_balance }} ч</span></span>
                                 @else
                                     <span class="cci-balance cci-discount">−{{ $card->type?->discount_percent }}%</span>
                                 @endif
@@ -393,7 +393,7 @@
                     </select>
                 </div>
                 <div class="form-group" id="issueBalanceField">
-                    <label class="form-label">Остаток (число занятий)</label>
+                    <label class="form-label">Остаток (число часов)</label>
                     <input type="number" name="balance" id="issueBalance" class="form-input" min="0" max="100000">
                     <div class="issue-hint">Пусто = номинал типа</div>
                 </div>

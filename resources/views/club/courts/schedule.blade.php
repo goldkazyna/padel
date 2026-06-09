@@ -1007,7 +1007,7 @@
                 if (input) input.value = '';
                 if (!cards.length) { reset(); return; }
                 box.innerHTML = cards.map(c => {
-                    const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal)
+                    const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal + ' ч')
                                              : ('скидка −' + c.discount_percent + '%');
                     return '<button type="button" class="client-card-btn" data-id="' + c.id + '" ' +
                         'onclick="onCardButton(\'' + prefix + '\',' + c.id + ')">' +
@@ -1049,7 +1049,7 @@
 
         if (hint) {
             hint.textContent = card.is_counter
-                ? ('Спишется 1 занятие после прошедшей брони (остаток: ' + card.balance + ').')
+                ? ('Спишутся часы по длительности брони после её завершения (остаток: ' + card.balance + ' ч).')
                 : ('Скидка −' + card.discount_percent + '% применена к цене.');
             hint.style.display = '';
         }

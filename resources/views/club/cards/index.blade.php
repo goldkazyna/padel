@@ -34,7 +34,7 @@
             </div>
             <div class="ct-val">
                 @if($t->isCounter())
-                    <span class="ct-badge">{{ $t->nominal }} занятий</span>
+                    <span class="ct-badge">{{ $t->nominal }} ч</span>
                 @else
                     <span class="ct-badge ct-badge-discount">−{{ $t->discount_percent }}%</span>
                 @endif
@@ -82,7 +82,7 @@
             </div>
             <div class="ir-bal">
                 @if($card->isCounter())
-                    <span class="ct-badge">{{ (int) $card->balance }}/{{ (int) $card->initial_balance }}</span>
+                    <span class="ct-badge">{{ (int) $card->balance }}/{{ (int) $card->initial_balance }} ч</span>
                 @else
                     <span class="ct-badge ct-badge-discount">−{{ $card->type?->discount_percent }}%</span>
                 @endif
@@ -126,7 +126,7 @@
                     </select>
                 </div>
                 <div class="ct-field" id="ctNominalField">
-                    <label>Номинал (число занятий)</label>
+                    <label>Номинал (число часов)</label>
                     <input type="number" name="nominal" id="ctNominal" min="1" max="10000" value="10">
                 </div>
                 <div class="ct-field" id="ctDiscountField" style="display:none;">
