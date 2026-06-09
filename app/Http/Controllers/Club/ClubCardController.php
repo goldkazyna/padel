@@ -83,6 +83,18 @@ class ClubCardController extends Controller
                     'expires_at' => $c->expires_at?->toDateString(),
                     'is_actual' => $c->isActual(),
                 ])->values(),
+                // Все карты клуба — чтобы увидеть, на какой client_id/телефон висит P000001.
+                'all_club_cards' => ClubCard::where('club_id', $club->id)->with('client')->get()
+                    ->map(fn($c) => [
+                        'code' => $c->code,
+                        'client_id' => $c->club_client_id,
+                        'client_name' => $c->client?->name,
+                        'client_phone' => $c->client?->phone,
+                    ])->values(),
+                // Все записи клиентов клуба с этим телефоном (дубликаты).
+                'clients_with_phone' => ClubClient::where('club_id', $club->id)
+                    ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
+                    ->get(['id', 'name', 'phone']),
             ]]);
         }
 
