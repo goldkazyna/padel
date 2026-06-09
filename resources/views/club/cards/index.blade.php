@@ -35,7 +35,12 @@
                 @else
                     <span class="ct-badge ct-badge-discount">−{{ $t->discount_percent }}%</span>
                 @endif
-                @if($t->default_validity_days)
+                @if($t->price)
+                    <span class="ct-price">{{ number_format($t->price, 0, '', ' ') }} ₸</span>
+                @endif
+                @if($t->default_expires_at)
+                    <span class="ct-validity">до {{ $t->default_expires_at->format('d.m.Y') }}</span>
+                @elseif($t->default_validity_days)
                     <span class="ct-validity">срок {{ $t->default_validity_days }} дн.</span>
                 @else
                     <span class="ct-validity">бессрочно</span>
@@ -90,8 +95,24 @@
                     <input type="number" name="discount_percent" id="ctDiscount" min="1" max="100" value="10">
                 </div>
                 <div class="ct-field">
-                    <label>Срок действия по умолчанию, дней (пусто = бессрочно)</label>
-                    <input type="number" name="default_validity_days" id="ctValidity" min="1" max="3650" placeholder="бессрочно">
+                    <label>Стоимость карты, ₸</label>
+                    <input type="number" name="price" id="ctPrice" min="0" max="100000000" placeholder="Напр.: 50000">
+                </div>
+                <div class="ct-field">
+                    <label>Срок действия</label>
+                    <select id="ctValidityMode" name="validity_mode" onchange="ctToggleValidity()">
+                        <option value="forever">Бессрочно</option>
+                        <option value="date">До определённой даты</option>
+                        <option value="days">N дней с момента выдачи</option>
+                    </select>
+                </div>
+                <div class="ct-field" id="ctDateField" style="display:none;">
+                    <label>Действует до (дата)</label>
+                    <input type="date" name="default_expires_at" id="ctDate" class="ct-date">
+                </div>
+                <div class="ct-field" id="ctDaysField" style="display:none;">
+                    <label>Срок, дней с момента выдачи</label>
+                    <input type="number" name="default_validity_days" id="ctValidity" min="1" max="3650" placeholder="Напр.: 30">
                 </div>
             </div>
             <div class="ct-modal-foot">
@@ -125,6 +146,7 @@
 .ct-val { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
 .ct-badge { background:rgba(124,58,237,.18); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700; }
 .ct-badge-discount { background:rgba(245,132,70,.18); color:#f08446; }
+.ct-price { color:#22c55e; font-size:12px; font-weight:700; }
 .ct-validity { color:#71717a; font-size:11px; }
 .ct-actions { display:flex; align-items:center; gap:8px; }
 .ct-issued { color:#71717a; font-size:12px; margin-right:6px; }
@@ -139,6 +161,7 @@
 .ct-field { margin-bottom:14px; }
 .ct-field label { display:block; color:#a1a1aa; font-size:12px; margin-bottom:6px; }
 .ct-field input, .ct-field select { width:100%; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:10px 12px; color:#fff; }
+.ct-field input.ct-date { color-scheme: dark; }
 .ct-modal-foot { display:flex; gap:12px; padding:14px 20px; border-top:1px solid #27272a; }
 .btn-cancel { flex:1; background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:11px; cursor:pointer; }
 .btn-save { flex:2; background:#22c55e; color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; cursor:pointer; }
@@ -151,6 +174,11 @@ function ctToggleKind() {
     document.getElementById('ctNominalField').style.display = counter ? '' : 'none';
     document.getElementById('ctDiscountField').style.display = counter ? 'none' : '';
 }
+function ctToggleValidity() {
+    const mode = document.getElementById('ctValidityMode').value;
+    document.getElementById('ctDateField').style.display = (mode === 'date') ? '' : 'none';
+    document.getElementById('ctDaysField').style.display = (mode === 'days') ? '' : 'none';
+}
 function openCardTypeModal(t) {
     const form = document.getElementById('cardTypeForm');
     if (t) {
@@ -161,6 +189,14 @@ function openCardTypeModal(t) {
         document.getElementById('ctKind').value = t.kind;
         document.getElementById('ctNominal').value = t.nominal || 10;
         document.getElementById('ctDiscount').value = t.discount_percent || 10;
+        document.getElementById('ctPrice').value = t.price || '';
+        // Режим срока по тому, какое поле заполнено.
+        const dateVal = t.default_expires_at ? String(t.default_expires_at).substring(0, 10) : '';
+        let mode = 'forever';
+        if (dateVal) mode = 'date';
+        else if (t.default_validity_days) mode = 'days';
+        document.getElementById('ctValidityMode').value = mode;
+        document.getElementById('ctDate').value = dateVal;
         document.getElementById('ctValidity').value = t.default_validity_days || '';
     } else {
         document.getElementById('ctModalTitle').textContent = 'Создать тип карты';
@@ -168,8 +204,10 @@ function openCardTypeModal(t) {
         document.getElementById('ctMethod').value = 'POST';
         form.reset();
         document.getElementById('ctMethod').value = 'POST';
+        document.getElementById('ctValidityMode').value = 'forever';
     }
     ctToggleKind();
+    ctToggleValidity();
     document.getElementById('cardTypeModal').style.display = 'flex';
 }
 </script>

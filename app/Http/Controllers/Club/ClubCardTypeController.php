@@ -40,6 +40,7 @@ class ClubCardTypeController extends Controller
         $data = $this->validateType($request);
         $data['club_id'] = $club->id;
         $this->normalizeByKind($data);
+        $this->normalizeValidity($data);
 
         ClubCardType::create($data);
 
@@ -53,6 +54,7 @@ class ClubCardTypeController extends Controller
 
         $data = $this->validateType($request);
         $this->normalizeByKind($data);
+        $this->normalizeValidity($data);
 
         $cardType->update($data);
 
@@ -82,6 +84,9 @@ class ClubCardTypeController extends Controller
             'kind' => 'required|in:visits,trainer,discount_court,discount_trainer',
             'nominal' => 'nullable|integer|min:1|max:10000',
             'discount_percent' => 'nullable|integer|min:1|max:100',
+            'price' => 'nullable|integer|min:0|max:100000000',
+            'validity_mode' => 'nullable|in:forever,date,days',
+            'default_expires_at' => 'nullable|date|after:today',
             'default_validity_days' => 'nullable|integer|min:1|max:3650',
         ]);
     }
@@ -96,6 +101,22 @@ class ClubCardTypeController extends Controller
         } else {
             $data['nominal'] = null;
             $data['discount_percent'] = $data['discount_percent'] ?? 1;
+        }
+    }
+
+    /** Срок действия: forever — оба null; date — фикс. дата; days — N дней с выдачи. */
+    private function normalizeValidity(array &$data): void
+    {
+        $mode = $data['validity_mode'] ?? 'forever';
+        unset($data['validity_mode']); // не колонка, только хелпер формы
+
+        if ($mode === 'date') {
+            $data['default_validity_days'] = null;
+        } elseif ($mode === 'days') {
+            $data['default_expires_at'] = null;
+        } else {
+            $data['default_expires_at'] = null;
+            $data['default_validity_days'] = null;
         }
     }
 }

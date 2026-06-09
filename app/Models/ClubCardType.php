@@ -12,6 +12,8 @@ class ClubCardType extends Model
         'kind',
         'nominal',
         'discount_percent',
+        'price',
+        'default_expires_at',
         'default_validity_days',
         'is_active',
     ];
@@ -20,6 +22,8 @@ class ClubCardType extends Model
         'is_active' => 'boolean',
         'nominal' => 'integer',
         'discount_percent' => 'integer',
+        'price' => 'integer',
+        'default_expires_at' => 'date',
         'default_validity_days' => 'integer',
     ];
 

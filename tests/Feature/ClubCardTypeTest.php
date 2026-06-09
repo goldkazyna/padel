@@ -62,6 +62,44 @@ class ClubCardTypeTest extends TestCase
         $this->assertNull($t->nominal);
     }
 
+    public function test_price_and_date_validity_stored(): void
+    {
+        [$club, $admin] = $this->adminClub();
+
+        $this->actingAs($admin)->post(route('club.cardTypes.store'), [
+            'name' => 'Сезонная',
+            'kind' => 'visits',
+            'nominal' => 10,
+            'price' => 50000,
+            'validity_mode' => 'date',
+            'default_expires_at' => now()->addMonths(3)->toDateString(),
+            'default_validity_days' => 30, // должно очиститься режимом date
+        ])->assertRedirect();
+
+        $t = ClubCardType::where('club_id', $club->id)->first();
+        $this->assertSame(50000, (int) $t->price);
+        $this->assertNotNull($t->default_expires_at);
+        $this->assertNull($t->default_validity_days, 'режим date очищает дни');
+    }
+
+    public function test_days_validity_clears_date(): void
+    {
+        [$club, $admin] = $this->adminClub();
+
+        $this->actingAs($admin)->post(route('club.cardTypes.store'), [
+            'name' => 'Месячная',
+            'kind' => 'trainer',
+            'nominal' => 8,
+            'validity_mode' => 'days',
+            'default_validity_days' => 30,
+            'default_expires_at' => now()->addMonths(3)->toDateString(), // должно очиститься
+        ])->assertRedirect();
+
+        $t = ClubCardType::where('club_id', $club->id)->first();
+        $this->assertSame(30, (int) $t->default_validity_days);
+        $this->assertNull($t->default_expires_at, 'режим days очищает дату');
+    }
+
     public function test_cannot_delete_type_with_active_card(): void
     {
         [$club, $admin] = $this->adminClub();
