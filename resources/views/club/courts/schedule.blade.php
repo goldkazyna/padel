@@ -2367,6 +2367,58 @@
         overflow: hidden;
     }
 
+    /* ===== Бронирование/просмотр — выезжающая справа панель (drawer) ===== */
+    #bookModal .modal-dialog,
+    #viewModal .modal-dialog {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0;
+        width: 94vw;
+        max-width: 820px;
+        height: 100vh;
+        height: 100dvh;
+        align-items: stretch;
+    }
+    #bookModal .modal-content,
+    #viewModal .modal-content {
+        height: 100%;
+        width: 100%;
+        border-radius: 0 !important;
+        border-top: none;
+        border-right: none;
+        border-bottom: none;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    /* Шапка прилипает к верху при скролле */
+    #bookModal .sch-modal-header,
+    #viewModal .sch-modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #111113;
+    }
+    /* Выезд справа (переопределяет вертикальный слайд Bootstrap) */
+    #bookModal.fade .modal-dialog,
+    #viewModal.fade .modal-dialog {
+        transform: translateX(100%);
+        transition: transform 0.3s ease-out;
+    }
+    #bookModal.show .modal-dialog,
+    #viewModal.show .modal-dialog {
+        transform: none;
+    }
+    /* На телефоне — почти на всю ширину */
+    @media (max-width: 575.98px) {
+        #bookModal .modal-dialog,
+        #viewModal .modal-dialog {
+            width: 100vw;
+            max-width: 100vw;
+        }
+    }
+
     .modal-two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
