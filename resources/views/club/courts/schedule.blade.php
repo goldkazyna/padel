@@ -709,8 +709,8 @@
                         <input type="hidden" name="slots" id="editSlots" value="">
                         <div class="duration-selector" id="editDurationSelector"></div>
 
-                        <div class="modal-section-title">Цена и скидка</div>
-                        <div class="price-edit-row">
+                        <div class="modal-section-title js-edit-hide-for-group">Цена и скидка</div>
+                        <div class="price-edit-row js-edit-hide-for-group">
                             <div class="price-edit-group">
                                 <label class="form-label">Цена</label>
                                 <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
@@ -730,8 +730,8 @@
                             </div>
                         </div>
 
-                        <div class="modal-section-title">Тренер</div>
-                        <div class="coach-buttons" id="editCoachButtons">
+                        <div class="modal-section-title js-edit-hide-for-group">Тренер</div>
+                        <div class="coach-buttons js-edit-hide-for-group" id="editCoachButtons">
                             @foreach($clubCoaches as $cc)
                                 <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
@@ -755,18 +755,18 @@
                     <!-- Right column: client, payment, coach -->
                     <div class="modal-col-right">
                         <div class="form-group autocomplete-wrap">
-                            <label class="form-label">Напишите имя и фамилию клиента *</label>
+                            <label class="form-label" id="editClientLabel">Напишите имя и фамилию клиента *</label>
                             <input type="text" name="client_name" id="editClientName" class="form-input" placeholder="Например: Денис Дудников" autocomplete="off" required>
                             <div class="autocomplete-list" id="editNameList"></div>
                             <small class="form-hint" id="editClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
-                        <div class="form-group autocomplete-wrap">
+                        <div class="form-group autocomplete-wrap js-edit-hide-for-group">
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" autocomplete="off" required>
                             <div class="autocomplete-list" id="editPhoneList"></div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group js-edit-hide-for-group">
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="editClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
@@ -781,8 +781,8 @@
                         </div>
                         <input type="hidden" name="booking_type" id="editBookingTypeInput">
 
-                        <div class="modal-section-title">Способ оплаты *</div>
-                        <div class="payment-methods" id="editPaymentMethods">
+                        <div class="modal-section-title js-edit-hide-for-group">Способ оплаты *</div>
+                        <div class="payment-methods js-edit-hide-for-group" id="editPaymentMethods">
                             <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
                             <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
                             <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
@@ -793,7 +793,7 @@
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
 
-                        <div class="form-group" style="margin-top: 14px;">
+                        <div class="form-group js-edit-hide-for-group" style="margin-top: 14px;">
                             <label class="form-label">Статус оплаты *</label>
                             <input type="hidden" name="is_paid" id="editIsPaidInput" value="">
                             <div class="paid-toggle">
@@ -1132,6 +1132,9 @@
 
         // Длительность — кнопки 1..6, текущая = (end-start)/slotDuration
         renderEditDurationButtons(data);
+
+        // Групповая бронь — прячем поля клиента/оплаты/тренера (как при создании)
+        applyEditGroupVisibility((data.bookingType || '') === 'group');
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
     }
@@ -1504,6 +1507,28 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+        applyEditGroupVisibility(input.value === 'group');
+    }
+
+    // Для групповой брони в окне редактирования прячем поля клиента/оплаты/
+    // тренера — как в окне создания (групповое занятие платится пакетами).
+    function applyEditGroupVisibility(isGroup) {
+        document.querySelectorAll('.js-edit-hide-for-group').forEach(function (el) {
+            el.style.display = isGroup ? 'none' : '';
+        });
+        const phone = document.getElementById('editClientPhone');
+        if (phone) { phone.required = !isGroup; }
+        const name = document.getElementById('editClientName');
+        if (name) { name.readOnly = isGroup; }
+        const label = document.getElementById('editClientLabel');
+        if (label) {
+            label.textContent = isGroup ? 'Группа' : 'Напишите имя и фамилию клиента *';
+        }
+        // Оплата тренера для группы не нужна
+        if (isGroup) {
+            const cp = document.getElementById('editCoachPaidGroup');
+            if (cp) cp.style.display = 'none';
+        }
     }
 
     // Валидация формы бронирования: имя+фамилия, способ оплаты, статус оплаты
