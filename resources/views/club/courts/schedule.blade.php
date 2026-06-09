@@ -2376,7 +2376,7 @@
         bottom: 0;
         margin: 0;
         width: 94vw;
-        max-width: 820px;
+        max-width: 1600px;
         height: 100vh;
         height: 100dvh;
         align-items: stretch;
