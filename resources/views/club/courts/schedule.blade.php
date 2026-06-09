@@ -1062,6 +1062,19 @@
         }
     }
 
+    // Снять выбор карты (напр. при переключении способа оплаты на другой).
+    function deselectCard(prefix) {
+        if (!selectedCard[prefix]) return;
+        selectedCard[prefix] = null;
+        const input = document.getElementById(prefix + 'CardInput');
+        const box = document.getElementById(prefix + 'CardButtons');
+        const hint = document.getElementById(prefix + 'CardHint');
+        if (input) input.value = '';
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b => b.classList.remove('active'));
+        if (hint) hint.style.display = 'none';
+        applyCardPricing(prefix); // вернёт обычную цену/скидку
+    }
+
     function setPaymentClubCard(prefix) {
         const sel = (prefix === 'book') ? '#paymentMethods' : '#editPaymentMethods';
         const inputId = (prefix === 'book') ? 'paymentMethodInput' : 'editPaymentMethodInput';
@@ -1078,8 +1091,12 @@
         if (!priceEl || !discEl) return;
 
         if (!card) {
+            // Карта снята — вернуть обычную цену корта и нулевую скидку.
             discEl.value = 0;
-            if (prefix === 'book') updateFinalPrice();
+            if (prefix === 'book') {
+                if (typeof calcTotalPrice === 'function') priceEl.value = calcTotalPrice();
+                updateFinalPrice();
+            }
             return;
         }
         if (card.is_counter) {
@@ -1536,7 +1553,9 @@
     function selectEditPayment(btn) {
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('editPaymentMethodInput').value = btn.getAttribute('data-value');
+        const val = btn.getAttribute('data-value');
+        document.getElementById('editPaymentMethodInput').value = val;
+        if (val !== 'club_card') deselectCard('edit');
     }
 
     function setEditPaid(btn) {
@@ -1571,7 +1590,10 @@
     function selectPayment(btn) {
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('paymentMethodInput').value = btn.getAttribute('data-value');
+        const val = btn.getAttribute('data-value');
+        document.getElementById('paymentMethodInput').value = val;
+        // Выбран не «Клубная карта» — снимаем карту и возвращаем обычную цену.
+        if (val !== 'club_card') deselectCard('book');
     }
 
     function setPaid(btn) {
