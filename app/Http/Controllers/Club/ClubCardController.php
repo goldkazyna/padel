@@ -95,6 +95,13 @@ class ClubCardController extends Controller
                 'clients_with_phone' => ClubClient::where('club_id', $club->id)
                     ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
                     ->get(['id', 'name', 'phone']),
+                // Карты этого клиента ВО ВСЕХ клубах (без фильтра клуба).
+                'client_cards_all_clubs' => $client
+                    ? ClubCard::where('club_client_id', $client->id)->get(['id', 'code', 'club_id', 'status'])
+                    : [],
+                // Любые карты в базе вообще (есть ли хоть одна на проде).
+                'total_cards_in_db' => ClubCard::count(),
+                'total_card_types_in_db' => ClubCardType::count(),
             ]]);
         }
 
