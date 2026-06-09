@@ -336,7 +336,7 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -443,6 +443,7 @@
                                 'bookingType' => $ub->booking_type,
                                 'coachId' => $ub->coach_id,
                                 'coachPaid' => $ub->coach_paid,
+                                'clubCardId' => $ub->club_card_id,
                                 'slotDuration' => $ub->court->slot_duration ?? 60,
                             ]) }})">
                         <i class="bi bi-eye"></i> Просмотреть
@@ -553,6 +554,14 @@
                             <label class="form-label">Заметка о клиенте</label>
                             <textarea name="client_note" id="bookClientNote" class="form-input" rows="2" placeholder="Например: ВИП, играет с тренером, оплачивает картой"></textarea>
                             <small class="form-hint" id="bookClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
+                        </div>
+
+                        <div class="form-group js-hide-for-group" id="bookCardWrap" style="display:none;">
+                            <label class="form-label">Клубная карта клиента</label>
+                            <select id="bookCardSelect" name="club_card_id" class="form-input" onchange="onCardSelect('book')">
+                                <option value="">— без карты —</option>
+                            </select>
+                            <small class="form-hint" id="bookCardHint" style="display:none;"></small>
                         </div>
 
                         <div class="modal-section-title">Тип брони</div>
@@ -787,6 +796,14 @@
                             <small class="form-hint" id="editClientNoteHint" style="display:none;">Заметка из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
 
+                        <div class="form-group js-edit-hide-for-group" id="editCardWrap" style="display:none;">
+                            <label class="form-label">Клубная карта клиента</label>
+                            <select id="editCardSelect" name="club_card_id" class="form-input" onchange="onCardSelect('edit')">
+                                <option value="">— без карты —</option>
+                            </select>
+                            <small class="form-hint" id="editCardHint" style="display:none;"></small>
+                        </div>
+
                         <div class="modal-section-title">Тип брони</div>
                         <div class="booking-type-buttons" id="editBookingTypeButtons">
                             <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectEditBookingType(this)">Мягкая бронь</button>
@@ -952,6 +969,9 @@
         document.getElementById('bookDiscount').value = 0;
         updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
+        // Длительность сбросила скидку — если выбрана скидочная карта, применим заново.
+        const cardSel = document.getElementById('bookCardSelect');
+        if (cardSel && cardSel.value) onCardSelect('book');
     }
 
     function updateFinalPrice() {
@@ -959,6 +979,59 @@
         const discount = parseInt(document.getElementById('bookDiscount').value) || 0;
         const final_price = Math.max(0, price - discount);
         document.getElementById('bookTotalPrice').innerHTML = formatPrice(final_price) + ' &#8376;';
+    }
+
+    // ====== Клубные карты в окне брони ======
+    const cardsForClientUrl = @json(route('club.cards.forClient'));
+    const cardCache = { book: [], edit: [] };
+    let cardLoadTimer = null;
+
+    function loadClientCards(prefix, phone, preselectId) {
+        const wrap = document.getElementById(prefix + 'CardWrap');
+        const sel = document.getElementById(prefix + 'CardSelect');
+        if (!wrap || !sel) return;
+        const digits = (phone || '').replace(/\D/g, '');
+        const reset = () => { wrap.style.display = 'none'; sel.innerHTML = '<option value="">— без карты —</option>'; cardCache[prefix] = []; };
+        if (digits.length < 5) { reset(); return; }
+        fetch(cardsForClientUrl + '?phone=' + encodeURIComponent(digits))
+            .then(r => r.json())
+            .then(d => {
+                const cards = (d && d.cards) ? d.cards : [];
+                cardCache[prefix] = cards;
+                if (!cards.length) { reset(); return; }
+                sel.innerHTML = '<option value="">— без карты —</option>' + cards.map(c => {
+                    let label = c.code + ' · ' + (c.type_name || '');
+                    if (c.is_counter) label += ' (осталось ' + c.balance + ')';
+                    else if (c.is_discount) label += ' (−' + c.discount_percent + '%)';
+                    return '<option value="' + c.id + '">' + escHtml(label) + '</option>';
+                }).join('');
+                if (preselectId) sel.value = String(preselectId);
+                wrap.style.display = '';
+                onCardSelect(prefix);
+            })
+            .catch(() => reset());
+    }
+
+    function onCardSelect(prefix) {
+        const sel = document.getElementById(prefix + 'CardSelect');
+        const hint = document.getElementById(prefix + 'CardHint');
+        if (!sel) return;
+        const card = (cardCache[prefix] || []).find(c => String(c.id) === String(sel.value));
+        const priceEl = document.getElementById(prefix === 'book' ? 'bookCustomPrice' : 'editCustomPrice');
+        const discEl = document.getElementById(prefix === 'book' ? 'bookDiscount' : 'editDiscount');
+        if (!card) {
+            if (hint) hint.style.display = 'none';
+            if (prefix === 'book') updateFinalPrice();
+            return;
+        }
+        if (card.is_discount && priceEl && discEl) {
+            const price = parseInt(priceEl.value) || 0;
+            discEl.value = Math.round(price * (card.discount_percent || 0) / 100);
+            if (hint) { hint.textContent = 'Скидка −' + card.discount_percent + '% применена к цене.'; hint.style.display = ''; }
+        } else if (card.is_counter) {
+            if (hint) { hint.textContent = 'Спишется 1 занятие после прошедшей брони (остаток: ' + card.balance + ').'; hint.style.display = ''; }
+        }
+        if (prefix === 'book') updateFinalPrice();
     }
 
     function setDuration(n) {
@@ -1031,6 +1104,7 @@
             clientNote.removeAttribute('title');
         }
         if (clientNoteHint) clientNoteHint.style.display = 'none';
+        loadClientCards('book', '', null); // сброс карт клиента
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
@@ -1079,6 +1153,8 @@
                 })
                 .catch(() => {});
         }
+        // Клубные карты клиента (с предвыбором текущей карты брони).
+        loadClientCards('edit', phoneNorm, data.clubCardId || null);
 
         // Payment method
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
@@ -3489,6 +3565,8 @@ function cancelUnprocessed(id, url, name) {
                                 const isEdit = (inputId === 'editClientName' || inputId === 'editClientPhone');
                                 if (isBook || isEdit) {
                                     lockClientFields(isBook ? 'book' : 'edit', this.dataset.note || '');
+                                    const ph = this.dataset.phone || '';
+                                    loadClientCards(isBook ? 'book' : 'edit', ph, null);
                                 }
                                 list.classList.remove('show');
                             });
@@ -3539,12 +3617,23 @@ function cancelUnprocessed(id, url, name) {
                 noteInput.removeAttribute('title');
             }
             if (noteHint) noteHint.style.display = 'none';
+            // Подгрузка карт клиента по введённому телефону (с дебаунсом).
+            clearTimeout(cardLoadTimer);
+            cardLoadTimer = setTimeout(() => loadClientCards('book', this.value, null), 400);
         });
     }
 
     // Edit modal
     setupAutocomplete('editClientName', 'editNameList', 'name', 'editClientPhone');
     setupAutocomplete('editClientPhone', 'editPhoneList', 'phone', 'editClientName');
+
+    const editPhoneEl = document.getElementById('editClientPhone');
+    if (editPhoneEl) {
+        editPhoneEl.addEventListener('input', function() {
+            clearTimeout(cardLoadTimer);
+            cardLoadTimer = setTimeout(() => loadClientCards('edit', this.value, null), 400);
+        });
+    }
 })();
 </script>
 @endsection

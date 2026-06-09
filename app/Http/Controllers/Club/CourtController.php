@@ -602,6 +602,7 @@ class CourtController extends Controller
             'coach_paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'club_card_id' => 'nullable|integer',
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
         ], [
@@ -661,6 +662,22 @@ class CourtController extends Controller
         $autoPrice = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
         $customPrice = $validated['custom_price'] ?? $autoPrice;
         $discount = $validated['discount'] ?? 0;
+
+        // Клубная карта клиента: проверяем принадлежность клубу и актуальность.
+        // Для скидочной карты скидка считается от цены (источник истины — карта).
+        $clubCardId = null;
+        if (!$isGroupBooking && !empty($validated['club_card_id'])) {
+            $card = \App\Models\ClubCard::where('club_id', $club->id)
+                ->with('type')->find($validated['club_card_id']);
+            if ($card && $card->isActual()) {
+                $clubCardId = $card->id;
+                if ($card->type && $card->type->isDiscount()) {
+                    $pct = (int) $card->type->discount_percent;
+                    $discount = (int) round($customPrice * $pct / 100);
+                }
+            }
+        }
+
         $price = max(0, $customPrice - $discount);
 
         $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
@@ -703,6 +720,7 @@ class CourtController extends Controller
                 'booking_type' => $validated['booking_type'] ?? null,
                 'coach_id' => $validated['coach_id'] ?? null,
                 'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
+                'club_card_id' => $clubCardId,
             ]);
             $firstBooking ??= $booking;
             $created[] = ['date' => $date, 'id' => $booking->id];
@@ -869,6 +887,7 @@ class CourtController extends Controller
             'coach_paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'club_card_id' => 'nullable|integer',
             'slots' => 'nullable|integer|min:1|max:8',
         ], [
             'client_name.required' => 'Укажите имя клиента',
@@ -898,6 +917,20 @@ class CourtController extends Controller
             }
         }
 
+        // Клубная карта клиента: проверяем принадлежность и актуальность.
+        $clubCardId = null;
+        $cardDiscountPct = null;
+        if (!empty($validated['club_card_id'])) {
+            $card = \App\Models\ClubCard::where('club_id', $club->id)
+                ->with('type')->find($validated['club_card_id']);
+            if ($card && $card->isActual()) {
+                $clubCardId = $card->id;
+                if ($card->type && $card->type->isDiscount()) {
+                    $cardDiscountPct = (int) $card->type->discount_percent;
+                }
+            }
+        }
+
         $updateData = [
             'client_name' => $validated['client_name'],
             'client_phone' => $validated['client_phone'],
@@ -908,6 +941,7 @@ class CourtController extends Controller
             'booking_type' => $validated['booking_type'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
             'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
+            'club_card_id' => $clubCardId,
         ];
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {
@@ -951,6 +985,10 @@ class CourtController extends Controller
 
         if (isset($validated['custom_price'])) {
             $discount = $validated['discount'] ?? 0;
+            // Скидочная карта — источник истины для размера скидки.
+            if ($cardDiscountPct !== null) {
+                $discount = (int) round($validated['custom_price'] * $cardDiscountPct / 100);
+            }
             $updateData['price'] = max(0, $validated['custom_price'] - $discount);
             $updateData['discount'] = $discount;
         }

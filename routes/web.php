@@ -292,6 +292,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/card-types', [App\Http\Controllers\Club\ClubCardTypeController::class, 'store'])->name('cardTypes.store');
         Route::put('/card-types/{cardType}', [App\Http\Controllers\Club\ClubCardTypeController::class, 'update'])->name('cardTypes.update');
         Route::delete('/card-types/{cardType}', [App\Http\Controllers\Club\ClubCardTypeController::class, 'destroy'])->name('cardTypes.destroy');
+        Route::get('/cards/for-client', [App\Http\Controllers\Club\ClubCardController::class, 'forClient'])->name('cards.forClient');
         Route::post('/cards', [App\Http\Controllers\Club\ClubCardController::class, 'store'])->name('cards.issue');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');
 

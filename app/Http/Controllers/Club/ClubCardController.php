@@ -45,6 +45,45 @@ class ClubCardController extends Controller
         return back()->with('success', 'Карта «' . $type->name . '» привязана клиенту');
     }
 
+    /**
+     * Актуальные карты клиента по телефону — для окна брони корта.
+     * GET /club/cards/for-client?phone=...
+     */
+    public function forClient(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) return response()->json(['cards' => []]);
+
+        $digits = preg_replace('/\D/', '', (string) $request->get('phone'));
+        if (strlen($digits) < 5) return response()->json(['cards' => []]);
+        $last10 = substr($digits, -10);
+
+        $client = ClubClient::where('club_id', $club->id)
+            ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
+            ->first();
+        if (!$client) return response()->json(['cards' => []]);
+
+        $cards = ClubCard::where('club_client_id', $client->id)
+            ->where('club_id', $club->id)
+            ->with('type')
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter->isActual()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'type_name' => $c->type?->name,
+                'kind' => $c->type?->kind,
+                'is_counter' => $c->isCounter(),
+                'is_discount' => (bool) $c->type?->isDiscount(),
+                'balance' => $c->balance,
+                'discount_percent' => $c->type?->discount_percent,
+            ])
+            ->values();
+
+        return response()->json(['cards' => $cards]);
+    }
+
     /** Отвязать (удалить) карту клиента. */
     public function destroy(ClubCard $card)
     {
