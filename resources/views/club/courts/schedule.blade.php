@@ -336,7 +336,7 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -611,6 +611,7 @@
                             @endphp
                             <script>window.__groupMembers = @json($groupMembersData);</script>
                         @endif
+                        <script>window.__coachNames = @json($clubCoaches->mapWithKeys(fn($cc) => [$cc->user_id => ($cc->user->full_name ?? '')])->toArray());</script>
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">
@@ -760,6 +761,20 @@
                             <div class="autocomplete-list" id="editNameList"></div>
                             <small class="form-hint" id="editClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
+                        <!-- Группа: тренер + участники (только для групповой брони) -->
+                        <div id="editGroupBlock" style="display:none;">
+                            <div class="modal-section-title">Тренер</div>
+                            <div class="form-input" id="editGroupCoach" style="background:#18181b;">—</div>
+                            <div class="group-members-block" style="margin-top:14px;">
+                                <div class="gm-header">
+                                    <span class="gm-title">Участники</span>
+                                    <span class="gm-count" id="editGmCount"></span>
+                                </div>
+                                <ul id="editGmList" class="gm-list"></ul>
+                                <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                            </div>
+                        </div>
+
                         <div class="form-group autocomplete-wrap js-edit-hide-for-group">
                             <label class="form-label">Телефон *</label>
                             <input type="text" name="client_phone" id="editClientPhone" class="form-input" placeholder="+7 (___) ___-__-__" autocomplete="off" required>
@@ -1133,7 +1148,9 @@
         // Длительность — кнопки 1..6, текущая = (end-start)/slotDuration
         renderEditDurationButtons(data);
 
-        // Групповая бронь — прячем поля клиента/оплаты/тренера (как при создании)
+        // Групповая бронь — показываем тренера и участников, прячем поля
+        // клиента/оплаты (как при создании).
+        renderEditGroup(data);
         applyEditGroupVisibility((data.bookingType || '') === 'group');
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
@@ -1524,10 +1541,43 @@
         if (label) {
             label.textContent = isGroup ? 'Группа' : 'Напишите имя и фамилию клиента *';
         }
+        const groupBlock = document.getElementById('editGroupBlock');
+        if (groupBlock) groupBlock.style.display = isGroup ? 'block' : 'none';
         // Оплата тренера для группы не нужна
         if (isGroup) {
             const cp = document.getElementById('editCoachPaidGroup');
             if (cp) cp.style.display = 'none';
+        }
+    }
+
+    // Заполнить тренера и список участников группы в окне редактирования.
+    function renderEditGroup(data) {
+        const coachEl = document.getElementById('editGroupCoach');
+        if (coachEl) {
+            coachEl.textContent = (window.__coachNames && window.__coachNames[data.coachId]) || '— без тренера —';
+        }
+        const list = document.getElementById('editGmList');
+        const empty = document.getElementById('editGmEmpty');
+        const count = document.getElementById('editGmCount');
+        if (!list) return;
+        list.innerHTML = '';
+        const g = (window.__groupMembers && data.groupId && window.__groupMembers[data.groupId]) || null;
+        const members = g ? (g.members || []) : [];
+        if (count) count.textContent = members.length ? members.length : '';
+        if (!members.length) {
+            if (empty) empty.style.display = 'block';
+        } else {
+            if (empty) empty.style.display = 'none';
+            members.forEach(function (m) {
+                const li = document.createElement('li');
+                li.className = 'gm-item';
+                const remaining = m.remaining;
+                const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
+                const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                list.appendChild(li);
+            });
         }
     }
 
