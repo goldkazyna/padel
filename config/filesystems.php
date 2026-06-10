@@ -71,6 +71,10 @@ return [
             'endpoint' => env('BACKUP_ENDPOINT'),
             'use_path_style_endpoint' => env('BACKUP_USE_PATH_STYLE', true),
             'path_prefix' => env('BACKUP_PATH_PREFIX', 'padel-backups'),
+            // Yandex/MinIO и др. S3-совместимые не поддерживают авто-CRC32 чексуммы
+            // нового aws-sdk-php (иначе SignatureDoesNotMatch). Считаем только когда нужно.
+            'request_checksum_calculation' => 'when_required',
+            'response_checksum_validation' => 'when_required',
             'throw' => true,
             'report' => false,
         ],
