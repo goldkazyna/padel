@@ -119,11 +119,17 @@ class RunBackup extends Command
         return $code === 0 && file_exists($tarPath) && filesize($tarPath) > 0;
     }
 
-    /** Выгрузка в облачный диск backup (S3-совместимый) + ротация там же. */
+    /** Выгрузка в облако + ротация. По умолчанию rclone (надёжнее с Yandex/MinIO), иначе S3 SDK. */
     private function uploadToCloud(array $files, int $keep): void
     {
         if (!config('filesystems.disks.backup.key') || !config('filesystems.disks.backup.bucket')) {
             $this->line('ℹ Облако не настроено (BACKUP_KEY/BACKUP_BUCKET пусты) — копии только на сервере.');
+            return;
+        }
+
+        // rclone — основной путь (обходит проблемы подписи aws-sdk с S3-совместимыми).
+        if (env('BACKUP_USE_RCLONE', true)) {
+            $this->uploadViaRclone($files, $keep);
             return;
         }
 
@@ -151,6 +157,61 @@ class RunBackup extends Command
             }
         } catch (\Throwable $e) {
             $this->error('☁ Ошибка выгрузки в облако: ' . $e->getMessage());
+        }
+    }
+
+    /** Выгрузка через rclone (креды — через окружение, не видны в ps). */
+    private function uploadViaRclone(array $files, int $keep): void
+    {
+        $c = config('filesystems.disks.backup');
+        $bucket = $c['bucket'];
+        $prefix = trim($c['path_prefix'] ?? 'padel-backups', '/');
+        $base = $bucket . '/' . $prefix;
+
+        // rclone установлен?
+        exec('command -v rclone 2>/dev/null', $w, $wc);
+        if ($wc !== 0 || empty($w)) {
+            $this->error('☁ rclone не установлен. Установите: apt-get install -y rclone (или curl https://rclone.org/install.sh | sudo bash)');
+            return;
+        }
+
+        // Конфиг S3-бэкенда rclone через переменные окружения (не в argv).
+        putenv('RCLONE_S3_PROVIDER=Other');
+        putenv('RCLONE_S3_ENV_AUTH=false');
+        putenv('RCLONE_S3_ACCESS_KEY_ID=' . $c['key']);
+        putenv('RCLONE_S3_SECRET_ACCESS_KEY=' . $c['secret']);
+        putenv('RCLONE_S3_REGION=' . ($c['region'] ?? 'ru-central1'));
+        putenv('RCLONE_S3_ENDPOINT=' . ($c['endpoint'] ?? ''));
+
+        foreach ($files as $local) {
+            $dest = ':s3:' . $base . '/' . basename($local);
+            $cmd = sprintf(
+                'rclone copyto %s %s --s3-no-check-bucket --low-level-retries 3 2>&1',
+                escapeshellarg($local),
+                escapeshellarg($dest)
+            );
+            exec($cmd, $out, $code);
+            if ($code === 0) {
+                $this->info('☁ Выгружено в облако: ' . basename($local));
+            } else {
+                $this->error('☁ Ошибка rclone (' . basename($local) . '): ' . implode(' ', array_slice($out, -4)));
+            }
+            $out = [];
+        }
+
+        // Ротация в облаке: оставить $keep последних по каждому префиксу.
+        exec(sprintf('rclone lsf %s 2>/dev/null', escapeshellarg(':s3:' . $base . '/')), $list, $lc);
+        if ($lc === 0) {
+            foreach (['db-', 'files-'] as $pfx) {
+                $names = collect($list)
+                    ->map(fn($n) => rtrim($n, '/'))
+                    ->filter(fn($n) => str_starts_with($n, $pfx))
+                    ->sortDesc()
+                    ->values();
+                foreach ($names->slice($keep) as $old) {
+                    exec(sprintf('rclone deletefile %s 2>/dev/null', escapeshellarg(':s3:' . $base . '/' . $old)));
+                }
+            }
         }
     }
 
