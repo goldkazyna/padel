@@ -1,9 +1,10 @@
-@extends('layouts.app')
+@extends($__layout ?? 'layouts.app')
 
 @section('title', 'Брони — ' . $client->name)
 
 @section('content')
 @php
+    $bare = (($__layout ?? '') === 'layouts.bare'); // открыто в выезжающей панели (iframe)
     $monthsRu = ['', 'января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
     $dowsRu = ['', 'Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
@@ -36,10 +37,12 @@
 
 <div class="cb-page">
     <div class="cb-header">
+        @unless($bare)
         <a href="{{ route('club.clients.index', ['selected' => $client->id]) }}" class="cb-back">
             <i class="bi bi-arrow-left"></i>
             <span>К клиенту</span>
         </a>
+        @endunless
         <div class="cb-title-block">
             <div class="cb-title">Брони — {{ $client->name }}</div>
             @if($client->phone)
@@ -57,7 +60,7 @@
         @foreach($periodOptions as $val => $label)
             <a href="{{ $val === 'custom'
                     ? '#'
-                    : route('club.clients.bookings', ['client' => $client, 'period' => $val]) }}"
+                    : route('club.clients.bookings', array_merge(['client' => $client, 'period' => $val], $bare ? ['bare' => 1] : [])) }}"
                @if($val === 'custom') onclick="toggleCustomRange(); return false;" @endif
                class="cb-chip {{ $period === $val ? 'active' : '' }}">{{ $label }}</a>
         @endforeach
@@ -66,6 +69,7 @@
     {{-- Custom date range --}}
     <form method="GET" action="{{ route('club.clients.bookings', $client) }}" class="cb-custom" id="cbCustom" style="{{ $period === 'custom' ? '' : 'display:none;' }}">
         <input type="hidden" name="period" value="custom">
+        @if($bare)<input type="hidden" name="bare" value="1">@endif
         <label>С<input type="date" name="from" value="{{ $from?->format('Y-m-d') }}"></label>
         <label>По<input type="date" name="to" value="{{ $to?->format('Y-m-d') }}"></label>
         <button type="submit" class="cb-custom-apply">Применить</button>

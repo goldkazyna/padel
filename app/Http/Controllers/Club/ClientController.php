@@ -123,6 +123,8 @@ class ClientController extends Controller
             'period' => $period,
             'from' => $from,
             'to' => $to,
+            // bare=1 → «голый» layout без админ-меню (для выезжающей панели/iframe)
+            '__layout' => $request->boolean('bare') ? 'layouts.bare' : 'layouts.app',
         ]);
     }
 

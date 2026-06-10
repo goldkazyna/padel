@@ -237,10 +237,11 @@
                 @endif
 
                 <div class="client-detail-actions">
-                    <a href="{{ route('club.clients.bookings', $selectedClient) }}" class="btn-bookings">
+                    <button type="button" class="btn-bookings"
+                            onclick="openBookingsDrawer('{{ route('club.clients.bookings', $selectedClient) }}?bare=1')">
                         <i class="bi bi-calendar-week"></i>
                         Брони
-                    </a>
+                    </button>
                     <button class="btn-edit" onclick="openEditModal()">
                         <i class="bi bi-pencil"></i>
                         Редактировать
@@ -415,9 +416,28 @@
 </div>
 @endif
 
+<!-- Брони клиента — выезжающая справа панель (загружается в iframe) -->
+<div class="modal-overlay" id="bookingsModal">
+    <div class="modal-content modal-content-wide">
+        <div class="modal-header">
+            <h2 class="modal-title">Брони клиента</h2>
+            <button class="modal-close" onclick="closeModal('bookingsModal')">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <iframe id="bookingsFrame" class="bookings-frame" src="about:blank" loading="lazy"></iframe>
+        </div>
+    </div>
+</div>
+
 <script>
 function openAddModal() {
     document.getElementById('addModal').classList.add('active');
+}
+function openBookingsDrawer(url) {
+    document.getElementById('bookingsFrame').src = url;
+    document.getElementById('bookingsModal').classList.add('active');
 }
 function openEditModal() {
     document.getElementById('editModal').classList.add('active');
@@ -954,8 +974,8 @@ document.addEventListener('keydown', function(e) {
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: flex-end;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
@@ -965,17 +985,28 @@ document.addEventListener('keydown', function(e) {
     opacity: 1;
     visibility: visible;
 }
+/* Выезжающая справа панель (drawer), как в расписании кортов */
 .modal-content {
     background: var(--cl-bg-secondary);
-    border: 1px solid var(--cl-border);
-    border-radius: 16px;
+    border: none;
+    border-left: 1px solid var(--cl-border);
+    border-radius: 0;
     width: 100%;
     max-width: 480px;
-    transform: translateY(20px);
-    transition: transform 0.3s;
+    height: 100%;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 0.3s ease-out;
 }
 .modal-overlay.active .modal-content {
-    transform: translateY(0);
+    transform: translateX(0);
+}
+/* Панель «Брони» — шире */
+.modal-content.modal-content-wide { max-width: 1000px; }
+.modal-content.modal-content-wide .modal-body { padding: 0; }
+.bookings-frame { width: 100%; height: calc(100vh - 64px); border: 0; display: block; }
+@media (max-width: 575.98px) {
+    .modal-content { max-width: 100vw; }
 }
 .modal-header {
     display: flex;
