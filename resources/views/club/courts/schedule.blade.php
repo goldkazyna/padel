@@ -340,6 +340,7 @@
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
+                                                @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                                 @if($booking->client_phone)<span class="slot-phone">@phoneFmt($booking->client_phone)</span>@endif
                                             </div>
                                             <div class="slot-right">
@@ -2415,6 +2416,9 @@
     }
 
     .slot-booked.unpaid .slot-name { color: #fbbf24; }
+
+    /* Монохромная иконка: бронь оплачена клубной картой */
+    .slot-card-icon { color: #a1a1aa; font-size: 11px; margin-left: 5px; vertical-align: baseline; opacity: .9; }
 
     .slot-booked.unprocessed {
         background: rgba(239, 68, 68, 0.12);

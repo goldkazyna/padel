@@ -584,6 +584,7 @@
                                  onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
+                                    @if($b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                     @if($b->coach_id || $b->comment)
                                         <span class="meta">
                                             @if($b->coach)<span class="ws-coach"><span class="ws-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($b->coach->first_name ?? '?', 0, 1)) }}@endif
@@ -961,6 +962,9 @@
     .client-card-btn .ccb-sub { color: #22c55e; font-size: 12px; font-weight: 600; }
     .client-card-btn:hover:not(.active) { border-color: #22c55e; }
     .client-card-btn.active { border-color: #22c55e; background: rgba(34,197,94,.14); box-shadow: 0 0 0 1px #22c55e inset; }
+
+    /* Монохромная иконка: бронь оплачена клубной картой */
+    .slot-card-icon { color: #a1a1aa; font-size: 11px; margin-left: 5px; vertical-align: baseline; opacity: .9; }
 </style>
 
 <!-- Book Modal -->
