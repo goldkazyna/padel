@@ -36,13 +36,18 @@ class ChargeDueCards extends Command
         return self::SUCCESS;
     }
 
-    /** Бронь действительно завершилась: дата+время окончания уже в прошлом. */
+    /**
+     * Бронь действительно завершилась: дата+время окончания уже в прошлом.
+     * Время брони хранится в МЕСТНОМ времени клуба (app.timezone=UTC), поэтому
+     * трактуем его как local TZ и сравниваем с now() (Carbon учитывает смещение).
+     */
     private function ended(CourtBooking $booking, Carbon $now): bool
     {
         $date = $booking->date instanceof Carbon
             ? $booking->date->format('Y-m-d')
             : (string) $booking->date;
-        $end = Carbon::parse($date . ' ' . substr((string) $booking->end_time, 0, 5));
+        $tz = config('app.schedule_timezone', 'Asia/Almaty');
+        $end = Carbon::parse($date . ' ' . substr((string) $booking->end_time, 0, 5), $tz);
 
         return $end->lessThanOrEqualTo($now);
     }
