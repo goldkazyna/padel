@@ -337,10 +337,10 @@
                                     <div class="slot {{ $slotClass }}"
                                          id="slot-booking-{{ $booking->id }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                        @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
-                                                @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                                 @if($booking->client_phone)<span class="slot-phone">@phoneFmt($booking->client_phone)</span>@endif
                                             </div>
                                             <div class="slot-right">
@@ -2417,8 +2417,9 @@
 
     .slot-booked.unpaid .slot-name { color: #fbbf24; }
 
-    /* Монохромная иконка: бронь оплачена клубной картой */
-    .slot-card-icon { color: #a1a1aa; font-size: 11px; margin-left: 5px; vertical-align: baseline; opacity: .9; }
+    /* Монохромная иконка: бронь оплачена клубной картой — правый верхний угол */
+    .slot { position: relative; }
+    .slot-card-icon { position: absolute; top: 5px; right: 7px; color: #a1a1aa; font-size: 11px; opacity: .9; pointer-events: none; }
 
     .slot-booked.unprocessed {
         background: rgba(239, 68, 68, 0.12);
