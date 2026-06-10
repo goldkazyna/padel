@@ -60,6 +60,21 @@ return [
             'report' => false,
         ],
 
+        // Облако для бэкапов (S3-совместимое: Backblaze B2, Yandex Object Storage,
+        // Wasabi, AWS S3, MinIO). Заполните BACKUP_* в .env — иначе бэкапы только локально.
+        'backup' => [
+            'driver' => 's3',
+            'key' => env('BACKUP_KEY'),
+            'secret' => env('BACKUP_SECRET'),
+            'region' => env('BACKUP_REGION', 'us-east-1'),
+            'bucket' => env('BACKUP_BUCKET'),
+            'endpoint' => env('BACKUP_ENDPOINT'),
+            'use_path_style_endpoint' => env('BACKUP_USE_PATH_STYLE', true),
+            'path_prefix' => env('BACKUP_PATH_PREFIX', 'padel-backups'),
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*
