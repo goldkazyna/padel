@@ -201,7 +201,8 @@
                         @foreach($clientCards as $card)
                         @php $actual = $card->isActual(); @endphp
                         <div class="client-card-item {{ $actual ? '' : 'is-inactive' }}">
-                            <div class="cci-main">
+                            <div class="cci-main" role="button" title="История карты"
+                                 onclick="openCardHistory('{{ route('club.cards.history', $card) }}?bare=1')">
                                 <div class="cci-name">{{ $card->type?->name ?? 'Карта' }}</div>
                                 <div class="cci-sub">
                                     <span class="cci-code">{{ $card->code }}</span>
@@ -431,6 +432,21 @@
     </div>
 </div>
 
+<!-- История клубной карты — выезжающая справа панель -->
+<div class="modal-overlay" id="cardHistoryModal">
+    <div class="modal-content modal-content-wide">
+        <div class="modal-header">
+            <h2 class="modal-title">История карты</h2>
+            <button class="modal-close" onclick="closeModal('cardHistoryModal')">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <iframe id="cardHistoryFrame" class="bookings-frame" src="about:blank" loading="lazy"></iframe>
+        </div>
+    </div>
+</div>
+
 <script>
 function openAddModal() {
     document.getElementById('addModal').classList.add('active');
@@ -438,6 +454,10 @@ function openAddModal() {
 function openBookingsDrawer(url) {
     document.getElementById('bookingsFrame').src = url;
     document.getElementById('bookingsModal').classList.add('active');
+}
+function openCardHistory(url) {
+    document.getElementById('cardHistoryFrame').src = url;
+    document.getElementById('cardHistoryModal').classList.add('active');
 }
 function openEditModal() {
     document.getElementById('editModal').classList.add('active');
@@ -1109,7 +1129,8 @@ document.addEventListener('keydown', function(e) {
 .client-cards-list { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
 .client-card-item { display:flex; align-items:center; gap:10px; background:var(--cl-card); border:1px solid var(--cl-border); border-radius:10px; padding:10px 12px; }
 .client-card-item.is-inactive { opacity:.55; }
-.cci-main { flex:1; min-width:0; }
+.cci-main { flex:1; min-width:0; cursor:pointer; }
+.cci-main:hover .cci-name { color:#22c55e; }
 .cci-name { color:var(--cl-text); font-weight:600; font-size:14px; }
 .cci-sub { color:var(--cl-text-muted); font-size:11px; margin-top:2px; }
 .cci-code { font-family:monospace; letter-spacing:1px; color:var(--cl-text-dim); }

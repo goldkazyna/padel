@@ -100,6 +100,21 @@ class ClubCardController extends Controller
         return view('club.cards.journal', compact('club', 'transactions'));
     }
 
+    /** История одной карты (списания/операции) — для выезжающей панели. */
+    public function history(ClubCard $card)
+    {
+        $club = $this->getClub();
+        if (!$club || $card->club_id !== $club->id) abort(403);
+
+        $card->load(['type', 'client', 'transactions.booking.court']);
+
+        return view('club.cards.card_history', [
+            'club' => $club,
+            'card' => $card,
+            '__layout' => request()->boolean('bare') ? 'layouts.bare' : 'layouts.app',
+        ]);
+    }
+
     /** Отвязать (удалить) карту клиента. */
     public function destroy(ClubCard $card)
     {
