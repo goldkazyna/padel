@@ -85,7 +85,7 @@
         .sidebar-brand-img {
             display: block;
             width: 100%;
-            max-width: 160px;
+            max-width: 100px;
             height: auto;
             margin: 0 auto;
             background: #ffffff;
