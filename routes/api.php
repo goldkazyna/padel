@@ -155,6 +155,9 @@ Route::prefix('mobile')->group(function () {
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/kingofcourt/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveKingOfCourtScore']);
         Route::post('/admin/tournaments/{tournament}/next-round', [MobileAdminTournamentDetailController::class, 'nextRound']);
 
+        // Round Robin — ввод счёта (next-round/finish/start общие выше)
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/round_robin/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveRoundRobinScore']);
+
         // Bali KOC — создание пар + ввод счёта (next-round/finish общие выше)
         Route::get('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'baliKocPairs']);
         Route::post('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'saveBaliKocPairs']);

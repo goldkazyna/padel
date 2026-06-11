@@ -8,6 +8,7 @@ use App\Models\AmericanoMatch;
 use App\Models\BaliKocMatch;
 use App\Models\BaliKocPair;
 use App\Models\KingOfCourtMatch;
+use App\Models\RoundRobinMatch;
 use App\Models\Tournament;
 use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
@@ -18,6 +19,7 @@ use App\Services\AmericanoService;
 use App\Services\BaliKocService;
 use App\Services\KingOfCourtService;
 use App\Services\MexicanoService;
+use App\Services\RoundRobinService;
 use App\Services\TeamTournamentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -131,7 +133,8 @@ class MobileAdminTournamentDetailController extends Controller
         TeamTournamentService $team,
         KingOfCourtService $king,
         BaliKocService $bali,
-        AmericanoFlexService $flex
+        AmericanoFlexService $flex,
+        RoundRobinService $roundRobin
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -154,6 +157,8 @@ class MobileAdminTournamentDetailController extends Controller
             $ok = $team->startTournament($tournament);
         } elseif ($tournament->isKingOfCourt()) {
             $ok = $king->startTournament($tournament);
+        } elseif ($tournament->isRoundRobin()) {
+            $ok = $roundRobin->startTournament($tournament);
         } elseif ($tournament->isBaliKoc()) {
             if (!$bali->arePairsCreated($tournament)) {
                 return response()->json([
@@ -1214,6 +1219,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildKingOfCourtMatches($tournament));
         }
 
+        if ($tournament->isRoundRobin()) {
+            return response()->json($this->buildRoundRobinMatches($tournament));
+        }
+
         if ($tournament->isAmericanoFlex()) {
             return response()->json($this->buildAmericanoFlexMatches($tournament));
         }
@@ -1680,7 +1689,8 @@ class MobileAdminTournamentDetailController extends Controller
         TeamTournamentService $team,
         KingOfCourtService $king,
         BaliKocService $bali,
-        AmericanoFlexService $flex
+        AmericanoFlexService $flex,
+        RoundRobinService $roundRobin
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -1707,6 +1717,11 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $king->finishTournament($tournament);
+        } elseif ($tournament->isRoundRobin()) {
+            if (!$roundRobin->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте текущий раунд');
+            }
+            $ok = $roundRobin->finishTournament($tournament);
         } elseif ($tournament->isBaliKoc()) {
             if (!$bali->canFinishTournament($tournament)) {
                 return $this->error('Доиграйте текущий раунд');
@@ -1807,10 +1822,23 @@ class MobileAdminTournamentDetailController extends Controller
         Tournament $tournament,
         KingOfCourtService $king,
         BaliKocService $bali,
-        AmericanoFlexService $flex
+        AmericanoFlexService $flex,
+        RoundRobinService $roundRobin
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
+        }
+
+        if ($tournament->isRoundRobin()) {
+            if (!$roundRobin->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            $ok = $roundRobin->generateNextRound($tournament);
+            if (!$ok) {
+                return $this->error('Не удалось сгенерировать следующий раунд');
+            }
+            $tournament->refresh();
+            return response()->json($this->buildRoundRobinMatches($tournament));
         }
 
         if ($tournament->isAmericanoFlex()) {
@@ -1990,6 +2018,195 @@ class MobileAdminTournamentDetailController extends Controller
                 'point_diff' => (int) $kp->points_for - (int) $kp->points_against,
                 'win_percent' => $totalGames > 0 ? (int) round($kp->wins / $totalGames * 100) : 0,
                 'ball_percent' => $totalBalls > 0 ? (int) round($kp->points_for / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
+    }
+
+    // -------------------------------------------------------------------------
+    // Round Robin — ввод счёта и формирование ответа /matches
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST/PUT /api/mobile/admin/tournaments/{tournament}/round_robin/matches/{match}/score
+     * Один метод и для save, и для update — saveMatchResult сам откатит старые
+     * статы, если матч уже completed.
+     */
+    public function saveRoundRobinScore(
+        Request $request,
+        Tournament $tournament,
+        RoundRobinMatch $match,
+        RoundRobinService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round');
+        if (!$match->round ||
+            (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99|different:team1_score',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null) {
+            $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
+    private function buildRoundRobinMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'roundRobinRounds.matches.team1Player1',
+            'roundRobinRounds.matches.team1Player2',
+            'roundRobinRounds.matches.team2Player1',
+            'roundRobinRounds.matches.team2Player2',
+            'roundRobinPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->roundRobinRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                    $matchesTotal++;
+                    if ($m->status === 'completed') {
+                        $matchesPlayed++;
+                    }
+                    return $this->formatRoundRobinMatch($m);
+                });
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $leaderboard = $this->buildRoundRobinLeaderboard($tournament);
+
+        // Как и KOC — заворачиваем в виртуальную «группу», чтобы переиспользовать
+        // готовый рендер «группа → раунды → таблица».
+        $virtualGroup = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $leaderboard,
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+        $rr = app(RoundRobinService::class);
+
+        return [
+            'success' => true,
+            'type' => 'round_robin',
+            'groups' => [$virtualGroup],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $rr->canFinishTournament($tournament),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $isLive && $rr->canGenerateNextRound($tournament),
+            ],
+        ];
+    }
+
+    private function formatRoundRobinMatch(RoundRobinMatch $m): array
+    {
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $this->roundRobinMatchWinner($m),
+        ];
+    }
+
+    private function roundRobinMatchWinner(RoundRobinMatch $m): ?int
+    {
+        if ($m->status !== 'completed') return null;
+        if ($m->team1_score === null || $m->team2_score === null) return null;
+        if ($m->team1_score === $m->team2_score) return null;
+        return $m->team1_score > $m->team2_score ? 1 : 2;
+    }
+
+    /**
+     * Таблица Round Robin: ранжирование по победам → разница геймов → личные
+     * встречи (через RoundRobinService::standings). total_points = победы, чтобы
+     * фронт показал в колонке «Очки» именно метрику ранжирования.
+     */
+    private function buildRoundRobinLeaderboard(Tournament $tournament): array
+    {
+        $standings = app(RoundRobinService::class)->standings($tournament);
+
+        $rows = [];
+        $position = 1;
+        foreach ($standings as $s) {
+            $u = $s['user'];
+            if (!$u) continue;
+            $totalGames = (int) $s['wins'] + (int) $s['losses'];
+            $totalBalls = (int) $s['points_for'] + (int) $s['points_against'];
+            $rows[] = [
+                'position' => $position++,
+                'id' => $u->id,
+                'name' => $u->full_name ?? $u->name,
+                'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'rating' => (int) ($u->rating ?? 0),
+                'wins' => (int) $s['wins'],
+                'losses' => (int) $s['losses'],
+                'draws' => 0,
+                'points_for' => (int) $s['points_for'],
+                'points_against' => (int) $s['points_against'],
+                'total_points' => (int) $s['wins'],
+                'games_played' => $totalGames,
+                'point_diff' => (int) $s['diff'],
+                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0,
             ];
         }
         return $rows;
