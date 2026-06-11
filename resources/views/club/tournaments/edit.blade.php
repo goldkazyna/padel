@@ -99,6 +99,13 @@
                             <small class="text-secondary">Для теста; если задано — приоритетнее часов</small>
                         </div>
                     </div>
+					<div class="mb-4">
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" name="verified_only" id="verifiedOnly" value="1" {{ old('verified_only', $tournament->verified_only) ? 'checked' : '' }}>
+							<label class="form-check-label" for="verifiedOnly">Только для верифицированных игроков</label>
+							<div><small class="text-secondary">Заявки смогут подавать только верифицированные игроки (есть аватар и сыгран хотя бы один турнир)</small></div>
+						</div>
+					</div>
 					@if($tournament->isAmericano())
 					<div class="row">
 						<div class="col-md-6 mb-4">

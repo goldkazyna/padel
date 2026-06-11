@@ -277,6 +277,9 @@ class TournamentController extends Controller
 			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 		]);
 		
+		// Только для верифицированных игроков
+		$validated['verified_only'] = $request->has('verified_only');
+
 		// Обработка чекбоксов плей-офф
 		$validated['has_playoff'] = $request->has('has_playoff');
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
