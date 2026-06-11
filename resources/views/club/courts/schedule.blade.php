@@ -325,18 +325,23 @@
                                     @php
                                         $coachTotal = 0;
                                         if ($booking->coach_id) {
-                                            $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
-                                            if ($ccObj) {
-                                                $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
-                                                $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
-                                                if ($eMin <= $sMin) $eMin += 1440;
-                                                $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
+                                            if ($booking->coach_price !== null) {
+                                                // Сохранённая (возможно изменённая) цена тренера.
+                                                $coachTotal = (float) $booking->coach_price;
+                                            } else {
+                                                $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
+                                                if ($ccObj) {
+                                                    $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
+                                                    $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
+                                                    if ($eMin <= $sMin) $eMin += 1440;
+                                                    $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
+                                                }
                                             }
                                         }
                                     @endphp
                                     <div class="slot {{ $slotClass }}{{ $booking->club_card_id ? ' has-card-icon' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                         <div class="slot-row">
                                             <div class="slot-left">
@@ -518,7 +523,7 @@
                         <div class="modal-section-title js-hide-for-group">Тренер</div>
                         <div class="coach-buttons js-hide-for-group" id="bookCoachButtons">
                             @foreach($clubCoaches as $cc)
-                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectBookCoach(this)">
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" data-rate="{{ $cc->hourly_rate ?? 0 }}" onclick="selectBookCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
                                     <span class="coach-btn-name">{{ $cc->user->full_name }}</span>
                                     @if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
@@ -526,6 +531,12 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
+
+                        <div class="form-group js-hide-for-group" id="bookCoachPriceGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Цена тренера, ₸</label>
+                            <input type="number" name="coach_price" id="bookCoachPrice" class="form-input" min="0" step="100" placeholder="0">
+                            <small class="form-hint" style="color:#71717a;">По умолчанию — ставка тренера, можно изменить</small>
+                        </div>
 
                         <div class="form-group js-hide-for-group" id="bookCoachPaidGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Оплата тренера</label>
@@ -743,7 +754,7 @@
                         <div class="modal-section-title js-edit-hide-for-group">Тренер</div>
                         <div class="coach-buttons js-edit-hide-for-group" id="editCoachButtons">
                             @foreach($clubCoaches as $cc)
-                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" onclick="selectEditCoach(this)">
+                                <button type="button" class="coach-btn" data-coach-id="{{ $cc->user_id }}" data-rate="{{ $cc->hourly_rate ?? 0 }}" onclick="selectEditCoach(this)">
                                     <span class="coach-btn-avatar">@if($cc->photo)<img src="{{ $cc->photo }}" alt="">@else{{ mb_strtoupper(mb_substr($cc->user->first_name ?? $cc->user->name ?? '?', 0, 1)) }}@endif</span>
                                     <span class="coach-btn-name">{{ $cc->user->full_name }}</span>
                                     @if($cc->hourly_rate)<span class="coach-rate">{{ number_format($cc->hourly_rate, 0, '', ' ') }} ₸</span>@endif
@@ -751,6 +762,12 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
+
+                        <div class="form-group js-edit-hide-for-group" id="editCoachPriceGroup" style="display:none; margin-top:14px;">
+                            <label class="form-label">Цена тренера, ₸</label>
+                            <input type="number" name="coach_price" id="editCoachPrice" class="form-input" min="0" step="100" placeholder="0">
+                            <small class="form-hint" style="color:#71717a;">По умолчанию — ставка тренера, можно изменить</small>
+                        </div>
 
                         <div class="form-group" id="editCoachPaidGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Оплата тренера</label>
@@ -1198,6 +1215,10 @@
         document.getElementById('bookCoachPaidGroup').style.display = 'none';
         document.getElementById('bookCoachPaidInput').value = '';
         document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
+        const bcpg = document.getElementById('bookCoachPriceGroup');
+        if (bcpg) bcpg.style.display = 'none';
+        const bcp = document.getElementById('bookCoachPrice');
+        if (bcp) bcp.value = '';
         updateCoachButtons();
 
         if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
@@ -1300,6 +1321,30 @@
             b.classList.toggle('active', coachPaidVal !== '' && b.getAttribute('data-value') === coachPaidVal);
         });
         editCoachPaidGroup.style.display = data.coachId ? '' : 'none';
+
+        // Цена тренера — показываем при выбранном тренере; берём сохранённую или ставку×часы.
+        const editCoachPriceGroup = document.getElementById('editCoachPriceGroup');
+        const editCoachPrice = document.getElementById('editCoachPrice');
+        if (editCoachPriceGroup && editCoachPrice) {
+            if (data.coachId) {
+                editCoachPriceGroup.style.display = '';
+                if (data.coachPrice !== null && data.coachPrice !== undefined) {
+                    editCoachPrice.value = Math.round(data.coachPrice);
+                } else {
+                    const btn = document.querySelector('#editCoachButtons .coach-btn[data-coach-id="' + data.coachId + '"]');
+                    const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
+                    const slotDur = data.slotDuration || 60;
+                    const sMin = parseTimeToMinutes(data.startTime);
+                    let eMin = parseTimeToMinutes(data.endTime);
+                    if (eMin <= sMin) eMin += 1440;
+                    const hours = Math.max(1, Math.round((eMin - sMin) / 60));
+                    editCoachPrice.value = rate > 0 ? Math.round(rate * hours) : '';
+                }
+            } else {
+                editCoachPriceGroup.style.display = 'none';
+                editCoachPrice.value = '';
+            }
+        }
 
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
@@ -1850,13 +1895,23 @@
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
         const paidGroup = document.getElementById('bookCoachPaidGroup');
+        const priceGroup = document.getElementById('bookCoachPriceGroup');
+        const priceInput = document.getElementById('bookCoachPrice');
         if (isActive) {
             input.value = '';
             if (paidGroup) paidGroup.style.display = 'none';
+            if (priceGroup) priceGroup.style.display = 'none';
+            if (priceInput) priceInput.value = '';
         } else {
             btn.classList.add('active');
             input.value = coachId;
             if (paidGroup) paidGroup.style.display = '';
+            if (priceGroup) priceGroup.style.display = '';
+            if (priceInput) {
+                const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
+                const dur = (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
+                priceInput.value = rate > 0 ? Math.round(rate * dur) : '';
+            }
         }
     }
     function setBookCoachPaid(btn) {
@@ -1878,13 +1933,23 @@
         const isActive = btn.classList.contains('active');
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
         const paidGroup = document.getElementById('editCoachPaidGroup');
+        const priceGroup = document.getElementById('editCoachPriceGroup');
+        const priceInput = document.getElementById('editCoachPrice');
         if (isActive) {
             input.value = '';
             if (paidGroup) paidGroup.style.display = 'none';
+            if (priceGroup) priceGroup.style.display = 'none';
+            if (priceInput) priceInput.value = '';
         } else {
             btn.classList.add('active');
             input.value = coachId;
             if (paidGroup) paidGroup.style.display = '';
+            if (priceGroup) priceGroup.style.display = '';
+            if (priceInput) {
+                const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
+                const slots = parseInt(document.getElementById('editSlots')?.value) || 1;
+                priceInput.value = rate > 0 ? Math.round(rate * slots) : '';
+            }
         }
     }
     function setEditCoachPaid(btn) {

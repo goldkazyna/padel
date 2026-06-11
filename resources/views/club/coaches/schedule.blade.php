@@ -71,9 +71,21 @@
                         <td class="time-cell">{{ $time }}</td>
                         <td>
                             @if($slot['status'] === 'booked')
+                                @php
+                                    $b = $slot['booking'];
+                                    if ($b->coach_price !== null) {
+                                        $coachPay = (float) $b->coach_price;
+                                    } else {
+                                        $sM = \Carbon\Carbon::parse($b->start_time)->hour * 60 + \Carbon\Carbon::parse($b->start_time)->minute;
+                                        $eM = \Carbon\Carbon::parse($b->end_time)->hour * 60 + \Carbon\Carbon::parse($b->end_time)->minute;
+                                        if ($eM <= $sM) $eM += 1440;
+                                        $coachPay = $clubCoach->getRateForHours((int)(($eM - $sM) / 60));
+                                    }
+                                @endphp
                                 <div class="slot slot-booked" onclick="viewBooking('{{ addslashes($slot['booking']->court->name ?? '') }}', '{{ \Carbon\Carbon::parse($slot['booking']->start_time)->format('H:i') }}', '{{ \Carbon\Carbon::parse($slot['booking']->end_time)->format('H:i') }}', '{{ addslashes($slot['booking']->client_name ?? '') }}')">
                                     <span class="slot-client">{{ $slot['booking']->client_name ?? 'Бронь' }}</span>
                                     <span class="slot-court">{{ $slot['booking']->court->name ?? '' }}</span>
+                                    @if($coachPay > 0)<span class="slot-price">{{ number_format($coachPay, 0, '', ' ') }} &#8376;</span>@endif
                                 </div>
                             @elseif($slot['status'] === 'blocked')
                                 <div class="slot slot-blocked" onclick="openUnblockModal({{ $slot['block']->id }}, '{{ $time }}', '{{ addslashes($slot['block']->reason ?? '') }}')">

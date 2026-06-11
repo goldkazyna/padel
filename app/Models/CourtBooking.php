@@ -25,6 +25,7 @@ class CourtBooking extends Model
         'booking_type',
         'coach_id',
         'coach_paid',
+        'coach_price',
         'needs_coach',
         'club_card_id',
         'card_charged_at',
@@ -39,6 +40,7 @@ class CourtBooking extends Model
         'is_processed' => 'boolean',
         'needs_coach' => 'boolean',
         'coach_paid' => 'boolean',
+        'coach_price' => 'decimal:2',
         'card_charged_at' => 'datetime',
     ];
 
