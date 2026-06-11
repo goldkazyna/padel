@@ -101,6 +101,7 @@ class Tournament extends Model
         'status',
         'is_rated',
 		'verified_only',
+		'round_robin_schedule',
 		'type',
 		'points_to_win',
 		'groups_count',
@@ -132,6 +133,7 @@ class Tournament extends Model
 		'has_bronze_match' => 'boolean',
 		'is_rated' => 'boolean',
 		'verified_only' => 'boolean',
+		'round_robin_schedule' => 'array',
 		'courts' => 'array',
 		'moderation_hours' => 'integer',
 		'moderation_minutes' => 'integer',
@@ -403,6 +405,21 @@ class Tournament extends Model
 	public function kingOfCourtRounds()
 	{
 		return $this->hasMany(KingOfCourtRound::class)->orderBy('round_number');
+	}
+
+	public function isRoundRobin(): bool
+	{
+		return $this->type === 'round_robin';
+	}
+
+	public function roundRobinPlayers()
+	{
+		return $this->hasMany(RoundRobinPlayer::class);
+	}
+
+	public function roundRobinRounds()
+	{
+		return $this->hasMany(RoundRobinRound::class)->orderBy('round_number');
 	}
 
 	public function isBaliKoc(): bool
