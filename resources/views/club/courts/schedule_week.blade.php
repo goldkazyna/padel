@@ -1435,6 +1435,18 @@
         document.getElementById('bookSlots').value = currentBook.duration;
         // Длительность сбросила цену/скидку — переприменим выбранную карту.
         if (typeof selectedCard === 'object' && selectedCard.book) applyCardPricing('book');
+        recalcBookCoachPrice();
+    }
+
+    // Пересчитать цену тренера = ставка × длительность (если тренер выбран).
+    function recalcBookCoachPrice() {
+        const coachId = document.getElementById('bookCoachId').value;
+        const priceInput = document.getElementById('bookCoachPrice');
+        if (!coachId || !priceInput) return;
+        const btn = document.querySelector('#bookCoachButtons .coach-btn.active');
+        const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
+        const dur = (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
+        if (rate > 0) priceInput.value = Math.round(rate * dur);
     }
 
     function updateFinalPrice() {
@@ -1737,6 +1749,14 @@
         const discountInput = document.getElementById('editDiscount');
         if (priceInput) priceInput.value = total;
         if (discountInput) discountInput.value = 0;
+        // Пересчёт цены тренера под новую длительность.
+        const coachId = document.getElementById('editCoachId').value;
+        const coachPrice = document.getElementById('editCoachPrice');
+        if (coachId && coachPrice) {
+            const btn = document.querySelector('#editCoachButtons .coach-btn.active');
+            const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
+            if (rate > 0) coachPrice.value = Math.round(rate * slots);
+        }
     }
 
     function parseTimeToMinutes(t) {
