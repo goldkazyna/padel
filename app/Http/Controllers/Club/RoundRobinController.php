@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 
 class RoundRobinController extends Controller
 {
-    public function show(Tournament $tournament, RoundRobinService $service)
+    public function show(Tournament $tournament)
     {
         $tournament->load([
             'club',
@@ -27,7 +27,7 @@ class RoundRobinController extends Controller
         ]);
 
         $standings = $tournament->roundRobinPlayers->count() > 0
-            ? $service->standings($tournament)
+            ? app(RoundRobinService::class)->standings($tournament)
             : [];
 
         return view('club.tournaments.round_robin.show', compact('tournament', 'standings'));
