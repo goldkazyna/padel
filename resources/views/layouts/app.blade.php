@@ -80,8 +80,11 @@
             margin: 0;
             font-weight: 700;
             font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        
+        .sidebar-brand-logo { flex-shrink: 0; }
         .sidebar-brand span { color: var(--accent); }
         
         .sidebar-nav {
@@ -900,7 +903,15 @@
             <i class="bi bi-chevron-left" id="sidebar-toggle-icon"></i>
         </button>
         <div class="sidebar-brand">
-            <h4>🎾 <span>Padel</span></h4>
+            <h4>
+                <svg class="sidebar-brand-logo" width="34" height="34" viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="88" height="88" rx="22" fill="#22C55E"/>
+                    <circle cx="44" cy="44" r="21" stroke="#0A3D20" stroke-width="3"/>
+                    <line x1="44" y1="30" x2="44" y2="58" stroke="#0A3D20" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="31" y1="40" x2="57" y2="40" stroke="#0A3D20" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span>Padel</span>
+            </h4>
         </div>
         
         <nav class="sidebar-nav">
