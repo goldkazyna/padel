@@ -384,7 +384,7 @@ class Tournament extends Model
 			'king_of_court' => 'Король корта',
 			'bali_koc' => 'Король Корта (Bali Format)',
 			'americano_flex' => 'Americano Flex',
-			'round_robin' => 'Round Robin (индивидуальный)',
+			'round_robin' => 'Round Robin',
 			default => $this->type,
 		};
 	}
