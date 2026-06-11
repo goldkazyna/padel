@@ -94,7 +94,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex',
+			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex,round_robin',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
@@ -217,6 +217,11 @@ class TournamentController extends Controller
 		// Король Корта (Bali Format) — отдельный контроллер
 		if ($tournament->isBaliKoc()) {
 			return app(\App\Http\Controllers\Club\BaliKocController::class)->show($tournament);
+		}
+
+		// Round Robin — отдельный контроллер
+		if ($tournament->isRoundRobin()) {
+			return app(\App\Http\Controllers\Club\RoundRobinController::class)->show($tournament);
 		}
 
 		$tournament->load(['club', 'participants']);
@@ -373,7 +378,7 @@ class TournamentController extends Controller
 	/**
 	 * Запустить турнир Американо
 	 */
-	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService, \App\Services\BaliKocService $baliKocService)
+	public function start(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService, \App\Services\BaliKocService $baliKocService, \App\Services\RoundRobinService $roundRobinService)
 	{
 		$club = $this->getClub();
 
@@ -389,6 +394,8 @@ class TournamentController extends Controller
 			$result = $teamTournamentService->startTournament($tournament);
 		} elseif ($tournament->isKingOfCourt()) {
 			$result = $kingOfCourtService->startTournament($tournament);
+		} elseif ($tournament->isRoundRobin()) {
+			$result = $roundRobinService->startTournament($tournament);
 		} elseif ($tournament->isBaliKoc()) {
 			if (!$baliKocService->arePairsCreated($tournament)) {
 				return redirect()->route('club.bali-koc.pairs', $tournament)
@@ -517,7 +524,7 @@ class TournamentController extends Controller
 	/**
 	 * Завершить турнир и начислить рейтинг
 	 */
-	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService, \App\Services\BaliKocService $baliKocService)
+	public function finish(Tournament $tournament, \App\Services\AmericanoService $americanoService, \App\Services\MexicanoService $mexicanoService, \App\Services\TeamTournamentService $teamTournamentService, \App\Services\KingOfCourtService $kingOfCourtService, \App\Services\BaliKocService $baliKocService, \App\Services\RoundRobinService $roundRobinService)
 	{
 		$club = $this->getClub();
 
@@ -545,6 +552,11 @@ class TournamentController extends Controller
 				return back()->with('error', 'Доиграйте текущий раунд');
 			}
 			$result = $kingOfCourtService->finishTournament($tournament);
+		} elseif ($tournament->isRoundRobin()) {
+			if (!$roundRobinService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Доиграйте текущий раунд');
+			}
+			$result = $roundRobinService->finishTournament($tournament);
 		} elseif ($tournament->isBaliKoc()) {
 			if (!$baliKocService->canFinishTournament($tournament)) {
 				return back()->with('error', 'Доиграйте текущий раунд');

@@ -46,6 +46,7 @@
 							<option value="mexicano" {{ old('type') === 'mexicano' ? 'selected' : '' }}>Мексикано</option>
 							 <option value="team" {{ old('type') === 'team' ? 'selected' : '' }}>Групповой + Плей-офф</option>
 							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
+							<option value="round_robin" {{ old('type') === 'round_robin' ? 'selected' : '' }}>Round Robin (индивидуальный)</option>
 							<option value="bali_koc" {{ old('type') === 'bali_koc' ? 'selected' : '' }}>Король Корта (Bali Format)</option>
 						</select>
 					</div>
@@ -377,6 +378,17 @@
 						</div>
 					</div>
 
+					<div id="roundRobinFields" style="display: none;">
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Round Robin (индивидуальный):</strong> Игроков кратно 4 (минимум 8). Каждый раунд —
+							пары как в Американо (круговая раскладка). После каждого раунда админ жмёт «Следующий раунд»
+							или «Завершить турнир» в любой момент. Полный круг для 8 игроков — 7 раундов, дальше можно
+							продолжать (8-й раунд = 1-й). Ранжирование: число побед → разница геймов → личная встреча.
+							За победу в матче +1 победа, геймы идут в tie-breaker. Ничьих нет.
+						</div>
+					</div>
+
 					<div id="baliKocFields" style="display: none;">
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
@@ -443,6 +455,7 @@ function toggleTypeFields() {
     const mexicanoFields = document.getElementById('mexicanoFields');
     const teamFields = document.getElementById('teamFields');
     const kingOfCourtFields = document.getElementById('kingOfCourtFields');
+    const roundRobinFields = document.getElementById('roundRobinFields');
     const baliKocFields = document.getElementById('baliKocFields');
     const americanoFlexFields = document.getElementById('americanoFlexFields');
 
@@ -457,6 +470,7 @@ function toggleTypeFields() {
     if (mexicanoFields) mexicanoFields.style.display = 'none';
     if (teamFields) teamFields.style.display = 'none';
     if (kingOfCourtFields) kingOfCourtFields.style.display = 'none';
+    if (roundRobinFields) roundRobinFields.style.display = 'none';
     if (baliKocFields) baliKocFields.style.display = 'none';
     if (americanoFlexFields) americanoFlexFields.style.display = 'none';
     
@@ -507,6 +521,9 @@ function toggleTypeFields() {
         generateCourtsInputs();
     } else if (type === 'king_of_court' && kingOfCourtFields) {
         kingOfCourtFields.style.display = 'block';
+        generateCourtsInputs();
+    } else if (type === 'round_robin' && roundRobinFields) {
+        roundRobinFields.style.display = 'block';
         generateCourtsInputs();
     } else if (type === 'bali_koc' && baliKocFields) {
         baliKocFields.style.display = 'block';

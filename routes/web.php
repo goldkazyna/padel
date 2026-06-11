@@ -432,6 +432,14 @@ Route::middleware('auth')->group(function () {
             Route::post('/kingofcourt/tournament/{tournament}/next-round', [KingOfCourtController::class, 'generateNextRound'])
                 ->name('kingofcourt.nextRound');
 
+            // Round Robin
+            Route::post('/round-robin/match/{match}/score', [App\Http\Controllers\Club\RoundRobinController::class, 'saveScore'])
+                ->name('roundRobin.saveScore');
+            Route::put('/round-robin/match/{match}/score', [App\Http\Controllers\Club\RoundRobinController::class, 'updateScore'])
+                ->name('roundRobin.updateScore');
+            Route::post('/round-robin/tournament/{tournament}/next-round', [App\Http\Controllers\Club\RoundRobinController::class, 'generateNextRound'])
+                ->name('roundRobin.nextRound');
+
             // Король Корта (Bali Format)
             Route::get('/bali-koc/{tournament}/pairs', [BaliKocController::class, 'pairs'])
                 ->name('bali-koc.pairs');
