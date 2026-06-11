@@ -144,6 +144,7 @@ class TournamentController extends Controller
 
 		// Рейтинговый ли турнир. Чекбокс предотмечен — снят = не рейтинговый.
 		$validated['is_rated'] = $request->has('is_rated');
+		$validated['verified_only'] = $request->has('verified_only');
 
 
         // Проверяем доступ к клубу

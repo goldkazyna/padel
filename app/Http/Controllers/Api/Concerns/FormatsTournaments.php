@@ -43,6 +43,7 @@ trait FormatsTournaments
             'status' => $t->status,
             'status_name' => $t->status_name,
             'is_rated' => (bool) $t->is_rated,
+            'verified_only' => (bool) $t->verified_only,
             'pairing_mode' => $t->pairing_mode ?? 'self',
             'is_admin_pairing' => $t->isAdminPairing(),
             'min_level' => (float) $t->min_level,

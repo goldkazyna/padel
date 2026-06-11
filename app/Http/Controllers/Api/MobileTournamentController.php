@@ -319,6 +319,13 @@ class MobileTournamentController extends Controller
             return response()->json(['success' => false, 'message' => 'Вы уже записаны на этот турнир'], 400);
         }
 
+        if ($tournament->verified_only && !$user->level_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир только для верифицированных игроков',
+            ], 400);
+        }
+
         if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
             return response()->json([
                 'success' => false,
@@ -345,6 +352,12 @@ class MobileTournamentController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => "{$friend->name} уже записан на этот турнир",
+                ], 400);
+            }
+            if ($tournament->verified_only && !$friend->level_verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "{$friend->name} не верифицирован — турнир только для верифицированных игроков",
                 ], 400);
             }
             if ($friend->level < $tournament->min_level || $friend->level > $tournament->max_level) {
@@ -625,6 +638,14 @@ class MobileTournamentController extends Controller
 
         if ($partner->id === $user->id) {
             return response()->json(['success' => false, 'message' => 'Нельзя выбрать себя в качестве партнёра'], 400);
+        }
+
+        // Только для верифицированных — оба игрока пары
+        if ($tournament->verified_only && !$user->level_verified) {
+            return response()->json(['success' => false, 'message' => 'Турнир только для верифицированных игроков'], 400);
+        }
+        if ($tournament->verified_only && !$partner->level_verified) {
+            return response()->json(['success' => false, 'message' => "{$partner->name} не верифицирован — турнир только для верифицированных игроков"], 400);
         }
 
         // Проверяем уровни
@@ -948,6 +969,9 @@ class MobileTournamentController extends Controller
         if ($t->isFull() && $t->hasWaitlistSlot($needSlots)) {
             // Места нет в основном, но есть в waitlist — пропускаем (UI спросит confirm)
             if (!$t->isOpen()) return 'Турнир не открыт для регистрации';
+            if ($t->verified_only && !$user->level_verified) {
+                return 'Турнир только для верифицированных игроков';
+            }
             if ($user->level < $t->min_level) {
                 return 'Ваш уровень (' . $user->level . ') ниже минимального (' . $t->min_level . ')';
             }

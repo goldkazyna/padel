@@ -145,6 +145,11 @@
 								<label class="form-check-label" for="isRated">Рейтинговый турнир</label>
 								<div><small class="text-secondary">Снимите галочку, чтобы турнир не влиял на рейтинг игроков</small></div>
 							</div>
+							<div class="form-check mt-2">
+								<input type="checkbox" class="form-check-input" name="verified_only" id="verifiedOnly" value="1" {{ old('verified_only') ? 'checked' : '' }}>
+								<label class="form-check-label" for="verifiedOnly">Только для верифицированных игроков</label>
+								<div><small class="text-secondary">Заявки смогут подавать только верифицированные игроки (есть аватар и сыгран хотя бы один турнир)</small></div>
+							</div>
 						</div>
 
 						<div id="americanoFields" style="display: none;">

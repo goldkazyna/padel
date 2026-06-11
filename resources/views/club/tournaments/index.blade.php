@@ -50,13 +50,21 @@
                                 <div class="tournament-month">{{ $tournament->start_date->translatedFormat('M') }}</div>
                             </div>
                             <div class="tournament-info">
-                                <div class="tournament-name">{{ $tournament->name }}</div>
+                                <div class="tournament-name">
+                                    {{ $tournament->name }}
+                                    @if($tournament->verified_only)
+                                        <i class="bi bi-patch-check-fill text-success" title="Только для верифицированных игроков"></i>
+                                    @endif
+                                </div>
                                 <div class="tournament-meta">
                                     @if(!$club)
                                         <span><i class="bi bi-building"></i> {{ $tournament->club->name }}</span>
                                     @endif
                                     <span><i class="bi bi-clock"></i> {{ $tournament->start_date->format('H:i') }}</span>
                                     <span><i class="bi bi-bar-chart"></i> {{ $tournament->min_level }}–{{ $tournament->max_level }}</span>
+                                    @if($tournament->verified_only)
+                                        <span class="text-success"><i class="bi bi-patch-check"></i> Только верифицированные</span>
+                                    @endif
                                 </div>
                             </div>
                             <div class="tournament-stats d-none d-lg-flex">

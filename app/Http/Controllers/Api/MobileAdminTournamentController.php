@@ -189,6 +189,7 @@ class MobileAdminTournamentController extends Controller
         $validated['club_id'] = $club->id;
         // Рейтинговый по умолчанию; веб-админка флаг не шлёт — остаётся true.
         $validated['is_rated'] = $request->boolean('is_rated', true);
+        $validated['verified_only'] = $request->boolean('verified_only', false);
 
         $tournament = $this->finalizeTournamentCreate($request, $validated);
 
@@ -227,6 +228,7 @@ class MobileAdminTournamentController extends Controller
         $validated['club_id'] = null;
         $validated['creator_id'] = $user->id;
         $validated['is_rated'] = false; // личные турниры всегда нерейтинговые
+        $validated['verified_only'] = $request->boolean('verified_only', false);
 
         $tournament = $this->finalizeTournamentCreate($request, $validated);
 
@@ -265,6 +267,7 @@ class MobileAdminTournamentController extends Controller
             'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
             'telegram_registration_url' => 'nullable|url|max:500',
             'is_rated' => 'nullable|boolean',
+            'verified_only' => 'nullable|boolean',
             'pairing_mode' => 'nullable|in:self,admin',
         ];
     }

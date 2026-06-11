@@ -100,6 +100,7 @@ class Tournament extends Model
         'price',
         'status',
         'is_rated',
+		'verified_only',
 		'type',
 		'points_to_win',
 		'groups_count',
@@ -130,6 +131,7 @@ class Tournament extends Model
 		'has_lower_bracket' => 'boolean',
 		'has_bronze_match' => 'boolean',
 		'is_rated' => 'boolean',
+		'verified_only' => 'boolean',
 		'courts' => 'array',
 		'moderation_hours' => 'integer',
 		'moderation_minutes' => 'integer',
@@ -276,8 +278,10 @@ class Tournament extends Model
         
         // Не переполнен
         if ($this->isFull()) return false;
-        
-        
+
+        // Только для верифицированных игроков
+        if ($this->verified_only && !$user->level_verified) return false;
+
         // Уровень подходит
         if ($user->level < $this->min_level || $user->level > $this->max_level) return false;
         
@@ -302,7 +306,11 @@ class Tournament extends Model
 		if ($this->isFull()) {
 			return 'Все места заняты';
 		}
-		
+
+		if ($this->verified_only && !$user->level_verified) {
+			return 'Турнир только для верифицированных игроков';
+		}
+
 		if ($user->level < $this->min_level) {
 			return 'Ваш уровень (' . $user->level . ') ниже минимального (' . $this->min_level . ')';
 		}
