@@ -82,6 +82,7 @@ class MobileAdminTournamentDetailController extends Controller
             'price' => 'nullable|numeric|min:0',
             'moderation_hours' => 'nullable|integer|min:0|max:720',
             'moderation_minutes' => 'nullable|integer|min:0|max:1440',
+            'verified_only' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -93,6 +94,13 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $validated = $validator->validated();
+
+        // verified_only: меняем только если поле прислано (старые версии приложения не трогают).
+        if ($request->has('verified_only')) {
+            $validated['verified_only'] = $request->boolean('verified_only');
+        } else {
+            unset($validated['verified_only']);
+        }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
         $taken = $tournament->takenSlotsCount();
@@ -394,6 +402,7 @@ class MobileAdminTournamentDetailController extends Controller
             'participants_count' => $taken,
             'pending_count' => $this->getPendingCount($t),
             'price' => $t->price !== null ? (float) $t->price : null,
+            'verified_only' => (bool) $t->verified_only,
             'telegram_registration_url' => $t->telegram_registration_url,
             'has_playoff' => (bool) $t->has_playoff,
             'has_lower_bracket' => (bool) $t->has_lower_bracket,
