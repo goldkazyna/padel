@@ -484,7 +484,12 @@ function toggleTypeFields() {
     if (roundRobinFields) roundRobinFields.style.display = 'none';
     if (baliKocFields) baliKocFields.style.display = 'none';
     if (americanoFlexFields) americanoFlexFields.style.display = 'none';
-    
+
+    // Team-галка «С плей-офф» по умолчанию отмечена и лежит в скрытом блоке —
+    // отключаем её для не-team, чтобы она не уходила в submit (has_playoff).
+    var teamHasPlayoffCb = document.getElementById('teamHasPlayoff');
+    if (teamHasPlayoffCb) teamHasPlayoffCb.disabled = (type !== 'team');
+
     // Отключаем все playoff_format селекты
     const playoffFormat = document.getElementById('playoffFormat');
     const mexicanoPlayoffFormat = document.getElementById('mexicanoPlayoffFormat');
