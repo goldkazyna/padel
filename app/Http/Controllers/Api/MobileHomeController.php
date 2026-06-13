@@ -210,7 +210,9 @@ class MobileHomeController extends Controller
             'name' => $t->name,
             'description' => $t->description,
             'club' => [
-                'id' => $t->club?->id,
+                // 0 для личного турнира (club_id null) — иначе старые сборки
+                // падают на Club.fromJson (id обязателен) → «Ошибка загрузки».
+                'id' => $t->club?->id ?? 0,
                 'name' => $t->club?->name ?? ($t->creator?->name ?? 'Личный турнир'),
                 'logo' => $t->club?->logo ? url($t->club->logo) : null,
             ],
