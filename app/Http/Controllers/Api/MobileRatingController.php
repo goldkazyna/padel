@@ -743,6 +743,14 @@ class MobileRatingController extends Controller
             }
         }
 
+        // Round Robin — место по стандингам (победы → разница → личные встречи)
+        if ($tournament->type === 'round_robin') {
+            $standings = app(\App\Services\RoundRobinService::class)->standings($tournament);
+            foreach ($standings as $i => $row) {
+                if ((int) $row['user_id'] === $userId) return $i + 1;
+            }
+        }
+
         // Bali Format — место по парам (стандинги с tiebreaker через сервис)
         if ($tournament->type === 'bali_koc') {
             $standings = app(\App\Services\BaliKocService::class)->getStandings($tournament);
