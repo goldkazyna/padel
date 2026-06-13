@@ -283,12 +283,10 @@ class MobileAdminTournamentController extends Controller
             $validated['price'] = 0;
         }
 
-        // Нормализация плей-офф. Для team — playoff всегда включён.
-        $isTeamType = ($validated['type'] ?? null) === 'team';
+        // Нормализация плей-офф по чекбоксу (team теперь может быть без плей-офф).
         $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
         $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
-        $validated['has_playoff'] = $isTeamType
-            || $request->boolean('has_playoff')
+        $validated['has_playoff'] = $request->boolean('has_playoff')
             || $validated['has_lower_bracket']
             || $validated['has_bronze_match'];
         if (!$validated['has_playoff']) {

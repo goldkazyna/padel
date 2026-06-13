@@ -2887,6 +2887,7 @@ class MobileAdminTournamentDetailController extends Controller
 
         $isLive = $tournament->status === 'in_progress';
         $canGeneratePlayoff = $isLive
+            && $tournament->has_playoff
             && $playoffMatches->isEmpty()
             && $service->isGroupStageCompleted($tournament);
 

@@ -126,12 +126,10 @@ class TournamentController extends Controller
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
 		$validated['has_bronze_match'] = $request->has('has_bronze_match');
 
-		// Для парного турнира плей-офф всегда включён (парный без него бессмыслен).
-		// Для остальных — по чекбоксу. Также включаем автоматически если
-		// отмечены флаги нижней сетки / матча за 3-е место.
-		$isTeamType = ($validated['type'] ?? null) === 'team';
-		$validated['has_playoff'] = $isTeamType
-			|| $request->has('has_playoff')
+		// Плей-офф по чекбоксу (в т.ч. для парного — теперь можно без плей-офф,
+		// только групповой этап). Также включаем автоматически, если отмечены
+		// флаги нижней сетки / матча за 3-е место.
+		$validated['has_playoff'] = $request->has('has_playoff')
 			|| $validated['has_lower_bracket']
 			|| $validated['has_bronze_match'];
 

@@ -338,7 +338,17 @@
 								<small class="text-muted">Если заполнено — матчи группового этапа пойдут волнами, не более N одновременно.</small>
 							</div>
 						</div>
-						<div class="row">
+						<div class="mb-3">
+							<div class="form-check">
+								<input type="checkbox" name="has_playoff" value="1" id="teamHasPlayoff" class="form-check-input"
+									{{ old('type') === 'team' ? (old('has_playoff') ? 'checked' : '') : 'checked' }}
+									onchange="toggleTeamPlayoffOptions()">
+								<label for="teamHasPlayoff" class="form-check-label">
+									<strong>С плей-офф</strong> <small class="text-muted">(на вылет после групп). Снимите — будет только групповой этап, место по таблице.</small>
+								</label>
+							</div>
+						</div>
+						<div id="teamPlayoffOptions" class="row">
 							<div class="col-md-6 mb-2">
 								<div class="form-check">
 									<input type="checkbox" name="has_lower_bracket" value="1" id="hasLowerBracket" class="form-check-input"
@@ -358,12 +368,13 @@
 								</div>
 							</div>
 						</div>
-						
+
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
-							<strong>Групповой + Плей-офф:</strong> Фиксированные пары регистрируются вместе. 
-							Групповой этап — каждая пара играет с каждой. 
-							Лучшие выходят в плей-офф (на вылет).
+							<strong>Групповой + Плей-офф:</strong> Фиксированные пары регистрируются вместе.
+							Групповой этап — каждая пара играет с каждой.
+							Лучшие выходят в плей-офф (на вылет). Можно отключить плей-офф —
+							тогда турнир завершается после групп, место — по таблице.
 						</div>
 					</div>
 
@@ -518,6 +529,7 @@ function toggleTypeFields() {
         if (document.getElementById('americanoGroupsCount')) {
             document.getElementById('americanoGroupsCount').disabled = true;
         }
+        toggleTeamPlayoffOptions();
         generateCourtsInputs();
     } else if (type === 'king_of_court' && kingOfCourtFields) {
         kingOfCourtFields.style.display = 'block';
@@ -531,6 +543,20 @@ function toggleTypeFields() {
     } else if (type === 'americano_flex' && americanoFlexFields) {
         americanoFlexFields.style.display = 'block';
         generateCourtsInputs();
+    }
+}
+
+function toggleTeamPlayoffOptions() {
+    const cb = document.getElementById('teamHasPlayoff');
+    const opts = document.getElementById('teamPlayoffOptions');
+    if (cb && opts) {
+        opts.style.display = cb.checked ? 'flex' : 'none';
+        if (!cb.checked) {
+            const lb = document.getElementById('hasLowerBracket');
+            const bm = document.getElementById('hasBronzeMatch');
+            if (lb) lb.checked = false;
+            if (bm) bm.checked = false;
+        }
     }
 }
 

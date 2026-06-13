@@ -214,9 +214,9 @@
         @endforeach
     </div>
     
-    {{-- Кнопка генерации плей-офф --}}
+    {{-- Кнопка генерации плей-офф (только если турнир с плей-офф) --}}
     @php $groupStageCompleted = app(\App\Services\TeamTournamentService::class)->isGroupStageCompleted($tournament); @endphp
-    @if($groupStageCompleted && $tournament->playoffMatches->count() === 0)
+    @if($tournament->has_playoff && $groupStageCompleted && $tournament->playoffMatches->count() === 0)
         <div class="text-center mt-4">
             <form action="{{ route('club.team.generatePlayoff', $tournament) }}" method="POST" onsubmit="return confirm('Сгенерировать сетку плей-офф?')">
                 @csrf
@@ -225,7 +225,7 @@
                 </button>
             </form>
         </div>
-    @elseif(!$groupStageCompleted)
+    @elseif($tournament->has_playoff && !$groupStageCompleted)
         <div class="text-center mt-3">
             <span class="text-secondary"><i class="bi bi-hourglass-split me-1"></i> Завершите все матчи группового этапа</span>
         </div>

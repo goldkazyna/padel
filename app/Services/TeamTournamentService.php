@@ -1128,8 +1128,13 @@ class TeamTournamentService
      */
     public function canFinishTournament(Tournament $tournament): bool
     {
-        // Все финалы (верхней и нижней сеток + опциональные бронзовые матчи)
-        // должны быть завершены.
+        // Турнир без плей-офф — завершается, когда доигран групповой этап.
+        if (!$tournament->has_playoff) {
+            return $this->isGroupStageCompleted($tournament);
+        }
+
+        // С плей-офф: все финалы (верхней и нижней сеток + опциональные
+        // бронзовые матчи) должны быть завершены.
         $finalMatches = $tournament->playoffMatches()->where('stage', 'final')->get();
         if ($finalMatches->isEmpty()) return false;
         foreach ($finalMatches as $fm) {
