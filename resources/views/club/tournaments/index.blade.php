@@ -89,15 +89,6 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 @if($tournament->status === 'open')
-                                    @if($club && $club->telegram_channel_id)
-                                    <form action="{{ route('club.tournaments.publishChannel', $tournament) }}" method="POST" class="d-inline"
-                                          onsubmit="return confirm('Опубликовать турнир в Telegram канал?')">
-                                        @csrf
-                                        <button class="btn-outline-custom btn-sm btn-telegram" title="Опубликовать в Telegram">
-                                            <i class="bi bi-telegram"></i>
-                                        </button>
-                                    </form>
-                                    @endif
                                     <form action="{{ route('club.tournaments.sendPush', $tournament) }}" method="POST" class="d-inline"
                                           onsubmit="return confirm('Отправить push-уведомление о турнире?')">
                                         @csrf
