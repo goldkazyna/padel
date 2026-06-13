@@ -260,6 +260,9 @@
         </form>
     </div>
     @endif
+
+    {{-- Приглашения игроков (как в мобильной админке) --}}
+    @include('club.tournaments.partials._invitations')
 </div>
 
 <style>

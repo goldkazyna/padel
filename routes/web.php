@@ -370,6 +370,11 @@ Route::middleware('auth')->group(function () {
                 ->name('tournaments.searchPlayers');
             Route::post('/tournaments/{tournament}/participants/add', [ClubTournamentController::class, 'addParticipant'])
                 ->name('tournaments.participants.add');
+            // Приглашения игроков (как в мобильной админке) — все индивидуальные турниры
+            Route::post('/tournaments/{tournament}/invite', [ClubTournamentController::class, 'invite'])
+                ->name('tournaments.invite');
+            Route::delete('/tournaments/{tournament}/invitations/{invitation}', [ClubTournamentController::class, 'cancelInvitation'])
+                ->name('tournaments.invitations.cancel');
             Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
                 ->name('tournaments.participants.replace');
             Route::post('/tournaments/{tournament}/cancel', [ClubTournamentController::class, 'cancel'])

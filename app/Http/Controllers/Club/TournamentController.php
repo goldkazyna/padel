@@ -847,6 +847,84 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Пригласить игрока на турнир (пуш + запись в tournament_invitations).
+	 * Зеркало мобильной фичи. Для индивидуальных турниров (не team).
+	 */
+	public function invite(Request $request, Tournament $tournament)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) abort(403);
+
+		if ($tournament->type === 'team') {
+			return back()->with('error', 'Приглашения доступны только для индивидуальных турниров');
+		}
+
+		$validated = $request->validate(['user_id' => 'required|exists:users,id']);
+		$userId = (int) $validated['user_id'];
+
+		if ($tournament->participants()->where('user_id', $userId)->exists()) {
+			return back()->with('error', 'Игрок уже участвует в турнире');
+		}
+
+		// Лимит приглашений (анти-спам). Повторное приглашение уже приглашённого
+		// не считается новым (обновляет существующее).
+		$alreadyInvited = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)
+			->where('user_id', $userId)->exists();
+		if (!$alreadyInvited) {
+			$count = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)->count();
+			if ($count >= 10) {
+				return back()->with('error', 'Можно отправить не более 10 приглашений на турнир');
+			}
+		}
+
+		$invitation = \App\Models\TournamentInvitation::updateOrCreate(
+			['tournament_id' => $tournament->id, 'user_id' => $userId],
+			['invited_by' => auth()->id(), 'status' => 'pending', 'responded_at' => null],
+		);
+
+		$player = \App\Models\User::find($userId);
+		if ($player) {
+			$title = 'Приглашение на турнир';
+			$body = "Вас пригласили на турнир «{$tournament->name}»";
+			\App\Models\Notification::create([
+				'user_id' => $player->id,
+				'title' => $title,
+				'body' => $body,
+				'type' => 'tournament_invite',
+				'category' => 'tournament',
+				'data' => [
+					'tournament_id' => $tournament->id,
+					'invitation_id' => $invitation->id,
+				],
+			]);
+			try {
+				app(\App\Services\FCMNotificationService::class)->sendToUser($player, $title, $body, [
+					'type' => 'tournament_invite',
+					'tournament_id' => (string) $tournament->id,
+					'invitation_id' => (string) $invitation->id,
+				]);
+			} catch (\Throwable $e) {
+				// пуш не критичен — приглашение уже сохранено
+			}
+		}
+
+		return back()->with('success', "Приглашение отправлено: {$player->full_name}");
+	}
+
+	/**
+	 * Отменить приглашение (убрать игрока из списка приглашённых).
+	 */
+	public function cancelInvitation(Tournament $tournament, \App\Models\TournamentInvitation $invitation)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) abort(403);
+		if ($invitation->tournament_id !== $tournament->id) abort(404);
+
+		$invitation->delete();
+		return back()->with('success', 'Приглашение отменено');
+	}
+
+	/**
 	 * Добавить участника вручную
 	 */
 	public function addParticipant(Request $request, Tournament $tournament)
