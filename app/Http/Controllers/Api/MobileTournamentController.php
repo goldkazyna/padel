@@ -1961,6 +1961,14 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Round Robin — место по стандингам (победы → разница → личные встречи)
+        if ($tournament->type === 'round_robin') {
+            $standings = app(\App\Services\RoundRobinService::class)->standings($tournament);
+            foreach ($standings as $i => $row) {
+                if ((int) $row['user_id'] === $userId) return $i + 1;
+            }
+        }
+
         // Bali Format — место по парам (стандинги через сервис с tiebreaker)
         if ($tournament->type === 'bali_koc') {
             $standings = app(\App\Services\BaliKocService::class)->getStandings($tournament);
@@ -2220,6 +2228,9 @@ class MobileTournamentController extends Controller
         }
         if ($tournament->type === 'king_of_court') {
             return $this->liveKingOfCourt($tournament, $user);
+        }
+        if ($tournament->type === 'round_robin') {
+            return $this->liveRoundRobin($tournament, $user);
         }
         if ($tournament->type === 'bali_koc') {
             return $this->liveBaliKoc($tournament, $user);
@@ -2973,6 +2984,144 @@ class MobileTournamentController extends Controller
                 'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
                 'ball_percent' => $ballPercent,
                 'is_me' => $userId && (int) $s['id'] === $userId,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'has_playoff' => false,
+                'courts_count' => (int) ($tournament->max_participants / 4),
+            ],
+            'leaderboard' => array_values($leaderboard),
+            'rounds' => $roundsOut,
+            'playoff' => [],
+        ]);
+    }
+
+    /**
+     * Live для турнира «Round Robin» (индивидуальный).
+     * Структура ответа как у Король корта (один лидерборд + раунды), поэтому
+     * на фронте переиспользуется тот же экран. Ранжирование — победы → разница
+     * геймов → личная встреча (через RoundRobinService::standings).
+     */
+    private function liveRoundRobin(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+        $targetId = (int) (request()->query('player_id') ?: $userId);
+
+        $rrPlayers = $tournament->roundRobinPlayers()->with('user')->get();
+        $playerStats = [];
+        $ratingEvolve = [];
+        foreach ($rrPlayers as $rp) {
+            $u = $rp->user;
+            if (!$u) continue;
+            $playerStats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'wins' => (int) $rp->wins,
+                'losses' => (int) $rp->losses,
+                'draws' => 0,
+                'points_for' => (int) $rp->points_for,
+                'points_against' => (int) $rp->points_against,
+                'total_points' => (int) $rp->wins, // в RR «очки» = победы
+            ];
+            $ratingEvolve[$u->id] = ['current_rating' => (int) $rp->rating_before];
+        }
+
+        $rounds = $tournament->roundRobinRounds()
+            ->with(['matches' => function ($q) {
+                $q->orderBy('court_number');
+            }])
+            ->orderBy('round_number')
+            ->get();
+
+        // Дельта рейтинга целевого игрока по раундам (эволюция как в finishTournament).
+        $rrService = app(\App\Services\RoundRobinService::class);
+        $roundDeltas = [];
+        foreach ($rounds as $r) {
+            $pre = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            foreach ($r->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $rrService->calculateEloForMatch($m, $ratingEvolve);
+            }
+            $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
+        }
+        if (!$tournament->is_rated) { $roundDeltas = []; }
+
+        $roundsOut = [];
+        foreach ($rounds as $r) {
+            $matchesOut = [];
+            foreach ($r->matches as $m) {
+                $courtIdx = (int) $m->court_number;
+
+                $t1HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team1_player1_id,
+                    (int) $m->team1_player2_id,
+                ], true);
+                $t2HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team2_player1_id,
+                    (int) $m->team2_player2_id,
+                ], true);
+
+                $matchesOut[] = [
+                    'id' => $m->id,
+                    'court_number' => $courtIdx,
+                    'court_tier' => 'middle', // в RR корты равнозначны
+                    'court_label' => "Корт {$courtIdx}",
+                    'status' => $m->status,
+                    'team1' => [
+                        'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                        'has_me' => $t1HasMe,
+                    ],
+                    'team2' => [
+                        'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                        'has_me' => $t2HasMe,
+                    ],
+                    'has_me' => $t1HasMe || $t2HasMe,
+                ];
+            }
+            $roundsOut[] = [
+                'id' => $r->id,
+                'round_number' => $r->round_number,
+                'status' => $r->status,
+                'matches' => $matchesOut,
+                'my_rating_change' => $roundDeltas[$r->id] ?? null,
+            ];
+        }
+
+        // Лидерборд в порядке стандингов (победы → разница → личные встречи).
+        $leaderboard = [];
+        $position = 1;
+        foreach ($rrService->standings($tournament) as $s) {
+            $id = (int) $s['user_id'];
+            $base = $playerStats[$id] ?? null;
+            if (!$base) continue;
+            $totalGames = (int) $s['wins'] + (int) $s['losses'];
+            $totalBalls = (int) $s['points_for'] + (int) $s['points_against'];
+            $leaderboard[] = array_merge($base, [
+                'position' => $position++,
+                'games_played' => $totalGames,
+                'point_diff' => (int) $s['diff'],
+                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0,
+                'is_me' => $userId && $id === $userId,
             ]);
         }
 
