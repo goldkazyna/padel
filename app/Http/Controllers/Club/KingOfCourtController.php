@@ -86,21 +86,30 @@ class KingOfCourtController extends Controller
 
         // Отложенная отправка пушей — не блокируем редирект
         app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
-            self::notifyKocParticipants(
-                $tournamentId,
-                "Раунд {$newRoundNumber} сгенерирован",
-                "{$tournamentName} — открой приложение, чтобы увидеть свой корт",
-                [
-                    'type' => 'tournament',
-                    'category' => 'tournament',
-                    'subtype' => 'koc_round_generated',
-                    'tournament_id' => (string) $tournamentId,
-                    'round_number' => (string) $newRoundNumber,
-                ]
-            );
+            self::notifyKocRoundGenerated($tournamentId, $tournamentName, (int) $newRoundNumber);
         });
 
         return back()->with('success', "Раунд {$newRoundNumber} сгенерирован! Игрокам отправлено уведомление.");
+    }
+
+    /**
+     * Собрать и отправить пуш «сгенерирован раунд N» всем участникам KOC.
+     * Публичный — вызывается и из веба, и из мобильной админки (единообразно).
+     */
+    public static function notifyKocRoundGenerated(int $tournamentId, string $tournamentName, int $roundNumber): void
+    {
+        self::notifyKocParticipants(
+            $tournamentId,
+            "Раунд {$roundNumber} сгенерирован",
+            "{$tournamentName} — открой приложение, чтобы увидеть свой корт",
+            [
+                'type' => 'tournament',
+                'category' => 'tournament',
+                'subtype' => 'koc_round_generated',
+                'tournament_id' => (string) $tournamentId,
+                'round_number' => (string) $roundNumber,
+            ]
+        );
     }
 
     /**

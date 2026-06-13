@@ -80,21 +80,30 @@ class RoundRobinController extends Controller
         $tournamentName = $tournament->name;
 
         app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
-            self::notifyParticipants(
-                $tournamentId,
-                "Раунд {$newRoundNumber} сгенерирован",
-                "{$tournamentName} — открой приложение, чтобы увидеть свой корт",
-                [
-                    'type' => 'tournament',
-                    'category' => 'tournament',
-                    'subtype' => 'round_robin_round_generated',
-                    'tournament_id' => (string) $tournamentId,
-                    'round_number' => (string) $newRoundNumber,
-                ]
-            );
+            self::notifyRoundRobinRoundGenerated($tournamentId, $tournamentName, (int) $newRoundNumber);
         });
 
         return back()->with('success', "Раунд {$newRoundNumber} сгенерирован!");
+    }
+
+    /**
+     * Собрать и отправить пуш «сгенерирован раунд N» всем участникам Round Robin.
+     * Публичный — вызывается и из веба, и из мобильной админки (единообразно).
+     */
+    public static function notifyRoundRobinRoundGenerated(int $tournamentId, string $tournamentName, int $roundNumber): void
+    {
+        self::notifyParticipants(
+            $tournamentId,
+            "Раунд {$roundNumber} сгенерирован",
+            "{$tournamentName} — открой приложение, чтобы увидеть свой корт",
+            [
+                'type' => 'tournament',
+                'category' => 'tournament',
+                'subtype' => 'round_robin_round_generated',
+                'tournament_id' => (string) $tournamentId,
+                'round_number' => (string) $roundNumber,
+            ]
+        );
     }
 
     protected static function notifyParticipants(int $tournamentId, string $title, string $body, array $data = []): int

@@ -1837,6 +1837,17 @@ class MobileAdminTournamentDetailController extends Controller
             if (!$ok) {
                 return $this->error('Не удалось сгенерировать следующий раунд');
             }
+
+            // Персональные пуши участникам (как и из веб-админки)
+            $newRoundNumber = (int) $tournament->roundRobinRounds()->max('round_number');
+            $tournamentId = $tournament->id;
+            $tournamentName = $tournament->name;
+            app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
+                \App\Http\Controllers\Club\RoundRobinController::notifyRoundRobinRoundGenerated(
+                    $tournamentId, $tournamentName, $newRoundNumber
+                );
+            });
+
             $tournament->refresh();
             return response()->json($this->buildRoundRobinMatches($tournament));
         }
@@ -1858,6 +1869,17 @@ class MobileAdminTournamentDetailController extends Controller
             if (!$ok) {
                 return $this->error('Не удалось сгенерировать следующий раунд');
             }
+
+            // Персональные пуши участникам (как и из веб-админки)
+            $newRoundNumber = (int) $tournament->kingOfCourtRounds()->max('round_number');
+            $tournamentId = $tournament->id;
+            $tournamentName = $tournament->name;
+            app()->terminating(function () use ($tournamentId, $tournamentName, $newRoundNumber) {
+                \App\Http\Controllers\Club\KingOfCourtController::notifyKocRoundGenerated(
+                    $tournamentId, $tournamentName, $newRoundNumber
+                );
+            });
+
             $tournament->refresh();
             return response()->json($this->buildKingOfCourtMatches($tournament));
         }
