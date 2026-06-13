@@ -426,6 +426,7 @@ class MobileRatingController extends Controller
                 $q->whereHas('groups.players', fn($x) => $x->where('users.id', $uid))
                   ->orWhereHas('mexicanoPlayers', fn($x) => $x->where('user_id', $uid))
                   ->orWhereHas('kingOfCourtPlayers', fn($x) => $x->where('user_id', $uid))
+                  ->orWhereHas('roundRobinPlayers', fn($x) => $x->where('user_id', $uid))
                   ->orWhereHas('americanoFlexPlayers', fn($x) => $x->where('user_id', $uid))
                   ->orWhereHas('baliKocPairs', fn($x) => $x->where('player1_id', $uid)->orWhere('player2_id', $uid))
                   ->orWhereHas('teams', fn($x) => $x->where('player1_id', $uid)->orWhere('player2_id', $uid));
