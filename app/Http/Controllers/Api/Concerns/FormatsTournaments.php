@@ -24,7 +24,9 @@ trait FormatsTournaments
             // Для личного турнира клуба нет — в качестве «организатора»
             // показываем имя создателя.
             'club' => [
-                'id' => $club?->id,
+                // 0 для личного турнира (клуба нет) — иначе старые сборки падают
+                // на Club.fromJson (id обязателен).
+                'id' => $club?->id ?? 0,
                 'name' => $club?->name ?? ($creator?->name ?? 'Личный турнир'),
                 'phone' => $club?->phone,
                 'address' => $club?->address,
