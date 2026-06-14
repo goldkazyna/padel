@@ -324,7 +324,8 @@ class MobileCourtController extends Controller
             return response()->json(['success' => false, 'message' => 'Онлайн-оплата для этого клуба недоступна'], 422);
         }
 
-        $amount = (int) round((float) $booking->price);
+        // Plexy принимает сумму в МИНОРНЫХ единицах (тиынах): 1 ₸ = 100.
+        $amount = (int) round((float) $booking->price * 100);
         if ($amount <= 0) {
             return response()->json(['success' => false, 'message' => 'Некорректная сумма к оплате'], 422);
         }
@@ -366,6 +367,29 @@ class MobileCourtController extends Controller
         if ((int) $booking->booked_by !== (int) $request->user()->id) {
             return response()->json(['success' => false, 'message' => 'Нет доступа'], 403);
         }
+
+        // Не ждём вебхук — активно спрашиваем Plexy «оплачено ли?» и помечаем бронь.
+        if (!$booking->is_paid && $booking->payment_id) {
+            $club = $booking->court?->club;
+            $key = $club?->plexyApiKey();
+            if ($key) {
+                try {
+                    $info = (new \App\Services\PlexyService($key))->getPaymentLink($booking->payment_id);
+                    $status = strtolower((string) ($info['status'] ?? ''));
+                    if (in_array($status, ['paid', 'charged', 'authorized', 'success'], true)) {
+                        $booking->update([
+                            'is_paid' => true,
+                            'payment_status' => 'paid',
+                            'payment_method' => 'plexy',
+                            'paid_at' => now(),
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Plexy status check failed', ['booking' => $booking->id, 'error' => $e->getMessage()]);
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'is_paid' => (bool) $booking->is_paid,
