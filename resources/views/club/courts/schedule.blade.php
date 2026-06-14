@@ -2513,7 +2513,7 @@
     .slot { position: relative; }
     .slot-icons { position: absolute; top: 5px; right: 7px; display: flex; align-items: center; gap: 5px; pointer-events: none; z-index: 2; }
     .slot-ic { font-size: 12px; line-height: 1; }
-    .ic-app  { color: #60a5fa; }   /* из приложения — голубой телефон */
+    .ic-app  { color: #a1a1aa; }   /* из приложения — монохромный телефон */
     .ic-paid { color: #22c55e; }   /* оплачено — зелёный бейдж */
     .ic-card { color: #a1a1aa; }   /* клубная карта — серый (как было) */
     /* Если есть иконки — цену чуть ниже, чтобы не налезала на них */
