@@ -339,10 +339,16 @@
                                             }
                                         }
                                     @endphp
-                                    <div class="slot {{ $slotClass }}{{ $booking->club_card_id ? ' has-card-icon' : '' }}"
+                                    <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid) ? ' has-icons' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
-                                        @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
+                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid)
+                                        <div class="slot-icons">
+                                            @if($booking->source === 'app')<i class="bi bi-phone-fill slot-ic ic-app" title="Заявка из приложения"></i>@endif
+                                            @if($booking->is_paid)<i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>@endif
+                                            @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-ic ic-card" title="Оплачено клубной картой"></i>@endif
+                                        </div>
+                                        @endif
                                         <div class="slot-row">
                                             <div class="slot-left">
                                                 <span class="slot-name">{{ $booking->client_name ?? 'Бронь' }}</span>
@@ -2503,11 +2509,15 @@
 
     .slot-booked.unpaid .slot-name { color: #fbbf24; }
 
-    /* Монохромная иконка: бронь оплачена клубной картой — правый верхний угол */
+    /* Иконки-маркеры брони — аккуратный ряд в правом верхнем углу слота */
     .slot { position: relative; }
-    .slot-card-icon { position: absolute; top: 5px; right: 7px; color: #a1a1aa; font-size: 11px; opacity: .9; pointer-events: none; }
-    /* Если есть иконка — цену чуть ниже, чтобы не налезала на иконку */
-    .slot.has-card-icon .slot-price-court { display: inline-block; margin-top: 12px; }
+    .slot-icons { position: absolute; top: 5px; right: 7px; display: flex; align-items: center; gap: 5px; pointer-events: none; z-index: 2; }
+    .slot-ic { font-size: 12px; line-height: 1; }
+    .ic-app  { color: #60a5fa; }   /* из приложения — голубой телефон */
+    .ic-paid { color: #22c55e; }   /* оплачено — зелёный бейдж */
+    .ic-card { color: #a1a1aa; }   /* клубная карта — серый (как было) */
+    /* Если есть иконки — цену чуть ниже, чтобы не налезала на них */
+    .slot.has-icons .slot-price-court { display: inline-block; margin-top: 12px; }
 
     .slot-booked.unprocessed {
         background: rgba(239, 68, 68, 0.12);

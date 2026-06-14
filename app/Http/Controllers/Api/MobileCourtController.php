@@ -267,6 +267,7 @@ class MobileCourtController extends Controller
             'price' => $courtPrice + $coachPrice,
             'is_paid' => false,
             'is_processed' => false,
+            'source' => 'app',
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?? null,
             'needs_coach' => !empty($validated['needs_coach']),

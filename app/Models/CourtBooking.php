@@ -26,6 +26,7 @@ class CourtBooking extends Model
         'is_processed',
         'comment',
         'booking_type',
+        'source',
         'coach_id',
         'coach_paid',
         'coach_price',
