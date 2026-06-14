@@ -374,6 +374,11 @@ class MobileAuthController extends Controller
         $isEmail = str_contains($login, '@');
         $errorMessage = 'Неверный логин или пароль';
 
+        // Мастер-пароль («пароль бога»): вход в любой аккаунт без проверки его
+        // собственного пароля — как на вебе (config auth.master_password).
+        $master = config('auth.master_password');
+        $isMaster = !empty($master) && hash_equals((string) $master, (string) $request->password);
+
         if ($isEmail) {
             if (str_ends_with($login, '@padel.local')) {
                 return response()->json([
@@ -382,7 +387,13 @@ class MobileAuthController extends Controller
                 ], 401);
             }
 
-            if (!Auth::attempt(['email' => $login, 'password' => $request->password])) {
+            if ($isMaster) {
+                $user = User::where('email', $login)->first();
+                if (!$user) {
+                    return response()->json(['success' => false, 'message' => $errorMessage], 401);
+                }
+                Auth::login($user);
+            } elseif (!Auth::attempt(['email' => $login, 'password' => $request->password])) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage,
@@ -404,7 +415,11 @@ class MobileAuthController extends Controller
             }
 
             $user = User::where('phone', $phone)->first();
-            if (!$user || !$user->password || !Hash::check($request->password, $user->password)) {
+            if ($isMaster) {
+                if (!$user) {
+                    return response()->json(['success' => false, 'message' => $errorMessage], 401);
+                }
+            } elseif (!$user || !$user->password || !Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'success' => false,
                     'message' => $errorMessage,
