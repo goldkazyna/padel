@@ -305,6 +305,59 @@ class MobileCourtController extends Controller
     }
 
     /**
+     * Создать онлайн-платёж (Plexy) для своей брони.
+     * POST /api/mobile/courts/bookings/{booking}/create-payment
+     * Возвращает payment_url (checkout.plexypay.com), которую открывает приложение.
+     */
+    public function createPayment(Request $request, CourtBooking $booking)
+    {
+        $user = $request->user();
+        if ((int) $booking->booked_by !== (int) $user->id) {
+            return response()->json(['success' => false, 'message' => 'Нет доступа к брони'], 403);
+        }
+        if ($booking->is_paid) {
+            return response()->json(['success' => false, 'message' => 'Бронь уже оплачена'], 422);
+        }
+
+        $club = $booking->court?->club;
+        if (!$club || !$club->hasPlexyConfigured()) {
+            return response()->json(['success' => false, 'message' => 'Онлайн-оплата для этого клуба недоступна'], 422);
+        }
+
+        $amount = (int) round((float) $booking->price);
+        if ($amount <= 0) {
+            return response()->json(['success' => false, 'message' => 'Некорректная сумма к оплате'], 422);
+        }
+
+        try {
+            $plexy = new \App\Services\PlexyService($club->plexyApiKey());
+            $desc = "Бронь корта {$booking->court->name}, {$booking->date->format('d.m.Y')} {$booking->start_time}";
+            $link = $plexy->createPaymentLink(
+                amount: $amount,
+                description: mb_substr($desc, 0, 200),
+                orderReference: 'booking-' . $booking->id,
+                expiresAt: now()->addMinutes(30),
+                metadata: ['booking_id' => $booking->id, 'club_id' => $club->id],
+            );
+        } catch (\Throwable $e) {
+            \Log::error('Plexy create payment failed', ['booking' => $booking->id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Не удалось создать платёж. Попробуйте позже.'], 502);
+        }
+
+        $booking->update([
+            'payment_id' => $link['id'],
+            'payment_status' => 'pending',
+            'payment_method' => 'plexy',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'payment_url' => $link['url'],
+            'payment_id' => $link['id'],
+        ]);
+    }
+
+    /**
      * Мои бронирования
      * GET /api/mobile/courts/my-bookings
      */

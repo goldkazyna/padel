@@ -29,6 +29,9 @@ use App\Http\Controllers\Api\MobileAdminModeratorController;
 */
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 Route::post('/telegram/mobile-webhook', [TelegramMobileWebhookController::class, 'handle']);
+
+// Вебхук платёжного шлюза Plexy (без auth — Plexy шлёт сюда статусы оплаты).
+Route::post('/payment/webhook/plexy', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'plexy']);
 /*
 |--------------------------------------------------------------------------
 | Telegram Mini App API
@@ -253,6 +256,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/courts/clubs/{club}/schedule', [MobileCourtController::class, 'schedule']);
         Route::get('/courts/clubs/{club}/week-occupancy', [MobileCourtController::class, 'weekOccupancy']);
         Route::post('/courts/clubs/{club}/book', [MobileCourtController::class, 'book']);
+        Route::post('/courts/bookings/{booking}/create-payment', [MobileCourtController::class, 'createPayment']);
         Route::get('/courts/my-bookings', [MobileCourtController::class, 'myBookings']);
         Route::post('/courts/bookings/{booking}/cancel', [MobileCourtController::class, 'cancel']);
     });

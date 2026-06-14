@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+
+/**
+ * Клиент платёжного шлюза Plexy (developer.plexy.money / api.plexypay.com).
+ *
+ * Авторизация — заголовок `Authorization: <api_key>` (БЕЗ «Bearer», несмотря
+ * на пример в доке). Ключи у каждого клуба свои (clubs.plexy_api_key), сюда
+ * передаём эффективный ключ (Club::plexyApiKey()).
+ *
+ * Поток: createPaymentLink() → возвращает url (checkout.plexypay.com), которую
+ * открывает приложение. По факту оплаты Plexy шлёт вебхук (transaction.*).
+ */
+class PlexyService
+{
+    private string $baseUrl;
+
+    public function __construct(private string $apiKey, ?string $baseUrl = null)
+    {
+        $this->baseUrl = rtrim($baseUrl ?: (string) config('services.plexy.base_url', 'https://api.plexypay.com'), '/');
+    }
+
+    /**
+     * Создать платёжную ссылку. Сумма — в тенге (целое). Возвращает массив
+     * ['id' => 'pl_...', 'url' => 'https://checkout...', 'status' => 'active'].
+     *
+     * @throws \RuntimeException при ошибке API.
+     */
+    public function createPaymentLink(
+        int $amount,
+        string $description,
+        string $orderReference,
+        \DateTimeInterface $expiresAt,
+        string $currency = 'KZT',
+        array $metadata = []
+    ): array {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(20)
+            ->post($this->baseUrl . '/v1/payment-links', [
+                'amount' => $amount,
+                'currency' => $currency,
+                'description' => $description,
+                'orderReference' => $orderReference,
+                // Plexy ждёт UTC ISO-8601 с миллисекундами и Z.
+                'expiresAt' => \Carbon\Carbon::instance(
+                    \Carbon\Carbon::parse($expiresAt)
+                )->utc()->format('Y-m-d\TH:i:s.000\Z'),
+                'metadata' => (object) $metadata,
+            ]);
+
+        if (!$resp->successful()) {
+            $msg = $resp->json('message') ?: $resp->body();
+            throw new \RuntimeException('Plexy createPaymentLink: ' . $msg);
+        }
+
+        $d = $resp->json();
+        return [
+            'id' => $d['id'] ?? null,
+            'url' => $d['url'] ?? null,
+            'status' => $d['status'] ?? null,
+        ];
+    }
+
+    /** Получить состояние платёжной ссылки (GET /v1/payment-links/{id}). */
+    public function getPaymentLink(string $id): array
+    {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(15)
+            ->get($this->baseUrl . '/v1/payment-links/' . $id);
+
+        if (!$resp->successful()) {
+            $msg = $resp->json('message') ?: $resp->body();
+            throw new \RuntimeException('Plexy getPaymentLink: ' . $msg);
+        }
+
+        return $resp->json();
+    }
+}

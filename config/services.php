@@ -62,7 +62,7 @@ return [
 	// Платёжный шлюз Plexy (developer.plexy.money). Ключи у каждого клуба свои
 	// (в clubs.plexy_*), эти env — дефолт/фолбэк, если у клуба не заданы.
 	'plexy' => [
-		'base_url' => env('PLEXY_BASE_URL', 'https://api.plexy.money'),
+		'base_url' => env('PLEXY_BASE_URL', 'https://api.plexypay.com'),
 		'key' => env('PLEXY_API_KEY'),
 		'merchant_id' => env('PLEXY_MERCHANT_ID'),
 		'webhook_secret' => env('PLEXY_WEBHOOK_SECRET'),
