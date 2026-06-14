@@ -593,6 +593,8 @@
                                         </span>
                                     @endif
                                 </div>
+                                @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
+                                @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
                                 @if($b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                 <span class="court-num">{{ $court->name }}</span>
                             </div>
@@ -965,6 +967,7 @@
 
     /* Монохромная иконка: бронь оплачена клубной картой — перед надписью корта */
     .slot-card-icon { color: #a1a1aa; font-size: 11px; opacity: .9; margin-right: 6px; vertical-align: middle; }
+    .slot-card-icon.ws-ic-paid { color: #22c55e; opacity: 1; }
 </style>
 
 <!-- Book Modal -->
