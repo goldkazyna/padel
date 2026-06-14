@@ -81,6 +81,7 @@ class ClubController extends Controller
 
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
         $validated['online_payment_enabled'] = $request->boolean('online_payment_enabled');
+        $validated['allow_booking_without_payment'] = $request->boolean('allow_booking_without_payment');
 
         // Секреты Plexy обновляем только если введено новое значение —
         // пустое поле не затирает уже сохранённый ключ.

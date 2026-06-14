@@ -186,6 +186,13 @@
                                    style="background-color: var(--bg-secondary); border-color: var(--border);">
                             <span class="form-check-label">Оплата онлайн</span>
                         </label>
+                        <label class="form-check mt-2">
+                            <input type="hidden" name="allow_booking_without_payment" value="0">
+                            <input type="checkbox" name="allow_booking_without_payment" value="1" class="form-check-input"
+                                   {{ old('allow_booking_without_payment', $club->allow_booking_without_payment ?? true) ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Показывать кнопку «Записаться без оплаты»</span>
+                        </label>
                     </div>
 
                     {{-- Ключи платёжного шлюза Plexy (у каждого клуба свои) --}}
