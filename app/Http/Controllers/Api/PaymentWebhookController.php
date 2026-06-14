@@ -24,6 +24,14 @@ class PaymentWebhookController extends Controller
     public function plexy(Request $request)
     {
         $payload = $request->json()->all();
+
+        // Лог любого входящего вебхука (диагностика). auth — обрезанный.
+        Log::info('Plexy webhook IN', [
+            'payload' => $payload,
+            'auth' => substr((string) $request->header('Authorization'), 0, 24),
+            'ip' => $request->ip(),
+        ]);
+
         $name = (string) ($payload['name'] ?? '');
         $data = (array) ($payload['data'] ?? []);
         $reference = (string) ($data['merchantReference'] ?? $data['orderReference'] ?? '');
