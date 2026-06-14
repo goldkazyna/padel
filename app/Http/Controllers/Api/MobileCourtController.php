@@ -358,6 +358,22 @@ class MobileCourtController extends Controller
     }
 
     /**
+     * Статус оплаты брони (для опроса из WebView оплаты).
+     * GET /api/mobile/courts/bookings/{booking}/payment-status
+     */
+    public function paymentStatus(Request $request, CourtBooking $booking)
+    {
+        if ((int) $booking->booked_by !== (int) $request->user()->id) {
+            return response()->json(['success' => false, 'message' => 'Нет доступа'], 403);
+        }
+        return response()->json([
+            'success' => true,
+            'is_paid' => (bool) $booking->is_paid,
+            'payment_status' => $booking->payment_status,
+        ]);
+    }
+
+    /**
      * Мои бронирования
      * GET /api/mobile/courts/my-bookings
      */

@@ -257,6 +257,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/courts/clubs/{club}/week-occupancy', [MobileCourtController::class, 'weekOccupancy']);
         Route::post('/courts/clubs/{club}/book', [MobileCourtController::class, 'book']);
         Route::post('/courts/bookings/{booking}/create-payment', [MobileCourtController::class, 'createPayment']);
+        Route::get('/courts/bookings/{booking}/payment-status', [MobileCourtController::class, 'paymentStatus']);
         Route::get('/courts/my-bookings', [MobileCourtController::class, 'myBookings']);
         Route::post('/courts/bookings/{booking}/cancel', [MobileCourtController::class, 'cancel']);
     });
