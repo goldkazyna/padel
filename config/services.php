@@ -59,6 +59,15 @@ return [
 	],
 
 	// SMS-шлюз KazInfoTeh (HTTP). Документация: http://docs.kazinfoteh.kz/protocols/http/outbox/
+	// Платёжный шлюз Plexy (developer.plexy.money). Ключи у каждого клуба свои
+	// (в clubs.plexy_*), эти env — дефолт/фолбэк, если у клуба не заданы.
+	'plexy' => [
+		'base_url' => env('PLEXY_BASE_URL', 'https://api.plexy.money'),
+		'key' => env('PLEXY_API_KEY'),
+		'merchant_id' => env('PLEXY_MERCHANT_ID'),
+		'webhook_secret' => env('PLEXY_WEBHOOK_SECRET'),
+	],
+
 	'kazinfoteh' => [
 		'scheme' => env('KAZINFOTEH_SCHEME', 'http'),
 		'host' => env('KAZINFOTEH_HOST', 'kazinfoteh.org'),

@@ -188,6 +188,37 @@
                         </label>
                     </div>
 
+                    {{-- Ключи платёжного шлюза Plexy (у каждого клуба свои) --}}
+                    <div class="mb-4 p-3" style="border:1px solid var(--border); border-radius:10px;">
+                        <div class="mb-3 fw-bold"><i class="bi bi-credit-card"></i> Plexy (онлайн-оплата)</div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Merchant ID</label>
+                            <input type="text" name="plexy_merchant_id" class="form-control @error('plexy_merchant_id') is-invalid @enderror"
+                                   value="{{ old('plexy_merchant_id', $club->plexy_merchant_id) }}"
+                                   placeholder="идентификатор мерчанта">
+                            @error('plexy_merchant_id')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">API ключ</label>
+                            <input type="text" name="plexy_api_key" class="form-control @error('plexy_api_key') is-invalid @enderror"
+                                   value="" autocomplete="off"
+                                   placeholder="{{ $club->plexy_api_key ? '•••••••• (задан — оставьте пустым, чтобы не менять)' : 'не задан' }}">
+                            @error('plexy_api_key')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+                            <small class="text-muted">Секрет не показывается. Введите новое значение, чтобы заменить.</small>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">Секрет вебхука</label>
+                            <input type="text" name="plexy_webhook_secret" class="form-control @error('plexy_webhook_secret') is-invalid @enderror"
+                                   value="" autocomplete="off"
+                                   placeholder="{{ $club->plexy_webhook_secret ? '•••••••• (задан — оставьте пустым, чтобы не менять)' : 'не задан' }}">
+                            @error('plexy_webhook_secret')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+                            <small class="text-muted">Если не заполнено у клуба — используется значение из env по умолчанию.</small>
+                        </div>
+                    </div>
+
                     @php
                         $clubDocs = [
                             'offer_agreement' => 'Договор оферты',

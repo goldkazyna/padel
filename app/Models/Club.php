@@ -32,10 +32,44 @@ class Club extends Model
         'goods_description',
         'card_payment_description',
         'online_payment_enabled',
+        'plexy_api_key',
+        'plexy_merchant_id',
+        'plexy_webhook_secret',
         'features',
         'telegram_channel_id',
         'telegram_bot_token',
     ];
+
+    /** Секреты не отдаём в API-ответах. */
+    protected $hidden = [
+        'plexy_api_key',
+        'plexy_webhook_secret',
+        'telegram_bot_token',
+    ];
+
+    /** Эффективный API-ключ Plexy: ключ клуба или дефолт из env. */
+    public function plexyApiKey(): ?string
+    {
+        return $this->plexy_api_key ?: config('services.plexy.key');
+    }
+
+    /** Эффективный merchant id Plexy: клуба или дефолт из env. */
+    public function plexyMerchantId(): ?string
+    {
+        return $this->plexy_merchant_id ?: config('services.plexy.merchant_id');
+    }
+
+    /** Секрет для проверки вебхука: клуба или дефолт из env. */
+    public function plexyWebhookSecret(): ?string
+    {
+        return $this->plexy_webhook_secret ?: config('services.plexy.webhook_secret');
+    }
+
+    /** Готов ли клуб принимать онлайн-оплату через Plexy. */
+    public function hasPlexyConfigured(): bool
+    {
+        return $this->online_payment_enabled && !empty($this->plexyApiKey());
+    }
 
     protected $casts = [
         'is_active' => 'boolean',

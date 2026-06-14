@@ -74,10 +74,22 @@ class ClubController extends Controller
             'remove_goods_description' => 'nullable|boolean',
             'card_payment_description' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:10240',
             'remove_card_payment_description' => 'nullable|boolean',
+            'plexy_api_key' => 'nullable|string|max:500',
+            'plexy_merchant_id' => 'nullable|string|max:255',
+            'plexy_webhook_secret' => 'nullable|string|max:500',
         ]);
 
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
         $validated['online_payment_enabled'] = $request->boolean('online_payment_enabled');
+
+        // Секреты Plexy обновляем только если введено новое значение —
+        // пустое поле не затирает уже сохранённый ключ.
+        if (trim((string) $request->input('plexy_api_key', '')) === '') {
+            unset($validated['plexy_api_key']);
+        }
+        if (trim((string) $request->input('plexy_webhook_secret', '')) === '') {
+            unset($validated['plexy_webhook_secret']);
+        }
         $validated['coming_soon'] = $request->boolean('coming_soon');
         $validated['is_community'] = $request->boolean('is_community');
 
