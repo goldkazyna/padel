@@ -80,6 +80,14 @@
                             <input type="number" name="price" class="form-control"
                                    value="{{ old('price', $tournament->price) }}" min="0">
                         </div>
+                        @if($tournament->type === 'americano_flex')
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Количество кортов (Americano Flex)</label>
+                            <input type="number" name="flex_courts_count" class="form-control"
+                                   value="{{ old('flex_courts_count', $tournament->courts_count ?? 2) }}" min="1" max="8">
+                            <small class="text-secondary">Сколько кортов реально играет. Каждый раунд играют кортов × 4 игроков, остальные в очереди. Менять только до старта турнира.</small>
+                        </div>
+                        @endif
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
                             <input type="number" name="waitlist_size" class="form-control"
