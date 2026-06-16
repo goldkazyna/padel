@@ -278,11 +278,8 @@
                             @if($ov->reason)
                                 <span class="override-reason">{{ $ov->reason }}</span>
                             @endif
-                            <form action="{{ route('club.coaches.deleteOverride', $ov->id) }}" method="POST" style="margin-left:auto;" onsubmit="return confirm('Удалить?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn-delete-small">&#10005;</button>
-                            </form>
+                            <button type="button" class="btn-delete-small" style="margin-left:auto;"
+                                    onclick="deleteOverride('{{ route('club.coaches.deleteOverride', $ov->id) }}')">&#10005;</button>
                         </div>
                     @endforeach
 
@@ -390,6 +387,20 @@
                 wrap.style.display = 'none';
             }
         }
+    }
+
+    // Удаление исключения — отдельной формой (НЕ вложенной в scheduleForm,
+    // иначе вложенные <form> ломают сохранение графика).
+    function deleteOverride(url) {
+        if (!confirm('Удалить?')) return;
+        const f = document.createElement('form');
+        f.method = 'POST';
+        f.action = url;
+        f.style.display = 'none';
+        f.innerHTML = '<input type="hidden" name="_token" value="{{ csrf_token() }}">' +
+                      '<input type="hidden" name="_method" value="DELETE">';
+        document.body.appendChild(f);
+        f.submit();
     }
 
     document.getElementById('scheduleForm').addEventListener('submit', function() {
