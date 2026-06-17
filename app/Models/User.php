@@ -485,7 +485,51 @@ class User extends Authenticatable
 				}
 			}
 		}
-		
+
+		// Americano Flex — все матчи всех раундов
+		$flexMatches = \App\Models\AmericanoFlexMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+
+		foreach ($flexMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+
+		// Round Robin — все матчи всех раундов
+		$roundRobinMatches = \App\Models\RoundRobinMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+
+		foreach ($roundRobinMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+
 		return $stats;
 	}
 
@@ -657,6 +701,74 @@ class User extends Authenticatable
 					'won' => $won,
 				];
 			}
+		}
+
+		// Americano Flex
+		$flexMatches = \App\Models\AmericanoFlexMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})
+			->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+			->get();
+
+		foreach ($flexMatches as $match) {
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+			$won = ($isTeam1 && $match->team1_score > $match->team2_score) || (!$isTeam1 && $match->team2_score > $match->team1_score);
+
+			$partner = $isTeam1
+				? ($match->team1_player1_id == $this->id ? $match->team1Player2 : $match->team1Player1)
+				: ($match->team2_player1_id == $this->id ? $match->team2Player2 : $match->team2Player1);
+
+			$opponents = $isTeam1
+				? [$match->team2Player1, $match->team2Player2]
+				: [$match->team1Player1, $match->team1Player2];
+
+			$matches[] = [
+				'type' => 'Americano Flex',
+				'tournament' => $match->round->tournament->name ?? 'Турнир',
+				'date' => $match->updated_at,
+				'partner' => $partner->full_name ?? '',
+				'opponents' => ($opponents[0]->full_name ?? '') . ' / ' . ($opponents[1]->full_name ?? ''),
+				'score' => $isTeam1 ? "{$match->team1_score}:{$match->team2_score}" : "{$match->team2_score}:{$match->team1_score}",
+				'won' => $won,
+			];
+		}
+
+		// Round Robin
+		$roundRobinMatches = \App\Models\RoundRobinMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})
+			->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+			->get();
+
+		foreach ($roundRobinMatches as $match) {
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+			$won = ($isTeam1 && $match->team1_score > $match->team2_score) || (!$isTeam1 && $match->team2_score > $match->team1_score);
+
+			$partner = $isTeam1
+				? ($match->team1_player1_id == $this->id ? $match->team1Player2 : $match->team1Player1)
+				: ($match->team2_player1_id == $this->id ? $match->team2Player2 : $match->team2Player1);
+
+			$opponents = $isTeam1
+				? [$match->team2Player1, $match->team2Player2]
+				: [$match->team1Player1, $match->team1Player2];
+
+			$matches[] = [
+				'type' => 'Round Robin',
+				'tournament' => $match->round->tournament->name ?? 'Турнир',
+				'date' => $match->updated_at,
+				'partner' => $partner->full_name ?? '',
+				'opponents' => ($opponents[0]->full_name ?? '') . ' / ' . ($opponents[1]->full_name ?? ''),
+				'score' => $isTeam1 ? "{$match->team1_score}:{$match->team2_score}" : "{$match->team2_score}:{$match->team1_score}",
+				'won' => $won,
+			];
 		}
 
 		// Сортируем по дате (новые первыми)

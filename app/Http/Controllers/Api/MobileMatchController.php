@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AmericanoFlexMatch;
 use App\Models\AmericanoMatch;
 use App\Models\MexicanoMatch;
+use App\Models\RoundRobinMatch;
 use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
@@ -86,6 +88,38 @@ class MobileMatchController extends Controller
         foreach ($mexicanoMatches as $match) {
             $tournament = $match->round->tournament ?? null;
             $matches[] = $this->formatPlayerMatch($match, $userId, 'mexicano', $tournament);
+        }
+
+        // Americano Flex
+        $flexMatches = AmericanoFlexMatch::where('status', 'completed')
+            ->where(function ($q) use ($userId) {
+                $q->where('team1_player1_id', $userId)
+                  ->orWhere('team1_player2_id', $userId)
+                  ->orWhere('team2_player1_id', $userId)
+                  ->orWhere('team2_player2_id', $userId);
+            })
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+            ->get();
+
+        foreach ($flexMatches as $match) {
+            $tournament = $match->round->tournament ?? null;
+            $matches[] = $this->formatPlayerMatch($match, $userId, 'americano_flex', $tournament);
+        }
+
+        // Round Robin
+        $roundRobinMatches = RoundRobinMatch::where('status', 'completed')
+            ->where(function ($q) use ($userId) {
+                $q->where('team1_player1_id', $userId)
+                  ->orWhere('team1_player2_id', $userId)
+                  ->orWhere('team2_player1_id', $userId)
+                  ->orWhere('team2_player2_id', $userId);
+            })
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+            ->get();
+
+        foreach ($roundRobinMatches as $match) {
+            $tournament = $match->round->tournament ?? null;
+            $matches[] = $this->formatPlayerMatch($match, $userId, 'round_robin', $tournament);
         }
 
         // Плей-офф американо/мексикано (по player_id)
