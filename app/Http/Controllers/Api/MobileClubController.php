@@ -3,10 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AmericanoFlexMatch;
+use App\Models\AmericanoMatch;
 use App\Models\Club;
 use App\Models\CourtPriceRange;
+use App\Models\KingOfCourtMatch;
+use App\Models\MexicanoMatch;
 use App\Models\RatingHistory;
+use App\Models\RoundRobinMatch;
 use App\Models\Tournament;
+use App\Models\TournamentGroupMatch;
+use App\Models\TournamentPlayoffMatch;
+use App\Models\TournamentTeam;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -170,15 +178,25 @@ class MobileClubController extends Controller
             $rows = RatingHistory::whereIn('tournament_id', $tournamentIds)
                 ->selectRaw('user_id, SUM(`change`) as rating_earned, COUNT(DISTINCT tournament_id) as tournaments_count')
                 ->groupBy('user_id')
-                ->get();
+                ->get()
+                ->keyBy('user_id');
 
-            $users = User::whereIn('id', $rows->pluck('user_id'))->get()->keyBy('id');
+            // Победы/поражения по матчам турниров клуба за период.
+            $winStats = $this->collectClubWinStats($tournamentIds);
 
-            $players = $rows->map(function ($row) use ($users) {
-                $u = $users[$row->user_id] ?? null;
+            // Игроки = объединение тех, у кого есть рейтинг ИЛИ матчи.
+            $userIds = $rows->keys()->merge(array_keys($winStats))->unique();
+            $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+            $players = $userIds->map(function ($uid) use ($rows, $winStats, $users) {
+                $u = $users[$uid] ?? null;
                 if (!$u) {
                     return null;
                 }
+                $row = $rows[$uid] ?? null;
+                $w = $winStats[$uid] ?? ['won' => 0, 'lost' => 0];
+                $total = $w['won'] + $w['lost'];
+
                 return [
                     'user' => [
                         'id' => $u->id,
@@ -187,8 +205,11 @@ class MobileClubController extends Controller
                         'level' => $u->level,
                         'rating' => $u->rating,
                     ],
-                    'tournaments' => (int) $row->tournaments_count,
-                    'rating_earned' => (int) $row->rating_earned,
+                    'tournaments' => $row ? (int) $row->tournaments_count : 0,
+                    'rating_earned' => $row ? (int) $row->rating_earned : 0,
+                    'wins' => $w['won'],
+                    'losses' => $w['lost'],
+                    'winrate' => $total > 0 ? (int) round($w['won'] / $total * 100) : 0,
                 ];
             })->filter()->sortByDesc('rating_earned')->values()->all();
         }
@@ -204,6 +225,93 @@ class MobileClubController extends Controller
             'to' => $to->toDateString(),
             'players' => $players,
         ]);
+    }
+
+    /**
+     * Победы/поражения игроков по матчам турниров клуба (все типы).
+     * Возвращает [user_id => ['won' => int, 'lost' => int]].
+     */
+    private function collectClubWinStats($tournamentIds): array
+    {
+        $stats = [];
+
+        // Применить парный матч (по player_id) ко всем 4 игрокам.
+        $applyPlayerMatch = function ($m) use (&$stats) {
+            if ($m->team1_score == $m->team2_score) {
+                return;
+            }
+            $team1Won = $m->team1_score > $m->team2_score;
+            $t1 = array_filter([$m->team1_player1_id, $m->team1_player2_id]);
+            $t2 = array_filter([$m->team2_player1_id, $m->team2_player2_id]);
+            foreach ($t1 as $pid) {
+                $stats[$pid] ??= ['won' => 0, 'lost' => 0];
+                $team1Won ? $stats[$pid]['won']++ : $stats[$pid]['lost']++;
+            }
+            foreach ($t2 as $pid) {
+                $stats[$pid] ??= ['won' => 0, 'lost' => 0];
+                $team1Won ? $stats[$pid]['lost']++ : $stats[$pid]['won']++;
+            }
+        };
+
+        // Парные типы: раунд → турнир.
+        foreach ([MexicanoMatch::class, KingOfCourtMatch::class, AmericanoFlexMatch::class, RoundRobinMatch::class] as $model) {
+            $model::where('status', 'completed')
+                ->whereHas('round', fn($q) => $q->whereIn('tournament_id', $tournamentIds))
+                ->get()
+                ->each($applyPlayerMatch);
+        }
+
+        // Американо: раунд → группа → турнир.
+        AmericanoMatch::where('status', 'completed')
+            ->whereHas('round.group', fn($q) => $q->whereIn('tournament_id', $tournamentIds))
+            ->get()
+            ->each($applyPlayerMatch);
+
+        // Плей-офф американо/мексикано (по player_id).
+        TournamentPlayoffMatch::where('status', 'completed')
+            ->whereNotNull('team1_player1_id')
+            ->whereIn('tournament_id', $tournamentIds)
+            ->get()
+            ->each($applyPlayerMatch);
+
+        // Командные турниры — атрибутируем по составам команд.
+        $teams = TournamentTeam::whereIn('tournament_id', $tournamentIds)
+            ->get(['id', 'player1_id', 'player2_id'])
+            ->keyBy('id');
+
+        if ($teams->isNotEmpty()) {
+            $applyTeamMatch = function ($m) use (&$stats, $teams) {
+                if ($m->team1_score == $m->team2_score) {
+                    return;
+                }
+                $team1Won = $m->team1_score > $m->team2_score;
+                $winTeam = $teams[$team1Won ? $m->team1_id : $m->team2_id] ?? null;
+                $loseTeam = $teams[$team1Won ? $m->team2_id : $m->team1_id] ?? null;
+                foreach (array_filter([$winTeam?->player1_id, $winTeam?->player2_id]) as $pid) {
+                    $stats[$pid] ??= ['won' => 0, 'lost' => 0];
+                    $stats[$pid]['won']++;
+                }
+                foreach (array_filter([$loseTeam?->player1_id, $loseTeam?->player2_id]) as $pid) {
+                    $stats[$pid] ??= ['won' => 0, 'lost' => 0];
+                    $stats[$pid]['lost']++;
+                }
+            };
+
+            // Групповой этап: матч → группа → турнир.
+            TournamentGroupMatch::where('status', 'completed')
+                ->whereHas('group', fn($q) => $q->whereIn('tournament_id', $tournamentIds))
+                ->get()
+                ->each($applyTeamMatch);
+
+            // Плей-офф командный (team1_player1_id = null).
+            TournamentPlayoffMatch::where('status', 'completed')
+                ->whereNull('team1_player1_id')
+                ->whereIn('tournament_id', $tournamentIds)
+                ->get()
+                ->each($applyTeamMatch);
+        }
+
+        return $stats;
     }
 
     /**
