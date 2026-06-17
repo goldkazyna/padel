@@ -576,6 +576,50 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/participants/{user}/move
+     * Универсальное перемещение между статусами: registered | pending | waiting.
+     * Тело: { to: 'registered'|'pending'|'waiting' }.
+     */
+    public function moveParticipant(Request $request, Tournament $tournament, User $user): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if ($tournament->isAmericano() && $tournament->groups()->count() > 0) {
+            return $this->error('Группы уже сформированы. Используйте редактор групп в Web.');
+        }
+
+        $to = $request->input('to');
+        if (!in_array($to, ['registered', 'pending', 'waiting'], true)) {
+            return $this->error('Неверный статус');
+        }
+
+        $row = $tournament->participants()->where('user_id', $user->id)->first();
+        if (!$row) {
+            return $this->error('Участник не найден', 404);
+        }
+        if ($row->pivot->status === $to) {
+            return response()->json(['success' => true]);
+        }
+
+        // В основной список — не превышаем лимит участников.
+        if ($to === 'registered') {
+            $taken = $tournament->participants()->wherePivot('status', 'registered')->count();
+            if ($taken >= $tournament->max_participants) {
+                return $this->error('Достигнут лимит участников');
+            }
+        }
+
+        $tournament->participants()->updateExistingPivot($user->id, [
+            'status' => $to,
+            'moderation_deadline' => $to === 'pending' ? $tournament->moderationDeadline() : null,
+            'reminder_sent_at' => null,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * DELETE /api/mobile/admin/tournaments/{tournament}/participants/{user}
      */
     public function removeParticipant(Request $request, Tournament $tournament, User $user): JsonResponse
