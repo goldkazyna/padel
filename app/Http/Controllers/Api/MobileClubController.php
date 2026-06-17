@@ -13,6 +13,7 @@ use App\Models\RatingHistory;
 use App\Models\RoundRobinMatch;
 use App\Models\Tournament;
 use App\Models\TournamentGroupMatch;
+use App\Models\TournamentParticipant;
 use App\Models\TournamentPlayoffMatch;
 use App\Models\TournamentTeam;
 use App\Models\User;
@@ -174,21 +175,32 @@ class MobileClubController extends Controller
         $players = [];
 
         if ($tournamentIds->isNotEmpty()) {
-            // Заработанный рейтинг и число турниров — из истории рейтинга.
+            // Заработанный рейтинг — из истории рейтинга (только рейтинговые турниры).
             $rows = RatingHistory::whereIn('tournament_id', $tournamentIds)
-                ->selectRaw('user_id, SUM(`change`) as rating_earned, COUNT(DISTINCT tournament_id) as tournaments_count')
+                ->selectRaw('user_id, SUM(`change`) as rating_earned')
                 ->groupBy('user_id')
                 ->get()
                 ->keyBy('user_id');
 
+            // Число сыгранных турниров — по участию (registered), а не по рейтингу:
+            // рейтинг начисляется не во всех турнирах, поэтому считать по нему — недосчёт.
+            $tournamentCounts = TournamentParticipant::whereIn('tournament_id', $tournamentIds)
+                ->where('status', 'registered')
+                ->selectRaw('user_id, COUNT(DISTINCT tournament_id) as cnt')
+                ->groupBy('user_id')
+                ->pluck('cnt', 'user_id');
+
             // Победы/поражения по матчам турниров клуба за период.
             $winStats = $this->collectClubWinStats($tournamentIds);
 
-            // Игроки = объединение тех, у кого есть рейтинг ИЛИ матчи.
-            $userIds = $rows->keys()->merge(array_keys($winStats))->unique();
+            // Игроки = объединение всех, у кого есть участие / рейтинг / матчи.
+            $userIds = $rows->keys()
+                ->merge($tournamentCounts->keys())
+                ->merge(array_keys($winStats))
+                ->unique();
             $users = User::whereIn('id', $userIds)->get()->keyBy('id');
 
-            $players = $userIds->map(function ($uid) use ($rows, $winStats, $users) {
+            $players = $userIds->map(function ($uid) use ($rows, $tournamentCounts, $winStats, $users) {
                 $u = $users[$uid] ?? null;
                 if (!$u) {
                     return null;
@@ -206,7 +218,7 @@ class MobileClubController extends Controller
                         'rating' => $u->rating,
                         'level_verified' => (bool) $u->level_verified,
                     ],
-                    'tournaments' => $row ? (int) $row->tournaments_count : 0,
+                    'tournaments' => (int) ($tournamentCounts[$uid] ?? 0),
                     'rating_earned' => $row ? (int) $row->rating_earned : 0,
                     'wins' => $w['won'],
                     'losses' => $w['lost'],
