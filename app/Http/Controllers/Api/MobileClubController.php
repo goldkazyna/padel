@@ -5,6 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\CourtPriceRange;
+use App\Models\RatingHistory;
+use App\Models\Tournament;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -132,6 +136,73 @@ class MobileClubController extends Controller
                     ->count(),
                 'coaches' => $coaches,
             ],
+        ]);
+    }
+
+    /**
+     * Статистика клуба за период — лидерборд игроков.
+     * GET /api/mobile/clubs/{club}/stats?from=YYYY-MM-DD&to=YYYY-MM-DD
+     * По умолчанию — текущий месяц. Сортировка по заработанному рейтингу.
+     */
+    public function stats(Request $request, Club $club)
+    {
+        $request->validate([
+            'from' => 'nullable|date',
+            'to'   => 'nullable|date',
+        ]);
+
+        $from = $request->filled('from')
+            ? Carbon::parse($request->from)->startOfDay()
+            : now()->startOfMonth();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->to)->endOfDay()
+            : now()->endOfDay();
+
+        // Турниры клуба за период (по дате старта).
+        $tournamentIds = Tournament::where('club_id', $club->id)
+            ->whereBetween('start_date', [$from, $to])
+            ->pluck('id');
+
+        $players = [];
+
+        if ($tournamentIds->isNotEmpty()) {
+            // Заработанный рейтинг и число турниров — из истории рейтинга.
+            $rows = RatingHistory::whereIn('tournament_id', $tournamentIds)
+                ->selectRaw('user_id, SUM(`change`) as rating_earned, COUNT(DISTINCT tournament_id) as tournaments_count')
+                ->groupBy('user_id')
+                ->get();
+
+            $users = User::whereIn('id', $rows->pluck('user_id'))->get()->keyBy('id');
+
+            $players = $rows->map(function ($row) use ($users) {
+                $u = $users[$row->user_id] ?? null;
+                if (!$u) {
+                    return null;
+                }
+                return [
+                    'user' => [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'avatar' => $u->avatar,
+                        'level' => $u->level,
+                        'rating' => $u->rating,
+                    ],
+                    'tournaments' => (int) $row->tournaments_count,
+                    'rating_earned' => (int) $row->rating_earned,
+                ];
+            })->filter()->sortByDesc('rating_earned')->values()->all();
+        }
+
+        return response()->json([
+            'success' => true,
+            'club' => [
+                'id' => $club->id,
+                'name' => $club->name,
+                'logo' => $club->logo ? url($club->logo) : null,
+            ],
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'players' => $players,
         ]);
     }
 
