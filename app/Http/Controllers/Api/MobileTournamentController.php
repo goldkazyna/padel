@@ -1098,7 +1098,10 @@ class MobileTournamentController extends Controller
                 'id' => $tournament->id,
                 'name' => $tournament->name,
                 'date' => $tournament->start_date->translatedFormat('j F Y'),
-                'time' => $tournament->start_date->format('H:i'),
+                'time' => $tournament->duration_hours
+                    ? $tournament->start_date->format('H:i') . ' – ' . $tournament->start_date->copy()->addHours($tournament->duration_hours)->format('H:i')
+                    : $tournament->start_date->format('H:i'),
+                'duration_hours' => $tournament->duration_hours,
                 'club_name' => $tournament->club?->name ?? 'Клуб',
                 'format' => $tournament->type,
                 'format_name' => $tournament->type_name,

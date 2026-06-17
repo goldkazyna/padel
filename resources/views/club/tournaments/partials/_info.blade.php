@@ -3,7 +3,7 @@
         <div class="info-icon"><i class="bi bi-calendar3"></i></div>
         <div class="info-content">
             <div class="info-label">Дата</div>
-            <div class="info-value">{{ $tournament->start_date->format('d.m.Y H:i') }}</div>
+            <div class="info-value">{{ $tournament->start_date->format('d.m.Y H:i') }}@if($tournament->duration_hours) – {{ $tournament->start_date->copy()->addHours($tournament->duration_hours)->format('H:i') }}@endif</div>
         </div>
     </div>
 

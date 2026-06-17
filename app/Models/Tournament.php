@@ -93,6 +93,7 @@ class Tournament extends Model
         'name',
         'description',
         'start_date',
+        'duration_hours',
         'registration_deadline',
         'min_level',
         'max_level',

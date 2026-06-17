@@ -245,6 +245,7 @@ class MobileAdminTournamentController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',
+            'duration_hours' => 'nullable|integer|min:1|max:8',
             'min_level' => 'required|numeric|min:1|max:5.75',
             'max_level' => 'required|numeric|min:1|max:5.75|gte:min_level',
             'max_participants' => 'required|integer|min:2|max:128',

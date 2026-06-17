@@ -73,6 +73,17 @@
 								   onclick="this.showPicker()">
 							@error('start_date')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
 						</div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Длительность</label>
+							<select name="duration_hours" class="form-select">
+								<option value="">Не указана</option>
+								@for ($h = 1; $h <= 8; $h++)
+									<option value="{{ $h }}" {{ (string) old('duration_hours') === (string) $h ? 'selected' : '' }}>{{ $h }} {{ $h === 1 ? 'час' : ($h <= 4 ? 'часа' : 'часов') }}</option>
+								@endfor
+							</select>
+							<div class="form-text">Необязательно. Если указать — в деталях покажем время начала и конца.</div>
+							@error('duration_hours')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+						</div>
 					</div>
 
                     <div class="row">
