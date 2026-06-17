@@ -17,6 +17,9 @@ class AmericanoFlexService
 {
     use RatingCalculator;
 
+    /** Кэш готовых таблиц расписаний (по ключу "N-C"). */
+    private ?array $scheduleCache = null;
+
     /**
      * Запустить турнир: создать AmericanoFlexPlayer для каждого участника,
      * сгенерировать первый раунд.
@@ -88,13 +91,21 @@ class AmericanoFlexService
             $lastRound = $this->getCurrentRound($tournament);
             $nextNumber = $lastRound ? $lastRound->round_number + 1 : 1;
 
-            // 1. Выбираем играющих
-            $playing = $this->selectPlayersForRound($tournament);
-            $playingIds = array_map(fn($p) => $p->user_id, $playing);
-
-            // 2. Остальные — отдыхают
-            $allPlayers = $tournament->americanoFlexPlayers()->get();
-            $resting = $allPlayers->whereNotIn('user_id', $playingIds);
+            // 1+2. Если для расклада (N игроков, courts) есть готовая идеальная
+            // таблица и раунд в её пределах — берём её. Иначе — алгоритм-fallback.
+            $table = $this->tableRound($tournament, $nextNumber);
+            if ($table) {
+                $playingIds = $table['playingIds'];
+                $restingIds = $table['restingIds'];
+                $matches    = $table['matches'];
+            } else {
+                $playing = $this->selectPlayersForRound($tournament);
+                $playingIds = array_map(fn($p) => $p->user_id, $playing);
+                $allPlayers = $tournament->americanoFlexPlayers()->get();
+                $restingIds = $allPlayers->whereNotIn('user_id', $playingIds)
+                    ->pluck('user_id')->all();
+                $matches = $this->generatePairsForRound($tournament, $playing);
+            }
 
             // 3. Создаём раунд
             $round = AmericanoFlexRound::create([
@@ -103,8 +114,7 @@ class AmericanoFlexService
                 'status' => 'in_progress',
             ]);
 
-            // 4. Формируем пары и создаём матчи
-            $matches = $this->generatePairsForRound($tournament, $playing);
+            // 4. Создаём матчи
             foreach ($matches as $m) {
                 AmericanoFlexMatch::create([
                     'americano_flex_round_id' => $round->id,
@@ -118,10 +128,10 @@ class AmericanoFlexService
             }
 
             // 5. Записываем отдыхающих
-            foreach ($resting as $r) {
+            foreach ($restingIds as $uid) {
                 AmericanoFlexBye::create([
                     'americano_flex_round_id' => $round->id,
-                    'user_id' => $r->user_id,
+                    'user_id' => $uid,
                 ]);
             }
 
@@ -165,6 +175,63 @@ class AmericanoFlexService
     }
 
     /**
+     * Загрузить готовые таблицы расписаний (один раз за запрос).
+     */
+    private function loadSchedules(): array
+    {
+        if ($this->scheduleCache !== null) {
+            return $this->scheduleCache;
+        }
+        $path = database_path('data/americano_flex_schedules.json');
+        if (!is_file($path)) {
+            return $this->scheduleCache = [];
+        }
+        $data = json_decode((string) file_get_contents($path), true);
+        return $this->scheduleCache = is_array($data) ? $data : [];
+    }
+
+    /**
+     * Готовый раунд из таблицы для расклада (N игроков, courts), если он есть и
+     * номер раунда в её пределах. Слоты таблицы (0..N-1) маппятся на реальных
+     * игроков в стабильном порядке (по id записи). Возвращает массив:
+     *   ['matches' => [...], 'restingIds' => [...], 'playingIds' => [...]]
+     * или null — тогда вызывающий код откатывается на алгоритм.
+     */
+    private function tableRound(Tournament $tournament, int $roundNumber): ?array
+    {
+        $players = $tournament->americanoFlexPlayers()->orderBy('id')->get()->values();
+        $n = $players->count();
+        $c = (int) $tournament->courts_count;
+        $key = "{$n}-{$c}";
+
+        $all = $this->loadSchedules();
+        if (!isset($all[$key]['schedule'])) {
+            return null;
+        }
+        $schedule = $all[$key]['schedule'];
+        if ($roundNumber < 1 || $roundNumber > count($schedule)) {
+            return null; // за пределами таблицы — дальше работает алгоритм
+        }
+
+        $round = $schedule[$roundNumber - 1];
+        $uid = fn(int $slot) => $players[$slot]->user_id;
+
+        $matches = [];
+        $courtNum = 1;
+        $playingIds = [];
+        foreach ($round['courts'] as $crt) {
+            [$t1, $t2] = $crt;
+            $team1 = [$uid($t1[0]), $uid($t1[1])];
+            $team2 = [$uid($t2[0]), $uid($t2[1])];
+            $matches[] = ['team1' => $team1, 'team2' => $team2, 'court' => $courtNum++];
+            $playingIds = array_merge($playingIds, $team1, $team2);
+        }
+        $restingIds = array_map($uid, $round['byes'] ?? []);
+
+        return ['matches' => $matches, 'restingIds' => $restingIds, 'playingIds' => $playingIds];
+    }
+
+    /**
      * Сформировать M матчей из массива M*4 AmericanoFlexPlayer.
      * Минимизирует повторы по системе штрафов из ТЗ:
      *   Пара (partners):    0=0, 1=100, 2+=100*N
@@ -204,66 +271,137 @@ class AmericanoFlexService
             };
         };
 
+        // Лучшая разбивка четвёрки на 2 команды (минимум штрафа) + сами команды.
+        $groupBest = function (array $g) use ($partnerPenalty, $opponentPenalty) {
+            [$A, $B, $C, $D] = $g;
+            $variants = [
+                [[$A, $B], [$C, $D]],
+                [[$A, $C], [$B, $D]],
+                [[$A, $D], [$B, $C]],
+            ];
+            $best = null;
+            $bestCost = PHP_INT_MAX;
+            foreach ($variants as $v) {
+                $cost =
+                    $partnerPenalty($v[0][0], $v[0][1]) +
+                    $partnerPenalty($v[1][0], $v[1][1]) +
+                    $opponentPenalty($v[0][0], $v[1][0]) +
+                    $opponentPenalty($v[0][0], $v[1][1]) +
+                    $opponentPenalty($v[0][1], $v[1][0]) +
+                    $opponentPenalty($v[0][1], $v[1][1]);
+                if ($cost < $bestCost) {
+                    $bestCost = $cost;
+                    $best = $v;
+                }
+            }
+            return ['cost' => $bestCost, 'teams' => $best];
+        };
+
+        $courts = (int) floor(count($playerIds) / 4);
+
+        // ≤3 кортов — совместная оптимизация всего раунда (избегаем ловушки
+        // жадного «корт 1 портит корт 2»). Больше — жадность (перебор взрывается).
+        $groups = $courts <= 3
+            ? $this->bestRoundPartition($playerIds, $groupBest)['groups']
+            : $this->greedyRoundPartition($playerIds, $groupBest);
+
         $matches = [];
-        $remaining = $playerIds;
         $courtNum = 1;
+        foreach ($groups as $g) {
+            $matches[] = [
+                'team1' => $g['teams'][0],
+                'team2' => $g['teams'][1],
+                'court' => $courtNum++,
+            ];
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Совместная оптимизация раунда: перебираем ВСЕ способы разбить игроков на
+     * матчи (по 4), берём вариант с минимальным суммарным штрафом. Каждая
+     * четвёрка независимо считает лучшую разбивку на команды (groupBest).
+     * Рекурсия с фиксацией первого игрока — без дублей-перестановок.
+     */
+    private function bestRoundPartition(array $ids, callable $groupBest): array
+    {
+        if (count($ids) < 4) {
+            return ['cost' => 0, 'groups' => []];
+        }
+
+        $first = $ids[0];
+        $rest = array_values(array_slice($ids, 1));
+        $n = count($rest);
+
+        $bestCost = PHP_INT_MAX;
+        $bestGroups = [];
+
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                for ($k = $j + 1; $k < $n; $k++) {
+                    $gb = $groupBest([$first, $rest[$i], $rest[$j], $rest[$k]]);
+
+                    $remaining = [];
+                    for ($t = 0; $t < $n; $t++) {
+                        if ($t !== $i && $t !== $j && $t !== $k) {
+                            $remaining[] = $rest[$t];
+                        }
+                    }
+
+                    $sub = $this->bestRoundPartition($remaining, $groupBest);
+                    $total = $gb['cost'] + $sub['cost'];
+
+                    if ($total < $bestCost) {
+                        $bestCost = $total;
+                        $bestGroups = array_merge([$gb], $sub['groups']);
+                    }
+                }
+            }
+        }
+
+        return ['cost' => $bestCost, 'groups' => $bestGroups];
+    }
+
+    /**
+     * Жадный фолбэк для 4+ кортов: на каждый корт берём лучшую (мин. штраф)
+     * четвёрку, убираем её, повторяем.
+     */
+    private function greedyRoundPartition(array $ids, callable $groupBest): array
+    {
+        $remaining = $ids;
+        $groups = [];
 
         while (count($remaining) >= 4) {
-            // Перебираем все возможные комбинации первой четвёрки, выбираем минимум cost
-            $bestMatch = null;
             $bestCost = PHP_INT_MAX;
+            $bestGroup = null;
+            $bestIdx = null;
+            $n = count($remaining);
 
-            for ($i = 0; $i < count($remaining); $i++) {
-                for ($j = $i + 1; $j < count($remaining); $j++) {
-                    for ($k = $j + 1; $k < count($remaining); $k++) {
-                        for ($l = $k + 1; $l < count($remaining); $l++) {
-                            $A = $remaining[$i]; $B = $remaining[$j];
-                            $C = $remaining[$k]; $D = $remaining[$l];
-
-                            // 3 варианта разделения 4 игроков на 2 команды
-                            $variants = [
-                                ['t1' => [$A, $B], 't2' => [$C, $D]],
-                                ['t1' => [$A, $C], 't2' => [$B, $D]],
-                                ['t1' => [$A, $D], 't2' => [$B, $C]],
-                            ];
-
-                            foreach ($variants as $v) {
-                                // 2 партнёрские пары
-                                $matchCost =
-                                    $partnerPenalty($v['t1'][0], $v['t1'][1]) +
-                                    $partnerPenalty($v['t2'][0], $v['t2'][1]) +
-                                    // 4 кросса (соперники)
-                                    $opponentPenalty($v['t1'][0], $v['t2'][0]) +
-                                    $opponentPenalty($v['t1'][0], $v['t2'][1]) +
-                                    $opponentPenalty($v['t1'][1], $v['t2'][0]) +
-                                    $opponentPenalty($v['t1'][1], $v['t2'][1]);
-
-                                if ($matchCost < $bestCost) {
-                                    $bestCost = $matchCost;
-                                    $bestMatch = ['indices' => [$i, $j, $k, $l], 'teams' => $v];
-                                }
+            for ($i = 0; $i < $n; $i++) {
+                for ($j = $i + 1; $j < $n; $j++) {
+                    for ($k = $j + 1; $k < $n; $k++) {
+                        for ($l = $k + 1; $l < $n; $l++) {
+                            $gb = $groupBest([$remaining[$i], $remaining[$j], $remaining[$k], $remaining[$l]]);
+                            if ($gb['cost'] < $bestCost) {
+                                $bestCost = $gb['cost'];
+                                $bestGroup = $gb;
+                                $bestIdx = [$i, $j, $k, $l];
                             }
                         }
                     }
                 }
             }
 
-            if (!$bestMatch) break;
-
-            $matches[] = [
-                'team1' => $bestMatch['teams']['t1'],
-                'team2' => $bestMatch['teams']['t2'],
-                'court' => $courtNum++,
-            ];
-
-            // Удаляем использованных игроков
-            rsort($bestMatch['indices']);
-            foreach ($bestMatch['indices'] as $idx) {
+            if (!$bestGroup) break;
+            $groups[] = $bestGroup;
+            rsort($bestIdx);
+            foreach ($bestIdx as $idx) {
                 array_splice($remaining, $idx, 1);
             }
         }
 
-        return $matches;
+        return $groups;
     }
 
     /**
