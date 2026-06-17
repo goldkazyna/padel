@@ -204,6 +204,7 @@ class MobileClubController extends Controller
                         'avatar' => $u->avatar,
                         'level' => $u->level,
                         'rating' => $u->rating,
+                        'level_verified' => (bool) $u->level_verified,
                     ],
                     'tournaments' => $row ? (int) $row->tournaments_count : 0,
                     'rating_earned' => $row ? (int) $row->rating_earned : 0,
