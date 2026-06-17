@@ -214,6 +214,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [App\Http\Controllers\Club\AccountController::class, 'index'])->name('settings');
         Route::put('/settings/profile', [App\Http\Controllers\Club\AccountController::class, 'updateProfile'])->name('settings.profile');
         Route::put('/settings/password', [App\Http\Controllers\Club\AccountController::class, 'updatePassword'])->name('settings.password');
+        Route::put('/settings/club', [App\Http\Controllers\Club\AccountController::class, 'updateClubSettings'])->name('settings.club');
 
         // Журнал действий — доступен модератору с флагом can_view_activity_log
         // (проверка доступа внутри контроллера). Поэтому вне группы только-admin.

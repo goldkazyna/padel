@@ -43,6 +43,29 @@
         </div>
     </form>
 
+    {{-- Настройки клуба --}}
+    @if(!empty($club))
+    <form action="{{ route('club.settings.club') }}" method="POST" class="settings-card">
+        @csrf
+        @method('PUT')
+        <h2 class="settings-card-title">Настройки клуба</h2>
+
+        <label class="settings-toggle-row">
+            <input type="hidden" name="allow_booking_without_payment" value="0">
+            <input type="checkbox" name="allow_booking_without_payment" value="1"
+                   {{ ($club->allow_booking_without_payment ?? true) ? 'checked' : '' }}>
+            <span class="settings-toggle-text">
+                <span class="settings-toggle-title">Показывать кнопку «Записаться без оплаты»</span>
+                <small class="form-hint">Если включено — игроки могут записаться на турнир без онлайн-оплаты.</small>
+            </span>
+        </label>
+
+        <div class="settings-actions">
+            <button type="submit" class="btn-save">Сохранить</button>
+        </div>
+    </form>
+    @endif
+
     {{-- Смена пароля --}}
     <form action="{{ route('club.settings.password') }}" method="POST" class="settings-card">
         @csrf
@@ -91,6 +114,11 @@
     .form-input-readonly { background: #0e0e10; color: #71717a; cursor: not-allowed; }
     .form-input-readonly:focus { border-color: #27272a; box-shadow: none; }
     .form-hint { color: #52525b; font-size: 11px; display: block; margin-top: 6px; }
+
+    .settings-toggle-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin-bottom: 20px; }
+    .settings-toggle-row input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; accent-color: #22c55e; cursor: pointer; flex-shrink: 0; }
+    .settings-toggle-text { display: block; }
+    .settings-toggle-title { display: block; font-size: 15px; font-weight: 600; color: #f4f4f5; }
 
     .settings-actions { margin-top: 4px; }
     .btn-save { padding: 13px 28px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }

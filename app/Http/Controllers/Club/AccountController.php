@@ -10,7 +10,40 @@ class AccountController extends Controller
 {
     public function index()
     {
-        return view('club.settings.index', ['user' => auth()->user()]);
+        return view('club.settings.index', [
+            'user' => auth()->user(),
+            'club' => $this->getClub(),
+        ]);
+    }
+
+    /**
+     * Настройки самого клуба (например, кнопка «Записаться без оплаты»).
+     */
+    public function updateClubSettings(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) {
+            return back()->with('error', 'Клуб не найден');
+        }
+
+        $club->update([
+            'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
+        ]);
+
+        return back()->with('success', 'Настройки клуба обновлены');
+    }
+
+    /** Клуб текущего пользователя (админ/модератор). Супер-админ — null. */
+    private function getClub()
+    {
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) {
+            return null;
+        }
+        if ($user->isClubModerator()) {
+            return $user->moderatorClubs()->first();
+        }
+        return $user->adminClubs()->first();
     }
 
     public function updateProfile(Request $request)
