@@ -360,6 +360,8 @@ Route::middleware('auth')->group(function () {
                 ->name('tournaments.participants.approve');
             Route::post('/tournaments/{tournament}/participants/{userId}/reject', [ClubTournamentController::class, 'rejectParticipant'])
                 ->name('tournaments.participants.reject');
+            Route::post('/tournaments/{tournament}/participants/{userId}/move', [ClubTournamentController::class, 'moveParticipant'])
+                ->name('tournaments.participants.move');
             Route::post('/tournaments/{tournament}/participants/approve-all', [ClubTournamentController::class, 'approveAllParticipants'])
                 ->name('tournaments.participants.approveAll');
             Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])

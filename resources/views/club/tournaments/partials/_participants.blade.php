@@ -92,6 +92,7 @@
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </form>
+                            @include('club.tournaments.partials._participant_move_menu', ['current' => 'pending'])
                         </div>
                     @endif
                 </div>
@@ -133,6 +134,7 @@
                             @method('DELETE')
                             <button class="btn-danger-custom btn-sm" title="Удалить"><i class="bi bi-x"></i></button>
                         </form>
+                        @include('club.tournaments.partials._participant_move_menu', ['current' => 'registered'])
                     </div>
                 @endif
             </div>
@@ -227,6 +229,7 @@
                                 @method('DELETE')
                                 <button class="btn-danger-custom btn-sm" title="Удалить"><i class="bi bi-x"></i></button>
                             </form>
+                            @include('club.tournaments.partials._participant_move_menu', ['current' => 'waiting'])
                         </div>
                     @endif
                 </div>

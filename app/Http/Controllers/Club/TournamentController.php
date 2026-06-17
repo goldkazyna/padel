@@ -936,6 +936,53 @@ class TournamentController extends Controller
 	/**
 	 * Добавить участника вручную
 	 */
+	/**
+	 * Переместить участника между статусами: основной список (registered) /
+	 * модерация (pending) / лист ожидания (waiting). Для трёхточечного меню в админке.
+	 */
+	public function moveParticipant(Request $request, Tournament $tournament, $userId)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$to = $request->input('to');
+		if (!in_array($to, ['registered', 'pending', 'waiting'], true)) {
+			return back()->with('error', 'Неверный статус');
+		}
+
+		$participant = $tournament->participants()->where('user_id', $userId)->first();
+		if (!$participant) {
+			return back()->with('error', 'Участник не найден');
+		}
+
+		if ($participant->pivot->status === $to) {
+			return back();
+		}
+
+		// При переводе в основной список — не превышаем лимит участников.
+		if ($to === 'registered') {
+			$approvedCount = $tournament->participants()->wherePivot('status', 'registered')->count();
+			if ($approvedCount >= $tournament->max_participants) {
+				return back()->with('error', 'Достигнут лимит участников');
+			}
+		}
+
+		$tournament->participants()->updateExistingPivot($userId, [
+			'status' => $to,
+			'moderation_deadline' => $to === 'pending' ? $tournament->moderationDeadline() : null,
+		]);
+
+		$labels = [
+			'registered' => 'основной список',
+			'pending' => 'модерацию',
+			'waiting' => 'лист ожидания',
+		];
+
+		return back()->with('success', 'Игрок перемещён в ' . ($labels[$to] ?? $to));
+	}
+
 	public function addParticipant(Request $request, Tournament $tournament)
 	{
 		// Блокируем если группы уже сформированы (для Американо)
