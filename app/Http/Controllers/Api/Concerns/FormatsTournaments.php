@@ -38,7 +38,11 @@ trait FormatsTournaments
             'is_personal' => $t->isPersonal(),
             'creator' => $creator ? ['id' => $creator->id, 'name' => $creator->name] : null,
             'date' => $t->start_date->format('d.m.Y'),
-            'time' => $t->start_date->format('H:i'),
+            // В деталях, если задана длительность — показываем диапазон 11:00 – 14:00.
+            'time' => ($includeRegistration && $t->duration_hours)
+                ? $t->start_date->format('H:i') . ' – ' . $t->start_date->copy()->addHours($t->duration_hours)->format('H:i')
+                : $t->start_date->format('H:i'),
+            'duration_hours' => $t->duration_hours,
             'datetime' => $t->start_date->toIso8601String(),
             'type' => $t->type,
             'type_name' => $t->type_name,
