@@ -793,9 +793,17 @@
                             <div class="autocomplete-list" id="editNameList"></div>
                             <small class="form-hint" id="editClientNameHint" style="display:none;">Имя из карточки клиента. Чтобы изменить — отредактируйте карточку в разделе «Клиенты».</small>
                         </div>
-                        <!-- Группа: тренер + участники (только для групповой брони) -->
+                        <!-- Группа: участники + тренер (порядок как в окне создания) -->
                         <div id="editGroupBlock" style="display:none;">
-                            <div class="modal-section-title">Тренер</div>
+                            <div class="group-members-block">
+                                <div class="gm-header">
+                                    <span class="gm-title">Участники</span>
+                                    <span class="gm-count" id="editGmCount"></span>
+                                </div>
+                                <ul id="editGmList" class="gm-list"></ul>
+                                <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                            </div>
+                            <div class="modal-section-title" style="margin-top:14px;">Тренер</div>
                             <div class="form-group">
                                 <select id="editGroupCoachSelect" class="form-input" onchange="document.getElementById('editCoachId').value = this.value;">
                                     <option value="">— без тренера —</option>
@@ -804,14 +812,6 @@
                                     @endforeach
                                 </select>
                                 <small class="form-hint" style="color:#a1a1aa;font-size:12px;margin-top:6px;">Можно заменить, если занятие проведёт другой тренер. По умолчанию — тренер группы.</small>
-                            </div>
-                            <div class="group-members-block" style="margin-top:14px;">
-                                <div class="gm-header">
-                                    <span class="gm-title">Участники</span>
-                                    <span class="gm-count" id="editGmCount"></span>
-                                </div>
-                                <ul id="editGmList" class="gm-list"></ul>
-                                <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
                             </div>
                         </div>
 
