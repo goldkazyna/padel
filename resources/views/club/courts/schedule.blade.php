@@ -796,7 +796,15 @@
                         <!-- Группа: тренер + участники (только для групповой брони) -->
                         <div id="editGroupBlock" style="display:none;">
                             <div class="modal-section-title">Тренер</div>
-                            <div class="form-input" id="editGroupCoach" style="background:#18181b;">—</div>
+                            <div class="form-group">
+                                <select id="editGroupCoachSelect" class="form-input" onchange="document.getElementById('editCoachId').value = this.value;">
+                                    <option value="">— без тренера —</option>
+                                    @foreach($clubCoaches as $cc)
+                                        <option value="{{ $cc->user_id }}">{{ $cc->user->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="form-hint" style="color:#a1a1aa;font-size:12px;margin-top:6px;">Можно заменить, если занятие проведёт другой тренер. По умолчанию — тренер группы.</small>
+                            </div>
                             <div class="group-members-block" style="margin-top:14px;">
                                 <div class="gm-header">
                                     <span class="gm-title">Участники</span>
@@ -1791,9 +1799,12 @@
 
     // Заполнить тренера и список участников группы в окне редактирования.
     function renderEditGroup(data) {
-        const coachEl = document.getElementById('editGroupCoach');
-        if (coachEl) {
-            coachEl.textContent = (window.__coachNames && window.__coachNames[data.coachId]) || '— без тренера —';
+        const coachSelect = document.getElementById('editGroupCoachSelect');
+        if (coachSelect) {
+            coachSelect.value = data.coachId ? String(data.coachId) : '';
+            // Держим скрытое поле coach_id в соответствии с выбором (на случай рассинхрона).
+            const editCoachIdInput = document.getElementById('editCoachId');
+            if (editCoachIdInput) editCoachIdInput.value = coachSelect.value;
         }
         const list = document.getElementById('editGmList');
         const empty = document.getElementById('editGmEmpty');

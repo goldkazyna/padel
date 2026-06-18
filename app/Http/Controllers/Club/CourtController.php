@@ -1017,6 +1017,20 @@ class CourtController extends Controller
 
         $booking->update($updateData);
 
+        // Синхронизируем тренера у связанного занятия журнала. Если в брони
+        // сменили тренера (занятие проведёт другой), занятие должно показывать
+        // того же тренера, что и календарь/отчёт. Пустой coach_id → дефолтный
+        // тренер группы (как при создании, см. book()).
+        $linkedSession = \App\Models\ClubGroupSession::where('court_booking_id', $booking->id)
+            ->where('status', '!=', 'cancelled')
+            ->first();
+        if ($linkedSession) {
+            $newSessionCoach = $booking->coach_id ?: optional($linkedSession->group)->coach_id;
+            if ((int) $linkedSession->coach_id !== (int) $newSessionCoach) {
+                $linkedSession->update(['coach_id' => $newSessionCoach]);
+            }
+        }
+
         // Если клиента ещё нет в справочнике (например, у старой брони
         // добавили телефон) — создаём карточку. Заметку из формы берём только
         // для новых клиентов, существующих не трогаем (карточка — источник истины).
