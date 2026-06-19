@@ -75,7 +75,7 @@ return [
 		'username' => env('KAZINFOTEH_USERNAME'),
 		'password' => env('KAZINFOTEH_PASSWORD'),
 		// Имя отправителя (альфа-имя), зарегистрированное у оператора.
-		'originator' => env('KAZINFOTEH_ORIGINATOR', 'INFO_KAZ'),
+		'originator' => env('KAZINFOTEH_ORIGINATOR', 'KiT_Notify'),
 	],
 
 ];

@@ -31,15 +31,9 @@ class MobileAuthController extends Controller
 
         $phone = $this->normalizePhone($request->phone);
 
-        // Ищем пользователя по телефону
-        $user = User::where('phone', $phone)->first();
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Пользователь с таким номером не найден',
-            ], 404);
-        }
+        // Вход по SMS доступен и новым, и существующим пользователям —
+        // проверку «юзер должен существовать» не делаем. Новый пользователь
+        // создаётся в verifyCode после подтверждения кода.
 
         // Генерируем случайный 4-значный код
         $code = (string) random_int(1000, 9999);
@@ -51,7 +45,7 @@ class MobileAuthController extends Controller
         // Тестовый код 1111 в verifyCode работает всегда — поэтому даже если
         // отправка упадёт, тестовый вход сохраняется.
         $sent = app(\App\Services\SmsService::class)
-            ->send($phone, "Padel: ваш код {$code}");
+            ->send($phone, "Ваш код OTP: {$code}");
 
         if (!$sent) {
             Log::warning('SMS code not sent', ['phone' => $this->maskPhone($phone)]);
@@ -98,14 +92,21 @@ class MobileAuthController extends Controller
             }
         }
 
-        // Находим пользователя
+        // Находим пользователя. Если нет — это новый пользователь: создаём
+        // минимальную учётку (только телефон). Профиль (ФИО, город, дата
+        // рождения, пол) добивается на экране регистрации через PUT /profile.
         $user = User::where('phone', $phone)->first();
+        $isNew = false;
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Пользователь не найден',
-            ], 404);
+            $user = User::create([
+                'name' => '',
+                'phone' => $phone,
+                'role' => 'player',
+                'rating' => 1000,
+                'level' => 1.00,
+            ]);
+            $isNew = true;
         }
 
         // Удаляем использованный код
@@ -116,6 +117,7 @@ class MobileAuthController extends Controller
 
         return response()->json([
             'success' => true,
+            'is_new' => $isNew,
             'token' => $token,
             'user' => [
                 'id' => $user->id,

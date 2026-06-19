@@ -63,8 +63,9 @@ Route::prefix('mobile')->group(function () {
     Route::get('/app/version', [MobileAppController::class, 'version']);
 
     // Авторизация (без токена)
-    Route::post('/auth/send-code', [MobileAuthController::class, 'sendCode']);
-    Route::post('/auth/verify-code', [MobileAuthController::class, 'verifyCode']);
+    // send-code шлёт реальные SMS на любой номер → троттлим от абуза.
+    Route::post('/auth/send-code', [MobileAuthController::class, 'sendCode'])->middleware('throttle:5,1');
+    Route::post('/auth/verify-code', [MobileAuthController::class, 'verifyCode'])->middleware('throttle:10,1');
     Route::post('/auth/telegram/init', [MobileAuthController::class, 'telegramInit']);
     Route::get('/auth/telegram/check', [MobileAuthController::class, 'telegramCheck']);
 
