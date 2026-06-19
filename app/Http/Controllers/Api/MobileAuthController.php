@@ -101,6 +101,8 @@ class MobileAuthController extends Controller
         if (!$user) {
             $user = User::create([
                 'name' => '',
+                'first_name' => '',
+                'last_name' => '',
                 'phone' => $phone,
                 'role' => 'player',
                 'rating' => 1000,
