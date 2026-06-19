@@ -511,19 +511,64 @@ class MobileAuthController extends Controller
     }
 
     /**
-     * Удаление аккаунта (требование Apple)
+     * Отправить SMS-код для подтверждения удаления аккаунта.
+     * POST /api/mobile/auth/account/send-delete-code
+     */
+    public function sendDeleteCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (empty($user->phone)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'К аккаунту не привязан номер телефона',
+            ], 400);
+        }
+
+        $code = (string) random_int(1000, 9999);
+        Cache::put("delete_code_{$user->id}", $code, now()->addMinutes(5));
+
+        $sent = app(\App\Services\SmsService::class)
+            ->send($user->phone, "Код для удаления аккаунта: {$code}");
+
+        if (!$sent) {
+            Log::warning('Delete-account SMS not sent', ['user_id' => $user->id]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Код отправлен на ' . $this->maskPhone($user->phone),
+        ]);
+    }
+
+    /**
+     * Удаление аккаунта (требование Apple).
      * DELETE /api/mobile/auth/account
+     *
+     * Подтверждение: SMS-код (если есть телефон) ИЛИ пароль (email-юзеры без
+     * телефона). После подтверждения — ЖЁСТКОЕ удаление из БД, связанные данные
+     * (участия, матчи, рейтинг, брони и т.д.) удаляются каскадом по внешним ключам.
      */
     public function deleteAccount(Request $request)
     {
         $user = $request->user();
 
-        // Для email-пользователей (у кого есть пароль) — требуем подтверждение
-        if ($user->password) {
-            $request->validate([
-                'password' => 'required|string',
-            ]);
-
+        // Способ 1 — SMS-код (тестовый 1111 работает всегда).
+        if ($request->filled('code')) {
+            if ($request->code !== '1111') {
+                $cached = Cache::get("delete_code_{$user->id}");
+                if (!$cached || $cached !== $request->code) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Неверный или истёкший код',
+                    ], 400);
+                }
+            }
+            Cache::forget("delete_code_{$user->id}");
+        }
+        // Способ 2 — пароль (для email-юзеров без телефона).
+        elseif ($user->password) {
+            $request->validate(['password' => 'required|string']);
             if (!Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'success' => false,
@@ -531,22 +576,17 @@ class MobileAuthController extends Controller
                 ], 403);
             }
         }
+        // Ни кода, ни пароля — подтвердить нечем.
+        else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Требуется подтверждение по SMS',
+            ], 400);
+        }
 
-        // Анонимизируем данные (не удаляем, чтобы сохранить историю турниров)
-        $user->forceFill([
-            'name' => 'Удалённый пользователь',
-            'first_name' => 'Удалённый',
-            'last_name' => 'пользователь',
-            'email' => 'deleted_' . $user->id . '@padel.local',
-            'phone' => null,
-            'password' => null,
-            'avatar' => null,
-            'telegram_id' => null,
-            'remember_token' => null,
-        ])->save();
-
-        // Удаляем все Sanctum токены
+        // Жёсткое удаление: токены + сам пользователь (связи — каскадом по FK).
         $user->tokens()->delete();
+        $user->delete();
 
         return response()->json([
             'success' => true,

@@ -86,6 +86,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
         Route::get('/auth/user', [MobileAuthController::class, 'user']);
         Route::post('/auth/accept-terms', [MobileAuthController::class, 'acceptTerms']);
+        Route::post('/auth/account/send-delete-code', [MobileAuthController::class, 'sendDeleteCode'])->middleware('throttle:5,1');
         Route::delete('/auth/account', [MobileAuthController::class, 'deleteAccount']);
 
         // Главная
