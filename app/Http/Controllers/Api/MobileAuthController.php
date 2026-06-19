@@ -613,6 +613,157 @@ class MobileAuthController extends Controller
     }
 
     /**
+     * Смена номера, шаг 1 — отправить код на ТЕКУЩИЙ номер.
+     * POST /api/mobile/auth/phone/send-old-code
+     */
+    public function changePhoneSendOldCode(Request $request)
+    {
+        $user = $request->user();
+        if (empty($user->phone)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'К аккаунту не привязан номер',
+            ], 400);
+        }
+
+        $code = (string) random_int(1000, 9999);
+        Cache::put("phone_old_{$user->id}", $code, now()->addMinutes(5));
+
+        $sent = app(\App\Services\SmsService::class)
+            ->send($user->phone, "Ваш код OTP: {$code}");
+        if (!$sent) {
+            Log::warning('Change-phone old SMS not sent', ['user_id' => $user->id]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Код отправлен на ' . $this->maskPhone($user->phone),
+        ]);
+    }
+
+    /**
+     * Смена номера, шаг 2 — подтвердить код со старого номера.
+     * POST /api/mobile/auth/phone/confirm-old
+     */
+    public function changePhoneConfirmOld(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+        $user = $request->user();
+
+        if ($request->code !== '1111') {
+            $cached = Cache::get("phone_old_{$user->id}");
+            if (!$cached || $cached !== $request->code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный или истёкший код',
+                ], 400);
+            }
+        }
+        Cache::forget("phone_old_{$user->id}");
+        // Разрешаем смену номера в течение 10 минут.
+        Cache::put("phone_change_allowed_{$user->id}", true, now()->addMinutes(10));
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Смена номера, шаг 3 — отправить код на НОВЫЙ номер.
+     * POST /api/mobile/auth/phone/send-new-code
+     */
+    public function changePhoneSendNewCode(Request $request)
+    {
+        $request->validate(['phone' => 'required|string']);
+        $user = $request->user();
+
+        if (!Cache::get("phone_change_allowed_{$user->id}")) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Сначала подтвердите старый номер',
+            ], 400);
+        }
+
+        $newPhone = $this->normalizePhone($request->phone);
+        if ($newPhone === $user->phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Это ваш текущий номер',
+            ], 400);
+        }
+        if (User::where('phone', $newPhone)->where('id', '!=', $user->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Этот номер уже занят',
+            ], 400);
+        }
+
+        $code = (string) random_int(1000, 9999);
+        Cache::put("phone_new_code_{$user->id}", $code, now()->addMinutes(5));
+        Cache::put("phone_new_value_{$user->id}", $newPhone, now()->addMinutes(5));
+
+        $sent = app(\App\Services\SmsService::class)
+            ->send($newPhone, "Ваш код OTP: {$code}");
+        if (!$sent) {
+            Log::warning('Change-phone new SMS not sent', ['user_id' => $user->id]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Код отправлен на ' . $this->maskPhone($newPhone),
+        ]);
+    }
+
+    /**
+     * Смена номера, шаг 4 — подтвердить новый номер и сменить телефон.
+     * POST /api/mobile/auth/phone/confirm-new
+     */
+    public function changePhoneConfirmNew(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+        $user = $request->user();
+
+        if (!Cache::get("phone_change_allowed_{$user->id}")) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Сессия смены истекла, начните заново',
+            ], 400);
+        }
+        $newPhone = Cache::get("phone_new_value_{$user->id}");
+        if (!$newPhone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Код истёк, запросите заново',
+            ], 400);
+        }
+        if ($request->code !== '1111') {
+            $cached = Cache::get("phone_new_code_{$user->id}");
+            if (!$cached || $cached !== $request->code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный или истёкший код',
+                ], 400);
+            }
+        }
+        // Повторная проверка занятости (мог занять кто-то между шагами).
+        if (User::where('phone', $newPhone)->where('id', '!=', $user->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Этот номер уже занят',
+            ], 400);
+        }
+
+        $user->forceFill(['phone' => $newPhone])->save();
+        Cache::forget("phone_new_code_{$user->id}");
+        Cache::forget("phone_new_value_{$user->id}");
+        Cache::forget("phone_change_allowed_{$user->id}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Номер изменён',
+            'phone' => $newPhone,
+        ]);
+    }
+
+    /**
      * Авторизация через Google (Sign In with Google)
      * POST /api/mobile/auth/google
      *

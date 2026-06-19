@@ -89,6 +89,12 @@ Route::prefix('mobile')->group(function () {
         Route::post('/auth/account/send-delete-code', [MobileAuthController::class, 'sendDeleteCode'])->middleware('throttle:5,1');
         Route::delete('/auth/account', [MobileAuthController::class, 'deleteAccount']);
 
+        // Смена номера телефона (подтверждение старого и нового номера по SMS)
+        Route::post('/auth/phone/send-old-code', [MobileAuthController::class, 'changePhoneSendOldCode'])->middleware('throttle:5,1');
+        Route::post('/auth/phone/confirm-old', [MobileAuthController::class, 'changePhoneConfirmOld']);
+        Route::post('/auth/phone/send-new-code', [MobileAuthController::class, 'changePhoneSendNewCode'])->middleware('throttle:5,1');
+        Route::post('/auth/phone/confirm-new', [MobileAuthController::class, 'changePhoneConfirmNew']);
+
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);
 
