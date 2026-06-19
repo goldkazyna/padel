@@ -20,10 +20,13 @@
 KAZINFOTEH_SCHEME=http
 KAZINFOTEH_HOST=kazinfoteh.org
 KAZINFOTEH_PORT=9507
-KAZINFOTEH_USERNAME=kamnedsoft1
-KAZINFOTEH_PASSWORD=P7UtNpYFh
+KAZINFOTEH_USERNAME=<логин_у_оператора>
+KAZINFOTEH_PASSWORD=<пароль_у_оператора>
 KAZINFOTEH_ORIGINATOR=KiT_Notify
 ```
+
+> 🔒 Реальные логин/пароль шлюза — ТОЛЬКО в `.env` на сервере, в репозиторий не
+> коммитить. Если утекли — сменить у оператора (KazInfoTeh) и обновить `.env`.
 
 После правки `.env` → `php artisan config:clear`.
 
