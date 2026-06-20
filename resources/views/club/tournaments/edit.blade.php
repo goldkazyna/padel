@@ -267,6 +267,39 @@
 							</select>
 						</div>
 					</div>
+
+					{{-- Плей-офф для командного турнира --}}
+					@php $editTeamHasPlayoff = old('has_playoff', $tournament->has_playoff); @endphp
+					<div class="mb-3">
+						<div class="form-check">
+							<input type="checkbox" name="has_playoff" value="1" id="teamHasPlayoff" class="form-check-input"
+								{{ $editTeamHasPlayoff ? 'checked' : '' }}
+								onchange="toggleTeamPlayoffOptions()">
+							<label for="teamHasPlayoff" class="form-check-label">
+								<strong>С плей-офф</strong> <small class="text-muted">(на вылет после групп). Снимите — будет только групповой этап, место по таблице.</small>
+							</label>
+						</div>
+					</div>
+					<div id="teamPlayoffOptions" class="row" style="{{ $editTeamHasPlayoff ? '' : 'display:none;' }}">
+						<div class="col-md-6 mb-2">
+							<div class="form-check">
+								<input type="checkbox" name="has_lower_bracket" value="1" id="teamLowerBracket" class="form-check-input"
+									{{ old('has_lower_bracket', $tournament->has_lower_bracket) ? 'checked' : '' }}>
+								<label for="teamLowerBracket" class="form-check-label">
+									Нижняя сетка <small class="text-muted">(для проигравших в QF)</small>
+								</label>
+							</div>
+						</div>
+						<div class="col-md-6 mb-2">
+							<div class="form-check">
+								<input type="checkbox" name="has_bronze_match" value="1" id="teamBronze" class="form-check-input"
+									{{ old('has_bronze_match', $tournament->has_bronze_match) ? 'checked' : '' }}>
+								<label for="teamBronze" class="form-check-label">
+									Матч за 3-е место
+								</label>
+							</div>
+						</div>
+					</div>
 					@endif
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
@@ -302,6 +335,12 @@
 </div>
 @endsection
 <script>
+function toggleTeamPlayoffOptions() {
+    const cb = document.getElementById('teamHasPlayoff');
+    const opts = document.getElementById('teamPlayoffOptions');
+    if (cb && opts) opts.style.display = cb.checked ? 'flex' : 'none';
+}
+
 function togglePlayoffType() {
     const hasPlayoff = document.getElementById('hasPlayoff');
     const playoffTypeOptions = document.getElementById('playoffTypeOptions');
