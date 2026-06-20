@@ -119,6 +119,11 @@
                     </div>
 					<div class="mb-4">
 						<div class="form-check">
+							<input type="checkbox" class="form-check-input" name="is_rated" id="isRated" value="1" {{ old('is_rated', $tournament->is_rated) ? 'checked' : '' }}>
+							<label class="form-check-label" for="isRated">Рейтинговый турнир</label>
+							<div><small class="text-secondary">Снимите галочку, чтобы турнир не влиял на рейтинг игроков</small></div>
+						</div>
+						<div class="form-check mt-2">
 							<input type="checkbox" class="form-check-input" name="verified_only" id="verifiedOnly" value="1" {{ old('verified_only', $tournament->verified_only) ? 'checked' : '' }}>
 							<label class="form-check-label" for="verifiedOnly">Только для верифицированных игроков</label>
 							<div><small class="text-secondary">Заявки смогут подавать только верифицированные игроки (есть аватар и сыгран хотя бы один турнир)</small></div>
@@ -248,23 +253,25 @@
 					@endif
 					@if($tournament->isTeamBased())
 					<div class="row">
-						<div class="col-md-4 mb-4">
+						<div class="col-md-12 mb-4">
+							<label class="form-label">Кто собирает пары</label>
+							<select name="pairing_mode" class="form-select">
+								<option value="self" {{ old('pairing_mode', $tournament->pairing_mode) === 'self' ? 'selected' : '' }}>Сами игроки (поиск партнёра)</option>
+								<option value="admin" {{ old('pairing_mode', $tournament->pairing_mode) === 'admin' ? 'selected' : '' }}>Админ собирает (запись по одному)</option>
+							</select>
+							<small class="text-secondary">«Админ собирает» — игроки записываются поодиночке, пары вы соберёте перед стартом.</small>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-md-6 mb-4">
 							<label class="form-label">Количество групп</label>
 							<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
 							<small class="text-secondary">Нельзя изменить после создания</small>
 						</div>
-						<div class="col-md-4 mb-4">
+						<div class="col-md-6 mb-4">
 							<label class="form-label">Выходят из группы</label>
 							<input type="text" class="form-control" value="{{ $tournament->teams_advance }} пары" disabled>
 							<small class="text-secondary">Нельзя изменить после создания</small>
-						</div>
-						<div class="col-md-4 mb-4">
-							<label class="form-label">Очки за матч</label>
-							<select name="points_to_win" class="form-select">
-								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>до 24</option>
-								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>до 32</option>
-								<option value="21" {{ old('points_to_win', $tournament->points_to_win) == 21 ? 'selected' : '' }}>до 21</option>
-							</select>
 						</div>
 					</div>
 

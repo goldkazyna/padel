@@ -281,6 +281,7 @@ class TournamentController extends Controller
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
 			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
+			'pairing_mode' => 'nullable|in:self,admin',
 		]);
 
 		// Americano Flex — кол-во кортов задаётся вручную (хранится в courts_count).
@@ -289,7 +290,8 @@ class TournamentController extends Controller
 		}
 		unset($validated['flex_courts_count']);
 
-		// Только для верифицированных игроков
+		// Рейтинговый турнир + только для верифицированных игроков
+		$validated['is_rated'] = $request->has('is_rated');
 		$validated['verified_only'] = $request->has('verified_only');
 
 		// Обработка чекбоксов плей-офф
