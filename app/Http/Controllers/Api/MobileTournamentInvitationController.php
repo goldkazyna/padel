@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\FormatsTournaments;
 use App\Models\Tournament;
 use App\Models\TournamentInvitation;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -149,6 +150,101 @@ class MobileTournamentInvitationController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * GET /api/mobile/tournaments/invitable?user_id=X
+     * Турниры, на которые можно позвать игрока X: открытые, индивидуальные,
+     * по его уровню, где он ещё не участвует и не приглашён.
+     */
+    public function invitable(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['user_id' => 'required|exists:users,id']);
+        $player = User::findOrFail($validated['user_id']);
+        $level = (float) $player->level;
+
+        $tournaments = Tournament::where('status', 'open')
+            ->where('type', '!=', 'team')
+            ->where('min_level', '<=', $level)
+            ->where('max_level', '>=', $level)
+            ->whereHas('club', fn($q) => $q->where('is_test', false))
+            ->whereNotExists(function ($q) use ($player) {
+                $q->select(DB::raw(1))->from('tournament_participants')
+                    ->whereColumn('tournament_participants.tournament_id', 'tournaments.id')
+                    ->where('tournament_participants.user_id', $player->id)
+                    ->whereIn('tournament_participants.status', ['registered', 'pending', 'waiting']);
+            })
+            ->whereNotExists(function ($q) use ($player) {
+                $q->select(DB::raw(1))->from('tournament_invitations')
+                    ->whereColumn('tournament_invitations.tournament_id', 'tournaments.id')
+                    ->where('tournament_invitations.user_id', $player->id)
+                    ->where('tournament_invitations.status', 'pending');
+            })
+            ->with('club')
+            ->orderBy('start_date')
+            ->get()
+            ->map(fn($t) => $this->formatTournament($t, null, false))
+            ->values();
+
+        return response()->json(['success' => true, 'tournaments' => $tournaments]);
+    }
+
+    /**
+     * POST /api/mobile/tournaments/{tournament}/invite-player
+     * Позвать игрока на турнир (от текущего пользователя). Body: user_id.
+     */
+    public function invitePlayer(Request $request, Tournament $tournament): JsonResponse
+    {
+        $validated = $request->validate(['user_id' => 'required|exists:users,id']);
+        $playerId = (int) $validated['user_id'];
+
+        if ($playerId === $request->user()->id) {
+            return response()->json(['success' => false, 'message' => 'Нельзя пригласить самого себя'], 422);
+        }
+        if ($tournament->status !== 'open') {
+            return response()->json(['success' => false, 'message' => 'Турнир недоступен для приглашений'], 422);
+        }
+        if ($tournament->type === 'team') {
+            return response()->json(['success' => false, 'message' => 'Приглашения доступны только для индивидуальных турниров'], 422);
+        }
+
+        $player = User::findOrFail($playerId);
+        if ($player->level < $tournament->min_level || $player->level > $tournament->max_level) {
+            return response()->json(['success' => false, 'message' => 'Турнир не подходит игроку по уровню'], 422);
+        }
+        if ($tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+            ->where('users.id', $playerId)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Игрок уже участвует в турнире'], 422);
+        }
+
+        $invitation = TournamentInvitation::updateOrCreate(
+            ['tournament_id' => $tournament->id, 'user_id' => $playerId],
+            ['invited_by' => $request->user()->id, 'status' => 'pending', 'responded_at' => null],
+        );
+
+        $title = 'Приглашение на турнир';
+        $inviter = $request->user()->name;
+        $body = "{$inviter} зовёт вас на турнир «{$tournament->name}»";
+        \App\Models\Notification::create([
+            'user_id' => $player->id,
+            'title' => $title,
+            'body' => $body,
+            'type' => 'tournament_invite',
+            'category' => 'tournament',
+            'data' => ['tournament_id' => $tournament->id, 'invitation_id' => $invitation->id],
+        ]);
+        try {
+            app(\App\Services\FCMNotificationService::class)->sendToUser($player, $title, $body, [
+                'type' => 'tournament_invite',
+                'tournament_id' => (string) $tournament->id,
+                'invitation_id' => (string) $invitation->id,
+            ]);
+        } catch (\Throwable $e) {
+            // пуш не критичен — приглашение сохранено
+        }
+
+        return response()->json(['success' => true, 'message' => 'Приглашение отправлено']);
     }
 
     private function format(TournamentInvitation $inv): ?array

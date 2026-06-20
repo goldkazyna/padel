@@ -209,8 +209,11 @@ Route::prefix('mobile')->group(function () {
         // Приглашения на турнир (до wildcard {tournament})
         Route::get('/tournaments/invitations', [MobileTournamentInvitationController::class, 'index']);
         Route::get('/tournaments/invitations/count', [MobileTournamentInvitationController::class, 'count']);
+        // Позвать игрока на турнир (игрок → игрок)
+        Route::get('/tournaments/invitable', [MobileTournamentInvitationController::class, 'invitable']);
         Route::post('/tournaments/invitations/{invitation}/accept', [MobileTournamentInvitationController::class, 'accept']);
         Route::post('/tournaments/invitations/{invitation}/decline', [MobileTournamentInvitationController::class, 'decline']);
+        Route::post('/tournaments/{tournament}/invite-player', [MobileTournamentInvitationController::class, 'invitePlayer']);
         // Ближайшая неоплаченная заявка с таймером модерации (до wildcard {tournament})
         Route::get('/tournaments/moderation-pending', [MobileTournamentController::class, 'moderationPending']);
         Route::get('/tournaments/{tournament}', [MobileTournamentController::class, 'show']);
