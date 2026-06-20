@@ -60,17 +60,34 @@
                     </div>
                 @endif
             </div>
-            @if($court->priceRanges->count())
+            @php
+                $cardWd = $court->priceRanges->filter(fn($r) => $r->day_type !== 'weekend');
+                $cardWe = $court->priceRanges->filter(fn($r) => $r->day_type === 'weekend');
+            @endphp
+            @if($cardWd->count() || $cardWe->count())
                 <div style="padding: 0 24px 20px;">
-                    <span class="detail-label" style="margin-bottom: 8px; display: block;">Ценовые интервалы</span>
-                    <div class="price-tags">
-                        @foreach($court->priceRanges as $range)
-                            <div class="price-tag">
-                                <span class="price-tag-time">{{ \Carbon\Carbon::parse($range->time_from)->format('H:i') }}–{{ \Carbon\Carbon::parse($range->time_to)->format('H:i') }}</span>
-                                <span class="price-tag-value">{{ number_format($range->price, 0, '', ' ') }} ₸</span>
-                            </div>
-                        @endforeach
-                    </div>
+                    @if($cardWd->count())
+                        <span class="detail-label" style="margin-bottom: 8px; display: block;">{{ $cardWe->count() ? 'Цены — будни' : 'Ценовые интервалы' }}</span>
+                        <div class="price-tags">
+                            @foreach($cardWd as $range)
+                                <div class="price-tag">
+                                    <span class="price-tag-time">{{ \Carbon\Carbon::parse($range->time_from)->format('H:i') }}–{{ \Carbon\Carbon::parse($range->time_to)->format('H:i') }}</span>
+                                    <span class="price-tag-value">{{ number_format($range->price, 0, '', ' ') }} ₸</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                    @if($cardWe->count())
+                        <span class="detail-label" style="margin: 12px 0 8px; display: block;">Цены — выходные</span>
+                        <div class="price-tags">
+                            @foreach($cardWe as $range)
+                                <div class="price-tag">
+                                    <span class="price-tag-time">{{ \Carbon\Carbon::parse($range->time_from)->format('H:i') }}–{{ \Carbon\Carbon::parse($range->time_to)->format('H:i') }}</span>
+                                    <span class="price-tag-value">{{ number_format($range->price, 0, '', ' ') }} ₸</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             @endif
         </div>
@@ -131,6 +148,12 @@
                         </div>
                     </div>
                     <button type="button" class="add-range-btn" onclick="addRange('createRanges')">+ Добавить интервал</button>
+
+                    <hr style="border-color: #27272a; margin: 24px 0;">
+                    <div class="section-title">Цены на выходные (Сб, Вс)</div>
+                    <small style="color:#71717a; font-size:12px; display:block; margin-bottom:12px;">Необязательно. Если оставить пустым — в выходные действуют будние цены.</small>
+                    <div class="price-ranges" id="createWeekendRanges" data-optional="1"></div>
+                    <button type="button" class="add-range-btn" onclick="addRange('createWeekendRanges', 'weekend_price_ranges')">+ Добавить интервал выходного</button>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
@@ -174,8 +197,12 @@
                     </div>
                     <hr style="border-color: #27272a; margin: 24px 0;">
                     <div class="section-title">Ценовые интервалы</div>
+                    @php
+                        $wdRanges = $court->priceRanges->filter(fn($r) => $r->day_type !== 'weekend')->values();
+                        $weRanges = $court->priceRanges->filter(fn($r) => $r->day_type === 'weekend')->values();
+                    @endphp
                     <div class="price-ranges" id="editRanges{{ $court->id }}">
-                        @foreach($court->priceRanges as $i => $range)
+                        @foreach($wdRanges as $i => $range)
                         <div class="price-range-row">
                             <div class="form-group">
                                 <label class="form-label">С</label>
@@ -189,11 +216,35 @@
                                 <label class="form-label">Цена (₸)</label>
                                 <input type="number" class="form-input" name="price_ranges[{{ $i }}][price]" value="{{ intval($range->price) }}" required>
                             </div>
-                            <button type="button" class="remove-btn" onclick="removeRange(this)" {!! $court->priceRanges->count() <= 1 ? 'style="display:none;"' : '' !!}>&#10005;</button>
+                            <button type="button" class="remove-btn" onclick="removeRange(this)" {!! $wdRanges->count() <= 1 ? 'style="display:none;"' : '' !!}>&#10005;</button>
                         </div>
                         @endforeach
                     </div>
                     <button type="button" class="add-range-btn" onclick="addRange('editRanges{{ $court->id }}')">+ Добавить интервал</button>
+
+                    <hr style="border-color: #27272a; margin: 24px 0;">
+                    <div class="section-title">Цены на выходные (Сб, Вс)</div>
+                    <small style="color:#71717a; font-size:12px; display:block; margin-bottom:12px;">Необязательно. Если оставить пустым — в выходные действуют будние цены.</small>
+                    <div class="price-ranges" id="editWeekendRanges{{ $court->id }}" data-optional="1">
+                        @foreach($weRanges as $i => $range)
+                        <div class="price-range-row">
+                            <div class="form-group">
+                                <label class="form-label">С</label>
+                                <input type="time" class="form-input" name="weekend_price_ranges[{{ $i }}][time_from]" value="{{ \Carbon\Carbon::parse($range->time_from)->format('H:i') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">До</label>
+                                <input type="time" class="form-input" name="weekend_price_ranges[{{ $i }}][time_to]" value="{{ \Carbon\Carbon::parse($range->time_to)->format('H:i') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Цена (₸)</label>
+                                <input type="number" class="form-input" name="weekend_price_ranges[{{ $i }}][price]" value="{{ intval($range->price) }}" required>
+                            </div>
+                            <button type="button" class="remove-btn" onclick="removeRange(this)">&#10005;</button>
+                        </div>
+                        @endforeach
+                    </div>
+                    <button type="button" class="add-range-btn" onclick="addRange('editWeekendRanges{{ $court->id }}', 'weekend_price_ranges')">+ Добавить интервал выходного</button>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
@@ -206,18 +257,20 @@
 @endforeach
 
 <script>
-function addRange(containerId) {
+function addRange(containerId, fieldName) {
+    fieldName = fieldName || 'price_ranges';
     var container = document.getElementById(containerId);
     var rows = container.querySelectorAll('.price-range-row');
     var idx = rows.length;
     var lastRow = rows[rows.length - 1];
-    var lastTo = lastRow ? lastRow.querySelector('input[name*="time_to"]').value : '08:00';
+    var lastToInput = lastRow ? lastRow.querySelector('input[name*="time_to"]') : null;
+    var lastTo = lastToInput ? lastToInput.value : '08:00';
 
     var div = document.createElement('div');
     div.className = 'price-range-row';
-    div.innerHTML = '<div class="form-group"><label class="form-label">С</label><input type="time" class="form-input" name="price_ranges[' + idx + '][time_from]" value="' + lastTo + '" required></div>' +
-        '<div class="form-group"><label class="form-label">До</label><input type="time" class="form-input" name="price_ranges[' + idx + '][time_to]" value="22:00" required></div>' +
-        '<div class="form-group"><label class="form-label">Цена (₸)</label><input type="number" class="form-input" name="price_ranges[' + idx + '][price]" placeholder="5000" required></div>' +
+    div.innerHTML = '<div class="form-group"><label class="form-label">С</label><input type="time" class="form-input" name="' + fieldName + '[' + idx + '][time_from]" value="' + lastTo + '" required></div>' +
+        '<div class="form-group"><label class="form-label">До</label><input type="time" class="form-input" name="' + fieldName + '[' + idx + '][time_to]" value="22:00" required></div>' +
+        '<div class="form-group"><label class="form-label">Цена (₸)</label><input type="number" class="form-input" name="' + fieldName + '[' + idx + '][price]" placeholder="5000" required></div>' +
         '<button type="button" class="remove-btn" onclick="removeRange(this)">&#10005;</button>';
     container.appendChild(div);
     updateRemoveButtons(container);
@@ -227,21 +280,23 @@ function removeRange(btn) {
     var row = btn.closest('.price-range-row');
     var container = row.parentElement;
     row.remove();
-    // reindex
+    // reindex (заменяем первый [N] индекс, префикс поля сохраняется)
     container.querySelectorAll('.price-range-row').forEach(function(row, i) {
         row.querySelectorAll('input').forEach(function(input) {
             var name = input.getAttribute('name');
-            if (name) input.setAttribute('name', name.replace(/price_ranges\[\d+\]/, 'price_ranges[' + i + ']'));
+            if (name) input.setAttribute('name', name.replace(/\[\d+\]/, '[' + i + ']'));
         });
     });
     updateRemoveButtons(container);
 }
 
 function updateRemoveButtons(container) {
+    // Опциональные наборы (выходные) можно очищать полностью — кнопка всегда видна.
+    var optional = container.getAttribute('data-optional') === '1';
     var rows = container.querySelectorAll('.price-range-row');
     rows.forEach(function(row) {
         var btn = row.querySelector('.remove-btn');
-        if (btn) btn.style.display = rows.length > 1 ? 'flex' : 'none';
+        if (btn) btn.style.display = (optional || rows.length > 1) ? 'flex' : 'none';
     });
 }
 </script>

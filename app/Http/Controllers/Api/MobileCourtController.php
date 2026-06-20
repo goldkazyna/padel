@@ -255,7 +255,7 @@ class MobileCourtController extends Controller
         }
 
         $user = $request->user();
-        $courtPrice = $this->scheduleService->calculatePrice($court, $startTimeStr, $endTimeStr);
+        $courtPrice = $this->scheduleService->calculatePrice($court, $validated['date'], $startTimeStr, $endTimeStr);
 
         $booking = CourtBooking::create([
             'court_id' => $court->id,

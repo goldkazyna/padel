@@ -460,6 +460,11 @@ class CourtController extends Controller
             'price_ranges.*.time_from' => 'required|date_format:H:i',
             'price_ranges.*.time_to' => 'required|date_format:H:i',
             'price_ranges.*.price' => 'required|numeric|min:0',
+            // Выходные цены — опциональны и могут быть частичными (фолбэк на будни).
+            'weekend_price_ranges' => 'nullable|array',
+            'weekend_price_ranges.*.time_from' => 'required|date_format:H:i',
+            'weekend_price_ranges.*.time_to' => 'required|date_format:H:i',
+            'weekend_price_ranges.*.price' => 'required|numeric|min:0',
         ]);
 
         $errors = $this->scheduleService->validatePriceRanges(
@@ -480,14 +485,7 @@ class CourtController extends Controller
             'sort_order' => $maxSort + 1,
         ]);
 
-        foreach ($validated['price_ranges'] as $range) {
-            CourtPriceRange::create([
-                'court_id' => $court->id,
-                'time_from' => $range['time_from'],
-                'time_to' => $range['time_to'],
-                'price' => $range['price'],
-            ]);
-        }
+        $this->savePriceRanges($court, $validated['price_ranges'], $validated['weekend_price_ranges'] ?? []);
 
         return back()->with('success', 'Корт добавлен!');
     }
@@ -506,6 +504,11 @@ class CourtController extends Controller
             'price_ranges.*.time_from' => 'required|date_format:H:i',
             'price_ranges.*.time_to' => 'required|date_format:H:i',
             'price_ranges.*.price' => 'required|numeric|min:0',
+            // Выходные цены — опциональны и могут быть частичными (фолбэк на будни).
+            'weekend_price_ranges' => 'nullable|array',
+            'weekend_price_ranges.*.time_from' => 'required|date_format:H:i',
+            'weekend_price_ranges.*.time_to' => 'required|date_format:H:i',
+            'weekend_price_ranges.*.price' => 'required|numeric|min:0',
         ]);
 
         $errors = $this->scheduleService->validatePriceRanges(
@@ -523,16 +526,38 @@ class CourtController extends Controller
         ]);
 
         $court->priceRanges()->delete();
-        foreach ($validated['price_ranges'] as $range) {
+        $this->savePriceRanges($court, $validated['price_ranges'], $validated['weekend_price_ranges'] ?? []);
+
+        return back()->with('success', 'Корт обновлён!');
+    }
+
+    /**
+     * Сохранить ценовые интервалы корта: будни (day_type='weekday') и
+     * выходные (day_type='weekend'). Выходные опциональны/частичны.
+     */
+    private function savePriceRanges(Court $court, array $weekday, array $weekend): void
+    {
+        foreach ($weekday as $range) {
             CourtPriceRange::create([
                 'court_id' => $court->id,
+                'day_type' => 'weekday',
                 'time_from' => $range['time_from'],
                 'time_to' => $range['time_to'],
                 'price' => $range['price'],
             ]);
         }
-
-        return back()->with('success', 'Корт обновлён!');
+        foreach ($weekend as $range) {
+            if (empty($range['time_from']) || empty($range['time_to']) || !isset($range['price'])) {
+                continue;
+            }
+            CourtPriceRange::create([
+                'court_id' => $court->id,
+                'day_type' => 'weekend',
+                'time_from' => $range['time_from'],
+                'time_to' => $range['time_to'],
+                'price' => $range['price'],
+            ]);
+        }
     }
 
     public function destroy(Court $court)
@@ -678,26 +703,25 @@ class CourtController extends Controller
         // Список дат для бронирования (одна или несколько при повторе)
         $dates = $this->expandRepeatDates($validated['date'], $repeat, $repeatUntil);
 
-        $autoPrice = $this->scheduleService->calculatePrice($court, $startTime, $endTime);
-        $customPrice = $validated['custom_price'] ?? $autoPrice;
-        $discount = $validated['discount'] ?? 0;
+        // Цена считается ПОДАТНО внутри цикла (учёт будни/выходные), т.к. при
+        // повторе даты могут попадать и на будни, и на выходные.
+        $hasCustomPrice = isset($validated['custom_price']);
+        $baseDiscount = $validated['discount'] ?? 0;
 
         // Клубная карта клиента: проверяем принадлежность клубу и актуальность.
         // Для скидочной карты скидка считается от цены (источник истины — карта).
         $clubCardId = null;
+        $cardDiscountPct = null;
         if (!$isGroupBooking && !empty($validated['club_card_id'])) {
             $card = \App\Models\ClubCard::where('club_id', $club->id)
                 ->with('type')->find($validated['club_card_id']);
             if ($card && $card->isActual()) {
                 $clubCardId = $card->id;
                 if ($card->type && $card->type->isDiscount()) {
-                    $pct = (int) $card->type->discount_percent;
-                    $discount = (int) round($customPrice * $pct / 100);
+                    $cardDiscountPct = (int) $card->type->discount_percent;
                 }
             }
         }
-
-        $price = max(0, $customPrice - $discount);
 
         $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
         $skipped = [];   // ['Y-m-d' => 'причина']
@@ -722,6 +746,15 @@ class CourtController extends Controller
                     continue;
                 }
             }
+
+            // Цена для конкретной даты (будни/выходные). Кастомная цена, если
+            // задана вручную, применяется ко всем датам как есть.
+            $autoPrice = $this->scheduleService->calculatePrice($court, $date, $startTime, $endTime);
+            $priceBeforeDiscount = $hasCustomPrice ? (float) $validated['custom_price'] : $autoPrice;
+            $discount = $cardDiscountPct !== null
+                ? (int) round($priceBeforeDiscount * $cardDiscountPct / 100)
+                : $baseDiscount;
+            $price = max(0, $priceBeforeDiscount - $discount);
 
             $booking = CourtBooking::create([
                 'court_id' => $court->id,
@@ -999,7 +1032,7 @@ class CourtController extends Controller
 
             // Если кастомная цена не передана, пересчитаем по тарифу клуба
             if (!isset($validated['custom_price'])) {
-                $autoPrice = $this->scheduleService->calculatePrice($court, $newStart, $newEndTime);
+                $autoPrice = $this->scheduleService->calculatePrice($court, $bookingDate, $newStart, $newEndTime);
                 $discount = $booking->discount ?? 0;
                 $updateData['price'] = max(0, $autoPrice - $discount);
             }

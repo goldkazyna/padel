@@ -13,11 +13,10 @@ class CourtScheduleService
      * Генерирует сетку временных слотов для календарной даты.
      * Для ночных кортов (close < open): сначала ночные слоты (00:00–close), потом дневные (open–24:00).
      */
-    public function generateTimeSlots(Court $court): array
+    public function generateTimeSlots(Court $court, ?string $date = null): array
     {
         $slots = [];
         $duration = $court->slot_duration;
-        $ranges = $court->priceRanges->sortBy('time_from');
         $openMin = $this->timeToMinutes($court->open_time);
         $closeMin = $this->timeToMinutes($court->close_time);
 
@@ -25,17 +24,17 @@ class CourtScheduleService
             // Ночные слоты: 00:00 → close_time
             for ($m = 0; $m + $duration <= $closeMin; $m += $duration) {
                 $time = $this->minutesToTime($m);
-                $slots[] = ['time' => $time, 'price' => $this->getPriceForTime($ranges, $time)];
+                $slots[] = ['time' => $time, 'price' => $this->priceForTime($court, $date, $time)];
             }
             // Дневные слоты: open_time → полночь
             for ($m = $openMin; $m + $duration <= 24 * 60; $m += $duration) {
                 $time = $this->minutesToTime($m);
-                $slots[] = ['time' => $time, 'price' => $this->getPriceForTime($ranges, $time)];
+                $slots[] = ['time' => $time, 'price' => $this->priceForTime($court, $date, $time)];
             }
         } else {
             for ($m = $openMin; $m + $duration <= $closeMin; $m += $duration) {
                 $time = $this->minutesToTime($m);
-                $slots[] = ['time' => $time, 'price' => $this->getPriceForTime($ranges, $time)];
+                $slots[] = ['time' => $time, 'price' => $this->priceForTime($court, $date, $time)];
             }
         }
 
@@ -49,7 +48,7 @@ class CourtScheduleService
      */
     public function buildSchedule(Court $court, string $date, $bookings = null, $blocks = null): array
     {
-        $timeSlots = $this->generateTimeSlots($court);
+        $timeSlots = $this->generateTimeSlots($court, $date);
 
         if ($bookings === null) {
             $bookings = CourtBooking::where('court_id', $court->id)
@@ -117,9 +116,8 @@ class CourtScheduleService
     /**
      * Считает цену бронирования по ценовым интервалам.
      */
-    public function calculatePrice(Court $court, string $startTime, string $endTime): float
+    public function calculatePrice(Court $court, string $date, string $startTime, string $endTime): float
     {
-        $ranges = $court->priceRanges->sortBy('time_from');
         $total = 0;
         $current = Carbon::parse($startTime);
         $end = Carbon::parse($endTime);
@@ -127,7 +125,7 @@ class CourtScheduleService
         $duration = $court->slot_duration;
 
         while ($current->lt($end)) {
-            $total += $this->getPriceForTime($ranges, $current->format('H:i'));
+            $total += $this->priceForTime($court, $date, $current->format('H:i'));
             $current->addMinutes($duration);
         }
 
@@ -300,7 +298,36 @@ class CourtScheduleService
         return $errors;
     }
 
-    private function getPriceForTime($ranges, string $time): float
+    /**
+     * Цена для времени с учётом дня недели.
+     * Выходные (Сб/Вс) → ищем в интервалах day_type='weekend'; если для этого
+     * времени выходного интервала нет — фолбэк на будний (базовый). Будни и
+     * случай без даты → будние интервалы.
+     */
+    private function priceForTime(Court $court, ?string $date, string $time): float
+    {
+        $all = $court->priceRanges;
+        // Будние (базовые) — всё, что не помечено 'weekend' (включая legacy null).
+        $weekday = $all->filter(fn($r) => ($r->day_type ?? 'weekday') !== 'weekend');
+        $isWeekend = $date !== null && Carbon::parse($date)->isWeekend();
+
+        if ($isWeekend) {
+            $weekend = $all->filter(fn($r) => ($r->day_type ?? 'weekday') === 'weekend');
+            $price = $this->findPriceForTime($weekend, $time);
+            if ($price !== null) {
+                return $price;
+            }
+            // фолбэк на будний интервал
+        }
+
+        return $this->findPriceForTime($weekday, $time) ?? 0.0;
+    }
+
+    /**
+     * Ищет цену в наборе интервалов. Возвращает null, если ни один не подходит
+     * (нужно для фолбэка будни↔выходные — 0 нельзя отличить от «не найдено»).
+     */
+    private function findPriceForTime($ranges, string $time): ?float
     {
         foreach ($ranges as $range) {
             $from = is_string($range['time_from'] ?? null) ? $range['time_from'] : $range->time_from;
@@ -322,7 +349,7 @@ class CourtScheduleService
             }
         }
 
-        return 0;
+        return null;
     }
 
     private function timeToMinutes(string $time): int
