@@ -4,73 +4,104 @@
 @section('content')
 <div class="cards-page">
     <div class="cards-header">
-        <h1 class="cards-title">К списанию <span class="cards-title-club">— {{ $club->name }}</span></h1>
+        <h1 class="cards-title">
+            К списанию <span class="cards-title-club">— {{ $club->name }}</span>
+            @if($bookings->isNotEmpty())
+                <span class="pc-count">● {{ $bookings->count() }}</span>
+            @endif
+        </h1>
         <div class="cards-header-actions">
             <a href="{{ route('club.cards.index') }}" class="btn-journal">← Клубные карты</a>
         </div>
     </div>
 
+    <p class="pc-sub">Завершённые брони, оплаченные клубной картой-счётчиком. Подтвердите списание часов с карты или пропустите бронь, если списывать не нужно.</p>
+
     @if(session('success'))<div class="flash-message flash-success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="flash-message flash-error">{{ session('error') }}</div>@endif
 
     @if($bookings->isEmpty())
-        <div class="cards-empty">Нет броней к списанию.</div>
+        <div class="pc-empty"><div class="pc-empty-ico">✓</div>Нет броней к списанию. Всё обработано.</div>
     @else
-    <table class="table" style="width:100%;border-collapse:collapse">
-        <thead>
-            <tr style="text-align:left">
-                <th style="padding:8px">Клиент</th>
-                <th style="padding:8px">Карта</th>
-                <th style="padding:8px">Дата</th>
-                <th style="padding:8px">Время</th>
-                <th style="padding:8px">Часов</th>
-                <th style="padding:8px">Остаток</th>
-                <th style="padding:8px">Действие</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($bookings as $b)
+        @foreach($bookings as $b)
             @php
                 $card = $b->clubCard;
-                $hours = (int) round(max(0, \Carbon\Carbon::parse(substr($b->start_time,0,5))->diffInMinutes(\Carbon\Carbon::parse(substr($b->end_time,0,5)))) / 60);
+                $name = $card?->client?->name ?? $b->client_name ?? '—';
+                $hours = (int) round(max(0, \Carbon\Carbon::parse(substr($b->start_time,0,5))
+                    ->diffInMinutes(\Carbon\Carbon::parse(substr($b->end_time,0,5)))) / 60);
+                $bal = (int) ($card?->balance ?? 0);
+                $balClass = $bal <= 0 ? 'pc-zero' : ($bal <= 2 ? 'pc-low' : 'pc-ok');
+                $parts = preg_split('/\s+/', trim($name));
+                $initials = mb_strtoupper(mb_substr($parts[0] ?? '?', 0, 1) . (isset($parts[1]) ? mb_substr($parts[1], 0, 1) : ''));
             @endphp
-            <tr style="border-top:1px solid #2a2a2a">
-                <td style="padding:8px">{{ $card?->client?->name ?? $b->client_name }}</td>
-                <td style="padding:8px">{{ $card?->code }} <span style="color:#888">{{ $card?->type?->name }}</span></td>
-                <td style="padding:8px">{{ \Carbon\Carbon::parse($b->date)->format('d.m.Y') }}</td>
-                <td style="padding:8px">{{ substr($b->start_time,0,5) }}–{{ substr($b->end_time,0,5) }}</td>
-                <td style="padding:8px">{{ $hours }} ч</td>
-                <td style="padding:8px">{{ $card?->balance }}</td>
-                <td style="padding:8px;white-space:nowrap">
-                    <form action="{{ route('club.cards.pending.charge', $b) }}" method="POST" class="d-inline">
+            <div class="pc-row">
+                <div class="pc-avatar">{{ $initials ?: '?' }}</div>
+                <div class="pc-main">
+                    <div class="pc-name">{{ $name }}</div>
+                    <div class="pc-meta">
+                        @if($card?->code)<span class="pc-chip">{{ $card->code }}</span>@endif
+                        <span>{{ $card?->type?->name }}</span>
+                        <span>· остаток <b class="{{ $balClass }}">{{ $bal }} ч</b></span>
+                    </div>
+                </div>
+                <div class="pc-when">
+                    <div class="pc-when-d">{{ \Carbon\Carbon::parse($b->date)->format('d.m.Y') }}</div>
+                    <div class="pc-when-t">{{ substr($b->start_time,0,5) }}–{{ substr($b->end_time,0,5) }}</div>
+                </div>
+                <div class="pc-hours">−{{ $hours }} ч</div>
+                <div class="pc-act">
+                    <form action="{{ route('club.cards.pending.charge', $b) }}" method="POST">
                         @csrf
-                        <button class="btn-add" type="submit" onclick="return confirm('Списать {{ $hours }} ч с карты {{ $card?->code }}?')">Списать</button>
+                        <button type="submit" class="pc-btn pc-btn-charge"
+                            onclick="return confirm('Списать {{ $hours }} ч с карты {{ $card?->code }}?')">Списать</button>
                     </form>
-                    <form action="{{ route('club.cards.pending.skip', $b) }}" method="POST" class="d-inline">
+                    <form action="{{ route('club.cards.pending.skip', $b) }}" method="POST">
                         @csrf
-                        <button class="btn-journal" type="submit" onclick="return confirm('Пометить без списания?')">Не списывать</button>
+                        <button type="submit" class="pc-btn pc-btn-skip"
+                            onclick="return confirm('Пометить бронь без списания?')">Не списывать</button>
                     </form>
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+                </div>
+            </div>
+        @endforeach
     @endif
 </div>
 
 <style>
-.cards-page { max-width: 980px; }
-.cards-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-.cards-title { font-size:24px; font-weight:800; color:#fff; margin:0; }
-.cards-title-club { color:#71717a; font-weight:500; font-size:16px; }
-.cards-header-actions { display:flex; gap:10px; align-items:center; }
-.btn-journal { background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:10px 16px; font-weight:700; text-decoration:none; }
-.btn-add { background:#22c55e; color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
-.flash-message { padding:10px 14px; border-radius:10px; margin-bottom:14px; }
-.flash-success { background:rgba(34,197,94,.12); color:#22c55e; border:1px solid rgba(34,197,94,.3); }
-.flash-error { background:rgba(239,68,68,.12); color:#ef4444; border:1px solid rgba(239,68,68,.3); }
-.cards-empty { color:#71717a; padding:24px; text-align:center; background:#18181b; border:1px solid #27272a; border-radius:12px; }
-.table th { color:#a1a1aa; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; background:#18181b; }
-.table td { color:#d4d4d8; font-size:14px; }
+.pc-count{display:inline-flex;align-items:center;gap:6px;background:var(--accent-glow);color:var(--accent);
+    font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;margin-left:8px;vertical-align:middle}
+.pc-sub{color:var(--text-secondary);font-size:13px;line-height:1.5;max-width:580px;margin:0 0 20px}
+.pc-row{display:flex;align-items:center;gap:16px;background:var(--bg-card);border:1px solid var(--border);
+    border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:background .15s}
+.pc-row:hover{background:var(--bg-card-hover)}
+.pc-avatar{width:38px;height:38px;border-radius:50%;background:#0ea5b7;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
+.pc-main{flex:1;min-width:0}
+.pc-name{font-weight:700;font-size:15px;color:var(--text-primary)}
+.pc-meta{color:var(--text-secondary);font-size:12.5px;margin-top:3px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pc-chip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--text-secondary);
+    background:var(--bg-card-hover);padding:2px 7px;border-radius:6px}
+.pc-ok{color:var(--accent)} .pc-low{color:var(--amber,#f59e0b)} .pc-zero{color:var(--danger,#ef4444)}
+.pc-when{text-align:right;min-width:104px}
+.pc-when-d{font-size:13px;font-weight:600;color:var(--text-primary)}
+.pc-when-t{color:var(--text-muted);font-size:12px}
+.pc-hours{display:inline-flex;align-items:center;background:rgba(245,158,11,.14);color:var(--amber,#f59e0b);
+    font-weight:800;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+.pc-act{display:flex;gap:8px}
+.pc-act form{margin:0}
+.pc-btn{border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;padding:9px 16px;white-space:nowrap}
+.pc-btn-charge{background:var(--accent);color:#06210f}
+.pc-btn-charge:hover{background:var(--accent-dark)}
+.pc-btn-skip{background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);padding:8px 14px}
+.pc-btn-skip:hover{color:var(--text-primary);border-color:var(--text-muted)}
+.pc-empty{background:var(--bg-card);border:1px dashed var(--border-light);border-radius:14px;
+    padding:40px;text-align:center;color:var(--text-secondary)}
+.pc-empty-ico{font-size:40px;margin-bottom:10px;color:var(--accent)}
+@media(max-width:720px){
+    .pc-row{flex-wrap:wrap}
+    .pc-when{text-align:left;min-width:0}
+    .pc-act{width:100%}
+    .pc-act form{flex:1}
+    .pc-btn{width:100%}
+}
 </style>
 @endsection
