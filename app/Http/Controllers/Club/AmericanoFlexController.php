@@ -23,6 +23,19 @@ class AmericanoFlexController extends Controller
             return back()->with('error', 'Турнир уже запущен или завершён');
         }
 
+        // Парный флекс: должны быть собраны все пары (по 2 игрока).
+        if ($tournament->isPairedFlex()) {
+            $pairs = $tournament->teams()->whereNotNull('player2_id')->count();
+            $needPairs = (int) ($tournament->max_participants / 2);
+            if ($pairs < $needPairs) {
+                return back()->with('error', "Сначала соберите все пары: {$pairs} из {$needPairs}.");
+            }
+            if (!$this->service->startTournament($tournament)) {
+                return back()->with('error', 'Не удалось запустить: недостаточно пар.');
+            }
+            return back()->with('success', 'Турнир запущен, первый раунд сгенерирован');
+        }
+
         // Spec §4: минимум игроков для Flex = courts_count × 4 (нужен хотя бы 1 в очереди для смысла,
         // но математически Flex работает и при N = M×4 — это будет вырожденный Mexicano).
         $registered = TournamentParticipant::where('tournament_id', $tournament->id)

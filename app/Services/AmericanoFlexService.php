@@ -27,6 +27,11 @@ class AmericanoFlexService
      */
     public function startTournament(Tournament $tournament): bool
     {
+        // Парный флекс: роутер — игроки из собранных пар (по 2 на пару).
+        if ($tournament->isPairedFlex()) {
+            return $this->startPairedTournament($tournament);
+        }
+
         $participantsCount = TournamentParticipant::where('tournament_id', $tournament->id)
             ->where('status', 'registered')
             ->count();
@@ -62,6 +67,56 @@ class AmericanoFlexService
     }
 
     /**
+     * Старт парного флекса: роутер — игроки из собранных пар (tournament_teams,
+     * approved). Нужно минимум courts*2 пар (по 2 пары на корт).
+     */
+    private function startPairedTournament(Tournament $tournament): bool
+    {
+        $teams = $this->pairedTeams($tournament);
+        $requiredPairs = max(2, (int) $tournament->courts_count * 2);
+        if ($teams->count() < $requiredPairs) {
+            return false;
+        }
+
+        DB::transaction(function () use ($tournament, $teams) {
+            foreach ($teams as $team) {
+                foreach ([$team->player1, $team->player2] as $user) {
+                    if (!$user) continue;
+                    AmericanoFlexPlayer::firstOrCreate(
+                        ['tournament_id' => $tournament->id, 'user_id' => $user->id],
+                        [
+                            'rating_before' => $user->rating,
+                            'total_points' => 0,
+                            'matches_played' => 0,
+                            'bye_count' => 0,
+                            'bye_streak' => 0,
+                        ]
+                    );
+                }
+            }
+
+            $tournament->update(['status' => 'in_progress']);
+            $this->generateNextRound($tournament);
+        });
+
+        return true;
+    }
+
+    /**
+     * Собранные пары турнира (approved, оба игрока заданы), стабильный порядок по id.
+     */
+    private function pairedTeams(Tournament $tournament): Collection
+    {
+        return $tournament->teams()
+            ->whereNotNull('player1_id')
+            ->whereNotNull('player2_id')
+            ->with(['player1', 'player2'])
+            ->orderBy('id')
+            ->get()
+            ->values();
+    }
+
+    /**
      * Можно ли сгенерировать следующий раунд (текущий полностью завершён).
      */
     public function canGenerateNextRound(Tournament $tournament): bool
@@ -91,20 +146,28 @@ class AmericanoFlexService
             $lastRound = $this->getCurrentRound($tournament);
             $nextNumber = $lastRound ? $lastRound->round_number + 1 : 1;
 
-            // 1+2. Если для расклада (N игроков, courts) есть готовая идеальная
-            // таблица и раунд в её пределах — берём её. Иначе — алгоритм-fallback.
-            $table = $this->tableRound($tournament, $nextNumber);
-            if ($table) {
-                $playingIds = $table['playingIds'];
-                $restingIds = $table['restingIds'];
-                $matches    = $table['matches'];
+            if ($tournament->isPairedFlex()) {
+                // Парный флекс: пары — атомы, ротируются соперники и отдых.
+                $paired = $this->generatePairedRound($tournament, $nextNumber);
+                $playingIds = $paired['playingIds'];
+                $restingIds = $paired['restingIds'];
+                $matches    = $paired['matches'];
             } else {
-                $playing = $this->selectPlayersForRound($tournament);
-                $playingIds = array_map(fn($p) => $p->user_id, $playing);
-                $allPlayers = $tournament->americanoFlexPlayers()->get();
-                $restingIds = $allPlayers->whereNotIn('user_id', $playingIds)
-                    ->pluck('user_id')->all();
-                $matches = $this->generatePairsForRound($tournament, $playing);
+                // 1+2. Если для расклада (N игроков, courts) есть готовая идеальная
+                // таблица и раунд в её пределах — берём её. Иначе — алгоритм-fallback.
+                $table = $this->tableRound($tournament, $nextNumber);
+                if ($table) {
+                    $playingIds = $table['playingIds'];
+                    $restingIds = $table['restingIds'];
+                    $matches    = $table['matches'];
+                } else {
+                    $playing = $this->selectPlayersForRound($tournament);
+                    $playingIds = array_map(fn($p) => $p->user_id, $playing);
+                    $allPlayers = $tournament->americanoFlexPlayers()->get();
+                    $restingIds = $allPlayers->whereNotIn('user_id', $playingIds)
+                        ->pluck('user_id')->all();
+                    $matches = $this->generatePairsForRound($tournament, $playing);
+                }
             }
 
             // 3. Создаём раунд
@@ -402,6 +465,256 @@ class AmericanoFlexService
         }
 
         return $groups;
+    }
+
+    // ===================== ПАРНЫЙ ФЛЕКС =====================
+
+    /** Кэш парных таблиц расписаний (по ключу "P-C"). */
+    private ?array $pairedScheduleCache = null;
+
+    /**
+     * Сгенерировать раунд для парного флекса. Пары — атомарные команды:
+     * 2C пар играют (C матчей), P−2C пар отдыхают.
+     * Возвращает ['matches'=>[...], 'playingIds'=>[...], 'restingIds'=>[...]].
+     */
+    private function generatePairedRound(Tournament $tournament, int $nextNumber): array
+    {
+        $teams = $this->pairedTeams($tournament);
+
+        // 1. Готовая таблица для расклада (P пар, C кортов), если есть.
+        $table = $this->pairedTableRound($tournament, $teams, $nextNumber);
+        if ($table) {
+            return $table;
+        }
+
+        // 2. Алгоритм-фолбэк.
+        return $this->pairedAlgoRound($tournament, $teams);
+    }
+
+    /**
+     * Готовый раунд из парной таблицы. Слоты (0..P-1) → пары в порядке id.
+     */
+    private function pairedTableRound(Tournament $tournament, Collection $teams, int $roundNumber): ?array
+    {
+        $p = $teams->count();
+        $c = (int) $tournament->courts_count;
+        $key = "{$p}-{$c}";
+
+        $all = $this->loadPairedSchedules();
+        if (!isset($all[$key]['schedule'])) {
+            return null;
+        }
+        $schedule = $all[$key]['schedule'];
+        if ($roundNumber < 1 || $roundNumber > count($schedule)) {
+            return null;
+        }
+
+        $round = $schedule[$roundNumber - 1];
+        $pairUsers = fn(int $slot) => [$teams[$slot]->player1_id, $teams[$slot]->player2_id];
+
+        $matches = [];
+        $courtNum = 1;
+        $playingIds = [];
+        foreach ($round['courts'] as $crt) {
+            [$slotA, $slotB] = $crt;
+            $team1 = $pairUsers($slotA);
+            $team2 = $pairUsers($slotB);
+            $matches[] = ['team1' => $team1, 'team2' => $team2, 'court' => $courtNum++];
+            $playingIds = array_merge($playingIds, $team1, $team2);
+        }
+        $restingIds = [];
+        foreach (($round['byes'] ?? []) as $slot) {
+            $restingIds = array_merge($restingIds, $pairUsers($slot));
+        }
+
+        return ['matches' => $matches, 'restingIds' => $restingIds, 'playingIds' => $playingIds];
+    }
+
+    /**
+     * Алгоритм-фолбэк парного раунда: выбираем играющие пары (ровный отдых),
+     * стыкуем их в матчи минимизируя повторы соперников-пар.
+     */
+    private function pairedAlgoRound(Tournament $tournament, Collection $teams): array
+    {
+        $p = $teams->count();
+        $c = (int) $tournament->courts_count;
+
+        // Сколько пар играет: 2 на корт, не больше P, чётное число.
+        $playingCount = min($p, 2 * $c);
+        if ($playingCount % 2 !== 0) $playingCount--;
+
+        // Статистика пары = статистика любого её игрока (играют/отдыхают вместе).
+        $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
+        $stat = function ($team) use ($players) {
+            $fp = $players[$team->player1_id] ?? null;
+            return [
+                'bye_streak' => $fp ? (int) $fp->bye_streak : 0,
+                'matches_played' => $fp ? (int) $fp->matches_played : 0,
+            ];
+        };
+
+        // Выбираем играющие пары: дольше отдыхавшие играют первыми, затем
+        // меньше сыгравшие; рандомный tie-break.
+        $ordered = $teams->shuffle()->sortBy([
+            fn($t) => -$stat($t)['bye_streak'],
+            fn($t) => $stat($t)['matches_played'],
+        ])->values();
+
+        $playing = $ordered->take($playingCount)->values();
+        $resting = $ordered->slice($playingCount)->values();
+
+        // Матрица «пара против пары» из уже созданных матчей.
+        $opp = $this->pairedOpponentMatrix($tournament, $teams);
+
+        // Минимизируем повторы соперников: оптимальное паросочетание играющих пар.
+        $playSlots = $playing->map(fn($t) => $t->id)->all();
+        $cost = fn($idA, $idB) => $opp[$idA][$idB] ?? 0;
+        $pairsList = $this->minCostPairing($playSlots, $cost);
+
+        $byId = $teams->keyBy('id');
+        $matches = [];
+        $courtNum = 1;
+        $playingIds = [];
+        foreach ($pairsList as [$idA, $idB]) {
+            $tA = $byId[$idA];
+            $tB = $byId[$idB];
+            $team1 = [$tA->player1_id, $tA->player2_id];
+            $team2 = [$tB->player1_id, $tB->player2_id];
+            $matches[] = ['team1' => $team1, 'team2' => $team2, 'court' => $courtNum++];
+            $playingIds = array_merge($playingIds, $team1, $team2);
+        }
+
+        $restingIds = [];
+        foreach ($resting as $t) {
+            $restingIds[] = $t->player1_id;
+            $restingIds[] = $t->player2_id;
+        }
+
+        return ['matches' => $matches, 'restingIds' => $restingIds, 'playingIds' => $playingIds];
+    }
+
+    /**
+     * Матрица повторов соперников между парами (по team id) из созданных матчей.
+     */
+    private function pairedOpponentMatrix(Tournament $tournament, Collection $teams): array
+    {
+        // Карта: отсортированный ключ "u1-u2" → team id.
+        $keyToTeam = [];
+        foreach ($teams as $t) {
+            $ids = [$t->player1_id, $t->player2_id];
+            sort($ids);
+            $keyToTeam[$ids[0] . '-' . $ids[1]] = $t->id;
+        }
+        $teamOf = function (int $u1, int $u2) use ($keyToTeam) {
+            $ids = [$u1, $u2];
+            sort($ids);
+            return $keyToTeam[$ids[0] . '-' . $ids[1]] ?? null;
+        };
+
+        $roundIds = $tournament->americanoFlexRounds()->pluck('id');
+        $matches = AmericanoFlexMatch::whereIn('americano_flex_round_id', $roundIds)->get();
+
+        $opp = [];
+        foreach ($matches as $m) {
+            $a = $teamOf($m->team1_player1_id, $m->team1_player2_id);
+            $b = $teamOf($m->team2_player1_id, $m->team2_player2_id);
+            if ($a === null || $b === null) continue;
+            $opp[$a][$b] = ($opp[$a][$b] ?? 0) + 1;
+            $opp[$b][$a] = ($opp[$b][$a] ?? 0) + 1;
+        }
+        return $opp;
+    }
+
+    /**
+     * Оптимальное паросочетание списка элементов (минимум суммы cost). Перебор с
+     * фиксацией первого — без дублей. Для ≤ ~10 элементов быстро.
+     * Возвращает массив пар [[a,b], ...].
+     */
+    private function minCostPairing(array $items, callable $cost): array
+    {
+        if (count($items) < 2) return [];
+        $first = $items[0];
+        $rest = array_slice($items, 1);
+        $best = null;
+        $bestCost = PHP_INT_MAX;
+        for ($i = 0; $i < count($rest); $i++) {
+            $partner = $rest[$i];
+            $remaining = array_values(array_merge(
+                array_slice($rest, 0, $i),
+                array_slice($rest, $i + 1)
+            ));
+            $sub = $this->minCostPairing($remaining, $cost);
+            $total = $cost($first, $partner) + $this->pairingCost($sub, $cost);
+            if ($total < $bestCost) {
+                $bestCost = $total;
+                $best = array_merge([[$first, $partner]], $sub);
+            }
+        }
+        return $best ?? [];
+    }
+
+    private function pairingCost(array $pairs, callable $cost): int
+    {
+        $sum = 0;
+        foreach ($pairs as [$a, $b]) {
+            $sum += $cost($a, $b);
+        }
+        return $sum;
+    }
+
+    /**
+     * Загрузить парные таблицы расписаний (один раз за запрос).
+     */
+    private function loadPairedSchedules(): array
+    {
+        if ($this->pairedScheduleCache !== null) {
+            return $this->pairedScheduleCache;
+        }
+        $path = database_path('data/americano_flex_paired_schedules.json');
+        if (!is_file($path)) {
+            return $this->pairedScheduleCache = [];
+        }
+        $data = json_decode((string) file_get_contents($path), true);
+        return $this->pairedScheduleCache = is_array($data) ? $data : [];
+    }
+
+    /**
+     * Лидерборд по парам: коллекция массивов с агрегатами пары, сортировка по
+     * среднему за матч DESC. Каждый элемент — одна пара (двое игроков).
+     */
+    public function getPairedLeaderboard(Tournament $tournament): array
+    {
+        $teams = $this->pairedTeams($tournament);
+        $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
+
+        $rows = [];
+        foreach ($teams as $t) {
+            $fp = $players[$t->player1_id] ?? null;
+            $matchesPlayed = $fp ? (int) $fp->matches_played : 0;
+            $totalPoints = $fp ? (int) $fp->total_points : 0;
+            $byeCount = $fp ? (int) $fp->bye_count : 0;
+            $byeStreak = $fp ? (int) $fp->bye_streak : 0;
+            $avg = $matchesPlayed > 0 ? round($totalPoints / $matchesPlayed, 2) : 0.0;
+            $rows[] = [
+                'team_id' => $t->id,
+                'player1' => $t->player1,
+                'player2' => $t->player2,
+                'total_points' => $totalPoints,
+                'matches_played' => $matchesPlayed,
+                'bye_count' => $byeCount,
+                'bye_streak' => $byeStreak,
+                'avg_points' => $avg,
+            ];
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a['avg_points'] !== $b['avg_points']) {
+                return $b['avg_points'] <=> $a['avg_points'];
+            }
+            return $b['total_points'] <=> $a['total_points'];
+        });
+
+        return $rows;
     }
 
     /**

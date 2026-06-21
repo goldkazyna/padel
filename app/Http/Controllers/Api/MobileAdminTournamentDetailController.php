@@ -3148,6 +3148,33 @@ class MobileAdminTournamentDetailController extends Controller
 
     private function buildAmericanoFlexLeaderboard(Tournament $tournament): array
     {
+        // Парный флекс: лидерборд по парам (одна строка = пара «A / B»).
+        if ($tournament->isPairedFlex()) {
+            $pairRows = app(AmericanoFlexService::class)->getPairedLeaderboard($tournament);
+            $rows = [];
+            $position = 1;
+            foreach ($pairRows as $r) {
+                $p1 = $r['player1'];
+                $p2 = $r['player2'];
+                $name = trim(($p1->name ?? '—') . ' / ' . ($p2->name ?? '—'));
+                $rows[] = [
+                    'position' => $position++,
+                    'id' => $p1->id ?? 0,
+                    'name' => $name,
+                    'avatar' => $p1 && $p1->avatar ? asset('storage/' . $p1->avatar) : null,
+                    'rating' => null,
+                    'rating_before' => null,
+                    'rating_after' => null,
+                    'total_points' => (int) $r['total_points'],
+                    'matches_played' => (int) $r['matches_played'],
+                    'bye_count' => (int) $r['bye_count'],
+                    'bye_streak' => (int) $r['bye_streak'],
+                    'avg_points' => $r['avg_points'],
+                ];
+            }
+            return $rows;
+        }
+
         $players = $tournament->americanoFlexPlayers
             ->sortByDesc(function ($p) {
                 $avg = $p->matches_played > 0 ? $p->total_points / $p->matches_played : 0;

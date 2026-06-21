@@ -2519,6 +2519,61 @@ class MobileTournamentController extends Controller
             ];
         }
 
+        // Парный флекс: лидерборд по парам (одна строка = пара «A / B»).
+        if ($tournament->isPairedFlex()) {
+            $pairTeams = $tournament->teams()
+                ->whereNotNull('player2_id')
+                ->with(['player1', 'player2'])
+                ->orderBy('id')->get();
+
+            $pairRows = [];
+            foreach ($pairTeams as $t) {
+                $s1 = $playerStats[$t->player1_id] ?? null;
+                if (!$s1) continue;
+                $pairRows[] = [
+                    'p1' => $t->player1,
+                    'p2' => $t->player2,
+                    'games' => (int) $s1['matches_played'],
+                    'points' => (int) $s1['total_points'],
+                    'pf' => (int) $s1['points_for'],
+                    'pa' => (int) $s1['points_against'],
+                    'is_me' => $userId !== null && in_array($userId, [(int) $t->player1_id, (int) $t->player2_id], true),
+                    'avatar' => $t->player1?->avatar,
+                ];
+            }
+            usort($pairRows, function ($a, $b) {
+                $avgA = $a['games'] > 0 ? $a['points'] / $a['games'] : 0;
+                $avgB = $b['games'] > 0 ? $b['points'] / $b['games'] : 0;
+                if ($avgA != $avgB) return $avgB <=> $avgA;
+                return $b['points'] <=> $a['points'];
+            });
+
+            $position = 1;
+            $leaderboard = [];
+            foreach ($pairRows as $r) {
+                $name = trim(($r['p1']->name ?? '—') . ' / ' . ($r['p2']->name ?? '—'));
+                $totalBalls = $r['pf'] + $r['pa'];
+                $leaderboard[] = [
+                    'position' => $position++,
+                    'id' => $r['p1']->id ?? 0,
+                    'name' => $name,
+                    'avatar' => $r['avatar'],
+                    'rating' => null,
+                    'wins' => 0,
+                    'losses' => 0,
+                    'draws' => 0,
+                    'points_for' => $r['pf'],
+                    'points_against' => $r['pa'],
+                    'point_diff' => $r['pf'] - $r['pa'],
+                    'ball_percent' => $totalBalls > 0 ? (int) round($r['pf'] / $totalBalls * 100) : 0,
+                    'total_points' => $r['points'],
+                    'games_played' => $r['games'],
+                    'verified' => false,
+                    'is_me' => $r['is_me'],
+                ];
+            }
+        }
+
         // Раунды с матчами и отдыхающими
         $rounds = [];
         foreach ($flexRounds as $round) {
@@ -2574,6 +2629,7 @@ class MobileTournamentController extends Controller
                 'format_name' => $tournament->type_name,
                 'status' => $tournament->status,
                 'has_playoff' => false,
+                'is_paired' => $tournament->isPairedFlex(),
             ],
             'groups' => [[
                 'id' => 0,
