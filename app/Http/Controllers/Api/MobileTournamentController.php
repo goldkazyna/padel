@@ -2720,6 +2720,7 @@ class MobileTournamentController extends Controller
                 'id' => $p->id,
                 'name' => $p->name,
                 'avatar' => $p->avatar,
+                'verified' => (bool) $p->level_verified,
             ];
         };
 
