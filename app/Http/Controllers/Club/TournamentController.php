@@ -454,6 +454,7 @@ class TournamentController extends Controller
 		}
 
 		$teams = $tournament->teams()
+			->where('status', 'approved')
 			->with(['player1', 'player2'])
 			->orderBy('rating_avg', 'desc')
 			->get();

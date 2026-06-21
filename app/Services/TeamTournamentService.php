@@ -17,7 +17,8 @@ class TeamTournamentService
      */
     public function startTournament(Tournament $tournament): bool
     {
-        $teams = $tournament->teams()->orderBy('rating_avg', 'desc')->get();
+        // Только основной состав (approved) — лист ожидания/модерация в группы не идут.
+        $teams = $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get();
         $maxTeams = $tournament->max_participants / 2;
 
         if ($teams->count() !== $maxTeams) {
@@ -52,7 +53,7 @@ class TeamTournamentService
      */
     public function startTournamentWithAssignments(Tournament $tournament, array $assignments): array
     {
-        $teams = $tournament->teams()->orderBy('rating_avg', 'desc')->get();
+        $teams = $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get();
         $maxTeams = $tournament->max_participants / 2;
         $groupsCount = (int) $tournament->groups_count;
         $perGroup = $maxTeams / $groupsCount;
