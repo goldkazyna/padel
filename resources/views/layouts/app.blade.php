@@ -999,9 +999,11 @@
 					</li>
 					@endif
 					<li class="nav-item">
-						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}">
+						@php($cardsPendingMod = ($__cc = $modClub) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
+						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-credit-card-2-front"></i>
 							<span>Клубные карты</span>
+							@if($cardsPendingMod > 0)<span class="unprocessed-badge">{{ $cardsPendingMod }}</span>@endif
 						</a>
 					</li>
 					@if(!$modClub || $modClub->hasFeature('tournaments'))
@@ -1073,9 +1075,11 @@
 					</li>
 					@endif
 					<li class="nav-item">
-						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}">
+						@php($cardsPendingNav = ($__cc = $navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
+						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-credit-card-2-front"></i>
 							<span>Клубные карты</span>
+							@if($cardsPendingNav > 0)<span class="unprocessed-badge">{{ $cardsPendingNav }}</span>@endif
 						</a>
 					</li>
 					@if(!$navClub || $navClub->hasFeature('tournaments'))
