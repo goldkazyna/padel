@@ -154,18 +154,21 @@ class MobileHomeController extends Controller
             return $this->formatTournament($tournament, $user);
         }
 
-        // Командные турниры (team) — только идущие сейчас
-        $teamTournamentId = TournamentTeam::where(function ($q) use ($user) {
+        // Командные турниры (team) — только идущие сейчас.
+        // Берём ВСЕ командные регистрации юзера и среди них ищем идущий турнир,
+        // иначе ->first() мог вернуть id старого (завершённого) турнира и
+        // фильтр in_progress не срабатывал → карточка не показывалась.
+        $teamTournamentIds = TournamentTeam::where(function ($q) use ($user) {
                 $q->where('player1_id', $user->id)
                   ->orWhere('player2_id', $user->id);
             })
             ->whereIn('status', ['approved', 'pending'])
-            ->pluck('tournament_id')
-            ->first();
+            ->pluck('tournament_id');
 
-        if ($teamTournamentId) {
-            $tournament = Tournament::where('id', $teamTournamentId)
+        if ($teamTournamentIds->isNotEmpty()) {
+            $tournament = Tournament::whereIn('id', $teamTournamentIds)
                 ->where('status', 'in_progress')
+                ->orderBy('start_date', 'asc')
                 ->with('club')
                 ->first();
 
