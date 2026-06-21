@@ -2005,6 +2005,18 @@ class MobileTournamentController extends Controller
 
         // Americano Flex — место по таблице лидеров
         if ($tournament->type === 'americano_flex') {
+            // Парный: место по таблице ПАР (игрок ищется как player1 или player2).
+            if ($tournament->isPairedFlex()) {
+                $pairRows = app(\App\Services\AmericanoFlexService::class)->getPairedLeaderboard($tournament);
+                foreach ($pairRows as $i => $r) {
+                    $p1 = $r['player1']->id ?? null;
+                    $p2 = $r['player2']->id ?? null;
+                    if ($p1 === $userId || $p2 === $userId) {
+                        return $i + 1;
+                    }
+                }
+                return null;
+            }
             foreach ($this->getLeaderboard($tournament) as $row) {
                 if ((int) $row['id'] === $userId) return (int) $row['position'];
             }
@@ -2440,6 +2452,20 @@ class MobileTournamentController extends Controller
     {
         $userId = $user ? (int) $user->id : null;
 
+        // Дельта рейтинга по каждому матчу текущего юзера (как в Американо).
+        $myMatchDeltas = [];
+        if ($user && $tournament->is_rated) {
+            try {
+                foreach ($this->getPlayerBasedMatches($tournament, (int) $user->id) as $um) {
+                    if (isset($um['id'])) {
+                        $myMatchDeltas[(int) $um['id']] = (int) ($um['rating_change'] ?? 0);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $myMatchDeltas = [];
+            }
+        }
+
         // Базовая инфа по игрокам flex
         $flexPlayers = $tournament->americanoFlexPlayers()->with('user')->get();
         $playerStats = [];
@@ -2599,7 +2625,7 @@ class MobileTournamentController extends Controller
                         'has_me' => $t2HasMe,
                     ],
                     'has_me' => $t1HasMe || $t2HasMe,
-                    'my_rating_change' => null,
+                    'my_rating_change' => $myMatchDeltas[(int) $m->id] ?? null,
                 ];
             }
 
