@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\TelegramAuthToken;
 use App\Models\User;
+use App\Support\TelegramPhoneLinker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -92,42 +93,6 @@ class TelegramMobileWebhookController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /**
-     * Свежесозданный (на /start) telegram-аккаунт «слить» в существующий
-     * аккаунт с тем же телефоном, чтобы не плодить дубли.
-     *
-     * Ничего не удаляет: переносит telegram_id и токены авторизации на
-     * существующий аккаунт, а у дубля отвязывает telegram_id (чтобы будущие
-     * входы через бота резолвились на правильный аккаунт). Пустой дубль
-     * подчищается отдельно при ручном дедупе. Возвращает канонический аккаунт.
-     */
-    private function mergeTelegramAccount(User $duplicate, User $existing): User
-    {
-        // Привязываем telegram_id к существующему, если у него его ещё нет.
-        if (empty($existing->telegram_id)) {
-            $existing->update(['telegram_id' => $duplicate->telegram_id]);
-        }
-
-        // Переносим токены авторизации с дубля на существующий аккаунт, чтобы
-        // приложение залогинило именно в реальный аккаунт.
-        TelegramAuthToken::where('user_id', $duplicate->id)
-            ->update(['user_id' => $existing->id]);
-
-        // Отвязываем telegram_id у дубля, если он совпал с перенесённым, иначе
-        // /start снова попадал бы на дубль и коллизия повторялась.
-        if ((string) $duplicate->telegram_id === (string) $existing->telegram_id) {
-            $duplicate->update(['telegram_id' => null]);
-        }
-
-        Log::info('Telegram phone merge: дубль подавлен', [
-            'duplicate_id' => $duplicate->id,
-            'existing_id' => $existing->id,
-            'phone' => $existing->phone,
-        ]);
-
-        return $existing;
-    }
-
     private function handleContact(array $message): void
     {
         $contact = $message['contact'];
@@ -144,20 +109,16 @@ class TelegramMobileWebhookController extends Controller
             return;
         }
 
-        // Нормализуем телефон (только цифры).
-        $phone = preg_replace('/[^0-9]/', '', $contact['phone_number']);
+        // Защита от дублей: если номер уже привязан к ДРУГОМУ аккаунту, хелпер
+        // сольёт telegram-идентичность в существующий и вернёт его.
+        $duplicateId = $user->id;
+        [$user, $merged] = TelegramPhoneLinker::linkPhone($user, $contact['phone_number']);
 
-        // Защита от дублей: если этот номер уже привязан к ДРУГОМУ аккаунту —
-        // не плодим второй, а логиним пользователя в его настоящий аккаунт.
-        $existing = User::where('phone', $phone)
-            ->where('id', '!=', $user->id)
-            ->orderBy('id')
-            ->first();
-
-        if ($existing) {
-            $user = $this->mergeTelegramAccount($user, $existing);
-        } else {
-            $user->update(['phone' => $phone]);
+        // Специфика бота: переносим токены авторизации с дубля на существующий
+        // аккаунт, чтобы приложение залогинило именно в реальный аккаунт.
+        if ($merged) {
+            TelegramAuthToken::where('user_id', $duplicateId)
+                ->update(['user_id' => $user->id]);
         }
 
         $botToken = config('services.telegram_mobile.bot_token');

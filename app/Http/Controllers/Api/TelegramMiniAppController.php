@@ -446,15 +446,15 @@ class TelegramMiniAppController extends Controller
 		}
 
 		$phone = $request->input('phone');
-		
+
 		if (empty($phone)) {
 			return response()->json(['error' => 'Phone is required'], 400);
 		}
 
-		// Чистим телефон — оставляем только цифры
-		$phone = preg_replace('/[^0-9]/', '', $phone);
-
-		$user->update(['phone' => $phone]);
+		// Защита от дублей: если номер уже у другого аккаунта — хелпер сольёт
+		// telegram-идентичность в существующий и вернёт его (на него же резолвит
+		// getUser по telegram_id в следующих запросах).
+		[$user] = \App\Support\TelegramPhoneLinker::linkPhone($user, $phone);
 
 		return response()->json([
 			'success' => true,

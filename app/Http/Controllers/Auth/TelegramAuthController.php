@@ -77,12 +77,32 @@ class TelegramAuthController extends Controller
         $lastName = $telegramData['last_name'] ?? '';
         $fullName = trim($firstName . ' ' . $lastName);
 
+        // Защита от дублей: если номер уже привязан к существующему аккаунту —
+        // не создаём второй, а привязываем telegram и логиним в него.
+        $phone = \App\Support\TelegramPhoneLinker::normalize($validated['phone'] ?? null);
+        $existing = $phone !== ''
+            ? \App\Support\TelegramPhoneLinker::otherAccountWithPhone($phone)
+            : null;
+
+        if ($existing) {
+            \App\Support\TelegramPhoneLinker::adoptTelegramIdentity(
+                $existing,
+                (string) $telegramData['id'],
+                $telegramData['username'] ?? null
+            );
+
+            Auth::login($existing, true);
+            session()->forget('telegram_data');
+
+            return redirect('/dashboard')->with('success', 'Аккаунт с этим номером уже существует — вы вошли в него.');
+        }
+
         $user = User::create([
             'first_name' => $firstName ?: 'Игрок',
             'last_name' => $lastName ?: $telegramData['id'],
             'name' => $fullName ?: 'Игрок ' . $telegramData['id'],
             'email' => $validated['email'],
-            'phone' => $validated['phone'],
+            'phone' => $phone ?: null,
             'telegram_id' => $telegramData['id'],
             'telegram_username' => $telegramData['username'] ?? null,
             'password' => Hash::make('tg_' . $telegramData['id'] . '_' . time()),
