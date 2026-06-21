@@ -47,6 +47,14 @@ class CoachController extends Controller
         ]);
 
         $user = User::findOrFail($validated['user_id']);
+
+        // Тренер привязан только к одному клубу. Если этот пользователь уже
+        // тренер где-либо (в этом или другом клубе) — запрещаем назначение.
+        // Для работы с другим клубом нужно заводить отдельный аккаунт.
+        if (ClubCoach::where('user_id', $user->id)->exists()) {
+            return back()->with('error', 'Этот пользователь уже является тренером и привязан к клубу. Один аккаунт — один клуб: для работы с другим клубом заведите тренеру отдельный аккаунт.');
+        }
+
         $user->update(['role' => 'coach']);
 
         ClubCoach::create([
@@ -452,7 +460,9 @@ class CoachController extends Controller
         $q = $request->get('q', '');
         if (mb_strlen($q) < 2) return response()->json([]);
 
-        $existingCoachIds = ClubCoach::where('club_id', $club->id)->pluck('user_id');
+        // Тренер привязан к одному клубу — исключаем всех, кто уже тренер в
+        // любом клубе (их нельзя назначить повторно), а не только в этом.
+        $existingCoachIds = ClubCoach::pluck('user_id');
 
         $users = User::where('name', 'like', "%{$q}%")
             ->whereNotIn('id', $existingCoachIds)
