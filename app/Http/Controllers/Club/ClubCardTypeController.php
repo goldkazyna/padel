@@ -22,31 +22,103 @@ class ClubCardTypeController extends Controller
         if (!$club) abort(403);
 
         $types = ClubCardType::where('club_id', $club->id)
-            ->withCount(['cards as active_cards_count' => fn($q) => $q->where('status', 'active')])
             ->orderBy('name')
             ->get();
 
         // Статистика по выпущенным картам.
         $issuedCount = \App\Models\ClubCard::where('club_id', $club->id)->count();
 
+        $today = now()->startOfDay();
+        $todayStr = $today->toDateString();
+        $soonEdge = $today->copy()->addDays(7); // «истекает» — в ближайшие 7 дней
+
         // «Актуально сейчас»: активна, не истекла, у счётчиков остаток > 0.
-        $today = now()->toDateString();
         $actualCount = \App\Models\ClubCard::where('club_id', $club->id)
             ->where('status', 'active')
-            ->where(fn($q) => $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', $today))
+            ->where(fn($q) => $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', $todayStr))
             ->where(fn($q) => $q->whereNull('balance')->orWhere('balance', '>', 0))
             ->count();
 
-        // Список выпущенных карт (последние) с клиентом и типом.
-        $issuedCards = \App\Models\ClubCard::where('club_id', $club->id)
+        $allCards = \App\Models\ClubCard::where('club_id', $club->id)
             ->with(['type', 'client'])
-            ->orderByDesc('created_at')
-            ->limit(100)
             ->get();
+
+        // Цвет-класс и короткий тег для каждого типа.
+        $palette = ['t-blue', 't-amber', 't-purple', 't-green', 't-pink', 't-cyan'];
+        $typeMeta = [];
+        foreach ($types->values() as $i => $t) {
+            $typeMeta[$t->id] = [
+                'cls' => $palette[$i % count($palette)],
+                'tag' => mb_substr(trim(explode(' ', (string) $t->name)[0] ?? $t->name), 0, 14),
+            ];
+            $t->ui_cls = $typeMeta[$t->id]['cls'];
+        }
+
+        // Карты для JS-списка: только карты существующих типов, с вычисленным статусом.
+        $counts = ['all' => 0, 'active' => 0, 'soon' => 0, 'inactive' => 0, 'perp' => 0];
+        $cardsData = [];
+        foreach ($allCards as $c) {
+            if (!$c->type) continue;
+            $st = $this->cardUiStatus($c, $today, $soonEdge);
+            $counter = $c->isCounter();
+            $bal = (int) $c->balance;
+            $counts['all']++;
+            $counts[$st]++;
+            $cardsData[] = [
+                'type_id' => (int) $c->club_card_type_id,
+                'name' => $c->client?->name ?? '— клиент удалён —',
+                'code' => (string) $c->code,
+                'bal' => $bal,
+                'init' => (int) $c->initial_balance,
+                'counter' => $counter,
+                'discount' => $counter ? null : (int) ($c->type->discount_percent ?? 0),
+                'date' => $c->expires_at ? $c->expires_at->locale('ru')->translatedFormat('j M Y') : 'бессрочно',
+                'exp' => $c->expires_at ? $c->expires_at->timestamp : PHP_INT_MAX,
+                'st' => $st,
+                'low' => $counter && $st !== 'inactive' && $bal <= 4,
+                'url' => $c->client ? route('club.clients.index', ['selected' => $c->client->id]) : null,
+                'del' => route('club.cards.destroy', $c->id),
+            ];
+        }
+
+        // Данные типов для JS (название/часы/цвет/агрегаты).
+        $byType = collect($cardsData)->groupBy('type_id');
+        $typesData = [];
+        foreach ($types as $t) {
+            $g = $byType[$t->id] ?? collect();
+            $typesData[] = [
+                'id' => (int) $t->id,
+                'name' => (string) $t->name,
+                'hours' => $t->isCounter() ? (int) $t->nominal : null,
+                'cls' => $typeMeta[$t->id]['cls'],
+                'tag' => $typeMeta[$t->id]['tag'],
+                'total' => $g->count(),
+                'active' => $g->whereIn('st', ['active', 'soon', 'perp'])->count(),
+                'oborot' => (int) $g->where('st', '!=', 'inactive')->sum('bal'),
+            ];
+            $t->ui_count = $g->count();
+        }
 
         $pendingChargeCount = $cardService->pendingCountForClub($club);
 
-        return view('club.cards.index', compact('club', 'types', 'issuedCount', 'actualCount', 'issuedCards', 'pendingChargeCount'));
+        return view('club.cards.index', compact(
+            'club', 'types', 'issuedCount', 'actualCount', 'pendingChargeCount',
+            'cardsData', 'typesData', 'counts'
+        ));
+    }
+
+    /**
+     * UI-статус выпущенной карты:
+     * inactive — снята/истекла; perp — без срока; soon — истекает ≤7 дней; active — иначе.
+     */
+    private function cardUiStatus(\App\Models\ClubCard $card, \Carbon\Carbon $today, \Carbon\Carbon $soonEdge): string
+    {
+        if ($card->status !== 'active') return 'inactive';
+        if ($card->expires_at === null) return 'perp';
+        $exp = $card->expires_at->copy()->startOfDay();
+        if ($exp->lt($today)) return 'inactive';
+        if ($exp->lte($soonEdge)) return 'soon';
+        return 'active';
     }
 
     public function store(Request $request)
