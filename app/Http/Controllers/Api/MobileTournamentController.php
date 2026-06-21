@@ -3468,7 +3468,12 @@ class MobileTournamentController extends Controller
 
         $fmtPlayer = function ($p) {
             if (!$p) return null;
-            return ['id' => $p->id, 'name' => $p->name, 'avatar' => $p->avatar];
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'avatar' => $p->avatar,
+                'verified' => (bool) $p->level_verified,
+            ];
         };
 
         $fmtTeam = function ($team) use ($fmtPlayer, $myTeamIds) {
