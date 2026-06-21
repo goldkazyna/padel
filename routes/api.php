@@ -130,6 +130,7 @@ Route::prefix('mobile')->group(function () {
 
         // Участники / команды турнира (Этап 3b)
         Route::get('/admin/tournaments/{tournament}/participants', [MobileAdminTournamentDetailController::class, 'participants']);
+        Route::get('/admin/tournaments/{tournament}/registration-journal', [MobileAdminTournamentDetailController::class, 'registrationJournal']);
         Route::post('/admin/tournaments/{tournament}/participants', [MobileAdminTournamentDetailController::class, 'addParticipant']);
         Route::post('/admin/tournaments/{tournament}/participants/{user}/approve', [MobileAdminTournamentDetailController::class, 'approveParticipant']);
         Route::post('/admin/tournaments/{tournament}/participants/{user}/reject', [MobileAdminTournamentDetailController::class, 'rejectParticipant']);

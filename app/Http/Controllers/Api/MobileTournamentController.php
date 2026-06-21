@@ -445,6 +445,14 @@ class MobileTournamentController extends Controller
 
         $isWaitlisted = $outcome === 'waitlisted';
 
+        // Журнал записей: фиксируем запись игрока (и друга, если записал пару).
+        if (in_array($outcome, ['registered', 'waitlisted'], true)) {
+            \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'registered');
+            if ($friend) {
+                \App\Models\TournamentRegistrationLog::record($tournament->id, $friend->id, 'registered');
+            }
+        }
+
         // Пуш «заявка на модерации» себе — только при успешной основной записи
         // (не для листа ожидания) и только если у турнира включён таймер модерации.
         if ($outcome === 'registered' && $deadline) {
@@ -547,6 +555,9 @@ class MobileTournamentController extends Controller
             ['user_id' => $user->id, 'user_name' => $user->name],
             $tournament->club_id,
         );
+
+        // Журнал записей: отписка игрока.
+        \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'unregistered');
 
         // Освободилось место в основном составе — пробуем подтянуть из waitlist.
         // Только если уходил человек из основного состава.
@@ -765,6 +776,10 @@ class MobileTournamentController extends Controller
 
         $isWaitlisted = $result['outcome'] === 'waitlisted';
 
+        // Журнал записей: оба игрока пары.
+        \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'registered');
+        \App\Models\TournamentRegistrationLog::record($tournament->id, $partner->id, 'registered');
+
         return response()->json([
             'success' => true,
             'message' => $isWaitlisted ? 'Пара в листе ожидания' : 'Заявка отправлена на модерацию',
@@ -822,6 +837,12 @@ class MobileTournamentController extends Controller
             ],
             $tournament->club_id,
         );
+
+        // Журнал записей: отписка обоих игроков пары.
+        \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'unregistered');
+        if ($partner && $partner->id) {
+            \App\Models\TournamentRegistrationLog::record($tournament->id, $partner->id, 'unregistered');
+        }
 
         // Освободилось место в основном составе — подтягиваем пару из waitlist
         if ($wasMain && $tournament->status === 'open') {

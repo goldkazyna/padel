@@ -506,6 +506,44 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * GET /api/mobile/admin/tournaments/{tournament}/registration-journal
+     * Журнал записей: кто записался / кто отписался (события самого игрока),
+     * с аватаром и телефоном. Разделено по вкладкам.
+     */
+    public function registrationJournal(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $logs = \App\Models\TournamentRegistrationLog::where('tournament_id', $tournament->id)
+            ->with('user:id,name,phone,avatar,level,level_verified,rating')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $map = function ($log) {
+            $u = $log->user;
+            if (!$u) return null;
+            return [
+                'id' => $log->id,
+                'action' => $log->action,
+                'created_at' => $log->created_at?->toIso8601String(),
+                'user' => $this->formatUser($u),
+            ];
+        };
+
+        $registered = $logs->where('action', 'registered')->map($map)->filter()->values();
+        $unregistered = $logs->where('action', 'unregistered')->map($map)->filter()->values();
+
+        return response()->json([
+            'success' => true,
+            'registered' => $registered,
+            'unregistered' => $unregistered,
+        ]);
+    }
+
+    /**
      * POST /api/mobile/admin/tournaments/{tournament}/participants/{user}/approve
      */
     public function approveParticipant(Request $request, Tournament $tournament, User $user): JsonResponse
