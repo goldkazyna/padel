@@ -16,7 +16,7 @@ class ClubCardTypeController extends Controller
         return $user->adminClubs()->first();
     }
 
-    public function index()
+    public function index(\App\Services\ClubCardService $cardService)
     {
         $club = $this->getClub();
         if (!$club) abort(403);
@@ -44,7 +44,9 @@ class ClubCardTypeController extends Controller
             ->limit(100)
             ->get();
 
-        return view('club.cards.index', compact('club', 'types', 'issuedCount', 'actualCount', 'issuedCards'));
+        $pendingChargeCount = $cardService->pendingCountForClub($club);
+
+        return view('club.cards.index', compact('club', 'types', 'issuedCount', 'actualCount', 'issuedCards', 'pendingChargeCount'));
     }
 
     public function store(Request $request)

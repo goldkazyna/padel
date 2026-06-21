@@ -295,6 +295,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/card-types/{cardType}', [App\Http\Controllers\Club\ClubCardTypeController::class, 'destroy'])->name('cardTypes.destroy');
         Route::get('/cards/for-client', [App\Http\Controllers\Club\ClubCardController::class, 'forClient'])->name('cards.forClient');
         Route::get('/cards/journal', [App\Http\Controllers\Club\ClubCardController::class, 'journal'])->name('cards.journal');
+        Route::get('/cards/pending', [App\Http\Controllers\Club\ClubCardController::class, 'pending'])->name('cards.pending');
+        Route::post('/cards/pending/{booking}/charge', [App\Http\Controllers\Club\ClubCardController::class, 'charge'])->name('cards.pending.charge');
+        Route::post('/cards/pending/{booking}/skip', [App\Http\Controllers\Club\ClubCardController::class, 'skip'])->name('cards.pending.skip');
         Route::get('/cards/{card}/history', [App\Http\Controllers\Club\ClubCardController::class, 'history'])->name('cards.history');
         Route::post('/cards', [App\Http\Controllers\Club\ClubCardController::class, 'store'])->name('cards.issue');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');

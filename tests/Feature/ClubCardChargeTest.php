@@ -135,4 +135,68 @@ class ClubCardChargeTest extends TestCase
         $this->assertNull($future->fresh()->card_charged_at, 'будущая не тронута');
         $this->assertSame(9, (int) $card->fresh()->balance);
     }
+
+    public function test_skip_marks_handled_without_deduction(): void
+    {
+        [$club, $court, $client] = $this->scene();
+        $type = ClubCardType::create(['club_id' => $club->id, 'name' => '10 ч', 'code_prefix' => 'VIS', 'kind' => 'visits', 'nominal' => 10]);
+        $card = (new ClubCardService())->issue($client, $type);
+        $b = $this->booking($court, $card->id, now()->subDay()->toDateString(), '10:00', '12:00');
+
+        $tx = (new ClubCardService())->skipBooking($b);
+
+        $this->assertNotNull($tx);
+        $this->assertSame(0, $tx->amount);
+        $this->assertSame('Не списано (пропущено)', $tx->note);
+        $this->assertSame(10, (int) $card->fresh()->balance, 'баланс не тронут');
+        $this->assertNotNull($b->fresh()->card_charged_at, 'помечена обработанной');
+    }
+
+    public function test_skip_is_idempotent(): void
+    {
+        [$club, $court, $client] = $this->scene();
+        $type = ClubCardType::create(['club_id' => $club->id, 'name' => '10 ч', 'code_prefix' => 'VIS', 'kind' => 'visits', 'nominal' => 10]);
+        $card = (new ClubCardService())->issue($client, $type);
+        $b = $this->booking($court, $card->id, now()->subDay()->toDateString(), '10:00', '11:00');
+
+        (new ClubCardService())->skipBooking($b);
+        $chargedAtAfterFirst = $b->fresh()->card_charged_at;
+        (new ClubCardService())->skipBooking($b->fresh());
+        $chargedAtAfterSecond = $b->fresh()->card_charged_at;
+
+        $this->assertSame(1, ClubCardTransaction::count(), 'повторный skip не пишет вторую транзакцию');
+        $this->assertSame(10, (int) $card->fresh()->balance);
+        $this->assertEquals($chargedAtAfterFirst, $chargedAtAfterSecond, 'card_charged_at не переписывается при повторном вызове');
+    }
+
+    public function test_pending_for_club_lists_only_chargeable_ended_bookings(): void
+    {
+        [$club, $court, $client] = $this->scene();
+        $counter = ClubCardType::create(['club_id' => $club->id, 'name' => '10 ч', 'code_prefix' => 'VIS', 'kind' => 'visits', 'nominal' => 10]);
+        $discount = ClubCardType::create(['club_id' => $club->id, 'name' => 'VIP', 'code_prefix' => 'VIP', 'kind' => 'discount_court', 'discount_percent' => 20]);
+        $svc = new ClubCardService();
+        $cCard = $svc->issue($client, $counter);
+        $dCard = $svc->issue($client, $discount);
+
+        $yesterday = now()->subDay()->toDateString();
+        $tomorrow = now()->addDay()->toDateString();
+
+        $past      = $this->booking($court, $cCard->id, $yesterday, '10:00', '11:00');             // ✓ в очереди
+        $future    = $this->booking($court, $cCard->id, $tomorrow, '10:00', '11:00');              // ✗ не закончилась
+        $discountB = $this->booking($court, $dCard->id, $yesterday, '10:00', '11:00');             // ✗ скидочная
+        $cancelled = $this->booking($court, $cCard->id, $yesterday, '10:00', '11:00', 'cancelled'); // ✗ отменена
+        $already   = $this->booking($court, $cCard->id, $yesterday, '12:00', '13:00');             // ✗ уже обработана
+        $svc->chargeBooking($already);
+
+        $pending = $svc->pendingForClub($club->fresh());
+        $ids = $pending->pluck('id');
+
+        $this->assertSame(1, $pending->count());
+        $this->assertTrue($ids->contains($past->id));
+        $this->assertFalse($ids->contains($future->id));
+        $this->assertFalse($ids->contains($discountB->id));
+        $this->assertFalse($ids->contains($cancelled->id));
+        $this->assertFalse($ids->contains($already->id));
+        $this->assertSame(1, $svc->pendingCountForClub($club->fresh()));
+    }
 }

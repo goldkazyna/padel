@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Club;
 use App\Models\ClubCard;
 use App\Models\ClubCardTransaction;
 use App\Models\ClubCardType;
@@ -118,6 +119,88 @@ class ClubCardService
             $freshBooking->forceFill(['card_charged_at' => now()])->save();
             return $tx;
         });
+    }
+
+    /**
+     * Пометить бронь обработанной БЕЗ списания (ошибочная бронь / бесплатное
+     * занятие). Идемпотентно. Пишет нулевую транзакцию для аудита.
+     */
+    public function skipBooking(CourtBooking $booking): ?ClubCardTransaction
+    {
+        if (!$booking->club_card_id) return null;
+        if ($booking->card_charged_at) return null; // уже обработана
+
+        $card = ClubCard::find($booking->club_card_id);
+
+        return DB::transaction(function () use ($booking, $card) {
+            $freshBooking = CourtBooking::lockForUpdate()->find($booking->id);
+            if (!$freshBooking || $freshBooking->card_charged_at) return null;
+
+            $tx = null;
+            if ($card) {
+                $lockedCard = ClubCard::lockForUpdate()->find($card->id);
+                if ($lockedCard) {
+                    $tx = ClubCardTransaction::create([
+                        'club_id' => $lockedCard->club_id,
+                        'club_card_id' => $lockedCard->id,
+                        'court_booking_id' => $freshBooking->id,
+                        'amount' => 0,
+                        'balance_after' => (int) $lockedCard->balance,
+                        'note' => 'Не списано (пропущено)',
+                    ]);
+                }
+            }
+
+            $freshBooking->forceFill(['card_charged_at' => now()])->save();
+            return $tx;
+        });
+    }
+
+    /**
+     * Бронь действительно завершилась: дата+время окончания уже в прошлом.
+     * Время хранится в локальном TZ клуба.
+     */
+    public function bookingEnded(CourtBooking $booking, ?Carbon $now = null): bool
+    {
+        $now ??= now();
+        $date = $booking->date instanceof Carbon
+            ? $booking->date->format('Y-m-d')
+            : (string) $booking->date;
+        $tz = config('app.schedule_timezone', 'Asia/Almaty');
+        $end = Carbon::parse($date . ' ' . substr((string) $booking->end_time, 0, 5), $tz);
+
+        return $end->lessThanOrEqualTo($now);
+    }
+
+    /**
+     * Брони клуба, ожидающие РУЧНОГО списания: карта-счётчик, confirmed,
+     * время прошло, ещё не обработана. Скидочные карты исключаем.
+     *
+     * @return \Illuminate\Support\Collection<int, CourtBooking>
+     */
+    public function pendingForClub(Club $club): \Illuminate\Support\Collection
+    {
+        $courtIds = $club->courts()->pluck('id');
+        $now = now();
+
+        return CourtBooking::whereIn('court_id', $courtIds)
+            ->whereNotNull('club_card_id')
+            ->whereNull('card_charged_at')
+            ->where('status', 'confirmed')
+            ->whereDate('date', '<=', $now->toDateString())
+            ->with(['clubCard.type', 'clubCard.client', 'court:id,name'])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->filter(fn (CourtBooking $b) => $b->clubCard
+                && $b->clubCard->isCounter()
+                && $this->bookingEnded($b, $now))
+            ->values();
+    }
+
+    public function pendingCountForClub(Club $club): int
+    {
+        return $this->pendingForClub($club)->count();
     }
 
     private function markCharged(CourtBooking $booking): void

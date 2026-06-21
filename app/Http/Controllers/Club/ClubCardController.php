@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClubCard;
 use App\Models\ClubCardType;
 use App\Models\ClubClient;
+use App\Models\CourtBooking;
 use App\Services\ClubCardService;
 use Illuminate\Http\Request;
 
@@ -113,6 +114,47 @@ class ClubCardController extends Controller
             'card' => $card,
             '__layout' => request()->boolean('bare') ? 'layouts.bare' : 'layouts.app',
         ]);
+    }
+
+    /** Очередь броней к ручному списанию с карты. */
+    public function pending(ClubCardService $service)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $bookings = $service->pendingForClub($club);
+
+        return view('club.cards.pending', compact('club', 'bookings'));
+    }
+
+    /** Списать часы карты за бронь (ручное действие). */
+    public function charge(CourtBooking $booking, ClubCardService $service)
+    {
+        $club = $this->getClub();
+        $this->authorizeBooking($club, $booking);
+
+        $service->chargeBooking($booking);
+
+        return back()->with('success', 'Списано с карты');
+    }
+
+    /** Пометить бронь обработанной без списания. */
+    public function skip(CourtBooking $booking, ClubCardService $service)
+    {
+        $club = $this->getClub();
+        $this->authorizeBooking($club, $booking);
+
+        $service->skipBooking($booking);
+
+        return back()->with('success', 'Бронь помечена без списания');
+    }
+
+    /** Бронь должна принадлежать корту своего клуба. */
+    private function authorizeBooking($club, CourtBooking $booking): void
+    {
+        if (!$club) abort(403);
+        $courtIds = $club->courts()->pluck('id')->all();
+        if (!in_array($booking->court_id, $courtIds, true)) abort(403);
     }
 
     /** Отвязать (удалить) карту клиента. */

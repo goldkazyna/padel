@@ -37,11 +37,6 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping();
 
-        // Списание часов клубных карт за завершённые брони.
-        $schedule->command('cards:charge-due')
-            ->hourly()
-            ->withoutOverlapping();
-
         // Ежедневный бэкап БД + загруженных файлов (локально 7 копий + облако).
         $schedule->command('backup:run')
             ->dailyAt('03:30')

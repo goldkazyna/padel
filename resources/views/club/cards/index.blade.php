@@ -7,6 +7,12 @@
         <h1 class="cards-title">Клубные карты <span class="cards-title-club">— {{ $club->name }}</span></h1>
         <div class="cards-header-actions">
             <a href="{{ route('club.cards.journal') }}" class="btn-journal">Журнал</a>
+            <a href="{{ route('club.cards.pending') }}" class="btn-journal" style="position:relative">
+                К списанию
+                @if($pendingChargeCount > 0)
+                    <span style="display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:18px">{{ $pendingChargeCount }}</span>
+                @endif
+            </a>
             <button class="btn-add" onclick="openCardTypeModal()">+ Создать тип карты</button>
         </div>
     </div>
