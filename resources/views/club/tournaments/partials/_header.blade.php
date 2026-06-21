@@ -62,7 +62,7 @@
                             <i class="bi bi-play-fill"></i> Начать турнир
                         </button>
                     </form>
-                @elseif($tournament->isTeamBased() && $tournament->teams->count() === $tournament->max_participants / 2)
+                @elseif($tournament->isTeamBased() && $tournament->teams->where('status', 'approved')->count() >= (int) ($tournament->max_participants / 2))
                     <a href="{{ route('club.tournaments.distribute', $tournament) }}" class="btn-outline-custom" style="margin-right:8px;">
                         <i class="bi bi-grid-3x3-gap"></i> Распределить вручную
                     </a>
