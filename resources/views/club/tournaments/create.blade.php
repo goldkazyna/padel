@@ -439,6 +439,15 @@
 								<small class="text-secondary">Сколько кортов реально играет. Игроков должно быть больше, чем кортов × 4 (например, 2 корта → от 9 игроков).</small>
 							</div>
 						</div>
+						<div class="mb-3">
+							<div class="form-check">
+								<input type="checkbox" name="is_paired" value="1" id="flexIsPaired" class="form-check-input"
+									{{ old('is_paired') ? 'checked' : '' }}>
+								<label for="flexIsPaired" class="form-check-label">
+									<strong>Парный</strong> <small class="text-muted">— фиксированные пары (партнёр не меняется). Игроки записываются по одному, пары собирает админ. Число игроков — чётное; на 2 корта: 5 пар = 1 отдыхает.</small>
+								</label>
+							</div>
+						</div>
 					</div>
 					
 					

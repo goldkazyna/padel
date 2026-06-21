@@ -12,6 +12,13 @@
         ->count();
     $minRequired = max(4, ($tournament->courts_count ?? 1) * 4);
 
+    // Парный флекс: пары + лидерборд по парам.
+    $isPaired = $tournament->isPairedFlex();
+    $pairedLeaderboard = $isPaired ? $flex->getPairedLeaderboard($tournament) : [];
+    $approvedTeams = $isPaired
+        ? $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get()
+        : collect();
+
     $canManage = auth()->user()->isSuperAdmin()
         || (method_exists(auth()->user(), 'hasTournamentsFullAccess')
             ? auth()->user()->hasTournamentsFullAccess($tournament->club)
@@ -83,6 +90,70 @@
     @endif
 </div>
 
+{{-- Парный флекс: сбор пар до старта --}}
+@if($isPaired && $canManage && in_array($tournament->status, ['open', 'closed']))
+    @php
+        $pairedIds = $approvedTeams->flatMap(fn($t) => [$t->player1_id, $t->player2_id])->all();
+        $soloPlayers = $tournament->participants()
+            ->wherePivot('status', 'registered')->get()
+            ->reject(fn($u) => in_array($u->id, $pairedIds))
+            ->sortByDesc('rating')->values();
+        $maxPairs = (int) ($tournament->max_participants / 2);
+        $rosterReady = $tournament->approvedParticipantsCount() >= (int) $tournament->max_participants;
+    @endphp
+
+    <div class="admin-pairing mb-4" style="background:#18181b;border:1px solid #2a2a2a;border-radius:14px;padding:16px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <strong style="color:#fff;"><i class="bi bi-people me-1"></i> Сбор пар — {{ $approvedTeams->count() }} / {{ $maxPairs }}</strong>
+            @if($soloPlayers->count() >= 2)
+                <form action="{{ route('club.tournaments.pairing.auto', $tournament) }}" method="POST" class="d-inline m-0">
+                    @csrf
+                    <button type="submit" class="btn-outline-custom"><i class="bi bi-magic"></i> Авто</button>
+                </form>
+            @endif
+        </div>
+
+        @if(!$rosterReady)
+            <p style="color:#a1a1aa;margin:0;">Собрать пары можно при полном составе. Подтверждено {{ $tournament->approvedParticipantsCount() }} из {{ $tournament->max_participants }} — сначала подтвердите всех участников.</p>
+        @elseif($soloPlayers->count() >= 2)
+            <form action="{{ route('club.tournaments.pairing.create', $tournament) }}" method="POST" class="row g-2 align-items-end">
+                @csrf
+                <div class="col">
+                    <select name="player1_id" class="form-control" required>
+                        <option value="">Игрок 1…</option>
+                        @foreach($soloPlayers as $sp)<option value="{{ $sp->id }}">{{ $sp->name }}</option>@endforeach
+                    </select>
+                </div>
+                <div class="col">
+                    <select name="player2_id" class="form-control" required>
+                        <option value="">Игрок 2…</option>
+                        @foreach($soloPlayers as $sp)<option value="{{ $sp->id }}">{{ $sp->name }}</option>@endforeach
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn-primary-custom"><i class="bi bi-plus-lg"></i> Создать пару</button>
+                </div>
+            </form>
+        @else
+            <p style="color:#22c55e;margin:0;">Все пары собраны — можно запускать турнир.</p>
+        @endif
+
+        @if($approvedTeams->count() > 0)
+            <div class="mt-3">
+                @foreach($approvedTeams as $i => $team)
+                    <div class="d-flex justify-content-between align-items-center" style="background:#111113;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+                        <span style="color:#fff;">{{ $i + 1 }}. {{ $team->player1->name ?? '—' }} <span style="color:#71717a;">+</span> {{ $team->player2->name ?? '—' }}</span>
+                        <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" title="Удалить пару" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="bi bi-x-lg"></i></button>
+                        </form>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </div>
+@endif
+
 {{-- Сессионные сообщения --}}
 @if(session('success'))
     <div class="alert-success-custom mb-3">
@@ -123,6 +194,39 @@
         <i class="bi bi-trophy"></i> Таблица лидеров
     </div>
 
+    @if($isPaired)
+        <div class="leaderboard-table-wrapper mb-4">
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th class="col-rank">#</th>
+                        <th class="col-player">Пара</th>
+                        <th class="col-stat">Матчей</th>
+                        <th class="col-stat" title="Сколько раундов отдыхала пара">Отдых</th>
+                        <th class="col-points" title="Среднее очков за матч">Среднее</th>
+                        <th class="col-points">Очки</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($pairedLeaderboard as $i => $row)
+                        @php $rank = $i + 1; $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : '')); @endphp
+                        <tr class="{{ $rankClass }}">
+                            <td class="col-rank"><span class="rank-badge {{ $rankClass }}">{{ $rank }}</span></td>
+                            <td class="col-player">
+                                <div class="player-details">
+                                    <div class="player-name">{{ $row['player1']->name ?? '—' }} <span style="color:#71717a;">+</span> {{ $row['player2']->name ?? '—' }}</div>
+                                </div>
+                            </td>
+                            <td class="col-stat">{{ $row['matches_played'] }}</td>
+                            <td class="col-stat">{{ $row['bye_count'] }}</td>
+                            <td class="col-points">{{ number_format($row['avg_points'], 2) }}</td>
+                            <td class="col-points">{{ $row['total_points'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
     <div class="leaderboard-table-wrapper mb-4">
         <table class="leaderboard-table">
             <thead>
@@ -187,6 +291,7 @@
             </tbody>
         </table>
     </div>
+    @endif
 
     {{-- Раунды --}}
     <div class="section-subheader collapsible" onclick="toggleSection('flex-rounds')">
