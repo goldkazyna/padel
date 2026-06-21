@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>«К списанию» — 5 вариантов дизайна</title>
+<style>
+  :root{
+    --bg-primary:#0f0f0f; --bg-secondary:#141414; --bg-card:#1a1a1a; --bg-card-hover:#222;
+    --accent:#22c55e; --accent-dark:#16a34a; --accent-glow:rgba(34,197,94,.15);
+    --text-primary:#fff; --text-secondary:#9ca3af; --text-muted:#6b7280;
+    --border:#2d2d2d; --border-light:#3d3d3d; --danger:#ef4444; --amber:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-primary);color:var(--text-primary);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;padding:24px}
+  .wrap{max-width:1040px;margin:0 auto}
+  .variant-label{margin:48px 0 16px;font-size:13px;font-weight:700;letter-spacing:.5px;
+    color:var(--accent);text-transform:uppercase}
+  .variant-label span{color:var(--text-muted);font-weight:500;text-transform:none;letter-spacing:0}
+  .stage{background:var(--bg-primary);border:1px solid var(--border);border-radius:16px;padding:24px}
+
+  /* shared header */
+  .pg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:6px}
+  .pg-title{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0}
+  .pg-title .club{color:var(--text-muted);font-weight:500;font-size:16px}
+  .pg-sub{color:var(--text-secondary);font-size:13px;margin:2px 0 20px;max-width:560px;line-height:1.5}
+  .back{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);
+    padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
+  .count-pill{display:inline-flex;align-items:center;gap:6px;background:var(--accent-glow);
+    color:var(--accent);font-size:12px;font-weight:700;padding:4px 10px;border-radius:100px;margin-left:8px}
+
+  /* buttons */
+  .btn{border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;padding:9px 16px}
+  .btn-charge{background:var(--accent);color:#06210f}
+  .btn-skip{background:transparent;border:1px solid var(--border-light);color:var(--text-secondary);padding:8px 14px}
+  .btn-sm{padding:7px 12px;font-size:12px}
+
+  /* badges */
+  .hours-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.14);
+    color:var(--amber);font-weight:800;font-size:13px;padding:5px 10px;border-radius:8px}
+  .bal{font-weight:800}
+  .bal-ok{color:var(--accent)} .bal-low{color:var(--amber)} .bal-zero{color:var(--danger)}
+  .avatar{width:38px;height:38px;border-radius:50%;background:#0ea5b7;display:flex;align-items:center;
+    justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0}
+  .card-chip{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-secondary);
+    background:#26262b;padding:2px 7px;border-radius:6px}
+
+  /* ===== V1: dark card rows ===== */
+  .v1-row{display:flex;align-items:center;gap:16px;background:var(--bg-card);border:1px solid var(--border);
+    border-radius:14px;padding:14px 16px;margin-bottom:10px}
+  .v1-row:hover{background:var(--bg-card-hover)}
+  .v1-main{flex:1;min-width:0}
+  .v1-name{font-weight:700;font-size:15px}
+  .v1-meta{color:var(--text-secondary);font-size:12.5px;margin-top:3px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .v1-when{text-align:right;min-width:120px}
+  .v1-when .d{font-size:13px;font-weight:600}
+  .v1-when .t{color:var(--text-muted);font-size:12px}
+  .v1-act{display:flex;gap:8px}
+
+  /* ===== V2: themed table ===== */
+  table.v2{width:100%;border-collapse:separate;border-spacing:0;background:var(--bg-card);
+    border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  table.v2 th{text-align:left;font-size:11px;letter-spacing:.4px;color:var(--text-muted);
+    text-transform:uppercase;padding:12px 14px;background:#16161a;border-bottom:1px solid var(--border)}
+  table.v2 td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+  table.v2 tr:last-child td{border-bottom:none}
+  table.v2 tr:hover td{background:rgba(255,255,255,.02)}
+  .muted{color:var(--text-secondary)}
+
+  /* ===== V3: grouped by client ===== */
+  .v3-group{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .v3-ghead{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#16161a;border-bottom:1px solid var(--border)}
+  .v3-gname{font-weight:700;font-size:14px;flex:1}
+  .v3-gsum{color:var(--text-secondary);font-size:12.5px}
+  .v3-item{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .v3-item:last-child{border-bottom:none}
+  .v3-iinfo{flex:1;font-size:13px}
+  .v3-iinfo .sub{color:var(--text-muted);font-size:12px;margin-top:2px}
+
+  /* ===== V4: detail cards ===== */
+  .v4-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px 18px;margin-bottom:12px;
+    display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
+  .v4-top{display:flex;align-items:center;gap:14px}
+  .v4-name{font-weight:800;font-size:16px}
+  .v4-line{color:var(--text-secondary);font-size:12.5px;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+  .v4-stats{display:flex;gap:22px;margin-top:12px}
+  .v4-stat .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted)}
+  .v4-stat .val{font-size:18px;font-weight:800;margin-top:2px}
+  .v4-actions{display:flex;flex-direction:column;gap:8px;min-width:150px}
+  .v4-actions .btn{width:100%}
+
+  /* ===== V5: compact with traffic-light remaining ===== */
+  .v5-list{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .v5-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .v5-row:last-child{border-bottom:none}
+  .v5-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .v5-name{font-weight:600;font-size:14px;flex:1;min-width:0}
+  .v5-name .sub{color:var(--text-muted);font-size:12px;font-weight:400}
+  .v5-when{color:var(--text-secondary);font-size:12.5px;width:150px}
+  .v5-rem{width:80px;font-size:12.5px;color:var(--text-secondary)}
+  .v5-act{display:flex;gap:8px}
+
+  .empty{background:var(--bg-card);border:1px dashed var(--border-light);border-radius:14px;
+    padding:40px;text-align:center;color:var(--text-secondary)}
+  .empty .big{font-size:40px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 style="font-size:18px;margin:0 0 4px">Страница «К списанию» — 5 вариантов</h1>
+  <p style="color:var(--text-secondary);font-size:13px;margin:0">Выбери вариант (или комбинацию), и я интегрирую его в проект. Палитра — реальная (тёмная тема приложения).</p>
+
+  <!-- ========== V1 ========== -->
+  <div class="variant-label">Вариант 1 <span>— тёмные карточки-строки (в стиле списка карт)</span></div>
+  <div class="stage">
+    <div class="pg-head">
+      <div>
+        <h2 class="pg-title">К списанию <span class="club">— Тестовый</span><span class="count-pill">● 3 брони</span></h2>
+      </div>
+      <a class="back" href="#">← Клубные карты</a>
+    </div>
+    <p class="pg-sub">Завершённые брони, оплаченные клубной картой-счётчиком. Подтвердите списание часов с карты или пропустите бронь, если списывать не нужно.</p>
+
+    <div class="v1-row">
+      <div class="avatar">ДД</div>
+      <div class="v1-main">
+        <div class="v1-name">Денис Дудников</div>
+        <div class="v1-meta"><span class="card-chip">TEST000001</span> Тест 10 часов · остаток <b class="bal bal-ok">9 ч</b></div>
+      </div>
+      <div class="v1-when"><div class="d">21.06.2026</div><div class="t">10:00–11:00</div></div>
+      <div class="hours-badge">−1 ч</div>
+      <div class="v1-act">
+        <button class="btn btn-charge">Списать</button>
+        <button class="btn btn-skip">Не списывать</button>
+      </div>
+    </div>
+    <div class="v1-row">
+      <div class="avatar" style="background:#7c3aed">АП</div>
+      <div class="v1-main">
+        <div class="v1-name">Алия Петрова</div>
+        <div class="v1-meta"><span class="card-chip">P000002</span> 10 часов · остаток <b class="bal bal-low">2 ч</b></div>
+      </div>
+      <div class="v1-when"><div class="d">21.06.2026</div><div class="t">12:00–14:00</div></div>
+      <div class="hours-badge">−2 ч</div>
+      <div class="v1-act">
+        <button class="btn btn-charge">Списать</button>
+        <button class="btn btn-skip">Не списывать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== V2 ========== -->
+  <div class="variant-label">Вариант 2 <span>— аккуратная тёмная таблица (минимум изменений)</span></div>
+  <div class="stage">
+    <div class="pg-head">
+      <div><h2 class="pg-title">К списанию <span class="club">— Тестовый</span></h2></div>
+      <a class="back" href="#">← Клубные карты</a>
+    </div>
+    <p class="pg-sub">Часы спишутся с карты только после вашего подтверждения. «Не списывать» — отметить бронь обработанной без списания.</p>
+    <table class="v2">
+      <thead><tr><th>Клиент</th><th>Карта</th><th>Дата · время</th><th>Часов</th><th>Остаток</th><th style="text-align:right">Действие</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Денис Дудников</b></td>
+          <td><span class="card-chip">TEST000001</span> <span class="muted">Тест 10 часов</span></td>
+          <td>21.06.2026 · <span class="muted">10:00–11:00</span></td>
+          <td><span class="hours-badge">−1 ч</span></td>
+          <td><b class="bal bal-ok">9 ч</b></td>
+          <td style="text-align:right;white-space:nowrap">
+            <button class="btn btn-charge btn-sm">Списать</button>
+            <button class="btn btn-skip btn-sm">Не списывать</button>
+          </td>
+        </tr>
+        <tr>
+          <td><b>Алия Петрова</b></td>
+          <td><span class="card-chip">P000002</span> <span class="muted">10 часов</span></td>
+          <td>21.06.2026 · <span class="muted">12:00–14:00</span></td>
+          <td><span class="hours-badge">−2 ч</span></td>
+          <td><b class="bal bal-low">2 ч</b></td>
+          <td style="text-align:right;white-space:nowrap">
+            <button class="btn btn-charge btn-sm">Списать</button>
+            <button class="btn btn-skip btn-sm">Не списывать</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========== V3 ========== -->
+  <div class="variant-label">Вариант 3 <span>— группировка по клиенту</span></div>
+  <div class="stage">
+    <div class="pg-head">
+      <div><h2 class="pg-title">К списанию <span class="club">— Тестовый</span></h2></div>
+      <a class="back" href="#">← Клубные карты</a>
+    </div>
+    <p class="pg-sub">Брони сгруппированы по клиенту — удобно, когда у одного человека несколько занятий за период.</p>
+    <div class="v3-group">
+      <div class="v3-ghead">
+        <div class="avatar">ДД</div>
+        <div class="v3-gname">Денис Дудников</div>
+        <div class="v3-gsum">2 брони · к списанию <b style="color:var(--amber)">3 ч</b> · остаток <b class="bal bal-ok">9 ч</b></div>
+      </div>
+      <div class="v3-item">
+        <div class="v3-iinfo">21.06.2026, 10:00–11:00<div class="sub"><span class="card-chip">TEST000001</span> Тест 10 часов</div></div>
+        <span class="hours-badge">−1 ч</span>
+        <button class="btn btn-charge btn-sm">Списать</button>
+        <button class="btn btn-skip btn-sm">Пропустить</button>
+      </div>
+      <div class="v3-item">
+        <div class="v3-iinfo">20.06.2026, 18:00–20:00<div class="sub"><span class="card-chip">TEST000001</span> Тест 10 часов</div></div>
+        <span class="hours-badge">−2 ч</span>
+        <button class="btn btn-charge btn-sm">Списать</button>
+        <button class="btn btn-skip btn-sm">Пропустить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== V4 ========== -->
+  <div class="variant-label">Вариант 4 <span>— крупные карточки с акцентом на цифры (рекомендую)</span></div>
+  <div class="stage">
+    <div class="pg-head">
+      <div><h2 class="pg-title">К списанию <span class="club">— Тестовый</span></h2></div>
+      <a class="back" href="#">← Клубные карты</a>
+    </div>
+    <p class="pg-sub">Завершённые брони с картой-счётчиком, ожидающие списания. На каждой карточке видно сколько спишется и сколько останется.</p>
+    <div class="v4-card">
+      <div>
+        <div class="v4-top">
+          <div class="avatar">ДД</div>
+          <div>
+            <div class="v4-name">Денис Дудников</div>
+            <div class="v4-line"><span class="card-chip">TEST000001</span> <span>Тест 10 часов</span> · <span>21.06.2026, 10:00–11:00</span></div>
+          </div>
+        </div>
+        <div class="v4-stats">
+          <div class="v4-stat"><div class="lbl">К списанию</div><div class="val" style="color:var(--amber)">−1 ч</div></div>
+          <div class="v4-stat"><div class="lbl">Остаток сейчас</div><div class="val bal-ok">9 ч</div></div>
+          <div class="v4-stat"><div class="lbl">После списания</div><div class="val">8 ч</div></div>
+        </div>
+      </div>
+      <div class="v4-actions">
+        <button class="btn btn-charge">Списать 1 ч</button>
+        <button class="btn btn-skip">Не списывать</button>
+      </div>
+    </div>
+    <div class="v4-card">
+      <div>
+        <div class="v4-top">
+          <div class="avatar" style="background:#7c3aed">АП</div>
+          <div>
+            <div class="v4-name">Алия Петрова</div>
+            <div class="v4-line"><span class="card-chip">P000002</span> <span>10 часов</span> · <span>21.06.2026, 12:00–14:00</span></div>
+          </div>
+        </div>
+        <div class="v4-stats">
+          <div class="v4-stat"><div class="lbl">К списанию</div><div class="val" style="color:var(--amber)">−2 ч</div></div>
+          <div class="v4-stat"><div class="lbl">Остаток сейчас</div><div class="val bal-low">2 ч</div></div>
+          <div class="v4-stat"><div class="lbl">После списания</div><div class="val">0 ч</div></div>
+        </div>
+      </div>
+      <div class="v4-actions">
+        <button class="btn btn-charge">Списать 2 ч</button>
+        <button class="btn btn-skip">Не списывать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== V5 ========== -->
+  <div class="variant-label">Вариант 5 <span>— компактный список со «светофором» остатка</span></div>
+  <div class="stage">
+    <div class="pg-head">
+      <div><h2 class="pg-title">К списанию <span class="club">— Тестовый</span></h2></div>
+      <a class="back" href="#">← Клубные карты</a>
+    </div>
+    <p class="pg-sub">Плотный список. Цвет точки = остаток на карте: зелёный — норм, жёлтый — мало, красный — закончился.</p>
+    <div class="v5-list">
+      <div class="v5-row">
+        <span class="v5-dot" style="background:var(--accent)"></span>
+        <div class="v5-name">Денис Дудников <span class="sub">· TEST000001 Тест 10 часов</span></div>
+        <div class="v5-when">21.06.2026 · 10:00–11:00</div>
+        <div class="hours-badge">−1 ч</div>
+        <div class="v5-rem">ост. <b class="bal-ok">9 ч</b></div>
+        <div class="v5-act"><button class="btn btn-charge btn-sm">Списать</button><button class="btn btn-skip btn-sm">Пропустить</button></div>
+      </div>
+      <div class="v5-row">
+        <span class="v5-dot" style="background:var(--amber)"></span>
+        <div class="v5-name">Алия Петрова <span class="sub">· P000002 10 часов</span></div>
+        <div class="v5-when">21.06.2026 · 12:00–14:00</div>
+        <div class="hours-badge">−2 ч</div>
+        <div class="v5-rem">ост. <b class="bal-low">2 ч</b></div>
+        <div class="v5-act"><button class="btn btn-charge btn-sm">Списать</button><button class="btn btn-skip btn-sm">Пропустить</button></div>
+      </div>
+      <div class="v5-row">
+        <span class="v5-dot" style="background:var(--danger)"></span>
+        <div class="v5-name">Иван Сидоров <span class="sub">· P000005 5 часов</span></div>
+        <div class="v5-when">19.06.2026 · 09:00–10:00</div>
+        <div class="hours-badge">−1 ч</div>
+        <div class="v5-rem">ост. <b class="bal-zero">0 ч</b></div>
+        <div class="v5-act"><button class="btn btn-charge btn-sm" style="opacity:.5">Списать</button><button class="btn btn-skip btn-sm">Пропустить</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- empty state -->
+  <div class="variant-label">Пустое состояние <span>— когда списывать нечего</span></div>
+  <div class="stage">
+    <div class="empty"><div class="big">✓</div>Нет броней к списанию. Всё обработано.</div>
+  </div>
+</div>
+</body>
+</html>
