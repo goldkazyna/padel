@@ -723,6 +723,11 @@ class CourtController extends Controller
             }
         }
 
+        // Способ оплаты «клубная карта», но действующая карта не выбрана/не найдена.
+        if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId) {
+            return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
+        }
+
         $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
         $skipped = [];   // ['Y-m-d' => 'причина']
         $firstBooking = null;
@@ -1007,6 +1012,9 @@ class CourtController extends Controller
             $updateData['client_phone'] = $validated['client_phone'];
             $updateData['payment_method'] = $validated['payment_method'] ?? null;
             $updateData['is_paid'] = $validated['is_paid'] ?? false;
+            if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId) {
+                return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
+            }
             $updateData['club_card_id'] = $clubCardId;
         }
         // Перепривязка к пользователю приложения если телефон сменился

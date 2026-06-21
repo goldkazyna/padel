@@ -89,11 +89,12 @@ class ClubCardBookingTest extends TestCase
         $resp->assertJsonPath('cards.0.is_discount', true);
     }
 
-    public function test_foreign_card_is_ignored_on_booking(): void
+    public function test_foreign_card_rejects_club_card_booking(): void
     {
         [$club, $admin, $court, $client] = $this->scene();
 
-        // Карта другого клуба — не должна примениться.
+        // Карта другого клуба не привязывается → бронь с оплатой картой отклоняется
+        // (нельзя создать club_card-бронь без действующей карты).
         $otherClub = Club::create(['name' => 'D', 'address' => 'B']);
         $otherClient = ClubClient::create(['club_id' => $otherClub->id, 'name' => 'Чужой Клиент', 'phone' => '77009998877']);
         $otherType = ClubCardType::create(['club_id' => $otherClub->id, 'name' => 'X', 'code_prefix' => 'X', 'kind' => 'discount_court', 'discount_percent' => 50]);
@@ -109,10 +110,28 @@ class ClubCardBookingTest extends TestCase
             'is_paid' => 1,
             'custom_price' => 10000,
             'club_card_id' => $foreign->id,
-        ])->assertRedirect();
+        ])->assertSessionHas('error');
 
-        $booking = CourtBooking::first();
-        $this->assertNull($booking->club_card_id, 'чужая карта игнорируется');
-        $this->assertSame(10000, (int) $booking->price);
+        $this->assertSame(0, CourtBooking::count(), 'бронь не создаётся без действующей карты');
+    }
+
+    public function test_club_card_payment_without_card_is_rejected(): void
+    {
+        [$club, $admin, $court, $client] = $this->scene();
+
+        // Способ оплаты «клубная карта», но карта не выбрана — бронь не создаётся.
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '13:00',
+            'slots' => 1,
+            'client_name' => 'Иван Иванов',
+            'client_phone' => '77770001122',
+            'payment_method' => 'club_card',
+            'is_paid' => 1,
+            'custom_price' => 10000,
+            // club_card_id намеренно не передаём
+        ])->assertSessionHas('error');
+
+        $this->assertSame(0, CourtBooking::count(), 'без выбранной карты бронь не создаётся');
     }
 }

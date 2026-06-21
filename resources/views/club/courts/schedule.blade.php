@@ -1605,6 +1605,11 @@
                 showEditFormError('Выберите способ оплаты', paymentGroup);
                 return;
             }
+            if (paymentInput.value === 'club_card' && !(document.getElementById('editCardInput').value || '').trim()) {
+                e.preventDefault();
+                showEditFormError('Выберите клубную карту', paymentGroup);
+                return;
+            }
             if (paidInput.value === '') {
                 e.preventDefault();
                 showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
@@ -1887,6 +1892,11 @@
             if (!paymentInput.value) {
                 e.preventDefault();
                 showBookFormError('Выберите способ оплаты', paymentGroup);
+                return;
+            }
+            if (paymentInput.value === 'club_card' && !(document.getElementById('bookCardInput').value || '').trim()) {
+                e.preventDefault();
+                showBookFormError('Выберите клубную карту', paymentGroup);
                 return;
             }
             if (paidInput.value === '') {
