@@ -201,26 +201,42 @@
                     <tr>
                         <th class="col-rank">#</th>
                         <th class="col-player">Пара</th>
+                        <th class="col-stat" title="Забито очков">Забито</th>
+                        <th class="col-stat" title="Пропущено очков">Пропущено</th>
+                        <th class="col-stat" title="Разница забито − пропущено">Разница</th>
                         <th class="col-stat">Матчей</th>
                         <th class="col-stat" title="Сколько раундов отдыхала пара">Отдых</th>
-                        <th class="col-points" title="Среднее очков за матч">Среднее</th>
-                        <th class="col-points">Очки</th>
+                        <th class="col-points" title="Среднее забитых очков за матч">Среднее</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($pairedLeaderboard as $i => $row)
-                        @php $rank = $i + 1; $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : '')); @endphp
+                        @php
+                            $rank = $i + 1;
+                            $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
+                            $pid = $row['player1']->id ?? 0;
+                            $forPts = $flexStats[$pid]['for'] ?? $row['total_points'];
+                            $againstPts = $flexStats[$pid]['against'] ?? 0;
+                            $diff = $forPts - $againstPts;
+                        @endphp
                         <tr class="{{ $rankClass }}">
                             <td class="col-rank"><span class="rank-badge {{ $rankClass }}">{{ $rank }}</span></td>
                             <td class="col-player">
                                 <div class="player-details">
                                     <div class="player-name">{{ $row['player1']->name ?? '—' }} <span style="color:#71717a;">+</span> {{ $row['player2']->name ?? '—' }}</div>
+                                    @if($row['bye_streak'] > 0)
+                                        <div class="player-rating">
+                                            <span class="bye-streak-badge" title="Отдыхает подряд раундов"><i class="bi bi-moon"></i> {{ $row['bye_streak'] }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
+                            <td class="col-stat points-for">{{ $forPts }}</td>
+                            <td class="col-stat points-against">{{ $againstPts }}</td>
+                            <td class="col-stat {{ $diff > 0 ? 'points-for' : ($diff < 0 ? 'points-against' : '') }}">{{ $diff > 0 ? '+' : '' }}{{ $diff }}</td>
                             <td class="col-stat">{{ $row['matches_played'] }}</td>
                             <td class="col-stat">{{ $row['bye_count'] }}</td>
                             <td class="col-points">{{ number_format($row['avg_points'], 2) }}</td>
-                            <td class="col-points">{{ $row['total_points'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
