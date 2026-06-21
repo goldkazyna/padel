@@ -1572,6 +1572,8 @@
 
     document.getElementById('editBookingForm').addEventListener('submit', function(e) {
         const form = e.target;
+        const bookingType = document.getElementById('editBookingTypeInput').value;
+        const isGroup = bookingType === 'group';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -1579,31 +1581,35 @@
         const paymentGroup = document.getElementById('editPaymentMethods');
         const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
-        // Для существующих клиентов имя может быть однословным — не блокируем
-        // (карточка-источник истины уже валидирует это на бэке).
-        const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
-        if (!nameIsLocked) {
-            const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
-            if (words.length < 2) {
+        // Для групповой брони поля клиента/оплаты скрыты и не нужны — пропускаем
+        // эти проверки (как в форме создания).
+        if (!isGroup) {
+            // Для существующих клиентов имя может быть однословным — не блокируем
+            // (карточка-источник истины уже валидирует это на бэке).
+            const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
+            if (!nameIsLocked) {
+                const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+                if (words.length < 2) {
+                    e.preventDefault();
+                    showEditFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                    return;
+                }
+            }
+            if (!(phoneInput.value || '').trim()) {
                 e.preventDefault();
-                showEditFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                showEditFormError('Укажите номер телефона клиента', phoneInput);
                 return;
             }
-        }
-        if (!(phoneInput.value || '').trim()) {
-            e.preventDefault();
-            showEditFormError('Укажите номер телефона клиента', phoneInput);
-            return;
-        }
-        if (!paymentInput.value) {
-            e.preventDefault();
-            showEditFormError('Выберите способ оплаты', paymentGroup);
-            return;
-        }
-        if (paidInput.value === '') {
-            e.preventDefault();
-            showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
-            return;
+            if (!paymentInput.value) {
+                e.preventDefault();
+                showEditFormError('Выберите способ оплаты', paymentGroup);
+                return;
+            }
+            if (paidInput.value === '') {
+                e.preventDefault();
+                showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+                return;
+            }
         }
         // Если выбран тренер — статус его оплаты обязателен
         const coachId = document.getElementById('editCoachId').value;

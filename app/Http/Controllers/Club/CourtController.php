@@ -927,12 +927,15 @@ class CourtController extends Controller
 
         $wasUnprocessed = !$booking->is_processed;
 
+        // Для групповой брони поля клиента/оплаты не нужны (как при создании).
+        $isGroupBooking = ($request->input('booking_type') === 'group');
+
         $validated = $request->validate([
-            'client_name' => 'required|string|max:255',
-            'client_phone' => 'required|string|max:50',
+            'client_name' => 'required_unless:booking_type,group|nullable|string|max:255',
+            'client_phone' => 'required_unless:booking_type,group|nullable|string|max:50',
             'client_note' => 'nullable|string|max:1000',
-            'payment_method' => 'required|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
-            'is_paid' => 'required|boolean',
+            'payment_method' => 'required_unless:booking_type,group|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback',
+            'is_paid' => 'required_unless:booking_type,group|nullable|boolean',
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
@@ -951,53 +954,61 @@ class CourtController extends Controller
             'is_paid.required' => 'Выберите статус оплаты (оплачено / не оплачено)',
         ]);
 
-        $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
-        $linkedUser = $this->findUserByPhone($validated['client_phone']);
-
-        // Карточка клиента — источник истины. Если клиент уже есть по телефону,
-        // в бронь идёт имя из карточки. Для новых клиентов требуем имя+фамилию.
-        $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
-            ->where('phone', $validated['client_phone'])
-            ->first();
-        if ($existingClient) {
-            $validated['client_name'] = $existingClient->name;
-        } else {
-            $words = preg_split('/\s+/', trim($validated['client_name']));
-            $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
-            if (count($words) < 2) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
-            }
-        }
-
-        // Клубная карта клиента: проверяем принадлежность и актуальность.
+        $linkedUser = null;
         $clubCardId = null;
         $cardDiscountPct = null;
-        if (!empty($validated['club_card_id'])) {
-            $card = \App\Models\ClubCard::where('club_id', $club->id)
-                ->with('type')->find($validated['club_card_id']);
-            if ($card && $card->isActual()) {
-                $clubCardId = $card->id;
-                if ($card->type && $card->type->isDiscount()) {
-                    $cardDiscountPct = (int) $card->type->discount_percent;
+
+        if (!$isGroupBooking) {
+            $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
+            $linkedUser = $this->findUserByPhone($validated['client_phone']);
+
+            // Карточка клиента — источник истины. Если клиент уже есть по телефону,
+            // в бронь идёт имя из карточки. Для новых клиентов требуем имя+фамилию.
+            $existingClient = \App\Models\ClubClient::where('club_id', $club->id)
+                ->where('phone', $validated['client_phone'])
+                ->first();
+            if ($existingClient) {
+                $validated['client_name'] = $existingClient->name;
+            } else {
+                $words = preg_split('/\s+/', trim($validated['client_name']));
+                $words = array_values(array_filter($words, fn($w) => mb_strlen($w) > 0));
+                if (count($words) < 2) {
+                    return back()
+                        ->withInput()
+                        ->withErrors(['client_name' => 'Укажите имя и фамилию (например: «Денис Дудников»)']);
+                }
+            }
+
+            // Клубная карта клиента: проверяем принадлежность и актуальность.
+            if (!empty($validated['club_card_id'])) {
+                $card = \App\Models\ClubCard::where('club_id', $club->id)
+                    ->with('type')->find($validated['club_card_id']);
+                if ($card && $card->isActual()) {
+                    $clubCardId = $card->id;
+                    if ($card->type && $card->type->isDiscount()) {
+                        $cardDiscountPct = (int) $card->type->discount_percent;
+                    }
                 }
             }
         }
 
+        // Для групповой брони клиент/оплата не трогаются — обновляем только
+        // комментарий, тип, тренера. Иначе обновляем всё, включая клиента/оплату.
         $updateData = [
-            'client_name' => $validated['client_name'],
-            'client_phone' => $validated['client_phone'],
-            'payment_method' => $validated['payment_method'] ?? null,
-            'is_paid' => $validated['is_paid'] ?? false,
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
             'booking_type' => $validated['booking_type'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
             'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
             'coach_price' => !empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null,
-            'club_card_id' => $clubCardId,
         ];
+        if (!$isGroupBooking) {
+            $updateData['client_name'] = $validated['client_name'];
+            $updateData['client_phone'] = $validated['client_phone'];
+            $updateData['payment_method'] = $validated['payment_method'] ?? null;
+            $updateData['is_paid'] = $validated['is_paid'] ?? false;
+            $updateData['club_card_id'] = $clubCardId;
+        }
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {
             $updateData['booked_by'] = $linkedUser->id;
@@ -1067,7 +1078,7 @@ class CourtController extends Controller
         // Если клиента ещё нет в справочнике (например, у старой брони
         // добавили телефон) — создаём карточку. Заметку из формы берём только
         // для новых клиентов, существующих не трогаем (карточка — источник истины).
-        if ($validated['client_phone']) {
+        if (!$isGroupBooking && !empty($validated['client_phone'])) {
             $clientNote = $request->has('client_note') ? trim((string) $request->input('client_note')) : '';
             \App\Models\ClubClient::firstOrCreate(
                 ['club_id' => $club->id, 'phone' => $validated['client_phone']],
