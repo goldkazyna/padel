@@ -1607,7 +1607,7 @@
             }
             if (paymentInput.value === 'club_card' && !(document.getElementById('editCardInput').value || '').trim()) {
                 e.preventDefault();
-                showEditFormError('Выберите клубную карту', paymentGroup);
+                showEditFormError('Выберите клубную карту', document.getElementById('editCardButtons'));
                 return;
             }
             if (paidInput.value === '') {
@@ -1896,7 +1896,7 @@
             }
             if (paymentInput.value === 'club_card' && !(document.getElementById('bookCardInput').value || '').trim()) {
                 e.preventDefault();
-                showBookFormError('Выберите клубную карту', paymentGroup);
+                showBookFormError('Выберите клубную карту', document.getElementById('bookCardButtons'));
                 return;
             }
             if (paidInput.value === '') {
@@ -3690,12 +3690,14 @@
         background-position: top 10px right 10px;
     }
     .payment-methods.has-error,
-    .paid-toggle.has-error {
+    .paid-toggle.has-error,
+    .client-card-buttons.has-error {
         position: relative;
         animation: shake 0.4s ease;
     }
     .payment-methods.has-error::before,
-    .paid-toggle.has-error::before {
+    .paid-toggle.has-error::before,
+    .client-card-buttons.has-error::before {
         content: '';
         position: absolute;
         inset: -6px;
