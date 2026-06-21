@@ -270,6 +270,7 @@ class MobileAdminTournamentController extends Controller
             'is_rated' => 'nullable|boolean',
             'verified_only' => 'nullable|boolean',
             'pairing_mode' => 'nullable|in:self,admin',
+            'is_paired' => 'nullable|boolean',
         ];
     }
 
@@ -303,6 +304,19 @@ class MobileAdminTournamentController extends Controller
             if (empty(array_filter($validated['courts']))) {
                 $validated['courts'] = null;
             }
+        }
+
+        // Парный Americano Flex: пары собирает админ, число игроков — чётное.
+        if (($validated['type'] ?? null) === 'americano_flex' && $request->boolean('is_paired')) {
+            $validated['is_paired'] = true;
+            $validated['pairing_mode'] = 'admin';
+            if (((int) $validated['max_participants']) % 2 !== 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'max_participants' => 'Для парного турнира число игроков должно быть чётным',
+                ]);
+            }
+        } else {
+            $validated['is_paired'] = false;
         }
 
         $tournament = Tournament::create($validated);

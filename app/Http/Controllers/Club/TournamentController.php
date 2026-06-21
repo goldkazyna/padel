@@ -114,12 +114,24 @@ class TournamentController extends Controller
 			'courts_count' => 'nullable|integer|min:1|max:32',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
 			'pairing_mode' => 'nullable|in:self,admin',
+			'is_paired' => 'nullable|boolean',
 		]);
 
 		// Americano Flex: количество кортов задаётся вручную отдельным полем,
 		// перекладываем его в courts_count (а не авто ceil(игроки/4)).
 		if (($validated['type'] ?? null) === 'americano_flex') {
 			$validated['courts_count'] = $validated['flex_courts_count'] ?? 2;
+
+			// Парный флекс: пары собирает админ, число игроков — чётное.
+			$validated['is_paired'] = $request->boolean('is_paired');
+			if ($validated['is_paired']) {
+				$validated['pairing_mode'] = 'admin';
+				if (((int) $validated['max_participants']) % 2 !== 0) {
+					return back()->withInput()->withErrors([
+						'max_participants' => 'Для парного турнира число игроков должно быть чётным',
+					]);
+				}
+			}
 		}
 		unset($validated['flex_courts_count']);
 

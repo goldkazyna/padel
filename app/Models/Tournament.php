@@ -109,6 +109,7 @@ class Tournament extends Model
 		'rounds_count',
 		'teams_advance',
 		'pairing_mode',
+		'is_paired',
 		'has_playoff',
 		'playoff_type',
 		'playoff_format',
@@ -133,6 +134,7 @@ class Tournament extends Model
 		'has_lower_bracket' => 'boolean',
 		'has_bronze_match' => 'boolean',
 		'is_rated' => 'boolean',
+		'is_paired' => 'boolean',
 		'verified_only' => 'boolean',
 		'round_robin_schedule' => 'array',
 		'courts' => 'array',
@@ -162,12 +164,25 @@ class Tournament extends Model
      */
     public function isAdminPairing(): bool
     {
+        // Сбор пар админом: групповой team-турнир ИЛИ парный Americano Flex.
+        if ($this->isPairedFlex()) {
+            return true;
+        }
         return $this->type === 'team' && $this->pairing_mode === 'admin';
+    }
+
+    /**
+     * Парный Americano Flex (фиксированные пары, ротация соперников и отдыха).
+     */
+    public function isPairedFlex(): bool
+    {
+        return $this->type === 'americano_flex' && (bool) $this->is_paired;
     }
 
     /**
      * Регистрация одиночная (а не парная): любой тип кроме team-с-самосбором.
      * Используется на фазе регистрации (счётчик, детали, can_register).
+     * Парный флекс — тоже одиночная регистрация (пары собирает админ).
      */
     public function usesSoloRegistration(): bool
     {
