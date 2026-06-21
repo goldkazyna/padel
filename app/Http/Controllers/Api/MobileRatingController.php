@@ -383,7 +383,7 @@ class MobileRatingController extends Controller
         // (reason = 'Ручная корректировка', tournament_id = null).
         // Если turn_id есть, но турнир физически удалён — это руины, прячем.
         $ratedHistory = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->with('tournament:id,name,type,has_playoff')
+            ->with('tournament:id,name,type,has_playoff,is_paired')
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
