@@ -155,7 +155,12 @@ class GroupSessionController extends Controller
 
         $sessions = ClubGroupSession::whereIn('court_id', $courtIds)
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
-            ->with(['group:id,name', 'court:id,name', 'coach:id,name,first_name,last_name'])
+            ->with([
+                'group:id,name', 'court:id,name',
+                'coach:id,name,first_name,last_name',
+                'courtBooking:id,client_name,coach_id',
+                'courtBooking.coach:id,name,first_name,last_name',
+            ])
             ->withCount([
                 'attendance as attended_count' => fn($q) => $q->where('attended', true),
                 'attendance as charged_count' => fn($q) => $q->where('charged', true),

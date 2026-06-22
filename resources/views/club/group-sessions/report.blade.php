@@ -41,11 +41,20 @@
         </div>
         @foreach($sessions as $s)
         @php [$stLabel, $stCls] = $statusMap[$s->status] ?? [$s->status, '']; @endphp
+        @php
+            $groupLabel = $s->courtBooking?->client_name ?: ($s->group?->name ?? '—');
+            $actualCoach = $s->coach?->full_name ?: ($s->coach?->name ?? null);
+            $assignedCoach = $s->courtBooking?->coach?->full_name ?: ($s->courtBooking?->coach?->name ?? null);
+            $isSub = $assignedCoach && $actualCoach && $assignedCoach !== $actualCoach;
+        @endphp
         <div class="gr-row">
             <span class="gr-date-c">{{ \Carbon\Carbon::parse($s->date)->format('d.m.Y') }}</span>
             <span>{{ substr($s->start_time,0,5) }}–{{ substr($s->end_time,0,5) }}</span>
-            <span class="gr-group">{{ $s->group?->name ?? '—' }}</span>
-            <span>{{ $s->coach?->full_name ?: ($s->coach?->name ?? '—') }}</span>
+            <span class="gr-group">{{ $groupLabel }}</span>
+            <span class="gr-coach">
+                {{ $actualCoach ?? '—' }}
+                @if($isSub)<span class="gr-sub">замена · в брони: {{ $assignedCoach }}</span>@endif
+            </span>
             <span class="gr-muted">{{ $s->court?->name }}</span>
             <span><span class="gr-status {{ $stCls }}">{{ $stLabel }}</span></span>
             <span class="r">{{ $s->status === 'held' ? $s->attended_count : '—' }}</span>
@@ -79,6 +88,7 @@
 .gr-row:hover{background:rgba(255,255,255,.02)}
 .gr-date-c{color:var(--text-secondary)}
 .gr-group{font-weight:700}
+.gr-coach .gr-sub{display:block;color:#f59e0b;font-size:11px;margin-top:2px;font-weight:600}
 .gr-muted{color:var(--text-secondary)}
 .gr-status{font-size:12px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap}
 .gr-status.s-held{background:rgba(34,197,94,.14);color:#22c55e}
