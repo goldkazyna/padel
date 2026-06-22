@@ -10,21 +10,21 @@
         position: relative; display: flex; align-items: center; gap: 10px;
         flex: none !important; min-width: 0 !important; width: auto !important;
         padding: 12px 12px !important; text-align: left !important;
-        background: var(--sch-card-alt); border: 1px solid var(--sch-border); border-radius: 12px;
-        color: var(--sch-text); font-size: 13px; font-weight: 600; transition: all .15s;
+        background: #16161a; border: 1px solid #27272a; border-radius: 12px;
+        color: #f4f4f5; font-size: 13px; font-weight: 600; transition: all .15s;
     }
     /* плитка способа оплаты — иконка сверху + текст снизу */
     .pay-btn {
         position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
         flex: none !important; min-width: 0 !important; width: auto !important;
         padding: 12px 12px !important; text-align: left !important;
-        background: var(--sch-card-alt); border: 1px solid var(--sch-border); border-radius: 12px;
-        color: var(--sch-text); font-size: 13px; font-weight: 600; transition: all .15s;
+        background: #16161a; border: 1px solid #27272a; border-radius: 12px;
+        color: #f4f4f5; font-size: 13px; font-weight: 600; transition: all .15s;
     }
     .bt-btn > i, .pay-btn > i { font-size: 18px; line-height: 1; }
     .bt-btn > span, .pay-btn > span { display: block; }
 
-    .bt-btn:hover:not(.active), .pay-btn:hover:not(.active) { border-color: var(--sch-text-dim); }
+    .bt-btn:hover:not(.active), .pay-btn:hover:not(.active) { border-color: #a1a1aa; }
 
     /* выбранная плитка — зелёная + галочка в углу */
     .bt-btn.active, .pay-btn.active {
@@ -59,7 +59,7 @@
     .paid-btn {
         display: flex; align-items: center; justify-content: center; gap: 8px;
         padding: 14px !important; border-radius: 12px; font-size: 13px; font-weight: 700;
-        border: 1px solid var(--sch-border); background: var(--sch-card-alt); color: var(--sch-text-dim);
+        border: 1px solid #27272a; background: #16161a; color: #a1a1aa;
     }
     .paid-btn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .7; }
 
