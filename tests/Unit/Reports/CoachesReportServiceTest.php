@@ -45,6 +45,29 @@ class CoachesReportServiceTest extends TestCase
         $this->assertCount(1, $sessions->rows);
     }
 
+    public function test_income_by_type_splits_by_booking_type(): void
+    {
+        $club = Club::create(['name' => 'C3', 'address' => 'A3']);
+        $court = Court::create(['club_id' => $club->id, 'name' => 'K3', 'open_time' => '08:00', 'close_time' => '22:00', 'slot_duration' => 60]);
+        $booker = User::factory()->create();
+        $coachUser = User::factory()->create(['name' => 'Тренер Три']);
+        $cc = ClubCoach::create(['club_id' => $club->id, 'user_id' => $coachUser->id, 'hourly_rate' => 4000]);
+
+        // индивидуальная с явной coach_price 12000
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-05', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'К1', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_price' => 12000, 'booking_type' => 'individual', 'booked_by' => $booker->id]);
+        // групповая без coach_price → ставка×часы = 4000 (2 часа → 8000)
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-06', 'start_time' => '10:00', 'end_time' => '12:00', 'client_name' => 'Группа', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'booking_type' => 'group', 'booked_by' => $booker->id]);
+
+        $svc = new CoachesReportService();
+        $sheet = $svc->incomeByType($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
+        $row = collect($sheet->rows)->firstWhere(0, 'Тренер Три');
+
+        // headings: [Тренер, Групповые, Индивидуальные, Мягкая, Турнир, Прочее, Итого]
+        $this->assertEquals(8000, $row[1]);   // групповые: ставка 4000 × 2ч
+        $this->assertEquals(12000, $row[2]);  // индивидуальные: coach_price
+        $this->assertEquals(20000, $row[6]);  // итого
+    }
+
     public function test_salary_falls_back_to_hourly_rate_when_no_coach_rates(): void
     {
         $club = Club::create(['name' => 'C2', 'address' => 'A2']);

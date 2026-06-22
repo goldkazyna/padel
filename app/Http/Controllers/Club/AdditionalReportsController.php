@@ -27,6 +27,7 @@ class AdditionalReportsController extends Controller
         'coaches-usage'    => [CoachesReportService::class,  'usage',     'trenery-ispolzovanie',   'Тренеры', 'Использование услуг'],
         'coaches-sessions' => [CoachesReportService::class,  'sessions',  'trenery-trenirovki',     'Тренеры', 'Проведённые тренировки'],
         'coaches-salary'   => [CoachesReportService::class,  'salary',    'trenery-zarplata',       'Тренеры', 'Зарплата тренеров'],
+        'coaches-income-type' => [CoachesReportService::class, 'incomeByType', 'trenery-dohod-po-tipam', 'Тренеры', 'Доход по типам'],
         'finance-sales'    => [FinanceReportService::class,  'sales',     'prodazhi',               'Финансы', 'Продажи'],
         'finance-days'     => [FinanceReportService::class,  'byDays',    'prodazhi-po-dnyam',      'Финансы', 'Продажи по дням'],
         'finance-weeks'    => [FinanceReportService::class,  'byWeeks',   'prodazhi-po-nedelyam',   'Финансы', 'Продажи по неделям'],

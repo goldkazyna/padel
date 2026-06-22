@@ -119,6 +119,58 @@ class CoachesReportService
         );
     }
 
+    /**
+     * Доход тренеров в разрезе типов брони.
+     * «Заработал» = coach_price (цена тренера в брони), либо ставка×часы, если не задана.
+     */
+    public function incomeByType(Club $club, Carbon $from, Carbon $to): ReportSheet
+    {
+        $bookings = $this->coachBookings($club, $from, $to);
+        $names = [];
+        $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+
+        $cols = ['group', 'individual', 'soft', 'tournament', 'other'];
+        $blank = array_fill_keys($cols, 0.0);
+        $agg = []; // userId => [group, individual, soft, tournament, other]
+
+        foreach ($bookings as $b) {
+            $id = $b->coach_id;
+            $agg[$id] ??= $blank;
+
+            $earn = $b->coach_price !== null
+                ? (float) $b->coach_price
+                : ($profiles->get($id)?->getRateForHours((int) floor($this->hours($b->start_time, $b->end_time))) ?? 0.0);
+
+            $type = in_array($b->booking_type, ['group', 'individual', 'soft', 'tournament'], true)
+                ? $b->booking_type : 'other';
+            $agg[$id][$type] += $earn;
+        }
+
+        $rows = [];
+        $tot = $blank;
+        foreach ($agg as $id => $by) {
+            $sum = array_sum($by);
+            $rows[] = [
+                $this->coachName($id, $names),
+                round($by['group'], 2), round($by['individual'], 2), round($by['soft'], 2),
+                round($by['tournament'], 2), round($by['other'], 2), round($sum, 2),
+            ];
+            foreach ($cols as $c) {
+                $tot[$c] += $by[$c];
+            }
+        }
+        usort($rows, fn($a, $b) => $b[6] <=> $a[6]);
+
+        return new ReportSheet(
+            title: 'Доход тренеров по типам',
+            headings: ['Тренер', 'Групповые', 'Индивидуальные', 'Мягкая', 'Турнир', 'Прочее', 'Итого'],
+            rows: $rows,
+            totals: ['Итого', round($tot['group'], 2), round($tot['individual'], 2), round($tot['soft'], 2),
+                     round($tot['tournament'], 2), round($tot['other'], 2), round(array_sum($tot), 2)],
+            columnFormats: [1 => '#,##0', 2 => '#,##0', 3 => '#,##0', 4 => '#,##0', 5 => '#,##0', 6 => '#,##0'],
+        );
+    }
+
     public function salary(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $bookings = $this->coachBookings($club, $from, $to);
