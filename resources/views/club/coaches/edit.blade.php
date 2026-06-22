@@ -77,6 +77,16 @@
         </div>
 
         <div class="form-group">
+            <label class="form-label">Ставка за групповое занятие (&#8376;/час)</label>
+            <input type="number" name="rate_group" class="form-input" value="{{ $cc->rate_group ? intval($cc->rate_group) : '' }}" placeholder="&#8376;/час" min="0" step="100">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Ставка за индивидуальное занятие (&#8376;/час)</label>
+            <input type="number" name="rate_individual" class="form-input" value="{{ $cc->rate_individual ? intval($cc->rate_individual) : '' }}" placeholder="&#8376;/час" min="0" step="100">
+        </div>
+
+        <div class="form-group">
             <label class="form-label">Ставки по длительности</label>
             <div class="rates-grid">
                 @for($h = 2; $h <= 6; $h++)

@@ -230,8 +230,16 @@
                         <input type="text" name="specialization" class="form-input" placeholder="Например: Профессионал, Продвинутый">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Ставка за час</label>
+                        <label class="form-label">Ставка за час (базовая)</label>
                         <input type="number" name="hourly_rate" class="form-input" placeholder="&#8376;/час" min="0" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ставка за групповое (&#8376;/час)</label>
+                        <input type="number" name="rate_group" class="form-input" placeholder="&#8376;/час" min="0" step="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ставка за индивидуальное (&#8376;/час)</label>
+                        <input type="number" name="rate_individual" class="form-input" placeholder="&#8376;/час" min="0" step="100">
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #27272a; padding: 20px 24px;">
