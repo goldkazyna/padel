@@ -16,13 +16,11 @@ class ClubCoach extends Model
         'rating',
         'hourly_rate',
         'rate_group',
-        'rate_individual',
     ];
 
     protected $casts = [
         'hourly_rate' => 'decimal:2',
         'rate_group' => 'decimal:2',
-        'rate_individual' => 'decimal:2',
         'certificates' => 'array',
     ];
 

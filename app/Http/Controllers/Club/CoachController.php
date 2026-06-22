@@ -45,7 +45,6 @@ class CoachController extends Controller
             'specialization' => 'nullable|string|max:255',
             'hourly_rate' => 'nullable|numeric|min:0',
             'rate_group' => 'nullable|numeric|min:0',
-            'rate_individual' => 'nullable|numeric|min:0',
         ]);
 
         $user = User::findOrFail($validated['user_id']);
@@ -65,7 +64,6 @@ class CoachController extends Controller
             'specialization' => $validated['specialization'] ?? null,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
             'rate_group' => $validated['rate_group'] ?? null,
-            'rate_individual' => $validated['rate_individual'] ?? null,
         ]);
 
         return back()->with('success', 'Тренер добавлен!');
@@ -133,7 +131,6 @@ class CoachController extends Controller
             'specialization' => 'nullable|string|max:255',
             'hourly_rate' => 'nullable|numeric|min:0',
             'rate_group' => 'nullable|numeric|min:0',
-            'rate_individual' => 'nullable|numeric|min:0',
             'info' => 'nullable|string|max:5000',
             'rating' => 'nullable|string|max:50',
             'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096|dimensions:min_width=500,min_height=500,max_width=2000,max_height=2000',
@@ -156,7 +153,6 @@ class CoachController extends Controller
             'specialization' => $validated['specialization'] ?? null,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
             'rate_group' => $validated['rate_group'] ?? null,
-            'rate_individual' => $validated['rate_individual'] ?? null,
             'info' => $validated['info'] ?? null,
             'rating' => $validated['rating'] ?? null,
         ];
