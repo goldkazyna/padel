@@ -1015,6 +1015,11 @@ class CourtController extends Controller
             if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId) {
                 return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
             }
+            // Карту сменили/привязали заново — снимаем отметку обработки, чтобы бронь
+            // снова попала в «К списанию» (часы спишутся вручную по новой карте).
+            if ((int) $clubCardId !== (int) $booking->club_card_id) {
+                $updateData['card_charged_at'] = null;
+            }
             $updateData['club_card_id'] = $clubCardId;
         }
         // Перепривязка к пользователю приложения если телефон сменился
