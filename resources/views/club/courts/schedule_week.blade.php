@@ -1088,6 +1088,7 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                <div id="gmPrice" style="display:none;margin:8px 0;color:#a1a1aa;font-size:13px;"></div>
                                 <div id="groupMembersBlock" class="group-members-block" style="display:none;">
                                     <div class="gm-header">
                                         <span class="gm-title">Участники</span>
@@ -1111,6 +1112,7 @@
                                 $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
                                     return [$g->id => [
                                         'coach_id' => $g->coach_id,
+                                        'price' => (float) $g->price_per_session,
                                         'members' => $g->members->map(function ($m) {
                                             $bought = (int) $m->enrollments->sum('sessions');
                                             $used = (int) $m->attendance->where('charged', true)->count();
@@ -2143,6 +2145,7 @@
         const coachSelect = document.getElementById('bookGroupCoachSelect');
         const coachHint = document.getElementById('bookGroupCoachHint');
         const coachIdInput = document.getElementById('bookCoachId');
+        const priceEl = document.getElementById('gmPrice');
         if (!block || !list) return;
         if (!groupId) {
             block.style.display = 'none';
@@ -2150,9 +2153,17 @@
             if (coachBlock) coachBlock.style.display = 'none';
             if (coachSelect) coachSelect.value = '';
             if (coachIdInput) coachIdInput.value = '';
+            if (priceEl) priceEl.style.display = 'none';
             return;
         }
         const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
+        if (priceEl) {
+            const p = Number(data.price || 0);
+            priceEl.style.display = 'block';
+            priceEl.innerHTML = p > 0
+                ? 'Цена занятия: <b style="color:#22c55e;">' + new Intl.NumberFormat('ru-RU').format(p) + ' ₸</b>'
+                : '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
+        }
         const members = data.members || [];
         block.style.display = 'block';
         list.innerHTML = '';

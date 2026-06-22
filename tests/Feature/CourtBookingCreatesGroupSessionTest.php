@@ -50,6 +50,30 @@ class CourtBookingCreatesGroupSessionTest extends TestCase
         $this->assertSame('planned', $session->status);
     }
 
+    public function test_group_booking_price_equals_group_price_per_session(): void
+    {
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        $court = Court::create([
+            'club_id' => $club->id, 'name' => 'K1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'Вечер', 'status' => 'active', 'price_per_session' => 7000]);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '12:00',
+            'slots' => 1,
+            'booking_type' => 'group',
+            'group_id' => $group->id,
+        ])->assertRedirect();
+
+        $booking = CourtBooking::first();
+        $this->assertSame('group', $booking->booking_type);
+        $this->assertSame(7000, (int) $booking->price, 'цена группы записалась в бронь');
+    }
+
     public function test_group_booking_without_client_and_payment_fields(): void
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
