@@ -60,6 +60,11 @@ class CourtBookingCreatesGroupSessionTest extends TestCase
             'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
         ]);
         $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'Вечер', 'status' => 'active', 'price_per_session' => 7000]);
+        // 2 активных участника → цена = 7000 × 2 = 14000
+        foreach (['Аян', 'Бота'] as $i => $n) {
+            $cl = ClubClient::create(['club_id' => $club->id, 'name' => $n, 'phone' => '7777000110' . $i]);
+            \App\Models\ClubGroupMember::create(['group_id' => $group->id, 'client_id' => $cl->id, 'status' => 'active']);
+        }
 
         $this->actingAs($admin)->post(route('club.courts.book', $court), [
             'date' => now()->addDay()->toDateString(),
@@ -71,7 +76,7 @@ class CourtBookingCreatesGroupSessionTest extends TestCase
 
         $booking = CourtBooking::first();
         $this->assertSame('group', $booking->booking_type);
-        $this->assertSame(7000, (int) $booking->price, 'цена группы записалась в бронь');
+        $this->assertSame(14000, (int) $booking->price, 'цена = 7000 × 2 участника');
     }
 
     public function test_group_booking_without_client_and_payment_fields(): void

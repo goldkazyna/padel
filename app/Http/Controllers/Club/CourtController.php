@@ -668,8 +668,10 @@ class CourtController extends Controller
             $validated['is_paid'] = false;
             $validated['discount'] = 0;
             $validated['custom_price'] = 0;
-            // Цена групповой брони = цена занятия группы (для клиента).
-            $groupSessionPrice = $group ? (float) $group->price_per_session : 0.0;
+            // Цена групповой брони = цена занятия (на участника) × число активных участников.
+            $groupSessionPrice = $group
+                ? (float) $group->price_per_session * $group->members()->where('status', 'active')->count()
+                : 0.0;
             $linkedUser = null;
         } else {
             $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
@@ -1093,6 +1095,14 @@ class CourtController extends Controller
             $newSessionCoach = $booking->coach_id ?: optional($linkedSession->group)->coach_id;
             if ((int) $linkedSession->coach_id !== (int) $newSessionCoach) {
                 $linkedSession->update(['coach_id' => $newSessionCoach]);
+            }
+
+            // Пересчёт цены групповой брони = цена занятия × число активных участников.
+            $grp = $linkedSession->group;
+            if ($grp) {
+                $booking->update([
+                    'price' => (float) $grp->price_per_session * $grp->members()->where('status', 'active')->count(),
+                ]);
             }
         }
 

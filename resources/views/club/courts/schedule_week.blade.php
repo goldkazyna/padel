@@ -2159,9 +2159,11 @@
         const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
         if (priceEl) {
             const p = Number(data.price || 0);
+            const cnt = (data.members || []).length;
+            const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
             priceEl.style.display = 'block';
             priceEl.innerHTML = p > 0
-                ? 'Цена занятия: <b style="color:#22c55e;">' + new Intl.NumberFormat('ru-RU').format(p) + ' ₸</b>'
+                ? 'Цена занятия: <b style="color:#22c55e;">' + fmt(p * cnt) + ' ₸</b> <span style="color:#71717a;">(' + fmt(p) + ' ₸ × ' + cnt + ')</span>'
                 : '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
         }
         const members = data.members || [];
