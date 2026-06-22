@@ -87,18 +87,59 @@ class ClubCardController extends Controller
         return response()->json(['cards' => $cards]);
     }
 
-    /** Журнал клубных карт — все списания/операции клуба. */
+    /** id типа карты → CSS-класс цвета (единый порядок по имени, как на странице карт). */
+    private function typeColorMap($club): array
+    {
+        $palette = ['t-blue', 't-amber', 't-purple', 't-green', 't-pink', 't-cyan'];
+        $map = [];
+        $types = ClubCardType::where('club_id', $club->id)->orderBy('name')->get();
+        foreach ($types->values() as $i => $t) {
+            $map[$t->id] = $palette[$i % count($palette)];
+        }
+        return $map;
+    }
+
+    /** Журнал клубных карт — история списаний часов клуба. */
     public function journal()
     {
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $transactions = \App\Models\ClubCardTransaction::where('club_id', $club->id)
+        $typeCls = $this->typeColorMap($club);
+        $courts = $club->courts()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
+
+        $txns = \App\Models\ClubCardTransaction::where('club_id', $club->id)
+            ->where('amount', '<', 0) // журнал списаний — только фактические вычеты часов
             ->with(['card.client', 'card.type', 'booking.court'])
             ->orderByDesc('created_at')
-            ->paginate(50);
+            ->limit(2000)
+            ->get();
 
-        return view('club.cards.journal', compact('club', 'transactions'));
+        $rows = $txns->map(function ($t) use ($typeCls) {
+            $card = $t->card;
+            $b = $t->booking;
+            $tname = $card?->type?->name;
+            $booking = '—';
+            if ($b) {
+                $d = \Illuminate\Support\Carbon::parse($b->date)->format('d.m.Y');
+                $booking = $d . ', ' . substr((string) $b->start_time, 0, 5) . '–' . substr((string) $b->end_time, 0, 5);
+            }
+            return [
+                'date' => $t->created_at->format('d.m.Y H:i'),
+                'ts' => $t->created_at->timestamp,
+                'name' => $card?->client?->name ?? '—',
+                'code' => $card?->code ?? '',
+                'tag' => $tname ? mb_substr(trim(explode(' ', $tname)[0]), 0, 14) : '',
+                'cls' => $typeCls[$card?->club_card_type_id] ?? 't-purple',
+                'court_id' => $b?->court_id,
+                'court' => $b?->court?->name ?? '—',
+                'booking' => $booking,
+                'hours' => abs((int) $t->amount),
+                'after' => (int) $t->balance_after,
+            ];
+        })->values();
+
+        return view('club.cards.journal', compact('club', 'courts', 'rows'));
     }
 
     /** История одной карты (списания/операции) — для выезжающей панели. */
@@ -123,8 +164,9 @@ class ClubCardController extends Controller
         if (!$club) abort(403);
 
         $bookings = $service->pendingForClub($club);
+        $typeCls = $this->typeColorMap($club);
 
-        return view('club.cards.pending', compact('club', 'bookings'));
+        return view('club.cards.pending', compact('club', 'bookings', 'typeCls'));
     }
 
     /** Списать часы карты за бронь (ручное действие). */

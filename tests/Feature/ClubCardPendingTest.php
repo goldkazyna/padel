@@ -45,6 +45,17 @@ class ClubCardPendingTest extends TestCase
         ]);
     }
 
+    public function test_journal_page_renders(): void
+    {
+        [$club, $admin, $court, $card] = $this->scene();
+        $b = $this->endedBooking($court, $card->id);
+        (new \App\Services\ClubCardService())->chargeBooking($b); // запись в журнал
+
+        $this->actingAs($admin)->get(route('club.cards.journal'))
+            ->assertOk()
+            ->assertSee('Журнал клубных карт');
+    }
+
     public function test_charge_action_deducts_hours(): void
     {
         [$club, $admin, $court, $card] = $this->scene();
