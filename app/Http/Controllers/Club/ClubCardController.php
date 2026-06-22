@@ -169,6 +169,28 @@ class ClubCardController extends Controller
         return view('club.cards.pending', compact('club', 'bookings', 'typeCls'));
     }
 
+    /** С какой даты считаем «не выставленные карты». */
+    public const UNLINKED_SINCE = '2026-06-15';
+
+    /** Брони с оплатой «клубная карта», но без привязанной карты (с UNLINKED_SINCE). */
+    public function unlinked()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $bookings = CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
+            ->where('payment_method', 'club_card')
+            ->whereNull('club_card_id')
+            ->where('status', 'confirmed')
+            ->whereDate('date', '>=', self::UNLINKED_SINCE)
+            ->with('court:id,name')
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
+        return view('club.cards.unlinked', compact('club', 'bookings'));
+    }
+
     /** Списать часы карты за бронь (ручное действие). */
     public function charge(CourtBooking $booking, ClubCardService $service)
     {

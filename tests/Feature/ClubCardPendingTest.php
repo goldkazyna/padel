@@ -56,6 +56,24 @@ class ClubCardPendingTest extends TestCase
             ->assertSee('Журнал клубных карт');
     }
 
+    public function test_unlinked_page_lists_bookings_without_card(): void
+    {
+        [$club, $admin, $court, $card] = $this->scene();
+        // Бронь с оплатой клубной картой, но без привязанной карты, после 15.06.
+        \App\Models\CourtBooking::create([
+            'court_id' => $court->id, 'date' => '2026-06-18',
+            'start_time' => '10:00', 'end_time' => '11:00',
+            'client_name' => 'Безкарты Клиент', 'client_phone' => '77770009988',
+            'booked_by' => $admin->id, 'price' => 5000, 'status' => 'confirmed',
+            'payment_method' => 'club_card', 'club_card_id' => null,
+        ]);
+
+        $this->actingAs($admin)->get(route('club.cards.unlinked'))
+            ->assertOk()
+            ->assertSee('Не выставлены карты')
+            ->assertSee('Безкарты Клиент');
+    }
+
     public function test_charge_action_deducts_hours(): void
     {
         [$club, $admin, $court, $card] = $this->scene();

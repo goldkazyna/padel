@@ -13,6 +13,9 @@
         <a href="{{ route('club.cards.pending') }}" class="cc-btn cc-ghost" style="position:relative">К списанию
             @if($pendingChargeCount > 0)<span class="cc-badge">{{ $pendingChargeCount }}</span>@endif
         </a>
+        <a href="{{ route('club.cards.unlinked') }}" class="cc-btn cc-ghost" style="position:relative">Не выставлены карты
+            @if($unlinkedCount > 0)<span class="cc-badge">{{ $unlinkedCount }}</span>@endif
+        </a>
         <button class="cc-btn cc-green" onclick="openCardTypeModal()">+ Создать тип карты</button>
     </div>
 

@@ -298,6 +298,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/cards/pending', [App\Http\Controllers\Club\ClubCardController::class, 'pending'])->name('cards.pending');
         Route::post('/cards/pending/{booking}/charge', [App\Http\Controllers\Club\ClubCardController::class, 'charge'])->name('cards.pending.charge');
         Route::post('/cards/pending/{booking}/skip', [App\Http\Controllers\Club\ClubCardController::class, 'skip'])->name('cards.pending.skip');
+        Route::get('/cards/unlinked', [App\Http\Controllers\Club\ClubCardController::class, 'unlinked'])->name('cards.unlinked');
         Route::get('/cards/{card}/history', [App\Http\Controllers\Club\ClubCardController::class, 'history'])->name('cards.history');
         Route::post('/cards', [App\Http\Controllers\Club\ClubCardController::class, 'store'])->name('cards.issue');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');

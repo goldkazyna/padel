@@ -101,8 +101,16 @@ class ClubCardTypeController extends Controller
 
         $pendingChargeCount = $cardService->pendingCountForClub($club);
 
+        // Брони с оплатой «клубная карта», но без привязанной карты (с UNLINKED_SINCE).
+        $unlinkedCount = \App\Models\CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
+            ->where('payment_method', 'club_card')
+            ->whereNull('club_card_id')
+            ->where('status', 'confirmed')
+            ->whereDate('date', '>=', \App\Http\Controllers\Club\ClubCardController::UNLINKED_SINCE)
+            ->count();
+
         return view('club.cards.index', compact(
-            'club', 'types', 'issuedCount', 'actualCount', 'pendingChargeCount',
+            'club', 'types', 'issuedCount', 'actualCount', 'pendingChargeCount', 'unlinkedCount',
             'cardsData', 'typesData', 'counts'
         ));
     }
