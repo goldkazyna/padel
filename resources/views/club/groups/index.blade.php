@@ -75,7 +75,7 @@
 
             {{-- Цена --}}
             <div class="gc-col">
-                <span class="gc-label">Цена / занятие</span>
+                <span class="gc-label">Цена занятия (клиент)</span>
                 <span class="gc-value {{ $group->price_per_session > 0 ? 'gc-price' : 'gc-muted' }}">
                     @if($group->price_per_session > 0)
                         {{ number_format($group->price_per_session, 0, '.', ' ') }} ₸
@@ -138,7 +138,7 @@
 
                 <div class="form-row-2">
                     <div class="form-group">
-                        <label class="form-label">Цена за занятие (₸)</label>
+                        <label class="form-label">Цена занятия для клиента (₸)</label>
                         <input type="number" name="price_per_session" class="form-input" min="0" step="100"
                                placeholder="0" value="{{ old('price_per_session') }}">
                     </div>

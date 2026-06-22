@@ -260,7 +260,7 @@
                 </div>
                 <div class="form-row-2">
                     <div class="form-group">
-                        <label class="form-label">Цена за занятие (₸)</label>
+                        <label class="form-label">Цена занятия для клиента (₸)</label>
                         <input type="number" name="price_per_session" class="form-input" min="0" step="100"
                                value="{{ old('price_per_session', $group->price_per_session) }}">
                     </div>
