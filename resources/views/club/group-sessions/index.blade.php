@@ -30,6 +30,7 @@
                 <option value="held" @selected(request('status') === 'held')>Проведено</option>
                 <option value="cancelled" @selected(request('status') === 'cancelled')>Отменено</option>
             </select>
+            <a href="{{ route('club.groupSessions.report') }}" class="gsm-select" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="bi bi-bar-chart"></i> Отчёты</a>
             <button type="button" class="gsm-create-btn" onclick="document.getElementById('createSessionModal').style.display='flex'">+ Создать</button>
         </form>
     </div>

@@ -48,6 +48,22 @@ class ClubGroupSessionTest extends TestCase
         $this->assertSame('confirmed', $booking->status);
     }
 
+    public function test_report_renders_with_session(): void
+    {
+        [, $admin, $court, $group] = $this->setupCourt();
+        $date = now()->startOfWeek()->addDay()->toDateString();
+        ClubGroupSession::create([
+            'group_id' => $group->id, 'court_id' => $court->id,
+            'date' => $date, 'start_time' => '10:00', 'end_time' => '11:00',
+            'status' => 'held', 'held_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->get(route('club.groupSessions.report', [
+            'from' => now()->startOfWeek()->toDateString(),
+            'to' => now()->endOfWeek()->toDateString(),
+        ]))->assertOk()->assertSee('Отчёт расписания')->assertSee('G');
+    }
+
     public function test_journal_matrix_renders(): void
     {
         [, $admin, $court, $group] = $this->setupCourt();

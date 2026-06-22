@@ -137,6 +137,41 @@ class GroupSessionController extends Controller
         ];
     }
 
+    /** Отчёт расписания: кто/когда какую группу проводил за период. */
+    public function report(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $courtIds = $club->courts()->pluck('id');
+
+        $today = now('Asia/Almaty');
+        $from = $request->filled('from')
+            ? Carbon::parse($request->get('from'))
+            : $today->copy()->startOfWeek(Carbon::MONDAY);
+        $to = $request->filled('to')
+            ? Carbon::parse($request->get('to'))
+            : $today->copy()->endOfWeek(Carbon::SUNDAY);
+
+        $sessions = ClubGroupSession::whereIn('court_id', $courtIds)
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->with(['group:id,name', 'court:id,name', 'coach:id,name,first_name,last_name'])
+            ->withCount([
+                'attendance as attended_count' => fn($q) => $q->where('attended', true),
+                'attendance as charged_count' => fn($q) => $q->where('charged', true),
+            ])
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
+        return view('club.group-sessions.report', [
+            'club' => $club,
+            'sessions' => $sessions,
+            'from' => $from,
+            'to' => $to,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $club = $this->getClub();
