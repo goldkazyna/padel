@@ -2,8 +2,8 @@
      Подключается в day и week расписании. Переопределяет .bt-btn/.pay-btn/.paid-btn. --}}
 <style>
     /* контейнеры — сетка плиток */
-    .booking-type-buttons { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
-    .payment-methods { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .booking-type-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+    .payment-methods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 
     /* плитка типа брони — иконка слева + текст */
     .bt-btn {
