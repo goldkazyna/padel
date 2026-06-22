@@ -1070,10 +1070,10 @@
 
                         <div class="modal-section-title">Тип брони</div>
                         <div class="booking-type-buttons" id="bookingTypeButtons">
-                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectBookingType(this)">Мягкая бронь</button>
-                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectBookingType(this)">Групповые</button>
-                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectBookingType(this)">Индивидуальные</button>
-                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectBookingType(this)">Турнир</button>
+                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectBookingType(this)"><i class="bi bi-clock-history"></i><span>Мягкая бронь</span></button>
+                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectBookingType(this)"><i class="bi bi-people"></i><span>Групповые</span></button>
+                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectBookingType(this)"><i class="bi bi-person"></i><span>Индивидуальные</span></button>
+                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectBookingType(this)"><i class="bi bi-trophy"></i><span>Турнир</span></button>
                         </div>
                         <input type="hidden" name="booking_type" id="bookingTypeInput">
 
@@ -1128,13 +1128,13 @@
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">
-                            <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)">Наличные</button>
-                            <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)">Карта</button>
-                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)">Kaspi</button>
-                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectPayment(this)">Сертификат</button>
-                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectPayment(this)">Клубная карта</button>
-                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectPayment(this)">Депозит</button>
-                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)">Кешбэк</button>
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectPayment(this)"><i class="bi bi-cash-stack"></i><span>Наличные</span></button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectPayment(this)"><i class="bi bi-credit-card-2-front"></i><span>Карта</span></button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectPayment(this)"><i class="bi bi-qr-code"></i><span>Kaspi</span></button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectPayment(this)"><i class="bi bi-award"></i><span>Сертификат</span></button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectPayment(this)"><i class="bi bi-person-vcard"></i><span>Клубная карта</span></button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectPayment(this)"><i class="bi bi-wallet2"></i><span>Депозит</span></button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)"><i class="bi bi-arrow-repeat"></i><span>Кешбэк</span></button>
                         </div>
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
 
@@ -1304,22 +1304,22 @@
 
                         <div class="modal-section-title">Тип брони</div>
                         <div class="booking-type-buttons" id="editBookingTypeButtons">
-                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectEditBookingType(this)">Мягкая бронь</button>
-                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectEditBookingType(this)">Групповые</button>
-                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectEditBookingType(this)">Индивидуальные</button>
-                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectEditBookingType(this)">Турнир</button>
+                            <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectEditBookingType(this)"><i class="bi bi-clock-history"></i><span>Мягкая бронь</span></button>
+                            <button type="button" class="bt-btn bt-group" data-value="group" onclick="selectEditBookingType(this)"><i class="bi bi-people"></i><span>Групповые</span></button>
+                            <button type="button" class="bt-btn bt-individual" data-value="individual" onclick="selectEditBookingType(this)"><i class="bi bi-person"></i><span>Индивидуальные</span></button>
+                            <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectEditBookingType(this)"><i class="bi bi-trophy"></i><span>Турнир</span></button>
                         </div>
                         <input type="hidden" name="booking_type" id="editBookingTypeInput">
 
                         <div class="modal-section-title js-edit-hide-for-group">Способ оплаты *</div>
                         <div class="payment-methods js-edit-hide-for-group" id="editPaymentMethods">
-                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)">Наличные</button>
-                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)">Карта</button>
-                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)">Kaspi</button>
-                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)">Сертификат</button>
-                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)">Клубная карта</button>
-                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)">Депозит</button>
-                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)">Кешбэк</button>
+                            <button type="button" class="pay-btn" data-value="cash" onclick="selectEditPayment(this)"><i class="bi bi-cash-stack"></i><span>Наличные</span></button>
+                            <button type="button" class="pay-btn" data-value="card" onclick="selectEditPayment(this)"><i class="bi bi-credit-card-2-front"></i><span>Карта</span></button>
+                            <button type="button" class="pay-btn" data-value="kaspi" onclick="selectEditPayment(this)"><i class="bi bi-qr-code"></i><span>Kaspi</span></button>
+                            <button type="button" class="pay-btn" data-value="certificate" onclick="selectEditPayment(this)"><i class="bi bi-award"></i><span>Сертификат</span></button>
+                            <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)"><i class="bi bi-person-vcard"></i><span>Клубная карта</span></button>
+                            <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)"><i class="bi bi-wallet2"></i><span>Депозит</span></button>
+                            <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)"><i class="bi bi-arrow-repeat"></i><span>Кешбэк</span></button>
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
 
@@ -2653,4 +2653,5 @@
     })();
 </script>
 
+@include('club.courts._booking_tiles_css')
 @endsection
