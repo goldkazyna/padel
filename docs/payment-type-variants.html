@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Обозначение способа оплаты — варианты</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+    :root {
+        --bg: #0a0a0b; --card: #111113; --card2: #16161a; --line: #27272a; --line2: #1c1c1f;
+        --text: #f4f4f5; --dim: #a1a1aa; --muted: #71717a; --green: #22c55e;
+    }
+    /* Цвета способов оплаты (единые для всех вариантов) */
+    .pm-cash        { --pm: #22c55e; }   /* Наличные  */
+    .pm-card        { --pm: #3b82f6; }   /* Карта     */
+    .pm-kaspi       { --pm: #f14635; }   /* Kaspi     */
+    .pm-certificate { --pm: #a855f7; }   /* Сертификат*/
+    .pm-club_card   { --pm: #06b6d4; }   /* Клубная   */
+    .pm-deposit     { --pm: #eab308; }   /* Депозит   */
+    .pm-cashback    { --pm: #ec4899; }   /* Кешбэк    */
+
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 32px; }
+    h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+    .sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    h2 { font-size: 16px; font-weight: 800; margin: 38px 0 4px; }
+    .vdesc { color: var(--dim); font-size: 13px; margin-bottom: 16px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+
+    /* Базовый слот (как в расписании) */
+    .slot { position: relative; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; overflow: hidden; }
+    .slot-icons { position: absolute; top: 7px; right: 9px; display: flex; gap: 6px; align-items: center; }
+    .slot-ic { font-size: 13px; }
+    .ic-paid { color: var(--green); }
+    .slot-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .slot-name { font-size: 14px; font-weight: 700; display: block; }
+    .slot-phone { font-size: 11px; color: var(--muted); }
+    .slot-price { font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .slot-sub { margin-top: 8px; display: flex; align-items: center; gap: 7px; }
+
+    /* ============ Вариант 1: цветная иконка метода в ряду иконок ============ */
+    .v1 .slot-ic.ic-pm { color: var(--pm); }
+
+    /* ============ Вариант 2: цветной бейдж с подписью у цены ============ */
+    .pm-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+        padding: 3px 8px; border-radius: 20px; color: var(--pm); background: color-mix(in srgb, var(--pm) 14%, transparent);
+        border: 1px solid color-mix(in srgb, var(--pm) 30%, transparent); white-space: nowrap; }
+    .pm-badge i { font-size: 12px; }
+
+    /* ============ Вариант 3: цветная левая полоса + иконка ============ */
+    .v3 .slot { border-left: 3px solid var(--pm); }
+    .v3 .slot-ic.ic-pm { color: var(--pm); }
+
+    /* ============ Вариант 4: кружок-аватар метода ============ */
+    .pm-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center;
+        justify-content: center; font-size: 11px; color: #fff; background: var(--pm); }
+    .v4 .slot-icons { top: 8px; right: 9px; }
+
+    /* ============ Вариант 5: верхняя цветная полоса-капсула с текстом ============ */
+    .v5 .slot { padding-top: 0; }
+    .pm-strip { display: flex; align-items: center; gap: 6px; margin: 0 -12px 10px; padding: 5px 12px;
+        background: color-mix(in srgb, var(--pm) 16%, transparent); color: var(--pm);
+        font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+    .pm-strip i { font-size: 12px; }
+
+    /* Палитра-легенда */
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 4px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+    .legend .li { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--dim); font-weight: 600; }
+    .legend .sw { width: 14px; height: 14px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Как обозначить способ оплаты на ячейке расписания</h1>
+<div class="sub">7 способов: Наличные · Карта · Kaspi · Сертификат · Клубная карта · Депозит · Кешбэк. Ниже 5 вариантов оформления — каждый показан на всех способах.</div>
+
+<div class="legend">
+    <span class="li pm-cash"><span class="sw" style="background:var(--pm)"></span> Наличные</span>
+    <span class="li pm-card"><span class="sw" style="background:var(--pm)"></span> Карта</span>
+    <span class="li pm-kaspi"><span class="sw" style="background:var(--pm)"></span> Kaspi</span>
+    <span class="li pm-certificate"><span class="sw" style="background:var(--pm)"></span> Сертификат</span>
+    <span class="li pm-club_card"><span class="sw" style="background:var(--pm)"></span> Клубная карта</span>
+    <span class="li pm-deposit"><span class="sw" style="background:var(--pm)"></span> Депозит</span>
+    <span class="li pm-cashback"><span class="sw" style="background:var(--pm)"></span> Кешбэк</span>
+</div>
+
+<!-- ===================== ВАРИАНТ 1 ===================== -->
+<h2>Вариант 1 — цветная иконка способа в углу</h2>
+<div class="vdesc">Минимально. Рядом с галочкой «оплачено» — иконка способа, окрашенная в свой цвет. Наводишь — подсказка.</div>
+<div class="grid v1" id="v1"></div>
+
+<!-- ===================== ВАРИАНТ 2 ===================== -->
+<h2>Вариант 2 — цветной бейдж с подписью (у цены)</h2>
+<div class="vdesc">Иконка + короткая подпись (Kaspi, Карта, Серт…) в цветной плашке. Самый читаемый — видно текстом.</div>
+<div class="grid v2" id="v2"></div>
+
+<!-- ===================== ВАРИАНТ 3 ===================== -->
+<h2>Вариант 3 — цветная левая полоса слота + иконка</h2>
+<div class="vdesc">Весь слот «окрашен» слева цветом способа. Быстро сканируется глазом по колонке.</div>
+<div class="grid v3" id="v3"></div>
+
+<!-- ===================== ВАРИАНТ 4 ===================== -->
+<h2>Вариант 4 — цветной кружок с иконкой</h2>
+<div class="vdesc">Кружок-«аватар» способа в углу (как аватарка тренера). Заметный, компактный.</div>
+<div class="grid v4" id="v4"></div>
+
+<!-- ===================== ВАРИАНТ 5 ===================== -->
+<h2>Вариант 5 — верхняя цветная полоса с названием</h2>
+<div class="vdesc">Тонкая цветная капсула сверху слота с названием способа. Максимально очевидно, но «тяжелее».</div>
+<div class="grid v5" id="v5"></div>
+
+<script>
+    // Способ → иконка, подпись, короткая подпись
+    const METHODS = [
+        { key: 'cash',        icon: 'bi-cash-stack',          label: 'Наличные',   short: 'Нал' },
+        { key: 'card',        icon: 'bi-credit-card-2-front', label: 'Карта',      short: 'Карта' },
+        { key: 'kaspi',       icon: 'bi-qr-code',             label: 'Kaspi',      short: 'Kaspi' },
+        { key: 'certificate', icon: 'bi-award',               label: 'Сертификат', short: 'Серт' },
+        { key: 'club_card',   icon: 'bi-person-vcard',        label: 'Клубная карта', short: 'Клуб' },
+        { key: 'deposit',     icon: 'bi-wallet2',             label: 'Депозит',    short: 'Депозит' },
+        { key: 'cashback',    icon: 'bi-arrow-repeat',        label: 'Кешбэк',     short: 'Кешбэк' },
+    ];
+    const SAMPLE = [
+        { name: 'Алексей Иванов',   phone: '+7 777 123-45-67', price: '12 000' },
+        { name: 'Мария П.',         phone: '+7 701 555-22-11', price: '8 000'  },
+        { name: 'Данияр',           phone: '+7 705 900-00-12', price: '16 000' },
+        { name: 'Группа · вечер',   phone: '',                 price: '6 000'  },
+        { name: 'Иван Петров',      phone: '+7 747 321-00-99', price: '10 000' },
+        { name: 'Сауле К.',         phone: '+7 708 111-22-33', price: '14 000' },
+        { name: 'Тимур',            phone: '+7 700 444-55-66', price: '9 000'  },
+    ];
+
+    const head = (m) => `<div class="slot-icons"><i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>`;
+
+    function cellTop(s) {
+        return `<div class="slot-row"><div><span class="slot-name">${s.name}</span>` +
+            (s.phone ? `<span class="slot-phone">${s.phone}</span>` : '') +
+            `</div><span class="slot-price">${s.price} ₸</span></div>`;
+    }
+
+    function render(id, builder) {
+        const wrap = document.getElementById(id);
+        wrap.innerHTML = METHODS.map((m, i) => builder(m, SAMPLE[i])).join('');
+    }
+
+    // Вариант 1: иконка метода рядом с галочкой
+    render('v1', (m, s) => `<div class="slot pm-${m.key}">
+        <div class="slot-icons">
+            <i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>
+            <i class="bi ${m.icon} slot-ic ic-pm" title="${m.label}"></i>
+        </div>${cellTop(s)}</div>`);
+
+    // Вариант 2: цветной бейдж с подписью
+    render('v2', (m, s) => `<div class="slot pm-${m.key}">
+        <div class="slot-icons"><i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i></div>
+        ${cellTop(s)}
+        <div class="slot-sub"><span class="pm-badge"><i class="bi ${m.icon}"></i>${m.label}</span></div></div>`);
+
+    // Вариант 3: левая полоса + иконка
+    render('v3', (m, s) => `<div class="slot pm-${m.key}">
+        <div class="slot-icons">
+            <i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>
+            <i class="bi ${m.icon} slot-ic ic-pm" title="${m.label}"></i>
+        </div>${cellTop(s)}</div>`);
+
+    // Вариант 4: кружок-аватар
+    render('v4', (m, s) => `<div class="slot pm-${m.key}">
+        <div class="slot-icons">
+            <i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>
+            <span class="pm-dot" title="${m.label}"><i class="bi ${m.icon}"></i></span>
+        </div>${cellTop(s)}</div>`);
+
+    // Вариант 5: верхняя полоса с названием
+    render('v5', (m, s) => `<div class="slot pm-${m.key}">
+        <div class="pm-strip"><i class="bi ${m.icon}"></i>${m.label}</div>
+        ${cellTop(s)}</div>`);
+</script>
+
+</body>
+</html>

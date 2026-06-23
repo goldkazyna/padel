@@ -3,6 +3,18 @@
 @section('title', 'Расписание кортов · Неделя')
 
 @section('content')
+@php
+    // Способ оплаты → [подпись, иконка, цвет] — компактная маркировка в недельном виде
+    $paymentMeta = [
+        'cash'        => ['Наличные',      'bi-cash-stack',          '#22c55e'],
+        'card'        => ['Карта',         'bi-credit-card-2-front', '#3b82f6'],
+        'kaspi'       => ['Kaspi',         'bi-qr-code',             '#f14635'],
+        'certificate' => ['Сертификат',    'bi-award',               '#a855f7'],
+        'club_card'   => ['Клубная карта', 'bi-person-vcard',        '#06b6d4'],
+        'deposit'     => ['Депозит',       'bi-wallet2',             '#eab308'],
+        'cashback'    => ['Кешбэк',        'bi-arrow-repeat',        '#ec4899'],
+    ];
+@endphp
 
 <style>
     .ws-page {
@@ -572,6 +584,8 @@
                                 $b = $slot['booking'];
                                 $cls = !$b->is_processed ? 'unprocessed' : ($b->is_paid ? 'paid' : 'unpaid');
                                 if ($b->booking_type) $cls .= ' bt-slot-' . $b->booking_type;
+                                $pmW = $paymentMeta[$b->payment_method] ?? null;
+                                if ($pmW) $cls .= ' has-pm';
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                                 $coachPhoto = null;
@@ -580,7 +594,7 @@
                                     $coachPhoto = $ccW ? $ccW->photo : null;
                                 }
                             @endphp
-                            <div class="ws-card {{ $cls }}"
+                            <div class="ws-card {{ $cls }}" @if($pmW) style="--pm: {{ $pmW[2] }}" @endif
                                  onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $b->coach_price !== null ? $b->coach_price : 'null' }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
@@ -595,7 +609,8 @@
                                 </div>
                                 @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
                                 @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
-                                @if($b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
+                                @if($pmW)<i class="bi {{ $pmW[1] }} slot-card-icon ws-ic-pm" title="Оплата: {{ $pmW[0] }}"></i>
+                                @elseif($b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                 <span class="court-num">{{ $court->name }}</span>
                             </div>
                         @elseif($slot['status'] === 'blocked')
@@ -970,6 +985,9 @@
     /* Монохромная иконка: бронь оплачена клубной картой — перед надписью корта */
     .slot-card-icon { color: #a1a1aa; font-size: 11px; opacity: .9; margin-right: 6px; vertical-align: middle; }
     .slot-card-icon.ws-ic-paid { color: #22c55e; opacity: 1; }
+    .slot-card-icon.ws-ic-pm { color: var(--pm); opacity: 1; }
+    /* Цветная левая полоса карточки = способ оплаты */
+    .ws-card.has-pm { box-shadow: inset 3px 0 0 var(--pm); }
 </style>
 
 <!-- Book Modal -->

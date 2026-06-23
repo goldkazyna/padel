@@ -2,6 +2,18 @@
 @section('title', 'Расписание кортов')
 
 @section('content')
+@php
+    // Способ оплаты → [подпись, иконка, цвет] для цветной полосы на слоте
+    $paymentMeta = [
+        'cash'        => ['Наличные',      'bi-cash-stack',          '#22c55e'],
+        'card'        => ['Карта',         'bi-credit-card-2-front', '#3b82f6'],
+        'kaspi'       => ['Kaspi',         'bi-qr-code',             '#f14635'],
+        'certificate' => ['Сертификат',    'bi-award',               '#a855f7'],
+        'club_card'   => ['Клубная карта', 'bi-person-vcard',        '#06b6d4'],
+        'deposit'     => ['Депозит',       'bi-wallet2',             '#eab308'],
+        'cashback'    => ['Кешбэк',        'bi-arrow-repeat',        '#ec4899'],
+    ];
+@endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
 <style>
@@ -313,6 +325,8 @@
                                     $statusClass = !$booking->is_processed ? ' unprocessed' : ($booking->is_paid ? '' : ' unpaid');
                                     $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $statusClass;
                                     if ($booking->booking_type) $slotClass .= ' bt-slot-' . $booking->booking_type;
+                                    $pm = $paymentMeta[$booking->payment_method] ?? null;
+                                    if ($pm) $slotClass .= ' has-pm';
                                     $coachRate = null;
                                     $coachPhoto = null;
                                     if ($booking->coach_id) {
@@ -342,11 +356,16 @@
                                     <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid) ? ' has-icons' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
                                          onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                        @if($pm)
+                                        <div class="slot-pm-strip" style="--pm: {{ $pm[2] }}" title="Оплата: {{ $pm[0] }}">
+                                            <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
+                                        </div>
+                                        @endif
                                         @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid)
                                         <div class="slot-icons">
                                             @if($booking->source === 'app')<i class="bi bi-phone-fill slot-ic ic-app" title="Заявка из приложения"></i>@endif
                                             @if($booking->is_paid)<i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>@endif
-                                            @if($booking->club_card_id)<i class="bi bi-credit-card-2-front slot-ic ic-card" title="Оплачено клубной картой"></i>@endif
+                                            @if($booking->club_card_id && !$pm)<i class="bi bi-credit-card-2-front slot-ic ic-card" title="Оплачено клубной картой"></i>@endif
                                         </div>
                                         @endif
                                         <div class="slot-row">
@@ -400,6 +419,14 @@
         <div class="legend-item"><span class="legend-dot unpaid"></span>Не оплачено</div>
         <div class="legend-item"><span class="legend-dot unprocessed"></span>Не обработан</div>
         <div class="legend-item"><span class="legend-dot blocked"></span>Заблокирован</div>
+    </div>
+
+    <!-- Payment methods legend -->
+    <div class="legend legend-pm">
+        <span class="legend-pm-title">Способ оплаты:</span>
+        @foreach($paymentMeta as $pmItem)
+            <div class="legend-item"><span class="legend-dot" style="background: {{ $pmItem[2] }}"></span>{{ $pmItem[0] }}</div>
+        @endforeach
     </div>
 </div>
 
@@ -2572,6 +2599,28 @@
     .ic-card { color: #a1a1aa; }   /* клубная карта — серый (как было) */
     /* Если есть иконки — цену чуть ниже, чтобы не налезала на них */
     .slot.has-icons .slot-price-court { display: inline-block; margin-top: 12px; }
+
+    /* Полоса способа оплаты сверху слота (вариант 5) */
+    .slot-pm-strip {
+        position: absolute; top: 0; left: 0; right: 0; z-index: 1; pointer-events: none;
+        display: flex; align-items: center; gap: 4px;
+        height: 16px; padding: 0 7px 0 8px;
+        font-size: 9px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+        color: var(--pm);
+        background: color-mix(in srgb, var(--pm) 22%, #16161a);
+        border-radius: 7px 7px 0 0;
+        white-space: nowrap; overflow: hidden;
+    }
+    .slot-pm-strip i { font-size: 10px; flex-shrink: 0; }
+    .slot-pm-strip span { overflow: hidden; text-overflow: ellipsis; }
+    /* Контент уезжает под полосу */
+    .slot.has-pm { justify-content: flex-start; padding-top: 20px; }
+    .slot.has-pm .slot-icons { top: 1px; }
+    .slot.has-pm .slot-price-court { margin-top: 0; }
+    /* Если есть и иконки, и полоса — оставляем место справа под иконки */
+    .slot.has-pm.has-icons .slot-pm-strip { padding-right: 44px; }
+    .legend-pm { margin-top: 10px; }
+    .legend-pm-title { font-size: 12px; font-weight: 700; color: var(--sch-text-dim, #a1a1aa); margin-right: 4px; align-self: center; }
 
     .slot-booked.unprocessed {
         background: rgba(239, 68, 68, 0.12);
