@@ -1273,6 +1273,7 @@
                         </div>
                         <!-- Группа: тренер + участники (только для групповой брони) -->
                         <div id="editGroupBlock" style="display:none;">
+                            <div id="editGmPrice" style="display:none;margin:4px 0 12px;color:#a1a1aa;font-size:13px;"></div>
                             <div class="modal-section-title">Тренер</div>
                             <div class="form-input" id="editGroupCoach" style="background:#18181b;">—</div>
                             <div class="group-members-block" style="margin-top:14px;">
@@ -1282,6 +1283,9 @@
                                 </div>
                                 <ul id="editGmList" class="gm-list"></ul>
                                 <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                            </div>
+                            <div style="margin-top:14px;padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
+                                Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
                             </div>
                         </div>
 
@@ -2229,6 +2233,16 @@
         list.innerHTML = '';
         const g = (window.__groupMembers && data.groupId && window.__groupMembers[data.groupId]) || null;
         const members = g ? (g.members || []) : [];
+        const priceEl = document.getElementById('editGmPrice');
+        if (priceEl) {
+            const p = Number((g && g.price) || 0);
+            const cnt = members.length;
+            const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
+            priceEl.style.display = 'block';
+            priceEl.innerHTML = p > 0
+                ? 'Цена занятия: <b style="color:#22c55e;">' + fmt(p * cnt) + ' ₸</b> <span style="color:#71717a;">(' + fmt(p) + ' ₸ × ' + cnt + ')</span>'
+                : '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
+        }
         if (count) count.textContent = members.length ? members.length : '';
         if (!members.length) {
             if (empty) empty.style.display = 'block';
