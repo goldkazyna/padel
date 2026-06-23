@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\Club;
+use App\Reports\ClubIncomeReportService;
 use App\Reports\ClubLoadReportService;
 use App\Reports\ClientsReportService;
 use App\Reports\CoachesReportService;
@@ -20,6 +21,7 @@ class AdditionalReportsController extends Controller
 
     /** slug => [serviceClass, method, filenameBase, categoryLabel, reportLabel] */
     private const REPORTS = [
+        'income-breakdown' => [ClubIncomeReportService::class, 'breakdown', 'dohody-v-razreze',     'Доходы', 'Доходы клуба в разрезе'],
         'club-hours'       => [ClubLoadReportService::class, 'byHours',   'zagruzka-po-chasam',     'Клуб', 'Загруженность по часам'],
         'club-weekdays'    => [ClubLoadReportService::class, 'byWeekdays','zagruzka-po-dnyam',      'Клуб', 'Загруженность по дням недели'],
         'club-months'      => [ClubLoadReportService::class, 'byMonths',  'zagruzka-po-mesyacam',   'Клуб', 'Загруженность по месяцам'],
