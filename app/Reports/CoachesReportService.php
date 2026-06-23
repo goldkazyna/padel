@@ -4,6 +4,7 @@ namespace App\Reports;
 
 use App\Models\Club;
 use App\Models\ClubCoach;
+use App\Models\ClubGroupSession;
 use App\Models\CourtBooking;
 use App\Models\User;
 use Carbon\Carbon;
@@ -168,6 +169,76 @@ class CoachesReportService
             totals: ['Итого', round($tot['group'], 2), round($tot['individual'], 2), round($tot['soft'], 2),
                      round($tot['tournament'], 2), round($tot['other'], 2), round(array_sum($tot), 2)],
             columnFormats: [1 => '#,##0', 2 => '#,##0', 3 => '#,##0', 4 => '#,##0', 5 => '#,##0', 6 => '#,##0'],
+        );
+    }
+
+    /**
+     * Выплаты тренерам в разрезе: за групповые vs за индивидуальные (без групп).
+     *  - Групповые: проведённые занятия × ставка тренера за группу (rate_group ₸/час × часы),
+     *    тренеру, который фактически провёл занятие (session.coach_id).
+     *  - Индивидуальные (всё, кроме групповых): coach_price из брони, либо ставка × часы.
+     */
+    public function payouts(Club $club, Carbon $from, Carbon $to): ReportSheet
+    {
+        $names = [];
+        $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $courtIds = $club->courts()->pluck('id');
+        $fromD = $from->toDateString();
+        $toD = $to->toDateString();
+
+        $agg = []; // userId => ['group' => 0.0, 'individual' => 0.0]
+
+        // Групповые: проведённые занятия, ставка за группу × часы.
+        $sessions = ClubGroupSession::whereIn('court_id', $courtIds)
+            ->where('status', 'held')
+            ->whereNotNull('coach_id')
+            ->whereDate('date', '>=', $fromD)
+            ->whereDate('date', '<=', $toD)
+            ->get();
+        foreach ($sessions as $s) {
+            $id = $s->coach_id;
+            $agg[$id] ??= ['group' => 0.0, 'individual' => 0.0];
+            $rate = (float) ($profiles->get($id)?->rate_group ?? 0);
+            $agg[$id]['group'] += $rate * $this->hours($s->start_time, $s->end_time);
+        }
+
+        // Индивидуальные (всё, кроме групповых): coach_price либо ставка × часы.
+        $bookings = CourtBooking::whereIn('court_id', $courtIds)
+            ->where('status', 'confirmed')
+            ->whereNotNull('coach_id')
+            ->where(fn($q) => $q->where('booking_type', '!=', 'group')->orWhereNull('booking_type'))
+            ->whereDate('date', '>=', $fromD)
+            ->whereDate('date', '<=', $toD)
+            ->get();
+        foreach ($bookings as $b) {
+            $id = $b->coach_id;
+            $agg[$id] ??= ['group' => 0.0, 'individual' => 0.0];
+            $h = $this->hours($b->start_time, $b->end_time);
+            $earn = $b->coach_price !== null
+                ? (float) $b->coach_price
+                : ($profiles->get($id)?->getRateForHours((int) floor($h)) ?? 0.0);
+            $agg[$id]['individual'] += $earn;
+        }
+
+        $rows = [];
+        $tG = 0.0;
+        $tI = 0.0;
+        foreach ($agg as $id => $by) {
+            $rows[] = [
+                $this->coachName($id, $names),
+                round($by['group']), round($by['individual']), round($by['group'] + $by['individual']),
+            ];
+            $tG += $by['group'];
+            $tI += $by['individual'];
+        }
+        usort($rows, fn($a, $b) => $b[3] <=> $a[3]);
+
+        return new ReportSheet(
+            title: 'Выплаты тренерам (группа / индивидуально)',
+            headings: ['Тренер', 'За групповые', 'За индивидуальные', 'Итого'],
+            rows: $rows,
+            totals: ['Итого', round($tG), round($tI), round($tG + $tI)],
+            columnFormats: [1 => '#,##0', 2 => '#,##0', 3 => '#,##0'],
         );
     }
 
