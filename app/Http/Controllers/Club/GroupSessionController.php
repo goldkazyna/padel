@@ -50,10 +50,11 @@ class GroupSessionController extends Controller
         // Занятия недели
         $sessions = ClubGroupSession::where($filters)
             ->whereBetween('date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
-            ->with(['group:id,name', 'court:id,name', 'coach:id,name,first_name,last_name'])
+            ->with(['group:id,name,price_per_session', 'court:id,name', 'coach:id,name,first_name,last_name'])
             ->withCount([
                 'attendance as attended_count' => fn($q) => $q->where('attended', true),
                 'attendance as absent_count' => fn($q) => $q->where('attended', false),
+                'attendance as charged_count' => fn($q) => $q->where('charged', true),
             ])
             ->get();
 
@@ -64,6 +65,7 @@ class GroupSessionController extends Controller
         foreach ($coaches as $cc) {
             if (!$cc->user) continue;
             $coachMeta[$cc->user_id] = $this->buildCoachMeta($cc->user, $cc->photo, $palette);
+            $coachMeta[$cc->user_id]['rate_group'] = $cc->rate_group !== null ? (float) $cc->rate_group : null;
         }
         // Тренеры занятий, которых нет в списке клубных тренеров — добиваем по юзеру
         $nowAlmaty = now('Asia/Almaty');

@@ -93,7 +93,14 @@
                         @else
                             <div class="gsm-cell">
                                 @foreach($cell as $s)
-                                    @php $cm = $coachMeta[$s->coach_id] ?? null; @endphp
+                                    @php
+                                        $cm = $coachMeta[$s->coach_id] ?? null;
+                                        $price = (float) ($s->group->price_per_session ?? 0);
+                                        $isHeld = $s->status === 'held';
+                                        $sessionSum = $isHeld ? $s->charged_count * $price : null;
+                                        $rate = $cm['rate_group'] ?? null;
+                                        $fmt = fn($n) => number_format($n, 0, '.', ' ');
+                                    @endphp
                                     <a class="gsm-card status-{{ $s->ui_status }}" href="{{ route('club.groupSessions.show', $s) }}">
                                         <div class="gsm-card-top">
                                             <span class="gsm-card-name">{{ $s->group->name }}</span>
@@ -106,6 +113,18 @@
                                                 <span class="gsm-card-ready" title="Время прошло — можно отметить посещаемость">провести ▸</span>
                                             @endif
                                         </div>
+
+                                        @if($isHeld)
+                                            <div class="gsm-card-money" title="Доход за занятие: {{ $s->charged_count }} оплат. × {{ $fmt($price) }} ₸">
+                                                <span class="m-sum">{{ $fmt($sessionSum) }} ₸</span>
+                                                <span class="m-calc">{{ $s->charged_count }} чел × {{ $fmt($price) }}</span>
+                                            </div>
+                                        @elseif($price > 0)
+                                            <div class="gsm-card-money gsm-card-money-plan" title="Цена занятия группы за человека">
+                                                <span class="m-plan">{{ $fmt($price) }} ₸ / чел</span>
+                                            </div>
+                                        @endif
+
                                         <div class="gsm-card-bottom">
                                             @if($cm)
                                                 <span class="gsm-avatar" @if(!$cm['photo']) style="background:{{ $cm['color'] }}" @endif title="{{ $cm['name'] }}">
@@ -115,6 +134,9 @@
                                                 <span class="gsm-avatar gsm-avatar-none" title="Без тренера">—</span>
                                             @endif
                                             <span class="gsm-court">{{ $s->court->name }}</span>
+                                            @if($rate !== null && $rate > 0)
+                                                <span class="gsm-rate" title="Ставка тренера за час в группе">{{ $fmt($rate) }} ₸/ч</span>
+                                            @endif
                                         </div>
                                     </a>
                                 @endforeach
@@ -292,6 +314,14 @@
     .gsm-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .gsm-avatar-none { background: #27272a; color: var(--muted); }
     .gsm-court { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gsm-rate { margin-left: auto; flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--amber); background: rgba(234,179,8,0.12); padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+
+    /* Доход за занятие */
+    .gsm-card-money { display: flex; align-items: baseline; gap: 7px; margin: 0 0 9px; padding: 6px 9px; border-radius: 8px; background: rgba(34,197,94,0.09); border: 1px solid rgba(34,197,94,0.18); }
+    .gsm-card-money .m-sum { font-size: 13px; font-weight: 800; color: var(--green); white-space: nowrap; }
+    .gsm-card-money .m-calc { font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gsm-card-money-plan { background: transparent; border: 1px dashed var(--line); }
+    .gsm-card-money-plan .m-plan { font-size: 11px; font-weight: 700; color: var(--dim); }
 
     /* Empty week */
     .gsm-noweek { padding: 56px 20px; text-align: center; color: var(--muted); border-left: 1px solid var(--line2); }
