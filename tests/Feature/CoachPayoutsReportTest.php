@@ -64,14 +64,11 @@ class CoachPayoutsReportTest extends TestCase
             'price' => 0, 'discount' => 0, 'coach_id' => $coach->id, 'booking_type' => 'group',
         ]);
 
-        $sheet = app(CoachesReportService::class)->payouts(
+        $totals = app(CoachesReportService::class)->payoutTotals(
             $club, Carbon::parse('2026-06-01'), Carbon::parse('2026-06-30')
         );
 
-        $this->assertCount(1, $sheet->rows);
-        [$name, $grp, $ind, $sum] = $sheet->rows[0];
-        $this->assertSame(3000.0, (float) $grp, 'групповые: 3000×1');
-        $this->assertSame(7000.0, (float) $ind, 'индивид.: 5000 + 2000');
-        $this->assertSame(10000.0, (float) $sum);
+        $this->assertSame(3000.0, (float) $totals['group'], 'групповые: 3000×1');
+        $this->assertSame(7000.0, (float) $totals['individual'], 'индивид.: 5000 + 2000');
     }
 }

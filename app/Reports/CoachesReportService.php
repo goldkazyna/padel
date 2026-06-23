@@ -173,20 +173,22 @@ class CoachesReportService
     }
 
     /**
-     * Выплаты тренерам в разрезе: за групповые vs за индивидуальные (без групп).
+     * Суммарные выплаты тренерам за период: за групповые vs за индивидуальные (без групп).
      *  - Групповые: проведённые занятия × ставка тренера за группу (rate_group ₸/час × часы),
      *    тренеру, который фактически провёл занятие (session.coach_id).
      *  - Индивидуальные (всё, кроме групповых): coach_price из брони, либо ставка × часы.
+     *
+     * @return array{group: float, individual: float}
      */
-    public function payouts(Club $club, Carbon $from, Carbon $to): ReportSheet
+    public function payoutTotals(Club $club, Carbon $from, Carbon $to): array
     {
-        $names = [];
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
         $courtIds = $club->courts()->pluck('id');
         $fromD = $from->toDateString();
         $toD = $to->toDateString();
 
-        $agg = []; // userId => ['group' => 0.0, 'individual' => 0.0]
+        $group = 0.0;
+        $individual = 0.0;
 
         // Групповые: проведённые занятия, ставка за группу × часы.
         $sessions = ClubGroupSession::whereIn('court_id', $courtIds)
@@ -196,10 +198,8 @@ class CoachesReportService
             ->whereDate('date', '<=', $toD)
             ->get();
         foreach ($sessions as $s) {
-            $id = $s->coach_id;
-            $agg[$id] ??= ['group' => 0.0, 'individual' => 0.0];
-            $rate = (float) ($profiles->get($id)?->rate_group ?? 0);
-            $agg[$id]['group'] += $rate * $this->hours($s->start_time, $s->end_time);
+            $rate = (float) ($profiles->get($s->coach_id)?->rate_group ?? 0);
+            $group += $rate * $this->hours($s->start_time, $s->end_time);
         }
 
         // Индивидуальные (всё, кроме групповых): coach_price либо ставка × часы.
@@ -211,35 +211,13 @@ class CoachesReportService
             ->whereDate('date', '<=', $toD)
             ->get();
         foreach ($bookings as $b) {
-            $id = $b->coach_id;
-            $agg[$id] ??= ['group' => 0.0, 'individual' => 0.0];
             $h = $this->hours($b->start_time, $b->end_time);
-            $earn = $b->coach_price !== null
+            $individual += $b->coach_price !== null
                 ? (float) $b->coach_price
-                : ($profiles->get($id)?->getRateForHours((int) floor($h)) ?? 0.0);
-            $agg[$id]['individual'] += $earn;
+                : ($profiles->get($b->coach_id)?->getRateForHours((int) floor($h)) ?? 0.0);
         }
 
-        $rows = [];
-        $tG = 0.0;
-        $tI = 0.0;
-        foreach ($agg as $id => $by) {
-            $rows[] = [
-                $this->coachName($id, $names),
-                round($by['group']), round($by['individual']), round($by['group'] + $by['individual']),
-            ];
-            $tG += $by['group'];
-            $tI += $by['individual'];
-        }
-        usort($rows, fn($a, $b) => $b[3] <=> $a[3]);
-
-        return new ReportSheet(
-            title: 'Выплаты тренерам (группа / индивидуально)',
-            headings: ['Тренер', 'За групповые', 'За индивидуальные', 'Итого'],
-            rows: $rows,
-            totals: ['Итого', round($tG), round($tI), round($tG + $tI)],
-            columnFormats: [1 => '#,##0', 2 => '#,##0', 3 => '#,##0'],
-        );
+        return ['group' => $group, 'individual' => $individual];
     }
 
     public function salary(Club $club, Carbon $from, Carbon $to): ReportSheet

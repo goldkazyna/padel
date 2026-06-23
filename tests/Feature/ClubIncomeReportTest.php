@@ -32,9 +32,14 @@ class ClubIncomeReportTest extends TestCase
 
         // 1) Группа: проведённое занятие, цена 7000, 2 списанных + 1 не списан → 7000×2 = 14000
         $group = ClubGroup::create(['club_id' => $club->id, 'name' => 'G', 'status' => 'active', 'price_per_session' => 7000]);
+        // Тренер со ставкой за группу 2000 ₸/час → выплата за это занятие 2000
+        $coach = \App\Models\User::factory()->create();
+        \App\Models\ClubCoach::create([
+            'club_id' => $club->id, 'user_id' => $coach->id, 'hourly_rate' => 5000, 'rate_group' => 2000,
+        ]);
         $session = ClubGroupSession::create([
             'group_id' => $group->id, 'court_id' => $court->id, 'date' => $date,
-            'start_time' => '10:00', 'end_time' => '11:00', 'status' => 'held',
+            'start_time' => '10:00', 'end_time' => '11:00', 'status' => 'held', 'coach_id' => $coach->id,
         ]);
         foreach ([[true], [true], [false]] as $i => [$charged]) {
             $cl = \App\Models\ClubClient::create(['club_id' => $club->id, 'name' => 'M' . $i, 'phone' => '7777000220' . $i]);
@@ -84,6 +89,10 @@ class ClubIncomeReportTest extends TestCase
         $this->assertSame(12000.0, (float) $map['Наличные']);
         $this->assertSame(0.0, (float) $map['Карта']);
         $this->assertSame(40000.0, (float) $map['Клубная карта']);
-        $this->assertSame(66000.0, (float) $sheet->totals[1]);
+        $this->assertSame(66000.0, (float) $map['Итого доходов']);
+        $this->assertSame(2000.0, (float) $map['Выплаты тренерам — за групповые']);
+        $this->assertSame(2000.0, (float) $map['Итого выплат тренерам']);
+        // Итог = доход − выплаты = 66000 − 2000
+        $this->assertSame(64000.0, (float) $sheet->totals[1]);
     }
 }

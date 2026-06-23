@@ -7,6 +7,8 @@ use App\Models\Club;
 use App\Models\CourtBooking;
 use Carbon\Carbon;
 
+use function app;
+
 /**
  * Доходы клуба в разрезе категорий:
  *  - Групповые: проведённые занятия × число списанных участников × цена занятия.
@@ -76,7 +78,12 @@ class ClubIncomeReportService
             $group += (int) $s->charged_count * (float) ($s->group->price_per_session ?? 0);
         }
 
-        $rows = [
+        // 4) Выплаты тренерам (расход) — за групповые и за индивидуальные.
+        $payouts = app(CoachesReportService::class)->payoutTotals($club, $from, $to);
+        $coachGroup = (float) $payouts['group'];
+        $coachInd = (float) $payouts['individual'];
+
+        $incomeRows = [
             ['Групповые',     round($group)],
             ['Наличные',      round($sums['cash'])],
             ['Карта',         round($sums['card'])],
@@ -86,13 +93,25 @@ class ClubIncomeReportService
             ['Депозит',       round($sums['deposit'])],
             ['Кешбэк',        round($sums['cashback'])],
         ];
-        $total = array_sum(array_map(fn($r) => $r[1], $rows));
+        $incomeTotal = array_sum(array_map(fn($r) => $r[1], $incomeRows));
+        $payoutTotal = round($coachGroup) + round($coachInd);
+
+        $rows = array_merge(
+            $incomeRows,
+            [
+                ['Итого доходов', round($incomeTotal)],
+                ['', ''],
+                ['Выплаты тренерам — за групповые', round($coachGroup)],
+                ['Выплаты тренерам — за индивидуальные', round($coachInd)],
+                ['Итого выплат тренерам', round($payoutTotal)],
+            ]
+        );
 
         return new ReportSheet(
             title: 'Доходы клуба в разрезе',
             headings: ['Категория', 'Сумма, ₸'],
             rows: $rows,
-            totals: ['Итого', round($total)],
+            totals: ['Доход − выплаты тренерам', round($incomeTotal - $payoutTotal)],
             columnFormats: [1 => '#,##0'],
         );
     }
