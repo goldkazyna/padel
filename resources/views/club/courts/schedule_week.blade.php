@@ -596,6 +596,7 @@
                             @endphp
                             <div class="ws-card {{ $cls }}" @if($pmW) style="--pm: {{ $pmW[2] }}" @endif
                                  onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $b->coach_price !== null ? $b->coach_price : 'null' }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                @if($pmW)<div class="ws-pm-strip" title="Оплата: {{ $pmW[0] }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span></div>@endif
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -609,8 +610,7 @@
                                 </div>
                                 @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
                                 @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
-                                @if($pmW)<i class="bi {{ $pmW[1] }} slot-card-icon ws-ic-pm" title="Оплата: {{ $pmW[0] }}"></i>
-                                @elseif($b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
+                                @if(!$pmW && $b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
                                 <span class="court-num">{{ $court->name }}</span>
                             </div>
                         @elseif($slot['status'] === 'blocked')
@@ -637,6 +637,13 @@
         <div class="ws-legend-item"><span class="ws-legend-dot unpaid"></span>Не оплачено</div>
         <div class="ws-legend-item"><span class="ws-legend-dot unprocessed"></span>Не обработана</div>
         <div class="ws-legend-item"><span class="ws-legend-dot blocked"></span>Заблокирован</div>
+    </div>
+
+    <div class="ws-legend" style="margin-top:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--sch-text-dim);align-self:center;margin-right:2px;">Способ оплаты:</span>
+        @foreach($paymentMeta as $pmItem)
+            <div class="ws-legend-item"><span class="ws-legend-dot" style="background: {{ $pmItem[2] }};border-color: {{ $pmItem[2] }};"></span>{{ $pmItem[0] }}</div>
+        @endforeach
     </div>
 
 </div>
@@ -985,9 +992,21 @@
     /* Монохромная иконка: бронь оплачена клубной картой — перед надписью корта */
     .slot-card-icon { color: #a1a1aa; font-size: 11px; opacity: .9; margin-right: 6px; vertical-align: middle; }
     .slot-card-icon.ws-ic-paid { color: #22c55e; opacity: 1; }
-    .slot-card-icon.ws-ic-pm { color: var(--pm); opacity: 1; }
-    /* Цветная левая полоса карточки = способ оплаты */
-    .ws-card.has-pm { box-shadow: inset 3px 0 0 var(--pm); }
+    /* Полоса способа оплаты сверху карточки (как в дневном виде) */
+    .ws-card { position: relative; }
+    .ws-card.has-pm { padding-top: 17px; }
+    .ws-pm-strip {
+        position: absolute; top: 0; left: 0; right: 0; z-index: 1; pointer-events: none;
+        display: flex; align-items: center; gap: 3px;
+        height: 14px; padding: 0 6px;
+        font-size: 8px; font-weight: 800; letter-spacing: 0.2px; text-transform: uppercase;
+        color: var(--pm);
+        background: color-mix(in srgb, var(--pm) 24%, #16161a);
+        border-radius: 6px 6px 0 0;
+        white-space: nowrap; overflow: hidden;
+    }
+    .ws-pm-strip i { font-size: 9px; flex-shrink: 0; }
+    .ws-pm-strip span { overflow: hidden; text-overflow: ellipsis; }
 </style>
 
 <!-- Book Modal -->
