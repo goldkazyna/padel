@@ -326,6 +326,10 @@
                                     $slotClass = ($span > 1 ? 'slot-booked-multi' : 'slot-booked') . $statusClass;
                                     if ($booking->booking_type) $slotClass .= ' bt-slot-' . $booking->booking_type;
                                     $pm = $paymentMeta[$booking->payment_method] ?? null;
+                                    // У групповой брони нет способа оплаты — показываем тип
+                                    if (!$pm && $booking->booking_type === 'group') {
+                                        $pm = ['Групповая', 'bi-people-fill', '#6366f1'];
+                                    }
                                     if ($pm) $slotClass .= ' has-pm';
                                     $coachRate = null;
                                     $coachPhoto = null;

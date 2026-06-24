@@ -585,6 +585,10 @@
                                 $cls = !$b->is_processed ? 'unprocessed' : ($b->is_paid ? 'paid' : 'unpaid');
                                 if ($b->booking_type) $cls .= ' bt-slot-' . $b->booking_type;
                                 $pmW = $paymentMeta[$b->payment_method] ?? null;
+                                // У групповой брони нет способа оплаты — показываем тип
+                                if (!$pmW && $b->booking_type === 'group') {
+                                    $pmW = ['Групповая', 'bi-people-fill', '#6366f1'];
+                                }
                                 if ($pmW) $cls .= ' has-pm';
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
                                 $bEnd = \Carbon\Carbon::parse($b->end_time)->format('H:i');
