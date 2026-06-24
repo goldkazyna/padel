@@ -27,7 +27,7 @@
         @foreach($card->transactions as $tx)
         <div class="ch-row">
             <div class="ch-row-main">
-                <div class="ch-row-date">{{ $tx->created_at->format('d.m.Y H:i') }}</div>
+                <div class="ch-row-date">{{ $tx->created_at->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->format('d.m.Y H:i') }}</div>
                 <div class="ch-row-sub">
                     @if($tx->booking)
                         {{ $tx->booking->court?->name }} · {{ \Illuminate\Support\Carbon::parse($tx->booking->date)->format('d.m.Y') }}, {{ substr($tx->booking->start_time,0,5) }}–{{ substr($tx->booking->end_time,0,5) }}

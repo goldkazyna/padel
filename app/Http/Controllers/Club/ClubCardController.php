@@ -125,7 +125,7 @@ class ClubCardController extends Controller
                 $booking = $d . ', ' . substr((string) $b->start_time, 0, 5) . '–' . substr((string) $b->end_time, 0, 5);
             }
             return [
-                'date' => $t->created_at->format('d.m.Y H:i'),
+                'date' => $t->created_at->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->format('d.m.Y H:i'),
                 'ts' => $t->created_at->timestamp,
                 'name' => $card?->client?->name ?? '—',
                 'code' => $card?->code ?? '',
