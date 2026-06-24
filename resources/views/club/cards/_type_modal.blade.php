@@ -100,10 +100,10 @@ function ctToggleValidity() {
     document.getElementById('ctDateField').style.display = (mode === 'date') ? '' : 'none';
     document.getElementById('ctDaysField').style.display = (mode === 'days') ? '' : 'none';
 }
-function openCardTypeModal(t) {
+function openCardTypeModal(t, readOnly) {
     const form = document.getElementById('cardTypeForm');
     if (t) {
-        document.getElementById('ctModalTitle').textContent = 'Редактировать тип карты';
+        document.getElementById('ctModalTitle').textContent = readOnly ? 'Тип карты — просмотр' : 'Редактировать тип карты';
         form.action = '{{ url("club/card-types") }}/' + t.id;
         document.getElementById('ctMethod').value = 'PUT';
         document.getElementById('ctName').value = t.name || '';
@@ -130,6 +130,17 @@ function openCardTypeModal(t) {
     ctToggleKind();
     ctToggleValidity();
     ctPrefixPreview();
-    document.getElementById('cardTypeModal').style.display = 'flex';
+
+    // Режим просмотра: блокируем поля, прячем «Сохранить», «Отмена» → «Закрыть».
+    const modal = document.getElementById('cardTypeModal');
+    const saveBtn = modal.querySelector('.btn-save');
+    const cancelBtn = modal.querySelector('.btn-cancel');
+    modal.querySelectorAll('input, select').forEach(function (el) {
+        if (el.id !== 'ctMethod') el.disabled = !!readOnly;
+    });
+    saveBtn.style.display = readOnly ? 'none' : '';
+    cancelBtn.textContent = readOnly ? 'Закрыть' : 'Отмена';
+
+    modal.style.display = 'flex';
 }
 </script>

@@ -47,8 +47,10 @@
             <span class="cc-tcount">{{ $t->ui_count }}</span>
             <div class="cc-tact">
                 @if($t->ui_count > 0)
-                    <button class="cc-ic cc-ic-locked" type="button" disabled
-                            title="Нельзя редактировать: по типу уже выпущено карт — {{ $t->ui_count }}. Создайте новый тип."><i class="bi bi-lock"></i></button>
+                    <span class="cc-ic cc-ic-locked"
+                          title="Нельзя редактировать: по типу уже выпущено карт — {{ $t->ui_count }}. Создайте новый тип."><i class="bi bi-lock"></i></span>
+                    <button class="cc-ic" type="button" title="Просмотреть тип карты"
+                            onclick='openCardTypeModal(@json($t), true)'><i class="bi bi-eye"></i></button>
                 @else
                     <button class="cc-ic" title="Редактировать" onclick='openCardTypeModal(@json($t))'><i class="bi bi-pencil"></i></button>
                 @endif
