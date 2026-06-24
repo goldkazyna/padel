@@ -1962,6 +1962,11 @@
         const val = btn.getAttribute('data-value');
         document.getElementById('editPaymentMethodInput').value = val;
         if (val !== 'club_card') deselectCard('edit');
+        // «Бесплатно» — цена и скидка 0
+        if (val === 'free') {
+            const p = document.getElementById('editCustomPrice'); if (p) p.value = 0;
+            const d = document.getElementById('editDiscount'); if (d) d.value = 0;
+        }
     }
 
     function setEditPaid(btn) {
@@ -2004,6 +2009,12 @@
         document.getElementById('paymentMethodInput').value = val;
         // Выбран не «Клубная карта» — снимаем карту и возвращаем обычную цену.
         if (val !== 'club_card') deselectCard('book');
+        // «Бесплатно» — цена и скидка 0
+        if (val === 'free') {
+            const p = document.getElementById('bookCustomPrice'); if (p) p.value = 0;
+            const d = document.getElementById('bookDiscount'); if (d) d.value = 0;
+            updateFinalPrice();
+        }
     }
 
     function setPaid(btn) {
