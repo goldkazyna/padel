@@ -52,6 +52,8 @@
     .pay-btn[data-value="club_card"] > i { color: #a78bfa; }
     .pay-btn[data-value="certificate"] > i { color: #fbbf24; }
     .pay-btn[data-value="cashback"] > i { color: #22d3ee; }
+    .pay-btn[data-value="cashless"] > i { color: #14b8a6; }
+    .pay-btn[data-value="free"] > i { color: #94a3b8; }
     .bt-btn.active > i, .pay-btn.active > i { color: #22c55e !important; }
 
     /* статус оплаты — две крупные плитки с точкой */

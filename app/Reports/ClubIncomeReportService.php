@@ -33,7 +33,7 @@ class ClubIncomeReportService
         $toD = $to->toDateString();
 
         // 1) Методы оплаты — оплаченные брони (групповые сюда не попадают: у них метод пустой).
-        $methods = ['cash', 'card', 'kaspi', 'certificate', 'deposit', 'cashback'];
+        $methods = ['cash', 'card', 'kaspi', 'certificate', 'deposit', 'cashback', 'cashless'];
         $sums = array_fill_keys($methods, 0.0);
         $paid = CourtBooking::whereIn('court_id', $courtIds)
             ->where('status', 'confirmed')
@@ -92,6 +92,7 @@ class ClubIncomeReportService
             ['Клубная карта', round($clubCard)],
             ['Депозит',       round($sums['deposit'])],
             ['Кешбэк',        round($sums['cashback'])],
+            ['Безналичный',   round($sums['cashless'])],
         ];
         $incomeTotal = array_sum(array_map(fn($r) => $r[1], $incomeRows));
         $payoutTotal = round($coachGroup) + round($coachInd);

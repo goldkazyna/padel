@@ -13,6 +13,8 @@
         'club_card'   => ['Клубная карта', 'bi-person-vcard',        '#06b6d4'],
         'deposit'     => ['Депозит',       'bi-wallet2',             '#eab308'],
         'cashback'    => ['Кешбэк',        'bi-arrow-repeat',        '#ec4899'],
+        'cashless'    => ['Безналичный',   'bi-bank',                '#14b8a6'],
+        'free'        => ['Бесплатно',     'bi-gift',                '#94a3b8'],
     ];
 @endphp
 
@@ -1178,6 +1180,8 @@
                             <button type="button" class="pay-btn" data-value="club_card" onclick="selectPayment(this)"><i class="bi bi-person-vcard"></i><span>Клубная карта</span></button>
                             <button type="button" class="pay-btn" data-value="deposit" onclick="selectPayment(this)"><i class="bi bi-wallet2"></i><span>Депозит</span></button>
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectPayment(this)"><i class="bi bi-arrow-repeat"></i><span>Кешбэк</span></button>
+                            <button type="button" class="pay-btn" data-value="cashless" onclick="selectPayment(this)"><i class="bi bi-bank"></i><span>Безналичный</span></button>
+                            <button type="button" class="pay-btn" data-value="free" onclick="selectPayment(this)"><i class="bi bi-gift"></i><span>Бесплатно</span></button>
                         </div>
                         <input type="hidden" name="payment_method" id="paymentMethodInput">
 
@@ -1367,6 +1371,8 @@
                             <button type="button" class="pay-btn" data-value="club_card" onclick="selectEditPayment(this)"><i class="bi bi-person-vcard"></i><span>Клубная карта</span></button>
                             <button type="button" class="pay-btn" data-value="deposit" onclick="selectEditPayment(this)"><i class="bi bi-wallet2"></i><span>Депозит</span></button>
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)"><i class="bi bi-arrow-repeat"></i><span>Кешбэк</span></button>
+                            <button type="button" class="pay-btn" data-value="cashless" onclick="selectEditPayment(this)"><i class="bi bi-bank"></i><span>Безналичный</span></button>
+                            <button type="button" class="pay-btn" data-value="free" onclick="selectEditPayment(this)"><i class="bi bi-gift"></i><span>Бесплатно</span></button>
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
 

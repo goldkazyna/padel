@@ -158,6 +158,8 @@ class ReportsController extends Controller
                     'club_card' => 'Клубная карта',
                     'deposit' => 'Депозит',
                     'cashback' => 'Кэшбэк',
+                    'cashless' => 'Безналичный',
+                    'free' => 'Бесплатно',
                     null, '' => '—',
                     default => $b->payment_method,
                 };
@@ -302,6 +304,8 @@ class ReportsController extends Controller
             'club_card' => 'Клубная карта',
             'deposit' => 'Депозит',
             'cashback' => 'Кэшбэк',
+            'cashless' => 'Безналичный',
+            'free' => 'Бесплатно',
             'unset' => 'Не указан',
         ];
         $byPayment = [];
