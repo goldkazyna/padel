@@ -46,7 +46,12 @@
             @endif
             <span class="cc-tcount">{{ $t->ui_count }}</span>
             <div class="cc-tact">
-                <button class="cc-ic" title="Редактировать" onclick='openCardTypeModal(@json($t))'><i class="bi bi-pencil"></i></button>
+                @if($t->ui_count > 0)
+                    <button class="cc-ic cc-ic-locked" type="button" disabled
+                            title="Нельзя редактировать: по типу уже выпущено карт — {{ $t->ui_count }}. Создайте новый тип."><i class="bi bi-lock"></i></button>
+                @else
+                    <button class="cc-ic" title="Редактировать" onclick='openCardTypeModal(@json($t))'><i class="bi bi-pencil"></i></button>
+                @endif
                 <form action="{{ route('club.cardTypes.destroy', $t) }}" method="POST" class="d-inline"
                       onsubmit="return confirm('Удалить тип карты «{{ $t->name }}»?')">
                     @csrf @method('DELETE')
@@ -118,6 +123,8 @@
 .cc-tact form{margin:0}
 .cc-ic{width:28px;height:28px;border-radius:7px;background:var(--bg-card-hover);border:1px solid var(--border);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px}
 .cc-ic:hover{color:var(--text-primary)} .cc-ic-del:hover{color:#ef4444}
+.cc-ic-locked{opacity:.45;cursor:not-allowed}
+.cc-ic-locked:hover{color:var(--text-secondary)}
 
 .cc-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
 .cc-search{position:relative;flex:0 0 280px}

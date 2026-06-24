@@ -150,6 +150,13 @@ class ClubCardTypeController extends Controller
         $club = $this->getClub();
         if (!$club || $cardType->club_id !== $club->id) abort(403);
 
+        // По типу уже выпущены карты — редактировать нельзя (изменение номинала/цены
+        // сломало бы смысл уже выданных карт). Нужен новый тип.
+        $issued = $cardType->cards()->count();
+        if ($issued > 0) {
+            return back()->with('error', 'Нельзя редактировать тип карты: по нему уже выпущено карт — ' . $issued . '. Создайте новый тип.');
+        }
+
         $data = $this->validateType($request, $club, $cardType->id);
         $this->normalizeByKind($data);
         $this->normalizeValidity($data);
