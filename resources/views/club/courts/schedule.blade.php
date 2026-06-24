@@ -386,14 +386,17 @@
                                         @if($booking->coach || $booking->comment || $coachTotal > 0 || $booking->needs_coach)
                                         <div class="slot-row slot-row-sub">
                                             <div class="slot-left">
-                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif
-                                                @if($booking->coach_paid !== null)<span class="slot-coach-paid {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $booking->coach->first_name }}</span>@endif
+                                                @if($booking->coach)<span class="slot-coach"><span class="slot-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($booking->coach->first_name ?? '?', 0, 1)) }}@endif</span>{{ $booking->coach->first_name }}</span>@endif
                                                 @if($booking->needs_coach && !$booking->coach)<span class="slot-needs-coach" title="Клиент запросил тренера">🎾 Нужен тренер</span>@endif
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
                                             @if($coachTotal > 0)
                                             <div class="slot-right">
-                                                <span class="slot-price-coach">+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                @if($booking->coach_paid === null)
+                                                    <span class="slot-price-coach">+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                @else
+                                                    <span class="slot-coach-cap {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"><i class="bi {{ $booking->coach_paid ? 'bi-check-circle-fill' : 'bi-hourglass-split' }}"></i>+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                @endif
                                             </div>
                                             @endif
                                         </div>
@@ -2670,6 +2673,11 @@
     .slot-comment-text { font-size: 10px; color: #71717a; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
     .slot-price-court { font-size: 13px; font-weight: 700; color: #22c55e; }
     .slot-price-coach { font-size: 12px; font-weight: 700; color: #a78bfa; }
+    /* Статус оплаты тренера — сумма в цветной капсуле */
+    .slot-coach-cap { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+    .slot-coach-cap i { font-size: 10px; }
+    .slot-coach-cap.paid { color: #22c55e; background: rgba(34,197,94,.14); border: 1px solid rgba(34,197,94,.3); }
+    .slot-coach-cap.unpaid { color: #f59e0b; background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.3); }
     .slot-needs-coach { font-size: 10px; font-weight: 600; color: #a89cf5; background: rgba(168,156,245,0.15); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
 
     .slot-booked-multi {
