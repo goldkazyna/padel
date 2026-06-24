@@ -163,7 +163,10 @@
 .cc-rrem{width:160px;text-align:right;font-size:13px;color:var(--text-secondary)}
 .cc-rrem b{color:var(--text-primary);font-weight:800}
 .cc-rrem .malo{color:var(--amber,#f59e0b);font-weight:700;font-size:12px;margin-left:6px}
-.cc-rdate{width:120px;text-align:right;color:var(--text-secondary);font-size:13px}
+.cc-rdate{width:148px;text-align:right;color:var(--text-secondary);font-size:12px;line-height:1.45}
+.cc-dline{white-space:nowrap}
+.cc-dexp{color:var(--text-muted);font-size:11px;margin-top:1px}
+.cc-dlbl{color:var(--text-muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
 .cc-rstatus{width:112px;display:flex;justify-content:flex-end}
 .cc-spill{font-size:12px;font-weight:700;padding:4px 11px;border-radius:100px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .cc-spill::before{content:'';width:6px;height:6px;border-radius:50%}
@@ -220,7 +223,10 @@
       ${ring(c)}
       <div class="cc-rname"><div class="n">${esc(c.name)}</div><div class="code">${esc(c.code)}</div></div>
       <div class="cc-rrem">${rem}</div>
-      <div class="cc-rdate">${esc(c.date)}</div>
+      <div class="cc-rdate">
+        <div class="cc-dline"><span class="cc-dlbl">Выдана:</span> ${esc(c.issued)}</div>
+        <div class="cc-dline cc-dexp">${c.date==='бессрочно' ? '<span class="cc-dlbl">Срок:</span> бессрочно' : '<span class="cc-dlbl">До:</span> '+esc(c.date)}</div>
+      </div>
       <div class="cc-rstatus"><span class="cc-spill ${cls}">${label}</span></div>
       <div class="cc-ract">${del}</div>
     </div>`;

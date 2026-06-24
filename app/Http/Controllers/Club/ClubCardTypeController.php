@@ -73,6 +73,7 @@ class ClubCardTypeController extends Controller
                 'counter' => $counter,
                 'discount' => $counter ? null : (int) ($c->type->discount_percent ?? 0),
                 'date' => $c->expires_at ? $c->expires_at->locale('ru')->translatedFormat('j M Y') : 'бессрочно',
+                'issued' => $c->created_at ? $c->created_at->locale('ru')->translatedFormat('j M Y') : '—',
                 'exp' => $c->expires_at ? $c->expires_at->timestamp : PHP_INT_MAX,
                 'st' => $st,
                 'low' => $counter && $st !== 'inactive' && $bal <= 4,
