@@ -115,12 +115,25 @@ class GroupSessionController extends Controller
 
         $totalSessions = ClubGroupSession::where($filters)->count();
 
+        // Занятия «к списанию»: запланированы, время уже прошло, ещё не проведены.
+        $nowTime = $nowAlmaty->format('H:i:s');
+        $pendingConductCount = ClubGroupSession::whereIn('court_id', $courtIds)
+            ->where('status', 'planned')
+            ->where(function ($q) use ($today, $nowTime) {
+                $q->whereDate('date', '<', $today)
+                  ->orWhere(function ($q2) use ($today, $nowTime) {
+                      $q2->whereDate('date', '=', $today)->where('end_time', '<=', $nowTime);
+                  });
+            })
+            ->count();
+
         $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get();
         $courts = $club->courts()->where('is_active', true)->orderBy('sort_order')->get();
 
         return view('club.group-sessions.index', compact(
             'columns', 'times', 'matrix', 'coachMeta',
             'prevWeek', 'nextWeek', 'weekRange', 'date', 'totalSessions', 'today',
+            'pendingConductCount',
             'groups', 'courts', 'coaches', 'club'
         ));
     }

@@ -30,6 +30,11 @@
                 <option value="held" @selected(request('status') === 'held')>Проведено</option>
                 <option value="cancelled" @selected(request('status') === 'cancelled')>Отменено</option>
             </select>
+            @if($pendingConductCount > 0)
+                <a href="{{ route('club.groupSessions.index', array_merge($qf, ['status' => 'planned'])) }}" class="gsm-pending" title="Занятия прошли по времени, но ещё не проведены (не списаны)">
+                    <i class="bi bi-exclamation-circle-fill"></i> К списанию: {{ $pendingConductCount }}
+                </a>
+            @endif
             <a href="{{ route('club.groupSessions.report') }}" class="gsm-select" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="bi bi-bar-chart"></i> Отчёты</a>
             <button type="button" class="gsm-create-btn" onclick="document.getElementById('createSessionModal').style.display='flex'">+ Создать</button>
         </form>
@@ -249,6 +254,8 @@
     .gsm-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; }
     .gsm-select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--text); font-family: inherit; cursor: pointer; }
     .gsm-select:focus { outline: none; border-color: var(--green); }
+    .gsm-pending { display: inline-flex; align-items: center; gap: 6px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #f59e0b; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+    .gsm-pending:hover { background: rgba(245,158,11,0.25); }
     .gsm-create-btn { background: var(--green); color: #0a0a0b; border: none; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
     .gsm-create-btn:hover { background: #16a34a; }
 
