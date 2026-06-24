@@ -167,7 +167,12 @@ class ClubCardService
             ? $booking->date->format('Y-m-d')
             : (string) $booking->date;
         $tz = config('app.schedule_timezone', 'Asia/Almaty');
+        $start = Carbon::parse($date . ' ' . substr((string) $booking->start_time, 0, 5), $tz);
         $end = Carbon::parse($date . ' ' . substr((string) $booking->end_time, 0, 5), $tz);
+        // Бронь через полночь (например 21:00–00:00): конец — на следующий день.
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
 
         return $end->lessThanOrEqualTo($now);
     }
@@ -213,7 +218,11 @@ class ClubCardService
     {
         $start = Carbon::parse(substr((string) $booking->start_time, 0, 5));
         $end = Carbon::parse(substr((string) $booking->end_time, 0, 5));
-        $minutes = $end->greaterThan($start) ? $start->diffInMinutes($end) : 0;
+        // Бронь через полночь (например 21:00–00:00): конец — на следующий день.
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+        $minutes = $start->diffInMinutes($end);
         return (int) round($minutes / 60);
     }
 

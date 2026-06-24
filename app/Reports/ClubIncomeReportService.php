@@ -22,7 +22,11 @@ class ClubIncomeReportService
     {
         $s = Carbon::parse(substr((string) $b->start_time, 0, 5));
         $e = Carbon::parse(substr((string) $b->end_time, 0, 5));
-        $minutes = $e->greaterThan($s) ? $s->diffInMinutes($e) : 0;
+        // Бронь через полночь (например 21:00–00:00): конец — на следующий день.
+        if ($e->lessThanOrEqualTo($s)) {
+            $e->addDay();
+        }
+        $minutes = $s->diffInMinutes($e);
         return (int) round($minutes / 60);
     }
 
