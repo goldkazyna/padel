@@ -328,7 +328,7 @@
                                     $pm = $paymentMeta[$booking->payment_method] ?? null;
                                     // У групповой брони нет способа оплаты — показываем тип
                                     if (!$pm && $booking->booking_type === 'group') {
-                                        $pm = ['Групповая', 'bi-people-fill', '#6366f1'];
+                                        $pm = ['Групповая', 'bi-people-fill', '#fbbf24'];
                                     }
                                     if ($pm) $slotClass .= ' has-pm';
                                     $coachRate = null;
