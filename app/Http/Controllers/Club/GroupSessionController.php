@@ -115,15 +115,15 @@ class GroupSessionController extends Controller
 
         $totalSessions = ClubGroupSession::where($filters)->count();
 
-        // Занятия «к списанию»: запланированы, время уже прошло, ещё не проведены.
-        $nowTime = $nowAlmaty->format('H:i:s');
+        // Занятия «к списанию»: запланированы, время окончания уже прошло, ещё не проведены.
+        // Считаем тем же способом, что метка «провести» в сетке (Carbon-сравнение).
         $pendingConductCount = ClubGroupSession::whereIn('court_id', $courtIds)
             ->where('status', 'planned')
-            ->where(function ($q) use ($today, $nowTime) {
-                $q->whereDate('date', '<', $today)
-                  ->orWhere(function ($q2) use ($today, $nowTime) {
-                      $q2->whereDate('date', '=', $today)->where('end_time', '<=', $nowTime);
-                  });
+            ->whereDate('date', '<=', $today)
+            ->get(['id', 'date', 'end_time'])
+            ->filter(function ($s) use ($nowAlmaty) {
+                $endsAt = Carbon::parse($s->date->format('Y-m-d') . ' ' . $s->end_time, 'Asia/Almaty');
+                return $nowAlmaty->gte($endsAt);
             })
             ->count();
 
