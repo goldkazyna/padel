@@ -983,9 +983,9 @@
 						</a>
 					</li>
 					<li class="nav-item">
-						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
+						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-journal-check"></i>
-							<span>Журнал занятий</span>
+							<span>Журнал занятий</span>@if(($__gsp = \App\Models\ClubGroupSession::pendingConductCountForCurrentUser()) > 0)<span class="unprocessed-badge">{{ $__gsp }}</span>@endif
 						</a>
 					</li>
 					@endif
@@ -1051,9 +1051,9 @@
 						</a>
 					</li>
 					<li class="nav-item">
-						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}">
+						<a href="{{ route('club.groupSessions.index') }}" class="nav-link {{ request()->routeIs('club.groupSessions.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-journal-check"></i>
-							<span>Журнал занятий</span>
+							<span>Журнал занятий</span>@if(($__gsp = \App\Models\ClubGroupSession::pendingConductCountForCurrentUser()) > 0)<span class="unprocessed-badge">{{ $__gsp }}</span>@endif
 						</a>
 					</li>
 					@endif
