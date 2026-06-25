@@ -41,6 +41,7 @@ class ClubCardTypeController extends Controller
 
         $allCards = \App\Models\ClubCard::where('club_id', $club->id)
             ->with(['type', 'client'])
+            ->withCount('transactions')
             ->get();
 
         // Цвет-класс и короткий тег для каждого типа.
@@ -62,6 +63,8 @@ class ClubCardTypeController extends Controller
             $st = $this->cardUiStatus($c, $today, $soonEdge);
             $counter = $c->isCounter();
             $bal = (int) $c->balance;
+            // Удалять можно только карты без истории списаний и не использованные.
+            $canDelete = $c->transactions_count === 0 && !($counter && $bal <= 0);
             $counts['all']++;
             $counts[$st]++;
             $cardsData[] = [
@@ -78,7 +81,7 @@ class ClubCardTypeController extends Controller
                 'st' => $st,
                 'low' => $counter && $st !== 'inactive' && $st !== 'used' && $bal > 0 && $bal <= 4,
                 'url' => $c->client ? route('club.clients.index', ['selected' => $c->client->id]) : null,
-                'del' => route('club.cards.destroy', $c->id),
+                'del' => $canDelete ? route('club.cards.destroy', $c->id) : null,
             ];
         }
 

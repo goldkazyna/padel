@@ -218,11 +218,17 @@
                                 @else
                                     <span class="cci-balance cci-discount">−{{ $card->type?->discount_percent }}%</span>
                                 @endif
-                                <form action="{{ route('club.cards.destroy', $card) }}" method="POST"
-                                      onsubmit="return confirm('Отвязать карту «{{ $card->type?->name }}» (код {{ $card->code }})?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="cci-unlink" title="Отвязать"><i class="bi bi-x-lg"></i></button>
-                                </form>
+                                @php
+                                    $cardCanDelete = !$card->transactions()->exists()
+                                        && !($card->isCounter() && (int) $card->balance <= 0);
+                                @endphp
+                                @if($cardCanDelete)
+                                    <form action="{{ route('club.cards.destroy', $card) }}" method="POST"
+                                          onsubmit="return confirm('Удалить карту «{{ $card->type?->name }}» (код {{ $card->code }})?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="cci-unlink" title="Удалить (карта без списаний)"><i class="bi bi-x-lg"></i></button>
+                                    </form>
+                                @endif
                             </div>
                         </div>
                         @endforeach

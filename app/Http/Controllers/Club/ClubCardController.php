@@ -227,8 +227,19 @@ class ClubCardController extends Controller
         $club = $this->getClub();
         if (!$club || $card->club_id !== $club->id) abort(403);
 
+        // Нельзя удалять карты с историей: по ней хоть раз списывали часы —
+        // удаление стёрло бы списания и испортило отчёты/журнал.
+        if ($card->transactions()->exists()) {
+            return back()->with('error', 'Нельзя удалить карту: по ней есть списания (история и отчёты должны остаться).');
+        }
+
+        // Нельзя удалять использованные карты-счётчики (часы кончились).
+        if ($card->isCounter() && (int) $card->balance <= 0) {
+            return back()->with('error', 'Нельзя удалить использованную карту — часы кончились.');
+        }
+
         $card->delete();
 
-        return back()->with('success', 'Карта отвязана');
+        return back()->with('success', 'Карта удалена');
     }
 }
