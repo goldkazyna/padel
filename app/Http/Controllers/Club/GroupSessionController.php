@@ -131,23 +131,6 @@ class GroupSessionController extends Controller
             });
         $pendingConductCount = $pendingSessions->count();
 
-        if ($request->boolean('debug')) {
-            dd([
-                'club' => $club->id . ' — ' . $club->name,
-                'courtIds' => $courtIds->all(),
-                'today' => $today,
-                'now_almaty' => $nowAlmaty->toDateTimeString(),
-                'since' => self::PENDING_SINCE,
-                'pendingConductCount' => $pendingConductCount,
-                'planned_in_range' => ClubGroupSession::whereIn('court_id', $courtIds)
-                    ->where('status', 'planned')
-                    ->whereDate('date', '>=', self::PENDING_SINCE)
-                    ->whereDate('date', '<=', $today)
-                    ->count(),
-                'sample' => $pendingSessions->take(5)->map(fn($s) => $s->date->format('Y-m-d') . ' ' . $s->end_time)->all(),
-            ]);
-        }
-
         $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get();
         $courts = $club->courts()->where('is_active', true)->orderBy('sort_order')->get();
 
