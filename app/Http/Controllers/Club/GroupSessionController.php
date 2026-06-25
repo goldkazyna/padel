@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 
 class GroupSessionController extends Controller
 {
+    /** Бейдж «К списанию» учитывает занятия не раньше этой даты (старые игнорируем). */
+    private const PENDING_SINCE = '2026-06-22';
+
     public function __construct(private CourtScheduleService $scheduleService) {}
 
     private function getClub()
@@ -115,17 +118,35 @@ class GroupSessionController extends Controller
 
         $totalSessions = ClubGroupSession::where($filters)->count();
 
-        // Занятия «к списанию»: запланированы, время окончания уже прошло, ещё не проведены.
-        // Считаем тем же способом, что метка «провести» в сетке (Carbon-сравнение).
-        $pendingConductCount = ClubGroupSession::whereIn('court_id', $courtIds)
+        // Занятия «к списанию»: запланированы, время окончания уже прошло, ещё не проведены,
+        // не раньше PENDING_SINCE. Считаем тем же способом, что метка «провести» в сетке.
+        $pendingSessions = ClubGroupSession::whereIn('court_id', $courtIds)
             ->where('status', 'planned')
+            ->whereDate('date', '>=', self::PENDING_SINCE)
             ->whereDate('date', '<=', $today)
             ->get(['id', 'date', 'end_time'])
             ->filter(function ($s) use ($nowAlmaty) {
                 $endsAt = Carbon::parse($s->date->format('Y-m-d') . ' ' . $s->end_time, 'Asia/Almaty');
                 return $nowAlmaty->gte($endsAt);
-            })
-            ->count();
+            });
+        $pendingConductCount = $pendingSessions->count();
+
+        if ($request->boolean('debug')) {
+            dd([
+                'club' => $club->id . ' — ' . $club->name,
+                'courtIds' => $courtIds->all(),
+                'today' => $today,
+                'now_almaty' => $nowAlmaty->toDateTimeString(),
+                'since' => self::PENDING_SINCE,
+                'pendingConductCount' => $pendingConductCount,
+                'planned_in_range' => ClubGroupSession::whereIn('court_id', $courtIds)
+                    ->where('status', 'planned')
+                    ->whereDate('date', '>=', self::PENDING_SINCE)
+                    ->whereDate('date', '<=', $today)
+                    ->count(),
+                'sample' => $pendingSessions->take(5)->map(fn($s) => $s->date->format('Y-m-d') . ' ' . $s->end_time)->all(),
+            ]);
+        }
 
         $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get();
         $courts = $club->courts()->where('is_active', true)->orderBy('sort_order')->get();
