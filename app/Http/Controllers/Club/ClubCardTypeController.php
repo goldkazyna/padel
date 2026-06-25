@@ -55,7 +55,7 @@ class ClubCardTypeController extends Controller
         }
 
         // Карты для JS-списка: только карты существующих типов, с вычисленным статусом.
-        $counts = ['all' => 0, 'active' => 0, 'soon' => 0, 'inactive' => 0, 'perp' => 0];
+        $counts = ['all' => 0, 'active' => 0, 'soon' => 0, 'inactive' => 0, 'perp' => 0, 'used' => 0];
         $cardsData = [];
         foreach ($allCards as $c) {
             if (!$c->type) continue;
@@ -76,7 +76,7 @@ class ClubCardTypeController extends Controller
                 'issued' => $c->created_at ? $c->created_at->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->locale('ru')->translatedFormat('j M Y') : '—',
                 'exp' => $c->expires_at ? $c->expires_at->timestamp : PHP_INT_MAX,
                 'st' => $st,
-                'low' => $counter && $st !== 'inactive' && $bal <= 4,
+                'low' => $counter && $st !== 'inactive' && $st !== 'used' && $bal > 0 && $bal <= 4,
                 'url' => $c->client ? route('club.clients.index', ['selected' => $c->client->id]) : null,
                 'del' => route('club.cards.destroy', $c->id),
             ];
@@ -123,6 +123,8 @@ class ClubCardTypeController extends Controller
     private function cardUiStatus(\App\Models\ClubCard $card, \Carbon\Carbon $today, \Carbon\Carbon $soonEdge): string
     {
         if ($card->status !== 'active') return 'inactive';
+        // Счётчик с нулевым остатком — карта использована (часы кончились).
+        if ($card->isCounter() && (int) $card->balance <= 0) return 'used';
         if ($card->expires_at === null) return 'perp';
         $exp = $card->expires_at->copy()->startOfDay();
         if ($exp->lt($today)) return 'inactive';

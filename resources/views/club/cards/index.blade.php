@@ -75,6 +75,7 @@
             <span class="cc-fpill" data-f="active">Активные <span class="c">{{ $counts['active'] }}</span></span>
             <span class="cc-fpill" data-f="soon">Истекают <span class="c">{{ $counts['soon'] }}</span></span>
             <span class="cc-fpill" data-f="perp">Бессрочные <span class="c">{{ $counts['perp'] }}</span></span>
+            <span class="cc-fpill" data-f="used">Использованные <span class="c">{{ $counts['used'] }}</span></span>
             <span class="cc-fpill" data-f="inactive">Не активна <span class="c">{{ $counts['inactive'] }}</span></span>
         </div>
         <div class="cc-sorts" id="ccSorts">
@@ -172,6 +173,7 @@
 .cc-rrem{width:160px;text-align:right;font-size:13px;color:var(--text-secondary)}
 .cc-rrem b{color:var(--text-primary);font-weight:800}
 .cc-rrem .malo{color:var(--amber,#f59e0b);font-weight:700;font-size:12px;margin-left:6px}
+.cc-rrem .ended{color:#ef4444;font-weight:700;font-size:12px;margin-left:6px}
 .cc-rdate{width:148px;text-align:right;color:var(--text-secondary);font-size:12px;line-height:1.45}
 .cc-dline{white-space:nowrap}
 .cc-dexp{color:var(--text-muted);font-size:11px;margin-top:1px}
@@ -183,6 +185,7 @@
 .cc-spill.s-soon{background:rgba(245,158,11,.14);color:#f59e0b}.cc-spill.s-soon::before{background:#f59e0b}
 .cc-spill.s-inactive{background:rgba(239,68,68,.14);color:#ef4444}.cc-spill.s-inactive::before{background:#ef4444}
 .cc-spill.s-perp{background:rgba(139,92,246,.16);color:#a78bfa}.cc-spill.s-perp::before{background:#a78bfa}
+.cc-spill.s-used{background:rgba(113,113,122,.18);color:#a1a1aa}.cc-spill.s-used::before{background:#a1a1aa}
 .cc-ract{width:58px;display:flex;gap:4px;justify-content:flex-end;opacity:0;transition:opacity .15s}
 .cc-row:hover .cc-ract{opacity:1}
 .cc-more{text-align:center;padding:11px;border-top:1px dashed var(--border-light);color:var(--text-secondary);font-size:13px;cursor:pointer}
@@ -210,7 +213,7 @@
       <circle cx="19" cy="19" r="16" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/></svg>
       <div class="rt" style="color:${col}">${c.bal}<span class="small">из ${c.init}</span></div></div>`;
   }
-  function pill(st){ return ({active:['s-active','Активна'],soon:['s-soon','Истекает'],inactive:['s-inactive','Не активна'],perp:['s-perp','Бессрочно']})[st]; }
+  function pill(st){ return ({active:['s-active','Активна'],soon:['s-soon','Истекает'],inactive:['s-inactive','Не активна'],perp:['s-perp','Бессрочно'],used:['s-used','Использована']})[st]; }
   function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   function matches(c){
     if(fQuery){ const q=fQuery.toLowerCase(); if(!(c.name.toLowerCase().includes(q)||c.code.toLowerCase().includes(q))) return false; }
@@ -225,7 +228,8 @@
   }
   function rowHtml(c,i){
     const [cls,label]=pill(c.st);
-    const rem = c.counter ? `<b>${c.bal}</b> из ${c.init} ч${c.low?'<span class="malo">мало</span>':''}` : `Скидка ${c.discount}%`;
+    const tag = c.st==='used' ? '<span class="ended">кончилась</span>' : (c.low ? '<span class="malo">мало</span>' : '');
+    const rem = c.counter ? `<b>${c.bal}</b> из ${c.init} ч${tag}` : `Скидка ${c.discount}%`;
     const del = c.del ? `<span class="cc-ic cc-ic-del" title="Удалить" onclick="event.stopPropagation();ccDelete('${c.del}','${esc(c.name)}')"><i class="bi bi-trash"></i></span>` : '';
     const onclick = c.url ? `onclick="location.href='${c.url}'"` : '';
     return `<div class="cc-row ${i>=PER?'cc-hidden':''}" ${onclick}>
