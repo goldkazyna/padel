@@ -250,11 +250,13 @@ class GroupSessionController extends Controller
         $club = $this->getClub();
         $this->authorizeSession($club, $session);
 
-        $session->load(['group.members.client', 'group.members.enrollments', 'group.members.attendance', 'court', 'coach', 'attendance']);
-        $members = $session->group->members()->where('status', 'active')->with('client')->get();
-        $existing = $session->attendance->keyBy('group_member_id');
+        $session->load(['group.members.client', 'group.members.enrollments', 'group.members.attendance', 'court', 'coach', 'attendance.client']);
+        $members = $session->group->members()->where('status', 'active')->with(['client', 'freezes'])->get();
+        $existing = $session->attendance->whereNotNull('group_member_id')->keyBy('group_member_id');
+        // Пробные гости (строки посещаемости без членства).
+        $guests = $session->attendance->whereNotNull('client_id');
 
-        return view('club.group-sessions.show', compact('session', 'members', 'existing', 'club'));
+        return view('club.group-sessions.show', compact('session', 'members', 'existing', 'guests', 'club'));
     }
 
     public function conduct(Request $request, ClubGroupSession $session)

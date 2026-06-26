@@ -173,6 +173,44 @@ class ClubGroupAttendanceTest extends TestCase
         $this->assertSame(2, $member->fresh()->remaining);
     }
 
+    public function test_session_show_renders_with_freeze_and_guest_ui(): void
+    {
+        [$club, $admin, $group, $member, $session] = $this->scenario(2);
+        \App\Models\ClubGroupMemberFreeze::create([
+            'group_member_id' => $member->id,
+            'freeze_from' => now()->subDays(3)->toDateString(),
+            'freeze_until' => now()->toDateString(),
+        ]);
+        $guest = ClubClient::create(['club_id' => $club->id, 'name' => 'Гость']);
+        \App\Models\ClubGroupAttendance::create([
+            'session_id' => $session->id, 'client_id' => $guest->id,
+            'attended' => true, 'charged' => false, 'is_trial' => true, 'trial_amount' => 2000,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.groupSessions.show', $session))
+            ->assertOk()
+            ->assertSee('Пробные гости')
+            ->assertSee('заморожен');
+    }
+
+    public function test_group_show_renders_with_freeze_chip(): void
+    {
+        [, $admin, $group, $member] = $this->scenario(2);
+        \App\Models\ClubGroupMemberFreeze::create([
+            'group_member_id' => $member->id,
+            'freeze_from' => now()->subDay()->toDateString(),
+            'freeze_until' => now()->addDays(5)->toDateString(),
+            'note' => 'отпуск',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.groups.show', $group))
+            ->assertOk()
+            ->assertSee('Заморозить')
+            ->assertSee('отпуск');
+    }
+
     public function test_conduct_blocked_before_session_end(): void
     {
         [, $admin, , $member, $session] = $this->scenario(2);

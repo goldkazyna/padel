@@ -95,7 +95,7 @@ class ClubGroupController extends Controller
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id) abort(403);
 
-        $group->load(['coach', 'members.client', 'members.enrollments']);
+        $group->load(['coach', 'members.client', 'members.enrollments', 'members.freezes']);
         $sessions = $group->sessions()->with('court')->orderByDesc('date')->orderByDesc('start_time')->get();
         $coaches = $club->clubCoaches()->with('user')->get();
         $clients = ClubClient::where('club_id', $club->id)->orderBy('name')->get();

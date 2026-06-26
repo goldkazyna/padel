@@ -85,12 +85,20 @@
                     <p>Участников пока нет.</p>
                 </div>
             @else
+                @php $today = \Carbon\Carbon::today(); @endphp
                 @foreach($activeMembers as $member)
+                    @php
+                        $rem = $member->remaining;
+                        $activeFreeze = $member->freezes->first(fn($f) => $f->freeze_from->lte($today) && $f->freeze_until->gte($today));
+                    @endphp
                     <div class="member-row">
-                        <div class="member-name">{{ optional($member->client)->name ?? '—' }}</div>
+                        <div class="member-name">
+                            {{ optional($member->client)->name ?? '—' }}
+                            @if($activeFreeze)<span class="freeze-badge" title="Заморожен">❄ до {{ $activeFreeze->freeze_until->format('d.m.y') }}</span>@endif
+                        </div>
                         <div class="member-right">
-                            @php $rem = $member->remaining; @endphp
                             <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
+                            <button class="action-btn action-freeze" onclick="openFreezeModal({{ $member->id }})" title="Заморозить">❄</button>
                             <button class="action-btn action-renew" onclick="openEnrollModal({{ $member->id }})" title="Продлить">+</button>
                             <form method="POST"
                                   action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
@@ -102,6 +110,20 @@
                             </form>
                         </div>
                     </div>
+                    @if($member->freezes->isNotEmpty())
+                        <div class="member-freezes">
+                            @foreach($member->freezes->sortByDesc('freeze_from') as $f)
+                                <span class="freeze-chip">
+                                    {{ $f->freeze_from->format('d.m.y') }}–{{ $f->freeze_until->format('d.m.y') }}@if($f->note) · {{ $f->note }}@endif
+                                    <form method="POST" action="{{ route('club.groups.members.unfreeze', [$group, $member, $f]) }}"
+                                          onsubmit="return confirm('Снять заморозку?')" style="display:inline;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="freeze-chip-x" title="Снять">&#10005;</button>
+                                    </form>
+                                </span>
+                            @endforeach
+                        </div>
+                    @endif
                 @endforeach
             @endif
         </div>
@@ -228,6 +250,42 @@
     </div>
 </div>
 
+<!-- Модал заморозки участника -->
+<div id="freezeModal"
+     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header-row">
+            <h5 class="modal-title-text">Заморозить участника</h5>
+            <button type="button" class="modal-close-btn" onclick="document.getElementById('freezeModal').style.display='none'">&#10005;</button>
+        </div>
+        <form id="freezeForm" method="POST" action="">
+            @csrf
+            <div class="modal-body-area">
+                <p style="color:#a1a1aa;font-size:13px;margin:0 0 12px;">В период заморозки занятия участнику не списываются.</p>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">С <span style="color:#ef4444">*</span></label>
+                        <input type="date" name="freeze_from" id="freezeFrom" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">По <span style="color:#ef4444">*</span></label>
+                        <input type="date" name="freeze_until" id="freezeUntil" class="form-input" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Заметка</label>
+                    <input type="text" name="note" class="form-input" maxlength="255" placeholder="Напр.: отпуск, травма">
+                </div>
+            </div>
+            <div class="modal-footer-row">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('freezeModal').style.display='none'">Отмена</button>
+                <button type="submit" class="btn-save">Заморозить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Модал редактирования группы -->
 <div id="editGroupModal"
      style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
@@ -297,6 +355,17 @@
         {{ $member->id }}: "{{ route('club.groups.members.enroll', [$group, $member]) }}",
         @endforeach
     };
+
+    var freezeRoutes = {
+        @foreach($group->members->where('status', 'active') as $member)
+        {{ $member->id }}: "{{ route('club.groups.members.freeze', [$group, $member]) }}",
+        @endforeach
+    };
+    function openFreezeModal(memberId) {
+        var form = document.getElementById('freezeForm');
+        form.action = freezeRoutes[memberId] || '';
+        document.getElementById('freezeModal').style.display = 'flex';
+    }
 
     function openEnrollModal(memberId) {
         var form = document.getElementById('enrollForm');
@@ -413,6 +482,12 @@
     .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 7px; cursor: pointer; color: #a1a1aa; font-size: 14px; transition: all 0.2s; font-weight: 700; }
     .action-renew:hover { border-color: #22c55e; color: #22c55e; }
     .action-remove:hover { border-color: #ef4444; color: #ef4444; }
+    .action-freeze:hover { border-color: #38bdf8; color: #38bdf8; }
+    .freeze-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,.12); border-radius: 6px; padding: 2px 7px; }
+    .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px 20px; }
+    .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
+    .freeze-chip-x { background: none; border: none; color: #71717a; cursor: pointer; font-size: 11px; padding: 0 4px; }
+    .freeze-chip-x:hover { color: #ef4444; }
 
     .session-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #1c1c1f; text-decoration: none; transition: background 0.15s; }
     .session-row:last-child { border-bottom: none; }

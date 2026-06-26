@@ -88,18 +88,24 @@
                 @if($members->isEmpty())
                     <div class="empty-state-small">В группе нет активных участников.</div>
                 @else
-                    <div class="attendance-table-header">
+                    <div class="attendance-table-header att-grid">
                         <div class="att-col-name">Участник</div>
                         <div class="att-col-rem">Остаток</div>
                         <div class="att-col-cb">Пришёл</div>
                         <div class="att-col-cb">Списать</div>
+                        <div class="att-col-trial">Пробное&nbsp;₸</div>
                     </div>
                     @foreach($members as $m)
-                        @php $rem = $m->remaining; @endphp
-                        <div class="attendance-row {{ $rem <= 0 ? 'row-warn' : '' }}">
+                        @php
+                            $rem = $m->remaining;
+                            $frozen = $m->freezes->first(fn($f) => $f->freeze_from->lte($session->date) && $f->freeze_until->gte($session->date));
+                        @endphp
+                        <div class="attendance-row att-grid {{ $rem <= 0 && !$frozen ? 'row-warn' : '' }}">
                             <div class="att-col-name">
                                 <span class="att-name">{{ $m->client->name }}</span>
-                                @if($rem <= 0)
+                                @if($frozen)
+                                    <span class="freeze-badge">❄ заморожен до {{ $frozen->freeze_until->format('d.m.y') }}</span>
+                                @elseif($rem <= 0)
                                     <span class="need-renew-badge">нужно продлить</span>
                                 @endif
                             </div>
@@ -107,19 +113,21 @@
                                 <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
                             </div>
                             <div class="att-col-cb">
-                                <input type="checkbox"
-                                    class="att-checkbox"
-                                    name="attendance[{{ $m->id }}][attended]"
-                                    value="1"
-                                    id="att_{{ $m->id }}">
+                                <input type="checkbox" class="att-checkbox"
+                                    name="attendance[{{ $m->id }}][attended]" value="1" id="att_{{ $m->id }}">
                             </div>
                             <div class="att-col-cb">
-                                <input type="checkbox"
-                                    class="att-checkbox"
-                                    name="attendance[{{ $m->id }}][charged]"
-                                    value="1"
-                                    id="chg_{{ $m->id }}"
-                                    {{ $rem <= 0 ? 'disabled' : '' }}>
+                                <input type="checkbox" class="att-checkbox chg-checkbox"
+                                    name="attendance[{{ $m->id }}][charged]" value="1" id="chg_{{ $m->id }}"
+                                    @if($frozen) data-locked-frozen="1" @endif
+                                    {{ ($rem <= 0 || $frozen) ? 'disabled' : '' }}>
+                            </div>
+                            <div class="att-col-trial">
+                                <input type="checkbox" class="att-checkbox trial-checkbox"
+                                    name="attendance[{{ $m->id }}][is_trial]" value="1" id="trial_{{ $m->id }}"
+                                    onchange="toggleTrial({{ $m->id }})">
+                                <input type="number" min="0" step="100" placeholder="₸" class="trial-amount"
+                                    name="attendance[{{ $m->id }}][trial_amount]" id="tamt_{{ $m->id }}" style="display:none;">
                             </div>
                         </div>
                     @endforeach
@@ -130,6 +138,48 @@
                 <button type="submit" class="btn-conduct">&#10003; Провести занятие</button>
             </div>
         </form>
+
+        {{-- Пробные гости (не члены группы) --}}
+        <div class="attendance-card">
+            <div class="attendance-card-header">
+                <h2 class="attendance-title">Пробные гости</h2>
+            </div>
+            @forelse($guests as $g)
+                <div class="attendance-row guest-row">
+                    <div class="att-col-name">
+                        <span class="att-name">{{ $g->client->name ?? '—' }}</span>
+                        <span class="trial-badge">пробное</span>
+                        <span class="guest-amt">{{ (int) $g->trial_amount > 0 ? number_format($g->trial_amount, 0, '', ' ') . ' ₸' : 'бесплатно' }}</span>
+                    </div>
+                    <form method="POST" action="{{ route('club.groupSessions.trialGuest.remove', [$session, $g]) }}"
+                          onsubmit="return confirm('Убрать пробного гостя?')" style="margin-left:auto;">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="action-btn-x" title="Убрать">&#10005;</button>
+                    </form>
+                </div>
+            @empty
+                <div class="empty-state-small" style="padding:16px 24px;">Пробных гостей нет.</div>
+            @endforelse
+
+            {{-- Добавить пробного гостя --}}
+            <form method="POST" action="{{ route('club.groupSessions.trialGuest', $session) }}" class="guest-add" onsubmit="return guestValid()">
+                @csrf
+                <div class="guest-add-row">
+                    <div style="position:relative;flex:1;">
+                        <input type="text" id="guestSearch" class="guest-input" autocomplete="off"
+                               placeholder="Поиск клиента по имени или телефону…" oninput="searchGuests(this.value)">
+                        <div id="guestResults" class="guest-results" style="display:none;"></div>
+                        <input type="hidden" name="client_id" id="guestClientId">
+                        <div id="guestSelected" class="guest-selected" style="display:none;">
+                            <span id="guestSelectedName"></span>
+                            <button type="button" onclick="clearGuest()" class="guest-clear">&#10005;</button>
+                        </div>
+                    </div>
+                    <input type="number" name="trial_amount" min="0" step="100" placeholder="Сумма ₸" class="guest-amount-input">
+                    <button type="submit" class="btn-guest-add">+ Добавить</button>
+                </div>
+            </form>
+        </div>
         @endif
 
         {{-- Cancel form --}}
@@ -191,6 +241,70 @@
 
 </div>
 
+<script>
+    // Пробное у члена: при включении снимаем «списать» (пробное не тратит пакет).
+    function toggleTrial(id) {
+        var trial = document.getElementById('trial_' + id);
+        var amt = document.getElementById('tamt_' + id);
+        var chg = document.getElementById('chg_' + id);
+        if (trial.checked) {
+            amt.style.display = '';
+            if (chg) { chg.checked = false; chg.disabled = true; }
+        } else {
+            amt.style.display = 'none';
+            if (chg && !chg.dataset.lockedFrozen) { chg.disabled = false; }
+        }
+    }
+
+    // Поиск клиента для пробного гостя (тот же эндпоинт, что в группах).
+    var guestTimer;
+    function searchGuests(q) {
+        clearTimeout(guestTimer);
+        var box = document.getElementById('guestResults');
+        q = (q || '').trim();
+        if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        var field = /\d/.test(q) ? 'phone' : 'name';
+        guestTimer = setTimeout(function () {
+            fetch('{{ route("club.clients.search") }}?field=' + field + '&q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (list) {
+                    box.innerHTML = '';
+                    if (!list.length) {
+                        box.innerHTML = '<div style="padding:12px;color:#71717a;font-size:13px;">Ничего не найдено</div>';
+                        box.style.display = 'block';
+                        return;
+                    }
+                    list.forEach(function (c) {
+                        var item = document.createElement('div');
+                        item.className = 'guest-result-item';
+                        item.innerHTML = '<span>' + (c.name || '') + '</span><span style="color:#71717a">' + (c.phone || '') + '</span>';
+                        item.addEventListener('click', function () { selectGuest(c.id, c.name || ''); });
+                        box.appendChild(item);
+                    });
+                    box.style.display = 'block';
+                });
+        }, 250);
+    }
+    function selectGuest(id, name) {
+        document.getElementById('guestClientId').value = id;
+        document.getElementById('guestSelectedName').textContent = name;
+        document.getElementById('guestSelected').style.display = 'flex';
+        document.getElementById('guestResults').style.display = 'none';
+        document.getElementById('guestSearch').value = '';
+    }
+    function clearGuest() {
+        document.getElementById('guestClientId').value = '';
+        document.getElementById('guestSelected').style.display = 'none';
+    }
+    function guestValid() {
+        if (!document.getElementById('guestClientId').value) {
+            alert('Выберите клиента для пробного занятия');
+            return false;
+        }
+        return true;
+    }
+</script>
+
 <style>
     .gsession-container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
     .gsession-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
@@ -249,11 +363,36 @@
 
     .empty-state-small { padding: 32px 24px; text-align: center; color: #71717a; font-size: 14px; }
 
+    /* 5-колоночная сетка с колонкой «Пробное» */
+    .att-grid { grid-template-columns: 1fr 64px 64px 64px 104px; }
+    .att-col-trial { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .trial-amount { width: 64px; background: #16161a; border: 1px solid #27272a; border-radius: 7px; color: #f4f4f5; padding: 5px 7px; font-size: 13px; }
+    .freeze-badge { display: inline-flex; align-items: center; padding: 2px 8px; background: rgba(56,189,248,.12); color: #38bdf8; border: 1px solid rgba(56,189,248,.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .trial-badge { display: inline-flex; align-items: center; padding: 2px 8px; background: rgba(168,85,247,.14); color: #c084fc; border: 1px solid rgba(168,85,247,.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+
+    .guest-row { display: flex; align-items: center; }
+    .guest-amt { color: #a1a1aa; font-size: 13px; }
+    .action-btn-x { background: #16161a; border: 1px solid #27272a; border-radius: 7px; color: #a1a1aa; width: 30px; height: 30px; cursor: pointer; }
+    .action-btn-x:hover { border-color: #ef4444; color: #ef4444; }
+    .guest-add { padding: 14px 24px; border-top: 1px solid #1c1c1f; }
+    .guest-add-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+    .guest-input { flex: 1; min-width: 180px; background: #16161a; border: 1px solid #27272a; border-radius: 9px; color: #f4f4f5; padding: 9px 12px; font-size: 14px; }
+    .guest-amount-input { width: 120px; background: #16161a; border: 1px solid #27272a; border-radius: 9px; color: #f4f4f5; padding: 9px 12px; font-size: 14px; }
+    .btn-guest-add { background: rgba(168,85,247,.16); color: #c084fc; border: 1px solid rgba(168,85,247,.35); border-radius: 9px; padding: 9px 16px; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .btn-guest-add:hover { background: rgba(168,85,247,.28); }
+    .guest-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 10; background: #16161a; border: 1px solid #27272a; border-radius: 10px; margin-top: 4px; max-height: 220px; overflow-y: auto; }
+    .guest-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #27272a; display: flex; justify-content: space-between; gap: 8px; color: #f4f4f5; font-size: 14px; }
+    .guest-result-item:hover { background: #1a1a1e; }
+    .guest-selected { align-items: center; justify-content: space-between; margin-top: 8px; padding: 9px 12px; background: #16161a; border: 1px solid #22c55e; border-radius: 9px; color: #22c55e; font-weight: 700; font-size: 14px; }
+    .guest-clear { background: none; border: none; color: #71717a; cursor: pointer; font-size: 14px; }
+
     @media (max-width: 600px) {
         .gsession-header { flex-direction: column; align-items: flex-start; }
         .meta-card { flex-direction: column; align-items: flex-start; }
         .meta-divider { display: none; }
         .attendance-table-header, .attendance-row { grid-template-columns: 1fr 60px 60px 60px; }
+        .att-grid { grid-template-columns: 1fr 48px 48px 48px 76px; }
+        .guest-row { grid-template-columns: none; }
     }
 </style>
 
