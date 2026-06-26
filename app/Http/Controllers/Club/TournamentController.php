@@ -302,6 +302,12 @@ class TournamentController extends Controller
 		}
 		unset($validated['flex_courts_count']);
 
+		// Завершённый турнир — статус менять нельзя (рейтинг уже начислен,
+		// переоткрытие/повторное завершение задвоит рейтинг). Защита от обхода формы.
+		if ($tournament->status === 'completed') {
+			$validated['status'] = 'completed';
+		}
+
 		// Рейтинговый турнир + только для верифицированных игроков
 		$validated['is_rated'] = $request->has('is_rated');
 		$validated['verified_only'] = $request->has('verified_only');

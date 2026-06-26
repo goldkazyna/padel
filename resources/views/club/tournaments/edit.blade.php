@@ -310,23 +310,30 @@
 					@endif
                     <div class="mb-4">
                         <label class="form-label">Статус *</label>
-                        <select name="status" class="form-select" required>
-                            <option value="draft" {{ old('status', $tournament->status) === 'draft' ? 'selected' : '' }}>Черновик</option>
-                            <option value="open" {{ old('status', $tournament->status) === 'open' ? 'selected' : '' }}>Открыта регистрация</option>
-                            {{-- Статусы «закрыта/идёт/завершён» вручную не выставляем — опция
-                                 остаётся только если турнир уже в ней, чтобы при сохранении
-                                 статус не слетел на «Черновик». --}}
-                            @if($tournament->status === 'closed')
-                            <option value="closed" selected>Регистрация закрыта</option>
-                            @endif
-                            @if($tournament->status === 'in_progress')
-                            <option value="in_progress" selected>Идёт турнир</option>
-                            @endif
-                            @if($tournament->status === 'completed')
-                            <option value="completed" selected>Завершён</option>
-                            @endif
-                            <option value="cancelled" {{ old('status', $tournament->status) === 'cancelled' ? 'selected' : '' }}>Отменён</option>
-                        </select>
+                        @if($tournament->status === 'completed')
+                            {{-- Завершённый турнир: статус менять нельзя — рейтинг уже начислен,
+                                 переоткрытие/повторное завершение задвоит рейтинг. --}}
+                            <select class="form-select" disabled>
+                                <option selected>Завершён</option>
+                            </select>
+                            <input type="hidden" name="status" value="completed">
+                            <small class="text-muted d-block mt-1">Турнир завершён — статус изменить нельзя.</small>
+                        @else
+                            <select name="status" class="form-select" required>
+                                <option value="draft" {{ old('status', $tournament->status) === 'draft' ? 'selected' : '' }}>Черновик</option>
+                                <option value="open" {{ old('status', $tournament->status) === 'open' ? 'selected' : '' }}>Открыта регистрация</option>
+                                {{-- Статусы «закрыта/идёт» вручную не выставляем — опция
+                                     остаётся только если турнир уже в ней, чтобы при сохранении
+                                     статус не слетел на «Черновик». --}}
+                                @if($tournament->status === 'closed')
+                                <option value="closed" selected>Регистрация закрыта</option>
+                                @endif
+                                @if($tournament->status === 'in_progress')
+                                <option value="in_progress" selected>Идёт турнир</option>
+                                @endif
+                                <option value="cancelled" {{ old('status', $tournament->status) === 'cancelled' ? 'selected' : '' }}>Отменён</option>
+                            </select>
+                        @endif
                     </div>
 
                     <div class="d-flex gap-3">
