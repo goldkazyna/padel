@@ -68,6 +68,54 @@ class CoachesReportServiceTest extends TestCase
         $this->assertEquals(20000, $row[6]);  // итого
     }
 
+    public function test_unpaid_lists_only_unpaid_coach_bookings(): void
+    {
+        $club = Club::create(['name' => 'C4', 'address' => 'A4']);
+        $court = Court::create(['club_id' => $club->id, 'name' => 'Корт 1', 'open_time' => '08:00', 'close_time' => '22:00', 'slot_duration' => 60]);
+        $booker = User::factory()->create();
+        $coachUser = User::factory()->create(['name' => 'Тренер Неоплата']);
+        ClubCoach::create(['club_id' => $club->id, 'user_id' => $coachUser->id, 'hourly_rate' => 4000]);
+
+        // A: неоплаченная индивидуальная с явной coach_price 10000 → в отчёте
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-05', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Клиент A', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_price' => 10000, 'coach_paid' => false, 'booking_type' => 'individual', 'booked_by' => $booker->id]);
+        // B: оплаченная → не в отчёте
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-06', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Клиент B', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_price' => 9000, 'coach_paid' => true, 'booking_type' => 'individual', 'booked_by' => $booker->id]);
+        // C: без тренера → не в отчёте
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-07', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Клиент C', 'price' => 5000, 'discount' => 0, 'status' => 'confirmed', 'coach_paid' => null, 'booked_by' => $booker->id]);
+        // D: неоплаченная вне периода → не в отчёте
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-06-05', 'start_time' => '10:00', 'end_time' => '11:00', 'client_name' => 'Клиент D', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_price' => 7000, 'coach_paid' => false, 'booking_type' => 'individual', 'booked_by' => $booker->id]);
+
+        $svc = new CoachesReportService();
+        $sheet = $svc->unpaid($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
+
+        // Только бронь A
+        $this->assertCount(1, $sheet->rows);
+        $row = $sheet->rows[0];
+        // headings: [Дата, Время, Корт, Тренер, Клиент, Тип, Сумма тренеру]
+        $this->assertEquals('Тренер Неоплата', $row[3]);
+        $this->assertEquals('Клиент A', $row[4]);
+        $this->assertEquals(10000, $row[6]);
+        $this->assertEquals(10000, $sheet->totals[6]); // итог к выплате
+    }
+
+    public function test_unpaid_falls_back_to_hourly_rate_when_no_coach_price(): void
+    {
+        $club = Club::create(['name' => 'C5', 'address' => 'A5']);
+        $court = Court::create(['club_id' => $club->id, 'name' => 'Корт 2', 'open_time' => '08:00', 'close_time' => '22:00', 'slot_duration' => 60]);
+        $booker = User::factory()->create();
+        $coachUser = User::factory()->create(['name' => 'Тренер Ставка']);
+        ClubCoach::create(['club_id' => $club->id, 'user_id' => $coachUser->id, 'hourly_rate' => 4000]);
+
+        // 2 часа, без coach_price → ставка 4000 × 2ч = 8000
+        CourtBooking::create(['court_id' => $court->id, 'date' => '2026-05-10', 'start_time' => '10:00', 'end_time' => '12:00', 'client_name' => 'Клиент', 'price' => 0, 'discount' => 0, 'status' => 'confirmed', 'coach_id' => $coachUser->id, 'coach_paid' => false, 'booking_type' => 'individual', 'booked_by' => $booker->id]);
+
+        $svc = new CoachesReportService();
+        $sheet = $svc->unpaid($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
+
+        $this->assertCount(1, $sheet->rows);
+        $this->assertEquals(8000, $sheet->rows[0][6]);
+    }
+
     public function test_salary_falls_back_to_hourly_rate_when_no_coach_rates(): void
     {
         $club = Club::create(['name' => 'C2', 'address' => 'A2']);

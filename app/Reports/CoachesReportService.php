@@ -220,6 +220,66 @@ class CoachesReportService
         return ['group' => $group, 'individual' => $individual];
     }
 
+    /**
+     * Неоплаченные тренеры за период: брони с назначенным тренером и
+     * coach_paid = false. Строка на каждую бронь, сумма к выплате тренеру =
+     * coach_price из брони, либо ставка × часы.
+     */
+    public function unpaid(Club $club, Carbon $from, Carbon $to): ReportSheet
+    {
+        $bookings = CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
+            ->where('status', 'confirmed')
+            ->whereNotNull('coach_id')
+            ->where('coach_paid', false)
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->with('court')
+            ->get();
+
+        $names = [];
+        $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $typeLabels = [
+            'soft'       => 'Мягкая',
+            'group'      => 'Групповая',
+            'individual' => 'Индивид.',
+            'tournament' => 'Турнир',
+        ];
+
+        $rows = [];
+        $total = 0.0;
+        foreach ($bookings as $b) {
+            $h = $this->hours($b->start_time, $b->end_time);
+            $amount = $b->coach_price !== null
+                ? (float) $b->coach_price
+                : ($profiles->get($b->coach_id)?->getRateForHours((int) floor($h)) ?? 0.0);
+
+            $rows[] = [
+                $this->formatDate($b->date),
+                Carbon::parse($b->start_time)->format('H:i') . '–' . Carbon::parse($b->end_time)->format('H:i'),
+                $b->court->name ?? '',
+                $this->coachName($b->coach_id, $names),
+                $b->client_name ?? '',
+                $typeLabels[$b->booking_type] ?? '',
+                round($amount, 2),
+                $b->date instanceof Carbon ? $b->date->toDateString() : (string) $b->date, // sort key
+            ];
+            $total += $amount;
+        }
+
+        // Сортировка: по тренеру, затем по дате.
+        usort($rows, fn($a, $b) => [$a[3], $a[7]] <=> [$b[3], $b[7]]);
+        // Убираем вспомогательный ключ сортировки.
+        $rows = array_map(fn($r) => array_slice($r, 0, 7), $rows);
+
+        return new ReportSheet(
+            title: 'Неоплаченные тренеры',
+            headings: ['Дата', 'Время', 'Корт', 'Тренер', 'Клиент', 'Тип', 'Сумма тренеру'],
+            rows: $rows,
+            totals: ['Итого', '', '', '', '', '', round($total, 2)],
+            columnFormats: [6 => '#,##0'],
+        );
+    }
+
     public function salary(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $bookings = $this->coachBookings($club, $from, $to);
