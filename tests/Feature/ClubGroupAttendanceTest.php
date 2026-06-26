@@ -173,6 +173,22 @@ class ClubGroupAttendanceTest extends TestCase
         $this->assertSame(2, $member->fresh()->remaining);
     }
 
+    public function test_remove_trial_guest_deletes_attendance(): void
+    {
+        [$club, $admin, , , $session] = $this->scenario(2);
+        $guest = ClubClient::create(['club_id' => $club->id, 'name' => 'Гость']);
+        $att = \App\Models\ClubGroupAttendance::create([
+            'session_id' => $session->id, 'client_id' => $guest->id,
+            'attended' => true, 'charged' => false, 'is_trial' => true, 'trial_amount' => 3000,
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('club.groupSessions.trialGuest.remove', [$session, $att]))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('club_group_attendance', ['id' => $att->id]);
+    }
+
     public function test_session_show_renders_with_freeze_and_guest_ui(): void
     {
         [$club, $admin, $group, $member, $session] = $this->scenario(2);

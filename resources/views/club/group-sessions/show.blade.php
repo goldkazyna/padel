@@ -156,9 +156,10 @@
                     @endforeach
                 @endif
             </div>
+        </form>
 
-            {{-- Пробные гости --}}
-            <div class="attendance-card">
+        {{-- Пробные гости --}}
+        <div class="attendance-card">
                 <div class="attendance-card-header">
                     <span class="dot dot-purple"></span>
                     <h2 class="attendance-title">Пробные гости</h2>
@@ -182,31 +183,9 @@
                 @empty
                     <div class="empty-state-small" style="padding:18px 24px;">Пробных гостей нет.</div>
                 @endforelse
-            </div>
+        </div>
 
-            <div class="session-summary">
-                <div class="summary-head">При проведении произойдёт</div>
-                <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">💳</span> Спишется занятий с карт</span>
-                    <span class="summary-val sv-green" id="sumCharge">0</span>
-                </div>
-                <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">⭐</span> Пробных (участники + гости)</span>
-                    <span class="summary-val sv-purple" id="sumTrial">0</span>
-                </div>
-                <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">💰</span> Принято денег за пробные</span>
-                    <span class="summary-val sv-purple" id="sumMoney">0 ₸</span>
-                </div>
-            </div>
-
-            <div class="session-actions">
-                <button type="submit" class="btn-conduct">&#10003; Провести занятие</button>
-                <button type="button" class="btn-cancel-session" onclick="document.getElementById('cancelForm').submit()">&#10005; Отменить занятие</button>
-            </div>
-        </form>
-
-        {{-- Добавить пробного гостя (отдельная форма) --}}
+        {{-- Добавить пробного гостя --}}
         <form method="POST" action="{{ route('club.groupSessions.trialGuest', $session) }}" class="guest-add-card" onsubmit="return guestValid()">
             @csrf
             <div class="guest-add-row">
@@ -224,6 +203,27 @@
                 <button type="submit" class="btn-guest-add">+ Добавить</button>
             </div>
         </form>
+
+        <div class="session-summary">
+                <div class="summary-head">При проведении произойдёт</div>
+                <div class="summary-row">
+                    <span class="summary-label"><span class="summary-ic">💳</span> Спишется занятий с карт</span>
+                    <span class="summary-val sv-green" id="sumCharge">0</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label"><span class="summary-ic">⭐</span> Пробных (участники + гости)</span>
+                    <span class="summary-val sv-purple" id="sumTrial">0</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label"><span class="summary-ic">💰</span> Принято денег за пробные</span>
+                    <span class="summary-val sv-purple" id="sumMoney">0 ₸</span>
+                </div>
+            </div>
+
+            <div class="session-actions">
+                <button type="submit" form="conductForm" class="btn-conduct">&#10003; Провести занятие</button>
+                <button type="button" class="btn-cancel-session" onclick="document.getElementById('cancelForm').submit()">&#10005; Отменить занятие</button>
+            </div>
 
         {{-- Скрытая форма отмены занятия --}}
         <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" id="cancelForm"
