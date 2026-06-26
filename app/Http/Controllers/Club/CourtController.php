@@ -786,7 +786,11 @@ class CourtController extends Controller
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
                 'coach_id' => $validated['coach_id'] ?? null,
-                'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
+                // Групповые занятия: тренер всегда считается оплаченным (в форме группы
+                // нет переключателя оплаты). Иначе — берём из формы.
+                'coach_paid' => !empty($validated['coach_id'])
+                    ? ($isGroupBooking ? true : $request->boolean('coach_paid'))
+                    : null,
                 'coach_price' => !empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null,
                 'club_card_id' => $clubCardId,
             ]);
@@ -1014,7 +1018,10 @@ class CourtController extends Controller
             'comment' => $validated['comment'] ?? null,
             'booking_type' => $validated['booking_type'] ?? null,
             'coach_id' => ($validated['coach_id'] ?? null) ?: null,
-            'coach_paid' => !empty($validated['coach_id']) ? $request->boolean('coach_paid') : null,
+            // Групповые занятия: тренер всегда считается оплаченным.
+            'coach_paid' => !empty($validated['coach_id'])
+                ? ($isGroupBooking ? true : $request->boolean('coach_paid'))
+                : null,
             'coach_price' => !empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null,
         ];
         if (!$isGroupBooking) {

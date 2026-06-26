@@ -608,8 +608,7 @@
                                     @if($b->coach_id || $b->comment)
                                         <span class="meta">
                                             @if($b->coach)<span class="ws-coach"><span class="ws-coach-avatar">@if($coachPhoto)<img src="{{ $coachPhoto }}" alt="">@else{{ mb_strtoupper(mb_substr($b->coach->first_name ?? '?', 0, 1)) }}@endif
-                                            @php $coachPaidView = $b->booking_type === 'group' ? true : $b->coach_paid; @endphp
-                                            @if($coachPaidView !== null)<span class="ws-coach-paid {{ $coachPaidView ? 'paid' : 'unpaid' }}" title="{{ $coachPaidView ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $b->coach->first_name }}</span>@endif
+                                            @if($b->coach_paid !== null)<span class="ws-coach-paid {{ $b->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $b->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"></span>@endif</span>{{ $b->coach->first_name }}</span>@endif
                                             @if($b->coach_id && $b->comment) · @endif
                                             @if($b->comment){{ $b->comment }}@endif
                                         </span>
