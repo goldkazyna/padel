@@ -301,6 +301,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/cards/unlinked', [App\Http\Controllers\Club\ClubCardController::class, 'unlinked'])->name('cards.unlinked');
         Route::get('/cards/{card}/history', [App\Http\Controllers\Club\ClubCardController::class, 'history'])->name('cards.history');
         Route::post('/cards', [App\Http\Controllers\Club\ClubCardController::class, 'store'])->name('cards.issue');
+        Route::put('/cards/{card}/expiry', [App\Http\Controllers\Club\ClubCardController::class, 'updateExpiry'])->name('cards.updateExpiry');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');
 
         // Групповые занятия

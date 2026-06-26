@@ -157,6 +157,21 @@ class ClubCardController extends Controller
         ]);
     }
 
+    /** Изменить дату окончания карты. Пусто = бессрочно. Любая дата (в т.ч. прошлая). */
+    public function updateExpiry(Request $request, ClubCard $card)
+    {
+        $club = $this->getClub();
+        if (!$club || $card->club_id !== $club->id) abort(403);
+
+        $data = $request->validate([
+            'expires_at' => 'nullable|date',
+        ]);
+
+        $card->update(['expires_at' => $data['expires_at'] ?? null]);
+
+        return back()->with('success', 'Дата окончания обновлена');
+    }
+
     /** Очередь броней к ручному списанию с карты. */
     public function pending(ClubCardService $service)
     {

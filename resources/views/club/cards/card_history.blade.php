@@ -14,7 +14,19 @@
             @else
                 <span class="ch-balance ch-discount">−{{ $card->type?->discount_percent }}%</span>
             @endif
-            @if($card->expires_at)<span class="ch-exp">до {{ $card->expires_at->format('d.m.Y') }}</span>@else<span class="ch-exp">бессрочно</span>@endif
+            <span class="ch-exp" id="ch-exp-label">
+                @if($card->expires_at)до {{ $card->expires_at->format('d.m.Y') }}@else бессрочно @endif
+                <button type="button" class="ch-exp-edit" title="Изменить дату окончания"
+                        onclick="document.getElementById('ch-exp-form').style.display='flex'; this.closest('#ch-exp-label').style.display='none';">✎</button>
+            </span>
+            <form method="POST" action="{{ route('club.cards.updateExpiry', $card) }}" id="ch-exp-form" class="ch-exp-form" style="display:none;">
+                @csrf
+                @method('PUT')
+                <input type="date" name="expires_at" value="{{ $card->expires_at?->format('Y-m-d') }}" class="ch-exp-input">
+                <button type="submit" class="ch-exp-save">Сохранить</button>
+                <button type="button" class="ch-exp-cancel"
+                        onclick="document.getElementById('ch-exp-form').style.display='none'; document.getElementById('ch-exp-label').style.display='inline';">Отмена</button>
+            </form>
             <span class="ch-status {{ $card->isActual() ? 'ok' : 'dead' }}">{{ $card->isActual() ? 'активна' : 'не активна' }}</span>
         </div>
     </div>
@@ -55,6 +67,12 @@
 .ch-balance.ch-discount { color: #f08446; }
 .ch-of { color: #71717a; font-weight: 500; font-size: 14px; }
 .ch-exp { color: #a1a1aa; font-size: 13px; }
+.ch-exp-edit { background: none; border: none; color: #a78bfa; cursor: pointer; font-size: 13px; padding: 0 2px; line-height: 1; }
+.ch-exp-edit:hover { color: #c4b5fd; }
+.ch-exp-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ch-exp-input { background: #0f0f11; border: 1px solid #3f3f46; border-radius: 8px; color: #f3f3f5; padding: 4px 8px; font-size: 13px; }
+.ch-exp-save { background: #22c55e; border: none; color: #062c14; font-weight: 700; border-radius: 8px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+.ch-exp-cancel { background: #27272a; border: 1px solid #3f3f46; color: #a1a1aa; border-radius: 8px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
 .ch-status { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
 .ch-status.ok { background: rgba(34,197,94,.14); color: #22c55e; }
 .ch-status.dead { background: rgba(239,68,68,.14); color: #ef4444; }
