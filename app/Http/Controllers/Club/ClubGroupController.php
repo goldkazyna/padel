@@ -259,6 +259,40 @@ class ClubGroupController extends Controller
         return back()->with('success', 'Участник убран из группы');
     }
 
+    /** Заморозить участника на период (даты включительно). */
+    public function freezeMember(Request $request, ClubGroup $group, \App\Models\ClubGroupMember $member)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+
+        $validated = $request->validate([
+            'freeze_from' => 'required|date',
+            'freeze_until' => 'required|date|after_or_equal:freeze_from',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        \App\Models\ClubGroupMemberFreeze::create([
+            'group_member_id' => $member->id,
+            'freeze_from' => $validated['freeze_from'],
+            'freeze_until' => $validated['freeze_until'],
+            'note' => $validated['note'] ?? null,
+            'created_by' => auth()->id(),
+        ]);
+
+        return back()->with('success', 'Заморозка добавлена');
+    }
+
+    /** Снять (удалить) период заморозки. */
+    public function unfreezeMember(ClubGroup $group, \App\Models\ClubGroupMember $member, \App\Models\ClubGroupMemberFreeze $freeze)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+        if ($freeze->group_member_id !== $member->id) abort(403);
+
+        $freeze->delete();
+        return back()->with('success', 'Заморозка снята');
+    }
+
     private function createEnrollment(\App\Models\ClubGroupMember $member, array $validated): void
     {
         \App\Models\ClubGroupEnrollment::create([

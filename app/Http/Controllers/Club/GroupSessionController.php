@@ -282,17 +282,19 @@ class GroupSessionController extends Controller
         }
 
         $rows = $request->input('attendance', []);
+        $sessionDate = $session->date->toDateString();
 
-        // Проверка: у отмеченных «пришёл + списать» должен быть остаток > 0
+        // Списать можно только если: пришёл, НЕ пробное, НЕ заморожен и остаток > 0.
         foreach ($rows as $memberId => $row) {
+            $member = \App\Models\ClubGroupMember::find($memberId);
+            if (!$member || $member->group_id !== $session->group_id) abort(403);
+
             $attended = !empty($row['attended']);
-            $charged = !empty($row['charged']);
-            if ($attended && $charged) {
-                $member = \App\Models\ClubGroupMember::find($memberId);
-                if (!$member || $member->group_id !== $session->group_id) abort(403);
-                if ($member->remaining <= 0) {
-                    return back()->with('error', "У участника {$member->client->name} закончились занятия — продлите пакет");
-                }
+            $isTrial = !empty($row['is_trial']);
+            $frozen = $member->isFrozenOn($sessionDate);
+            $wantCharge = $attended && !empty($row['charged']) && !$isTrial && !$frozen;
+            if ($wantCharge && $member->remaining <= 0) {
+                return back()->with('error', "У участника {$member->client->name} закончились занятия — продлите пакет");
             }
         }
 
@@ -300,12 +302,17 @@ class GroupSessionController extends Controller
         foreach ($rows as $memberId => $row) {
             $member = \App\Models\ClubGroupMember::find($memberId);
             if (!$member || $member->group_id !== $session->group_id) continue;
+
             $attended = !empty($row['attended']);
-            $charged = $attended && !empty($row['charged']);
+            $isTrial = !empty($row['is_trial']);
+            $frozen = $member->isFrozenOn($sessionDate);
+            // Заморозка и пробное не тратят пакет.
+            $charged = $attended && !empty($row['charged']) && !$isTrial && !$frozen;
+            $trialAmount = $isTrial ? (int) ($row['trial_amount'] ?? 0) : null;
 
             \App\Models\ClubGroupAttendance::updateOrCreate(
                 ['session_id' => $session->id, 'group_member_id' => $member->id],
-                ['attended' => $attended, 'charged' => $charged]
+                ['attended' => $attended, 'charged' => $charged, 'is_trial' => $isTrial, 'trial_amount' => $trialAmount]
             );
         }
 
@@ -335,6 +342,55 @@ class GroupSessionController extends Controller
             "Занятие отменено: «{$session->group->name}»", clubId: $club->id);
 
         return back()->with('success', 'Занятие отменено, корт освобождён');
+    }
+
+    /** Добавить пробного гостя (не члена группы) к занятию. Сумма опциональна (0 = бесплатно). */
+    public function addTrialGuest(Request $request, ClubGroupSession $session)
+    {
+        $club = $this->getClub();
+        $this->authorizeSession($club, $session);
+
+        if ($session->status === 'cancelled') {
+            return back()->with('error', 'Занятие отменено');
+        }
+
+        $validated = $request->validate([
+            'client_id' => 'required|exists:club_clients,id',
+            'trial_amount' => 'nullable|integer|min:0',
+        ]);
+
+        $client = \App\Models\ClubClient::find($validated['client_id']);
+        if (!$client || $client->club_id !== $club->id) abort(403);
+
+        // Не дублируем, если гость уже добавлен пробным к этому занятию.
+        $exists = \App\Models\ClubGroupAttendance::where('session_id', $session->id)
+            ->where('client_id', $client->id)->exists();
+        if ($exists) {
+            return back()->with('error', 'Гость уже добавлен к занятию');
+        }
+
+        \App\Models\ClubGroupAttendance::create([
+            'session_id' => $session->id,
+            'client_id' => $client->id,
+            'attended' => true,
+            'charged' => false,
+            'is_trial' => true,
+            'trial_amount' => (int) ($validated['trial_amount'] ?? 0),
+        ]);
+
+        return back()->with('success', 'Пробный гость добавлен');
+    }
+
+    /** Убрать пробного гостя из занятия. */
+    public function removeTrialGuest(ClubGroupSession $session, \App\Models\ClubGroupAttendance $attendance)
+    {
+        $club = $this->getClub();
+        $this->authorizeSession($club, $session);
+
+        if ($attendance->session_id !== $session->id || $attendance->client_id === null) abort(403);
+
+        $attendance->delete();
+        return back()->with('success', 'Пробный гость убран');
     }
 
     private function authorizeSession($club, ClubGroupSession $session): void

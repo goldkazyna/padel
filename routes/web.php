@@ -316,12 +316,16 @@ Route::middleware('auth')->group(function () {
             Route::post('/groups/{group}/members', [App\Http\Controllers\Club\ClubGroupController::class, 'addMember'])->name('groups.members.store');
             Route::post('/groups/{group}/members/{member}/enroll', [App\Http\Controllers\Club\ClubGroupController::class, 'enroll'])->name('groups.members.enroll');
             Route::delete('/groups/{group}/members/{member}', [App\Http\Controllers\Club\ClubGroupController::class, 'removeMember'])->name('groups.members.destroy');
+            Route::post('/groups/{group}/members/{member}/freeze', [App\Http\Controllers\Club\ClubGroupController::class, 'freezeMember'])->name('groups.members.freeze');
+            Route::delete('/groups/{group}/members/{member}/freezes/{freeze}', [App\Http\Controllers\Club\ClubGroupController::class, 'unfreezeMember'])->name('groups.members.unfreeze');
             Route::get('/group-sessions', [App\Http\Controllers\Club\GroupSessionController::class, 'index'])->name('groupSessions.index');
             Route::get('/group-sessions/report', [App\Http\Controllers\Club\GroupSessionController::class, 'report'])->name('groupSessions.report');
             Route::post('/group-sessions', [App\Http\Controllers\Club\GroupSessionController::class, 'store'])->name('groupSessions.store');
             Route::get('/group-sessions/{session}', [App\Http\Controllers\Club\GroupSessionController::class, 'show'])->name('groupSessions.show');
             Route::post('/group-sessions/{session}/conduct', [App\Http\Controllers\Club\GroupSessionController::class, 'conduct'])->name('groupSessions.conduct');
             Route::post('/group-sessions/{session}/cancel', [App\Http\Controllers\Club\GroupSessionController::class, 'cancel'])->name('groupSessions.cancel');
+            Route::post('/group-sessions/{session}/trial-guest', [App\Http\Controllers\Club\GroupSessionController::class, 'addTrialGuest'])->name('groupSessions.trialGuest');
+            Route::delete('/group-sessions/{session}/trial-guest/{attendance}', [App\Http\Controllers\Club\GroupSessionController::class, 'removeTrialGuest'])->name('groupSessions.trialGuest.remove');
         });
 
         // Корты

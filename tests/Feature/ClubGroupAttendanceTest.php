@@ -97,6 +97,82 @@ class ClubGroupAttendanceTest extends TestCase
         $this->assertSame('cancelled', $session->fresh()->status);
     }
 
+    public function test_frozen_member_not_charged_during_freeze(): void
+    {
+        [, $admin, , $member, $session] = $this->scenario(2);
+        // Занятие вчера; заморозка покрывает вчерашнюю дату.
+        \App\Models\ClubGroupMemberFreeze::create([
+            'group_member_id' => $member->id,
+            'freeze_from' => now()->subDays(3)->toDateString(),
+            'freeze_until' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+        ])->assertRedirect();
+
+        $this->assertSame('held', $session->fresh()->status);
+        $this->assertSame(2, $member->fresh()->remaining, 'замороженный не списывается');
+    }
+
+    public function test_member_charged_when_session_outside_freeze(): void
+    {
+        [, $admin, , $member, $session] = $this->scenario(2);
+        // Заморозка в будущем — вчерашнее занятие вне неё.
+        \App\Models\ClubGroupMemberFreeze::create([
+            'group_member_id' => $member->id,
+            'freeze_from' => now()->addDays(5)->toDateString(),
+            'freeze_until' => now()->addDays(10)->toDateString(),
+        ]);
+
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+        ])->assertRedirect();
+
+        $this->assertSame(1, $member->fresh()->remaining, 'вне заморозки списывается');
+    }
+
+    public function test_trial_member_not_charged_and_amount_saved(): void
+    {
+        [, $admin, , $member, $session] = $this->scenario(2);
+
+        $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
+            'attendance' => [$member->id => ['attended' => 1, 'is_trial' => 1, 'trial_amount' => 5000]],
+        ])->assertRedirect();
+
+        $this->assertSame(2, $member->fresh()->remaining, 'пробное не тратит пакет');
+        $att = \App\Models\ClubGroupAttendance::where('session_id', $session->id)
+            ->where('group_member_id', $member->id)->first();
+        $this->assertNotNull($att);
+        $this->assertTrue((bool) $att->is_trial);
+        $this->assertFalse((bool) $att->charged);
+        $this->assertSame(5000, (int) $att->trial_amount);
+    }
+
+    public function test_add_trial_guest_creates_attendance_without_membership(): void
+    {
+        [$club, $admin, $group, $member, $session] = $this->scenario(2);
+        $guest = ClubClient::create(['club_id' => $club->id, 'name' => 'Гость']);
+
+        $this->actingAs($admin)->post(route('club.groupSessions.trialGuest', $session), [
+            'client_id' => $guest->id,
+            'trial_amount' => 3000,
+        ])->assertRedirect();
+
+        // Гость не стал членом группы.
+        $this->assertSame(0, ClubGroupMember::where('group_id', $group->id)->where('client_id', $guest->id)->count());
+
+        $att = \App\Models\ClubGroupAttendance::where('session_id', $session->id)
+            ->where('client_id', $guest->id)->first();
+        $this->assertNotNull($att);
+        $this->assertTrue((bool) $att->is_trial);
+        $this->assertTrue((bool) $att->attended);
+        $this->assertSame(3000, (int) $att->trial_amount);
+
+        // Остаток реального члена не задет.
+        $this->assertSame(2, $member->fresh()->remaining);
+    }
+
     public function test_conduct_blocked_before_session_end(): void
     {
         [, $admin, , $member, $session] = $this->scenario(2);
