@@ -391,11 +391,15 @@
                                                 @if($booking->comment)<span class="slot-comment-text">{{ $booking->comment }}</span>@endif
                                             </div>
                                             @if($coachTotal > 0)
+                                            @php
+                                                // Групповые занятия: тренер всегда считается оплаченным.
+                                                $coachPaidView = $booking->booking_type === 'group' ? true : $booking->coach_paid;
+                                            @endphp
                                             <div class="slot-right">
-                                                @if($booking->coach_paid === null)
+                                                @if($coachPaidView === null)
                                                     <span class="slot-price-coach">+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
                                                 @else
-                                                    <span class="slot-coach-cap {{ $booking->coach_paid ? 'paid' : 'unpaid' }}" title="{{ $booking->coach_paid ? 'Тренер оплачен' : 'Тренер не оплачен' }}"><i class="bi {{ $booking->coach_paid ? 'bi-check-circle-fill' : 'bi-hourglass-split' }}"></i>+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
+                                                    <span class="slot-coach-cap {{ $coachPaidView ? 'paid' : 'unpaid' }}" title="{{ $coachPaidView ? 'Тренер оплачен' : 'Тренер не оплачен' }}"><i class="bi {{ $coachPaidView ? 'bi-check-circle-fill' : 'bi-hourglass-split' }}"></i>+ {{ number_format($coachTotal, 0, '', ' ') }} &#8376;</span>
                                                 @endif
                                             </div>
                                             @endif
