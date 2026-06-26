@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['group_member_id', 'freeze_from', 'freeze_until']);
+            $table->index(['group_member_id', 'freeze_from', 'freeze_until'], 'cgmf_member_period_idx');
         });
     }
 
