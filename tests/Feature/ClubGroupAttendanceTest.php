@@ -41,7 +41,7 @@ class ClubGroupAttendanceTest extends TestCase
         [, $admin, , $member, $session] = $this->scenario(2);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertRedirect();
 
         $this->assertSame('held', $session->fresh()->status);
@@ -53,7 +53,7 @@ class ClubGroupAttendanceTest extends TestCase
         [, $admin, , $member, $session] = $this->scenario(0);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertSessionHas('error');
 
         $this->assertSame('planned', $session->fresh()->status);
@@ -74,15 +74,15 @@ class ClubGroupAttendanceTest extends TestCase
     {
         [, $admin, , $member, $session] = $this->scenario(2);
 
-        // First conduct: attend + charge → remaining 2 -> 1
+        // First conduct: charge → remaining 2 -> 1
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertRedirect();
         $this->assertSame(1, $member->fresh()->remaining);
 
         // Second conduct attempt on a held session → blocked, balance unchanged
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertSessionHas('error');
         $this->assertSame(1, $member->fresh()->remaining);
     }
@@ -108,7 +108,7 @@ class ClubGroupAttendanceTest extends TestCase
         ]);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertRedirect();
 
         $this->assertSame('held', $session->fresh()->status);
@@ -126,7 +126,7 @@ class ClubGroupAttendanceTest extends TestCase
         ]);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertRedirect();
 
         $this->assertSame(1, $member->fresh()->remaining, 'вне заморозки списывается');
@@ -137,7 +137,7 @@ class ClubGroupAttendanceTest extends TestCase
         [, $admin, , $member, $session] = $this->scenario(2);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'is_trial' => 1, 'trial_amount' => 5000]],
+            'attendance' => [$member->id => ['status' => 'trial', 'trial_amount' => 5000]],
         ])->assertRedirect();
 
         $this->assertSame(2, $member->fresh()->remaining, 'пробное не тратит пакет');
@@ -218,7 +218,7 @@ class ClubGroupAttendanceTest extends TestCase
         $session->update(['date' => now()->addDay()->toDateString()]);
 
         $this->actingAs($admin)->post(route('club.groupSessions.conduct', $session), [
-            'attendance' => [$member->id => ['attended' => 1, 'charged' => 1]],
+            'attendance' => [$member->id => ['status' => 'charge']],
         ])->assertSessionHas('error');
 
         $this->assertSame('planned', $session->fresh()->status);

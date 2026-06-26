@@ -286,16 +286,15 @@ class GroupSessionController extends Controller
         $rows = $request->input('attendance', []);
         $sessionDate = $session->date->toDateString();
 
-        // Списать можно только если: пришёл, НЕ пробное, НЕ заморожен и остаток > 0.
+        // Статус участника: charge (списать) | trial (пробное) | absent (не был).
+        // Списать можно только если НЕ заморожен и остаток > 0.
         foreach ($rows as $memberId => $row) {
             $member = \App\Models\ClubGroupMember::find($memberId);
             if (!$member || $member->group_id !== $session->group_id) abort(403);
 
-            $attended = !empty($row['attended']);
-            $isTrial = !empty($row['is_trial']);
+            $status = $row['status'] ?? 'absent';
             $frozen = $member->isFrozenOn($sessionDate);
-            $wantCharge = $attended && !empty($row['charged']) && !$isTrial && !$frozen;
-            if ($wantCharge && $member->remaining <= 0) {
+            if ($status === 'charge' && !$frozen && $member->remaining <= 0) {
                 return back()->with('error', "У участника {$member->client->name} закончились занятия — продлите пакет");
             }
         }
@@ -305,11 +304,12 @@ class GroupSessionController extends Controller
             $member = \App\Models\ClubGroupMember::find($memberId);
             if (!$member || $member->group_id !== $session->group_id) continue;
 
-            $attended = !empty($row['attended']);
-            $isTrial = !empty($row['is_trial']);
+            $status = $row['status'] ?? 'absent';
             $frozen = $member->isFrozenOn($sessionDate);
-            // Заморозка и пробное не тратят пакет.
-            $charged = $attended && !empty($row['charged']) && !$isTrial && !$frozen;
+            $isTrial = $status === 'trial';
+            // Списать можно только charge + не заморожен. Заморозка/пробное пакет не тратят.
+            $charged = $status === 'charge' && !$frozen;
+            $attended = in_array($status, ['charge', 'trial'], true);
             $trialAmount = $isTrial ? (int) ($row['trial_amount'] ?? 0) : null;
 
             \App\Models\ClubGroupAttendance::updateOrCreate(
