@@ -9,6 +9,7 @@
             @csrf
             <input type="hidden" name="_method" id="ctMethod" value="POST">
             <div class="ct-modal-body">
+                <div id="ctIssuedNote" class="ct-issued-note" style="display:none;"></div>
                 <div class="ct-field">
                     <label>Название *</label>
                     <input type="text" name="name" id="ctName" required placeholder="Напр.: 10 посещений">
@@ -82,6 +83,8 @@
 .ct-modal-foot { display:flex; gap:12px; padding:14px 20px; border-top:1px solid #27272a; }
 .btn-cancel { flex:1; background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:11px; cursor:pointer; }
 .btn-save { flex:2; background:#22c55e; color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; cursor:pointer; }
+.ct-issued-note { background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35); color:#fbbf24; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:14px; line-height:1.4; }
+.ct-field input:disabled, .ct-field select:disabled { opacity:.5; cursor:not-allowed; }
 </style>
 
 <script>
@@ -131,13 +134,30 @@ function openCardTypeModal(t, readOnly) {
     ctToggleValidity();
     ctPrefixPreview();
 
-    // Режим просмотра: блокируем поля, прячем «Сохранить», «Отмена» → «Закрыть».
     const modal = document.getElementById('cardTypeModal');
     const saveBtn = modal.querySelector('.btn-save');
     const cancelBtn = modal.querySelector('.btn-cancel');
+    const note = document.getElementById('ctIssuedNote');
+
+    // По типу уже выпущены карты → менять можно только срок действия.
+    const issued = (t && t.ui_count) ? Number(t.ui_count) : 0;
+    const validityOnly = !readOnly && issued > 0;
+    const validityIds = ['ctValidityMode', 'ctDate', 'ctValidity'];
+
     modal.querySelectorAll('input, select').forEach(function (el) {
-        if (el.id !== 'ctMethod') el.disabled = !!readOnly;
+        if (el.id === 'ctMethod') return;
+        if (readOnly) { el.disabled = true; return; }
+        el.disabled = validityOnly ? !validityIds.includes(el.id) : false;
     });
+
+    if (validityOnly) {
+        document.getElementById('ctModalTitle').textContent = 'Редактировать срок действия';
+        note.textContent = 'По типу выпущено карт: ' + issued + '. Менять можно только срок — он применится к новым картам, уже выпущенные не изменятся.';
+        note.style.display = '';
+    } else {
+        note.style.display = 'none';
+    }
+
     saveBtn.style.display = readOnly ? 'none' : '';
     cancelBtn.textContent = readOnly ? 'Закрыть' : 'Отмена';
 

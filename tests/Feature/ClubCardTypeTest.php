@@ -145,6 +145,61 @@ class ClubCardTypeTest extends TestCase
         $this->assertNotNull(ClubCardType::find($type->id));
     }
 
+    public function test_can_edit_validity_of_type_with_issued_cards_without_touching_existing(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $type = ClubCardType::create([
+            'club_id' => $club->id, 'name' => 'Безсрочная', 'code_prefix' => 'BES', 'kind' => 'visits', 'nominal' => 10,
+        ]);
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Иван', 'phone' => '+770000010']);
+        // Уже выпущенная бессрочная карта.
+        $card = ClubCard::create([
+            'club_id' => $club->id, 'club_card_type_id' => $type->id, 'club_client_id' => $client->id,
+            'code' => 'BES000001', 'balance' => 10, 'initial_balance' => 10, 'status' => 'active', 'expires_at' => null,
+        ]);
+
+        $date = now()->addMonths(6)->toDateString();
+        $this->actingAs($admin)
+            ->put(route('club.cardTypes.update', $type), [
+                'validity_mode' => 'date',
+                'default_expires_at' => $date,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        // Тип получил новую дату по умолчанию.
+        $this->assertSame($date, $type->fresh()->default_expires_at->toDateString());
+        // Уже выпущенная карта осталась бессрочной.
+        $this->assertNull($card->fresh()->expires_at, 'существующая карта не должна измениться');
+    }
+
+    public function test_editing_issued_type_ignores_non_validity_fields(): void
+    {
+        [$club, $admin] = $this->adminClub();
+        $type = ClubCardType::create([
+            'club_id' => $club->id, 'name' => 'T', 'code_prefix' => 'TTT', 'kind' => 'visits', 'nominal' => 10, 'price' => 50000,
+        ]);
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'И', 'phone' => '+770000011']);
+        ClubCard::create([
+            'club_id' => $club->id, 'club_card_type_id' => $type->id, 'club_client_id' => $client->id,
+            'code' => 'TTT000001', 'balance' => 10, 'initial_balance' => 10, 'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('club.cardTypes.update', $type), [
+                'nominal' => 99,
+                'price' => 1,
+                'validity_mode' => 'days',
+                'default_validity_days' => 45,
+            ])
+            ->assertRedirect();
+
+        $fresh = $type->fresh();
+        $this->assertSame(10, (int) $fresh->nominal, 'номинал не меняется у типа с картами');
+        $this->assertSame(50000, (int) $fresh->price, 'цена не меняется у типа с картами');
+        $this->assertSame(45, (int) $fresh->default_validity_days, 'срок применился');
+    }
+
     public function test_card_is_actual_logic(): void
     {
         [$club] = $this->adminClub();

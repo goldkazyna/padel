@@ -155,11 +155,21 @@ class ClubCardTypeController extends Controller
         $club = $this->getClub();
         if (!$club || $cardType->club_id !== $club->id) abort(403);
 
-        // По типу уже выпущены карты — редактировать нельзя (изменение номинала/цены
-        // сломало бы смысл уже выданных карт). Нужен новый тип.
+        // По типу уже выпущены карты — менять можно ТОЛЬКО срок действия.
+        // Срок применяется лишь к новым картам: у выпущенных дата зафиксирована
+        // при выдаче и не перечитывается. Вид/номинал/цена/префикс заблокированы —
+        // их изменение сломало бы смысл уже выданных карт.
         $issued = $cardType->cards()->count();
         if ($issued > 0) {
-            return back()->with('error', 'Нельзя редактировать тип карты: по нему уже выпущено карт — ' . $issued . '. Создайте новый тип.');
+            $data = $request->validate([
+                'validity_mode' => 'nullable|in:forever,date,days',
+                'default_expires_at' => 'nullable|date|after:today',
+                'default_validity_days' => 'nullable|integer|min:1|max:3650',
+            ]);
+            $this->normalizeValidity($data);
+            $cardType->update($data);
+
+            return back()->with('success', 'Срок действия обновлён. Уже выпущенные карты не изменятся — новый срок применится к новым картам.');
         }
 
         $data = $this->validateType($request, $club, $cardType->id);
