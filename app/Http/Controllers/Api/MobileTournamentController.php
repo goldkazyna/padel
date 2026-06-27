@@ -3069,29 +3069,64 @@ class MobileTournamentController extends Controller
             ];
         }
 
-        uasort($playerStats, function ($a, $b) {
-            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
-            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-            return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
-        });
+        $isPaired = $tournament->isPairedKingOfCourt();
 
-        $position = 1;
-        $leaderboard = [];
-        foreach ($playerStats as $s) {
-            $totalGames = $s['wins'] + $s['losses'];
-            $diff = $s['points_for'] - $s['points_against'];
-            $totalBalls = $s['points_for'] + $s['points_against'];
-            $ballPercent = $totalBalls > 0
-                ? (int) round($s['points_for'] / $totalBalls * 100)
-                : 0;
-            $leaderboard[] = array_merge($s, [
-                'position' => $position++,
-                'games_played' => $totalGames,
-                'point_diff' => $diff,
-                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
-                'ball_percent' => $ballPercent,
-                'is_me' => $userId && (int) $s['id'] === $userId,
-            ]);
+        if ($isPaired) {
+            // Фикс-пары: таблица по парам (shape как у Bali — player1/player2).
+            $pairs = $tournament->kingOfCourtPairs()->with(['player1', 'player2'])->get();
+            $myPairId = null;
+            foreach ($pairs as $p) {
+                if ($userId && in_array($userId, [(int) $p->player1_id, (int) $p->player2_id], true)) {
+                    $myPairId = (int) $p->id;
+                }
+            }
+            $standings = $kocService->getPairStandings($tournament);
+            $leaderboard = [];
+            foreach ($standings as $idx => $row) {
+                $pair = $row['pair'];
+                $totalBalls = $row['points_for'] + $row['points_against'];
+                $leaderboard[] = [
+                    'position' => $idx + 1,
+                    'pair_id' => $pair->id,
+                    'player1' => $this->formatPlayerForLive($pair->player1_id, $playerStats, $tournament),
+                    'player2' => $this->formatPlayerForLive($pair->player2_id, $playerStats, $tournament),
+                    'wins' => $row['wins'],
+                    'losses' => $row['losses'],
+                    'points_for' => $row['points_for'],
+                    'points_against' => $row['points_against'],
+                    'total_points' => $row['total_points'],
+                    'points' => $row['total_points'],
+                    'point_diff' => $row['diff'],
+                    'ball_percent' => $totalBalls > 0 ? (int) round($row['points_for'] / $totalBalls * 100) : 0,
+                    'win_percent' => $row['win_rate'],
+                    'is_me' => $myPairId !== null && (int) $pair->id === $myPairId,
+                ];
+            }
+        } else {
+            uasort($playerStats, function ($a, $b) {
+                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            });
+
+            $position = 1;
+            $leaderboard = [];
+            foreach ($playerStats as $s) {
+                $totalGames = $s['wins'] + $s['losses'];
+                $diff = $s['points_for'] - $s['points_against'];
+                $totalBalls = $s['points_for'] + $s['points_against'];
+                $ballPercent = $totalBalls > 0
+                    ? (int) round($s['points_for'] / $totalBalls * 100)
+                    : 0;
+                $leaderboard[] = array_merge($s, [
+                    'position' => $position++,
+                    'games_played' => $totalGames,
+                    'point_diff' => $diff,
+                    'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                    'ball_percent' => $ballPercent,
+                    'is_me' => $userId && (int) $s['id'] === $userId,
+                ]);
+            }
         }
 
         return response()->json([
@@ -3105,6 +3140,7 @@ class MobileTournamentController extends Controller
                 'format' => $tournament->type,
                 'format_name' => $tournament->type_name,
                 'status' => $tournament->status,
+                'is_paired' => $isPaired,
                 'has_playoff' => false,
                 'courts_count' => (int) ($tournament->max_participants / 4),
             ],

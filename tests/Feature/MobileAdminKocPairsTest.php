@@ -88,4 +88,23 @@ class MobileAdminKocPairsTest extends TestCase
 
         $this->assertSame('in_progress', $t->fresh()->status);
     }
+
+    public function test_live_returns_pair_leaderboard(): void
+    {
+        [, $admin, $t, $u] = $this->makeTournament(8);
+        $svc = new \App\Services\KingOfCourtService();
+        $svc->createPairs($t, [[$u[0]->id, $u[1]->id], [$u[2]->id, $u[3]->id], [$u[4]->id, $u[5]->id], [$u[6]->id, $u[7]->id]]);
+        $svc->startTournament($t);
+
+        Sanctum::actingAs($u[0]);
+        $resp = $this->getJson("/api/mobile/tournaments/{$t->id}/live")
+            ->assertOk()
+            ->assertJsonPath('tournament.is_paired', true);
+
+        // Строки таблицы — пары (player1/player2).
+        $first = $resp->json('leaderboard.0');
+        $this->assertArrayHasKey('player1', $first);
+        $this->assertArrayHasKey('player2', $first);
+        $this->assertArrayHasKey('total_points', $first);
+    }
 }

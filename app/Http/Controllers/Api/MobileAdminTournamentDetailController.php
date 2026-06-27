@@ -383,6 +383,10 @@ class MobileAdminTournamentDetailController extends Controller
         $baliPairsCreated = $t->isBaliKoc()
             ? $t->baliKocPairs()->exists()
             : false;
+        // Для фикс-парного Короля корта — аналогично.
+        $kocPairsCreated = $t->isPairedKingOfCourt()
+            ? $t->kingOfCourtPairs()->exists()
+            : false;
         // Редактировать/удалять — только с полными правами.
         $canEdit = $hasFullAccess
             && in_array($t->status, ['draft', 'open'], true);
@@ -425,6 +429,8 @@ class MobileAdminTournamentDetailController extends Controller
             'can_restart' => $t->canRestart(),
             'can_delete' => $canDelete,
             'bali_pairs_created' => $baliPairsCreated,
+            'koc_pairs_created' => $kocPairsCreated,
+            'is_paired' => (bool) $t->is_paired,
             'tournaments_full_access' => $hasFullAccess,
         ];
     }
