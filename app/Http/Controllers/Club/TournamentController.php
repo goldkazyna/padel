@@ -546,15 +546,19 @@ class TournamentController extends Controller
 			return back()->with('error', 'Турнир уже заполнен');
 		}
 
-		// Берём только ТЕСТОВЫХ игроков (email: 1@gmail.com, 2@gmail.com, ...)
+		// Тестовые игроки — ровно аккаунты 1@gmail.com … 16@gmail.com.
+		// (Реальные игроки регистрируются с email вида <телефон>@gmail.com и
+		// раньше ошибочно попадали под регулярку — теперь берём только список.)
 		$existingIds = $tournament->participants()->pluck('users.id')->toArray();
+		$testEmails = array_map(fn($n) => "{$n}@gmail.com", range(1, 16));
 
 		$players = \App\Models\User::where('role', 'player')
 			->whereNotIn('id', $existingIds)
-			->whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
-			->inRandomOrder()
-			->limit($needed)
-			->get();
+			->whereIn('email', $testEmails)
+			->get()
+			->sortBy(fn($u) => (int) $u->email) // 1, 2, …, 16
+			->take($needed)
+			->values();
 
 		foreach ($players as $player) {
 			$tournament->participants()->attach($player->id, ['status' => 'registered']);
