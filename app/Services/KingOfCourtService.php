@@ -131,7 +131,82 @@ class KingOfCourtService
     }
 
     /**
-     * Запустить турнир: создаём KOC-игроков, генерим первый раунд (рандомно).
+     * Сохранить фиксированные пары (для is_paired KOC), созданные админом.
+     * $pairs — массив [[player1_id, player2_id], ...]. Возвращает [success, message].
+     */
+    public function createPairs(Tournament $tournament, array $pairs): array
+    {
+        if (!$tournament->isPairedKingOfCourt()) {
+            return [false, 'Турнир не «Король корта» с фиксированными парами'];
+        }
+        if ($tournament->status !== 'open') {
+            return [false, 'Турнир уже запущен или завершён'];
+        }
+        if ($tournament->kingOfCourtPairs()->exists()) {
+            return [false, 'Пары уже созданы'];
+        }
+
+        $participantIds = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->pluck('users.id')
+            ->all();
+
+        $total = count($participantIds);
+        if ($total < 8 || $total % 4 !== 0) {
+            return [false, 'Должно быть минимум 8 игроков и кратно 4'];
+        }
+
+        $expectedPairs = (int) ($total / 2);
+        if (count($pairs) !== $expectedPairs) {
+            return [false, "Должно быть {$expectedPairs} пар (а сейчас " . count($pairs) . ')'];
+        }
+
+        $seen = [];
+        foreach ($pairs as $idx => $pair) {
+            if (!isset($pair[0], $pair[1])) {
+                return [false, 'Пара ' . ($idx + 1) . ': оба игрока обязательны'];
+            }
+            $p1 = (int) $pair[0];
+            $p2 = (int) $pair[1];
+            if ($p1 === $p2) {
+                return [false, 'Пара ' . ($idx + 1) . ': игрок не может быть в паре с самим собой'];
+            }
+            if (!in_array($p1, $participantIds, true) || !in_array($p2, $participantIds, true)) {
+                return [false, 'Пара ' . ($idx + 1) . ': игрок не зарегистрирован на турнир'];
+            }
+            if (isset($seen[$p1]) || isset($seen[$p2])) {
+                return [false, 'Игрок не может быть в нескольких парах'];
+            }
+            $seen[$p1] = true;
+            $seen[$p2] = true;
+        }
+
+        if (count($seen) !== $total) {
+            return [false, 'Не все участники попали в пары'];
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $pairs) {
+            foreach ($pairs as $pair) {
+                \App\Models\KingOfCourtPair::create([
+                    'tournament_id' => $tournament->id,
+                    'player1_id' => (int) $pair[0],
+                    'player2_id' => (int) $pair[1],
+                ]);
+            }
+        });
+
+        return [true, 'Пары созданы'];
+    }
+
+    /** Пары для is_paired KOC созданы. */
+    public function arePairsCreated(Tournament $tournament): bool
+    {
+        return $tournament->isPairedKingOfCourt() && $tournament->kingOfCourtPairs()->exists();
+    }
+
+    /**
+     * Запустить турнир: создаём KOC-игроков, генерим первый раунд.
+     * Соло-режим — рандом по 4; парный (is_paired) — фикс-пары по 2 на корт.
      */
     public function startTournament(Tournament $tournament): bool
     {
@@ -147,6 +222,11 @@ class KingOfCourtService
             return false; // Минимум 8 игроков, кратно 4
         }
 
+        $paired = $tournament->isPairedKingOfCourt();
+        if ($paired && !$this->arePairsCreated($tournament)) {
+            return false; // Парный KOC требует созданные пары
+        }
+
         // Записи KOC-игроков (стат = 0 в начале)
         foreach ($participants as $u) {
             KingOfCourtPlayer::firstOrCreate(
@@ -155,20 +235,30 @@ class KingOfCourtService
             );
         }
 
-        // Первый раунд — рандомное распределение
-        $shuffled = $participants->shuffle()->values();
-        $courts = [];
-        $courtsCount = (int) ($count / 4);
-        for ($i = 0; $i < $courtsCount; $i++) {
-            $courts[] = [
-                $shuffled[$i * 4]->id,
-                $shuffled[$i * 4 + 1]->id,
-                $shuffled[$i * 4 + 2]->id,
-                $shuffled[$i * 4 + 3]->id,
-            ];
+        if ($paired) {
+            // Фиксированные пары: 2 пары на корт, без миксования.
+            $pairs = $tournament->kingOfCourtPairs()->get()->shuffle()->values();
+            $courtsCount = (int) ($pairs->count() / 2);
+            $courts = [];
+            for ($i = 0; $i < $courtsCount; $i++) {
+                $courts[] = [$pairs[$i * 2], $pairs[$i * 2 + 1]];
+            }
+            $this->createRoundFromPairs($tournament, 1, $courts);
+        } else {
+            // Соло: рандомное распределение по 4 игрока на корт.
+            $shuffled = $participants->shuffle()->values();
+            $courts = [];
+            $courtsCount = (int) ($count / 4);
+            for ($i = 0; $i < $courtsCount; $i++) {
+                $courts[] = [
+                    $shuffled[$i * 4]->id,
+                    $shuffled[$i * 4 + 1]->id,
+                    $shuffled[$i * 4 + 2]->id,
+                    $shuffled[$i * 4 + 3]->id,
+                ];
+            }
+            $this->createRoundFromCourts($tournament, 1, $courts);
         }
-
-        $this->createRoundFromCourts($tournament, 1, $courts);
 
         $tournament->update(['status' => 'in_progress']);
         return true;
@@ -225,6 +315,10 @@ class KingOfCourtService
     public function generateNextRound(Tournament $tournament): bool
     {
         if (!$this->canGenerateNextRound($tournament)) return false;
+
+        if ($tournament->isPairedKingOfCourt()) {
+            return $this->generateNextPairedRound($tournament);
+        }
 
         $lastRound = $tournament->kingOfCourtRounds()
             ->reorder('round_number', 'desc')
@@ -425,6 +519,138 @@ class KingOfCourtService
         }
 
         return $round;
+    }
+
+    /**
+     * Ротация для парного KOC: пары целые, схема как в обычном KOC/Bali.
+     *   корт 0 (top): W к0 + W к1
+     *   корты i:      L к(i-1) + W к(i+1)
+     *   корт N-1:     L к(N-2) + L к(N-1)
+     */
+    protected function generateNextPairedRound(Tournament $tournament): bool
+    {
+        $lastRound = $tournament->kingOfCourtRounds()
+            ->reorder('round_number', 'desc')
+            ->with('matches')
+            ->first();
+
+        $matches = $lastRound->matches->sortBy('court_number')->values();
+        $courtsCount = $matches->count();
+
+        // Карта: множество игроков пары → модель пары.
+        $pairByKey = [];
+        foreach ($tournament->kingOfCourtPairs()->get() as $p) {
+            $pairByKey[$this->pairKey($p->player1_id, $p->player2_id)] = $p;
+        }
+
+        $results = []; // index → ['winner' => pair, 'loser' => pair]
+        foreach ($matches as $m) {
+            if (!$m->isCompleted()) return false;
+            $t1win = $m->team1_score > $m->team2_score;
+            $winKey = $t1win
+                ? $this->pairKey($m->team1_player1_id, $m->team1_player2_id)
+                : $this->pairKey($m->team2_player1_id, $m->team2_player2_id);
+            $loseKey = $t1win
+                ? $this->pairKey($m->team2_player1_id, $m->team2_player2_id)
+                : $this->pairKey($m->team1_player1_id, $m->team1_player2_id);
+            $results[] = [
+                'winner' => $pairByKey[$winKey] ?? null,
+                'loser' => $pairByKey[$loseKey] ?? null,
+            ];
+        }
+
+        $newCourts = [];
+        for ($i = 0; $i < $courtsCount; $i++) {
+            if ($i === 0) {
+                $a = $results[0]['winner'];
+                $b = $results[1]['winner'] ?? null;
+            } elseif ($i === $courtsCount - 1) {
+                $a = $results[$courtsCount - 2]['loser'] ?? null;
+                $b = $results[$courtsCount - 1]['loser'];
+            } else {
+                $a = $results[$i - 1]['loser'];
+                $b = $results[$i + 1]['winner'];
+            }
+            if (!$a || !$b) return false;
+            $newCourts[] = [$a, $b];
+        }
+
+        $this->createRoundFromPairs($tournament, $lastRound->round_number + 1, $newCourts);
+        return true;
+    }
+
+    /** Ключ пары по множеству игроков (порядок не важен). */
+    protected function pairKey(int $a, int $b): string
+    {
+        return $a < $b ? "{$a}-{$b}" : "{$b}-{$a}";
+    }
+
+    /**
+     * Создать раунд + матчи из массива кортов парного KOC:
+     *   [[pairA, pairB], ...] — team1 = pairA (оба игрока), team2 = pairB.
+     */
+    protected function createRoundFromPairs(Tournament $tournament, int $roundNumber, array $courts): KingOfCourtRound
+    {
+        $round = KingOfCourtRound::create([
+            'tournament_id' => $tournament->id,
+            'round_number' => $roundNumber,
+            'status' => 'in_progress',
+        ]);
+
+        foreach ($courts as $idx => [$pairA, $pairB]) {
+            KingOfCourtMatch::create([
+                'kingofcourt_round_id' => $round->id,
+                'court_number' => $idx + 1,
+                'team1_player1_id' => $pairA->player1_id,
+                'team1_player2_id' => $pairA->player2_id,
+                'team2_player1_id' => $pairB->player1_id,
+                'team2_player2_id' => $pairB->player2_id,
+                'status' => 'pending',
+            ]);
+        }
+
+        return $round;
+    }
+
+    /**
+     * Турнирная таблица по парам (для is_paired KOC).
+     * Стат пары = стат одного игрока (у обоих она идентична, т.к. всегда играют
+     * вместе). Сортировка как в КК: total_points → разница → процент побед.
+     */
+    public function getPairStandings(Tournament $tournament): array
+    {
+        $pairs = $tournament->kingOfCourtPairs()->with(['player1', 'player2'])->get();
+        if ($pairs->isEmpty()) return [];
+
+        $players = $tournament->kingOfCourtPlayers()->get()->keyBy('user_id');
+
+        $rows = [];
+        foreach ($pairs as $pair) {
+            $kp = $players->get($pair->player1_id); // у обоих игроков стат одинаков
+            $wins = (int) ($kp->wins ?? 0);
+            $losses = (int) ($kp->losses ?? 0);
+            $games = $wins + $losses;
+            $pf = (int) ($kp->points_for ?? 0);
+            $pa = (int) ($kp->points_against ?? 0);
+            $rows[] = [
+                'pair' => $pair,
+                'total_points' => (int) ($kp->total_points ?? 0),
+                'wins' => $wins,
+                'losses' => $losses,
+                'points_for' => $pf,
+                'points_against' => $pa,
+                'diff' => $pf - $pa,
+                'win_rate' => $games > 0 ? (int) round($wins / $games * 100) : 0,
+            ];
+        }
+
+        usort($rows, function ($x, $y) {
+            if ($x['total_points'] !== $y['total_points']) return $y['total_points'] <=> $x['total_points'];
+            if ($x['diff'] !== $y['diff']) return $y['diff'] <=> $x['diff'];
+            return $y['win_rate'] <=> $x['win_rate'];
+        });
+
+        return $rows;
     }
 
     /**

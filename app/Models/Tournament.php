@@ -424,6 +424,17 @@ class Tournament extends Model
 		return $this->hasMany(KingOfCourtRound::class)->orderBy('round_number');
 	}
 
+	public function kingOfCourtPairs()
+	{
+		return $this->hasMany(KingOfCourtPair::class);
+	}
+
+	/** «Король корта» с фиксированными парами. */
+	public function isPairedKingOfCourt(): bool
+	{
+		return $this->isKingOfCourt() && (bool) $this->is_paired;
+	}
+
 	public function isRoundRobin(): bool
 	{
 		return $this->type === 'round_robin';
