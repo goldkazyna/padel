@@ -135,6 +135,15 @@ class TournamentController extends Controller
 		}
 		unset($validated['flex_courts_count']);
 
+		// is_paired имеет смысл только для americano_flex (обработан выше) и
+		// king_of_court (фикс-пары). Для остальных типов — принудительно false,
+		// чтобы скрытый чекбокс другого блока формы не «прилип».
+		if (($validated['type'] ?? null) === 'king_of_court') {
+			$validated['is_paired'] = $request->boolean('is_paired');
+		} elseif (($validated['type'] ?? null) !== 'americano_flex') {
+			$validated['is_paired'] = false;
+		}
+
 
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
 		$validated['has_bronze_match'] = $request->has('has_bronze_match');
@@ -420,6 +429,10 @@ class TournamentController extends Controller
 		} elseif ($tournament->isTeamBased()) {
 			$result = $teamTournamentService->startTournament($tournament);
 		} elseif ($tournament->isKingOfCourt()) {
+			if ($tournament->isPairedKingOfCourt() && !$kingOfCourtService->arePairsCreated($tournament)) {
+				return redirect()->route('club.kingofcourt.pairs', $tournament)
+					->with('error', 'Сначала создайте пары');
+			}
 			$result = $kingOfCourtService->startTournament($tournament);
 		} elseif ($tournament->isRoundRobin()) {
 			$result = $roundRobinService->startTournament($tournament);

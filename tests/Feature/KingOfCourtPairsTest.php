@@ -144,6 +144,64 @@ class KingOfCourtPairsTest extends TestCase
         );
     }
 
+    public function test_web_start_requires_pairs_redirects_to_pairs(): void
+    {
+        [$t, $u] = $this->scenario(true, 8);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($t->club_id);
+
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.start', $t))
+            ->assertRedirect(route('club.kingofcourt.pairs', $t));
+
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
+    public function test_web_store_pairs_then_start(): void
+    {
+        [$t, $u] = $this->scenario(true, 8);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($t->club_id);
+
+        $this->actingAs($admin)->post(route('club.kingofcourt.storePairs', $t), [
+            'pairs' => [
+                [$u[0]->id, $u[1]->id], [$u[2]->id, $u[3]->id],
+                [$u[4]->id, $u[5]->id], [$u[6]->id, $u[7]->id],
+            ],
+        ])->assertRedirect();
+        $this->assertSame(4, $t->kingOfCourtPairs()->count());
+
+        $this->actingAs($admin)->post(route('club.tournaments.start', $t))->assertRedirect();
+        $this->assertSame('in_progress', $t->fresh()->status);
+    }
+
+    public function test_web_pairs_page_renders(): void
+    {
+        [$t] = $this->scenario(true, 8);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($t->club_id);
+
+        $this->actingAs($admin)
+            ->get(route('club.kingofcourt.pairs', $t))
+            ->assertOk()
+            ->assertSee('Создать пары');
+    }
+
+    public function test_web_show_renders_pair_leaderboard(): void
+    {
+        [$t, $u] = $this->scenario(true, 8);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($t->club_id);
+        $svc = new KingOfCourtService();
+        $svc->createPairs($t, [[$u[0]->id, $u[1]->id], [$u[2]->id, $u[3]->id], [$u[4]->id, $u[5]->id], [$u[6]->id, $u[7]->id]]);
+        $svc->startTournament($t);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('Таблица лидеров');
+    }
+
     public function test_solo_koc_still_works(): void
     {
         [$t, $u] = $this->scenario(false, 8);

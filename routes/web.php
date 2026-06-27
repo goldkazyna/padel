@@ -443,6 +443,10 @@ Route::middleware('auth')->group(function () {
             Route::put('/tournaments/flex/matches/{match}/score', [App\Http\Controllers\Club\AmericanoFlexController::class, 'updateScore'])->name('tournaments.flex.matches.updateScore');
 
             // Король корта
+            Route::get('/kingofcourt/{tournament}/pairs', [KingOfCourtController::class, 'pairs'])
+                ->name('kingofcourt.pairs');
+            Route::post('/kingofcourt/{tournament}/pairs', [KingOfCourtController::class, 'storePairs'])
+                ->name('kingofcourt.storePairs');
             Route::post('/kingofcourt/match/{match}/score', [KingOfCourtController::class, 'saveScore'])
                 ->name('kingofcourt.saveScore');
             Route::put('/kingofcourt/match/{match}/score', [KingOfCourtController::class, 'updateScore'])

@@ -25,7 +25,50 @@ class KingOfCourtController extends Controller
             'kingOfCourtRounds.matches.team2Player2',
         ]);
 
-        return view('club.tournaments.kingofcourt.show', compact('tournament'));
+        // Для фикс-пар — таблица по парам (иначе по игрокам в partial).
+        $pairStandings = $tournament->isPairedKingOfCourt()
+            ? app(KingOfCourtService::class)->getPairStandings($tournament)
+            : null;
+
+        return view('club.tournaments.kingofcourt.show', compact('tournament', 'pairStandings'));
+    }
+
+    /**
+     * Страница «Создать пары» для фикс-парного Короля корта.
+     */
+    public function pairs(Tournament $tournament)
+    {
+        if (!$tournament->isPairedKingOfCourt()) {
+            return redirect()->route('club.tournaments.show', $tournament);
+        }
+
+        $participants = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->orderBy('name')
+            ->get();
+
+        $existingPairs = $tournament->kingOfCourtPairs()->get();
+
+        return view('club.tournaments.kingofcourt.pairs', compact('tournament', 'participants', 'existingPairs'));
+    }
+
+    /**
+     * Сохранение пар. pairs[i][0] = player1_id, pairs[i][1] = player2_id.
+     */
+    public function storePairs(Request $request, Tournament $tournament, KingOfCourtService $service)
+    {
+        $validated = $request->validate([
+            'pairs' => 'required|array|min:2',
+            'pairs.*.0' => 'required|integer|exists:users,id',
+            'pairs.*.1' => 'required|integer|exists:users,id',
+        ]);
+
+        [$ok, $message] = $service->createPairs($tournament, $validated['pairs']);
+        if (!$ok) {
+            return back()->with('error', $message)->withInput();
+        }
+
+        return redirect()->route('club.tournaments.show', $tournament)->with('success', $message);
     }
 
     public function saveScore(Request $request, KingOfCourtMatch $match, KingOfCourtService $service)

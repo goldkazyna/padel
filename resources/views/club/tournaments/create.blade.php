@@ -398,6 +398,14 @@
 							Раундов столько, сколько решит админ — кнопка «Завершить турнир» появляется,
 							когда последний раунд доигран.
 						</div>
+						<div class="form-check mb-2">
+							<input type="checkbox" name="is_paired" value="1" id="kocFixedPairs" class="form-check-input"
+								{{ old('is_paired') ? 'checked' : '' }}>
+							<label class="form-check-label" for="kocFixedPairs">
+								<strong>Фиксированные пары</strong> — игроки регистрируются по одному, затем админ
+								собирает постоянные пары. Пары не перемешиваются, таблица — по парам.
+							</label>
+						</div>
 					</div>
 
 					<div id="roundRobinFields" style="display: none;">

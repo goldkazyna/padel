@@ -17,13 +17,21 @@
 
             @if($tournament->participants->count() === $tournament->max_participants)
                 @if(!$tournament->hasReserveParticipants())
-                    <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST"
-                          onsubmit="return confirm('Начать турнир? Первый раунд будет сгенерирован случайно.')">
-                        @csrf
-                        <button type="submit" class="btn-primary-custom">
-                            <i class="bi bi-play-fill"></i> Начать турнир
-                        </button>
-                    </form>
+                    @php $pairsReady = !$tournament->isPairedKingOfCourt() || $tournament->kingOfCourtPairs()->exists(); @endphp
+                    @if($tournament->isPairedKingOfCourt() && !$tournament->kingOfCourtPairs()->exists())
+                        {{-- Фикс-пары: сначала создать пары --}}
+                        <a href="{{ route('club.kingofcourt.pairs', $tournament) }}" class="btn-primary-custom">
+                            <i class="bi bi-people-fill"></i> Создать пары
+                        </a>
+                    @else
+                        <form action="{{ route('club.tournaments.start', $tournament) }}" method="POST"
+                              onsubmit="return confirm('Начать турнир?')">
+                            @csrf
+                            <button type="submit" class="btn-primary-custom">
+                                <i class="bi bi-play-fill"></i> Начать турнир
+                            </button>
+                        </form>
+                    @endif
                 @else
                     <span class="btn-outline-custom disabled">
                         <i class="bi bi-exclamation-triangle"></i> Замените резервы на игроков
