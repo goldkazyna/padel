@@ -3295,6 +3295,32 @@ class MobileAdminTournamentDetailController extends Controller
             return $rows;
         }
 
+        // Считаем победы/поражения/забитые/пропущенные из завершённых матчей.
+        $stats = []; // user_id => [wins, losses, pf, pa]
+        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $team1 = [$m->team1_player1_id, $m->team1_player2_id];
+                $team2 = [$m->team2_player1_id, $m->team2_player2_id];
+                $s1 = (int) $m->team1_score;
+                $s2 = (int) $m->team2_score;
+                foreach ($team1 as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid] ??= [0, 0, 0, 0];
+                    $stats[$uid][2] += $s1;
+                    $stats[$uid][3] += $s2;
+                    if ($s1 > $s2) $stats[$uid][0]++; elseif ($s1 < $s2) $stats[$uid][1]++;
+                }
+                foreach ($team2 as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid] ??= [0, 0, 0, 0];
+                    $stats[$uid][2] += $s2;
+                    $stats[$uid][3] += $s1;
+                    if ($s2 > $s1) $stats[$uid][0]++; elseif ($s2 < $s1) $stats[$uid][1]++;
+                }
+            }
+        }
+
         $players = $tournament->americanoFlexPlayers
             ->sortByDesc(function ($p) {
                 $avg = $p->matches_played > 0 ? $p->total_points / $p->matches_played : 0;
@@ -3309,6 +3335,7 @@ class MobileAdminTournamentDetailController extends Controller
             if (!$u) continue;
             $matches = (int) $fp->matches_played;
             $avg = $matches > 0 ? round($fp->total_points / $matches, 2) : 0;
+            $st = $stats[$u->id] ?? [0, 0, 0, 0];
             $rows[] = [
                 'position' => $position++,
                 'id' => $u->id,
@@ -3322,6 +3349,10 @@ class MobileAdminTournamentDetailController extends Controller
                 'bye_count' => (int) $fp->bye_count,
                 'bye_streak' => (int) $fp->bye_streak,
                 'avg_points' => $avg,
+                'wins' => $st[0],
+                'losses' => $st[1],
+                'points_for' => $st[2],
+                'points_against' => $st[3],
             ];
         }
         return $rows;
