@@ -156,6 +156,13 @@ class MobileAdminTournamentDetailController extends Controller
         } elseif ($tournament->isTeamBased()) {
             $ok = $team->startTournament($tournament);
         } elseif ($tournament->isKingOfCourt()) {
+            if ($tournament->isPairedKingOfCourt() && !$king->arePairsCreated($tournament)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Сначала создайте пары',
+                    'pairs_required' => true,
+                ], 422);
+            }
             $ok = $king->startTournament($tournament);
         } elseif ($tournament->isRoundRobin()) {
             $ok = $roundRobin->startTournament($tournament);
@@ -2031,7 +2038,10 @@ class MobileAdminTournamentDetailController extends Controller
                 ];
             });
 
-        $leaderboard = $this->buildKingOfCourtLeaderboard($tournament);
+        $paired = $tournament->isPairedKingOfCourt();
+        $leaderboard = $paired
+            ? $this->buildKocPairLeaderboard($tournament)
+            : $this->buildKingOfCourtLeaderboard($tournament);
 
         // Заворачиваем в одну виртуальную «группу» — это даёт фронту
         // переиспользовать готовый рендер «группа → раунды → таблица».
@@ -2048,6 +2058,7 @@ class MobileAdminTournamentDetailController extends Controller
         return [
             'success' => true,
             'type' => 'king_of_court',
+            'is_paired' => $paired,
             'groups' => [$virtualGroup],
             'playoff' => null,
             'summary' => [
@@ -2122,6 +2133,40 @@ class MobileAdminTournamentDetailController extends Controller
                 'point_diff' => (int) $kp->points_for - (int) $kp->points_against,
                 'win_percent' => $totalGames > 0 ? (int) round($kp->wins / $totalGames * 100) : 0,
                 'ball_percent' => $totalBalls > 0 ? (int) round($kp->points_for / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
+    }
+
+    /** Таблица лидеров по парам для фикс-парного Короля корта. */
+    private function buildKocPairLeaderboard(Tournament $tournament): array
+    {
+        $standings = app(KingOfCourtService::class)->getPairStandings($tournament);
+        $rows = [];
+        $position = 1;
+        foreach ($standings as $row) {
+            $pair = $row['pair'];
+            $p1 = $pair->player1;
+            $p2 = $pair->player2;
+            $totalGames = $row['wins'] + $row['losses'];
+            $totalBalls = $row['points_for'] + $row['points_against'];
+            $rows[] = [
+                'position' => $position++,
+                'id' => $pair->id,
+                'name' => trim(($p1->name ?? '?') . ' / ' . ($p2->name ?? '?')),
+                'player1' => $p1 ? $this->formatUser($p1) : null,
+                'player2' => $p2 ? $this->formatUser($p2) : null,
+                'rating' => (int) round((($p1->rating ?? 0) + ($p2->rating ?? 0)) / 2),
+                'wins' => $row['wins'],
+                'losses' => $row['losses'],
+                'draws' => 0,
+                'points_for' => $row['points_for'],
+                'points_against' => $row['points_against'],
+                'total_points' => $row['total_points'],
+                'games_played' => $totalGames,
+                'point_diff' => $row['diff'],
+                'win_percent' => $row['win_rate'],
+                'ball_percent' => $totalBalls > 0 ? (int) round($row['points_for'] / $totalBalls * 100) : 0,
             ];
         }
         return $rows;
@@ -2447,6 +2492,75 @@ class MobileAdminTournamentDetailController extends Controller
             'success' => true,
             'message' => $message,
         ]);
+    }
+
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/kingofcourt/pairs
+     * Состояние пар для фикс-парного Короля корта.
+     */
+    public function kocPairs(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isPairedKingOfCourt()) {
+            return $this->error('Турнир не «Король корта» с фиксированными парами', 422);
+        }
+
+        $participants = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => $this->formatUser($u));
+
+        $existingPairs = $tournament->kingOfCourtPairs()
+            ->with(['player1', 'player2'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'player1' => $p->player1 ? $this->formatUser($p->player1) : null,
+                'player2' => $p->player2 ? $this->formatUser($p->player2) : null,
+            ]);
+
+        $expectedPairs = (int) ($participants->count() / 2);
+        $canCreate = $participants->count() >= 8 && $participants->count() % 4 === 0;
+
+        return response()->json([
+            'success' => true,
+            'participants' => $participants,
+            'pairs' => $existingPairs,
+            'expected_pairs_count' => $expectedPairs,
+            'can_create' => $canCreate,
+            'locked' => $existingPairs->isNotEmpty(),
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/kingofcourt/pairs
+     * Сохранить пары. Тело: { pairs: [[player1_id, player2_id], ...] }
+     */
+    public function saveKocPairs(Request $request, Tournament $tournament, KingOfCourtService $service): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $validator = Validator::make($request->all(), [
+            'pairs' => 'required|array|min:2',
+            'pairs.*.0' => 'required|integer|exists:users,id',
+            'pairs.*.1' => 'required|integer|exists:users,id',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        [$ok, $message] = $service->createPairs($tournament, $request->input('pairs'));
+        if (!$ok) {
+            return $this->error($message);
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
     }
 
     // -------------------------------------------------------------------------

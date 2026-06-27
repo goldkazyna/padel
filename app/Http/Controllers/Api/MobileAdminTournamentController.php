@@ -306,8 +306,10 @@ class MobileAdminTournamentController extends Controller
             }
         }
 
-        // Парный Americano Flex: пары собирает админ, число игроков — чётное.
-        if (($validated['type'] ?? null) === 'americano_flex' && $request->boolean('is_paired')) {
+        // Парный режим: Americano Flex (пары собирает админ, чётное число) или
+        // Король корта с фиксированными парами (пары создаются отдельно перед стартом).
+        $type = $validated['type'] ?? null;
+        if ($type === 'americano_flex' && $request->boolean('is_paired')) {
             $validated['is_paired'] = true;
             $validated['pairing_mode'] = 'admin';
             if (((int) $validated['max_participants']) % 2 !== 0) {
@@ -315,6 +317,8 @@ class MobileAdminTournamentController extends Controller
                     'max_participants' => 'Для парного турнира число игроков должно быть чётным',
                 ]);
             }
+        } elseif ($type === 'king_of_court' && $request->boolean('is_paired')) {
+            $validated['is_paired'] = true;
         } else {
             $validated['is_paired'] = false;
         }

@@ -174,6 +174,8 @@ Route::prefix('mobile')->group(function () {
         // Bali KOC — создание пар + ввод счёта (next-round/finish общие выше)
         Route::get('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'baliKocPairs']);
         Route::post('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'saveBaliKocPairs']);
+        Route::get('/admin/tournaments/{tournament}/kingofcourt/pairs', [MobileAdminTournamentDetailController::class, 'kocPairs']);
+        Route::post('/admin/tournaments/{tournament}/kingofcourt/pairs', [MobileAdminTournamentDetailController::class, 'saveKocPairs']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 
         // Americano Flex — счёт матча (один эндпоинт для save/update), next-round/finish общие выше
