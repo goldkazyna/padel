@@ -1976,6 +1976,17 @@ class MobileTournamentController extends Controller
 
         // Король корта — место по лидерборду
         if ($tournament->type === 'king_of_court') {
+            // Фикс-пары: место по таблице ПАР (у обоих игроков пары оно одинаковое).
+            if ($tournament->isPairedKingOfCourt()) {
+                $standings = app(\App\Services\KingOfCourtService::class)->getPairStandings($tournament);
+                foreach ($standings as $i => $row) {
+                    $pair = $row['pair'];
+                    if ((int) $pair->player1_id === $userId || (int) $pair->player2_id === $userId) {
+                        return $i + 1;
+                    }
+                }
+                return null;
+            }
             $players = $tournament->kingOfCourtPlayers()
                 ->orderByDesc('total_points')
                 ->orderByDesc('wins')

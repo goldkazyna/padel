@@ -202,6 +202,35 @@ class KingOfCourtPairsTest extends TestCase
             ->assertSee('Таблица лидеров');
     }
 
+    public function test_user_place_is_pair_position_for_both_partners(): void
+    {
+        [$t, $u] = $this->scenario(true, 8);
+        $svc = new KingOfCourtService();
+        $svc->createPairs($t, [[$u[0]->id, $u[1]->id], [$u[2]->id, $u[3]->id], [$u[4]->id, $u[5]->id], [$u[6]->id, $u[7]->id]]);
+        $svc->startTournament($t);
+
+        // Очки по парам: (u0,u1)=100 → 1-е, (u2,u3)=50, (u4,u5)=30, (u6,u7)=5 → 4-е.
+        \App\Models\KingOfCourtPlayer::where('tournament_id', $t->id)
+            ->whereIn('user_id', [$u[0]->id, $u[1]->id])->update(['total_points' => 100, 'wins' => 3]);
+        \App\Models\KingOfCourtPlayer::where('tournament_id', $t->id)
+            ->whereIn('user_id', [$u[2]->id, $u[3]->id])->update(['total_points' => 50, 'wins' => 2]);
+        \App\Models\KingOfCourtPlayer::where('tournament_id', $t->id)
+            ->whereIn('user_id', [$u[4]->id, $u[5]->id])->update(['total_points' => 30, 'wins' => 1]);
+        \App\Models\KingOfCourtPlayer::where('tournament_id', $t->id)
+            ->whereIn('user_id', [$u[6]->id, $u[7]->id])->update(['total_points' => 5, 'wins' => 0]);
+
+        $controller = app(\App\Http\Controllers\Api\MobileTournamentController::class);
+        $method = new \ReflectionMethod($controller, 'getUserPlace');
+        $method->setAccessible(true);
+
+        // Оба игрока победившей пары — место 1 (не серебро партнёру).
+        $this->assertSame(1, $method->invoke($controller, $t->fresh(), $u[0]->id));
+        $this->assertSame(1, $method->invoke($controller, $t->fresh(), $u[1]->id));
+        // Худшая пара — последнее (4-е) место, оба игрока одинаково.
+        $this->assertSame(4, $method->invoke($controller, $t->fresh(), $u[6]->id));
+        $this->assertSame(4, $method->invoke($controller, $t->fresh(), $u[7]->id));
+    }
+
     public function test_solo_koc_still_works(): void
     {
         [$t, $u] = $this->scenario(false, 8);
