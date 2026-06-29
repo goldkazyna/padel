@@ -32,6 +32,7 @@
         <div class="gsession-title-block">
             <a href="{{ route('club.groupSessions.index') }}" class="back-link">&#8592; Журнал занятий</a>
             <h1 class="gsession-title">{{ $session->group->name }}</h1>
+            <div class="gsession-subtitle">Групповое занятие · {{ $club->name }}</div>
         </div>
         <span class="gs-status gs-status-{{ $session->status }}"><span class="gs-dot"></span>{{ $statusLabel }}</span>
     </div>
@@ -52,7 +53,7 @@
         <div class="meta-divider"></div>
         <div class="meta-item-row">
             <span class="meta-icon">&#128336;</span>
-            <span class="meta-value">{{ $session->start_time }}–{{ $session->end_time }}</span>
+            <span class="meta-value">{{ \Illuminate\Support\Str::substr($session->start_time, 0, 5) }}–{{ \Illuminate\Support\Str::substr($session->end_time, 0, 5) }}</span>
         </div>
         <div class="meta-divider"></div>
         <div class="meta-item-row">
@@ -387,6 +388,7 @@
     .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
     .back-link:hover { color: #a1a1aa; }
     .gsession-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #f4f4f5; margin: 0; }
+    .gsession-subtitle { font-size: 13px; color: #71717a; }
     /* Статус-плашка как в макете: тёмный пилл + цветная точка. */
     .gs-status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; background: #1c1c1f; border: 1px solid #2a2a2e; border-radius: 9px; font-size: 13px; font-weight: 700; color: #d4d4d8; white-space: nowrap; }
     .gs-dot { width: 8px; height: 8px; border-radius: 50%; background: #71717a; }
