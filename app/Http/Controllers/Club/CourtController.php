@@ -139,7 +139,7 @@ class CourtController extends Controller
                 ->where('status', 'active')
                 ->with(['members' => function ($q) {
                     $q->where('status', 'active')->with('client:id,name');
-                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance'])
+                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes'])
                 ->orderBy('name')
                 ->get()
             : collect();
@@ -346,7 +346,7 @@ class CourtController extends Controller
                 ->where('status', 'active')
                 ->with(['members' => function ($q) {
                     $q->where('status', 'active')->with('client:id,name');
-                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance'])
+                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes'])
                 ->orderBy('name')
                 ->get()
             : collect();

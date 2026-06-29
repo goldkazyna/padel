@@ -658,16 +658,20 @@
                                 </div>
                             </div>
                             @php
-                                $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
+                                $gmFreezeDate = \Illuminate\Support\Carbon::parse($date);
+                                $groupMembersData = $activeGroups->mapWithKeys(function ($g) use ($gmFreezeDate) {
                                     return [$g->id => [
                                         'coach_id' => $g->coach_id,
                                         'price' => (float) $g->price_per_session,
-                                        'members' => $g->members->map(function ($m) {
+                                        'members' => $g->members->map(function ($m) use ($gmFreezeDate) {
                                             $bought = (int) $m->enrollments->sum('sessions');
                                             $used = (int) $m->attendance->where('charged', true)->count();
+                                            $freeze = $m->freezes->first(fn($f) => $f->freeze_from->lte($gmFreezeDate) && $f->freeze_until->gte($gmFreezeDate));
                                             return [
                                                 'name' => optional($m->client)->name ?? '—',
                                                 'remaining' => $bought - $used,
+                                                'frozen' => $freeze !== null,
+                                                'frozen_until' => $freeze ? $freeze->freeze_until->format('d.m.y') : null,
                                             ];
                                         })->values(),
                                     ]];
@@ -1831,8 +1835,12 @@
                 const remaining = m.remaining;
                 const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                const frozen = m.frozen
+                    ? '<span class="gm-frozen">❄ заморожен' + (m.frozen_until ? ' до ' + m.frozen_until : '') + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
         }
@@ -1917,8 +1925,12 @@
                 const remaining = m.remaining;
                 const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                const frozen = m.frozen
+                    ? '<span class="gm-frozen">❄ заморожен' + (m.frozen_until ? ' до ' + m.frozen_until : '') + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
         }
@@ -3311,6 +3323,21 @@
         background: rgba(239,68,68,0.12);
         color: #f87171;
     }
+    .gm-frozen {
+        margin-right: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #38bdf8;
+        background: rgba(56,189,248,0.12);
+        border: 1px solid rgba(56,189,248,0.3);
+        border-radius: 999px;
+        padding: 2px 9px;
+        white-space: nowrap;
+    }
+    .gm-item-frozen .gm-name { color: #94a3b8; }
     .gm-empty {
         font-size: 13px;
         color: var(--sch-text-dim);
