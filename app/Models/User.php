@@ -930,6 +930,55 @@ class User extends Authenticatable
 			}
 		}
 
+		// Американо Флекс
+		$flexTournaments = \App\Models\Tournament::where('type', 'americano_flex')
+			->where('is_rated', true)
+			->where('status', 'completed')
+			->whereHas('americanoFlexPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($flexTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['americano_flex'] = ($stats['by_type']['americano_flex'] ?? 0) + 1;
+
+			// Чемпион — лучший средний результат за матч (как в лидерборде Флекс)
+			$winner = $tournament->americanoFlexPlayers()->get()
+				->sortByDesc(fn($p) => $p->matches_played > 0
+					? $p->total_points / $p->matches_played
+					: 0)
+				->first();
+			if ($winner && $winner->user_id === $this->id) {
+				$stats['wins']++;
+			}
+		}
+
+		// Round Robin
+		$rrTournaments = \App\Models\Tournament::where('type', 'round_robin')
+			->where('is_rated', true)
+			->where('status', 'completed')
+			->whereHas('roundRobinPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($rrTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['round_robin'] = ($stats['by_type']['round_robin'] ?? 0) + 1;
+
+			// Чемпион — больше побед, при равенстве — разница геймов (как в таблице RR)
+			$players = $tournament->roundRobinPlayers()->get()->all();
+			usort($players, function($a, $b) {
+				if ($a->wins !== $b->wins) return $b->wins <=> $a->wins;
+				$da = $a->points_for - $a->points_against;
+				$db = $b->points_for - $b->points_against;
+				return $db <=> $da;
+			});
+			$winner = $players[0] ?? null;
+			if ($winner && $winner->user_id === $this->id) {
+				$stats['wins']++;
+			}
+		}
+
 		return $stats;
 	}
 
