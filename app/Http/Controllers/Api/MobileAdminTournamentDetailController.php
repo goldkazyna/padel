@@ -85,6 +85,8 @@ class MobileAdminTournamentDetailController extends Controller
             'moderation_hours' => 'nullable|integer|min:0|max:720',
             'moderation_minutes' => 'nullable|integer|min:0|max:1440',
             'verified_only' => 'nullable|boolean',
+            // Можно перевести черновик в «Открыта регистрация» и обратно.
+            'status' => 'nullable|in:draft,open',
         ]);
 
         if ($validator->fails()) {
@@ -102,6 +104,11 @@ class MobileAdminTournamentDetailController extends Controller
             $validated['verified_only'] = $request->boolean('verified_only');
         } else {
             unset($validated['verified_only']);
+        }
+
+        // status: меняем только если прислан (старые версии не трогают статус).
+        if (!$request->filled('status')) {
+            unset($validated['status']);
         }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
