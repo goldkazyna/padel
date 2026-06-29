@@ -293,6 +293,39 @@ class MobileAdminTournamentDetailController extends Controller
     /**
      * DELETE /api/mobile/admin/tournaments/{tournament}
      */
+    /**
+     * Дублировать турнир: создать копию-черновик с теми же настройками и
+     * описанием, но без участников/пар/матчей/результатов — на дубль можно
+     * записываться заново. Дата начала очищается, её задают при подготовке.
+     */
+    public function duplicate(Request $request, Tournament $tournament): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->canManageTournament($user, $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$this->hasTournamentsFullAccess($user, $tournament)) {
+            return $this->noPermission('Нет прав на создание турниров');
+        }
+
+        $copy = $tournament->replicate([
+            // Per-instance / сгенерированные данные — не копируем.
+            'round_robin_schedule',
+        ]);
+        $copy->name = $tournament->name . ' (копия)';
+        $copy->status = 'draft';
+        $copy->start_date = null;
+        $copy->registration_deadline = null;
+        $copy->round_robin_schedule = null;
+        // Личный турнир остаётся за тем же создателем; клубный — за тем же клубом.
+        $copy->save();
+
+        return response()->json([
+            'success' => true,
+            'tournament' => $this->formatDetail($copy, $user),
+        ]);
+    }
+
     public function destroy(Request $request, Tournament $tournament): JsonResponse
     {
         $user = $request->user();
@@ -1240,7 +1273,7 @@ class MobileAdminTournamentDetailController extends Controller
             $service = new \App\Services\TelegramNotificationService($tournament->club);
             $service->notifyRegistrationApproved($user, $tournament);
 
-            $date = $tournament->start_date->format('d.m.Y H:i');
+            $date = $tournament->start_date?->format('d.m.Y H:i') ?? 'дата уточняется';
             \App\Models\Notification::create([
                 'user_id' => $user->id,
                 'title' => 'Заявка одобрена!',
