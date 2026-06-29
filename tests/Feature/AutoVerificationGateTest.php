@@ -102,4 +102,27 @@ class AutoVerificationGateTest extends TestCase
 
         $this->assertFalse((bool) $user->fresh()->level_verified);
     }
+
+    public function test_blocker_no_tournaments_stays_when_only_non_verifying_club(): void
+    {
+        // Игрок с аватаром, сыграл только в клубе без права верификации.
+        // Блокер «no_tournaments» должен остаться → баннер на главной не исчезает.
+        $club = $this->clubWithoutUsers();
+        $user = $this->playerInCompletedTournament($club);
+
+        $blockers = $user->fresh()->verificationBlockers();
+
+        $this->assertContains('no_tournaments', $blockers);
+    }
+
+    public function test_no_blocker_when_played_at_verifying_club(): void
+    {
+        $club = $this->clubWithUsers();
+        $user = $this->playerInCompletedTournament($club);
+
+        $blockers = $user->fresh()->verificationBlockers();
+
+        $this->assertNotContains('no_tournaments', $blockers);
+        $this->assertEmpty($blockers);
+    }
 }

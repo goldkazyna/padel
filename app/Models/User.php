@@ -155,17 +155,16 @@ class User extends Authenticatable
      */
     public function hasPlayedTournament(): bool
     {
-        // Одиночные форматы — pivot tournament_participants
-        $asPlayer = \DB::table('tournament_participants')
+        // club_id-ы завершённых турниров, где юзер участвовал (одиночка)
+        $singleClubs = \DB::table('tournament_participants')
             ->join('tournaments', 'tournaments.id', '=', 'tournament_participants.tournament_id')
             ->where('tournament_participants.user_id', $this->id)
             ->whereIn('tournament_participants.status', ['registered', 'approved'])
             ->where('tournaments.status', 'completed')
-            ->exists();
-        if ($asPlayer) return true;
+            ->pluck('tournaments.club_id');
 
-        // Парные турниры — tournament_teams
-        return \DB::table('tournament_teams')
+        // ...и в парных турнирах (tournament_teams)
+        $teamClubs = \DB::table('tournament_teams')
             ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
             ->where('tournament_teams.status', 'approved')
             ->where(function ($q) {
@@ -173,7 +172,14 @@ class User extends Authenticatable
                   ->orWhere('tournament_teams.player2_id', $this->id);
             })
             ->where('tournaments.status', 'completed')
-            ->exists();
+            ->pluck('tournaments.club_id');
+
+        $clubIds = $singleClubs->merge($teamClubs)->filter()->unique();
+        if ($clubIds->isEmpty()) return false;
+
+        // Для верификации засчитываем только клубы с правом подтверждать уровни.
+        return \App\Models\Club::whereIn('id', $clubIds)->get()
+            ->contains(fn($c) => $c->canVerifyLevels());
     }
 
     /**
@@ -225,9 +231,8 @@ class User extends Authenticatable
             ->where('tournament_participants.user_id', $this->id)
             ->whereIn('tournament_participants.status', ['registered', 'approved'])
             ->where('tournaments.status', 'completed')
-            ->orderByDesc('tournaments.start_date')
-            ->select('tournaments.id', 'tournaments.club_id')
-            ->first();
+            ->select('tournaments.id', 'tournaments.club_id', 'tournaments.start_date')
+            ->get();
 
         // Парные
         $team = \DB::table('tournament_teams')
@@ -238,24 +243,27 @@ class User extends Authenticatable
                   ->orWhere('tournament_teams.player2_id', $this->id);
             })
             ->where('tournaments.status', 'completed')
-            ->orderByDesc('tournaments.start_date')
-            ->select('tournaments.id', 'tournaments.club_id')
-            ->first();
+            ->select('tournaments.id', 'tournaments.club_id', 'tournaments.start_date')
+            ->get();
 
-        // Берём более свежий из двух
-        $candidates = array_filter([$single, $team]);
-        if (empty($candidates)) return null;
+        // Самый свежий завершённый турнир в клубе с правом подтверждать уровни
+        // (атрибуция «кто верифицировал»).
+        $rows = $single->merge($team)
+            ->filter(fn($r) => $r->club_id !== null)
+            ->sortByDesc('start_date')
+            ->values();
 
-        // Если оба есть — выберем последний по start_date (для этого надо
-        // достать start_date). Упростим: оба запроса уже отсортированы по дате;
-        // если оба есть — обычно один и тот же ряд. Берём первый.
-        $best = $candidates[0] ?? null;
-        if (!$best) return null;
+        foreach ($rows as $r) {
+            $club = \App\Models\Club::find($r->club_id);
+            if ($club && $club->canVerifyLevels()) {
+                return [
+                    'tournament_id' => (int) $r->id,
+                    'club_id' => (int) $r->club_id,
+                ];
+            }
+        }
 
-        return [
-            'tournament_id' => (int) $best->id,
-            'club_id' => (int) $best->club_id,
-        ];
+        return null;
     }
 
     // Проверки ролей
