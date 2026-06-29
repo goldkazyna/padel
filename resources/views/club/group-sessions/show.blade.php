@@ -382,7 +382,7 @@
 </script>
 
 <style>
-    .gsession-container { max-width: 820px; margin: 0 auto; padding: 32px 24px; }
+    .gsession-container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
     .gsession-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
     .gsession-title-block { display: flex; flex-direction: column; gap: 6px; }
     .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
