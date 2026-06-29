@@ -44,6 +44,12 @@ class Tournament extends Model
     {
         $clubId = $clubId ?? $this->club_id;
 
+        // Авто-верификация только у клубов с правом на пользователей/уровни.
+        $club = $clubId ? \App\Models\Club::find($clubId) : null;
+        if (!$club || !$club->canVerifyLevels()) {
+            return;
+        }
+
         if ($this->type === 'team') {
             $playerIds = \App\Models\TournamentTeam::where('tournament_id', $this->id)
                 ->where('status', 'approved')

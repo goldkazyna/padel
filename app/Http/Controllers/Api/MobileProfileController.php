@@ -268,14 +268,16 @@ class MobileProfileController extends Controller
         $user->save();
 
         // Триггер верификации: появился аватар → пересчитать level_verified.
-        // Если флаг встал в 1 — пишем запись в user_level_history с привязкой
-        // к последнему завершённому турниру юзера (его «верифицировал клуб»,
-        // в котором он сыграл).
+        // Только если клуб последнего завершённого турнира имеет право на
+        // пользователей/уровни — иначе авто-верификации нет (как и после турнира).
         $oldVerified = (bool) $user->level_verified;
-        if ($user->recomputeLevelVerified()) {
+        $ref = $user->lastCompletedTournamentRef();
+        $refClub = ($ref['club_id'] ?? null)
+            ? \App\Models\Club::find($ref['club_id'])
+            : null;
+        if ($refClub && $refClub->canVerifyLevels() && $user->recomputeLevelVerified()) {
             $newVerified = (bool) $user->level_verified;
             if ($newVerified && !$oldVerified) {
-                $ref = $user->lastCompletedTournamentRef();
                 \App\Models\UserLevelHistory::create([
                     'user_id' => $user->id,
                     'changed_by_user_id' => null, // системное событие

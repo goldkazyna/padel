@@ -94,6 +94,17 @@ class Club extends Model
         return ($features[$feature] ?? $default) === true;
     }
 
+    /**
+     * Может ли клуб менять/подтверждать уровни игроков.
+     * Завязано на фичу «Пользователи» — тот же грант, что открывает раздел
+     * игроков с правкой уровней. От него же зависит авто-верификация
+     * после турнира и при загрузке аватара.
+     */
+    public function canVerifyLevels(): bool
+    {
+        return $this->hasFeature('users');
+    }
+
     // Связь: админы клуба
     public function admins()
     {
