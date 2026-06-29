@@ -530,6 +530,32 @@ class User extends Authenticatable
 			}
 		}
 
+		// Bali KOC — фиксированные пары, счёт по геймам (pair1_games/pair2_games)
+		$baliPairIds = \App\Models\BaliKocPair::where('player1_id', $this->id)
+			->orWhere('player2_id', $this->id)
+			->pluck('id');
+
+		if ($baliPairIds->count() > 0) {
+			$baliMatches = \App\Models\BaliKocMatch::where('status', 'completed')
+				->where(function($q) use ($baliPairIds) {
+					$q->whereIn('pair1_id', $baliPairIds)
+					  ->orWhereIn('pair2_id', $baliPairIds);
+				})->get();
+
+			foreach ($baliMatches as $match) {
+				$stats['total']++;
+				$isPair1 = $baliPairIds->contains($match->pair1_id);
+
+				if ($match->pair1_games == $match->pair2_games) {
+					$stats['draw']++;
+				} elseif ($match->pair1_games > $match->pair2_games) {
+					$isPair1 ? $stats['won']++ : $stats['lost']++;
+				} else {
+					$isPair1 ? $stats['lost']++ : $stats['won']++;
+				}
+			}
+		}
+
 		return $stats;
 	}
 
@@ -872,13 +898,35 @@ class User extends Authenticatable
 		foreach ($teamTournaments as $tournament) {
 			$stats['total']++;
 			$stats['by_type']['team'] = ($stats['by_type']['team'] ?? 0) + 1;
-			
+
 			// Проверяем победителя финала
 			$finalMatch = $tournament->playoffMatches()->where('stage', 'final')->first();
 			if ($finalMatch && $finalMatch->winner) {
 				if ($finalMatch->winner->player1_id === $this->id || $finalMatch->winner->player2_id === $this->id) {
 					$stats['wins']++;
 				}
+			}
+		}
+
+		// Bali KOC (фиксированные пары)
+		$baliTournaments = \App\Models\Tournament::where('type', 'bali_koc')
+			->where('is_rated', true)
+			->where('status', 'completed')
+			->whereHas('baliKocPairs', function($q) {
+				$q->where('player1_id', $this->id)
+				  ->orWhere('player2_id', $this->id);
+			})->get();
+
+		foreach ($baliTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['bali_koc'] = ($stats['by_type']['bali_koc'] ?? 0) + 1;
+
+			// 1-е место по очкам (как в таблице Bali KOC)
+			$winner = $tournament->baliKocPairs()
+				->orderBy('points', 'desc')
+				->first();
+			if ($winner && ($winner->player1_id === $this->id || $winner->player2_id === $this->id)) {
+				$stats['wins']++;
 			}
 		}
 
