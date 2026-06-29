@@ -431,6 +431,8 @@ class MobileAdminTournamentDetailController extends Controller
             'bali_pairs_created' => $baliPairsCreated,
             'koc_pairs_created' => $kocPairsCreated,
             'is_paired' => (bool) $t->is_paired,
+            'moderation_hours' => $t->moderation_hours !== null ? (int) $t->moderation_hours : null,
+            'moderation_minutes' => $t->moderation_minutes !== null ? (int) $t->moderation_minutes : null,
             'tournaments_full_access' => $hasFullAccess,
         ];
     }
