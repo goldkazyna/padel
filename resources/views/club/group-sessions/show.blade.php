@@ -33,7 +33,7 @@
             <a href="{{ route('club.groupSessions.index') }}" class="back-link">&#8592; Журнал занятий</a>
             <h1 class="gsession-title">{{ $session->group->name }}</h1>
         </div>
-        <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
+        <span class="gs-status gs-status-{{ $session->status }}"><span class="gs-dot"></span>{{ $statusLabel }}</span>
     </div>
 
     @if(session('success'))
@@ -120,7 +120,7 @@
                                 </div>
                             </div>
                             <div class="ta-center">
-                                <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }} зан.</span>
+                                <span class="rem-badge {{ $rem <= 0 ? 'rem-low' : ($rem <= 2 ? 'rem-mid' : 'rem-ok') }}">{{ $rem }} зан.</span>
                             </div>
                             <div class="ta-center">
                                 <div class="seg">
@@ -191,7 +191,7 @@
             <div class="guest-add-row">
                 <div style="position:relative;flex:1;min-width:180px;">
                     <input type="text" id="guestSearch" class="guest-input" autocomplete="off"
-                           placeholder="Имя гостя (поиск по клиентам)…" oninput="searchGuests(this.value)">
+                           placeholder="Имя гостя" oninput="searchGuests(this.value)">
                     <div id="guestResults" class="guest-results" style="display:none;"></div>
                     <input type="hidden" name="client_id" id="guestClientId">
                     <div id="guestSelected" class="guest-selected" style="display:none;">
@@ -387,9 +387,12 @@
     .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
     .back-link:hover { color: #a1a1aa; }
     .gsession-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #f4f4f5; margin: 0; }
-    .badge-held { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
-    .badge-cancelled { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
-    .badge-planned { display: inline-flex; align-items: center; padding: 6px 14px; background: rgba(234,179,8,0.15); color: #eab308; border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; font-size: 13px; font-weight: 700; }
+    /* Статус-плашка как в макете: тёмный пилл + цветная точка. */
+    .gs-status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; background: #1c1c1f; border: 1px solid #2a2a2e; border-radius: 9px; font-size: 13px; font-weight: 700; color: #d4d4d8; white-space: nowrap; }
+    .gs-dot { width: 8px; height: 8px; border-radius: 50%; background: #71717a; }
+    .gs-status-planned .gs-dot { background: #f59e0b; }
+    .gs-status-held .gs-dot { background: #22c55e; }
+    .gs-status-cancelled .gs-dot { background: #ef4444; }
 
     .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
@@ -417,7 +420,7 @@
     .att-row { padding: 14px 22px; border-bottom: 1px solid #1c1c1f; }
     .att-row:last-child { border-bottom: none; }
     .att-col-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .avatar { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #1f2937; color: #93c5fd; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; }
+    .avatar { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #3f3f46; color: #e4e4e7; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; }
     .avatar-guest { background: #2e1f3a; color: #c084fc; }
     .name-block { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .att-name { font-size: 14px; font-weight: 700; color: #f4f4f5; }
@@ -427,6 +430,7 @@
 
     .rem-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 7px; font-size: 13px; font-weight: 800; white-space: nowrap; }
     .rem-ok { background: rgba(34,197,94,0.14); color: #22c55e; border: 1px solid rgba(34,197,94,0.28); }
+    .rem-mid { background: rgba(245,158,11,0.14); color: #f59e0b; border: 1px solid rgba(245,158,11,0.28); }
     .rem-low { background: rgba(239,68,68,0.14); color: #ef4444; border: 1px solid rgba(239,68,68,0.28); }
 
     .seg { display: inline-flex; background: #0e0e10; border: 1px solid #27272a; border-radius: 9px; padding: 3px; gap: 2px; }
