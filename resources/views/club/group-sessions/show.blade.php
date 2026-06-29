@@ -47,23 +47,23 @@
     {{-- Session meta card --}}
     <div class="meta-card">
         <div class="meta-item-row">
-            <span class="meta-icon">&#128197;</span>
+            <i class="bi bi-calendar3 meta-icon"></i>
             <span class="meta-value">{{ $session->date->format('d.m.Y') }}</span>
         </div>
         <div class="meta-divider"></div>
         <div class="meta-item-row">
-            <span class="meta-icon">&#128336;</span>
+            <i class="bi bi-clock meta-icon"></i>
             <span class="meta-value">{{ \Illuminate\Support\Str::substr($session->start_time, 0, 5) }}–{{ \Illuminate\Support\Str::substr($session->end_time, 0, 5) }}</span>
         </div>
         <div class="meta-divider"></div>
         <div class="meta-item-row">
-            <span class="meta-icon">&#127968;</span>
+            <i class="bi bi-grid meta-icon"></i>
             <span class="meta-value">{{ $session->court->name }}</span>
         </div>
         @if($session->coach)
             <div class="meta-divider"></div>
             <div class="meta-item-row">
-                <span class="meta-icon">&#128100;</span>
+                <i class="bi bi-person meta-icon"></i>
                 <span class="meta-value">{{ $session->coach->name }}</span>
             </div>
         @endif
@@ -208,15 +208,15 @@
         <div class="session-summary">
                 <div class="summary-head">При проведении произойдёт</div>
                 <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">💳</span> Спишется занятий с карт</span>
+                    <span class="summary-label"><i class="bi bi-credit-card-2-front summary-ic"></i> Спишется занятий с карт</span>
                     <span class="summary-val sv-green" id="sumCharge">0</span>
                 </div>
                 <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">⭐</span> Пробных (участники + гости)</span>
+                    <span class="summary-label"><i class="bi bi-star summary-ic"></i> Пробных (участники + гости)</span>
                     <span class="summary-val sv-purple" id="sumTrial">0</span>
                 </div>
                 <div class="summary-row">
-                    <span class="summary-label"><span class="summary-ic">💰</span> Принято денег за пробные</span>
+                    <span class="summary-label"><i class="bi bi-coin summary-ic"></i> Принято денег за пробные</span>
                     <span class="summary-val sv-purple" id="sumMoney">0 ₸</span>
                 </div>
             </div>
@@ -469,7 +469,7 @@
     .summary-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a1d; }
     .summary-row:last-child { border-bottom: none; }
     .summary-label { display: flex; align-items: center; gap: 10px; color: #d4d4d8; font-size: 14px; font-weight: 600; }
-    .summary-ic { font-size: 15px; }
+    .summary-ic { font-size: 15px; color: #a1a1aa; }
     .summary-val { font-size: 17px; font-weight: 800; }
     .sv-green { color: #22c55e; }
     .sv-purple { color: #c084fc; }
