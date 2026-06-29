@@ -421,6 +421,10 @@
     .ta-right { text-align: right; justify-content: flex-end; display: flex; align-items: center; }
     .att-row { padding: 14px 22px; border-bottom: 1px solid #1c1c1f; }
     .att-row:last-child { border-bottom: none; }
+    /* Строка гостя/проведённого: имя слева, кнопка/статус справа в одну линию. */
+    .guest-row { display: flex; align-items: center; gap: 12px; }
+    .guest-row .att-col-name { flex: 1; }
+    .guest-row form { margin-left: auto; }
     .att-col-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .avatar { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #3f3f46; color: #e4e4e7; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; }
     .avatar-guest { background: #2e1f3a; color: #c084fc; }
