@@ -52,12 +52,25 @@ class ClientController extends Controller
 
         $clientGroups = collect();
         $clientCards = collect();
+        $clientTrials = collect();
         $cardTypes = collect();
         if ($selectedClient) {
             $clientGroups = \App\Models\ClubGroupMember::where('client_id', $selectedClient->id)
                 ->whereHas('group', fn($q) => $q->where('club_id', $club->id))
                 ->with('group')
                 ->get();
+
+            // Пробные занятия клиента: как гость (client_id) или как член группы.
+            $clientTrials = \App\Models\ClubGroupAttendance::where('is_trial', true)
+                ->where(function ($q) use ($selectedClient) {
+                    $q->where('client_id', $selectedClient->id)
+                      ->orWhereHas('member', fn($m) => $m->where('client_id', $selectedClient->id));
+                })
+                ->whereHas('session', fn($q) => $q->whereHas('group', fn($g) => $g->where('club_id', $club->id)))
+                ->with(['session.group'])
+                ->get()
+                ->sortByDesc(fn($a) => optional($a->session)->date)
+                ->values();
 
             $clientCards = \App\Models\ClubCard::where('club_client_id', $selectedClient->id)
                 ->where('club_id', $club->id)
@@ -72,7 +85,7 @@ class ClientController extends Controller
                 ->get();
         }
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientCards', 'cardTypes'));
+        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes'));
     }
 
     /**

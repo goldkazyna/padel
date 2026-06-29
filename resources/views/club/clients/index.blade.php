@@ -189,6 +189,20 @@
                 </div>
                 @endif
 
+                @if(isset($clientTrials) && $clientTrials->isNotEmpty())
+                <div class="client-detail-section">
+                    <div class="client-detail-label">Пробные занятия <span class="trial-count-badge">{{ $clientTrials->count() }}</span></div>
+                    <div class="client-detail-fields">
+                        @foreach($clientTrials as $tr)
+                        <div class="client-detail-field">
+                            <span>{{ optional($tr->session)->date ? $tr->session->date->format('d.m.Y') : '—' }} · {{ optional(optional($tr->session)->group)->name ?? 'Занятие' }}</span>
+                            <span class="field-label">{{ (int) $tr->trial_amount > 0 ? number_format($tr->trial_amount, 0, '', ' ') . ' ₸' : 'бесплатно' }}</span>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 <div class="client-detail-section">
                     <div class="client-detail-label client-cards-head">
                         <span>Клубные карты</span>
@@ -1132,6 +1146,7 @@ document.addEventListener('keydown', function(e) {
 .client-cards-head { display:flex; align-items:center; justify-content:space-between; }
 .btn-attach-card { background:rgba(34,197,94,.14); color:var(--cl-accent); border:1px solid rgba(34,197,94,.3); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; }
 .client-cards-empty { color:var(--cl-text-muted); font-size:13px; padding:6px 0; }
+.trial-count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 6px; margin-left:6px; border-radius:9px; background:rgba(168,85,247,.18); color:#c084fc; font-size:11px; font-weight:700; }
 .client-cards-list { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
 .client-card-item { display:flex; align-items:center; gap:10px; background:var(--cl-card); border:1px solid var(--cl-border); border-radius:10px; padding:10px 12px; }
 .client-card-item.is-inactive { opacity:.55; }
