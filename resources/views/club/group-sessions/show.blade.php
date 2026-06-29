@@ -131,8 +131,9 @@
                                                onchange="onStatus({{ $m->id }})">
                                         <span>Списать</span>
                                     </label>
-                                    <label class="seg-btn seg-trial">
+                                    <label class="seg-btn seg-trial {{ $frozen ? 'is-disabled' : '' }}">
                                         <input type="radio" name="attendance[{{ $m->id }}][status]" value="trial"
+                                               {{ $frozen ? 'disabled' : '' }}
                                                onchange="onStatus({{ $m->id }})">
                                         <span>Пробное</span>
                                     </label>
