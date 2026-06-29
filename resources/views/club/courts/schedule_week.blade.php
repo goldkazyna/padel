@@ -980,6 +980,8 @@
     .gm-rem-ok { background: rgba(34,197,94,0.12); color: #4ade80; }
     .gm-rem-low { background: rgba(234,179,8,0.12); color: #facc15; }
     .gm-rem-zero { background: rgba(239,68,68,0.12); color: #f87171; }
+    .gm-frozen { margin-right: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+    .gm-item-frozen .gm-name { color: #94a3b8; }
     .gm-empty { font-size: 13px; color: #a1a1aa; text-align: center; padding: 4px 0; }
 
     /* Кнопки клубных карт клиента — хардкод-цвета (модалка вне .ws-page, var(--sch-*) недоступны) */
@@ -1162,6 +1164,11 @@
                                             return [
                                                 'name' => optional($m->client)->name ?? '—',
                                                 'remaining' => $bought - $used,
+                                                // Диапазоны заморозок — флаг считаем в JS на дату выбранного слота.
+                                                'freezes' => $m->freezes->map(fn($f) => [
+                                                    'from' => $f->freeze_from->toDateString(),
+                                                    'until' => $f->freeze_until->toDateString(),
+                                                ])->values(),
                                             ];
                                         })->values(),
                                     ]];
@@ -2202,6 +2209,18 @@
     }
 
     // ====== Группы (идентично дневному виду) ======
+    // Заморожен ли участник на дату (YYYY-MM-DD) — вернёт дату «до» в DD.MM.YY или null.
+    function gmFrozenUntil(m, dateStr) {
+        if (!m.freezes || !dateStr) return null;
+        for (var i = 0; i < m.freezes.length; i++) {
+            var f = m.freezes[i];
+            if (dateStr >= f.from && dateStr <= f.until) {
+                var p = String(f.until).split('-');
+                return p.length === 3 ? (p[2] + '.' + p[1] + '.' + p[0].slice(2)) : f.until;
+            }
+        }
+        return null;
+    }
     function renderGroupMembers(groupId) {
         const block = document.getElementById('groupMembersBlock');
         const list = document.getElementById('gmList');
@@ -2246,8 +2265,12 @@
                 const remaining = m.remaining;
                 const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                const bd = document.getElementById('bookDate');
+                const fzUntil = gmFrozenUntil(m, bd ? bd.value : '');
+                const frozen = fzUntil ? '<span class="gm-frozen">❄ заморожен до ' + fzUntil + '</span>' : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
         }
@@ -2316,8 +2339,11 @@
                 const remaining = m.remaining;
                 const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' +
+                const fzUntil = gmFrozenUntil(m, data.date || '');
+                const frozen = fzUntil ? '<span class="gm-frozen">❄ заморожен до ' + fzUntil + '</span>' : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
         }
