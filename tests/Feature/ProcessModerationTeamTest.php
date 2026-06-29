@@ -41,8 +41,9 @@ class ProcessModerationTeamTest extends TestCase
         $this->assertNotNull($waiting->fresh()->moderation_deadline);
     }
 
-    public function test_team_without_waitlist_is_rejected(): void
+    public function test_team_without_waitlist_goes_to_waitlist(): void
     {
+        // Без листа ожидания пара тоже не отклоняется, а уходит в лист ожидания.
         $club = Club::create(['name' => 'C', 'address' => 'A']);
         $t = Tournament::create([
             'club_id' => $club->id, 'name' => 'Team', 'type' => 'team',
@@ -58,6 +59,6 @@ class ProcessModerationTeamTest extends TestCase
 
         $this->artisan('tournaments:process-moderation')->assertExitCode(0);
 
-        $this->assertSame('rejected', $late->fresh()->status);
+        $this->assertSame('waiting', $late->fresh()->status);
     }
 }

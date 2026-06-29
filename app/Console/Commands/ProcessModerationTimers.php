@@ -47,30 +47,21 @@ class ProcessModerationTimers extends Command
 
             if ($remaining <= 0) {
                 DB::transaction(function () use ($t, $p, $notifier) {
-                    $hasWaitlist = (int) ($t->waitlist_size ?? 0) > 0;
-
                     // первый в листе ожидания ДО демоции просрочившего
                     $nextWaiter = $t->participants()
                         ->wherePivot('status', 'waiting')
                         ->orderBy('tournament_participants.created_at')
                         ->first();
 
-                    if ($hasWaitlist) {
-                        $t->participants()->updateExistingPivot($p->id, [
-                            'status' => 'waiting',
-                            'moderation_deadline' => null,
-                            'reminder_sent_at' => null,
-                            'created_at' => now(), // в конец очереди
-                        ]);
-                        $notifier->demoted($p, $t);
-                    } else {
-                        $t->participants()->updateExistingPivot($p->id, [
-                            'status' => 'cancelled',
-                            'moderation_deadline' => null,
-                            'reminder_sent_at' => null,
-                        ]);
-                        $notifier->expired($p, $t);
-                    }
+                    // Просрочивший всегда уходит в конец листа ожидания (даже если
+                    // лист ожидания не настроен) — чтобы его не потерять.
+                    $t->participants()->updateExistingPivot($p->id, [
+                        'status' => 'waiting',
+                        'moderation_deadline' => null,
+                        'reminder_sent_at' => null,
+                        'created_at' => now(), // в конец очереди
+                    ]);
+                    $notifier->demoted($p, $t);
 
                     if ($nextWaiter) {
                         $deadline = $t->moderationDeadline();
@@ -113,24 +104,18 @@ class ProcessModerationTimers extends Command
 
             if ($remaining <= 0) {
                 DB::transaction(function () use ($t, $team, $notifier) {
-                    $hasWaitlist = (int) ($t->waitlist_size ?? 0) > 0;
-
                     $nextTeam = \App\Models\TournamentTeam::where('tournament_id', $t->id)
                         ->where('status', 'waiting')
                         ->orderBy('created_at')
                         ->first();
 
-                    if ($hasWaitlist) {
-                        $team->status = 'waiting';
-                        $team->moderation_deadline = null;
-                        $team->reminder_sent_at = null;
-                        $team->created_at = now(); // в конец очереди
-                        $team->save();
-                        if ($team->player1) $notifier->demoted($team->player1, $t);
-                    } else {
-                        $team->update(['status' => 'rejected', 'moderation_deadline' => null, 'reminder_sent_at' => null]);
-                        if ($team->player1) $notifier->expired($team->player1, $t);
-                    }
+                    // Просрочившая пара всегда уходит в лист ожидания (даже без него).
+                    $team->status = 'waiting';
+                    $team->moderation_deadline = null;
+                    $team->reminder_sent_at = null;
+                    $team->created_at = now(); // в конец очереди
+                    $team->save();
+                    if ($team->player1) $notifier->demoted($team->player1, $t);
 
                     if ($nextTeam) {
                         $deadline = $t->moderationDeadline();

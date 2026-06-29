@@ -67,8 +67,10 @@ class ProcessModerationTimersTest extends TestCase
         $this->assertSame(0, $t->participants()->wherePivot('status', 'pending')->count());
     }
 
-    public function test_expired_without_waitlist_is_cancelled(): void
+    public function test_expired_without_waitlist_goes_to_waitlist(): void
     {
+        // Даже если лист ожидания не настроен (waitlist_size = 0), просрочивший
+        // не удаляется, а уходит в лист ожидания — чтобы его не потерять.
         $club = \App\Models\Club::create(['name' => 'C', 'address' => 'A']);
         $t = Tournament::create([
             'club_id' => $club->id, 'name' => 'Кубок', 'type' => 'americano',
@@ -84,9 +86,9 @@ class ProcessModerationTimersTest extends TestCase
         $this->artisan('tournaments:process-moderation')->assertExitCode(0);
 
         $lateRow = $t->participants()->where('user_id', $late->id)->first();
-        $this->assertSame('cancelled', $lateRow->pivot->status);
+        $this->assertSame('waiting', $lateRow->pivot->status);
         $this->assertDatabaseHas('notifications', [
-            'user_id' => $late->id, 'type' => 'tournament_moderation_expired',
+            'user_id' => $late->id, 'type' => 'tournament_moderation_demoted',
         ]);
     }
 
