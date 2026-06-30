@@ -91,6 +91,54 @@ class SupportTicketAdminTest extends TestCase
         $this->assertSame('open', $ticket->fresh()->status);
     }
 
+    public function test_toggle_urgent(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        $ticket = $this->ticketFrom(User::factory()->create());
+
+        $this->actingAs($admin)->post("/admin/tickets/{$ticket->id}/urgent")->assertRedirect();
+        $this->assertTrue((bool) $ticket->fresh()->is_urgent);
+
+        $this->actingAs($admin)->post("/admin/tickets/{$ticket->id}/urgent")->assertRedirect();
+        $this->assertFalse((bool) $ticket->fresh()->is_urgent);
+    }
+
+    public function test_set_category(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        $ticket = $this->ticketFrom(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post("/admin/tickets/{$ticket->id}/category", ['category' => 'Аккаунт'])
+            ->assertRedirect();
+        $this->assertSame('Аккаунт', $ticket->fresh()->category);
+    }
+
+    public function test_invalid_category_rejected(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        $ticket = $this->ticketFrom(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post("/admin/tickets/{$ticket->id}/category", ['category' => 'Чтото'])
+            ->assertSessionHasErrors('category');
+        $this->assertNull($ticket->fresh()->category);
+    }
+
+    public function test_reply_with_close_closes_ticket(): void
+    {
+        $this->fakePush();
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        $ticket = $this->ticketFrom(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post("/admin/tickets/{$ticket->id}/reply", ['body' => 'Решено', 'close' => '1'])
+            ->assertRedirect();
+
+        $this->assertSame('closed', $ticket->fresh()->status);
+        $this->assertSame(1, $ticket->messages()->where('author_type', 'support')->count());
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

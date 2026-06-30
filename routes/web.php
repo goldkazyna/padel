@@ -580,6 +580,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply'])->name('tickets.reply');
         Route::post('/tickets/{ticket}/close', [\App\Http\Controllers\Admin\TicketController::class, 'close'])->name('tickets.close');
         Route::post('/tickets/{ticket}/reopen', [\App\Http\Controllers\Admin\TicketController::class, 'reopen'])->name('tickets.reopen');
+        Route::post('/tickets/{ticket}/urgent', [\App\Http\Controllers\Admin\TicketController::class, 'urgent'])->name('tickets.urgent');
+        Route::post('/tickets/{ticket}/category', [\App\Http\Controllers\Admin\TicketController::class, 'category'])->name('tickets.category');
     });
     
 });

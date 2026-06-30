@@ -13,12 +13,18 @@ class SupportTicket extends Model
         'user_id',
         'subject',
         'status',
+        'is_urgent',
+        'category',
         'last_message_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'is_urgent' => 'boolean',
     ];
+
+    /** Допустимые категории (метки) тикета. */
+    public const CATEGORIES = ['Аккаунт', 'Оплата', 'Турнир', 'Бронь', 'Другое'];
 
     public function user()
     {
