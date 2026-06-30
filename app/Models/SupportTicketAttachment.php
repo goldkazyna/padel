@@ -43,4 +43,14 @@ class SupportTicketAttachment extends Model
     {
         return basename($this->path);
     }
+
+    /** Размер файла в байтах (0 если недоступен). */
+    public function getSizeAttribute(): int
+    {
+        try {
+            return (int) \Illuminate\Support\Facades\Storage::disk('public')->size($this->path);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
 }

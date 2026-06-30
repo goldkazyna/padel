@@ -174,6 +174,7 @@ class MobileSupportController extends Controller
                 'url' => $a->url,
                 'type' => $a->type,
                 'name' => $a->name,
+                'size' => $a->size,
             ])->values(),
         ]);
 
