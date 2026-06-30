@@ -26,9 +26,21 @@ class SupportTicketAttachment extends Model
         return $this->belongsTo(SupportTicketMessage::class, 'support_ticket_message_id');
     }
 
-    /** Полный URL вложения (webp в public-диске). */
+    /** Полный URL вложения (webp/pdf в public-диске). */
     public function getUrlAttribute(): string
     {
         return url('/storage/' . ltrim($this->path, '/'));
+    }
+
+    /** Тип вложения: pdf или image. */
+    public function getTypeAttribute(): string
+    {
+        return str_ends_with(strtolower($this->path), '.pdf') ? 'pdf' : 'image';
+    }
+
+    /** Имя файла (для отображения pdf). */
+    public function getNameAttribute(): string
+    {
+        return basename($this->path);
     }
 }

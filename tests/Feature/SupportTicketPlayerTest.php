@@ -44,6 +44,25 @@ class SupportTicketPlayerTest extends TestCase
         Storage::disk('public')->assertExists($att->path);
     }
 
+    public function test_player_attaches_pdf_stored_as_is(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $res = $this->postJson('/api/mobile/support/tickets', [
+            'subject' => 'Чек об оплате',
+            'body' => 'Прикладываю чек',
+            'photos' => [UploadedFile::fake()->create('check.pdf', 200, 'application/pdf')],
+        ]);
+        $res->assertOk();
+
+        $att = SupportTicket::first()->messages()->first()->attachments()->first();
+        $this->assertStringEndsWith('.pdf', $att->path);
+        $this->assertSame('pdf', $att->type);
+        Storage::disk('public')->assertExists($att->path);
+    }
+
     public function test_player_cannot_open_foreign_ticket(): void
     {
         $owner = User::factory()->create();

@@ -36,7 +36,7 @@ class MobileSupportController extends Controller
             'body' => 'required|string',
             'category' => ['nullable', 'in:' . implode(',', SupportTicket::CATEGORIES)],
             'photos' => 'nullable|array|max:5',
-            'photos.*' => 'image|mimes:jpeg,jpg,png,webp|max:8192',
+            'photos.*' => 'file|mimes:jpeg,jpg,png,webp,pdf|max:10240',
         ]);
 
         $ticket = DB::transaction(function () use ($request, $data) {
@@ -87,7 +87,7 @@ class MobileSupportController extends Controller
         $data = $request->validate([
             'body' => 'required|string',
             'photos' => 'nullable|array|max:5',
-            'photos.*' => 'image|mimes:jpeg,jpg,png,webp|max:8192',
+            'photos.*' => 'file|mimes:jpeg,jpg,png,webp,pdf|max:10240',
         ]);
 
         DB::transaction(function () use ($request, $ticket, $data) {
@@ -130,7 +130,11 @@ class MobileSupportController extends Controller
         ]);
 
         foreach ($photos as $photo) {
-            $path = WebpConverter::store($photo, "support/{$ticket->id}");
+            $ext = strtolower($photo->getClientOriginalExtension());
+            // PDF сохраняем как есть, изображения конвертируем в webp.
+            $path = $ext === 'pdf'
+                ? $photo->store("support/{$ticket->id}", 'public')
+                : WebpConverter::store($photo, "support/{$ticket->id}");
             SupportTicketAttachment::create([
                 'support_ticket_message_id' => $message->id,
                 'path' => $path,
@@ -166,7 +170,11 @@ class MobileSupportController extends Controller
             'author_type' => $m->author_type,
             'body' => $m->body,
             'created_at' => $m->created_at?->toIso8601String(),
-            'attachments' => $m->attachments->map(fn ($a) => ['url' => $a->url])->values(),
+            'attachments' => $m->attachments->map(fn ($a) => [
+                'url' => $a->url,
+                'type' => $a->type,
+                'name' => $a->name,
+            ])->values(),
         ]);
 
         return [
