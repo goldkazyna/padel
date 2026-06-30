@@ -51,6 +51,7 @@ class MobileNotificationController extends Controller
             ['key' => 'tournament', 'color' => '#22C55E'],
             ['key' => 'booking', 'color' => '#3B82F6'],
             ['key' => 'challenge', 'color' => '#FB923C'],
+            ['key' => 'support', 'color' => '#F43F5E'],
             ['key' => 'general', 'color' => '#A78BFA'],
         ];
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileNotificationController;
+use App\Http\Controllers\Api\MobileSupportController;
 use App\Http\Controllers\Api\TelegramMobileWebhookController;
 use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MobileChallengeController;
@@ -244,6 +245,13 @@ Route::prefix('mobile')->group(function () {
         Route::get('/notifications', [MobileNotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [MobileNotificationController::class, 'unreadCount']);
         Route::post('/notifications/read-all', [MobileNotificationController::class, 'readAll']);
+
+        // Служба поддержки (тикеты игрока)
+        Route::get('/support/unread-count', [MobileSupportController::class, 'unreadCount']);
+        Route::get('/support/tickets', [MobileSupportController::class, 'index']);
+        Route::post('/support/tickets', [MobileSupportController::class, 'store']);
+        Route::get('/support/tickets/{ticket}', [MobileSupportController::class, 'show']);
+        Route::post('/support/tickets/{ticket}/messages', [MobileSupportController::class, 'addMessage']);
 
         // Поединки
         Route::get('/challenges', [MobileChallengeController::class, 'index']);

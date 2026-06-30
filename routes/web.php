@@ -573,6 +573,13 @@ Route::middleware('auth')->group(function () {
         // Рекламный баннер
         Route::get('/banners', [\App\Http\Controllers\Admin\BannerController::class, 'index'])->name('banners.index');
         Route::post('/banners', [\App\Http\Controllers\Admin\BannerController::class, 'update'])->name('banners.update');
+
+        // Служба поддержки (тикеты)
+        Route::get('/tickets', [\App\Http\Controllers\Admin\TicketController::class, 'index'])->name('tickets.index');
+        Route::get('/tickets/{ticket}', [\App\Http\Controllers\Admin\TicketController::class, 'show'])->name('tickets.show');
+        Route::post('/tickets/{ticket}/reply', [\App\Http\Controllers\Admin\TicketController::class, 'reply'])->name('tickets.reply');
+        Route::post('/tickets/{ticket}/close', [\App\Http\Controllers\Admin\TicketController::class, 'close'])->name('tickets.close');
+        Route::post('/tickets/{ticket}/reopen', [\App\Http\Controllers\Admin\TicketController::class, 'reopen'])->name('tickets.reopen');
     });
     
 });

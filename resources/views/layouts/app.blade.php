@@ -1141,6 +1141,12 @@
                             <span>Рекламный баннер</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.tickets.index') }}" class="nav-link {{ request()->routeIs('admin.tickets.*') ? 'active' : '' }}">
+                            <i class="bi bi-life-preserver"></i>
+                            <span>Тикеты</span>
+                        </a>
+                    </li>
                 @endif
             </ul>
         </nav>
