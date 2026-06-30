@@ -34,6 +34,7 @@ class MobileSupportController extends Controller
         $data = $request->validate([
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
+            'category' => ['nullable', 'in:' . implode(',', SupportTicket::CATEGORIES)],
             'photos' => 'nullable|array|max:5',
             'photos.*' => 'image|mimes:jpeg,jpg,png,webp|max:8192',
         ]);
@@ -42,6 +43,7 @@ class MobileSupportController extends Controller
             $ticket = SupportTicket::create([
                 'user_id' => $request->user()->id,
                 'subject' => $data['subject'],
+                'category' => $data['category'] ?? null,
                 'status' => 'open',
                 'last_message_at' => now(),
             ]);
@@ -150,6 +152,8 @@ class MobileSupportController extends Controller
             'id' => $ticket->id,
             'subject' => $ticket->subject,
             'status' => $ticket->status,
+            'is_urgent' => (bool) $ticket->is_urgent,
+            'category' => $ticket->category,
             'last_message_at' => $ticket->last_message_at?->toIso8601String(),
             'unread_count' => (int) ($ticket->unread_count ?? 0),
         ];
@@ -169,6 +173,8 @@ class MobileSupportController extends Controller
             'id' => $ticket->id,
             'subject' => $ticket->subject,
             'status' => $ticket->status,
+            'is_urgent' => (bool) $ticket->is_urgent,
+            'category' => $ticket->category,
             'last_message_at' => $ticket->last_message_at?->toIso8601String(),
             'messages' => $messages,
         ];
