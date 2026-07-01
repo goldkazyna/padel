@@ -282,6 +282,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/clients/duplicates', [App\Http\Controllers\Club\ClientController::class, 'duplicates'])->name('clients.duplicates');
             Route::post('/clients/duplicates/merge', [App\Http\Controllers\Club\ClientController::class, 'mergeDuplicates'])->name('clients.duplicates.merge');
             Route::get('/clients/cards', [App\Http\Controllers\Club\ClientController::class, 'cardsOverview'])->name('clients.cards');
+            Route::post('/clients/cards/{card}/archive', [App\Http\Controllers\Club\ClientController::class, 'archiveCard'])->name('clients.cards.archive');
             Route::get('/clients/groups', [App\Http\Controllers\Club\ClientController::class, 'groupsOverview'])->name('clients.groups');
             Route::get('/clients', [App\Http\Controllers\Club\ClientController::class, 'index'])->name('clients.index');
             Route::get('/clients/{client}/bookings', [App\Http\Controllers\Club\ClientController::class, 'bookings'])->name('clients.bookings');

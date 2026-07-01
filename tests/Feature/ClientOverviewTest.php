@@ -77,6 +77,32 @@ class ClientOverviewTest extends TestCase
         $this->assertEqualsCanonicalizing(['Борис', 'Дамир'], $this->names($ended));
     }
 
+    public function test_archive_card_removes_from_ended_and_shows_in_archive(): void
+    {
+        $client = $this->client('Ерлан');
+        $card = $this->card($client, 0, null); // used → ended
+
+        $this->actingAs($this->admin);
+
+        // Изначально — в «Закончились».
+        $ended = $this->get('/club/clients/cards?f=ended')->assertOk()->viewData('rows');
+        $this->assertContains('Ерлан', $this->names($ended));
+
+        // Архивируем.
+        $this->post("/club/clients/cards/{$card->id}/archive")->assertRedirect();
+        $this->assertSame('archived', $card->fresh()->status);
+
+        // Ушла из «Закончились», появилась в «Архиве».
+        $ended2 = $this->get('/club/clients/cards?f=ended')->assertOk()->viewData('rows');
+        $this->assertNotContains('Ерлан', $this->names($ended2));
+        $archive = $this->get('/club/clients/cards?f=archive')->assertOk()->viewData('rows');
+        $this->assertContains('Ерлан', $this->names($archive));
+
+        // Возврат из архива.
+        $this->post("/club/clients/cards/{$card->id}/archive")->assertRedirect();
+        $this->assertSame('active', $card->fresh()->status);
+    }
+
     public function test_groups_overview_ending_and_ended_buckets(): void
     {
         $group = ClubGroup::create([

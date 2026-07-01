@@ -35,6 +35,13 @@
   border:1px solid var(--ov-border);display:flex;align-items:center;justify-content:center;
   color:var(--ov-accent);text-decoration:none;font-size:17px;}
 .ov-open:hover{background:#26262c;border-color:#3f3f46;}
+.ov-arch{width:38px;height:38px;flex:none;border-radius:10px;background:var(--ov-card2);
+  border:1px solid var(--ov-border);display:flex;align-items:center;justify-content:center;
+  color:var(--ov-text2);cursor:pointer;font-size:16px;}
+.ov-arch:hover{background:#26262c;color:#fff;}
+.ov-arch.restore{color:var(--ov-accent);}
+.ov-flash{background:rgba(34,197,94,.14);color:var(--ov-accent);border-radius:10px;
+  padding:10px 14px;margin-bottom:12px;font-weight:600;font-size:14px;}
 .ov-empty{text-align:center;color:var(--ov-text3);padding:48px 0;}
 /* Кнопки-входы на странице клиентов */
 .clients-overview-btns{display:flex;gap:10px;margin:0 0 4px;flex-wrap:wrap;}

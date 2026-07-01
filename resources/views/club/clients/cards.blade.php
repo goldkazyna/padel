@@ -9,13 +9,17 @@
     </div>
 
     <div class="ov-tabs">
-        @foreach([['all','Все'],['ending','Заканчиваются'],['ended','Закончились']] as [$key,$label])
+        @foreach([['all','Все'],['ending','Заканчиваются'],['ended','Закончились'],['archive','Архив']] as [$key,$label])
             <a href="{{ route('club.clients.cards', ['f' => $key]) }}"
                class="ov-tab {{ $f === $key ? 'active' : '' }} {{ $key }}">
                 {{ $label }} <span class="ov-n">{{ $counts[$key] }}</span>
             </a>
         @endforeach
     </div>
+
+    @if(session('success'))
+        <div class="ov-flash">{{ session('success') }}</div>
+    @endif
 
     <div class="ov-list">
         @forelse($rows as $r)
@@ -40,6 +44,23 @@
                        class="ov-open" title="Открыть карточку клиента">
                         <i class="bi bi-person-vcard"></i>
                     </a>
+                @endif
+                @if($r['bucket'] === 'archived')
+                    <form method="POST" action="{{ route('club.clients.cards.archive', $r['card_id']) }}">
+                        @csrf
+                        <input type="hidden" name="f" value="{{ $f }}">
+                        <button class="ov-arch restore" title="Вернуть из архива">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </form>
+                @elseif($r['bucket'] === 'ended')
+                    <form method="POST" action="{{ route('club.clients.cards.archive', $r['card_id']) }}">
+                        @csrf
+                        <input type="hidden" name="f" value="{{ $f }}">
+                        <button class="ov-arch" title="В архив">
+                            <i class="bi bi-archive"></i>
+                        </button>
+                    </form>
                 @endif
             </div>
         @empty

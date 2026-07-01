@@ -109,13 +109,24 @@ class ClientController extends Controller
             $counter = $card->type && $card->type->isCounter();
             $bal = (int) $card->balance;
             $exp = $card->expires_at ? $card->expires_at->copy()->startOfDay() : null;
-            $expired = $card->status !== 'active' || ($exp && $exp->lt($today));
+            $archived = $card->status === 'archived';
+            $expired = !$archived && ($card->status !== 'active' || ($exp && $exp->lt($today)));
             $used = $counter && $bal <= 0;
-            $soon = !$expired && $exp && $exp->gte($today) && $exp->lte($soonEdge);
-            $low = $counter && !$expired && !$used && $bal > 0 && $bal <= 4;
-            $bucket = ($used || $expired) ? 'ended' : (($soon || $low) ? 'ending' : 'active');
+            $soon = !$archived && !$expired && $exp && $exp->gte($today) && $exp->lte($soonEdge);
+            $low = $counter && !$archived && !$expired && !$used && $bal > 0 && $bal <= 4;
+
+            if ($archived) {
+                $bucket = 'archived';
+            } elseif ($used || $expired) {
+                $bucket = 'ended';
+            } elseif ($soon || $low) {
+                $bucket = 'ending';
+            } else {
+                $bucket = 'active';
+            }
 
             return [
+                'card_id' => $card->id,
                 'client_id' => optional($card->client)->id,
                 'client_name' => optional($card->client)->name ?? '—',
                 'type_name' => optional($card->type)->name ?? '—',
@@ -125,6 +136,7 @@ class ClientController extends Controller
                 'expires' => optional($card->expires_at)->format('d.m.Y'),
                 'expires_ts' => optional($card->expires_at)->timestamp ?? PHP_INT_MAX,
                 'bucket' => $bucket,
+                'archived' => $archived,
                 'used' => $used,
                 'expired' => $expired,
                 'soon' => $soon,
@@ -133,13 +145,18 @@ class ClientController extends Controller
         });
 
         $counts = [
-            'all' => $rows->count(),
+            'all' => $rows->where('bucket', '!=', 'archived')->count(),
             'ending' => $rows->where('bucket', 'ending')->count(),
             'ended' => $rows->where('bucket', 'ended')->count(),
+            'archive' => $rows->where('bucket', 'archived')->count(),
         ];
 
-        if (in_array($f, ['ending', 'ended'], true)) {
-            $rows = $rows->where('bucket', $f);
+        if (in_array($f, ['ending', 'ended', 'archive'], true)) {
+            $target = $f === 'archive' ? 'archived' : $f;
+            $rows = $rows->where('bucket', $target);
+        } else {
+            // «Все» — без архива
+            $rows = $rows->where('bucket', '!=', 'archived');
         }
 
         $rows = $rows->values()->all();
@@ -195,6 +212,19 @@ class ClientController extends Controller
         usort($rows, fn($a, $b) => $a['remaining'] <=> $b['remaining']);
 
         return view('club.clients.groups', compact('rows', 'counts', 'f'));
+    }
+
+    /** Переключить архив карты (использованную/просроченную убрать из списков; либо вернуть). */
+    public function archiveCard(Request $request, \App\Models\ClubCard $card)
+    {
+        $club = $this->getClub();
+        if (!$club || $card->club_id !== $club->id) abort(403);
+
+        $card->update(['status' => $card->status === 'archived' ? 'active' : 'archived']);
+
+        return redirect()
+            ->route('club.clients.cards', array_filter(['f' => $request->get('f')]))
+            ->with('success', $card->status === 'archived' ? 'Карта перемещена в архив' : 'Карта возвращена из архива');
     }
 
     /**
