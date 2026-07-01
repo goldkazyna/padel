@@ -31,6 +31,12 @@
                     @endphp
                     <span class="ov-rem {{ $cls }}">осталось {{ max($rem, 0) }}</span>
                 </div>
+                @if($r['client_id'])
+                    <a href="{{ route('club.clients.index', ['selected' => $r['client_id']]) }}"
+                       class="ov-open" title="Открыть карточку клиента">
+                        <i class="bi bi-person-vcard"></i>
+                    </a>
+                @endif
             </div>
         @empty
             <div class="ov-empty">Ничего не найдено</div>

@@ -31,6 +31,10 @@
 .green{color:var(--ov-accent);background:rgba(34,197,94,.14);}
 .amber{color:var(--ov-amber);background:rgba(234,179,78,.16);}
 .red{color:var(--ov-red);background:rgba(240,85,77,.14);}
+.ov-open{width:38px;height:38px;flex:none;border-radius:10px;background:var(--ov-card2);
+  border:1px solid var(--ov-border);display:flex;align-items:center;justify-content:center;
+  color:var(--ov-accent);text-decoration:none;font-size:17px;}
+.ov-open:hover{background:#26262c;border-color:#3f3f46;}
 .ov-empty{text-align:center;color:var(--ov-text3);padding:48px 0;}
 /* Кнопки-входы на странице клиентов */
 .clients-overview-btns{display:flex;gap:10px;margin:0 0 4px;flex-wrap:wrap;}
