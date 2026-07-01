@@ -89,6 +89,115 @@ class ClientController extends Controller
     }
 
     /**
+     * Обзор клубных карт клиентов с фильтром «заканчиваются / закончились».
+     * Заканчивается = срок ≤ 7 дней ИЛИ ≤ 4 визитов; закончилась = 0 визитов или просрочена.
+     */
+    public function cardsOverview(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $f = $request->get('f', 'all'); // all | ending | ended
+        $today = Carbon::today();
+        $soonEdge = $today->copy()->addDays(7);
+
+        $cards = \App\Models\ClubCard::where('club_id', $club->id)
+            ->with(['type', 'client'])
+            ->get();
+
+        $rows = $cards->map(function ($card) use ($today, $soonEdge) {
+            $counter = $card->type && $card->type->isCounter();
+            $bal = (int) $card->balance;
+            $exp = $card->expires_at ? $card->expires_at->copy()->startOfDay() : null;
+            $expired = $card->status !== 'active' || ($exp && $exp->lt($today));
+            $used = $counter && $bal <= 0;
+            $soon = !$expired && $exp && $exp->gte($today) && $exp->lte($soonEdge);
+            $low = $counter && !$expired && !$used && $bal > 0 && $bal <= 4;
+            $bucket = ($used || $expired) ? 'ended' : (($soon || $low) ? 'ending' : 'active');
+
+            return [
+                'client_id' => optional($card->client)->id,
+                'client_name' => optional($card->client)->name ?? '—',
+                'type_name' => optional($card->type)->name ?? '—',
+                'counter' => $counter,
+                'balance' => $bal,
+                'initial' => (int) $card->initial_balance,
+                'expires' => optional($card->expires_at)->format('d.m.Y'),
+                'expires_ts' => optional($card->expires_at)->timestamp ?? PHP_INT_MAX,
+                'bucket' => $bucket,
+                'used' => $used,
+                'expired' => $expired,
+                'soon' => $soon,
+                'low' => $low,
+            ];
+        });
+
+        $counts = [
+            'all' => $rows->count(),
+            'ending' => $rows->where('bucket', 'ending')->count(),
+            'ended' => $rows->where('bucket', 'ended')->count(),
+        ];
+
+        if (in_array($f, ['ending', 'ended'], true)) {
+            $rows = $rows->where('bucket', $f);
+        }
+
+        $rows = $rows->values()->all();
+        usort($rows, function ($a, $b) {
+            if ($a['expires_ts'] !== $b['expires_ts']) return $a['expires_ts'] <=> $b['expires_ts'];
+            return $a['balance'] <=> $b['balance'];
+        });
+
+        return view('club.clients.cards', compact('rows', 'counts', 'f'));
+    }
+
+    /**
+     * Обзор групповых занятий клиентов: сколько осталось и в какой группе.
+     * Заканчивается = осталось ≤ 2; закончились = 0.
+     */
+    public function groupsOverview(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $f = $request->get('f', 'all');
+
+        $members = \App\Models\ClubGroupMember::whereHas('group', fn($q) => $q->where('club_id', $club->id))
+            ->where('status', 'active')
+            ->with(['group', 'client'])
+            ->withSum('enrollments as bought', 'sessions')
+            ->withCount(['attendance as used' => fn($q) => $q->where('charged', true)])
+            ->get();
+
+        $rows = $members->map(function ($m) {
+            $remaining = (int) ($m->bought ?? 0) - (int) ($m->used ?? 0);
+            $bucket = $remaining <= 0 ? 'ended' : ($remaining <= 2 ? 'ending' : 'active');
+            return [
+                'client_id' => $m->client_id,
+                'client_name' => optional($m->client)->name ?? '—',
+                'group_name' => optional($m->group)->name ?? '—',
+                'remaining' => $remaining,
+                'bucket' => $bucket,
+            ];
+        });
+
+        $counts = [
+            'all' => $rows->count(),
+            'ending' => $rows->where('bucket', 'ending')->count(),
+            'ended' => $rows->where('bucket', 'ended')->count(),
+        ];
+
+        if (in_array($f, ['ending', 'ended'], true)) {
+            $rows = $rows->where('bucket', $f);
+        }
+
+        $rows = $rows->values()->all();
+        usort($rows, fn($a, $b) => $a['remaining'] <=> $b['remaining']);
+
+        return view('club.clients.groups', compact('rows', 'counts', 'f'));
+    }
+
+    /**
      * Отдельная страница: все брони клиента с фильтром периода.
      * GET /club/clients/{client}/bookings?period=...&from=...&to=...
      */

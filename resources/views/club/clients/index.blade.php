@@ -30,6 +30,26 @@
         </div>
     </header>
 
+    <!-- Обзоры: клубные карты и групповые -->
+    <div class="clients-overview-btns">
+        <a href="{{ route('club.clients.cards') }}">
+            <i class="bi bi-credit-card-2-front"></i>
+            Клубные карты
+        </a>
+        <a href="{{ route('club.clients.groups') }}">
+            <i class="bi bi-people-fill"></i>
+            Групповые
+        </a>
+    </div>
+    <style>
+        .clients-overview-btns{display:flex;gap:10px;margin:0 0 14px;flex-wrap:wrap;}
+        .clients-overview-btns a{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;
+            border-radius:10px;background:var(--cl-card,#16161a);border:1px solid var(--cl-border,#27272a);
+            color:var(--cl-text,#f4f4f5);text-decoration:none;font-weight:700;font-size:14px;}
+        .clients-overview-btns a:hover{background:#1e1e24;border-color:#3f3f46;}
+        .clients-overview-btns i{color:var(--cl-accent,#22c55e);font-size:17px;}
+    </style>
+
     <!-- Search -->
     <form method="GET" class="clients-search">
         <i class="bi bi-search"></i>
