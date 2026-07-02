@@ -87,4 +87,61 @@ class TournamentPushService
             'filtered' => $total - $sent,
         ];
     }
+
+    /**
+     * Push участникам турнира о новом сообщении организатора в чате.
+     * Шлём только тем, у кого включена настройка notify_organizer_chat,
+     * есть device-токен, и кто не автор сообщения.
+     */
+    public function sendChatMessage(Tournament $tournament, User $author, string $text): void
+    {
+        $participantIds = $this->chatParticipantUserIds($tournament)
+            ->reject(fn ($id) => (int) $id === (int) $author->id)
+            ->unique()
+            ->values();
+        if ($participantIds->isEmpty()) {
+            return;
+        }
+
+        $users = User::whereIn('id', $participantIds)
+            ->where('notify_organizer_chat', true)
+            ->whereHas('deviceTokens')
+            ->with('deviceTokens')
+            ->get(['id']);
+
+        $tokens = $users->flatMap(fn ($u) => $u->deviceTokens->pluck('token'))->toArray();
+        if (empty($tokens)) {
+            return;
+        }
+
+        $fcm = app(FCMNotificationService::class);
+        $title = $tournament->name;
+        $body = \Illuminate\Support\Str::limit(trim($text), 100);
+        $data = [
+            'type' => 'tournament_chat',
+            'tournament_id' => (string) $tournament->id,
+        ];
+
+        $fcm->sendMulticastToTokens($tokens, $title, $body, $data);
+    }
+
+    /** id участников турнира (одиночная регистрация + командные пары). */
+    private function chatParticipantUserIds(Tournament $tournament): \Illuminate\Support\Collection
+    {
+        if ($tournament->usesSoloRegistration()) {
+            return $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'approved'])
+                ->pluck('users.id');
+        }
+
+        $ids = collect();
+        $tournament->teams()
+            ->whereIn('status', ['approved', 'pending'])
+            ->get(['player1_id', 'player2_id'])
+            ->each(function ($t) use ($ids) {
+                if ($t->player1_id) $ids->push($t->player1_id);
+                if ($t->player2_id) $ids->push($t->player2_id);
+            });
+        return $ids;
+    }
 }
