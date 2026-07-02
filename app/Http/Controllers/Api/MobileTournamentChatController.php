@@ -113,6 +113,23 @@ class MobileTournamentChatController extends Controller
     }
 
     /**
+     * GET /api/mobile/tournaments/{tournament}/chat/unread-count
+     * Лёгкий счётчик непрочитанного для бейджа (опрос на экране турнира).
+     */
+    public function unreadCount(Request $request, Tournament $tournament): JsonResponse
+    {
+        $user = $request->user();
+        $isAdmin = $this->chatIsAdmin($user, $tournament);
+        $isParticipant = $this->chatIsParticipant($user, $tournament);
+        if (!$this->chatCanRead($tournament, $isAdmin, $isParticipant)) {
+            return response()->json(['unread_count' => 0]);
+        }
+        return response()->json([
+            'unread_count' => $this->chatUnreadCount($tournament, $user),
+        ]);
+    }
+
+    /**
      * POST /api/mobile/tournaments/{tournament}/chat/read  body: { last_message_id }
      */
     public function read(Request $request, Tournament $tournament): JsonResponse

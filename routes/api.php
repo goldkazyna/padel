@@ -235,6 +235,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/tournaments/{tournament}/unsubscribe', [MobileTournamentController::class, 'unsubscribe']);
 
         // Чат турнира
+        Route::get('/tournaments/{tournament}/chat/unread-count', [MobileTournamentChatController::class, 'unreadCount']);
         Route::get('/tournaments/{tournament}/chat/messages', [MobileTournamentChatController::class, 'index']);
         Route::post('/tournaments/{tournament}/chat/messages', [MobileTournamentChatController::class, 'store']);
         Route::delete('/tournaments/{tournament}/chat/messages/{message}', [MobileTournamentChatController::class, 'destroy']);
