@@ -128,6 +128,8 @@ class Tournament extends Model
 		'has_lower_bracket',
 		'has_bronze_match',
 		'telegram_registration_url',
+		'chat_enabled',
+		'chat_write_mode',
     ];
 
     protected $casts = [
@@ -142,6 +144,7 @@ class Tournament extends Model
 		'is_rated' => 'boolean',
 		'is_paired' => 'boolean',
 		'verified_only' => 'boolean',
+		'chat_enabled' => 'boolean',
 		'round_robin_schedule' => 'array',
 		'courts' => 'array',
 		'moderation_hours' => 'integer',

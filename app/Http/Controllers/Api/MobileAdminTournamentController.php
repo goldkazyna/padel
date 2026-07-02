@@ -190,6 +190,7 @@ class MobileAdminTournamentController extends Controller
         // Рейтинговый по умолчанию; веб-админка флаг не шлёт — остаётся true.
         $validated['is_rated'] = $request->boolean('is_rated', true);
         $validated['verified_only'] = $request->boolean('verified_only', false);
+        $this->applyChatSettings($request, $validated);
 
         $tournament = $this->finalizeTournamentCreate($request, $validated);
 
@@ -229,6 +230,7 @@ class MobileAdminTournamentController extends Controller
         $validated['creator_id'] = $user->id;
         $validated['is_rated'] = false; // личные турниры всегда нерейтинговые
         $validated['verified_only'] = $request->boolean('verified_only', false);
+        $this->applyChatSettings($request, $validated);
 
         $tournament = $this->finalizeTournamentCreate($request, $validated);
 
@@ -278,6 +280,19 @@ class MobileAdminTournamentController extends Controller
      * Общая часть создания турнира: нормализация полей + create + резервы.
      * $validated уже содержит club_id ИЛИ creator_id и is_rated.
      */
+    /**
+     * Настройки чата турнира из формы. Старые сборки поля не шлют —
+     * тогда действуют дефолты (чат включён, режим «участники»).
+     */
+    private function applyChatSettings(Request $request, array &$validated): void
+    {
+        $validated['chat_enabled'] = $request->boolean('chat_enabled', true);
+        $mode = $request->input('chat_write_mode');
+        $validated['chat_write_mode'] = in_array($mode, ['admin', 'participants', 'everyone'], true)
+            ? $mode
+            : 'participants';
+    }
+
     private function finalizeTournamentCreate(Request $request, array $validated): Tournament
     {
         // price в БД NOT NULL — если не передали, ставим 0.

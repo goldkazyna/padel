@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
+use App\Http\Controllers\Api\MobileTournamentChatController;
 use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
@@ -232,6 +233,12 @@ Route::prefix('mobile')->group(function () {
         Route::post('/tournaments/{tournament}/cancel-team', [MobileTournamentController::class, 'cancelTeam']);
         Route::post('/tournaments/{tournament}/subscribe', [MobileTournamentController::class, 'subscribe']);
         Route::post('/tournaments/{tournament}/unsubscribe', [MobileTournamentController::class, 'unsubscribe']);
+
+        // Чат турнира
+        Route::get('/tournaments/{tournament}/chat/messages', [MobileTournamentChatController::class, 'index']);
+        Route::post('/tournaments/{tournament}/chat/messages', [MobileTournamentChatController::class, 'store']);
+        Route::delete('/tournaments/{tournament}/chat/messages/{message}', [MobileTournamentChatController::class, 'destroy']);
+        Route::post('/tournaments/{tournament}/chat/read', [MobileTournamentChatController::class, 'read']);
 
         // Устройства (FCM)
         Route::post('/devices/register', [MobileDeviceController::class, 'register']);

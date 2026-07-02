@@ -12,6 +12,8 @@ use App\Models\TournamentTeam;
  */
 trait FormatsTournaments
 {
+    use ResolvesTournamentChatAccess;
+
     private function formatTournament(Tournament $t, $user, bool $includeRegistration = false): array
     {
         $club = $t->club; // null для личных турниров

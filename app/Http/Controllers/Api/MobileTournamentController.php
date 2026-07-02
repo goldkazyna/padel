@@ -236,6 +236,9 @@ class MobileTournamentController extends Controller
 
         $data = $this->formatTournament($tournament, $user, true);
 
+        // Блок чата турнира (права + непрочитанные) — только в деталях, не в списках.
+        $data['chat'] = $this->tournamentChatBlock($tournament, $user);
+
         // Флаг подписки на освободившиеся места
         $data['is_subscribed'] = TournamentSubscription::where('tournament_id', $tournament->id)
             ->where('user_id', $user->id)
