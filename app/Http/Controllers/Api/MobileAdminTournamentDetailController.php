@@ -474,6 +474,8 @@ class MobileAdminTournamentDetailController extends Controller
             'moderation_hours' => $t->moderation_hours !== null ? (int) $t->moderation_hours : null,
             'moderation_minutes' => $t->moderation_minutes !== null ? (int) $t->moderation_minutes : null,
             'tournaments_full_access' => $hasFullAccess,
+            'chat_enabled' => (bool) $t->chat_enabled,
+            'chat_write_mode' => $t->chat_write_mode ?? 'participants',
         ];
     }
 
