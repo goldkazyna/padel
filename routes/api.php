@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileTournamentChatController;
+use App\Http\Controllers\Api\MobileCoachController;
 use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
@@ -245,6 +246,9 @@ Route::prefix('mobile')->group(function () {
         Route::post('/devices/register', [MobileDeviceController::class, 'register']);
 
         // Настройки уведомлений
+        // Расписание тренера (роль coach)
+        Route::get('/coach/schedule', [MobileCoachController::class, 'schedule']);
+
         Route::get('/notifications/settings', [MobileDeviceController::class, 'getSettings']);
         Route::post('/notifications/settings', [MobileDeviceController::class, 'updateSettings']);
 
