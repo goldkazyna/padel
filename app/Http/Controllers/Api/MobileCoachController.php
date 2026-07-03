@@ -118,6 +118,39 @@ class MobileCoachController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/mobile/coach/hours-range?from=YYYY-MM-DD&to=YYYY-MM-DD
+     * Часы занятости по датам за диапазон — для полосок в ленте дат.
+     */
+    public function hoursRange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->isCoach(), 403, 'Доступно только тренерам');
+
+        $cc = ClubCoach::where('user_id', $user->id)->first();
+        if (!$cc) {
+            return response()->json(['hours' => (object) []]);
+        }
+
+        $q = CourtBooking::where('coach_id', $cc->user_id)
+            ->where('status', 'confirmed');
+        if ($request->filled('from')) {
+            $q->whereDate('date', '>=', $request->query('from'));
+        }
+        if ($request->filled('to')) {
+            $q->whereDate('date', '<=', $request->query('to'));
+        }
+
+        $hours = [];
+        foreach ($q->get() as $b) {
+            $key = Carbon::parse($b->date)->format('Y-m-d');
+            $hours[$key] = ($hours[$key] ?? 0) + $this->bookingMinutes($b) / 60;
+        }
+        $hours = array_map(fn ($h) => round($h, 1), $hours);
+
+        return response()->json(['hours' => (object) $hours]);
+    }
+
     private function hm($time): string
     {
         return Carbon::parse($time)->format('H:i');

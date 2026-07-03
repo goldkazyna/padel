@@ -248,6 +248,7 @@ Route::prefix('mobile')->group(function () {
         // Настройки уведомлений
         // Расписание тренера (роль coach)
         Route::get('/coach/schedule', [MobileCoachController::class, 'schedule']);
+        Route::get('/coach/hours-range', [MobileCoachController::class, 'hoursRange']);
 
         Route::get('/notifications/settings', [MobileDeviceController::class, 'getSettings']);
         Route::post('/notifications/settings', [MobileDeviceController::class, 'updateSettings']);
