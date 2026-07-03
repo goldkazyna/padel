@@ -31,13 +31,36 @@ class MobileCoachController extends Controller
         $date = $request->query('date', now()->format('Y-m-d'));
         ['timeSlots' => $timeSlots, 'schedule' => $schedule] = $cc->daySchedule($date);
 
-        // Слоты дня.
+        $dayBookings = CourtBooking::where('coach_id', $cc->user_id)
+            ->whereDate('date', $date)
+            ->where('status', 'confirmed')
+            ->with('court')
+            ->get();
+
+        // Полный набор часовых слотов: рабочие часы + часы броней. Так тренер
+        // видит свои занятия, даже если рабочее расписание в клубе не задано.
+        $times = array_values($timeSlots);
+        foreach ($dayBookings as $b) {
+            foreach ($this->bookingHourSlots($b) as $t) {
+                if (!in_array($t, $times, true)) {
+                    $times[] = $t;
+                }
+            }
+        }
+        sort($times);
+
         $slots = [];
-        foreach ($timeSlots as $time) {
-            $s = $schedule[$time];
-            $slot = ['time' => $time, 'status' => $s['status']];
-            if ($s['status'] === 'booked' && isset($s['booking'])) {
-                $b = $s['booking'];
+        foreach ($times as $time) {
+            $st = $schedule[$time] ?? null;
+            if ($st === null) {
+                $booking = $this->bookingAt($dayBookings, $time);
+                $st = $booking
+                    ? ['status' => 'booked', 'booking' => $booking]
+                    : ['status' => 'free'];
+            }
+            $slot = ['time' => $time, 'status' => $st['status']];
+            if ($st['status'] === 'booked' && isset($st['booking'])) {
+                $b = $st['booking'];
                 $slot['booking'] = [
                     'court' => $b->court?->name,
                     'client' => $b->client_name ?: ($b->bookedByUser?->name),
@@ -50,10 +73,6 @@ class MobileCoachController extends Controller
 
         // Часы занятости на выбранный день.
         $busyHours = 0.0;
-        $dayBookings = CourtBooking::where('coach_id', $cc->user_id)
-            ->whereDate('date', $date)
-            ->where('status', 'confirmed')
-            ->get();
         foreach ($dayBookings as $b) {
             $busyHours += $this->bookingMinutes($b) / 60;
         }
@@ -102,6 +121,42 @@ class MobileCoachController extends Controller
     private function hm($time): string
     {
         return Carbon::parse($time)->format('H:i');
+    }
+
+    private function toMin(string $time): int
+    {
+        $p = Carbon::parse($time);
+        return $p->hour * 60 + $p->minute;
+    }
+
+    /** Список часовых слотов (HH:MM), которые покрывает бронь. */
+    private function bookingHourSlots($booking): array
+    {
+        $start = $this->toMin($booking->start_time);
+        $end = $this->toMin($booking->end_time);
+        if ($end <= $start) {
+            $end += 1440;
+        }
+        $out = [];
+        for ($m = $start; $m < $end; $m += 60) {
+            $mm = $m % 1440;
+            $out[] = sprintf('%02d:%02d', intdiv($mm, 60), $mm % 60);
+        }
+        return $out;
+    }
+
+    /** Бронь, покрывающая указанный часовой слот, либо null. */
+    private function bookingAt($bookings, string $time)
+    {
+        $slotStart = $this->toMin($time);
+        return $bookings->first(function ($b) use ($slotStart) {
+            $s = $this->toMin($b->start_time);
+            $e = $this->toMin($b->end_time);
+            if ($e <= $s) {
+                $e += 1440;
+            }
+            return $slotStart >= $s && $slotStart < $e;
+        });
     }
 
     private function bookingMinutes($booking): int
