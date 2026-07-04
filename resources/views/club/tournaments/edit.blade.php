@@ -235,19 +235,54 @@
 					</div>
 					@endif
 					@if($tournament->isMexicano())
+					@php
+						$editMexHasPlayoff = old('has_playoff', $tournament->has_playoff);
+						$editMexPlayoffType = old('playoff_type', $tournament->playoff_type ?? 'final_only');
+						$editMexPlayoffFormat = old('playoff_format', $tournament->playoff_format ?? 'mix');
+					@endphp
 					<div class="row">
-						<div class="col-md-4 mb-4">
-							<label class="form-label">Сумма очков за матч</label>
-							<select name="points_to_win" class="form-select">
-								<option value="32" {{ old('points_to_win', $tournament->points_to_win) == 32 ? 'selected' : '' }}>32 очка</option>
-								<option value="42" {{ old('points_to_win', $tournament->points_to_win) == 42 ? 'selected' : '' }}>42 очка</option>
-								<option value="24" {{ old('points_to_win', $tournament->points_to_win) == 24 ? 'selected' : '' }}>24 очка</option>
-							</select>
-						</div>
 						<div class="col-md-4 mb-4">
 							<label class="form-label">Количество раундов</label>
 							<input type="text" class="form-control" value="{{ $tournament->rounds_count }}" disabled>
 							<small class="text-secondary">Нельзя изменить после создания</small>
+						</div>
+					</div>
+					{{-- Плей-офф Мексикано — можно включить/выключить во время турнира --}}
+					<div class="mb-4">
+						<label class="form-label">Плей-офф</label>
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" name="has_playoff" id="mexicanoHasPlayoff" value="1"
+								   {{ $editMexHasPlayoff ? 'checked' : '' }} onchange="toggleMexicanoPlayoffType()">
+							<label class="form-check-label" for="mexicanoHasPlayoff">
+								Добавить плей-офф после основных раундов
+							</label>
+						</div>
+						<div id="mexicanoPlayoffTypeOptions" class="mt-3 ms-4" style="{{ $editMexHasPlayoff ? '' : 'display: none;' }}">
+							<div class="form-check">
+								<input type="radio" class="form-check-input" name="playoff_type" id="mexicanoFinalOnly" value="final_only"
+									   {{ $editMexPlayoffType === 'final_only' ? 'checked' : '' }} onchange="toggleMexicanoPlayoffFormat()">
+								<label class="form-check-label" for="mexicanoFinalOnly">
+									Только финал (топ-4: 1+4 vs 2+3)
+								</label>
+							</div>
+							<div class="form-check mt-2">
+								<input type="radio" class="form-check-input" name="playoff_type" id="mexicanoSemifinalFinal" value="semifinal_final"
+									   {{ $editMexPlayoffType === 'semifinal_final' ? 'checked' : '' }} onchange="toggleMexicanoPlayoffFormat()">
+								<label class="form-check-label" for="mexicanoSemifinalFinal">
+									Полуфинал + Финал (топ-8)
+								</label>
+							</div>
+							<div id="mexicanoPlayoffFormatOptions" class="mt-3" style="{{ $editMexPlayoffType === 'semifinal_final' ? '' : 'display: none;' }}">
+								<label class="form-label">Формат пар в полуфиналах</label>
+								<select name="playoff_format" id="mexicanoPlayoffFormat" class="form-select">
+									<option value="mix" {{ $editMexPlayoffFormat === 'mix' ? 'selected' : '' }}>Микс (1+8 vs 4+5, 2+7 vs 3+6)</option>
+									<option value="tops" {{ $editMexPlayoffFormat === 'tops' ? 'selected' : '' }}>Топы вместе (1+2 vs 7+8, 3+4 vs 5+6)</option>
+									<option value="balanced" {{ $editMexPlayoffFormat === 'balanced' ? 'selected' : '' }}>Сбалансированный (1+4 vs 5+8, 2+3 vs 6+7)</option>
+								</select>
+								<small class="text-secondary mt-2 d-block">
+									Цифры = места в таблице лидеров после основных раундов
+								</small>
+							</div>
 						</div>
 					</div>
 					@endif
@@ -383,6 +418,21 @@ function togglePlayoffFormat() {
         bronzeWrap.style.display = isSemi ? 'block' : 'none';
         if (!isSemi && bronze) bronze.checked = false;
     }
+}
+
+function toggleMexicanoPlayoffType() {
+    const cb = document.getElementById('mexicanoHasPlayoff');
+    const opts = document.getElementById('mexicanoPlayoffTypeOptions');
+    if (cb && opts) {
+        opts.style.display = cb.checked ? 'block' : 'none';
+        toggleMexicanoPlayoffFormat();
+    }
+}
+
+function toggleMexicanoPlayoffFormat() {
+    const semi = document.getElementById('mexicanoSemifinalFinal');
+    const fmt = document.getElementById('mexicanoPlayoffFormatOptions');
+    if (fmt) fmt.style.display = (semi && semi.checked) ? 'block' : 'none';
 }
 </script>
 <style>
