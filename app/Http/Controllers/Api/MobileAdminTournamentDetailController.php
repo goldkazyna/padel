@@ -1970,6 +1970,54 @@ class MobileAdminTournamentDetailController extends Controller
         ]);
     }
 
+    public function saveJustPadelItScore(
+        Request $request,
+        Tournament $tournament,
+        \App\Models\JustPadelItMatch $match,
+        \App\Services\JustPadelItService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('round');
+        if (!$match->round ||
+            (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99|different:team1_score',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        $service->saveMatchResult(
+            $match,
+            (int) $request->input('team1_score'),
+            (int) $request->input('team2_score'),
+        );
+
+        $match->refresh();
+        $winner = null;
+        if ($match->team1_score !== null && $match->team2_score !== null) {
+            $winner = $match->team1_score > $match->team2_score ? 1 : 2;
+        }
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $winner,
+            ],
+        ]);
+    }
+
     /**
      * POST /api/mobile/admin/tournaments/{tournament}/next-round
      * Сейчас работает только для KOC (Mexicano добавим в 3c-3).

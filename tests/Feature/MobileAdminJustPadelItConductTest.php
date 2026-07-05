@@ -97,4 +97,24 @@ class MobileAdminJustPadelItConductTest extends TestCase
         $this->assertNotEmpty($res->json('groups.0.rounds'), 'must return rounds');
         $this->assertNotNull($res->json('groups.0.leaderboard'), 'must return standings (leaderboard)');
     }
+
+    public function test_save_score_awards_points_and_court_bonus(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(false, 8, 2);
+        Sanctum::actingAs($admin);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")->assertOk();
+
+        $match = \App\Models\JustPadelItMatch::whereHas('round', function ($q) use ($t) {
+            $q->where('tournament_id', $t->id);
+        })->where('court_number', 1)->firstOrFail();
+
+        $this->postJson(
+            "/api/mobile/admin/tournaments/{$t->id}/justpadelit/matches/{$match->id}/score",
+            ['team1_score' => 6, 'team2_score' => 2]
+        )->assertOk()->assertJsonPath('success', true);
+
+        $match->refresh();
+        $this->assertSame('completed', $match->status);
+        $this->assertSame(6, (int) $match->team1_score);
+    }
 }
