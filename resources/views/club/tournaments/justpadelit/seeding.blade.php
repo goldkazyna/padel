@@ -54,17 +54,26 @@
 </div>
 
 <script>
-function refreshDisabledOptions() {
+// Свап: выбор игрока меняет его местами со слотом, где он сейчас стоит.
+// Так при полной раскладке (все слоты заняты) можно свободно переставлять,
+// и каждый игрок всегда остаётся ровно в одном слоте.
+(function () {
     const selects = Array.from(document.querySelectorAll('.seed-select'));
-    const chosen = selects.map(s => s.value);
+    selects.forEach(s => { s.dataset.prev = s.value; });
     selects.forEach(sel => {
-        Array.from(sel.options).forEach(o => {
-            o.disabled = chosen.includes(o.value) && sel.value !== o.value;
+        sel.addEventListener('change', function () {
+            const newVal = this.value;
+            const prevVal = this.dataset.prev;
+            if (newVal === prevVal) return;
+            const other = selects.find(s => s !== this && s.value === newVal);
+            if (other) {
+                other.value = prevVal;
+                other.dataset.prev = prevVal;
+            }
+            this.dataset.prev = newVal;
         });
     });
-}
-document.querySelectorAll('.seed-select').forEach(s => s.addEventListener('change', refreshDisabledOptions));
-refreshDisabledOptions();
+})();
 </script>
 
 <style>
