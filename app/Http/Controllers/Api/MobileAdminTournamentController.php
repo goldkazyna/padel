@@ -243,7 +243,7 @@ class MobileAdminTournamentController extends Controller
     private function tournamentValidationRules(): array
     {
         return [
-            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin',
+            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',
@@ -333,6 +333,8 @@ class MobileAdminTournamentController extends Controller
                 ]);
             }
         } elseif ($type === 'king_of_court' && $request->boolean('is_paired')) {
+            $validated['is_paired'] = true;
+        } elseif ($type === 'just_padel_it' && $request->boolean('is_paired')) {
             $validated['is_paired'] = true;
         } else {
             $validated['is_paired'] = false;
