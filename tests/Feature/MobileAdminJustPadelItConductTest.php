@@ -79,4 +79,22 @@ class MobileAdminJustPadelItConductTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('pairs_required', true);
     }
+
+    public function test_matches_endpoint_returns_rounds_and_standings_for_jpi(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(false, 8, 2);
+        Sanctum::actingAs($admin);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")->assertOk();
+
+        $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->assertJsonPath('type', 'just_padel_it');
+
+        // Образец (buildKingOfCourtMatches) не отдаёт плоские top-level
+        // rounds/standings — он заворачивает всё в одну виртуальную группу
+        // groups[0] = ['rounds' => ..., 'leaderboard' => ...], чтобы фронт
+        // мог переиспользовать общий рендер «группа → раунды → таблица».
+        $this->assertNotEmpty($res->json('groups.0.rounds'), 'must return rounds');
+        $this->assertNotNull($res->json('groups.0.leaderboard'), 'must return standings (leaderboard)');
+    }
 }

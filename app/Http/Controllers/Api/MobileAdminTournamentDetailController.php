@@ -7,6 +7,7 @@ use App\Models\AmericanoFlexMatch;
 use App\Models\AmericanoMatch;
 use App\Models\BaliKocMatch;
 use App\Models\BaliKocPair;
+use App\Models\JustPadelItMatch;
 use App\Models\KingOfCourtMatch;
 use App\Models\RoundRobinMatch;
 use App\Models\Tournament;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Services\AmericanoFlexService;
 use App\Services\AmericanoService;
 use App\Services\BaliKocService;
+use App\Services\JustPadelItService;
 use App\Services\KingOfCourtService;
 use App\Services\MexicanoService;
 use App\Services\RoundRobinService;
@@ -1370,6 +1372,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildKingOfCourtMatches($tournament));
         }
 
+        if ($tournament->isJustPadelIt()) {
+            return response()->json($this->buildJustPadelItMatches($tournament));
+        }
+
         if ($tournament->isRoundRobin()) {
             return response()->json($this->buildRoundRobinMatches($tournament));
         }
@@ -2204,6 +2210,177 @@ class MobileAdminTournamentDetailController extends Controller
     private function buildKocPairLeaderboard(Tournament $tournament): array
     {
         $standings = app(KingOfCourtService::class)->getPairStandings($tournament);
+        $rows = [];
+        $position = 1;
+        foreach ($standings as $row) {
+            $pair = $row['pair'];
+            $p1 = $pair->player1;
+            $p2 = $pair->player2;
+            $totalGames = $row['wins'] + $row['losses'];
+            $totalBalls = $row['points_for'] + $row['points_against'];
+            $rows[] = [
+                'position' => $position++,
+                'id' => $pair->id,
+                'name' => trim(($p1->name ?? '?') . ' / ' . ($p2->name ?? '?')),
+                'player1' => $p1 ? $this->formatUser($p1) : null,
+                'player2' => $p2 ? $this->formatUser($p2) : null,
+                'rating' => (int) round((($p1->rating ?? 0) + ($p2->rating ?? 0)) / 2),
+                'wins' => $row['wins'],
+                'losses' => $row['losses'],
+                'draws' => 0,
+                'points_for' => $row['points_for'],
+                'points_against' => $row['points_against'],
+                'total_points' => $row['total_points'],
+                'games_played' => $totalGames,
+                'point_diff' => $row['diff'],
+                'win_percent' => $row['win_rate'],
+                'ball_percent' => $totalBalls > 0 ? (int) round($row['points_for'] / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3c-2 — Матчи (Just Padel It)
+    // -------------------------------------------------------------------------
+
+    private function buildJustPadelItMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'justPadelItRounds.matches.team1Player1',
+            'justPadelItRounds.matches.team1Player2',
+            'justPadelItRounds.matches.team2Player1',
+            'justPadelItRounds.matches.team2Player2',
+            'justPadelItPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->justPadelItRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                    $matchesTotal++;
+                    if ($m->status === 'completed') {
+                        $matchesPlayed++;
+                    }
+                    return $this->formatJustPadelItMatch($m);
+                });
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $paired = $tournament->isPairedJustPadelIt();
+        $leaderboard = $paired
+            ? $this->buildJpiPairLeaderboard($tournament)
+            : $this->buildJustPadelItLeaderboard($tournament);
+
+        // Заворачиваем в одну виртуальную «группу» — это даёт фронту
+        // переиспользовать готовый рендер «группа → раунды → таблица».
+        $virtualGroup = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $leaderboard,
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+        $jpi = app(JustPadelItService::class);
+
+        return [
+            'success' => true,
+            'type' => 'just_padel_it',
+            'is_paired' => $paired,
+            'groups' => [$virtualGroup],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $jpi->canFinishTournament($tournament),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $isLive && $jpi->canGenerateNextRound($tournament),
+            ],
+        ];
+    }
+
+    private function formatJustPadelItMatch(JustPadelItMatch $m): array
+    {
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $this->justPadelItMatchWinner($m),
+        ];
+    }
+
+    private function justPadelItMatchWinner(JustPadelItMatch $m): ?int
+    {
+        if ($m->status !== 'completed') return null;
+        if ($m->team1_score === null || $m->team2_score === null) return null;
+        if ($m->team1_score === $m->team2_score) return null;
+        return $m->team1_score > $m->team2_score ? 1 : 2;
+    }
+
+    private function buildJustPadelItLeaderboard(Tournament $tournament): array
+    {
+        $players = $tournament->justPadelItPlayers
+            ->sortByDesc('total_points')
+            ->values();
+
+        $rows = [];
+        $position = 1;
+        foreach ($players as $kp) {
+            $u = $kp->user;
+            if (!$u) continue;
+            $totalGames = (int) $kp->wins + (int) $kp->losses;
+            $totalBalls = (int) $kp->points_for + (int) $kp->points_against;
+            $rows[] = [
+                'position' => $position++,
+                'id' => $u->id,
+                'name' => $u->full_name ?? $u->name,
+                'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'rating' => (int) ($u->rating ?? 0),
+                'wins' => (int) $kp->wins,
+                'losses' => (int) $kp->losses,
+                'draws' => 0,
+                'points_for' => (int) $kp->points_for,
+                'points_against' => (int) $kp->points_against,
+                'total_points' => (int) $kp->total_points,
+                'games_played' => $totalGames,
+                'point_diff' => (int) $kp->points_for - (int) $kp->points_against,
+                'win_percent' => $totalGames > 0 ? (int) round($kp->wins / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($kp->points_for / $totalBalls * 100) : 0,
+            ];
+        }
+        return $rows;
+    }
+
+    /** Таблица лидеров по парам для фикс-парного Just Padel It. */
+    private function buildJpiPairLeaderboard(Tournament $tournament): array
+    {
+        $standings = app(JustPadelItService::class)->getPairStandings($tournament);
         $rows = [];
         $position = 1;
         foreach ($standings as $row) {
