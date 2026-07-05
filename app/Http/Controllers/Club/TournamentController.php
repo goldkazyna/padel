@@ -95,7 +95,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex,round_robin',
+			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex,round_robin,just_padel_it',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
@@ -135,10 +135,10 @@ class TournamentController extends Controller
 		}
 		unset($validated['flex_courts_count']);
 
-		// is_paired имеет смысл только для americano_flex (обработан выше) и
-		// king_of_court (фикс-пары). Для остальных типов — принудительно false,
-		// чтобы скрытый чекбокс другого блока формы не «прилип».
-		if (($validated['type'] ?? null) === 'king_of_court') {
+		// is_paired имеет смысл только для americano_flex (обработан выше),
+		// king_of_court и just_padel_it (фикс-пары). Для остальных типов —
+		// принудительно false, чтобы скрытый чекбокс другого блока формы не «прилип».
+		if (in_array($validated['type'] ?? null, ['king_of_court', 'just_padel_it'], true)) {
 			$validated['is_paired'] = $request->boolean('is_paired');
 		} elseif (($validated['type'] ?? null) !== 'americano_flex') {
 			$validated['is_paired'] = false;
@@ -232,6 +232,11 @@ class TournamentController extends Controller
 		// Король корта — отдельный контроллер
 		if ($tournament->isKingOfCourt()) {
 			return app(\App\Http\Controllers\Club\KingOfCourtController::class)->show($tournament);
+		}
+
+		// Just Padel It — отдельный контроллер
+		if ($tournament->isJustPadelIt()) {
+			return app(\App\Http\Controllers\Club\JustPadelItController::class)->show($tournament);
 		}
 
 		// Король Корта (Bali Format) — отдельный контроллер
@@ -442,6 +447,12 @@ class TournamentController extends Controller
 					->with('error', 'Сначала создайте пары');
 			}
 			$result = $baliKocService->startTournament($tournament);
+		} elseif ($tournament->isJustPadelIt()) {
+			if ($tournament->isPairedJustPadelIt() && !$tournament->justPadelItPairs()->exists()) {
+				return redirect()->route('club.justpadelit.pairs', $tournament)
+					->with('error', 'Сначала создайте пары');
+			}
+			return redirect()->route('club.justpadelit.seeding', $tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}
@@ -607,6 +618,12 @@ class TournamentController extends Controller
 				return back()->with('error', 'Доиграйте текущий раунд');
 			}
 			$result = $baliKocService->finishTournament($tournament);
+		} elseif ($tournament->isJustPadelIt()) {
+			$justPadelItService = app(\App\Services\JustPadelItService::class);
+			if (!$justPadelItService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Доиграйте текущий раунд');
+			}
+			$result = $justPadelItService->finishTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}

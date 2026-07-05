@@ -52,6 +52,14 @@ class TournamentResetService
                     DB::table('bali_koc_pairs')->where('tournament_id', $tournament->id)->delete();
                     break;
 
+                case 'just_padel_it':
+                    $roundIds = DB::table('just_padel_it_rounds')->where('tournament_id', $tournament->id)->pluck('id');
+                    DB::table('just_padel_it_matches')->whereIn('just_padel_it_round_id', $roundIds)->delete();
+                    DB::table('just_padel_it_rounds')->where('tournament_id', $tournament->id)->delete();
+                    DB::table('just_padel_it_pairs')->where('tournament_id', $tournament->id)->delete();
+                    DB::table('just_padel_it_players')->where('tournament_id', $tournament->id)->delete();
+                    break;
+
                 case 'americano_flex':
                     $roundIds = DB::table('americano_flex_rounds')->where('tournament_id', $tournament->id)->pluck('id');
                     DB::table('americano_flex_matches')->whereIn('americano_flex_round_id', $roundIds)->delete();

@@ -9,6 +9,7 @@ use App\Http\Controllers\Club\MatchController;
 use App\Http\Controllers\Club\AmericanoController;
 use App\Http\Controllers\Club\MexicanoController;
 use App\Http\Controllers\Club\KingOfCourtController;
+use App\Http\Controllers\Club\JustPadelItController;
 use App\Http\Controllers\Club\BaliKocController;
 use App\Http\Controllers\Club\TeamTournamentController;
 use App\Http\Controllers\RatingController;
@@ -456,6 +457,22 @@ Route::middleware('auth')->group(function () {
                 ->name('kingofcourt.updateScore');
             Route::post('/kingofcourt/tournament/{tournament}/next-round', [KingOfCourtController::class, 'generateNextRound'])
                 ->name('kingofcourt.nextRound');
+
+            // Just Padel It
+            Route::get('/justpadelit/{tournament}/pairs', [JustPadelItController::class, 'pairs'])
+                ->name('justpadelit.pairs');
+            Route::post('/justpadelit/{tournament}/pairs', [JustPadelItController::class, 'storePairs'])
+                ->name('justpadelit.storePairs');
+            Route::get('/justpadelit/{tournament}/seeding', [JustPadelItController::class, 'seeding'])
+                ->name('justpadelit.seeding');
+            Route::post('/justpadelit/{tournament}/start', [JustPadelItController::class, 'start'])
+                ->name('justpadelit.start');
+            Route::post('/justpadelit/match/{match}/score', [JustPadelItController::class, 'saveScore'])
+                ->name('justpadelit.saveScore');
+            Route::put('/justpadelit/match/{match}/score', [JustPadelItController::class, 'updateScore'])
+                ->name('justpadelit.updateScore');
+            Route::post('/justpadelit/tournament/{tournament}/next-round', [JustPadelItController::class, 'generateNextRound'])
+                ->name('justpadelit.nextRound');
 
             // Round Robin
             Route::post('/round-robin/match/{match}/score', [App\Http\Controllers\Club\RoundRobinController::class, 'saveScore'])
