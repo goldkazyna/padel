@@ -141,7 +141,8 @@ class MobileAdminTournamentDetailController extends Controller
         KingOfCourtService $king,
         BaliKocService $bali,
         AmericanoFlexService $flex,
-        RoundRobinService $roundRobin
+        RoundRobinService $roundRobin,
+        \App\Services\JustPadelItService $jpi
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -182,6 +183,17 @@ class MobileAdminTournamentDetailController extends Controller
                 ], 422);
             }
             $ok = $bali->startTournament($tournament);
+        } elseif ($tournament->isJustPadelIt()) {
+            if ($tournament->isPairedJustPadelIt() && !$jpi->arePairsCreated($tournament)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Сначала создайте пары',
+                    'pairs_required' => true,
+                ], 422);
+            }
+            $order = $request->input('order');
+            $order = is_array($order) ? array_map('intval', $order) : null;
+            $ok = $jpi->startTournament($tournament, $order ?: null);
         } else {
             return response()->json([
                 'success' => false,
@@ -2541,6 +2553,37 @@ class MobileAdminTournamentDetailController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
+        ]);
+    }
+
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/justpadelit/seeding
+     * Участники по рейтингу (убыв.) + число кортов — для экрана посева Just Padel It.
+     */
+    public function jpiSeeding(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isJustPadelIt()) {
+            return response()->json(['success' => false, 'message' => 'Не тот тип турнира'], 422);
+        }
+
+        $participants = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->get()
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'rating' => (int) ($u->rating ?? 0),
+            ])
+            ->sortByDesc('rating')
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'participants' => $participants,
+            'courts_count' => (int) ($tournament->courts_count ?? 1),
         ]);
     }
 

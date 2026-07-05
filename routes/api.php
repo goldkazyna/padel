@@ -180,6 +180,9 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/bali_koc/pairs', [MobileAdminTournamentDetailController::class, 'saveBaliKocPairs']);
         Route::get('/admin/tournaments/{tournament}/kingofcourt/pairs', [MobileAdminTournamentDetailController::class, 'kocPairs']);
         Route::post('/admin/tournaments/{tournament}/kingofcourt/pairs', [MobileAdminTournamentDetailController::class, 'saveKocPairs']);
+
+        // JPI (Just Padel It) — посев участников по рейтингу перед стартом
+        Route::get('/admin/tournaments/{tournament}/justpadelit/seeding', [MobileAdminTournamentDetailController::class, 'jpiSeeding']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 
         // Americano Flex — счёт матча (один эндпоинт для save/update), next-round/finish общие выше
