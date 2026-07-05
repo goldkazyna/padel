@@ -170,4 +170,23 @@ class MobileAdminJustPadelItConductTest extends TestCase
 
         $this->assertSame('in_progress', $t->fresh()->status);
     }
+
+    public function test_detail_shows_jpi_pairs_created_flag(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(true, 8, 2);
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}")
+            ->assertOk()
+            ->assertJsonPath('tournament.jpi_pairs_created', false);
+
+        $ids = $t->participants()->pluck('users.id')->values()->all();
+        $pairs = [[$ids[0], $ids[1]], [$ids[2], $ids[3]], [$ids[4], $ids[5]], [$ids[6], $ids[7]]];
+        [$ok] = app(\App\Services\JustPadelItService::class)->createPairs($t, $pairs);
+        $this->assertTrue($ok);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}")
+            ->assertOk()
+            ->assertJsonPath('tournament.jpi_pairs_created', true);
+    }
 }

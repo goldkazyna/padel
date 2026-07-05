@@ -441,6 +441,10 @@ class MobileAdminTournamentDetailController extends Controller
         $kocPairsCreated = $t->isPairedKingOfCourt()
             ? $t->kingOfCourtPairs()->exists()
             : false;
+        // Для фикс-парного Just Padel It — аналогично.
+        $jpiPairsCreated = $t->isPairedJustPadelIt()
+            ? $t->justPadelItPairs()->exists()
+            : false;
         // Редактировать/удалять — только с полными правами.
         $canEdit = $hasFullAccess
             && in_array($t->status, ['draft', 'open'], true);
@@ -484,6 +488,7 @@ class MobileAdminTournamentDetailController extends Controller
             'can_delete' => $canDelete,
             'bali_pairs_created' => $baliPairsCreated,
             'koc_pairs_created' => $kocPairsCreated,
+            'jpi_pairs_created' => $jpiPairsCreated,
             'is_paired' => (bool) $t->is_paired,
             'moderation_hours' => $t->moderation_hours !== null ? (int) $t->moderation_hours : null,
             'moderation_minutes' => $t->moderation_minutes !== null ? (int) $t->moderation_minutes : null,
