@@ -48,6 +48,7 @@
 							<option value="king_of_court" {{ old('type') === 'king_of_court' ? 'selected' : '' }}>Король корта</option>
 							<option value="round_robin" {{ old('type') === 'round_robin' ? 'selected' : '' }}>Round Robin (индивидуальный)</option>
 							<option value="bali_koc" {{ old('type') === 'bali_koc' ? 'selected' : '' }}>Король Корта (Bali Format)</option>
+							<option value="just_padel_it" {{ old('type') === 'just_padel_it' ? 'selected' : '' }}>Just Padel It</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -408,6 +409,33 @@
 						</div>
 					</div>
 
+					<div id="justPadelItFields" style="display: none;">
+						<div class="alert-success-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Just Padel It:</strong> Победители переходят на корт выше, проигравшие — ниже. За победу начисляются бонусы: корт 1 → +3, корт 2 → +2, остальные → +1. Число игроков — кратно 4, минимум 8.
+						</div>
+						<div class="mb-3">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" name="is_paired" value="1" id="jpiFixedPairs"
+									   {{ old('is_paired') ? 'checked' : '' }}>
+								<label class="form-check-label" for="jpiFixedPairs">
+									Фиксированные пары <small class="text-muted">(партнёр на весь турнир). Снимите — случайные пары со сменой партнёров.</small>
+								</label>
+							</div>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Тип подсчёта</label>
+							<div class="form-check">
+								<input type="radio" class="form-check-input" name="jpi_score_type" id="jpiScorePoints" value="points" checked>
+								<label class="form-check-label" for="jpiScorePoints">По очкам</label>
+							</div>
+							<div class="form-check">
+								<input type="radio" class="form-check-input" id="jpiScoreSets" value="sets" disabled>
+								<label class="form-check-label text-muted" for="jpiScoreSets">По сетам <small>(скоро)</small></label>
+							</div>
+						</div>
+					</div>
+
 					<div id="roundRobinFields" style="display: none;">
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
@@ -497,6 +525,7 @@ function toggleTypeFields() {
     const roundRobinFields = document.getElementById('roundRobinFields');
     const baliKocFields = document.getElementById('baliKocFields');
     const americanoFlexFields = document.getElementById('americanoFlexFields');
+    const justPadelItFields = document.getElementById('justPadelItFields');
 
     // Подсказка "(укажите кол-во пар)" для team турниров
     var reserveHint = document.getElementById('reserveHintPairs');
@@ -512,6 +541,7 @@ function toggleTypeFields() {
     if (roundRobinFields) roundRobinFields.style.display = 'none';
     if (baliKocFields) baliKocFields.style.display = 'none';
     if (americanoFlexFields) americanoFlexFields.style.display = 'none';
+    if (justPadelItFields) justPadelItFields.style.display = 'none';
 
     // Team-галка «С плей-офф» по умолчанию отмечена и лежит в скрытом блоке —
     // отключаем её для не-team, чтобы она не уходила в submit (has_playoff).
@@ -575,6 +605,9 @@ function toggleTypeFields() {
         generateCourtsInputs();
     } else if (type === 'americano_flex' && americanoFlexFields) {
         americanoFlexFields.style.display = 'block';
+        generateCourtsInputs();
+    } else if (type === 'just_padel_it' && justPadelItFields) {
+        justPadelItFields.style.display = 'block';
         generateCourtsInputs();
     }
 }
