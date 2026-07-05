@@ -2279,6 +2279,9 @@ class MobileTournamentController extends Controller
         if ($tournament->type === 'king_of_court') {
             return $this->liveKingOfCourt($tournament, $user);
         }
+        if ($tournament->isJustPadelIt()) {
+            return $this->liveJustPadelIt($tournament, $user);
+        }
         if ($tournament->type === 'round_robin') {
             return $this->liveRoundRobin($tournament, $user);
         }
@@ -3095,6 +3098,199 @@ class MobileTournamentController extends Controller
                 }
             }
             $standings = $kocService->getPairStandings($tournament);
+            $leaderboard = [];
+            foreach ($standings as $idx => $row) {
+                $pair = $row['pair'];
+                $totalBalls = $row['points_for'] + $row['points_against'];
+                $leaderboard[] = [
+                    'position' => $idx + 1,
+                    'pair_id' => $pair->id,
+                    'player1' => $this->formatPlayerForLive($pair->player1_id, $playerStats, $tournament),
+                    'player2' => $this->formatPlayerForLive($pair->player2_id, $playerStats, $tournament),
+                    'wins' => $row['wins'],
+                    'losses' => $row['losses'],
+                    'points_for' => $row['points_for'],
+                    'points_against' => $row['points_against'],
+                    'total_points' => $row['total_points'],
+                    'points' => $row['total_points'],
+                    'point_diff' => $row['diff'],
+                    'ball_percent' => $totalBalls > 0 ? (int) round($row['points_for'] / $totalBalls * 100) : 0,
+                    'win_percent' => $row['win_rate'],
+                    'is_me' => $myPairId !== null && (int) $pair->id === $myPairId,
+                ];
+            }
+        } else {
+            uasort($playerStats, function ($a, $b) {
+                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            });
+
+            $position = 1;
+            $leaderboard = [];
+            foreach ($playerStats as $s) {
+                $totalGames = $s['wins'] + $s['losses'];
+                $diff = $s['points_for'] - $s['points_against'];
+                $totalBalls = $s['points_for'] + $s['points_against'];
+                $ballPercent = $totalBalls > 0
+                    ? (int) round($s['points_for'] / $totalBalls * 100)
+                    : 0;
+                $leaderboard[] = array_merge($s, [
+                    'position' => $position++,
+                    'games_played' => $totalGames,
+                    'point_diff' => $diff,
+                    'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                    'ball_percent' => $ballPercent,
+                    'is_me' => $userId && (int) $s['id'] === $userId,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club?->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'status' => $tournament->status,
+                'is_paired' => $isPaired,
+                'has_playoff' => false,
+                'courts_count' => (int) ($tournament->max_participants / 4),
+            ],
+            'leaderboard' => array_values($leaderboard),
+            'rounds' => $roundsOut,
+            'playoff' => [],
+        ]);
+    }
+
+    /**
+     * Live для турнира «Just Padel It» — копия liveKingOfCourt() с заменой
+     * источников данных на JustPadelIt* (JustPadelItService::getPairStandings,
+     * justPadelItRounds(), justPadelItPairs()). Структура ответа идентична KoC.
+     */
+    private function liveJustPadelIt(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+
+        // Если в запросе пришёл player_id — считаем дельту рейтинга для него
+        // (нужно когда смотрим из чужого профиля). Иначе — для текущего юзера.
+        $targetId = (int) (request()->query('player_id') ?: $userId);
+
+        $jpiPlayers = $tournament->justPadelItPlayers()->with('user')->get();
+        $playerStats = [];
+        $ratingEvolve = [];
+        foreach ($jpiPlayers as $kp) {
+            $u = $kp->user;
+            if (!$u) continue;
+            $playerStats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'wins' => (int) $kp->wins,
+                'losses' => (int) $kp->losses,
+                'draws' => 0,
+                'points_for' => (int) $kp->points_for,
+                'points_against' => (int) $kp->points_against,
+                'total_points' => (int) $kp->total_points,
+            ];
+            $ratingEvolve[$u->id] = ['current_rating' => (int) $kp->rating_before];
+        }
+
+        $rounds = $tournament->justPadelItRounds()
+            ->with(['matches' => function ($q) {
+                $q->orderBy('court_number');
+            }])
+            ->orderBy('round_number')
+            ->get();
+
+        // Считаем дельту рейтинга для целевого игрока в каждом раунде.
+        // Эволюционируем рейтинги ВСЕХ игроков по матчам в порядке раундов
+        // (так же как finishTournament), запоминаем pre/post для targetId.
+        $jpiService = app(\App\Services\JustPadelItService::class);
+        $roundDeltas = [];
+        foreach ($rounds as $r) {
+            $pre = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            foreach ($r->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $jpiService->calculateEloForMatch($m, $ratingEvolve);
+            }
+            $post = $ratingEvolve[$targetId]['current_rating'] ?? null;
+            $roundDeltas[$r->id] = ($pre !== null && $post !== null) ? ($post - $pre) : null;
+        }
+        if (!$tournament->is_rated) { $roundDeltas = []; }
+
+        $roundsOut = [];
+        foreach ($rounds as $r) {
+            $courtsTotal = $r->matches->count();
+            $matchesOut = [];
+            foreach ($r->matches as $m) {
+                $courtIdx = (int) $m->court_number;
+                if ($courtIdx === 1) {
+                    $courtTier = 'top';
+                } elseif ($courtIdx === $courtsTotal) {
+                    $courtTier = 'bottom';
+                } else {
+                    $courtTier = 'middle';
+                }
+                $courtLabel = "Корт {$courtIdx}";
+
+                $t1HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team1_player1_id,
+                    (int) $m->team1_player2_id,
+                ], true);
+                $t2HasMe = $userId !== null && in_array($userId, [
+                    (int) $m->team2_player1_id,
+                    (int) $m->team2_player2_id,
+                ], true);
+
+                $matchesOut[] = [
+                    'id' => $m->id,
+                    'court_number' => $courtIdx,
+                    'court_tier' => $courtTier,
+                    'court_label' => $courtLabel,
+                    'status' => $m->status,
+                    'team1' => [
+                        'player1' => $this->formatPlayerForLive($m->team1_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team1_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team1_score : null,
+                        'has_me' => $t1HasMe,
+                    ],
+                    'team2' => [
+                        'player1' => $this->formatPlayerForLive($m->team2_player1_id, $playerStats, $tournament),
+                        'player2' => $this->formatPlayerForLive($m->team2_player2_id, $playerStats, $tournament),
+                        'score' => $m->status === 'completed' ? (int) $m->team2_score : null,
+                        'has_me' => $t2HasMe,
+                    ],
+                    'has_me' => $t1HasMe || $t2HasMe,
+                ];
+            }
+            $roundsOut[] = [
+                'id' => $r->id,
+                'round_number' => $r->round_number,
+                'status' => $r->status,
+                'matches' => $matchesOut,
+                'my_rating_change' => $roundDeltas[$r->id] ?? null,
+            ];
+        }
+
+        $isPaired = $tournament->isPairedJustPadelIt();
+
+        if ($isPaired) {
+            // Фикс-пары: таблица по парам (shape как у Bali — player1/player2).
+            $pairs = $tournament->justPadelItPairs()->with(['player1', 'player2'])->get();
+            $myPairId = null;
+            foreach ($pairs as $p) {
+                if ($userId && in_array($userId, [(int) $p->player1_id, (int) $p->player2_id], true)) {
+                    $myPairId = (int) $p->id;
+                }
+            }
+            $standings = $jpiService->getPairStandings($tournament);
             $leaderboard = [];
             foreach ($standings as $idx => $row) {
                 $pair = $row['pair'];
