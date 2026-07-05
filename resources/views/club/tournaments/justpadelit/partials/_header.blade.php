@@ -23,6 +23,15 @@
                         <a href="{{ route('club.justpadelit.pairs', $tournament) }}" class="btn-primary-custom">
                             <i class="bi bi-people-fill"></i> Создать пары
                         </a>
+                    @elseif($tournament->isPairedJustPadelIt())
+                        {{-- Фикс-пары уже созданы: старт напрямую с авто-посевом пар по рейтингу --}}
+                        <form action="{{ route('club.justpadelit.start', $tournament) }}" method="POST"
+                              onsubmit="return confirm('Начать турнир? Пары будут расставлены по кортам автоматически по рейтингу.')">
+                            @csrf
+                            <button type="submit" class="btn-primary-custom">
+                                <i class="bi bi-play-fill"></i> Начать турнир
+                            </button>
+                        </form>
                     @else
                         <a href="{{ route('club.justpadelit.seeding', $tournament) }}" class="btn-primary-custom">
                             <i class="bi bi-play-fill"></i> Посев и старт

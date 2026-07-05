@@ -149,6 +149,10 @@ class JustPadelItController extends Controller
             return redirect()->route('club.justpadelit.pairs', $tournament)
                 ->with('error', 'Сначала создайте пары');
         }
+        // Парный режим: индивидуальный посев не применяется — старт напрямую.
+        if ($tournament->isPairedJustPadelIt()) {
+            return redirect()->route('club.tournaments.show', $tournament);
+        }
         $participants = $tournament->participants()
             ->wherePivot('status', 'registered')
             ->orderByDesc('rating')->get();
