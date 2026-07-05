@@ -1999,6 +1999,27 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Just Padel It — место по лидерборду
+        if ($tournament->type === 'just_padel_it') {
+            if ($tournament->isPairedJustPadelIt()) {
+                $standings = app(\App\Services\JustPadelItService::class)->getPairStandings($tournament);
+                foreach ($standings as $i => $row) {
+                    $pair = $row['pair'];
+                    if ((int) $pair->player1_id === $userId || (int) $pair->player2_id === $userId) {
+                        return $i + 1;
+                    }
+                }
+                return null;
+            }
+            $players = $tournament->justPadelItPlayers()
+                ->orderByDesc('total_points')
+                ->orderByDesc('wins')
+                ->get();
+            foreach ($players as $i => $kp) {
+                if ($kp->user_id === $userId) return $i + 1;
+            }
+        }
+
         // Round Robin — место по стандингам (победы → разница → личные встречи)
         if ($tournament->type === 'round_robin') {
             $standings = app(\App\Services\RoundRobinService::class)->standings($tournament);
