@@ -2901,6 +2901,75 @@ class MobileAdminTournamentDetailController extends Controller
         return response()->json(['success' => true, 'message' => $message]);
     }
 
+    /**
+     * GET /api/mobile/admin/tournaments/{tournament}/justpadelit/pairs
+     * Состояние пар для фикс-парного Just Padel It.
+     */
+    public function jpiPairs(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isPairedJustPadelIt()) {
+            return $this->error('Турнир не «Just Padel It» с фиксированными парами', 422);
+        }
+
+        $participants = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => $this->formatUser($u));
+
+        $existingPairs = $tournament->justPadelItPairs()
+            ->with(['player1', 'player2'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'player1' => $p->player1 ? $this->formatUser($p->player1) : null,
+                'player2' => $p->player2 ? $this->formatUser($p->player2) : null,
+            ]);
+
+        $expectedPairs = (int) ($participants->count() / 2);
+        $canCreate = $participants->count() >= 8 && $participants->count() % 4 === 0;
+
+        return response()->json([
+            'success' => true,
+            'participants' => $participants,
+            'pairs' => $existingPairs,
+            'expected_pairs_count' => $expectedPairs,
+            'can_create' => $canCreate,
+            'locked' => $existingPairs->isNotEmpty(),
+        ]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/justpadelit/pairs
+     * Сохранить пары. Тело: { pairs: [[player1_id, player2_id], ...] }
+     */
+    public function saveJpiPairs(Request $request, Tournament $tournament, \App\Services\JustPadelItService $service): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $validator = Validator::make($request->all(), [
+            'pairs' => 'required|array|min:2',
+            'pairs.*.0' => 'required|integer|exists:users,id',
+            'pairs.*.1' => 'required|integer|exists:users,id',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        [$ok, $message] = $service->createPairs($tournament, $request->input('pairs'));
+        if (!$ok) {
+            return $this->error($message);
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
+    }
+
     // -------------------------------------------------------------------------
     // Bali KOC — формирование ответа /matches
     // -------------------------------------------------------------------------

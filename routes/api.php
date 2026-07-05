@@ -183,6 +183,8 @@ Route::prefix('mobile')->group(function () {
 
         // JPI (Just Padel It) — посев участников по рейтингу перед стартом
         Route::get('/admin/tournaments/{tournament}/justpadelit/seeding', [MobileAdminTournamentDetailController::class, 'jpiSeeding']);
+        Route::get('/admin/tournaments/{tournament}/justpadelit/pairs', [MobileAdminTournamentDetailController::class, 'jpiPairs']);
+        Route::post('/admin/tournaments/{tournament}/justpadelit/pairs', [MobileAdminTournamentDetailController::class, 'saveJpiPairs']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/justpadelit/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveJustPadelItScore']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 

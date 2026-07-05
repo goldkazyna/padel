@@ -153,4 +153,21 @@ class MobileAdminJustPadelItConductTest extends TestCase
 
         $this->assertSame('completed', $t->fresh()->status);
     }
+
+    public function test_paired_pairs_then_start(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(true, 8, 2);
+        Sanctum::actingAs($admin);
+
+        $ids = $t->participants()->pluck('users.id')->values()->all();
+        $pairs = [[$ids[0], $ids[1]], [$ids[2], $ids[3]], [$ids[4], $ids[5]], [$ids[6], $ids[7]]];
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/justpadelit/pairs", ['pairs' => $pairs])
+            ->assertOk()->assertJsonPath('success', true);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")
+            ->assertOk()->assertJsonPath('success', true);
+
+        $this->assertSame('in_progress', $t->fresh()->status);
+    }
 }
