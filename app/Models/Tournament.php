@@ -410,6 +410,7 @@ class Tournament extends Model
 			'bali_koc' => 'Король Корта (Bali Format)',
 			'americano_flex' => 'Americano Flex',
 			'round_robin' => 'Round Robin',
+			'just_padel_it' => 'Just Padel It',
 			default => $this->type,
 		};
 	}
@@ -442,6 +443,31 @@ class Tournament extends Model
 	public function isPairedKingOfCourt(): bool
 	{
 		return $this->isKingOfCourt() && (bool) $this->is_paired;
+	}
+
+	public function isJustPadelIt(): bool
+	{
+		return $this->type === 'just_padel_it';
+	}
+
+	public function isPairedJustPadelIt(): bool
+	{
+		return $this->isJustPadelIt() && (bool) $this->is_paired;
+	}
+
+	public function justPadelItPlayers()
+	{
+		return $this->hasMany(\App\Models\JustPadelItPlayer::class);
+	}
+
+	public function justPadelItRounds()
+	{
+		return $this->hasMany(\App\Models\JustPadelItRound::class)->orderBy('round_number');
+	}
+
+	public function justPadelItPairs()
+	{
+		return $this->hasMany(\App\Models\JustPadelItPair::class);
 	}
 
 	public function isRoundRobin(): bool
@@ -694,6 +720,9 @@ class Tournament extends Model
 			'mexicano' => $this->mexicanoRounds()
 				->where('round_number', 1)->where('status', 'completed')->exists(),
 			'king_of_court' => $this->kingOfCourtRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'just_padel_it' => \App\Models\JustPadelItRound::query()
+				->where('tournament_id', $this->id)
 				->where('round_number', 1)->where('status', 'completed')->exists(),
 			'bali_koc' => $this->baliKocRounds()
 				->where('round_number', 1)->where('status', 'completed')->exists(),
