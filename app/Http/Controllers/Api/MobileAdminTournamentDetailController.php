@@ -2833,7 +2833,7 @@ class MobileAdminTournamentDetailController extends Controller
         return response()->json([
             'success' => true,
             'participants' => $participants,
-            'courts_count' => (int) ($tournament->courts_count ?? 1),
+            'courts_count' => intdiv($participants->count(), 4),
         ]);
     }
 

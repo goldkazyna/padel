@@ -70,6 +70,41 @@ class MobileAdminJustPadelItConductTest extends TestCase
         $this->assertSame($sorted, $ratings, 'participants must be sorted by rating desc');
     }
 
+    public function test_seeding_endpoint_returns_courts_count_from_registered_not_max(): void
+    {
+        // max_participants=16 (создатель ожидал 4 корта), но фактически
+        // записалось только 12 игроков — посев должен строиться под 3 корта
+        // (столько, сколько реально сможет запустить startTournament()),
+        // а не под сохранённый courts_count=4.
+        $club = Club::create(['name' => 'C', 'address' => 'A', 'city' => 'Алматы']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+
+        $t = Tournament::factory()->create([
+            'club_id' => $club->id,
+            'type' => 'just_padel_it',
+            'status' => 'open',
+            'max_participants' => 16,
+            'courts_count' => 4,
+            'is_paired' => false,
+        ]);
+        for ($i = 1; $i <= 12; $i++) {
+            $u = User::factory()->create(['rating' => 1000 + $i * 100]);
+            TournamentParticipant::create([
+                'tournament_id' => $t->id,
+                'user_id' => $u->id,
+                'status' => 'registered',
+            ]);
+        }
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}/justpadelit/seeding")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('courts_count', 3);
+    }
+
     public function test_paired_start_without_pairs_requires_pairs(): void
     {
         [$club, $admin, $t] = $this->makeTournament(true, 8, 2);
