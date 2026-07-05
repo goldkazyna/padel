@@ -117,4 +117,40 @@ class MobileAdminJustPadelItConductTest extends TestCase
         $this->assertSame('completed', $match->status);
         $this->assertSame(6, (int) $match->team1_score);
     }
+
+    private function completeCurrentRound(Tournament $t, \App\Services\JustPadelItService $jpi): void
+    {
+        $round = $t->justPadelItRounds()->orderByDesc('round_number')->first();
+        foreach ($round->matches as $m) {
+            $jpi->saveMatchResult($m, 6, 2);
+        }
+    }
+
+    public function test_next_round_generates_second_round(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(false, 8, 2);
+        Sanctum::actingAs($admin);
+        $jpi = app(\App\Services\JustPadelItService::class);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")->assertOk();
+        $t->refresh();
+        $this->completeCurrentRound($t, $jpi);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/next-round")->assertOk();
+
+        $this->assertSame(2, $t->fresh()->justPadelItRounds()->count());
+    }
+
+    public function test_finish_completes_tournament(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(false, 8, 2);
+        Sanctum::actingAs($admin);
+        $jpi = app(\App\Services\JustPadelItService::class);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")->assertOk();
+        $t->refresh();
+        $this->completeCurrentRound($t, $jpi);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/finish")->assertOk();
+
+        $this->assertSame('completed', $t->fresh()->status);
+    }
 }

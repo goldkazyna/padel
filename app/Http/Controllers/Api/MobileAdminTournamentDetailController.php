@@ -1845,6 +1845,7 @@ class MobileAdminTournamentDetailController extends Controller
         MexicanoService $mexicano,
         TeamTournamentService $team,
         KingOfCourtService $king,
+        JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
         RoundRobinService $roundRobin
@@ -1874,6 +1875,11 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $king->finishTournament($tournament);
+        } elseif ($tournament->isJustPadelIt()) {
+            if (!$jpi->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте текущий раунд');
+            }
+            $ok = $jpi->finishTournament($tournament);
         } elseif ($tournament->isRoundRobin()) {
             if (!$roundRobin->canFinishTournament($tournament)) {
                 return $this->error('Доиграйте текущий раунд');
@@ -2026,6 +2032,7 @@ class MobileAdminTournamentDetailController extends Controller
         Request $request,
         Tournament $tournament,
         KingOfCourtService $king,
+        JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
         RoundRobinService $roundRobin
@@ -2087,6 +2094,19 @@ class MobileAdminTournamentDetailController extends Controller
 
             $tournament->refresh();
             return response()->json($this->buildKingOfCourtMatches($tournament));
+        }
+
+        if ($tournament->isJustPadelIt()) {
+            if (!$jpi->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            $ok = $jpi->generateNextRound($tournament);
+            if (!$ok) {
+                return $this->error('Не удалось сгенерировать следующий раунд');
+            }
+
+            $tournament->refresh();
+            return response()->json($this->buildJustPadelItMatches($tournament));
         }
 
         if ($tournament->isBaliKoc()) {
