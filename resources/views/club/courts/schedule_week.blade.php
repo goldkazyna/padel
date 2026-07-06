@@ -601,7 +601,7 @@
                                 }
                             @endphp
                             <div class="ws-card {{ $cls }}" @if($pmW) style="--pm: {{ $pmW[2] }}" @endif
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $b->coach_price !== null ? $b->coach_price : 'null' }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $b->coach_price !== null ? $b->coach_price : 'null' }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, cardCharged: {{ $b->card_charged_at ? 'true' : 'false' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                 @if($pmW)<div class="ws-pm-strip" title="Оплата: {{ $pmW[0] }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span></div>@endif
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
@@ -689,6 +689,7 @@
                     'bookingType' => $ub->booking_type,
                     'coachId' => $ub->coach_id,
                     'coachPaid' => $ub->coach_paid,
+                    'cardCharged' => (bool) $ub->card_charged_at,
                     'slotDuration' => $ub->court->slot_duration ?? 60,
                 ];
             @endphp
@@ -996,6 +997,8 @@
     .client-card-btn .ccb-sub { color: #22c55e; font-size: 12px; font-weight: 600; }
     .client-card-btn:hover:not(.active) { border-color: #22c55e; }
     .client-card-btn.active { border-color: #22c55e; background: rgba(34,197,94,.14); box-shadow: 0 0 0 1px #22c55e inset; }
+    .client-card-btn.inactive { cursor: not-allowed; opacity: .55; filter: grayscale(.4); }
+    .client-card-btn.inactive .ccb-sub { color: #a1a1aa; }
 
     /* Монохромная иконка: бронь оплачена клубной картой — перед надписью корта */
     .slot-card-icon { color: #a1a1aa; font-size: 11px; opacity: .9; margin-right: 6px; vertical-align: middle; }
@@ -1410,7 +1413,7 @@
                         <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn-confirm">Сохранить</button>
                     </div>
-                    <button type="button" class="btn-danger" style="width: 100%;" onclick="cancelBooking()">Отменить бронь</button>
+                    <button type="button" class="btn-danger" style="width: 100%;" id="cancelBookingBtn" onclick="cancelBooking()">Отменить бронь</button>
                 </div>
             </form>
             <form id="cancelBookingForm" method="POST" style="display:none;">@csrf</form>
@@ -1718,6 +1721,10 @@
 
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
+
+        // Если часы по клубной карте уже списаны — отмена брони недоступна.
+        const cancelBookingBtn = document.getElementById('cancelBookingBtn');
+        if (cancelBookingBtn) cancelBookingBtn.style.display = data.cardCharged ? 'none' : '';
 
         // Группа: тренер + участники + скрытие полей клиента/оплаты для групповой брони.
         renderEditGroup(data);
@@ -2101,10 +2108,15 @@
         };
         const digits = (phone || '').replace(/\D/g, '');
         if (digits.length < 5) { reset(); return; }
-        fetch(cardsForClientUrl + '?phone=' + encodeURIComponent(digits))
+        let url = cardsForClientUrl + '?phone=' + encodeURIComponent(digits);
+        if (preselectId) url += '&include_card_id=' + encodeURIComponent(preselectId);
+        fetch(url)
             .then(r => r.json())
             .then(d => {
-                const cards = (d && d.cards) ? d.cards : [];
+                // Неактивную (списанную/просроченную) карту показываем только если
+                // это карта текущей брони — свободный выбор списанных карт запрещён.
+                const cards = ((d && d.cards) ? d.cards : []).filter(c =>
+                    !c.inactive || String(c.id) === String(preselectId));
                 cardCache[prefix] = cards;
                 selectedCard[prefix] = null;
                 if (input) input.value = '';
@@ -2112,11 +2124,13 @@
                 box.innerHTML = cards.map(c => {
                     const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal + ' ч')
                                              : ('скидка −' + c.discount_percent + '%');
-                    return '<button type="button" class="client-card-btn" data-id="' + c.id + '" ' +
-                        'onclick="onCardButton(\'' + prefix + '\',' + c.id + ')">' +
+                    const inactiveNote = c.inactive ? ' · списано, не активна' : '';
+                    const cls = 'client-card-btn' + (c.inactive ? ' inactive' : '');
+                    const clickAttr = c.inactive ? '' : ' onclick="onCardButton(\'' + prefix + '\',' + c.id + ')"';
+                    return '<button type="button" class="' + cls + '" data-id="' + c.id + '"' + clickAttr + '>' +
                         '<span class="ccb-name">' + cardEsc(c.type_name || 'Карта') + '</span>' +
                         '<span class="ccb-code">' + cardEsc(c.code) + '</span>' +
-                        '<span class="ccb-sub">' + sub + '</span></button>';
+                        '<span class="ccb-sub">' + sub + inactiveNote + '</span></button>';
                 }).join('');
                 wrap.style.display = '';
                 if (preselectId) onCardButton(prefix, preselectId, true);
