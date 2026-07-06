@@ -557,11 +557,12 @@ class TournamentController extends Controller
 			return back()->with('error', 'Турнир уже заполнен');
 		}
 
-		// Тестовые игроки — ровно аккаунты 1@gmail.com … 16@gmail.com.
-		// (Реальные игроки регистрируются с email вида <телефон>@gmail.com и
-		// раньше ошибочно попадали под регулярку — теперь берём только список.)
+		// Тестовые игроки — аккаунты 1@gmail.com … 32@gmail.com.
+		// (Реальные игроки регистрируются с email вида <телефон>@gmail.com —
+		// телефон это 7+ цифр, в диапазон 1..32 не попадает, поэтому берём
+		// строго этот список, а не регулярку по «числовому email».)
 		$existingIds = $tournament->participants()->pluck('users.id')->toArray();
-		$testEmails = array_map(fn($n) => "{$n}@gmail.com", range(1, 16));
+		$testEmails = array_map(fn($n) => "{$n}@gmail.com", range(1, 32));
 
 		$players = \App\Models\User::where('role', 'player')
 			->whereNotIn('id', $existingIds)
