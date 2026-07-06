@@ -999,7 +999,20 @@ class CourtController extends Controller
             }
 
             // Клубная карта клиента: проверяем принадлежность и актуальность.
-            if (!empty($validated['club_card_id'])) {
+            // Исключение: если часы по карте уже списаны (card_charged_at) и карту
+            // не меняют — сохраняем привязку без повторной проверки isActual()
+            // (потраченная счётчик-карта с balance=0 иначе исчезла бы из брони).
+            $storedCardId = $booking->club_card_id;
+            $postedCardId = $request->input('club_card_id') !== null ? (int) $request->input('club_card_id') : null;
+            $alreadyCharged = $booking->card_charged_at !== null;
+            $preserveChargedCard = ($validated['payment_method'] ?? null) === 'club_card'
+                && $alreadyCharged
+                && $storedCardId !== null
+                && $postedCardId === (int) $storedCardId;
+
+            if ($preserveChargedCard) {
+                $clubCardId = $storedCardId;
+            } elseif (!empty($validated['club_card_id'])) {
                 $card = \App\Models\ClubCard::where('club_id', $club->id)
                     ->with('type')->find($validated['club_card_id']);
                 if ($card && $card->isActual()) {
@@ -1029,12 +1042,14 @@ class CourtController extends Controller
             $updateData['client_phone'] = $validated['client_phone'];
             $updateData['payment_method'] = $validated['payment_method'] ?? null;
             $updateData['is_paid'] = $validated['is_paid'] ?? false;
-            if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId) {
+            if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId && !$preserveChargedCard) {
                 return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
             }
             // Карту сменили/привязали заново — снимаем отметку обработки, чтобы бронь
             // снова попала в «К списанию» (часы спишутся вручную по новой карте).
-            if ((int) $clubCardId !== (int) $booking->club_card_id) {
+            // Если карта уже списана и не меняется — card_charged_at не трогаем
+            // (иначе бронь снова попала бы в очередь на списание и списалась бы повторно).
+            if (!$preserveChargedCard && (int) $clubCardId !== (int) $booking->club_card_id) {
                 $updateData['card_charged_at'] = null;
             }
             $updateData['club_card_id'] = $clubCardId;
@@ -1176,6 +1191,10 @@ class CourtController extends Controller
         $club = $this->getClub();
         $court = $booking->court;
         if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
+
+        if ($booking->card_charged_at !== null) {
+            return back()->with('error', 'Нельзя отменить проведённую бронь — часы уже списаны с клубной карты');
+        }
 
         $booking->update([
             'status' => 'cancelled',

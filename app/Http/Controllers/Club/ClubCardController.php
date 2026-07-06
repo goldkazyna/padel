@@ -64,25 +64,40 @@ class ClubCardController extends Controller
             ->first();
         if (!$client) return response()->json(['cards' => []]);
 
-        $cards = ClubCard::where('club_client_id', $client->id)
+        $allCards = ClubCard::where('club_client_id', $client->id)
             ->where('club_id', $club->id)
             ->with('type')
             ->orderByDesc('created_at')
-            ->get()
-            ->filter->isActual()
-            ->map(fn($c) => [
-                'id' => $c->id,
-                'code' => $c->code,
-                'type_name' => $c->type?->name,
-                'kind' => $c->type?->kind,
-                'is_counter' => $c->isCounter(),
-                'is_discount' => (bool) $c->type?->isDiscount(),
-                'balance' => $c->balance,
-                'discount_percent' => $c->type?->discount_percent,
-                'price' => $c->type?->price,          // стоимость карты
-                'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)
-            ])
+            ->get();
+
+        $mapCard = fn($c, bool $inactive) => [
+            'id' => $c->id,
+            'code' => $c->code,
+            'type_name' => $c->type?->name,
+            'kind' => $c->type?->kind,
+            'is_counter' => $c->isCounter(),
+            'is_discount' => (bool) $c->type?->isDiscount(),
+            'balance' => $c->balance,
+            'discount_percent' => $c->type?->discount_percent,
+            'price' => $c->type?->price,          // стоимость карты
+            'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)
+            'inactive' => $inactive,
+        ];
+
+        $cards = $allCards->filter->isActual()
+            ->map(fn($c) => $mapCard($c, false))
             ->values();
+
+        // Уже привязанная к брони карта могла быть потрачена (balance=0 → isActual()=false).
+        // Если её явно запрашивают по id — добавляем в список, чтобы форма редактирования
+        // брони могла её показать/предвыбрать, помечая как неактивную.
+        $includeCardId = $request->get('include_card_id');
+        if ($includeCardId !== null && !$cards->contains('id', (int) $includeCardId)) {
+            $extra = $allCards->firstWhere('id', (int) $includeCardId);
+            if ($extra) {
+                $cards = $cards->push($mapCard($extra, true))->values();
+            }
+        }
 
         return response()->json(['cards' => $cards]);
     }
