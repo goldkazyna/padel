@@ -224,4 +224,37 @@ class MobileAdminJustPadelItConductTest extends TestCase
             ->assertOk()
             ->assertJsonPath('tournament.jpi_pairs_created', true);
     }
+
+    public function test_solo_leaderboard_breaks_points_tie_by_wins(): void
+    {
+        [$club, $admin, $t] = $this->makeTournament(false, 8, 2);
+        Sanctum::actingAs($admin);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")->assertOk();
+
+        $players = \App\Models\JustPadelItPlayer::where('tournament_id', $t->id)
+            ->orderBy('user_id')->get();
+
+        // Двое с равными очками, но у второго (больший user_id) — больше побед.
+        // На старой сортировке (sortByDesc без тай-брейка) он оставался ниже.
+        $low = $players[0];   // те же очки, меньше побед
+        $high = $players[1];  // те же очки, больше побед
+        $low->update(['total_points' => 21, 'wins' => 1, 'losses' => 2]);
+        $high->update(['total_points' => 21, 'wins' => 2, 'losses' => 1]);
+        foreach ($players->slice(2) as $p) {
+            $p->update(['total_points' => 5, 'wins' => 0, 'losses' => 3]);
+        }
+
+        $board = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->json('groups.0.leaderboard');
+
+        $posHigh = collect($board)->firstWhere('id', $high->user_id)['position'];
+        $posLow = collect($board)->firstWhere('id', $low->user_id)['position'];
+
+        $this->assertLessThan(
+            $posLow,
+            $posHigh,
+            'при равных очках игрок с большим числом побед должен стоять выше'
+        );
+    }
 }
