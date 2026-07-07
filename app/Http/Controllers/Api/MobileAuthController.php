@@ -45,7 +45,7 @@ class MobileAuthController extends Controller
         // Тестовый код 1111 в verifyCode работает всегда — поэтому даже если
         // отправка упадёт, тестовый вход сохраняется.
         $sent = app(\App\Services\SmsService::class)
-            ->send($phone, "Ваш код OTP: {$code}");
+            ->send($phone, "Padel KZ Ваш код OTP: {$code}");
 
         if (!$sent) {
             Log::warning('SMS code not sent', ['phone' => $this->maskPhone($phone)]);
@@ -630,7 +630,7 @@ class MobileAuthController extends Controller
         Cache::put("phone_old_{$user->id}", $code, now()->addMinutes(5));
 
         $sent = app(\App\Services\SmsService::class)
-            ->send($user->phone, "Ваш код OTP: {$code}");
+            ->send($user->phone, "Padel KZ Ваш код OTP: {$code}");
         if (!$sent) {
             Log::warning('Change-phone old SMS not sent', ['user_id' => $user->id]);
         }
@@ -701,7 +701,7 @@ class MobileAuthController extends Controller
         Cache::put("phone_new_value_{$user->id}", $newPhone, now()->addMinutes(5));
 
         $sent = app(\App\Services\SmsService::class)
-            ->send($newPhone, "Ваш код OTP: {$code}");
+            ->send($newPhone, "Padel KZ Ваш код OTP: {$code}");
         if (!$sent) {
             Log::warning('Change-phone new SMS not sent', ['user_id' => $user->id]);
         }
