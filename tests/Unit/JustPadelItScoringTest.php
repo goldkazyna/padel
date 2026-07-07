@@ -23,4 +23,16 @@ class JustPadelItScoringTest extends TestCase
         $sorted = JustPadelItScoring::sortStandings($rows);
         $this->assertSame(['C', 'A', 'B'], array_column($sorted, 'name'));
     }
+
+    public function test_sort_standings_breaks_points_and_wins_tie_by_ball_diff(): void
+    {
+        // Равные очки и победы — решает разница мячей (забитые − пропущенные).
+        $rows = [
+            ['name' => 'A', 'total_points' => 100, 'wins' => 5, 'points_for' => 60, 'points_against' => 55], // diff +5
+            ['name' => 'B', 'total_points' => 100, 'wins' => 5, 'points_for' => 70, 'points_against' => 50], // diff +20
+            ['name' => 'C', 'total_points' => 100, 'wins' => 5, 'diff' => 12],                                // diff +12 (готовый ключ)
+        ];
+        $sorted = JustPadelItScoring::sortStandings($rows);
+        $this->assertSame(['B', 'C', 'A'], array_column($sorted, 'name'));
+    }
 }
