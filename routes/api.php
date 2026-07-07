@@ -129,6 +129,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/send-push', [MobileAdminTournamentDetailController::class, 'sendPush']);
         Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
         Route::post('/admin/tournaments/{tournament}/restart', [MobileAdminTournamentDetailController::class, 'restart']);
+        Route::post('/admin/tournaments/{tournament}/cancel', [MobileAdminTournamentDetailController::class, 'cancelTournament']);
         Route::post('/admin/tournaments/{tournament}/duplicate', [MobileAdminTournamentDetailController::class, 'duplicate']);
         Route::delete('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'destroy']);
 

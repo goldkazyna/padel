@@ -312,6 +312,29 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/cancel
+     * Остановить турнир — перевести в статус «cancelled». Аналог отмены на вебе.
+     */
+    public function cancelTournament(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (in_array($tournament->status, ['completed', 'cancelled'], true)) {
+            return $this->error('Турнир уже завершён или отменён');
+        }
+
+        $tournament->update(['status' => 'cancelled']);
+        $tournament->refresh()->loadMissing('club');
+
+        return response()->json([
+            'success' => true,
+            'tournament' => $this->formatDetail($tournament),
+        ]);
+    }
+
+    /**
      * DELETE /api/mobile/admin/tournaments/{tournament}
      */
     /**
