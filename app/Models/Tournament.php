@@ -95,6 +95,7 @@ class Tournament extends Model
 	
     protected $fillable = [
         'club_id',
+        'venue_club_id',
         'creator_id',
         'name',
         'description',
@@ -202,6 +203,12 @@ class Tournament extends Model
     public function club()
     {
         return $this->belongsTo(Club::class);
+    }
+
+    // Клуб-площадка (где играем) — необязательный, отдельно от организатора.
+    public function venueClub()
+    {
+        return $this->belongsTo(Club::class, 'venue_club_id');
     }
 
     public function participants()

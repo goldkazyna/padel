@@ -86,6 +86,7 @@ class TournamentController extends Controller
         
 		$validated = $request->validate([
 			'club_id' => 'required|exists:clubs,id',
+			'venue_club_id' => 'nullable|exists:clubs,id',
 			'name' => 'required|string|max:255',
 			'description' => 'nullable|string',
 			'start_date' => 'required|date|after:now',
@@ -289,6 +290,7 @@ class TournamentController extends Controller
 		}
 		$validated = $request->validate([
 			'name' => 'required|string|max:255',
+			'venue_club_id' => 'nullable|exists:clubs,id',
 			'description' => 'nullable|string',
 			'start_date' => 'required|date',
 			'duration_hours' => 'nullable|integer|min:1|max:8',

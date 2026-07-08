@@ -244,6 +244,7 @@ class MobileAdminTournamentController extends Controller
     {
         return [
             'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it',
+            'venue_club_id' => 'nullable|exists:clubs,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'required|date|after:now',

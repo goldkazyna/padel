@@ -96,6 +96,8 @@ class MobileAdminTournamentDetailController extends Controller
             'has_lower_bracket' => 'nullable|boolean',
             'has_bronze_match' => 'nullable|boolean',
             'courts_count' => 'nullable|integer|min:1|max:32',
+            // Клуб-площадка (где играем) — необязательный.
+            'venue_club_id' => 'nullable|exists:clubs,id',
         ]);
 
         if ($validator->fails()) {
@@ -150,6 +152,11 @@ class MobileAdminTournamentDetailController extends Controller
             $validated['courts_count'] = (int) $request->input('courts_count');
         } else {
             unset($validated['courts_count']);
+        }
+
+        // venue_club_id — меняем только если прислан (в т.ч. null для очистки).
+        if (!$request->has('venue_club_id')) {
+            unset($validated['venue_club_id']);
         }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
