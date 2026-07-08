@@ -31,7 +31,7 @@ class MobileTournamentController extends Controller
             ->whereNull('creator_id') // личные (приватные) турниры не показываем
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
-            ->with('club');
+            ->with(['club', 'venueClub']);
 
         if (!empty($hiddenClubIds)) {
             $query->whereNotIn('club_id', $hiddenClubIds);
@@ -116,7 +116,7 @@ class MobileTournamentController extends Controller
         $tournaments = Tournament::whereIn('id', $allIds)
             ->whereIn('status', ['open', 'closed', 'in_progress'])
             ->orderBy('start_date', 'asc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->get()
             ->map(fn($t) => $this->formatTournament($t, $user, true));
 
@@ -151,7 +151,7 @@ class MobileTournamentController extends Controller
         $tournaments = Tournament::whereIn('id', $allIds)
             ->where('status', 'completed')
             ->orderBy('start_date', 'desc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->get()
             ->map(fn($t) => $this->formatArchiveTournament($t, $user));
 
@@ -174,7 +174,7 @@ class MobileTournamentController extends Controller
         $tournaments = Tournament::where('status', 'cancelled')
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'desc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->get()
             ->map(fn($t) => $this->formatTournament($t, $user));
 
@@ -197,7 +197,7 @@ class MobileTournamentController extends Controller
         $query = Tournament::where('status', 'completed')
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'desc')
-            ->with('club');
+            ->with(['club', 'venueClub']);
 
         // Турнир попадает в период если в диапазон попадает start_date ИЛИ
         // updated_at (т.е. дата фактического завершения). Это нужно потому
@@ -232,7 +232,7 @@ class MobileTournamentController extends Controller
     public function show(Request $request, Tournament $tournament)
     {
         $user = $request->user();
-        $tournament->load('club');
+        $tournament->load(['club', 'venueClub']);
 
         $data = $this->formatTournament($tournament, $user, true);
 
@@ -1036,7 +1036,7 @@ class MobileTournamentController extends Controller
     {
         $user = $request->user();
         $userId = (int) $request->input('player_id', $user->id);
-        $tournament->load('club');
+        $tournament->load(['club', 'venueClub']);
 
         // Собираем матчи пользователя с rating_change
         $userMatches = [];
@@ -1100,7 +1100,7 @@ class MobileTournamentController extends Controller
      */
     public function stats(Request $request, Tournament $tournament)
     {
-        $tournament->load('club');
+        $tournament->load(['club', 'venueClub']);
 
         $participants = $tournament->participants()
             ->wherePivot('status', '!=', 'cancelled')
@@ -2322,7 +2322,7 @@ class MobileTournamentController extends Controller
             $user = \App\Models\User::find($playerId) ?? $user;
         }
 
-        $tournament->load('club');
+        $tournament->load(['club', 'venueClub']);
 
         if ($tournament->type === 'mexicano') {
             return $this->liveMexicano($tournament, $user);

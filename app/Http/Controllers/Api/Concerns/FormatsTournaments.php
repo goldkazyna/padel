@@ -48,6 +48,12 @@ trait FormatsTournaments
             'datetime' => $t->start_date->toIso8601String(),
             'type' => $t->type,
             'type_name' => $t->type_name,
+            // Клуб-площадка (где играют) — null, если не задан.
+            'venue_club' => $t->venueClub ? [
+                'id' => $t->venueClub->id,
+                'name' => $t->venueClub->name,
+                'city' => $t->venueClub->city,
+            ] : null,
             'status' => $t->status,
             'status_name' => $t->status_name,
             'is_rated' => (bool) $t->is_rated,
