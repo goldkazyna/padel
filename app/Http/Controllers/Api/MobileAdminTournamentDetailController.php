@@ -91,6 +91,11 @@ class MobileAdminTournamentDetailController extends Controller
             'status' => 'nullable|in:draft,open',
             // Кто собирает пары (командный турнир): сами игроки / админ.
             'pairing_mode' => 'nullable|in:self,admin',
+            // Настройки плей-офф (командный турнир).
+            'has_playoff' => 'nullable|boolean',
+            'has_lower_bracket' => 'nullable|boolean',
+            'has_bronze_match' => 'nullable|boolean',
+            'courts_count' => 'nullable|integer|min:1|max:32',
         ]);
 
         if ($validator->fails()) {
@@ -118,6 +123,33 @@ class MobileAdminTournamentDetailController extends Controller
         // pairing_mode: меняем только если прислан (старые сборки не трогают).
         if (!$request->filled('pairing_mode')) {
             unset($validated['pairing_mode']);
+        }
+
+        // Плей-офф (командный турнир) — меняем только если присланы флаги.
+        // Нормализация как при создании: has_playoff включается, если отмечены
+        // нижняя сетка или матч за 3-е место; при выключенном плей-офф всё сбрасываем.
+        if ($request->has('has_playoff')
+            || $request->has('has_lower_bracket')
+            || $request->has('has_bronze_match')) {
+            $hasLower = $request->boolean('has_lower_bracket');
+            $hasBronze = $request->boolean('has_bronze_match');
+            $hasPlayoff = $request->boolean('has_playoff') || $hasLower || $hasBronze;
+            $validated['has_playoff'] = $hasPlayoff;
+            $validated['has_lower_bracket'] = $hasPlayoff ? $hasLower : false;
+            $validated['has_bronze_match'] = $hasPlayoff ? $hasBronze : false;
+            if (!$hasPlayoff) {
+                $validated['playoff_type'] = null;
+                $validated['playoff_format'] = null;
+            }
+        } else {
+            unset($validated['has_playoff'], $validated['has_lower_bracket'], $validated['has_bronze_match']);
+        }
+
+        // courts_count — меняем только если прислан.
+        if ($request->filled('courts_count')) {
+            $validated['courts_count'] = (int) $request->input('courts_count');
+        } else {
+            unset($validated['courts_count']);
         }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
@@ -511,6 +543,7 @@ class MobileAdminTournamentDetailController extends Controller
             'has_playoff' => (bool) $t->has_playoff,
             'has_lower_bracket' => (bool) $t->has_lower_bracket,
             'has_bronze_match' => (bool) $t->has_bronze_match,
+            'courts_count' => $t->courts_count !== null ? (int) $t->courts_count : null,
             'courts' => $t->courts ?? [],
             'can_edit' => $canEdit,
             'can_start' => $canStart,
