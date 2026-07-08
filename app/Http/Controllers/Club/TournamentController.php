@@ -339,8 +339,14 @@ class TournamentController extends Controller
 			$validated['has_bronze_match'] = false;
 		}
 		
-		// Если не полуфинал+финал, убираем формат
-		if (($validated['playoff_type'] ?? null) !== 'semifinal_final') {
+		// Если не полуфинал+финал, убираем формат. Исключение — «финал первых
+		// мест» (winners_final, командные турниры 2 группы × 2 advance):
+		// там playoff_type вообще не выставляется через форму (нет радио-кнопок
+		// у team-турниров), поэтому проверка на semifinal_final его бы всегда обнуляла.
+		if (
+			($validated['playoff_type'] ?? null) !== 'semifinal_final'
+			&& ($validated['playoff_format'] ?? null) !== 'winners_final'
+		) {
 			$validated['playoff_format'] = null;
 		}
 		

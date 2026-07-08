@@ -323,6 +323,16 @@
 						</div>
 					</div>
 					<div id="teamPlayoffOptions" class="row" style="{{ $editTeamHasPlayoff ? '' : 'display:none;' }}">
+						@if((int) $tournament->groups_count === 2 && (int) $tournament->teams_advance === 2)
+						<div class="col-md-12 mb-2">
+							<label class="form-label">Формат плей-офф</label>
+							<select name="playoff_format" id="teamPlayoffFormat" class="form-select">
+								<option value="">Стандартный (сетка по числу выходящих пар)</option>
+								<option value="winners_final" {{ old('playoff_format', $tournament->playoff_format) === 'winners_final' ? 'selected' : '' }}>Финал первых мест (A1 vs B1), вторые за 3-е место (A2 vs B2)</option>
+							</select>
+							<small class="text-secondary mt-2 d-block">A1 = 1-е место группы A. Первые места играют финал, вторые — за 3-е место.</small>
+						</div>
+						@endif
 						<div class="col-md-6 mb-2">
 							<div class="form-check">
 								<input type="checkbox" name="has_lower_bracket" value="1" id="teamLowerBracket" class="form-check-input"

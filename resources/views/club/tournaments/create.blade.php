@@ -324,7 +324,7 @@
 						<div class="row">
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Количество групп *</label>
-								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled>
+								<select name="groups_count" id="teamGroupsCount" class="form-select" disabled onchange="toggleTeamPlayoffFormat()">
 									<option value="1" {{ old('groups_count') == 1 ? 'selected' : '' }}>1 группа</option>
 									<option value="2" {{ old('groups_count', 2) == 2 ? 'selected' : '' }}>2 группы</option>
 									<option value="3" {{ old('groups_count') == 3 ? 'selected' : '' }}>3 группы</option>
@@ -333,7 +333,7 @@
 							</div>
 							<div class="col-md-6 mb-4">
 								<label class="form-label">Выходят из группы *</label>
-								<select name="teams_advance" class="form-select">
+								<select name="teams_advance" id="teamsAdvance" class="form-select" onchange="toggleTeamPlayoffFormat()">
 									<option value="1" {{ old('teams_advance') == 1 ? 'selected' : '' }}>1 пара</option>
 									<option value="2" {{ old('teams_advance', 2) == 2 ? 'selected' : '' }}>2 пары</option>
 									<option value="3" {{ old('teams_advance') == 3 ? 'selected' : '' }}>3 пары</option>
@@ -354,13 +354,21 @@
 							<div class="form-check">
 								<input type="checkbox" name="has_playoff" value="1" id="teamHasPlayoff" class="form-check-input"
 									{{ old('type') === 'team' ? (old('has_playoff') ? 'checked' : '') : 'checked' }}
-									onchange="toggleTeamPlayoffOptions()">
+									onchange="toggleTeamPlayoffOptions(); toggleTeamPlayoffFormat();">
 								<label for="teamHasPlayoff" class="form-check-label">
 									<strong>С плей-офф</strong> <small class="text-muted">(на вылет после групп). Снимите — будет только групповой этап, место по таблице.</small>
 								</label>
 							</div>
 						</div>
 						<div id="teamPlayoffOptions" class="row">
+							<div class="col-md-12 mb-2" id="teamPlayoffFormatWrap" style="display:none;">
+								<label class="form-label" id="teamPlayoffFormatLabel">Формат плей-офф</label>
+								<select name="playoff_format" id="teamPlayoffFormat" class="form-select" disabled>
+									<option value="">Стандартный (сетка по числу выходящих пар)</option>
+									<option value="winners_final" {{ old('playoff_format') === 'winners_final' ? 'selected' : '' }}>Финал первых мест (A1 vs B1), вторые за 3-е место (A2 vs B2)</option>
+								</select>
+								<small class="text-secondary mt-2 d-block" id="teamPlayoffFormatHint">Доступно при 2 группах и 2 парах, выходящих из группы. A1 = 1-е место группы A. Первые места играют финал, вторые — за 3-е место.</small>
+							</div>
 							<div class="col-md-6 mb-2">
 								<div class="form-check">
 									<input type="checkbox" name="has_lower_bracket" value="1" id="hasLowerBracket" class="form-check-input"
@@ -551,8 +559,10 @@ function toggleTypeFields() {
     // Отключаем все playoff_format селекты
     const playoffFormat = document.getElementById('playoffFormat');
     const mexicanoPlayoffFormat = document.getElementById('mexicanoPlayoffFormat');
+    const teamPlayoffFormatSelect = document.getElementById('teamPlayoffFormat');
     if (playoffFormat) playoffFormat.disabled = true;
     if (mexicanoPlayoffFormat) mexicanoPlayoffFormat.disabled = true;
+    if (teamPlayoffFormatSelect) teamPlayoffFormatSelect.disabled = true;
     
     if (type === 'americano' && americanoFields) {
         americanoFields.style.display = 'block';
@@ -593,6 +603,7 @@ function toggleTypeFields() {
             document.getElementById('americanoGroupsCount').disabled = true;
         }
         toggleTeamPlayoffOptions();
+        toggleTeamPlayoffFormat();
         generateCourtsInputs();
     } else if (type === 'king_of_court' && kingOfCourtFields) {
         kingOfCourtFields.style.display = 'block';
@@ -623,6 +634,29 @@ function toggleTeamPlayoffOptions() {
             if (lb) lb.checked = false;
             if (bm) bm.checked = false;
         }
+    }
+}
+
+// Формат «финал первых мест» (winners_final) осмыслен только при
+// 2 группах и 2 парах, выходящих из группы. В остальных случаях —
+// скрываем и отключаем select, чтобы значение не ушло в submit.
+function toggleTeamPlayoffFormat() {
+    const hasPlayoff = document.getElementById('teamHasPlayoff');
+    const groupsCount = document.getElementById('teamGroupsCount');
+    const teamsAdvance = document.getElementById('teamsAdvance');
+    const wrap = document.getElementById('teamPlayoffFormatWrap');
+    const select = document.getElementById('teamPlayoffFormat');
+
+    if (!hasPlayoff || !groupsCount || !teamsAdvance || !wrap || !select) return;
+
+    const groups = parseInt(groupsCount.value);
+    const advance = parseInt(teamsAdvance.value);
+    const show = hasPlayoff.checked && groups === 2 && advance === 2;
+
+    wrap.style.display = show ? 'block' : 'none';
+    select.disabled = !show;
+    if (!show) {
+        select.value = '';
     }
 }
 
