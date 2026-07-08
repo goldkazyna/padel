@@ -306,6 +306,7 @@ class TournamentController extends Controller
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
 			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
+			'courts_count' => 'nullable|integer|min:1|max:32',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
 			'pairing_mode' => 'nullable|in:self,admin',
 		]);

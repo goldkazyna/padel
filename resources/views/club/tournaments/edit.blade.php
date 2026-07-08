@@ -309,6 +309,15 @@
 							<small class="text-secondary">Нельзя изменить после создания</small>
 						</div>
 					</div>
+					<div class="row">
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Количество кортов</label>
+							<input type="number" name="courts_count" class="form-control"
+								   value="{{ old('courts_count', $tournament->courts_count) }}" min="1" max="32"
+								   placeholder="оставьте пустым для авто">
+							<small class="text-muted">Если заполнено — матчи группового этапа пойдут волнами, не более N одновременно.</small>
+						</div>
+					</div>
 
 					{{-- Плей-офф для командного турнира --}}
 					@php $editTeamHasPlayoff = old('has_playoff', $tournament->has_playoff); @endphp

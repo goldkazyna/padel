@@ -126,42 +126,42 @@ class TeamTournamentController extends Controller
 
 		$playersNeeded = $teamsToAdd * 2;
 
-		// Берём всех тестовых пользователей по паттерну email
-		// (1@gmail.com, 2@gmail.com, …, 123@gmail.com и т.д.)
+		// Строго тестовые аккаунты 1@gmail.com … 32@gmail.com (как в одиночной
+		// регистрации). Реальные игроки регистрируются с телефонными email
+		// (7+ цифр) — в диапазон 1..32 они не попадают. Раньше широкий REGEXP
+		// '^[0-9]+@gmail.com$' цеплял и реальных игроков («левые» в парах).
+		$testEmails = array_map(fn($n) => "{$n}@gmail.com", range(1, 32));
+
 		$testPlayers = User::where('role', 'player')
-			->whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
+			->whereIn('email', $testEmails)
 			->whereNotIn('id', $playersInTeams)
 			->get();
 
-		// Если не хватает — создаём недостающих автоматически.
+		// Если не хватает — создаём недостающие ИЗ ДИАПАЗОНА 1..32 (по порядку).
 		if ($testPlayers->count() < $playersNeeded) {
-			$existingEmails = User::whereRaw("email REGEXP '^[0-9]+@gmail\\.com$'")
-				->pluck('email')
-				->toArray();
-			$existingNumbers = array_map(
-				fn($e) => (int) explode('@', $e)[0],
-				$existingEmails,
-			);
-			$nextN = empty($existingNumbers) ? 1 : (max($existingNumbers) + 1);
-
-			$toCreate = $playersNeeded - $testPlayers->count();
-			for ($i = 0; $i < $toCreate; $i++) {
-				$n = $nextN + $i;
+			$existing = User::whereIn('email', $testEmails)->pluck('email')->all();
+			$missing = array_values(array_diff($testEmails, $existing));
+			foreach ($missing as $email) {
+				if ($testPlayers->count() >= $playersNeeded) break;
+				$n = (int) explode('@', $email)[0];
 				$newUser = User::create([
 					'first_name' => 'Тест',
 					'last_name' => "#$n",
 					'name' => "Тест #$n",
-					'email' => "$n@gmail.com",
+					'email' => $email,
 					'password' => bcrypt('password'),
 					'role' => 'player',
-					'rating' => rand(1500, 3500),
-					'level' => round(rand(100, 500) / 100, 2),
+					'rating' => 1000 + $n * 20,
+					'level' => 2.0,
 				]);
 				$testPlayers->push($newUser);
 			}
 		}
 
-		$testPlayers = $testPlayers->shuffle();
+		// Детерминированный порядок 1,2,3… — пары (1+2),(3+4)…
+		$testPlayers = $testPlayers
+			->sortBy(fn($u) => (int) explode('@', $u->email)[0])
+			->values();
 
 		if ($testPlayers->count() < 2) {
 			return back()->with('error', 'Недостаточно свободных тестовых игроков');
