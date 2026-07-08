@@ -92,7 +92,7 @@ class MobileHomeController extends Controller
             ->where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->first();
 
         // Командные турниры, где пользователь в паре
@@ -107,7 +107,7 @@ class MobileHomeController extends Controller
             ->where('status', 'open')
             ->where('start_date', '>', now())
             ->orderBy('start_date', 'asc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->first();
 
         // Берём наиболее ранний из двух
@@ -147,7 +147,7 @@ class MobileHomeController extends Controller
             })
             ->where('status', 'in_progress')
             ->orderBy('start_date', 'asc')
-            ->with('club')
+            ->with(['club', 'venueClub'])
             ->first();
 
         if ($tournament) {
@@ -169,7 +169,7 @@ class MobileHomeController extends Controller
             $tournament = Tournament::whereIn('id', $teamTournamentIds)
                 ->where('status', 'in_progress')
                 ->orderBy('start_date', 'asc')
-                ->with('club')
+                ->with(['club', 'venueClub'])
                 ->first();
 
             if ($tournament) {
@@ -189,7 +189,7 @@ class MobileHomeController extends Controller
             ->where('start_date', '>', now())
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
-            ->with('club');
+            ->with(['club', 'venueClub']);
 
         $hiddenClubIds = $this->normalizeHiddenClubIds($user);
         if (!empty($hiddenClubIds)) {
@@ -225,6 +225,12 @@ class MobileHomeController extends Controller
             'datetime' => $t->start_date->toIso8601String(),
             'type' => $t->type,
             'type_name' => $t->type_name,
+            // Клуб-площадка (где играют) — null, если не задан.
+            'venue_club' => $t->venueClub ? [
+                'id' => $t->venueClub->id,
+                'name' => $t->venueClub->name,
+                'city' => $t->venueClub->city,
+            ] : null,
             'status' => $t->status,
             'status_name' => $t->status_name,
             'is_rated' => (bool) $t->is_rated,
