@@ -645,8 +645,20 @@ class TeamTournamentService
 
 		$teamsAdvance = $tournament->teams_advance;
 		$groupsCount = $tournament->groups_count;
+
+		// Формат «финал первых мест»: 2 группы × 2 advance, без полуфиналов —
+		// победители групп сразу играют ФИНАЛ, вторые места — МАТЧ ЗА 3-Е МЕСТО.
+		if (
+			(int) $groupsCount === 2
+			&& (int) $teamsAdvance === 2
+			&& $tournament->playoff_format === 'winners_final'
+		) {
+			$this->generatePlayoffWinnersFinal($tournament);
+			return true;
+		}
+
 		$totalPlayoffTeams = $teamsAdvance * $groupsCount;
-		
+
 		// Определяем этап плей-офф
 		$stage = match($totalPlayoffTeams) {
 			2 => 'final',
@@ -1039,6 +1051,69 @@ class TeamTournamentService
 				]);
 			}
 		}
+	}
+
+	/**
+	 * Плей-офф формата «финал первых мест» (playoff_format = winners_final),
+	 * только для 2 групп × 2 advance. Без полуфиналов:
+	 *   - Финал: победители групп (A1 vs B1)
+	 *   - Матч за 3-е место: вторые места групп (A2 vs B2)
+	 * Оба матча создаются сразу с реальными командами (терминальные —
+	 * никакого W1/W2 и продвижения через advanceWinner).
+	 */
+	protected function generatePlayoffWinnersFinal(Tournament $tournament): void
+	{
+		// Собираем команды из групп с правильной сортировкой (как в общей ветке).
+		$playoffTeams = [];
+		foreach ($tournament->teamGroups as $group) {
+			$sortedStandings = $this->getSortedStandings($group);
+			$topTeams = array_slice($sortedStandings, 0, 2);
+
+			foreach ($topTeams as $index => $standing) {
+				$team = TournamentTeam::find($standing['team_id']);
+
+				$playoffTeams[] = [
+					'team' => $team,
+					'group' => $group->name,
+					'position' => $index + 1,
+					'source' => substr($group->name, -1) . ($index + 1), // A1, A2, B1, B2
+				];
+			}
+		}
+
+		// playoffTeams: [A1, A2, B1, B2] (порядок групп — как в teamGroups()).
+		$winners = array_values(array_filter($playoffTeams, fn($t) => $t['position'] === 1));
+		$runnersUp = array_values(array_filter($playoffTeams, fn($t) => $t['position'] === 2));
+
+		// Финал: победители групп (A1 vs B1).
+		TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 1,
+			'stage' => 'final',
+			'bracket' => 'upper',
+			'is_bronze' => false,
+			'match_number' => 1,
+			'team1_id' => $winners[0]['team']->id,
+			'team2_id' => $winners[1]['team']->id,
+			'team1_source' => $winners[0]['source'],
+			'team2_source' => $winners[1]['source'],
+			'status' => 'in_progress',
+		]);
+
+		// Матч за 3-е место: вторые места групп (A2 vs B2).
+		TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'court_number' => 2,
+			'stage' => 'final',
+			'bracket' => 'upper',
+			'is_bronze' => true,
+			'match_number' => 3,
+			'team1_id' => $runnersUp[0]['team']->id,
+			'team2_id' => $runnersUp[1]['team']->id,
+			'team1_source' => $runnersUp[0]['source'],
+			'team2_source' => $runnersUp[1]['source'],
+			'status' => 'in_progress',
+		]);
 	}
 
     /**

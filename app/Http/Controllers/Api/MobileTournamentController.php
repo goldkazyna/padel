@@ -1915,7 +1915,40 @@ class MobileTournamentController extends Controller
                 }
             }
 
-            // Полуфинал — 3-4 место (только верхняя сетка)
+            // Матч за 3-е место (is_bronze) — если сыгран, именно он определяет
+            // 3/4 место (приоритетнее эвристики по полуфиналу ниже). Работает
+            // одинаково для формата с полуфиналами и для winners_final (без них).
+            $bronzeMatch = $tournament->playoffMatches()
+                ->where('is_bronze', true)
+                ->whereIn('stage', ['final', 'Финал'])
+                ->where('status', 'completed')
+                ->first();
+
+            if ($bronzeMatch) {
+                // Player-based (americano/mexicano)
+                if ($bronzeMatch->team1_player1_id) {
+                    $inTeam1 = in_array($userId, [$bronzeMatch->team1_player1_id, $bronzeMatch->team1_player2_id]);
+                    $inTeam2 = in_array($userId, [$bronzeMatch->team2_player1_id, $bronzeMatch->team2_player2_id]);
+
+                    if ($inTeam1 || $inTeam2) {
+                        $team1Won = $bronzeMatch->team1_score > $bronzeMatch->team2_score;
+                        return ($inTeam1 && $team1Won) || ($inTeam2 && !$team1Won) ? 3 : 4;
+                    }
+                }
+
+                // Team-based (team)
+                if ($bronzeMatch->team1_id && $myTeamIds->isNotEmpty()) {
+                    $inTeam1 = $myTeamIds->contains($bronzeMatch->team1_id);
+                    $inTeam2 = $myTeamIds->contains($bronzeMatch->team2_id);
+
+                    if ($inTeam1 || $inTeam2) {
+                        return $bronzeMatch->winner_id && $myTeamIds->contains($bronzeMatch->winner_id) ? 3 : 4;
+                    }
+                }
+            }
+
+            // Полуфинал — 3-4 место (только верхняя сетка, fallback когда нет
+            // отдельного/сыгранного матча за 3-е место)
             $semiMatches = $tournament->playoffMatches()
                 ->whereIn('stage', ['semi', 'Полуфинал'])
                 ->where(function ($q) { $q->where('bracket', 'upper')->orWhereNull('bracket'); })
