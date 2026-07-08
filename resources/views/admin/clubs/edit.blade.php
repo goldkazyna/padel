@@ -131,7 +131,7 @@
                         <select name="city" class="form-control @error('city') is-invalid @enderror"
                                 style="background-color: var(--bg-secondary); border-color: var(--border); color: var(--text);">
                             <option value="">— Не указан —</option>
-                            @foreach(['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе'] as $city)
+                            @foreach(['Алматы', 'Астана', 'Шымкент', 'Караганда', 'Актобе', 'Костанай'] as $city)
                                 <option value="{{ $city }}" {{ old('city', $club->city) === $city ? 'selected' : '' }}>{{ $city }}</option>
                             @endforeach
                         </select>

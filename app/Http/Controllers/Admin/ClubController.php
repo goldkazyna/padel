@@ -49,7 +49,7 @@ class ClubController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
-            'city' => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе',
+            'city' => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе,Костанай',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string',
