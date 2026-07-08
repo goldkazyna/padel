@@ -89,6 +89,8 @@ class MobileAdminTournamentDetailController extends Controller
             'verified_only' => 'nullable|boolean',
             // Можно перевести черновик в «Открыта регистрация» и обратно.
             'status' => 'nullable|in:draft,open',
+            // Кто собирает пары (командный турнир): сами игроки / админ.
+            'pairing_mode' => 'nullable|in:self,admin',
         ]);
 
         if ($validator->fails()) {
@@ -111,6 +113,11 @@ class MobileAdminTournamentDetailController extends Controller
         // status: меняем только если прислан (старые версии не трогают статус).
         if (!$request->filled('status')) {
             unset($validated['status']);
+        }
+
+        // pairing_mode: меняем только если прислан (старые сборки не трогают).
+        if (!$request->filled('pairing_mode')) {
+            unset($validated['pairing_mode']);
         }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
