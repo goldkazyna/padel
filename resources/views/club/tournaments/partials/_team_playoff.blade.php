@@ -33,7 +33,8 @@
     </div>
     @endif
     @php $stages = $bracketInfo['matches']->groupBy('stage'); @endphp
-    <div class="bracket-wrapper">
+    @php $finalOnly = !$stages->keys()->contains('semi') && !$stages->keys()->contains('quarter'); @endphp
+    <div class="bracket-wrapper {{ $finalOnly ? 'bracket-final-only' : '' }}">
         @foreach($stageOrder as $stageKey => $stageName)
             @if(isset($stages[$stageKey]))
                 @php
@@ -215,7 +216,7 @@
     <div style="margin: 12px 0 0; padding: 10px 14px; background: rgba(234,179,78,0.08); border-left: 3px solid #eab34e; border-radius: 6px; font-size: 12px; font-weight: 700; color: #eab34e; letter-spacing: 0.5px; text-transform: uppercase;">
         Матч за 3-е место
     </div>
-    <div class="bracket-wrapper">
+    <div class="bracket-wrapper bracket-final-only">
         <div class="bracket-round">
             <div class="round-matches">
                 @foreach($bracketInfo['bronze'] as $match)
@@ -691,6 +692,17 @@
         /* Final round centering */
         .round-final .round-matches {
             justify-content: center;
+        }
+
+        /* Финал-only сетка (напр. «финал первых мест»): один матч в сетке.
+           Убираем высокую колонку и вертикальное центрирование, чтобы финал
+           не «опускался» вниз, а матч за 3-е место не уезжал за экран. */
+        .bracket-wrapper.bracket-final-only {
+            min-height: auto;
+        }
+        .bracket-final-only .round-final .round-matches,
+        .bracket-final-only .round-matches {
+            justify-content: flex-start;
         }
 
         /* Responsive */
