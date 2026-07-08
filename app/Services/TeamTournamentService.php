@@ -646,12 +646,18 @@ class TeamTournamentService
 		$teamsAdvance = $tournament->teams_advance;
 		$groupsCount = $tournament->groups_count;
 
-		// Формат «финал первых мест»: 2 группы × 2 advance, без полуфиналов —
-		// победители групп сразу играют ФИНАЛ, вторые места — МАТЧ ЗА 3-Е МЕСТО.
+		// Формат «финал первых мест»: 2 группы — победители групп играют ФИНАЛ
+		// (A1 vs B1), вторые места — МАТЧ ЗА 3-Е МЕСТО (A2 vs B2), без полуфиналов.
+		// Триггерится двумя способами:
+		//   - 2 выхода из группы + формат winners_final (явный выбор в форме), ИЛИ
+		//   - 1 выход из группы (в финал только победители) + отмечен чекбокс
+		//     «Матч за 3-е место» (тогда 2-е места играют за бронзу).
 		if (
 			(int) $groupsCount === 2
-			&& (int) $teamsAdvance === 2
-			&& $tournament->playoff_format === 'winners_final'
+			&& (
+				((int) $teamsAdvance === 2 && $tournament->playoff_format === 'winners_final')
+				|| ((int) $teamsAdvance === 1 && $tournament->has_bronze_match)
+			)
 		) {
 			$this->generatePlayoffWinnersFinal($tournament);
 			return true;
@@ -1085,6 +1091,12 @@ class TeamTournamentService
 		$winners = array_values(array_filter($playoffTeams, fn($t) => $t['position'] === 1));
 		$runnersUp = array_values(array_filter($playoffTeams, fn($t) => $t['position'] === 2));
 
+		// Нужны победители обеих групп для финала. Если по какой-то причине их
+		// меньше двух (нестандартная раскладка групп) — не строим кривую сетку.
+		if (count($winners) < 2) {
+			return;
+		}
+
 		// Финал: победители групп (A1 vs B1).
 		TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
@@ -1100,7 +1112,11 @@ class TeamTournamentService
 			'status' => 'in_progress',
 		]);
 
-		// Матч за 3-е место: вторые места групп (A2 vs B2).
+		// Матч за 3-е место: вторые места групп (A2 vs B2). Создаём только если
+		// в обеих группах есть 2-е место.
+		if (count($runnersUp) < 2) {
+			return;
+		}
 		TournamentPlayoffMatch::create([
 			'tournament_id' => $tournament->id,
 			'court_number' => 2,

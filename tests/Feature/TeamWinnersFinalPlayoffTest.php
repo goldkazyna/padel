@@ -162,6 +162,28 @@ class TeamWinnersFinalPlayoffTest extends TestCase
         $this->assertSame(4, $place, 'проигравший матча за 3-е место — 4 место');
     }
 
+    public function test_one_advance_with_bronze_checkbox_also_builds_final_and_bronze(): void
+    {
+        [$tournament] = $this->makeCompletedGroupStage();
+        // Пользовательский путь: 1 выход из группы (в финал только победители) +
+        // отмечен чекбокс «Матч за 3-е место» → 2-е места играют за бронзу.
+        $tournament->update([
+            'teams_advance' => 1,
+            'playoff_format' => null,
+            'has_bronze_match' => true,
+        ]);
+        $tournament->refresh();
+
+        $ok = $this->service->generatePlayoff($tournament);
+        $this->assertTrue($ok);
+
+        $matches = $tournament->playoffMatches()->get();
+        $this->assertCount(2, $matches, 'финал + матч за 3-е место');
+        $this->assertSame(0, $matches->where('stage', 'semi')->count(), 'без полуфиналов');
+        $this->assertSame(1, $matches->where('is_bronze', false)->count(), 'один финал');
+        $this->assertSame(1, $matches->where('is_bronze', true)->count(), 'один матч за 3-е место');
+    }
+
     /**
      * Победители/вторые места групп по фактическим standings (после завершения группового этапа).
      * @return array{winners: array<int>, runners_up: array<int>}
