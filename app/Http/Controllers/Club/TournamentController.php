@@ -69,8 +69,9 @@ class TournamentController extends Controller
 		}
         $club = $this->getClub();
         $clubs = auth()->user()->isSuperAdmin() ? Club::active()->get() : collect([$club]);
-        
-        return view('club.tournaments.create', compact('clubs', 'club'));
+        $venueClubs = Club::active()->orderBy('name')->get(['id', 'name', 'city']);
+
+        return view('club.tournaments.create', compact('clubs', 'club', 'venueClubs'));
     }
 
     public function store(Request $request)
@@ -270,8 +271,9 @@ class TournamentController extends Controller
         }
 
         $clubs = auth()->user()->isSuperAdmin() ? Club::active()->get() : collect([$club]);
+        $venueClubs = Club::active()->orderBy('name')->get(['id', 'name', 'city']);
 
-        return view('club.tournaments.edit', compact('tournament', 'clubs', 'club'));
+        return view('club.tournaments.edit', compact('tournament', 'clubs', 'club', 'venueClubs'));
     }
 
     public function update(Request $request, Tournament $tournament)

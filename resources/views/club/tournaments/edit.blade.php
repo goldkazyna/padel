@@ -33,6 +33,30 @@
                         <textarea name="description" class="form-control" rows="3">{{ old('description', $tournament->description) }}</textarea>
                     </div>
 
+                    @php
+                        $venueClubSelectedId = old('venue_club_id', $tournament->venue_club_id);
+                        $venueClubSelected = $venueClubSelectedId ? $venueClubs->firstWhere('id', (int) $venueClubSelectedId) : null;
+                    @endphp
+                    <div class="mb-4">
+                        <label class="form-label">Клуб (площадка)</label>
+                        <div class="venue-club-wrapper">
+                            <input type="text" id="venueClubSearch" class="form-control" placeholder="Начните вводить название клуба..." autocomplete="off" value="{{ $venueClubSelected->name ?? '' }}">
+                            <button type="button" id="venueClubClearBtn" class="venue-club-clear-btn" style="{{ $venueClubSelected ? '' : 'display:none;' }}" title="Очистить">&times;</button>
+                            <div id="venueClubResults" class="venue-club-results">
+                                @forelse($venueClubs as $vc)
+                                    <div class="venue-club-item" data-id="{{ $vc->id }}" data-name="{{ $vc->name }}" data-search="{{ mb_strtolower($vc->name . ' ' . $vc->city) }}">
+                                        <span class="venue-club-item-name">{{ $vc->name }}</span>
+                                        <span class="venue-club-item-city">{{ $vc->city }}</span>
+                                    </div>
+                                @empty
+                                    <div class="venue-club-empty">Клубы не найдены</div>
+                                @endforelse
+                            </div>
+                        </div>
+                        <input type="hidden" name="venue_club_id" id="venueClubId" value="{{ $venueClubSelectedId }}">
+                        <small class="text-secondary">Необязательно. Где физически играют — увидят записавшиеся.</small>
+                    </div>
+
                     <div class="row">
 						<div class="col-md-6 mb-4">
 							<label class="form-label">Дата и время *</label>
@@ -453,9 +477,131 @@ function toggleMexicanoPlayoffFormat() {
     const fmt = document.getElementById('mexicanoPlayoffFormatOptions');
     if (fmt) fmt.style.display = (semi && semi.checked) ? 'block' : 'none';
 }
+
+(function() {
+    var search = document.getElementById('venueClubSearch');
+    var hidden = document.getElementById('venueClubId');
+    var results = document.getElementById('venueClubResults');
+    var clearBtn = document.getElementById('venueClubClearBtn');
+    if (!search || !hidden || !results) return;
+
+    var items = Array.prototype.slice.call(results.querySelectorAll('.venue-club-item'));
+
+    function showResults() { results.classList.add('show'); }
+    function hideResults() { results.classList.remove('show'); }
+
+    function filterItems() {
+        var q = search.value.trim().toLowerCase();
+        items.forEach(function(item) {
+            var match = !q || item.dataset.search.indexOf(q) !== -1;
+            item.style.display = match ? '' : 'none';
+        });
+    }
+
+    function toggleClearBtn() {
+        if (clearBtn) clearBtn.style.display = hidden.value ? 'inline-flex' : 'none';
+    }
+
+    search.addEventListener('focus', function() {
+        filterItems();
+        showResults();
+    });
+
+    search.addEventListener('input', function() {
+        hidden.value = '';
+        toggleClearBtn();
+        filterItems();
+        showResults();
+    });
+
+    items.forEach(function(item) {
+        item.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            hidden.value = item.getAttribute('data-id');
+            search.value = item.getAttribute('data-name');
+            toggleClearBtn();
+            hideResults();
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target !== search && !results.contains(e.target)) {
+            hideResults();
+        }
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            hidden.value = '';
+            search.value = '';
+            toggleClearBtn();
+            filterItems();
+            search.focus();
+        });
+    }
+
+    toggleClearBtn();
+})();
 </script>
 <style>
 .form-control:disabled {
     background-color: #141414 !important;
+}
+.venue-club-wrapper {
+    position: relative;
+}
+.venue-club-clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+}
+.venue-club-results {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 4px;
+}
+.venue-club-results.show {
+    display: block;
+}
+.venue-club-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+.venue-club-item:hover {
+    background: rgba(34, 197, 94, 0.1);
+}
+.venue-club-item:last-child {
+    border-bottom: none;
+}
+.venue-club-item-city {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+.venue-club-empty {
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 </style>
