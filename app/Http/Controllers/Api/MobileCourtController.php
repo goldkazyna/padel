@@ -439,6 +439,8 @@ class MobileCourtController extends Controller
                 'coach_price' => null,
                 'status' => $b->status,
                 'is_processed' => (bool) $b->is_processed,
+                'is_paid' => (bool) $b->is_paid,
+                'payment_method' => $b->payment_method,
                 'can_cancel' => $canCancel,
                 'cancel_min_hours' => $cancelMinHours,
             ];
