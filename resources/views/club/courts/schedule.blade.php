@@ -351,10 +351,15 @@
                                             } else {
                                                 $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
                                                 if ($ccObj) {
-                                                    $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
-                                                    $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
-                                                    if ($eMin <= $sMin) $eMin += 1440;
-                                                    $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
+                                                    if ($booking->booking_type === 'group' && $ccObj->rate_group !== null) {
+                                                        // Групповая сессия — берём групповую ставку тренера.
+                                                        $coachTotal = (float) $ccObj->rate_group;
+                                                    } else {
+                                                        $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
+                                                        $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
+                                                        if ($eMin <= $sMin) $eMin += 1440;
+                                                        $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
+                                                    }
                                                 }
                                             }
                                         }
