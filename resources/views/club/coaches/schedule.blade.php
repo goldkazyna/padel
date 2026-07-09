@@ -73,13 +73,17 @@
                             @if($slot['status'] === 'booked')
                                 @php
                                     $b = $slot['booking'];
-                                    if ($b->coach_price !== null) {
+                                    $sM = \Carbon\Carbon::parse($b->start_time)->hour * 60 + \Carbon\Carbon::parse($b->start_time)->minute;
+                                    $eM = \Carbon\Carbon::parse($b->end_time)->hour * 60 + \Carbon\Carbon::parse($b->end_time)->minute;
+                                    if ($eM <= $sM) $eM += 1440;
+                                    $bkH = ($eM - $sM) / 60;
+                                    if ($b->booking_type === 'group' && $clubCoach->rate_group !== null) {
+                                        // Групповая сессия — по групповой ставке тренера (₸/час × часы).
+                                        $coachPay = (float) $clubCoach->rate_group * $bkH;
+                                    } elseif ($b->coach_price !== null) {
                                         $coachPay = (float) $b->coach_price;
                                     } else {
-                                        $sM = \Carbon\Carbon::parse($b->start_time)->hour * 60 + \Carbon\Carbon::parse($b->start_time)->minute;
-                                        $eM = \Carbon\Carbon::parse($b->end_time)->hour * 60 + \Carbon\Carbon::parse($b->end_time)->minute;
-                                        if ($eM <= $sM) $eM += 1440;
-                                        $coachPay = $clubCoach->getRateForHours((int)(($eM - $sM) / 60));
+                                        $coachPay = $clubCoach->getRateForHours((int) $bkH);
                                     }
                                 @endphp
                                 <div class="slot slot-booked" onclick="viewBooking('{{ addslashes($slot['booking']->court->name ?? '') }}', '{{ \Carbon\Carbon::parse($slot['booking']->start_time)->format('H:i') }}', '{{ \Carbon\Carbon::parse($slot['booking']->end_time)->format('H:i') }}', '{{ addslashes($slot['booking']->client_name ?? '') }}')">

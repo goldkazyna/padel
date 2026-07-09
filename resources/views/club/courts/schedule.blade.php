@@ -345,22 +345,20 @@
                                     @php
                                         $coachTotal = 0;
                                         if ($booking->coach_id) {
-                                            if ($booking->coach_price !== null) {
-                                                // Сохранённая (возможно изменённая) цена тренера.
+                                            $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
+                                            $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
+                                            $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
+                                            if ($eMin <= $sMin) $eMin += 1440;
+                                            $bkHours = ($eMin - $sMin) / 60;
+                                            if ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
+                                                // Групповая сессия — всегда по групповой ставке тренера (₸/час × часы),
+                                                // даже если на брони осела старая сохранённая coach_price.
+                                                $coachTotal = (float) $ccObj->rate_group * $bkHours;
+                                            } elseif ($booking->coach_price !== null) {
+                                                // Ручная (изменённая) цена тренера — для индивидуальных броней.
                                                 $coachTotal = (float) $booking->coach_price;
-                                            } else {
-                                                $ccObj = $clubCoaches->firstWhere('user_id', $booking->coach_id);
-                                                if ($ccObj) {
-                                                    if ($booking->booking_type === 'group' && $ccObj->rate_group !== null) {
-                                                        // Групповая сессия — берём групповую ставку тренера.
-                                                        $coachTotal = (float) $ccObj->rate_group;
-                                                    } else {
-                                                        $sMin = \Carbon\Carbon::parse($booking->start_time)->hour * 60 + \Carbon\Carbon::parse($booking->start_time)->minute;
-                                                        $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
-                                                        if ($eMin <= $sMin) $eMin += 1440;
-                                                        $coachTotal = $ccObj->getRateForHours((int)(($eMin - $sMin) / 60));
-                                                    }
-                                                }
+                                            } elseif ($ccObj) {
+                                                $coachTotal = $ccObj->getRateForHours((int) $bkHours);
                                             }
                                         }
                                     @endphp

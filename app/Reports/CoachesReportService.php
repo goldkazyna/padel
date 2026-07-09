@@ -138,9 +138,16 @@ class CoachesReportService
             $id = $b->coach_id;
             $agg[$id] ??= $blank;
 
-            $earn = $b->coach_price !== null
-                ? (float) $b->coach_price
-                : ($profiles->get($id)?->getRateForHours((int) floor($this->hours($b->start_time, $b->end_time))) ?? 0.0);
+            $prof = $profiles->get($id);
+            $h = $this->hours($b->start_time, $b->end_time);
+            if ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                // Групповая — по групповой ставке (₸/час × часы), coach_price игнорируем.
+                $earn = (float) $prof->rate_group * $h;
+            } elseif ($b->coach_price !== null) {
+                $earn = (float) $b->coach_price;
+            } else {
+                $earn = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
+            }
 
             $type = in_array($b->booking_type, ['group', 'individual', 'soft', 'tournament'], true)
                 ? $b->booking_type : 'other';
@@ -249,9 +256,15 @@ class CoachesReportService
         $total = 0.0;
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
-            $amount = $b->coach_price !== null
-                ? (float) $b->coach_price
-                : ($profiles->get($b->coach_id)?->getRateForHours((int) floor($h)) ?? 0.0);
+            $prof = $profiles->get($b->coach_id);
+            if ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                // Групповая — по групповой ставке (₸/час × часы), coach_price игнорируем.
+                $amount = (float) $prof->rate_group * $h;
+            } elseif ($b->coach_price !== null) {
+                $amount = (float) $b->coach_price;
+            } else {
+                $amount = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
+            }
 
             $rows[] = [
                 $this->formatDate($b->date),
