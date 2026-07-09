@@ -350,13 +350,13 @@
                                             $eMin = \Carbon\Carbon::parse($booking->end_time)->hour * 60 + \Carbon\Carbon::parse($booking->end_time)->minute;
                                             if ($eMin <= $sMin) $eMin += 1440;
                                             $bkHours = ($eMin - $sMin) / 60;
-                                            if ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
-                                                // Групповая сессия — всегда по групповой ставке тренера (₸/час × часы),
-                                                // даже если на брони осела старая сохранённая coach_price.
-                                                $coachTotal = (float) $ccObj->rate_group * $bkHours;
-                                            } elseif ($booking->coach_price !== null) {
-                                                // Ручная (изменённая) цена тренера — для индивидуальных броней.
+                                            if ($booking->coach_price !== null) {
+                                                // Зафиксированная сумма: ручная (индивид.) либо замороженная
+                                                // при проведении группового занятия.
                                                 $coachTotal = (float) $booking->coach_price;
+                                            } elseif ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
+                                                // Группа ещё не проведена — прикидка по текущей групповой ставке (₸/час × часы).
+                                                $coachTotal = (float) $ccObj->rate_group * $bkHours;
                                             } elseif ($ccObj) {
                                                 $coachTotal = $ccObj->getRateForHours((int) $bkHours);
                                             }

@@ -140,11 +140,12 @@ class CoachesReportService
 
             $prof = $profiles->get($id);
             $h = $this->hours($b->start_time, $b->end_time);
-            if ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                // Групповая — по групповой ставке (₸/час × часы), coach_price игнорируем.
-                $earn = (float) $prof->rate_group * $h;
-            } elseif ($b->coach_price !== null) {
+            if ($b->coach_price !== null) {
+                // Зафиксированная сумма (замороженная при проведении / ручная).
                 $earn = (float) $b->coach_price;
+            } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                // Группа ещё не проведена — прикидка по текущей групповой ставке.
+                $earn = (float) $prof->rate_group * $h;
             } else {
                 $earn = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
             }
@@ -203,10 +204,16 @@ class CoachesReportService
             ->whereNotNull('coach_id')
             ->whereDate('date', '>=', $fromD)
             ->whereDate('date', '<=', $toD)
+            ->with('courtBooking')
             ->get();
         foreach ($sessions as $s) {
-            $rate = (float) ($profiles->get($s->coach_id)?->rate_group ?? 0);
-            $group += $rate * $this->hours($s->start_time, $s->end_time);
+            // Замороженная при проведении сумма имеет приоритет; иначе — по текущей ставке.
+            if ($s->courtBooking && $s->courtBooking->coach_price !== null) {
+                $group += (float) $s->courtBooking->coach_price;
+            } else {
+                $rate = (float) ($profiles->get($s->coach_id)?->rate_group ?? 0);
+                $group += $rate * $this->hours($s->start_time, $s->end_time);
+            }
         }
 
         // Индивидуальные (всё, кроме групповых): coach_price либо ставка × часы.
@@ -257,11 +264,12 @@ class CoachesReportService
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
             $prof = $profiles->get($b->coach_id);
-            if ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                // Групповая — по групповой ставке (₸/час × часы), coach_price игнорируем.
-                $amount = (float) $prof->rate_group * $h;
-            } elseif ($b->coach_price !== null) {
+            if ($b->coach_price !== null) {
+                // Зафиксированная сумма (замороженная при проведении / ручная).
                 $amount = (float) $b->coach_price;
+            } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                // Группа ещё не проведена — прикидка по текущей групповой ставке.
+                $amount = (float) $prof->rate_group * $h;
             } else {
                 $amount = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
             }

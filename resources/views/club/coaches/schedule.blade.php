@@ -77,11 +77,12 @@
                                     $eM = \Carbon\Carbon::parse($b->end_time)->hour * 60 + \Carbon\Carbon::parse($b->end_time)->minute;
                                     if ($eM <= $sM) $eM += 1440;
                                     $bkH = ($eM - $sM) / 60;
-                                    if ($b->booking_type === 'group' && $clubCoach->rate_group !== null) {
-                                        // Групповая сессия — по групповой ставке тренера (₸/час × часы).
-                                        $coachPay = (float) $clubCoach->rate_group * $bkH;
-                                    } elseif ($b->coach_price !== null) {
+                                    if ($b->coach_price !== null) {
+                                        // Зафиксированная сумма (замороженная при проведении / ручная).
                                         $coachPay = (float) $b->coach_price;
+                                    } elseif ($b->booking_type === 'group' && $clubCoach->rate_group !== null) {
+                                        // Группа ещё не проведена — прикидка по текущей групповой ставке.
+                                        $coachPay = (float) $clubCoach->rate_group * $bkH;
                                     } else {
                                         $coachPay = $clubCoach->getRateForHours((int) $bkH);
                                     }
