@@ -71,7 +71,9 @@ class PhoneVisibility
     /** Красивый формат номера: 77001234567 → +7 700 123 45 67. */
     public static function format(string $phone): string
     {
-        return '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $phone);
+        // Оставляем только цифры — чтобы уже имеющийся «+» не удваивался.
+        $digits = preg_replace('/\D+/', '', $phone);
+        return '+' . preg_replace('/(\d)(\d{3})(\d{3})(\d{2})(\d{2})/', '$1 $2 $3 $4 $5', $digits);
     }
 
     /** Для JSON/экспорта: вернуть телефон или null/маску, если скрыт. */
