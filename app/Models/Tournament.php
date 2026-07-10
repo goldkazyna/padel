@@ -32,6 +32,15 @@ class Tournament extends Model
             ) {
                 \App\Http\Controllers\Api\MobileTournamentController::notifyParticipantsTournamentCancelled($tournament);
             }
+
+            // Изменение даты турнира — оповещаем записанных участников
+            // (кроме отменённых/завершённых турниров).
+            if (
+                $tournament->wasChanged('start_date')
+                && ! in_array($tournament->status, ['cancelled', 'completed'], true)
+            ) {
+                \App\Http\Controllers\Api\MobileTournamentController::notifyParticipantsTournamentDateChanged($tournament);
+            }
         });
     }
 

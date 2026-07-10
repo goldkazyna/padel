@@ -2307,6 +2307,57 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Уведомить всех зарегистрированных участников об изменении даты турнира.
+     * Одиночные форматы (tournament_participants) + командные (tournament_teams).
+     */
+    public static function notifyParticipantsTournamentDateChanged(Tournament $tournament): void
+    {
+        $userIds = collect();
+
+        $individualIds = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'approved'])
+            ->pluck('users.id');
+        $userIds = $userIds->concat($individualIds);
+
+        $teamIds = TournamentTeam::where('tournament_id', $tournament->id)
+            ->whereIn('status', ['approved', 'pending'])
+            ->get(['player1_id', 'player2_id'])
+            ->flatMap(fn($t) => [$t->player1_id, $t->player2_id])
+            ->filter();
+        $userIds = $userIds->concat($teamIds);
+
+        $userIds = $userIds->filter()->unique()->values();
+        if ($userIds->isEmpty()) {
+            return;
+        }
+
+        $date = $tournament->start_date->format('d.m.Y H:i');
+        $title = 'Дата турнира изменена';
+        $body = "Внимание! Дата турнира «{$tournament->name}» изменена на {$date}.";
+
+        $fcm = app(\App\Services\FCMNotificationService::class);
+
+        foreach ($userIds as $userId) {
+            $user = \App\Models\User::find($userId);
+            if (!$user) continue;
+
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'tournament_date_changed',
+                'category' => 'tournament',
+                'data' => ['tournament_id' => $tournament->id],
+            ]);
+
+            $fcm->sendToUser($user, $title, $body, [
+                'type' => 'tournament_date_changed',
+                'tournament_id' => (string) $tournament->id,
+            ]);
+        }
+    }
+
+    /**
      * Live-данные турнира для экрана «Идёт сейчас»: группы, таблицы
      * лидеров, раунды и матчи. Только чтение — счёт не редактируется.
      * GET /api/mobile/tournaments/{id}/live
