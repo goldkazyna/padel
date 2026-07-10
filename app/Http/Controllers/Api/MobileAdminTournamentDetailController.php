@@ -374,10 +374,56 @@ class MobileAdminTournamentDetailController extends Controller
         $tournament->update(['status' => 'cancelled']);
         $tournament->refresh()->loadMissing('club');
 
+        // Оповестить всех записанных участников об отмене.
+        $this->notifyCancelled($tournament);
+
         return response()->json([
             'success' => true,
             'tournament' => $this->formatDetail($tournament),
         ]);
+    }
+
+    /**
+     * Пуш + уведомление-колокольчик всем записанным участникам: турнир отменён.
+     * Соло-участники (кроме отменённых) + игроки команд (кроме отклонённых).
+     */
+    private function notifyCancelled(Tournament $tournament): void
+    {
+        $soloIds = $tournament->participants()
+            ->wherePivotNotIn('status', ['cancelled'])
+            ->pluck('users.id');
+
+        $teamPlayerIds = \App\Models\TournamentTeam::where('tournament_id', $tournament->id)
+            ->whereNotIn('status', ['rejected'])
+            ->get(['player1_id', 'player2_id'])
+            ->flatMap(fn ($t) => [$t->player1_id, $t->player2_id]);
+
+        $ids = $soloIds->merge($teamPlayerIds)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $title = 'Турнир отменён';
+        $body = "ВНИМАНИЕ! Турнир «{$tournament->name}» отменён организатором.";
+
+        foreach (\App\Models\User::whereIn('id', $ids)->get() as $user) {
+            \App\Models\Notification::create([
+                'user_id' => $user->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'tournament_cancelled',
+                'category' => 'tournament',
+                'data' => ['tournament_id' => $tournament->id],
+            ]);
+            try {
+                app(\App\Services\FCMNotificationService::class)->sendToUser($user, $title, $body, [
+                    'type' => 'tournament',
+                    'tournament_id' => (string) $tournament->id,
+                ]);
+            } catch (\Throwable $e) {
+                // пуш не критичен
+            }
+        }
     }
 
     /**
