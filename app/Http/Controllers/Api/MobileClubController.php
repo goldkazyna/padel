@@ -150,6 +150,9 @@ class MobileClubController extends Controller
                     ->where('status', 'open')
                     ->where('start_date', '>', now())
                     ->count(),
+                'tournaments_count' => $club->tournaments()
+                    ->where('status', 'completed')
+                    ->count(),
                 'coaches' => $coaches,
             ],
         ]);
