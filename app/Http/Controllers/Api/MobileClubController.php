@@ -55,13 +55,25 @@ class MobileClubController extends Controller
             });
         }
 
-        // Кол-во проведённых (завершённых) турниров за всё время — для иконки
-        // кубка и сортировки списка.
-        $query->withCount(['tournaments as tournaments_count' => function ($q) {
-            $q->where('status', 'completed');
-        }]);
+        // Счётчики для иконки кубка и сортировки: проведённые (завершённые)
+        // турниры за всё время + текущие открытые турниры.
+        $query->withCount([
+            'tournaments as tournaments_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
+            'tournaments as open_tournaments_count' => function ($q) {
+                $q->where('status', 'open')->where('start_date', '>', now());
+            },
+        ]);
 
-        $clubs = $query->orderByDesc('tournaments_count')->orderBy('id')->get();
+        // Сортировка: 1) по числу проведённых турниров; 2) у кого есть открытые
+        // турниры — выше; 3) «скоро открытие» (coming_soon) — в самый конец.
+        $clubs = $query
+            ->orderByDesc('tournaments_count')
+            ->orderByDesc('open_tournaments_count')
+            ->orderBy('coming_soon')
+            ->orderBy('id')
+            ->get();
 
         $result = $clubs->map(fn($club) => [
             'id' => $club->id,
