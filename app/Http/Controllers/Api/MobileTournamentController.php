@@ -193,28 +193,35 @@ class MobileTournamentController extends Controller
         $user = $request->user();
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $clubId = $request->input('club_id');
 
         $query = Tournament::where('status', 'completed')
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'desc')
             ->with(['club', 'venueClub']);
 
-        // Турнир попадает в период если в диапазон попадает start_date ИЛИ
-        // updated_at (т.е. дата фактического завершения). Это нужно потому
-        // что админ может поставить start_date в будущем, а закончить турнир
-        // раньше — без OR-условия такие турниры пропадают из архива.
-        $from = $dateFrom ? $dateFrom . ' 00:00:00' : now()->subDays(7)->startOfDay();
-        $to = $dateTo ? $dateTo . ' 23:59:59' : null;
+        // Прошедшие турниры конкретного клуба — показываем ВСЕ за всё время
+        // (без окна «последние 7 дней»).
+        if ($clubId) {
+            $query->where('club_id', $clubId);
+        } else {
+            // Турнир попадает в период если в диапазон попадает start_date ИЛИ
+            // updated_at (т.е. дата фактического завершения). Это нужно потому
+            // что админ может поставить start_date в будущем, а закончить турнир
+            // раньше — без OR-условия такие турниры пропадают из архива.
+            $from = $dateFrom ? $dateFrom . ' 00:00:00' : now()->subDays(7)->startOfDay();
+            $to = $dateTo ? $dateTo . ' 23:59:59' : null;
 
-        $query->where(function ($q) use ($from, $to) {
-            $q->where(function ($qq) use ($from, $to) {
-                $qq->where('start_date', '>=', $from);
-                if ($to) $qq->where('start_date', '<=', $to);
-            })->orWhere(function ($qq) use ($from, $to) {
-                $qq->where('updated_at', '>=', $from);
-                if ($to) $qq->where('updated_at', '<=', $to);
+            $query->where(function ($q) use ($from, $to) {
+                $q->where(function ($qq) use ($from, $to) {
+                    $qq->where('start_date', '>=', $from);
+                    if ($to) $qq->where('start_date', '<=', $to);
+                })->orWhere(function ($qq) use ($from, $to) {
+                    $qq->where('updated_at', '>=', $from);
+                    if ($to) $qq->where('updated_at', '<=', $to);
+                });
             });
-        });
+        }
 
         $tournaments = $query->get()
             ->map(fn($t) => $this->formatTournament($t, $user));
