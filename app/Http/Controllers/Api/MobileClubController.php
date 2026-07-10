@@ -55,7 +55,13 @@ class MobileClubController extends Controller
             });
         }
 
-        $clubs = $query->orderBy('id')->get();
+        // Кол-во проведённых (завершённых) турниров за всё время — для иконки
+        // кубка и сортировки списка.
+        $query->withCount(['tournaments as tournaments_count' => function ($q) {
+            $q->where('status', 'completed');
+        }]);
+
+        $clubs = $query->orderByDesc('tournaments_count')->orderBy('id')->get();
 
         $result = $clubs->map(fn($club) => [
             'id' => $club->id,
@@ -69,6 +75,7 @@ class MobileClubController extends Controller
             'coming_soon' => (bool) $club->coming_soon,
             'telegram_url' => $club->telegram_url,
             'instagram_url' => $club->instagram_url,
+            'tournaments_count' => (int) $club->tournaments_count,
         ]);
 
         $cities = $clubs->pluck('city')->filter()->unique()->sort()->values();
