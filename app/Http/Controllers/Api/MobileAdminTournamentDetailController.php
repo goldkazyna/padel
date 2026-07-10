@@ -374,8 +374,8 @@ class MobileAdminTournamentDetailController extends Controller
         $tournament->update(['status' => 'cancelled']);
         $tournament->refresh()->loadMissing('club');
 
-        // Оповестить всех записанных участников об отмене.
-        app(\App\Services\TournamentCancellationNotifier::class)->notify($tournament);
+        // Оповещение участников об отмене шлёт observer модели Tournament
+        // (static::updated → notifyParticipantsTournamentCancelled).
 
         return response()->json([
             'success' => true,

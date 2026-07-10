@@ -355,14 +355,7 @@ class TournamentController extends Controller
 			$validated['playoff_format'] = null;
 		}
 		
-		$wasCancelled = $tournament->status === 'cancelled';
 		$tournament->update($validated);
-
-		// Переход в «отменён» — оповещаем всех записанных участников.
-		if (!$wasCancelled && $tournament->status === 'cancelled') {
-			app(\App\Services\TournamentCancellationNotifier::class)->notify($tournament);
-		}
-
 		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
 	}
 

@@ -28,7 +28,11 @@
       "Bash(git -C:*)",
       "Bash(git -C /c/projects/padel push)",
       "Bash(git reset:*)",
-      "Bash(flutter gen-l10n:*)"
+      "Bash(flutter gen-l10n:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\padel\\\\app\\\\Http\\\\Controllers\\\\Api\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(grep -n \"^use App\\\\\\\\\\\\\\\\Services\\\\\\\\\\\\\\\\\\\\|^use App\\\\\\\\\\\\\\\\Models\\\\\\\\\\\\\\\\\" app/Http/Controllers/Api/MobileAdminTournamentDetailController.php)",
+      "Bash(grep -n \"leaderboard\\\\|Leaderboard\\\\|_buildLeader\\\\|g\\\\\\\\.leaderboard\\\\|group.leaderboard\" lib/screens/admin/admin_tournament_detail_screen.dart)"
     ]
   }
 }
