@@ -15,7 +15,7 @@
                 </form>
             @endif
 
-            @if($tournament->participants->count() === $tournament->max_participants)
+            @if($tournament->isPairedJustPadelIt() ? $tournament->participants->count() === $tournament->max_participants : $tournament->jpiSeedingReady())
                 @if(!$tournament->hasReserveParticipants())
                     @php $pairsReady = !$tournament->isPairedJustPadelIt() || $tournament->justPadelItPairs()->exists(); @endphp
                     @if($tournament->isPairedJustPadelIt() && !$tournament->justPadelItPairs()->exists())

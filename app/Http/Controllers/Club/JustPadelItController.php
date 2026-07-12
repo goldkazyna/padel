@@ -153,6 +153,11 @@ class JustPadelItController extends Controller
         if ($tournament->isPairedJustPadelIt()) {
             return redirect()->route('club.tournaments.show', $tournament);
         }
+        // Solo: посев только когда игроков ровно кортов × 4.
+        if (! $tournament->jpiSeedingReady()) {
+            return redirect()->route('club.tournaments.show', $tournament)
+                ->with('error', 'Число игроков должно быть равно кортов × 4');
+        }
         $participants = $tournament->participants()
             ->wherePivot('status', 'registered')
             ->orderByDesc('rating')->get();

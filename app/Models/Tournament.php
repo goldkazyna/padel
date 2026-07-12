@@ -471,6 +471,24 @@ class Tournament extends Model
 		return $this->isJustPadelIt() && (bool) $this->is_paired;
 	}
 
+	/**
+	 * Готов ли solo Just Padel It к посеву: зарегистрированных игроков должно
+	 * быть ровно courts_count × 4 (иначе не разложить по кортам). Если корты
+	 * не заданы — достаточно кратности 4 (и не меньше 4).
+	 */
+	public function jpiSeedingReady(): bool
+	{
+		if (! $this->isJustPadelIt() || (bool) $this->is_paired) {
+			return false;
+		}
+		$count = $this->participants()->wherePivot('status', 'registered')->count();
+		$courts = (int) $this->courts_count;
+
+		return $courts > 0
+			? $count === $courts * 4
+			: ($count >= 4 && $count % 4 === 0);
+	}
+
 	public function justPadelItPlayers()
 	{
 		return $this->hasMany(\App\Models\JustPadelItPlayer::class);

@@ -122,6 +122,15 @@
                             <small class="text-secondary">Сколько кортов реально играет. Каждый раунд играют кортов × 4 игроков, остальные в очереди. Менять только до старта турнира.</small>
                         </div>
                         @endif
+                        @if($tournament->isJustPadelIt() && !$tournament->is_paired)
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Количество кортов</label>
+                            <input type="number" name="courts_count" class="form-control"
+                                   value="{{ old('courts_count', $tournament->courts_count) }}" min="1" max="32"
+                                   placeholder="напр. 3">
+                            <small class="text-secondary">Игроков должно быть ровно кортов × 4, чтобы начать посев. Напр. 3 корта = 12 игроков.</small>
+                        </div>
+                        @endif
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
                             <input type="number" name="waitlist_size" class="form-control"

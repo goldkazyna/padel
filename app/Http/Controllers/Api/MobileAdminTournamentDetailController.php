@@ -505,6 +505,10 @@ class MobileAdminTournamentDetailController extends Controller
             ? $this->hasTournamentsFullAccess($user, $t)
             : false;
         $canStart = $t->status === 'open' && $taken >= $minRequired;
+        // Solo Just Padel It — посев только когда игроков ровно кортов × 4.
+        if ($t->type === 'just_padel_it' && ! $t->is_paired) {
+            $canStart = $t->status === 'open' && $t->jpiSeedingReady();
+        }
         // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
         $baliPairsCreated = $t->isBaliKoc()
             ? $t->baliKocPairs()->exists()
