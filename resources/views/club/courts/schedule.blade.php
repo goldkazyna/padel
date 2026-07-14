@@ -1311,6 +1311,10 @@
 
         if (typeof window.resetRepeatSection === 'function') window.resetRepeatSection();
         if (typeof clearBookFormError === 'function') clearBookFormError();
+        // Сброс кнопки брони (вдруг осталась в состоянии загрузки).
+        const bookSubmitBtn = document.querySelector('#bookForm button[type="submit"]');
+        if (bookSubmitBtn) { bookSubmitBtn.disabled = false; bookSubmitBtn.innerHTML = 'Забронировать'; }
+        document.getElementById('bookForm').dataset.submitting = '';
 
         renderDurationButtons(currentBook.maxSlots);
         updateBookTotalPrice();
@@ -1976,6 +1980,8 @@
 
     document.getElementById('bookForm').addEventListener('submit', function(e) {
         const form = e.target;
+        // Уже отправляется — блокируем повторные клики (обработка занимает пару секунд).
+        if (form.dataset.submitting === '1') { e.preventDefault(); return; }
         const bookingType = document.getElementById('bookingTypeInput').value;
         const isGroup = bookingType === 'group';
         const nameInput = form.querySelector('input[name="client_name"]');
@@ -2025,6 +2031,14 @@
             }
         }
         clearBookFormError();
+        // Валидация пройдена — форма отправляется (перезагрузка страницы).
+        // Прелоадер + блокировка кнопки, чтобы не тыкали по 20 раз.
+        form.dataset.submitting = '1';
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Бронирование…';
+            setTimeout(function () { submitBtn.disabled = true; }, 0);
+        }
     });
 
     // Любое изменение в форме / клик по тогглам — гасим ошибку
