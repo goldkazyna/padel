@@ -1443,7 +1443,13 @@
 
         // Если часы по клубной карте уже списаны — отмена брони недоступна.
         const cancelBookingBtn = document.getElementById('cancelBookingBtn');
-        if (cancelBookingBtn) cancelBookingBtn.style.display = data.cardCharged ? 'none' : '';
+        if (cancelBookingBtn) {
+            cancelBookingBtn.style.display = data.cardCharged ? 'none' : '';
+            // Сброс кнопки (вдруг осталась в состоянии загрузки).
+            cancelBookingBtn.disabled = false;
+            cancelBookingBtn.dataset.submitting = '';
+            cancelBookingBtn.innerHTML = 'Отменить бронь';
+        }
 
         // Длительность — кнопки 1..6, текущая = (end-start)/slotDuration
         renderEditDurationButtons(data);
@@ -1570,6 +1576,13 @@
 
     function cancelBooking() {
         if (confirm('Вы уверены, что хотите отменить бронь?')) {
+            const btn = document.getElementById('cancelBookingBtn');
+            if (btn) {
+                if (btn.dataset.submitting === '1') return; // уже отменяется
+                btn.dataset.submitting = '1';
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отмена…';
+                setTimeout(function () { btn.disabled = true; }, 0);
+            }
             document.getElementById('cancelBookingForm').submit();
         }
     }
