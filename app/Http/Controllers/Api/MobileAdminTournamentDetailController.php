@@ -3763,6 +3763,9 @@ class MobileAdminTournamentDetailController extends Controller
     {
         // Парный флекс: лидерборд по парам (одна строка = пара «A / B»).
         if ($tournament->isPairedFlex()) {
+            // В паре оба игрока всегда играют вместе — статистика у них одинаковая,
+            // берём по player1.
+            $stats = $this->flexPlayerStats($tournament);
             $pairRows = app(AmericanoFlexService::class)->getPairedLeaderboard($tournament);
             $rows = [];
             $position = 1;
@@ -3770,6 +3773,7 @@ class MobileAdminTournamentDetailController extends Controller
                 $p1 = $r['player1'];
                 $p2 = $r['player2'];
                 $name = trim(($p1->name ?? '—') . ' / ' . ($p2->name ?? '—'));
+                $st = $stats[$p1->id ?? 0] ?? [0, 0, 0, 0];
                 $rows[] = [
                     'position' => $position++,
                     'id' => $p1->id ?? 0,
@@ -3783,36 +3787,17 @@ class MobileAdminTournamentDetailController extends Controller
                     'bye_count' => (int) $r['bye_count'],
                     'bye_streak' => (int) $r['bye_streak'],
                     'avg_points' => $r['avg_points'],
+                    'wins' => $st[0],
+                    'losses' => $st[1],
+                    'points_for' => $st[2],
+                    'points_against' => $st[3],
                 ];
             }
             return $rows;
         }
 
         // Считаем победы/поражения/забитые/пропущенные из завершённых матчей.
-        $stats = []; // user_id => [wins, losses, pf, pa]
-        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
-            foreach ($round->matches as $m) {
-                if ($m->status !== 'completed') continue;
-                $team1 = [$m->team1_player1_id, $m->team1_player2_id];
-                $team2 = [$m->team2_player1_id, $m->team2_player2_id];
-                $s1 = (int) $m->team1_score;
-                $s2 = (int) $m->team2_score;
-                foreach ($team1 as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid] ??= [0, 0, 0, 0];
-                    $stats[$uid][2] += $s1;
-                    $stats[$uid][3] += $s2;
-                    if ($s1 > $s2) $stats[$uid][0]++; elseif ($s1 < $s2) $stats[$uid][1]++;
-                }
-                foreach ($team2 as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid] ??= [0, 0, 0, 0];
-                    $stats[$uid][2] += $s2;
-                    $stats[$uid][3] += $s1;
-                    if ($s2 > $s1) $stats[$uid][0]++; elseif ($s2 < $s1) $stats[$uid][1]++;
-                }
-            }
-        }
+        $stats = $this->flexPlayerStats($tournament); // user_id => [wins, losses, pf, pa]
 
         $players = $tournament->americanoFlexPlayers
             ->sortByDesc(function ($p) {
@@ -3849,5 +3834,38 @@ class MobileAdminTournamentDetailController extends Controller
             ];
         }
         return $rows;
+    }
+
+    /**
+     * Победы/поражения/забитые/пропущенные по игрокам из завершённых матчей
+     * Americano Flex. Возвращает user_id => [wins, losses, points_for, points_against].
+     */
+    private function flexPlayerStats(Tournament $tournament): array
+    {
+        $stats = [];
+        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $team1 = [$m->team1_player1_id, $m->team1_player2_id];
+                $team2 = [$m->team2_player1_id, $m->team2_player2_id];
+                $s1 = (int) $m->team1_score;
+                $s2 = (int) $m->team2_score;
+                foreach ($team1 as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid] ??= [0, 0, 0, 0];
+                    $stats[$uid][2] += $s1;
+                    $stats[$uid][3] += $s2;
+                    if ($s1 > $s2) $stats[$uid][0]++; elseif ($s1 < $s2) $stats[$uid][1]++;
+                }
+                foreach ($team2 as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid] ??= [0, 0, 0, 0];
+                    $stats[$uid][2] += $s2;
+                    $stats[$uid][3] += $s1;
+                    if ($s2 > $s1) $stats[$uid][0]++; elseif ($s2 < $s1) $stats[$uid][1]++;
+                }
+            }
+        }
+        return $stats;
     }
 }
