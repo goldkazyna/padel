@@ -686,12 +686,16 @@ class AmericanoFlexService
     {
         $teams = $this->pairedTeams($tournament);
         $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
+        // Очки и число матчей — из фактически сыгранных (матчи 0:0 не считаем),
+        // а не из хранимых полей, чтобы несыгранные матчи не искажали таблицу.
+        $stats = $this->pairedMatchStats($tournament);
 
         $rows = [];
         foreach ($teams as $t) {
             $fp = $players[$t->player1_id] ?? null;
-            $matchesPlayed = $fp ? (int) $fp->matches_played : 0;
-            $totalPoints = $fp ? (int) $fp->total_points : 0;
+            $st = $stats[$t->player1_id] ?? ['points' => 0, 'matches' => 0];
+            $matchesPlayed = $st['matches'];
+            $totalPoints = $st['points'];
             $byeCount = $fp ? (int) $fp->bye_count : 0;
             $byeStreak = $fp ? (int) $fp->bye_streak : 0;
             $avg = $matchesPlayed > 0 ? round($totalPoints / $matchesPlayed, 2) : 0.0;
@@ -715,6 +719,35 @@ class AmericanoFlexService
         });
 
         return $rows;
+    }
+
+    /**
+     * Очки (сумма забитого) и число сыгранных матчей по игрокам из завершённых
+     * матчей. Матчи со счётом 0:0 (несыгранные) не учитываются.
+     * Возвращает user_id => ['points' => int, 'matches' => int].
+     */
+    private function pairedMatchStats(Tournament $tournament): array
+    {
+        $stats = [];
+        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                $s1 = (int) $m->team1_score;
+                $s2 = (int) $m->team2_score;
+                if ($s1 === 0 && $s2 === 0) continue;
+                foreach ([$m->team1_player1_id, $m->team1_player2_id] as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid]['points'] = ($stats[$uid]['points'] ?? 0) + $s1;
+                    $stats[$uid]['matches'] = ($stats[$uid]['matches'] ?? 0) + 1;
+                }
+                foreach ([$m->team2_player1_id, $m->team2_player2_id] as $uid) {
+                    if (!$uid) continue;
+                    $stats[$uid]['points'] = ($stats[$uid]['points'] ?? 0) + $s2;
+                    $stats[$uid]['matches'] = ($stats[$uid]['matches'] ?? 0) + 1;
+                }
+            }
+        }
+        return $stats;
     }
 
     /**

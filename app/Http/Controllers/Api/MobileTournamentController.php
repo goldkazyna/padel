@@ -1418,14 +1418,18 @@ class MobileTournamentController extends Controller
                     'wins' => 0, 'losses' => 0,
                     'points_for' => 0, 'points_against' => 0,
                     'total_points' => 0,
-                    'matches_played' => (int) $fp->matches_played,
+                    'matches_played' => 0, // считаем из фактически сыгранных (без 0:0)
                 ];
             }
 
             foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
                 foreach ($round->matches as $match) {
                     if ($match->status !== 'completed') continue;
+                    if ((int) $match->team1_score === 0 && (int) $match->team2_score === 0) continue; // 0:0 не считаем
                     $this->countMatchStats($playerStats, $match);
+                    foreach ([$match->team1_player1_id, $match->team1_player2_id, $match->team2_player1_id, $match->team2_player2_id] as $pId) {
+                        if (isset($playerStats[$pId])) $playerStats[$pId]['matches_played']++;
+                    }
                 }
             }
             // В flex «очки» = сумма забитых
