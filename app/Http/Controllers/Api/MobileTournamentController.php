@@ -2614,7 +2614,7 @@ class MobileTournamentController extends Controller
                 'points_for' => 0,
                 'points_against' => 0,
                 'total_points' => 0,
-                'matches_played' => (int) $fp->matches_played,
+                'matches_played' => 0, // считаем ниже из фактически сыгранных (без 0:0)
             ];
         }
 
@@ -2623,11 +2623,15 @@ class MobileTournamentController extends Controller
             ->orderBy('round_number')
             ->get();
 
-        // Статистика по завершённым матчам
+        // Статистика по завершённым матчам (матчи 0:0 — несыгранные, не считаем)
         foreach ($flexRounds as $round) {
             foreach ($round->matches as $m) {
                 if ($m->status !== 'completed') continue;
+                if ((int) $m->team1_score === 0 && (int) $m->team2_score === 0) continue;
                 $this->countMatchStats($playerStats, $m);
+                foreach ([$m->team1_player1_id, $m->team1_player2_id, $m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                    if (isset($playerStats[$pId])) $playerStats[$pId]['matches_played']++;
+                }
                 if ((int) $m->team1_score === (int) $m->team2_score) {
                     foreach ([$m->team1_player1_id, $m->team1_player2_id, $m->team2_player1_id, $m->team2_player2_id] as $pId) {
                         if (isset($playerStats[$pId])) $playerStats[$pId]['draws']++;
