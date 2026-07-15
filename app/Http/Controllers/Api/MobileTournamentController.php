@@ -600,19 +600,23 @@ class MobileTournamentController extends Controller
     {
         $user = $request->user();
 
-        $request->validate([
-            'phone' => 'required|string|min:5',
-        ]);
-
-        $phone = preg_replace('/\D/', '', $request->input('phone'));
-
-        if (strlen($phone) < 5) {
-            return response()->json(['success' => false, 'message' => 'Введите минимум 5 цифр номера'], 400);
+        // Принимаем общий поисковый запрос (имя ИЛИ телефон). Для совместимости
+        // со старыми сборками поддерживаем прежний ключ 'phone'.
+        $term = trim((string) $request->input('query', $request->input('phone', '')));
+        if (mb_strlen($term) < 2) {
+            return response()->json(['success' => false, 'message' => 'Введите минимум 2 символа'], 400);
         }
+
+        $digits = preg_replace('/\D/', '', $term);
 
         $partners = User::human()
             ->where('id', '!=', $user->id)
-            ->where('phone', 'LIKE', "%{$phone}%")
+            ->where(function ($q) use ($term, $digits) {
+                $q->where('name', 'LIKE', "%{$term}%");
+                if (strlen($digits) >= 3) {
+                    $q->orWhere('phone', 'LIKE', "%{$digits}%");
+                }
+            })
             ->limit(10)
             ->get()
             ->map(fn($p) => [
