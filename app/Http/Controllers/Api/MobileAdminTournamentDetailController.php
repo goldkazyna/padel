@@ -793,15 +793,9 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json(['success' => true]);
         }
 
-        // Вход в основной список из листа ожидания — не превышаем лимит.
-        // Считаем ОБА статуса (утверждённые + на модерации), как при записи,
-        // иначе можно переполнить сверх max_participants.
-        $entersMain = $row->pivot->status === 'waiting'
-            && in_array($to, ['registered', 'pending'], true);
-        if ($entersMain) {
-            $taken = $tournament->participants()
-                ->wherePivotIn('status', ['registered', 'pending'])
-                ->count();
+        // В основной список — не превышаем лимит участников.
+        if ($to === 'registered') {
+            $taken = $tournament->participants()->wherePivot('status', 'registered')->count();
             if ($taken >= $tournament->max_participants) {
                 return $this->error('Достигнут лимит участников');
             }
