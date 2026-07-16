@@ -50,7 +50,7 @@ class ClubCardController extends Controller
      * Актуальные карты клиента по телефону — для окна брони корта.
      * GET /club/cards/for-client?phone=...
      */
-    public function forClient(Request $request)
+    public function forClient(Request $request, \App\Services\ClubCardService $cardService)
     {
         $club = $this->getClub();
         if (!$club) return response()->json(['cards' => []]);
@@ -78,6 +78,8 @@ class ClubCardController extends Controller
             'is_counter' => $c->isCounter(),
             'is_discount' => (bool) $c->type?->isDiscount(),
             'balance' => $c->balance,
+            // Доступный остаток с учётом ещё не списанных броней (резерв).
+            'available' => $c->isCounter() ? $cardService->availableBalance($c) : null,
             'discount_percent' => $c->type?->discount_percent,
             'price' => $c->type?->price,          // стоимость карты
             'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)

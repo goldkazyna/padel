@@ -732,6 +732,14 @@ class CourtController extends Controller
             return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
         }
 
+        // Карта-счётчик: доступный остаток с учётом ещё не списанных броней.
+        // По ходу цикла уменьшаем счётчик, чтобы нельзя было перебронировать
+        // больше часов, чем реально осталось на карте.
+        $cardService = app(\App\Services\ClubCardService::class);
+        $counterCard = ($clubCardId && isset($card) && $card->isCounter()) ? $card : null;
+        $cardAvailable = $counterCard ? $cardService->availableBalance($counterCard) : 0;
+        $slotHours = $counterCard ? $cardService->slotHours($startTime, $endTime) : 0;
+
         $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
         $skipped = [];   // ['Y-m-d' => 'причина']
         $firstBooking = null;
@@ -771,6 +779,12 @@ class CourtController extends Controller
                 $discount = 0;
             }
 
+            // Карта-счётчик: не даём забронировать больше часов, чем осталось.
+            if ($counterCard && $slotHours > $cardAvailable) {
+                $skipped[$date] = 'не хватает часов на карте (осталось ' . $cardAvailable . ' ч)';
+                continue;
+            }
+
             $booking = CourtBooking::create([
                 'court_id' => $court->id,
                 'date' => $date,
@@ -796,6 +810,11 @@ class CourtController extends Controller
             ]);
             $firstBooking ??= $booking;
             $created[] = ['date' => $date, 'id' => $booking->id];
+
+            // Списываем зарезервированные часы из доступного остатка карты.
+            if ($counterCard) {
+                $cardAvailable -= $slotHours;
+            }
 
             // Привязка к группе → автосоздание занятия в журнале (фича 'groups').
             if (($validated['booking_type'] ?? null) === 'group'
@@ -1102,6 +1121,23 @@ class CourtController extends Controller
             }
             $updateData['price'] = max(0, $validated['custom_price'] - $discount);
             $updateData['discount'] = $discount;
+        }
+
+        // Карта-счётчик: не даём привязать бронь, если часов не хватает.
+        // Исключаем саму бронь из резерва (иначе бы задваивалось). Уже списанную
+        // (preserveChargedCard) не проверяем — её часы уже вычтены.
+        if (!$isGroupBooking && $clubCardId && !$preserveChargedCard) {
+            $counterCard = \App\Models\ClubCard::with('type')->find($clubCardId);
+            if ($counterCard && $counterCard->isCounter()) {
+                $cardService = app(\App\Services\ClubCardService::class);
+                $available = $cardService->availableBalance($counterCard, $booking->id);
+                $chkEnd = $updateData['end_time'] ?? (string) $booking->end_time;
+                $needHours = $cardService->slotHours((string) $booking->start_time, $chkEnd);
+                if ($needHours > $available) {
+                    return back()->withInput()->with('error',
+                        'На карте не хватает часов: доступно ' . $available . ' ч, нужно ' . $needHours . ' ч');
+                }
+            }
         }
 
         $booking->update($updateData);

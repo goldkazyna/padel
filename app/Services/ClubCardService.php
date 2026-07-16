@@ -208,6 +208,38 @@ class ClubCardService
         return $this->pendingForClub($club)->count();
     }
 
+    /**
+     * Зарезервированные, но ещё НЕ списанные часы карты-счётчика: подтверждённые
+     * брони с этой картой, у которых списание ещё не прошло (card_charged_at IS NULL).
+     * Такие брони спишутся кроном позже — значит их часы уже «заняты».
+     *
+     * @param int|null $excludeBookingId исключить бронь (при редактировании — саму себя)
+     */
+    public function reservedHours(ClubCard $card, ?int $excludeBookingId = null): int
+    {
+        if (!$card->isCounter()) return 0;
+
+        $q = CourtBooking::where('club_card_id', $card->id)
+            ->whereNull('card_charged_at')
+            ->where('status', 'confirmed');
+        if ($excludeBookingId) {
+            $q->where('id', '!=', $excludeBookingId);
+        }
+
+        return (int) $q->get(['id', 'start_time', 'end_time'])
+            ->sum(fn (CourtBooking $b) => $this->bookingHours($b));
+    }
+
+    /**
+     * Доступный остаток карты-счётчика с учётом ещё не списанных броней:
+     * balance − reservedHours. Именно это число ограничивает новые брони.
+     */
+    public function availableBalance(ClubCard $card, ?int $excludeBookingId = null): int
+    {
+        if (!$card->isCounter()) return 0;
+        return max(0, (int) $card->balance - $this->reservedHours($card, $excludeBookingId));
+    }
+
     private function markCharged(CourtBooking $booking): void
     {
         $booking->forceFill(['card_charged_at' => now()])->save();
@@ -216,14 +248,19 @@ class ClubCardService
     /** Длительность брони в часах (округление до целого). */
     private function bookingHours(CourtBooking $booking): int
     {
-        $start = Carbon::parse(substr((string) $booking->start_time, 0, 5));
-        $end = Carbon::parse(substr((string) $booking->end_time, 0, 5));
+        return $this->slotHours((string) $booking->start_time, (string) $booking->end_time);
+    }
+
+    /** Часы между временами (округление до целого), с учётом брони через полночь. */
+    public function slotHours(string $start, string $end): int
+    {
+        $s = Carbon::parse(substr($start, 0, 5));
+        $e = Carbon::parse(substr($end, 0, 5));
         // Бронь через полночь (например 21:00–00:00): конец — на следующий день.
-        if ($end->lessThanOrEqualTo($start)) {
-            $end->addDay();
+        if ($e->lessThanOrEqualTo($s)) {
+            $e->addDay();
         }
-        $minutes = $start->diffInMinutes($end);
-        return (int) round($minutes / 60);
+        return (int) round($s->diffInMinutes($e) / 60);
     }
 
     /** Срок: явная дата → она; иначе фикс. дата типа; иначе N дней с сегодня; иначе бессрочно. */
