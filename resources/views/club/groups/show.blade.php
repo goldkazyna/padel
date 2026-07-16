@@ -350,6 +350,18 @@
                     <input type="date" name="subscription_ends_at" id="editMemberEndsAt" class="form-input">
                     <small style="color:#71717a;font-size:12px;">Необязательно. Оставьте пустым, чтобы убрать дату.</small>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Способ оплаты</label>
+                    <input type="hidden" name="payment_method" id="editMemberPayMethod" value="">
+                    <div class="pm-grid" id="editMemberPayGrid">
+                        @foreach($pmOptions as [$pv, $pl, $pi])
+                        <button type="button" class="pm-chip" data-v="{{ $pv }}" onclick="pmPick('editMember', this)">
+                            <i class="bi {{ $pi }}"></i><span>{{ $pl }}</span>
+                        </button>
+                        @endforeach
+                    </div>
+                    <small style="color:#71717a;font-size:12px;">Метод последнего пакета участника.</small>
+                </div>
             </div>
             <div class="modal-footer-row">
                 <button type="button" class="btn-cancel" onclick="document.getElementById('editMemberModal').style.display='none'">Отмена</button>
@@ -461,16 +473,29 @@
         var inp = document.getElementById(prefix + 'PayMethod');
         if (inp) inp.value = '';
     }
+    function pmSet(prefix, value) {
+        var grid = document.getElementById(prefix + 'PayGrid');
+        if (grid) grid.querySelectorAll('.pm-chip').forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-v') === value);
+        });
+        var inp = document.getElementById(prefix + 'PayMethod');
+        if (inp) inp.value = value || '';
+    }
 
     var memberEditData = {
         @foreach($group->members->where('status', 'active') as $member)
-        {{ $member->id }}: { url: "{{ route('club.groups.members.update', [$group, $member]) }}", date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}" },
+        {{ $member->id }}: {
+            url: "{{ route('club.groups.members.update', [$group, $member]) }}",
+            date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}",
+            pm: "{{ optional($member->enrollments->sortByDesc('id')->first())->payment_method ?? '' }}"
+        },
         @endforeach
     };
     function openEditMemberModal(memberId) {
         var d = memberEditData[memberId] || {};
         document.getElementById('editMemberForm').action = d.url || '';
         document.getElementById('editMemberEndsAt').value = d.date || '';
+        pmSet('editMember', d.pm || '');
         document.getElementById('editMemberModal').style.display = 'flex';
     }
 

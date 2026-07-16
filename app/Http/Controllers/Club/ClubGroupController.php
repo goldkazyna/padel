@@ -246,8 +246,15 @@ class ClubGroupController extends Controller
 
         $validated = $request->validate([
             'subscription_ends_at' => 'nullable|date',
+            'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
         $member->update(['subscription_ends_at' => $validated['subscription_ends_at'] ?? null]);
+
+        // Способ оплаты правим у последнего пакета участника (он привязан к пакету).
+        $lastEnrollment = $member->enrollments()->latest('id')->first();
+        if ($lastEnrollment) {
+            $lastEnrollment->update(['payment_method' => $validated['payment_method'] ?? null]);
+        }
 
         return back()->with('success', 'Абонемент участника обновлён');
     }
