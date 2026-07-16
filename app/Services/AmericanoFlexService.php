@@ -875,6 +875,10 @@ class AmericanoFlexService
             }
 
             foreach ($matches as $match) {
+                // Несыгранный матч 0:0 в рейтинге не участвует.
+                if ((int) $match->team1_score === 0 && (int) $match->team2_score === 0) {
+                    continue;
+                }
                 $r11 = $currentRatings[$match->team1_player1_id];
                 $r12 = $currentRatings[$match->team1_player2_id];
                 $r21 = $currentRatings[$match->team2_player1_id];

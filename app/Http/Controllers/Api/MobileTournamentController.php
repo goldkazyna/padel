@@ -1602,6 +1602,8 @@ class MobileTournamentController extends Controller
                 $roundCounter++;
                 foreach ($round->matches as $match) {
                     if (!$match->isCompleted()) continue;
+                    // Несыгранный матч 0:0 в рейтинге не участвует.
+                    if ((int) $match->team1_score === 0 && (int) $match->team2_score === 0) continue;
                     $change = $this->processPlayerMatch($match, $ratings);
                     if ($this->isPlayerInMatch($match, $userId)) {
                         $userMatches[] = $this->formatResultMatch($match, $userId, $roundCounter, $change, false);
