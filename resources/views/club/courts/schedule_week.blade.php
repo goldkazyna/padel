@@ -2122,7 +2122,8 @@
                 if (input) input.value = '';
                 if (!cards.length) { reset(); return; }
                 box.innerHTML = cards.map(c => {
-                    const sub = c.is_counter ? ('осталось ' + c.balance + '/' + c.nominal + ' ч')
+                    const avail = (c.available != null ? c.available : c.balance);
+                    const sub = c.is_counter ? ('осталось ' + avail + '/' + c.nominal + ' ч')
                                              : ('скидка −' + c.discount_percent + '%');
                     const inactiveNote = c.inactive ? ' · списано, не активна' : '';
                     const cls = 'client-card-btn' + (c.inactive ? ' inactive' : '');
@@ -2165,7 +2166,7 @@
 
         if (hint) {
             hint.textContent = card.is_counter
-                ? ('Спишутся часы по длительности брони после её завершения (остаток: ' + card.balance + ' ч).')
+                ? ('Спишутся часы по длительности брони после её завершения (остаток: ' + (card.available != null ? card.available : card.balance) + ' ч).')
                 : ('Скидка −' + card.discount_percent + '% применена к цене.');
             hint.style.display = '';
         }
