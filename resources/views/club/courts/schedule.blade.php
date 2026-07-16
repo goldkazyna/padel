@@ -1090,6 +1090,10 @@
         return d.innerHTML;
     }
 
+    // id редактируемой брони — чтобы исключить её из резерва часов карты
+    // (иначе своя же бронь показала бы «нет свободных часов»).
+    let editingBookingId = null;
+
     function loadClientCards(prefix, phone, preselectId) {
         const wrap = document.getElementById(prefix + 'CardWrap');
         const box = document.getElementById(prefix + 'CardButtons');
@@ -1106,6 +1110,7 @@
         if (digits.length < 5) { reset(); return; }
         let url = cardsForClientUrl + '?phone=' + encodeURIComponent(digits);
         if (preselectId) url += '&include_card_id=' + encodeURIComponent(preselectId);
+        if (prefix === 'edit' && editingBookingId) url += '&exclude_booking_id=' + encodeURIComponent(editingBookingId);
         fetch(url)
             .then(r => r.json())
             .then(d => {
@@ -1119,15 +1124,20 @@
                 if (!cards.length) { reset(); return; }
                 box.innerHTML = cards.map(c => {
                     const avail = (c.available != null ? c.available : c.balance);
+                    const noHours = !!c.is_counter && avail <= 0; // все часы зарезервированы
+                    const isPre = String(c.id) === String(preselectId);
+                    const blocked = (c.inactive || noHours) && !isPre;
                     const sub = c.is_counter ? ('осталось ' + avail + '/' + c.nominal + ' ч')
                                              : ('скидка −' + c.discount_percent + '%');
-                    const inactiveNote = c.inactive ? ' · списано, не активна' : '';
-                    const cls = 'client-card-btn' + (c.inactive ? ' inactive' : '');
-                    const clickAttr = c.inactive ? '' : ' onclick="onCardButton(\'' + prefix + '\',' + c.id + ')"';
+                    let note = '';
+                    if (c.inactive) note = ' · списано, не активна';
+                    else if (noHours) note = ' · нет свободных часов';
+                    const cls = 'client-card-btn' + (blocked ? ' inactive' : '');
+                    const clickAttr = blocked ? '' : ' onclick="onCardButton(\'' + prefix + '\',' + c.id + ')"';
                     return '<button type="button" class="' + cls + '" data-id="' + c.id + '"' + clickAttr + '>' +
                         '<span class="ccb-name">' + cardEsc(c.type_name || 'Карта') + '</span>' +
                         '<span class="ccb-code">' + cardEsc(c.code) + '</span>' +
-                        '<span class="ccb-sub">' + sub + inactiveNote + '</span></button>';
+                        '<span class="ccb-sub">' + sub + note + '</span></button>';
                 }).join('');
                 wrap.style.display = '';
                 if (preselectId) onCardButton(prefix, preselectId, true);
@@ -1293,6 +1303,7 @@
             clientNote.removeAttribute('title');
         }
         if (clientNoteHint) clientNoteHint.style.display = 'none';
+        editingBookingId = null; // новая бронь — резерв считаем полностью
         loadClientCards('book', '', null); // сброс карт клиента
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
@@ -1351,6 +1362,7 @@
                 .catch(() => {});
         }
         // Клубные карты клиента (с предвыбором текущей карты брони).
+        editingBookingId = data.id || null;
         loadClientCards('edit', phoneNorm, data.clubCardId || null);
 
         // Payment method

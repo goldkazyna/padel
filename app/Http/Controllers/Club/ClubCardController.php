@@ -70,6 +70,11 @@ class ClubCardController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // При редактировании — исключаем саму бронь из резерва, чтобы её карта
+        // не показывалась как «нет свободных часов» из-за неё же самой.
+        $excludeBookingId = $request->get('exclude_booking_id');
+        $excludeBookingId = $excludeBookingId !== null ? (int) $excludeBookingId : null;
+
         $mapCard = fn($c, bool $inactive) => [
             'id' => $c->id,
             'code' => $c->code,
@@ -79,7 +84,7 @@ class ClubCardController extends Controller
             'is_discount' => (bool) $c->type?->isDiscount(),
             'balance' => $c->balance,
             // Доступный остаток с учётом ещё не списанных броней (резерв).
-            'available' => $c->isCounter() ? $cardService->availableBalance($c) : null,
+            'available' => $c->isCounter() ? $cardService->availableBalance($c, $excludeBookingId) : null,
             'discount_percent' => $c->type?->discount_percent,
             'price' => $c->type?->price,          // стоимость карты
             'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)
