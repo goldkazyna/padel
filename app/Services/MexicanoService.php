@@ -489,10 +489,11 @@ class MexicanoService
 	}
 
 	/**
-	 * Пересчитать дельты рейтинга (группа + плей-офф) БЕЗ применения.
-	 * Возвращает [user_id => delta]. Используется для ремонта завершённых турниров.
+	 * Пересчитать дельты рейтинга БЕЗ применения. Возвращает [user_id => delta].
+	 * $includePlayoff=false — только группа (для изоляции вклада плей-офф).
+	 * Используется для ремонта завершённых турниров.
 	 */
-	public function recomputeRatingDeltas(Tournament $tournament): array
+	public function recomputeRatingDeltas(Tournament $tournament, bool $includePlayoff = true): array
 	{
 		$players = $tournament->mexicanoPlayers()->with('user')->get();
 		$ratingChanges = [];
@@ -509,13 +510,15 @@ class MexicanoService
 			}
 		}
 
-		$playoffMatches = $tournament->playoffMatches()
-			->where('status', 'completed')
-			->orderBy('stage')
-			->orderBy('match_number')
-			->get();
-		foreach ($playoffMatches as $match) {
-			$this->calculateEloForPlayoffMatch($match, $ratingChanges);
+		if ($includePlayoff) {
+			$playoffMatches = $tournament->playoffMatches()
+				->where('status', 'completed')
+				->orderBy('stage')
+				->orderBy('match_number')
+				->get();
+			foreach ($playoffMatches as $match) {
+				$this->calculateEloForPlayoffMatch($match, $ratingChanges);
+			}
 		}
 
 		$deltas = [];

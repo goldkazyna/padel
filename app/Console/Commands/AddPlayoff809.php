@@ -39,12 +39,13 @@ class AddPlayoff809 extends Command
         }
 
         $apply = (bool) $this->option('apply');
+        $alreadyHadPlayoff = $t->playoffMatches()->exists();
 
         DB::beginTransaction();
         try {
             // 1) Внести плей-офф (идемпотентно — только если ещё нет)
-            if ($t->playoffMatches()->exists()) {
-                $this->warn('Плей-офф уже есть в системе — повторно не вношу, только пересчитываю.');
+            if ($alreadyHadPlayoff) {
+                $this->warn('Плей-офф уже внесён ранее — повторно не вношу и рейтинг НЕ начисляю.');
             } else {
                 $t->update([
                     'has_playoff' => true,
@@ -70,65 +71,62 @@ class AddPlayoff809 extends Command
                 $this->info('Плей-офф внесён: 2 полуфинала + финал + бронза.');
             }
 
-            // 2) Пересчёт рейтинга (группа + плей-офф)
-            $newDeltas = $mexicano->recomputeRatingDeltas($t);
+            // 2) Чистый вклад плей-офф = (пересчёт с плей-офф) − (пересчёт только группа).
+            //    Группа сокращается точно, старую точку #809 не трогаем.
+            $groupOnly = $mexicano->recomputeRatingDeltas($t, false);
+            $full = $mexicano->recomputeRatingDeltas($t, true);
             $players = $t->mexicanoPlayers()->with('user')->get();
 
             $rows = [];
-            $toApply = [];
+            $corrections = [];
             foreach ($players as $p) {
                 $u = $p->user;
                 if (!$u) continue;
                 $uid = $p->user_id;
-                $history = RatingHistory::where('user_id', $uid)
-                    ->where('tournament_id', $t->id)
-                    ->orderByDesc('id')->first();
-                $oldChange = $history ? (int) $history->change : 0;
-                $newChange = (int) ($newDeltas[$uid] ?? 0);
-                $adj = $newChange - $oldChange;
-                $cur = (int) $u->rating;
-                $new = max(1, $cur + $adj);
+                $playoffDelta = (int) ($full[$uid] ?? 0) - (int) ($groupOnly[$uid] ?? 0);
+                if ($playoffDelta === 0) continue; // только участники плей-офф
 
-                if ($adj !== 0 || $history) {
-                    $rows[] = [
-                        $u->name,
-                        $oldChange,
-                        $newChange,
-                        ($adj >= 0 ? '+' : '') . $adj,
-                        $cur . ' → ' . $new,
-                    ];
-                }
-                $toApply[$uid] = [
-                    'adj' => $adj, 'new' => $new, 'newChange' => $newChange,
-                    'history_id' => $history?->id,
-                    'rating_before' => (int) ($history->rating_before ?? $cur),
+                $before = (int) $u->rating;
+                $after = max(1, $before + $playoffDelta);
+                $rows[] = [
+                    $u->name,
+                    ($playoffDelta >= 0 ? '+' : '') . $playoffDelta,
+                    $before . ' → ' . $after,
                 ];
+                $corrections[$uid] = ['delta' => $playoffDelta, 'before' => $before, 'after' => $after];
             }
 
             $this->info("Турнир #{$t->id}: {$t->name}");
-            $this->table(['Игрок', 'Старая Δ', 'Новая Δ (с плей-офф)', 'Коррекция', 'Рейтинг'], $rows);
+            $this->line('Вклад плей-офф → отдельная запись «Ручная корректировка» сегодня:');
+            $this->table(['Игрок', 'Плей-офф Δ', 'Рейтинг'], $rows);
 
             if (!$apply) {
                 DB::rollBack();
                 $this->warn('Режим показа — ничего не сохранено. Для применения: --apply');
                 return self::SUCCESS;
             }
+            if ($alreadyHadPlayoff) {
+                DB::rollBack();
+                $this->warn('Уже было внесено ранее — рейтинг повторно не начисляю (защита от дублей).');
+                return self::SUCCESS;
+            }
 
-            // 3) Применить коррекцию рейтинга
-            foreach ($toApply as $uid => $a) {
-                if ($a['adj'] !== 0) {
-                    User::where('id', $uid)->update(['rating' => $a['new']]);
-                }
-                if ($a['history_id']) {
-                    RatingHistory::where('id', $a['history_id'])->update([
-                        'change' => $a['newChange'],
-                        'rating_after' => $a['rating_before'] + $a['newChange'],
-                    ]);
-                }
+            // 3) Начислить вклад плей-офф отдельной записью сегодняшним числом
+            foreach ($corrections as $uid => $c) {
+                RatingHistory::create([
+                    'user_id' => $uid,
+                    'tournament_id' => null,
+                    'rating_before' => $c['before'],
+                    'rating_after' => $c['after'],
+                    'change' => $c['delta'],
+                    'reason' => 'Ручная корректировка',
+                ]);
+                $level = max(1.0, min(5.75, floor($c['after'] / 250) * 0.25));
+                User::where('id', $uid)->update(['rating' => $c['after'], 'level' => $level]);
             }
 
             DB::commit();
-            $this->info('Применено ✓ (плей-офф внесён, рейтинг пересчитан)');
+            $this->info('Применено ✓ (плей-офф внесён, вклад начислен ручной корректировкой)');
             return self::SUCCESS;
         } catch (\Throwable $e) {
             DB::rollBack();
