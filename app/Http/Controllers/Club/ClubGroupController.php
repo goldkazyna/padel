@@ -295,6 +295,15 @@ class ClubGroupController extends Controller
             'created_by' => auth()->id(),
         ]);
 
+        // Заморозка продлевает абонемент на свою длительность (если дата окончания задана).
+        $freezeDays = \Carbon\Carbon::parse($validated['freeze_from'])
+            ->diffInDays(\Carbon\Carbon::parse($validated['freeze_until']));
+        if ($member->subscription_ends_at && $freezeDays > 0) {
+            $member->update([
+                'subscription_ends_at' => $member->subscription_ends_at->copy()->addDays($freezeDays),
+            ]);
+        }
+
         return back()->with('success', 'Заморозка добавлена');
     }
 
@@ -304,6 +313,14 @@ class ClubGroupController extends Controller
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
         if ($freeze->group_member_id !== $member->id) abort(403);
+
+        // Снятие заморозки откатывает продление абонемента на её длительность.
+        $freezeDays = $freeze->freeze_from->diffInDays($freeze->freeze_until);
+        if ($member->subscription_ends_at && $freezeDays > 0) {
+            $member->update([
+                'subscription_ends_at' => $member->subscription_ends_at->copy()->subDays($freezeDays),
+            ]);
+        }
 
         $freeze->delete();
         return back()->with('success', 'Заморозка снята');
