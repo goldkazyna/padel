@@ -210,6 +210,7 @@ class ClubGroupController extends Controller
             'amount' => 'nullable|numeric|min:0',
             'is_paid' => 'nullable|boolean',
             'subscription_ends_at' => 'nullable|date',
+            'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
 
         $client = \App\Models\ClubClient::find($validated['client_id']);
@@ -260,6 +261,7 @@ class ClubGroupController extends Controller
             'sessions' => 'required|integer|min:1|max:200',
             'amount' => 'nullable|numeric|min:0',
             'is_paid' => 'nullable|boolean',
+            'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
         $this->createEnrollment($member, $validated);
 
@@ -333,6 +335,7 @@ class ClubGroupController extends Controller
             'sessions' => $validated['sessions'],
             'amount' => $validated['amount'] ?? 0,
             'is_paid' => (bool) ($validated['is_paid'] ?? false),
+            'payment_method' => $validated['payment_method'] ?? null,
             'created_by' => auth()->id(),
         ]);
     }

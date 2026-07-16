@@ -213,6 +213,30 @@
                     <input type="date" name="subscription_ends_at" class="form-input" value="{{ old('subscription_ends_at') }}">
                     <small style="color:#71717a;font-size:12px;">Необязательно</small>
                 </div>
+                @php
+                    $pmOptions = [
+                        ['cash', 'Наличные', 'bi-cash-stack'],
+                        ['card', 'Карта', 'bi-credit-card-2-front'],
+                        ['kaspi', 'Kaspi', 'bi-qr-code'],
+                        ['certificate', 'Сертификат', 'bi-award'],
+                        ['club_card', 'Клубная карта', 'bi-person-vcard'],
+                        ['deposit', 'Депозит', 'bi-wallet2'],
+                        ['cashback', 'Кешбэк', 'bi-arrow-repeat'],
+                        ['cashless', 'Безналичный', 'bi-bank'],
+                        ['free', 'Бесплатно', 'bi-gift'],
+                    ];
+                @endphp
+                <div class="form-group">
+                    <label class="form-label">Способ оплаты</label>
+                    <input type="hidden" name="payment_method" id="addPayMethod" value="">
+                    <div class="pm-grid" id="addPayGrid">
+                        @foreach($pmOptions as [$pv, $pl, $pi])
+                        <button type="button" class="pm-chip" data-v="{{ $pv }}" onclick="pmPick('add', this)">
+                            <i class="bi {{ $pi }}"></i><span>{{ $pl }}</span>
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
                 <div class="form-check-row">
                     <input type="checkbox" name="is_paid" value="1" id="addIsPaid" class="form-check-box" checked>
                     <label class="form-check-label" for="addIsPaid">Оплачено</label>
@@ -246,6 +270,17 @@
                     <div class="form-group">
                         <label class="form-label">Сумма (₸)</label>
                         <input type="number" name="amount" class="form-input" min="0" step="100" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Способ оплаты</label>
+                    <input type="hidden" name="payment_method" id="enrollPayMethod" value="">
+                    <div class="pm-grid" id="enrollPayGrid">
+                        @foreach($pmOptions as [$pv, $pl, $pi])
+                        <button type="button" class="pm-chip" data-v="{{ $pv }}" onclick="pmPick('enroll', this)">
+                            <i class="bi {{ $pi }}"></i><span>{{ $pl }}</span>
+                        </button>
+                        @endforeach
                     </div>
                 </div>
                 <div class="form-check-row">
@@ -408,7 +443,23 @@
     function openEnrollModal(memberId) {
         var form = document.getElementById('enrollForm');
         form.action = enrollRoutes[memberId] || '';
+        pmReset('enroll');
         document.getElementById('enrollModal').style.display = 'flex';
+    }
+
+    // Компактный селектор способа оплаты (переиспользует коды из брони кортов).
+    function pmPick(prefix, el) {
+        var grid = document.getElementById(prefix + 'PayGrid');
+        if (grid) grid.querySelectorAll('.pm-chip').forEach(function (b) { b.classList.remove('active'); });
+        el.classList.add('active');
+        var inp = document.getElementById(prefix + 'PayMethod');
+        if (inp) inp.value = el.getAttribute('data-v');
+    }
+    function pmReset(prefix) {
+        var grid = document.getElementById(prefix + 'PayGrid');
+        if (grid) grid.querySelectorAll('.pm-chip').forEach(function (b) { b.classList.remove('active'); });
+        var inp = document.getElementById(prefix + 'PayMethod');
+        if (inp) inp.value = '';
     }
 
     var memberEditData = {
@@ -534,6 +585,11 @@
     .action-remove:hover { border-color: #ef4444; color: #ef4444; }
     .action-freeze:hover { border-color: #38bdf8; color: #38bdf8; }
     .action-edit:hover { border-color: #f59e0b; color: #f59e0b; }
+    .pm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .pm-chip { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 10.5px; line-height: 1.15; text-align: center; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+    .pm-chip i { font-size: 15px; }
+    .pm-chip:hover { border-color: #3f3f46; color: #d4d4d8; }
+    .pm-chip.active { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
     .freeze-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,.12); border-radius: 6px; padding: 2px 7px; }
     .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px 20px; }
     .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
