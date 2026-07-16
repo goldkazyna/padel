@@ -925,6 +925,51 @@ class AmericanoFlexService
     }
 
     /**
+     * Пересчитать дельты рейтинга флекса БЕЗ применения (для проверки/ремонта).
+     * Матчи 0:0 не учитываются. Возвращает [user_id => new_delta].
+     */
+    public function recomputeRatingDeltas(Tournament $tournament): array
+    {
+        $roundIds = $tournament->americanoFlexRounds()
+            ->orderBy('round_number')
+            ->pluck('id');
+
+        $matches = AmericanoFlexMatch::whereIn('americano_flex_round_id', $roundIds)
+            ->where('status', 'completed')
+            ->orderBy('americano_flex_round_id')
+            ->orderBy('id')
+            ->get();
+
+        $players = $tournament->americanoFlexPlayers()->with('user')->get()->keyBy('user_id');
+        $current = [];
+        foreach ($players as $p) {
+            $current[$p->user_id] = $p->rating_before ?? 1500;
+        }
+
+        foreach ($matches as $m) {
+            if ((int) $m->team1_score === 0 && (int) $m->team2_score === 0) continue;
+            $r11 = $current[$m->team1_player1_id];
+            $r12 = $current[$m->team1_player2_id];
+            $r21 = $current[$m->team2_player1_id];
+            $r22 = $current[$m->team2_player2_id];
+            $t1 = ($r11 + $r12) / 2;
+            $t2 = ($r21 + $r22) / 2;
+            $res = $this->calculateRatingChange($t1, $t2, $m->team1_score, $m->team2_score);
+            $current[$m->team1_player1_id] = $this->applyRatingChange($r11, $res['change1']);
+            $current[$m->team1_player2_id] = $this->applyRatingChange($r12, $res['change1']);
+            $current[$m->team2_player1_id] = $this->applyRatingChange($r21, $res['change2']);
+            $current[$m->team2_player2_id] = $this->applyRatingChange($r22, $res['change2']);
+        }
+
+        $deltas = [];
+        foreach ($players as $uid => $p) {
+            $before = (int) ($p->rating_before ?? 1500);
+            $deltas[$uid] = (int) $current[$uid] - $before;
+        }
+        return $deltas;
+    }
+
+    /**
      * Лидерборд: коллекция AmericanoFlexPlayer, сортировка по среднему DESC.
      */
     public function getLeaderboard(Tournament $tournament): Collection
