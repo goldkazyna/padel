@@ -209,6 +209,7 @@ class ClubGroupController extends Controller
             'sessions' => 'required|integer|min:1|max:200',
             'amount' => 'nullable|numeric|min:0',
             'is_paid' => 'nullable|boolean',
+            'subscription_ends_at' => 'nullable|date',
         ]);
 
         $client = \App\Models\ClubClient::find($validated['client_id']);
@@ -226,6 +227,7 @@ class ClubGroupController extends Controller
         $member = \App\Models\ClubGroupMember::create([
             'group_id' => $group->id,
             'client_id' => $client->id,
+            'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
         ]);
         $this->createEnrollment($member, $validated);
 
@@ -233,6 +235,20 @@ class ClubGroupController extends Controller
             "В группу «{$group->name}» добавлен {$client->name} ({$validated['sessions']} занятий)", clubId: $club->id);
 
         return back()->with('success', 'Участник добавлен');
+    }
+
+    /** Обновить абонемент участника (пока только опциональная дата окончания). */
+    public function updateMember(Request $request, ClubGroup $group, \App\Models\ClubGroupMember $member)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+
+        $validated = $request->validate([
+            'subscription_ends_at' => 'nullable|date',
+        ]);
+        $member->update(['subscription_ends_at' => $validated['subscription_ends_at'] ?? null]);
+
+        return back()->with('success', 'Абонемент участника обновлён');
     }
 
     public function enroll(Request $request, ClubGroup $group, \App\Models\ClubGroupMember $member)

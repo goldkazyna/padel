@@ -95,11 +95,17 @@
                         <div class="member-name">
                             {{ optional($member->client)->name ?? '—' }}
                             @if($activeFreeze)<span class="freeze-badge" title="Заморожен">❄ до {{ $activeFreeze->freeze_until->format('d.m.y') }}</span>@endif
+                            @if($member->subscription_ends_at)
+                                <span style="display:block;font-size:12px;margin-top:2px;color:{{ $member->subscription_ends_at->lt($today) ? '#ef4444' : '#71717a' }};">
+                                    Абонемент до {{ $member->subscription_ends_at->format('d.m.Y') }}{{ $member->subscription_ends_at->lt($today) ? ' · истёк' : '' }}
+                                </span>
+                            @endif
                         </div>
                         <div class="member-right">
                             <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
                             <button class="action-btn action-freeze" onclick="openFreezeModal({{ $member->id }})" title="Заморозить">❄</button>
                             <button class="action-btn action-renew" onclick="openEnrollModal({{ $member->id }})" title="Продлить">+</button>
+                            <button class="action-btn action-edit" onclick="openEditMemberModal({{ $member->id }})" title="Абонемент">✎</button>
                             <form method="POST"
                                   action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
                                   onsubmit="return confirm('Убрать участника из группы?')"
@@ -202,6 +208,11 @@
                                value="{{ old('amount', $group->price_per_session * 8) }}">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Дата окончания абонемента</label>
+                    <input type="date" name="subscription_ends_at" class="form-input" value="{{ old('subscription_ends_at') }}">
+                    <small style="color:#71717a;font-size:12px;">Необязательно</small>
+                </div>
                 <div class="form-check-row">
                     <input type="checkbox" name="is_paid" value="1" id="addIsPaid" class="form-check-box" checked>
                     <label class="form-check-label" for="addIsPaid">Оплачено</label>
@@ -281,6 +292,33 @@
             <div class="modal-footer-row">
                 <button type="button" class="btn-cancel" onclick="document.getElementById('freezeModal').style.display='none'">Отмена</button>
                 <button type="submit" class="btn-save">Заморозить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модал редактирования абонемента участника -->
+<div id="editMemberModal"
+     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
+     onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header-row">
+            <h5 class="modal-title-text">Абонемент участника</h5>
+            <button type="button" class="modal-close-btn" onclick="document.getElementById('editMemberModal').style.display='none'">&#10005;</button>
+        </div>
+        <form id="editMemberForm" method="POST" action="">
+            @csrf
+            @method('PUT')
+            <div class="modal-body-area">
+                <div class="form-group">
+                    <label class="form-label">Дата окончания абонемента</label>
+                    <input type="date" name="subscription_ends_at" id="editMemberEndsAt" class="form-input">
+                    <small style="color:#71717a;font-size:12px;">Необязательно. Оставьте пустым, чтобы убрать дату.</small>
+                </div>
+            </div>
+            <div class="modal-footer-row">
+                <button type="button" class="btn-cancel" onclick="document.getElementById('editMemberModal').style.display='none'">Отмена</button>
+                <button type="submit" class="btn-save">Сохранить</button>
             </div>
         </form>
     </div>
@@ -371,6 +409,18 @@
         var form = document.getElementById('enrollForm');
         form.action = enrollRoutes[memberId] || '';
         document.getElementById('enrollModal').style.display = 'flex';
+    }
+
+    var memberEditData = {
+        @foreach($group->members->where('status', 'active') as $member)
+        {{ $member->id }}: { url: "{{ route('club.groups.members.update', [$group, $member]) }}", date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}" },
+        @endforeach
+    };
+    function openEditMemberModal(memberId) {
+        var d = memberEditData[memberId] || {};
+        document.getElementById('editMemberForm').action = d.url || '';
+        document.getElementById('editMemberEndsAt').value = d.date || '';
+        document.getElementById('editMemberModal').style.display = 'flex';
     }
 
     // Динамический поиск клиента (по имени или телефону) для добавления в группу
@@ -483,6 +533,7 @@
     .action-renew:hover { border-color: #22c55e; color: #22c55e; }
     .action-remove:hover { border-color: #ef4444; color: #ef4444; }
     .action-freeze:hover { border-color: #38bdf8; color: #38bdf8; }
+    .action-edit:hover { border-color: #f59e0b; color: #f59e0b; }
     .freeze-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,.12); border-radius: 6px; padding: 2px 7px; }
     .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px 20px; }
     .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
