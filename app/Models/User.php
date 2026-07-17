@@ -425,6 +425,28 @@ class User extends Authenticatable
 			}
 		}
 
+		// Just Padel It (player-based, как King of Court)
+		$jpiMatches = \App\Models\JustPadelItMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+
+		foreach ($jpiMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+
 		// Плей-офф матчи Американо/Мексикано (по player_id)
 		$playoffPlayerMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
 			->whereNotNull('team1_player1_id') // Это Американо/Мексикано матч
@@ -839,6 +861,76 @@ class User extends Authenticatable
 				'score' => $isTeam1 ? "{$match->team1_score}:{$match->team2_score}" : "{$match->team2_score}:{$match->team1_score}",
 				'won' => $won,
 			];
+		}
+
+		// Just Padel It (player-based, как King of Court)
+		$jpiMatches = \App\Models\JustPadelItMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})
+			->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+			->get();
+
+		foreach ($jpiMatches as $match) {
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+			$won = ($isTeam1 && $match->team1_score > $match->team2_score) || (!$isTeam1 && $match->team2_score > $match->team1_score);
+
+			$partner = $isTeam1
+				? ($match->team1_player1_id == $this->id ? $match->team1Player2 : $match->team1Player1)
+				: ($match->team2_player1_id == $this->id ? $match->team2Player2 : $match->team2Player1);
+
+			$opponents = $isTeam1
+				? [$match->team2Player1, $match->team2Player2]
+				: [$match->team1Player1, $match->team1Player2];
+
+			$matches[] = [
+				'type' => 'Just Padel It',
+				'tournament' => $match->round->tournament->name ?? 'Турнир',
+				'date' => $match->updated_at,
+				'partner' => $partner->full_name ?? '',
+				'opponents' => ($opponents[0]->full_name ?? '') . ' / ' . ($opponents[1]->full_name ?? ''),
+				'score' => $isTeam1 ? "{$match->team1_score}:{$match->team2_score}" : "{$match->team2_score}:{$match->team1_score}",
+				'won' => $won,
+			];
+		}
+
+		// Bali King of Court (пары pair1/pair2, счёт по геймам)
+		$baliPairIds = \App\Models\BaliKocPair::where('player1_id', $this->id)
+			->orWhere('player2_id', $this->id)
+			->pluck('id');
+		if ($baliPairIds->count() > 0) {
+			$baliMatches = \App\Models\BaliKocMatch::where('status', 'completed')
+				->where(function($q) use ($baliPairIds) {
+					$q->whereIn('pair1_id', $baliPairIds)->orWhereIn('pair2_id', $baliPairIds);
+				})
+				->with(['pair1.player1', 'pair1.player2', 'pair2.player1', 'pair2.player2', 'round.tournament'])
+				->get();
+
+			foreach ($baliMatches as $match) {
+				$isPair1 = $baliPairIds->contains($match->pair1_id);
+				$myScore = $isPair1 ? $match->pair1_games : $match->pair2_games;
+				$oppScore = $isPair1 ? $match->pair2_games : $match->pair1_games;
+				$won = $myScore > $oppScore;
+
+				$myPair = $isPair1 ? $match->pair1 : $match->pair2;
+				$oppPair = $isPair1 ? $match->pair2 : $match->pair1;
+				$partner = $myPair
+					? ($myPair->player1_id == $this->id ? $myPair->player2 : $myPair->player1)
+					: null;
+
+				$matches[] = [
+					'type' => 'Bali King of Court',
+					'tournament' => $match->round->tournament->name ?? 'Турнир',
+					'date' => $match->updated_at,
+					'partner' => $partner->full_name ?? '',
+					'opponents' => ($oppPair && $oppPair->player1 ? $oppPair->player1->full_name : '') . ' / ' . ($oppPair && $oppPair->player2 ? $oppPair->player2->full_name : ''),
+					'score' => "{$myScore}:{$oppScore}",
+					'won' => $won,
+				];
+			}
 		}
 
 		// Сортируем по дате (новые первыми)

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AmericanoFlexMatch;
 use App\Models\AmericanoMatch;
+use App\Models\BaliKocMatch;
+use App\Models\BaliKocPair;
+use App\Models\JustPadelItMatch;
 use App\Models\KingOfCourtMatch;
 use App\Models\MexicanoMatch;
 use App\Models\RoundRobinMatch;
@@ -139,6 +142,39 @@ class MobileMatchController extends Controller
             $matches[] = $this->formatPlayerMatch($match, $userId, 'king_of_court', $tournament);
         }
 
+        // Just Padel It (player-based, как King of Court)
+        $jpiMatches = JustPadelItMatch::where('status', 'completed')
+            ->where(function ($q) use ($userId) {
+                $q->where('team1_player1_id', $userId)
+                  ->orWhere('team1_player2_id', $userId)
+                  ->orWhere('team2_player1_id', $userId)
+                  ->orWhere('team2_player2_id', $userId);
+            })
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+            ->get();
+
+        foreach ($jpiMatches as $match) {
+            $tournament = $match->round->tournament ?? null;
+            $matches[] = $this->formatPlayerMatch($match, $userId, 'just_padel_it', $tournament);
+        }
+
+        // Bali King of Court (пары: pair1/pair2, счёт по геймам)
+        $baliPairIds = BaliKocPair::where('player1_id', $userId)
+            ->orWhere('player2_id', $userId)
+            ->pluck('id');
+        if ($baliPairIds->count() > 0) {
+            $baliMatches = BaliKocMatch::where('status', 'completed')
+                ->where(function ($q) use ($baliPairIds) {
+                    $q->whereIn('pair1_id', $baliPairIds)->orWhereIn('pair2_id', $baliPairIds);
+                })
+                ->with(['pair1.player1', 'pair1.player2', 'pair2.player1', 'pair2.player2', 'round.tournament'])
+                ->get();
+
+            foreach ($baliMatches as $match) {
+                $matches[] = $this->formatBaliMatch($match, $userId, $baliPairIds);
+            }
+        }
+
         // Плей-офф американо/мексикано (по player_id)
         $playoffPlayerMatches = TournamentPlayoffMatch::where('status', 'completed')
             ->whereNotNull('team1_player1_id')
@@ -215,6 +251,47 @@ class MobileMatchController extends Controller
             'tournament_name' => $tournament->name ?? 'Турнир',
             'date' => $tournament->start_date?->format('Y-m-d') ?? $match->updated_at->format('Y-m-d'),
             'format' => $format,
+            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            'score' => "{$myScore}:{$oppScore}",
+            'partner' => $partner ? [
+                'id' => $partner->id,
+                'name' => $partner->name,
+                'avatar' => $partner->avatar,
+            ] : null,
+            'opponents' => array_values(array_filter(array_map(fn($o) => $o ? [
+                'id' => $o->id,
+                'name' => $o->name,
+                'avatar' => $o->avatar,
+            ] : null, $opponents))),
+            'sort_date' => $match->updated_at->timestamp,
+        ];
+    }
+
+    /**
+     * Форматировать матч Bali KOC (пары pair1/pair2, счёт по геймам).
+     */
+    private function formatBaliMatch($match, int $userId, $pairIds): array
+    {
+        $isPair1 = $pairIds->contains($match->pair1_id);
+
+        $myScore = $isPair1 ? $match->pair1_games : $match->pair2_games;
+        $oppScore = $isPair1 ? $match->pair2_games : $match->pair1_games;
+
+        $myPair = $isPair1 ? $match->pair1 : $match->pair2;
+        $oppPair = $isPair1 ? $match->pair2 : $match->pair1;
+
+        $partner = $myPair
+            ? ($myPair->player1_id == $userId ? $myPair->player2 : $myPair->player1)
+            : null;
+        $opponents = $oppPair ? [$oppPair->player1, $oppPair->player2] : [];
+
+        $tournament = $match->round->tournament ?? null;
+
+        return [
+            'id' => $match->id,
+            'tournament_name' => $tournament->name ?? 'Турнир',
+            'date' => $tournament->start_date?->format('Y-m-d') ?? $match->updated_at->format('Y-m-d'),
+            'format' => 'bali_koc',
             'result' => $myScore > $oppScore ? 'win' : 'loss',
             'score' => "{$myScore}:{$oppScore}",
             'partner' => $partner ? [
