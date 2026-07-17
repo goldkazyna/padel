@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AmericanoFlexMatch;
 use App\Models\AmericanoMatch;
+use App\Models\KingOfCourtMatch;
 use App\Models\MexicanoMatch;
 use App\Models\RoundRobinMatch;
 use App\Models\TournamentGroupMatch;
@@ -120,6 +121,22 @@ class MobileMatchController extends Controller
         foreach ($roundRobinMatches as $match) {
             $tournament = $match->round->tournament ?? null;
             $matches[] = $this->formatPlayerMatch($match, $userId, 'round_robin', $tournament);
+        }
+
+        // Король корта (King of Court)
+        $kocMatches = KingOfCourtMatch::where('status', 'completed')
+            ->where(function ($q) use ($userId) {
+                $q->where('team1_player1_id', $userId)
+                  ->orWhere('team1_player2_id', $userId)
+                  ->orWhere('team2_player1_id', $userId)
+                  ->orWhere('team2_player2_id', $userId);
+            })
+            ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2', 'round.tournament'])
+            ->get();
+
+        foreach ($kocMatches as $match) {
+            $tournament = $match->round->tournament ?? null;
+            $matches[] = $this->formatPlayerMatch($match, $userId, 'king_of_court', $tournament);
         }
 
         // Плей-офф американо/мексикано (по player_id)
