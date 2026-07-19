@@ -198,7 +198,8 @@
 			</div>
             <div class="collapsible-content" id="rounds-{{ $group->id }}">
             <div class="rounds-grid">
-                @foreach($group->rounds as $round)
+                {{-- Нераскрытые (pending) раунды не показываем — открываются кнопкой «Сгенерировать раунд». --}}
+                @foreach($group->rounds->where('status', '!=', 'pending') as $round)
                     <div class="round-card {{ $round->status === 'in_progress' ? 'active' : ($round->isCompleted() ? 'completed' : 'pending') }}" data-round-id="{{ $round->id }}">
                         <div class="round-header">
                             <div class="round-title">
