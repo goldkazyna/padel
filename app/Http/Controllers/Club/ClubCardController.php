@@ -87,10 +87,7 @@ class ClubCardController extends Controller
             'available' => $c->isCounter() ? $cardService->availableBalance($c, $excludeBookingId) : null,
             'discount_percent' => $c->type?->discount_percent,
             'price' => $c->type?->price,          // стоимость карты
-            'nominal' => $c->type?->nominal,      // число занятий типа (для цены за визит)
-            // Реальная ёмкость именно этой карты (могли выпустить не на полный номинал).
-            // Для отображения «осталось X/Y» знаменатель = ёмкость карты, а не номинал типа.
-            'capacity' => $c->initial_balance ?? $c->type?->nominal,
+            'nominal' => $c->type?->nominal,      // число занятий (для цены за визит)
             'inactive' => $inactive,
         ];
 

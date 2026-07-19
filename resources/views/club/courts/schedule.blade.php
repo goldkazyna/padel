@@ -1127,8 +1127,7 @@
                     const noHours = !!c.is_counter && avail <= 0; // все часы зарезервированы
                     const isPre = String(c.id) === String(preselectId);
                     const blocked = (c.inactive || noHours) && !isPre;
-                    const cap = (c.capacity != null ? c.capacity : c.nominal);
-                    const sub = c.is_counter ? ('осталось ' + avail + '/' + cap + ' ч')
+                    const sub = c.is_counter ? ('осталось ' + avail + '/' + c.nominal + ' ч')
                                              : ('скидка −' + c.discount_percent + '%');
                     let note = '';
                     if (c.inactive) note = ' · списано, не активна';
