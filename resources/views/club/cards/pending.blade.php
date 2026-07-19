@@ -33,7 +33,10 @@
                 $tag = $tname ? mb_substr(trim(explode(' ', $tname)[0]), 0, 14) : '';
                 $cls = $typeCls[$card?->club_card_type_id] ?? 't-purple';
                 $bal = (int) ($card?->balance ?? 0);
-                $hours = (int) round(max(0, \Carbon\Carbon::parse(substr($b->start_time,0,5))->diffInMinutes(\Carbon\Carbon::parse(substr($b->end_time,0,5)))) / 60);
+                $hStart = \Carbon\Carbon::parse(substr($b->start_time, 0, 5));
+                $hEnd = \Carbon\Carbon::parse(substr($b->end_time, 0, 5));
+                if ($hEnd->lessThanOrEqualTo($hStart)) $hEnd->addDay(); // бронь через полночь (22:00–00:00)
+                $hours = (int) round($hStart->diffInMinutes($hEnd) / 60);
             @endphp
             <div class="cc-prow">
                 <div class="cc-av" style="background:{{ $avColor }}">{{ $initials ?: '?' }}</div>
