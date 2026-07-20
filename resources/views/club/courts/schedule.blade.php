@@ -664,16 +664,22 @@
                             @php
                                 $gmFreezeDate = \Illuminate\Support\Carbon::parse($date);
                                 $groupMembersData = $activeGroups->mapWithKeys(function ($g) use ($gmFreezeDate) {
+                                    $plannedSessions = $g->sessions; // уже отфильтрованы (status=planned) в eager-load
                                     return [$g->id => [
                                         'coach_id' => $g->coach_id,
                                         'price' => (float) $g->price_per_session,
-                                        'members' => $g->members->map(function ($m) use ($gmFreezeDate) {
+                                        'members' => $g->members->map(function ($m) use ($gmFreezeDate, $plannedSessions) {
                                             $bought = (int) $m->enrollments->sum('sessions');
                                             $used = (int) $m->attendance->where('charged', true)->count();
+                                            // Резерв: запланированные занятия группы, где участник НЕ заморожен
+                                            // на дату занятия — они спишутся при проведении.
+                                            $reserved = $plannedSessions->filter(function ($s) use ($m) {
+                                                return !$m->freezes->contains(fn($f) => $f->freeze_from->lte($s->date) && $f->freeze_until->gte($s->date));
+                                            })->count();
                                             $freeze = $m->freezes->first(fn($f) => $f->freeze_from->lte($gmFreezeDate) && $f->freeze_until->gte($gmFreezeDate));
                                             return [
                                                 'name' => optional($m->client)->name ?? '—',
-                                                'remaining' => $bought - $used,
+                                                'remaining' => max(0, ($bought - $used) - $reserved),
                                                 'frozen' => $freeze !== null,
                                                 'frozen_until' => $freeze ? $freeze->freeze_until->format('d.m.y') : null,
                                             ];

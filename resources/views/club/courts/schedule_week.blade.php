@@ -1158,15 +1158,21 @@
                             </div>
                             @php
                                 $groupMembersData = $activeGroups->mapWithKeys(function ($g) {
+                                    $plannedSessions = $g->sessions; // уже отфильтрованы (status=planned) в eager-load
                                     return [$g->id => [
                                         'coach_id' => $g->coach_id,
                                         'price' => (float) $g->price_per_session,
-                                        'members' => $g->members->map(function ($m) {
+                                        'members' => $g->members->map(function ($m) use ($plannedSessions) {
                                             $bought = (int) $m->enrollments->sum('sessions');
                                             $used = (int) $m->attendance->where('charged', true)->count();
+                                            // Резерв: запланированные занятия группы, где участник НЕ заморожен
+                                            // на дату занятия — они спишутся при проведении.
+                                            $reserved = $plannedSessions->filter(function ($s) use ($m) {
+                                                return !$m->freezes->contains(fn($f) => $f->freeze_from->lte($s->date) && $f->freeze_until->gte($s->date));
+                                            })->count();
                                             return [
                                                 'name' => optional($m->client)->name ?? '—',
-                                                'remaining' => $bought - $used,
+                                                'remaining' => max(0, ($bought - $used) - $reserved),
                                                 // Диапазоны заморозок — флаг считаем в JS на дату выбранного слота.
                                                 'freezes' => $m->freezes->map(fn($f) => [
                                                     'from' => $f->freeze_from->toDateString(),
