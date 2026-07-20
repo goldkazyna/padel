@@ -1180,28 +1180,26 @@ class TeamTournamentService
         $all = $tournament->playoffMatches()->get();
         foreach ($all as $next) {
             if ($next->id === $match->id) continue;
+            // Уже сыгранный следующий матч не трогаем — иначе затрём его результат.
+            if ($next->status === 'completed') continue;
             $updated = false;
 
-            // Для bronze-матча после semi разрешаем перезапись team_id
-            // (защита от случая, когда bronze был ошибочно заполнен ранее
-            // quarter-проигравшим из-за коллизии match_number QF vs SF).
-            $bronzeOverwrite = $next->is_bronze && $match->stage === 'semi';
-
-            // Победитель → следующий матч
-            if (!$next->team1_id && in_array($next->team1_source, $winSrcs, true)) {
+            // Победитель → следующий матч. Перезаписываем место, даже если оно уже
+            // занято: при правке счёта полуфинала победитель мог смениться, и финал
+            // должен обновиться. (Раньше был guard !team_id — из-за него финал держал
+            // старую пару после исправления счёта ПФ.)
+            if (in_array($next->team1_source, $winSrcs, true)) {
                 $next->team1_id = $winnerId;
                 $updated = true;
-            } elseif (!$next->team2_id && in_array($next->team2_source, $winSrcs, true)) {
+            } elseif (in_array($next->team2_source, $winSrcs, true)) {
                 $next->team2_id = $winnerId;
                 $updated = true;
             }
-            // Проигравший → bronze (с overwrite если это semi-источник)
-            if ((!$next->team1_id || $bronzeOverwrite)
-                && in_array($next->team1_source, $loseSrcs, true)) {
+            // Проигравший → матч за 3-е место (аналогично перезаписываем).
+            if (in_array($next->team1_source, $loseSrcs, true)) {
                 $next->team1_id = $loserId;
                 $updated = true;
-            } elseif ((!$next->team2_id || $bronzeOverwrite)
-                && in_array($next->team2_source, $loseSrcs, true)) {
+            } elseif (in_array($next->team2_source, $loseSrcs, true)) {
                 $next->team2_id = $loserId;
                 $updated = true;
             }
