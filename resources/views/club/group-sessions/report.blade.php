@@ -36,6 +36,9 @@
         <label>С <input type="date" name="from" value="{{ $from->format('Y-m-d') }}" class="gr-date"></label>
         <label>по <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" class="gr-date"></label>
         <button type="submit" class="gr-btn gr-green">Показать</button>
+        @if($sessions->isNotEmpty())
+        <button type="button" id="gr-export" class="gr-btn gr-excel">📥 Выгрузить в Excel</button>
+        @endif
         <span class="gr-summary">
             Занятий: <b>{{ $sessions->count() }}</b> ·
             <span class="s-held">проведено {{ $held }}</span> ·
@@ -55,14 +58,14 @@
             <span>Дата</span><span>Время</span><span>Группа</span><span>Тренер</span><span>Корт</span><span>Статус</span><span>Присут.</span><span>Списано</span>
         </div>
         <div class="gr-filterrow">
-            <input type="text" data-col="date" placeholder="фильтр" class="gr-fi">
-            <input type="text" data-col="time" placeholder="фильтр" class="gr-fi">
+            <span></span>
+            <span></span>
             <select data-col="group" class="gr-fi"><option value="">Все</option>@foreach($groupsList as $g)<option value="{{ $g }}">{{ $g }}</option>@endforeach</select>
             <select data-col="coach" class="gr-fi"><option value="">Все</option>@foreach($coachesList as $c)<option value="{{ $c }}">{{ $c }}</option>@endforeach</select>
             <select data-col="court" class="gr-fi"><option value="">Все</option>@foreach($courtsList as $c)<option value="{{ $c }}">{{ $c }}</option>@endforeach</select>
             <select data-col="status" class="gr-fi"><option value="">Все</option><option value="Проведено">Проведено</option><option value="Запланировано">Запланировано</option><option value="Отменено">Отменено</option></select>
-            <input type="text" data-col="att" placeholder="фильтр" class="gr-fi">
-            <input type="text" data-col="charged" placeholder="фильтр" class="gr-fi">
+            <span></span>
+            <span></span>
         </div>
         @foreach($sessions as $s)
         @php [$stLabel, $stCls] = $statusMap[$s->status] ?? [$s->status, '']; @endphp
@@ -112,6 +115,8 @@
 .gr-btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;padding:9px 15px;text-decoration:none;display:inline-flex;align-items:center}
 .gr-ghost{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)}
 .gr-green{background:var(--accent);color:#06210f}
+.gr-excel{background:#217346;color:#fff}
+.gr-excel:hover{background:#1a5c38}
 .gr-sub{color:var(--text-secondary);font-size:13px;margin:2px 0 16px}
 .gr-filter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .gr-filter label{color:var(--text-secondary);font-size:13px;display:inline-flex;align-items:center;gap:6px}
@@ -180,6 +185,42 @@ select.gr-fi{cursor:pointer}
     if(reset) reset.addEventListener('click', function(){
         controls.forEach(function(c){ c.value = ''; });
         apply();
+    });
+
+    // Выгрузка отфильтрованных строк в Excel (.xls через HTML-таблицу).
+    var exportBtn = document.getElementById('gr-export');
+    if(exportBtn) exportBtn.addEventListener('click', function(){
+        var esc = function(s){ return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+        var headers = ['Дата','Время','Группа','Тренер','Корт','Статус','Присутствовало','Списано'];
+        var cols = ['date','time','group','coach','court','status','att','charged'];
+        var visible = rows.filter(function(r){ return r.style.display !== 'none'; });
+        var html = '<table border="1"><thead><tr>';
+        headers.forEach(function(h){ html += '<th>' + esc(h) + '</th>'; });
+        html += '</tr></thead><tbody>';
+        visible.forEach(function(r){
+            html += '<tr>';
+            cols.forEach(function(c){
+                var v = r.getAttribute('data-' + c) || '';
+                if((c === 'att' || c === 'charged') && v === '') v = '—';
+                html += '<td>' + esc(v) + '</td>';
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        var full = '﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>' + html + '</body></html>';
+        var blob = new Blob([full], { type: 'application/vnd.ms-excel' });
+        var fromEl = document.querySelector('input[name="from"]');
+        var toEl = document.querySelector('input[name="to"]');
+        var fname = 'otchet-raspisaniya';
+        if(fromEl && toEl && fromEl.value && toEl.value) fname += '_' + fromEl.value + '_' + toEl.value;
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
     });
 })();
 </script>
