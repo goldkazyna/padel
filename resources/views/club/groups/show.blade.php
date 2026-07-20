@@ -1,177 +1,310 @@
 @extends('layouts.app')
 @section('title', $group->name)
 
+@push('styles')
+<style>
+    .gsch-wrap { max-width: 1000px; margin: 0 auto; padding: 8px 4px 40px; }
+
+    /* Шапка */
+    .gsch-head { display: flex; align-items: center; gap: 14px; margin: 8px 0 20px; }
+    .gsch-back { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.07); color: #cfd3d6; font-size: 18px; text-decoration: none; transition: .15s; }
+    .gsch-back:hover { border-color: #2f3439; color: #fff; }
+    .gsch-title { font-size: 22px; font-weight: 800; color: #f4f6f7; line-height: 1.1; }
+    .gsch-sub { font-size: 13px; color: #8b9298; margin-top: 3px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+    .gsch-sub .meta-price { color: #34d17f; font-weight: 600; }
+
+    .badge-active { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(34,197,94,0.14); color: #34d17f; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+    .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(139,146,152,0.14); color: #8b9298; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+
+    .gs-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .gs-mbtn { display: inline-flex; align-items: center; gap: 7px; background: #15181A; color: #cfd3d6; border: 1px solid rgba(255,255,255,0.08); padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: .15s; }
+    .gs-mbtn.edit:hover { border-color: #4d8ff0; color: #6aa4f5; }
+    .gs-mbtn.arch:hover { border-color: #eab34e; color: #edbf63; }
+    .gs-mbtn.unarch:hover { border-color: #22c55e; color: #34d17f; }
+    .gs-mbtn.del:hover { border-color: #e5564e; color: #ef7a73; }
+
+    .flash-message { padding: 13px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+    .flash-success { background: rgba(34,197,94,0.14); color: #34d17f; }
+    .flash-error { background: rgba(229,86,78,0.14); color: #ef7a73; }
+    .note-card { display: flex; align-items: flex-start; gap: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; }
+    .note-icon { font-size: 17px; color: #34d17f; flex-shrink: 0; }
+    .note-text { font-size: 14px; color: #9aa1a7; font-weight: 500; line-height: 1.5; }
+
+    /* Сводка */
+    .gsch-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+    .gsch-stat { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px 16px; }
+    .gsch-stat .v { font-size: 22px; font-weight: 800; color: #f4f6f7; line-height: 1; }
+    .gsch-stat .l { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #6b7278; margin-top: 6px; }
+    .gsch-stat.green .v { color: #22c55e; }
+
+    .gsch-sec-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #6b7278; margin: 22px 0 10px 4px; }
+
+    /* Карточка занятия */
+    .gsch-card { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 0; margin-bottom: 12px; overflow: hidden; }
+    .gsch-card-top { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+    .gsch-date { flex-shrink: 0; text-align: center; width: 52px; }
+    .gsch-date .d { font-size: 22px; font-weight: 800; color: #f4f6f7; line-height: 1; }
+    .gsch-date .m { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #7c848a; margin-top: 3px; }
+    .gsch-meta { flex: 1; min-width: 0; }
+    .gsch-meta .r1 { font-size: 15px; font-weight: 700; color: #eef1f2; }
+    .gsch-meta .r2 { font-size: 12.5px; color: #8b9298; margin-top: 3px; }
+    .gsch-pill { flex-shrink: 0; font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; padding: 5px 11px; border-radius: 999px; }
+    .pill-held { background: rgba(34,197,94,0.14); color: #34d17f; }
+    .pill-planned { background: rgba(77,143,240,0.14); color: #6aa4f5; }
+    .pill-cancelled { background: rgba(229,86,78,0.14); color: #ef7a73; }
+
+    /* Участники в карточке */
+    .gsch-members { padding: 6px 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+    .gsch-mrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.035); }
+    .gsch-mrow:last-child { border-bottom: none; }
+    .gsch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-came { background: #22c55e; }
+    .dot-absent { background: #4b5157; }
+    .dot-frozen { background: #eab34e; }
+    .dot-planned { background: #4d8ff0; }
+    .gsch-mname { flex: 1; min-width: 0; font-size: 14px; color: #e6e9eb; display: flex; flex-direction: column; gap: 2px; }
+    .gsch-mname .msub { font-size: 11.5px; }
+    .gsch-mtag { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 8px; }
+    .tag-charged { background: rgba(34,197,94,0.13); color: #34d17f; }
+    .tag-free { background: rgba(77,143,240,0.13); color: #6aa4f5; }
+    .tag-frozen { background: rgba(234,179,78,0.13); color: #edbf63; }
+    .tag-absent { background: rgba(255,255,255,0.05); color: #7c848a; }
+    .tag-trial { background: rgba(168,139,250,0.15); color: #b9a3fb; }
+    .tag-plain { background: rgba(255,255,255,0.05); color: #9aa1a7; }
+
+    /* Кнопки действий участника */
+    .mrow-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .action-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; color: #9aa1a7; font-size: 13px; transition: all 0.15s; font-weight: 700; }
+    .action-renew:hover { border-color: #22c55e; color: #34d17f; }
+    .action-remove:hover { border-color: #e5564e; color: #ef7a73; }
+    .action-freeze:hover { border-color: #4d8ff0; color: #6aa4f5; }
+    .action-edit:hover { border-color: #eab34e; color: #edbf63; }
+    .mrow-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 8px 18px; }
+    .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
+    .freeze-chip-x { background: none; border: none; color: #71717a; cursor: pointer; font-size: 11px; padding: 0 4px; }
+    .freeze-chip-x:hover { color: #ef4444; }
+
+    .btn-add-small { background: rgba(34,197,94,0.14); color: #34d17f; border: 1px solid rgba(34,197,94,0.30); padding: 7px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+    .btn-add-small:hover { background: rgba(34,197,94,0.22); }
+
+    .gsch-empty { text-align: center; color: #6b7278; font-size: 14px; padding: 24px 0; }
+
+    /* Сворачиваемая карточка + точки-сводка */
+    .gsch-head-btn { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0; cursor: pointer; }
+    .gsch-chev { flex-shrink: 0; color: #5d646a; font-size: 13px; transition: transform .2s; margin-left: 2px; }
+    .gsch-card.open .gsch-chev { transform: rotate(180deg); }
+    .gsch-dots { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 16px 14px 82px; }
+    .gsch-d { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .gd-came { background: #22c55e; }
+    .gd-absent { background: #e5564e; }
+    .gd-frozen { background: #4d8ff0; }
+    .gd-plan { background: #4b5157; }
+    .gd-trial { background: #a88bfa; }
+    .gsch-card.open .gsch-dots { display: none; }
+    .gsch-card.open .gsch-card-top { border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+    .gsch-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 16px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 6px; }
+    .gsch-leg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9aa1a7; }
+
+    /* Модалки (тёмная тема) */
+    .modal-card { background: #15181A; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }
+    .modal-header-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .modal-title-text { font-size: 17px; font-weight: 700; color: #f4f6f7; margin: 0; }
+    .modal-close-btn { background: none; border: none; color: #71717a; font-size: 16px; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s; }
+    .modal-close-btn:hover { color: #ef4444; }
+    .modal-body-area { padding: 22px; }
+    .modal-footer-row { display: flex; gap: 12px; padding: 18px 22px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; color: #9aa1a7; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f6f7; font-weight: 500; font-family: inherit; box-sizing: border-box; }
+    .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+    .form-input::placeholder { color: #52525b; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .form-check-box { width: 18px; height: 18px; accent-color: #22c55e; cursor: pointer; }
+    .form-check-label { font-size: 14px; font-weight: 600; color: #a1a1aa; cursor: pointer; }
+    .btn-cancel { flex: 1; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .btn-save:hover { background: #16a34a; }
+    .pm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .pm-chip { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #a1a1aa; font-size: 10.5px; line-height: 1.15; text-align: center; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+    .pm-chip i { font-size: 15px; }
+    .pm-chip:hover { border-color: #3f3f46; color: #d4d4d8; }
+    .pm-chip.active { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
+
+    @media (max-width: 560px) {
+        .gsch-stats { grid-template-columns: repeat(2, 1fr); }
+        .gsch-dots { padding-left: 16px; }
+        .form-row-2 { grid-template-columns: 1fr; }
+    }
+</style>
+@endpush
+
 @section('content')
+@php
+    use Illuminate\Support\Carbon;
+    $today = Carbon::today();
+    $months = [1=>'янв',2=>'фев',3=>'мар',4=>'апр',5=>'мая',6=>'июн',7=>'июл',8=>'авг',9=>'сен',10=>'окт',11=>'ноя',12=>'дек'];
+    $activeMembers = $group->members->where('status', 'active');
 
-<div class="group-show-container">
+    $upcoming = $sessions->where('status', 'planned')
+        ->sortBy(fn($s) => ($s->date instanceof Carbon ? $s->date->format('Y-m-d') : (string) $s->date) . ' ' . $s->start_time);
+    $history  = $sessions->whereIn('status', ['held','cancelled']);
 
-    <div class="group-show-header">
-        <div class="group-show-title-block">
-            <a href="{{ route('club.groups.index') }}" class="back-link">&#8592; Группы</a>
-            <h1 class="group-show-title">{{ $group->name }}</h1>
-            <div class="group-show-meta">
-                @if($group->coach)
-                    <span class="meta-item">{{ $group->coach->name }}</span>
-                    <span class="meta-sep">&nbsp;·&nbsp;</span>
-                @endif
-                @if($group->price_per_session > 0)
-                    <span class="meta-item meta-price">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/занятие</span>
-                    <span class="meta-sep">&nbsp;·&nbsp;</span>
-                @endif
-                @if($group->status === 'active')
-                    <span class="badge-active">Активна</span>
-                @else
-                    <span class="badge-archived">Архив</span>
-                @endif
+    $heldCount = $sessions->where('status','held')->count();
+    $planCount = $sessions->where('status','planned')->count();
+    $cancCount = $sessions->where('status','cancelled')->count();
+
+    $isFrozenOn = function ($member, $date) {
+        return $member->freezes->contains(fn($f) => $f->freeze_from->lte($date) && $f->freeze_until->gte($date));
+    };
+@endphp
+
+<div class="gsch-wrap">
+    {{-- Шапка + управление --}}
+    <div class="gsch-head">
+        <a href="{{ route('club.groups.index') }}" class="gsch-back">&#8592;</a>
+        <div style="min-width:0;">
+            <div class="gsch-title">{{ $group->name }}</div>
+            <div class="gsch-sub">
+                @if($group->coach)<span>тренер {{ $group->coach->full_name }}</span> · @endif
+                @if($group->price_per_session > 0)<span class="meta-price">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/занятие</span> · @endif
+                @if($group->status === 'active')<span class="badge-active">Активна</span>@else<span class="badge-archived">Архив</span>@endif
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button class="btn-edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
+        <div class="gs-head-actions">
+            <button class="gs-mbtn edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
             @if($group->status === 'active')
-                <form method="POST" action="{{ route('club.groups.archive', $group) }}"
-                      onsubmit="return confirm('Перенести «{{ $group->name }}» в архив? Будущие занятия будут отменены, корты освободятся. История сохранится.')"
-                      style="display:inline;">
+                <form method="POST" action="{{ route('club.groups.archive', $group) }}" onsubmit="return confirm('Перенести «{{ $group->name }}» в архив? Будущие занятия будут отменены, корты освободятся. История сохранится.')" style="display:inline;">
                     @csrf
-                    <button type="submit" class="btn-archive-group">&#128193; В архив</button>
+                    <button type="submit" class="gs-mbtn arch">&#128193; В архив</button>
                 </form>
             @else
                 <form method="POST" action="{{ route('club.groups.unarchive', $group) }}" style="display:inline;">
                     @csrf
-                    <button type="submit" class="btn-unarchive-group">&#8617; Вернуть из архива</button>
+                    <button type="submit" class="gs-mbtn unarch">&#8617; Вернуть</button>
                 </form>
             @endif
-            <form method="POST" action="{{ route('club.groups.destroy', $group) }}"
-                  onsubmit="return confirm('Удалить группу «{{ $group->name }}» и всю её историю? Будущие занятия будут отменены, корты освободятся.')"
-                  style="display:inline;">
+            <form method="POST" action="{{ route('club.groups.destroy', $group) }}" onsubmit="return confirm('Удалить группу «{{ $group->name }}» и всю её историю? Будущие занятия будут отменены, корты освободятся.')" style="display:inline;">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="btn-delete-group">&#10005; Удалить</button>
+                <button type="submit" class="gs-mbtn del">&#10005; Удалить</button>
             </form>
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="flash-message flash-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="flash-message flash-error">{{ session('error') }}</div>
-    @endif
+    @if(session('success'))<div class="flash-message flash-success">{{ session('success') }}</div>@endif
+    @if(session('error'))<div class="flash-message flash-error">{{ session('error') }}</div>@endif
     @if($errors->any())
-        <div class="flash-message flash-error">
-            @foreach($errors->all() as $err)
-                <div>{{ $err }}</div>
-            @endforeach
-        </div>
+        <div class="flash-message flash-error">@foreach($errors->all() as $err)<div>{{ $err }}</div>@endforeach</div>
     @endif
 
     @if($group->note)
-        <div class="note-card">
-            <span class="note-icon">&#8505;</span>
-            <span class="note-text">{{ $group->note }}</span>
-        </div>
+        <div class="note-card"><span class="note-icon">&#8505;</span><span class="note-text">{{ $group->note }}</span></div>
     @endif
 
-    <div class="two-col-grid">
-
-        <!-- Участники -->
-        <div class="section-card">
-            <div class="section-card-header">
-                <h2 class="section-title">Участники</h2>
-                <button class="btn-add-small" onclick="document.getElementById('addMemberModal').style.display='flex'">+ Добавить</button>
-            </div>
-            @php $activeMembers = $group->members->where('status', 'active'); @endphp
-            @if($activeMembers->isEmpty())
-                <div class="empty-state-small">
-                    <p>Участников пока нет.</p>
-                </div>
-            @else
-                @php $today = \Carbon\Carbon::today(); @endphp
-                @foreach($activeMembers as $member)
-                    @php
-                        $rem = $member->remaining;
-                        $activeFreeze = $member->freezes->first(fn($f) => $f->freeze_from->lte($today) && $f->freeze_until->gte($today));
-                    @endphp
-                    <div class="member-row">
-                        <div class="member-name">
-                            {{ optional($member->client)->name ?? '—' }}
-                            @if($activeFreeze)<span class="freeze-badge" title="Заморожен">❄ до {{ $activeFreeze->freeze_until->format('d.m.y') }}</span>@endif
-                            @if($member->subscription_ends_at)
-                                <span style="display:block;font-size:12px;margin-top:2px;color:{{ $member->subscription_ends_at->lt($today) ? '#ef4444' : '#71717a' }};">
-                                    Абонемент до {{ $member->subscription_ends_at->format('d.m.Y') }}{{ $member->subscription_ends_at->lt($today) ? ' · истёк' : '' }}
-                                </span>
-                            @endif
-                        </div>
-                        <div class="member-right">
-                            <span class="rem-badge {{ $rem > 0 ? 'rem-ok' : 'rem-low' }}">{{ $rem }}</span>
-                            <button class="action-btn action-freeze" onclick="openFreezeModal({{ $member->id }})" title="Заморозить">❄</button>
-                            <button class="action-btn action-renew" onclick="openEnrollModal({{ $member->id }})" title="Продлить">+</button>
-                            <button class="action-btn action-edit" onclick="openEditMemberModal({{ $member->id }})" title="Абонемент">✎</button>
-                            <form method="POST"
-                                  action="{{ route('club.groups.members.destroy', [$group, $member]) }}"
-                                  onsubmit="return confirm('Убрать участника из группы?')"
-                                  style="display:inline;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="action-btn action-remove" title="Убрать">&#10005;</button>
-                            </form>
-                        </div>
-                    </div>
-                    @if($member->freezes->isNotEmpty())
-                        <div class="member-freezes">
-                            @foreach($member->freezes->sortByDesc('freeze_from') as $f)
-                                <span class="freeze-chip">
-                                    {{ $f->freeze_from->format('d.m.y') }}–{{ $f->freeze_until->format('d.m.y') }}@if($f->note) · {{ $f->note }}@endif
-                                    <form method="POST" action="{{ route('club.groups.members.unfreeze', [$group, $member, $f]) }}"
-                                          onsubmit="return confirm('Снять заморозку?')" style="display:inline;">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="freeze-chip-x" title="Снять">&#10005;</button>
-                                    </form>
-                                </span>
-                            @endforeach
-                        </div>
-                    @endif
-                @endforeach
-            @endif
-        </div>
-
-        <!-- Занятия группы -->
-        <div class="section-card">
-            <div class="section-card-header">
-                <h2 class="section-title">Занятия <span class="sessions-count">{{ $sessions->count() }}</span></h2>
-                <a href="{{ route('club.groups.schedule', $group) }}" class="btn-schedule-link">Всё расписание →</a>
-            </div>
-            @if($sessions->isEmpty())
-                <div class="empty-state-small"><p>Занятий пока нет.</p></div>
-            @else
-                @php
-                    $gmonths = [1=>'янв',2=>'фев',3=>'мар',4=>'апр',5=>'мая',6=>'июн',7=>'июл',8=>'авг',9=>'сен',10=>'окт',11=>'ноя',12=>'дек'];
-                    $gwd = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-                @endphp
-                @foreach($sessions as $s)
-                    @php $sd = $s->date instanceof \Carbon\Carbon ? $s->date : \Carbon\Carbon::parse($s->date); @endphp
-                    <a href="{{ route('club.groupSessions.show', $s) }}" class="session-row">
-                        <div class="s-date">
-                            <span class="d">{{ $sd->format('d') }}</span>
-                            <span class="m">{{ $gmonths[(int) $sd->format('n')] }}</span>
-                        </div>
-                        <div class="s-info">
-                            <div class="s-r1">{{ $gwd[$sd->dayOfWeekIso - 1] ?? '' }}, {{ substr((string) $s->start_time, 0, 5) }}@if($s->end_time)–{{ substr((string) $s->end_time, 0, 5) }}@endif</div>
-                            <div class="s-r2">{{ optional($s->court)->name ?? '—' }}</div>
-                        </div>
-                        @if($s->status === 'held')
-                            <span class="s-pill pill-held">Проведено</span>
-                        @elseif($s->status === 'cancelled')
-                            <span class="s-pill pill-cancelled">Отменено</span>
-                        @else
-                            <span class="s-pill pill-planned">Запланировано</span>
-                        @endif
-                    </a>
-                @endforeach
-            @endif
-        </div>
-
+    {{-- Сводка --}}
+    <div class="gsch-stats">
+        <div class="gsch-stat green"><div class="v">{{ $heldCount }}</div><div class="l">Проведено</div></div>
+        <div class="gsch-stat"><div class="v">{{ $planCount }}</div><div class="l">Впереди</div></div>
+        <div class="gsch-stat"><div class="v">{{ $cancCount }}</div><div class="l">Отменено</div></div>
+        <div class="gsch-stat"><div class="v">{{ $activeMembers->count() }}</div><div class="l">Участников</div></div>
     </div>
+
+    {{-- Участники + управление --}}
+    <div class="gsch-card">
+        <div class="gsch-card-top" style="border-bottom:1px solid rgba(255,255,255,0.05);justify-content:space-between;">
+            <div class="gsch-meta"><div class="r1">Участники и остаток пакета</div></div>
+            <button class="btn-add-small" onclick="document.getElementById('addMemberModal').style.display='flex'">+ Добавить</button>
+        </div>
+        <div class="gsch-members" style="padding-top:2px;">
+            @forelse($activeMembers as $m)
+                @php
+                    $bought = (int) $m->enrollments->sum('sessions');
+                    $used = (int) $m->attendance->where('charged', true)->count();
+                    $rem = $bought - $used;
+                    $frozenNow = $isFrozenOn($m, $today);
+                @endphp
+                <div class="gsch-mrow">
+                    <span class="gsch-dot {{ $frozenNow ? 'dot-frozen' : 'dot-came' }}"></span>
+                    <span class="gsch-mname">
+                        <span>{{ optional($m->client)->name ?? '—' }}</span>
+                        @if($m->subscription_ends_at)
+                            <span class="msub" style="color:{{ $m->subscription_ends_at->lt($today) ? '#ef7a73' : '#6b7278' }};">Абонемент до {{ $m->subscription_ends_at->format('d.m.Y') }}{{ $m->subscription_ends_at->lt($today) ? ' · истёк' : '' }}</span>
+                        @endif
+                    </span>
+                    @if($frozenNow)<span class="gsch-mtag tag-frozen">заморозка</span>@endif
+                    <span class="gsch-mtag {{ $rem > 0 ? 'tag-charged' : 'tag-absent' }}">{{ $rem }} занятий</span>
+                    <div class="mrow-actions">
+                        <button class="action-btn action-freeze" onclick="openFreezeModal({{ $m->id }})" title="Заморозить">❄</button>
+                        <button class="action-btn action-renew" onclick="openEnrollModal({{ $m->id }})" title="Продлить">+</button>
+                        <button class="action-btn action-edit" onclick="openEditMemberModal({{ $m->id }})" title="Абонемент">✎</button>
+                        <form method="POST" action="{{ route('club.groups.members.destroy', [$group, $m]) }}" onsubmit="return confirm('Убрать участника из группы?')" style="display:inline;">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="action-btn action-remove" title="Убрать">&#10005;</button>
+                        </form>
+                    </div>
+                </div>
+                @if($m->freezes->isNotEmpty())
+                    <div class="mrow-chips">
+                        @foreach($m->freezes->sortByDesc('freeze_from') as $f)
+                            <span class="freeze-chip">
+                                {{ $f->freeze_from->format('d.m.y') }}–{{ $f->freeze_until->format('d.m.y') }}@if($f->note) · {{ $f->note }}@endif
+                                <form method="POST" action="{{ route('club.groups.members.unfreeze', [$group, $m, $f]) }}" onsubmit="return confirm('Снять заморозку?')" style="display:inline;">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="freeze-chip-x" title="Снять">&#10005;</button>
+                                </form>
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
+            @empty
+                <div class="gsch-empty">Участников пока нет</div>
+            @endforelse
+        </div>
+    </div>
+
+    {{-- Легенда --}}
+    <div class="gsch-sec-title" style="margin-top:26px;">Занятия</div>
+    <div class="gsch-legend">
+        <span class="gsch-leg"><span class="gsch-d gd-came"></span> был</span>
+        <span class="gsch-leg"><span class="gsch-d gd-absent"></span> не был</span>
+        <span class="gsch-leg"><span class="gsch-d gd-frozen"></span> заморозка</span>
+        <span class="gsch-leg"><span class="gsch-d gd-trial"></span> пробный</span>
+        <span class="gsch-leg"><span class="gsch-d gd-plan"></span> запланировано</span>
+    </div>
+
+    {{-- Предстоящие --}}
+    <div class="gsch-sec-title">Предстоящие</div>
+    @if($upcoming->isEmpty())
+        <div class="gsch-card"><div class="gsch-empty">Запланированных занятий нет</div></div>
+    @else
+        @foreach($upcoming as $s)
+            @include('club.groups.partials._schedule_session', ['s' => $s, 'activeMembers' => $activeMembers, 'isFrozenOn' => $isFrozenOn, 'months' => $months])
+        @endforeach
+    @endif
+
+    {{-- Прошедшие --}}
+    <div class="gsch-sec-title">Прошедшие</div>
+    @if($history->isEmpty())
+        <div class="gsch-card"><div class="gsch-empty">Проведённых занятий пока нет</div></div>
+    @else
+        @foreach($history as $s)
+            @include('club.groups.partials._schedule_session', ['s' => $s, 'activeMembers' => $activeMembers, 'isFrozenOn' => $isFrozenOn, 'months' => $months])
+        @endforeach
+    @endif
 </div>
+
+<script>
+    function gschToggle(btn) {
+        const card = btn.closest('.gsch-card');
+        if (!card) return;
+        card.classList.toggle('open');
+        const body = card.querySelector('.gsch-members');
+        if (body) body.style.display = card.classList.contains('open') ? '' : 'none';
+    }
+</script>
 
 <!-- Модал добавления участника -->
 <div id="addMemberModal"
@@ -389,16 +522,14 @@
             <div class="modal-body-area">
                 <div class="form-group">
                     <label class="form-label">Название <span style="color:#ef4444">*</span></label>
-                    <input type="text" name="name" class="form-input" required
-                           value="{{ old('name', $group->name) }}">
+                    <input type="text" name="name" class="form-input" required value="{{ old('name', $group->name) }}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Тренер</label>
                     <select name="coach_id" class="form-input">
                         <option value="">— без тренера —</option>
                         @foreach($coaches as $coach)
-                            <option value="{{ $coach->user_id }}"
-                                {{ old('coach_id', $group->coach_id) == $coach->user_id ? 'selected' : '' }}>
+                            <option value="{{ $coach->user_id }}" {{ old('coach_id', $group->coach_id) == $coach->user_id ? 'selected' : '' }}>
                                 {{ $coach->user->name ?? 'Тренер #'.$coach->user_id }}
                             </option>
                         @endforeach
@@ -407,13 +538,11 @@
                 <div class="form-row-2">
                     <div class="form-group">
                         <label class="form-label">Цена занятия для клиента (₸)</label>
-                        <input type="number" name="price_per_session" class="form-input" min="0" step="1"
-                               value="{{ old('price_per_session', $group->price_per_session) }}">
+                        <input type="number" name="price_per_session" class="form-input" min="0" step="1" value="{{ old('price_per_session', $group->price_per_session) }}">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Макс. участников</label>
-                        <input type="number" name="capacity" class="form-input" min="1" max="100"
-                               value="{{ old('capacity', $group->capacity) }}" placeholder="Не ограничено">
+                        <input type="number" name="capacity" class="form-input" min="1" max="100" value="{{ old('capacity', $group->capacity) }}" placeholder="Не ограничено">
                     </div>
                 </div>
                 <div class="form-group">
@@ -425,8 +554,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Заметка</label>
-                    <textarea name="note" class="form-input" rows="3"
-                              placeholder="Дополнительная информация о группе...">{{ old('note', $group->note) }}</textarea>
+                    <textarea name="note" class="form-input" rows="3" placeholder="Дополнительная информация о группе...">{{ old('note', $group->note) }}</textarea>
                 </div>
             </div>
             <div class="modal-footer-row">
@@ -439,30 +567,25 @@
 
 <script>
     var enrollRoutes = {
-        @foreach($group->members->where('status', 'active') as $member)
+        @foreach($activeMembers as $member)
         {{ $member->id }}: "{{ route('club.groups.members.enroll', [$group, $member]) }}",
         @endforeach
     };
-
     var freezeRoutes = {
-        @foreach($group->members->where('status', 'active') as $member)
+        @foreach($activeMembers as $member)
         {{ $member->id }}: "{{ route('club.groups.members.freeze', [$group, $member]) }}",
         @endforeach
     };
     function openFreezeModal(memberId) {
-        var form = document.getElementById('freezeForm');
-        form.action = freezeRoutes[memberId] || '';
+        document.getElementById('freezeForm').action = freezeRoutes[memberId] || '';
         document.getElementById('freezeModal').style.display = 'flex';
     }
-
     function openEnrollModal(memberId) {
-        var form = document.getElementById('enrollForm');
-        form.action = enrollRoutes[memberId] || '';
+        document.getElementById('enrollForm').action = enrollRoutes[memberId] || '';
         pmReset('enroll');
         document.getElementById('enrollModal').style.display = 'flex';
     }
 
-    // Компактный селектор способа оплаты (переиспользует коды из брони кортов).
     function pmPick(prefix, el) {
         var grid = document.getElementById(prefix + 'PayGrid');
         if (grid) grid.querySelectorAll('.pm-chip').forEach(function (b) { b.classList.remove('active'); });
@@ -486,7 +609,7 @@
     }
 
     var memberEditData = {
-        @foreach($group->members->where('status', 'active') as $member)
+        @foreach($activeMembers as $member)
         {{ $member->id }}: {
             url: "{{ route('club.groups.members.update', [$group, $member]) }}",
             date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}",
@@ -502,7 +625,6 @@
         document.getElementById('editMemberModal').style.display = 'flex';
     }
 
-    // Динамический поиск клиента (по имени или телефону) для добавления в группу
     var groupClientTimer;
     function searchGroupClients(q) {
         clearTimeout(groupClientTimer);
@@ -561,116 +683,4 @@
         return true;
     }
 </script>
-
-<style>
-    /* === Дизайн под страницу расписания === */
-    .group-show-container { max-width: 1000px; margin: 0 auto; padding: 12px 8px 40px; }
-    .group-show-header { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 22px; flex-wrap: wrap; gap: 14px; }
-    .group-show-title-block { display: flex; flex-direction: column; gap: 5px; }
-    .back-link { font-size: 13px; color: #6b7278; text-decoration: none; font-weight: 600; }
-    .back-link:hover { color: #a1a1aa; }
-    .group-show-title { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; color: #f4f6f7; margin: 2px 0 0; }
-    .group-show-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 13.5px; margin-top: 2px; }
-    .meta-item { color: #8b9298; font-weight: 500; }
-    .meta-price { color: #34d17f; font-weight: 600; }
-    .meta-sep { color: #3f4449; }
-    .badge-active { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(34,197,94,0.14); color: #34d17f; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
-    .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(139,146,152,0.14); color: #8b9298; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
-    .btn-edit, .btn-delete-group, .btn-archive-group, .btn-unarchive-group {
-        display: inline-flex; align-items: center; gap: 7px; background: #15181A; color: #cfd3d6;
-        border: 1px solid rgba(255,255,255,0.08); padding: 9px 15px; border-radius: 10px;
-        font-size: 13px; font-weight: 700; cursor: pointer; transition: .15s;
-    }
-    .btn-edit:hover { border-color: #4d8ff0; color: #6aa4f5; }
-    .btn-delete-group:hover { border-color: #e5564e; color: #ef7a73; }
-    .btn-archive-group:hover { border-color: #eab34e; color: #edbf63; }
-    .btn-unarchive-group:hover { border-color: #22c55e; color: #34d17f; }
-
-    .flash-message { padding: 13px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-bottom: 18px; }
-    .flash-success { background: rgba(34,197,94,0.14); color: #34d17f; }
-    .flash-error { background: rgba(229,86,78,0.14); color: #ef7a73; }
-
-    .note-card { display: flex; align-items: flex-start; gap: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; }
-    .note-icon { font-size: 17px; color: #34d17f; flex-shrink: 0; }
-    .note-text { font-size: 14px; color: #9aa1a7; font-weight: 500; line-height: 1.5; }
-
-    .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-    .section-card { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
-    .section-card-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .section-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #6b7278; margin: 0; display: flex; align-items: center; gap: 8px; }
-    .sessions-count { font-size: 11px; color: #8b9298; font-weight: 700; background: rgba(255,255,255,0.05); border-radius: 999px; padding: 2px 8px; letter-spacing: 0; }
-    .btn-add-small { background: rgba(34,197,94,0.14); color: #34d17f; border: 1px solid rgba(34,197,94,0.30); padding: 7px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-    .btn-add-small:hover { background: rgba(34,197,94,0.22); }
-    .btn-schedule-link { font-size: 12.5px; font-weight: 700; color: #34d17f; text-decoration: none; }
-    .btn-schedule-link:hover { color: #22c55e; }
-
-    .member-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .member-row:last-child { border-bottom: none; }
-    .member-name { font-size: 14px; font-weight: 600; color: #e6e9eb; min-width: 0; }
-    .member-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .rem-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 4px 9px; border-radius: 8px; font-size: 12.5px; font-weight: 700; }
-    .rem-ok { background: rgba(34,197,94,0.13); color: #34d17f; }
-    .rem-low { background: rgba(255,255,255,0.05); color: #8b9298; }
-    .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; color: #9aa1a7; font-size: 14px; transition: all 0.15s; font-weight: 700; }
-    .action-renew:hover { border-color: #22c55e; color: #34d17f; }
-    .action-remove:hover { border-color: #e5564e; color: #ef7a73; }
-    .action-freeze:hover { border-color: #4d8ff0; color: #6aa4f5; }
-    .action-edit:hover { border-color: #eab34e; color: #edbf63; }
-
-    /* Занятия — карточки как в расписании */
-    .s-date { flex-shrink: 0; text-align: center; width: 42px; }
-    .s-date .d { display: block; font-size: 19px; font-weight: 800; color: #f4f6f7; line-height: 1; }
-    .s-date .m { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #7c848a; margin-top: 3px; }
-    .s-info { flex: 1; min-width: 0; }
-    .s-r1 { font-size: 14px; font-weight: 700; color: #eef1f2; }
-    .s-r2 { font-size: 12.5px; color: #8b9298; margin-top: 2px; }
-    .s-pill { flex-shrink: 0; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; }
-    .pill-held { background: rgba(34,197,94,0.14); color: #34d17f; }
-    .pill-planned { background: rgba(77,143,240,0.14); color: #6aa4f5; }
-    .pill-cancelled { background: rgba(229,86,78,0.14); color: #ef7a73; }
-    .pm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-    .pm-chip { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 10.5px; line-height: 1.15; text-align: center; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
-    .pm-chip i { font-size: 15px; }
-    .pm-chip:hover { border-color: #3f3f46; color: #d4d4d8; }
-    .pm-chip.active { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
-    .freeze-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,.12); border-radius: 6px; padding: 2px 7px; }
-    .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px 16px; }
-    .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
-    .freeze-chip-x { background: none; border: none; color: #71717a; cursor: pointer; font-size: 11px; padding: 0 4px; }
-    .freeze-chip-x:hover { color: #ef4444; }
-
-    .session-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); text-decoration: none; transition: background 0.15s; }
-    .session-row:last-child { border-bottom: none; }
-    .session-row:hover { background: rgba(255,255,255,0.025); }
-
-    .empty-state-small { padding: 32px 20px; text-align: center; color: #6b7278; font-size: 14px; }
-
-    /* Modal */
-    .modal-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }
-    .modal-header-row { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #27272a; }
-    .modal-title-text { font-size: 17px; font-weight: 700; color: #f4f4f5; margin: 0; }
-    .modal-close-btn { background: none; border: none; color: #71717a; font-size: 16px; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s; }
-    .modal-close-btn:hover { color: #ef4444; }
-    .modal-body-area { padding: 24px; }
-    .modal-footer-row { display: flex; gap: 12px; padding: 20px 24px; border-top: 1px solid #27272a; }
-    .form-group { margin-bottom: 20px; }
-    .form-label { display: block; font-size: 12px; font-weight: 700; color: #a1a1aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .form-input { width: 100%; background: #16161a; border: 1px solid #27272a; border-radius: 10px; padding: 12px 16px; font-size: 15px; color: #f4f4f5; font-weight: 500; font-family: inherit; box-sizing: border-box; }
-    .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
-    .form-input::placeholder { color: #52525b; }
-    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .form-check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-    .form-check-box { width: 18px; height: 18px; accent-color: #22c55e; cursor: pointer; }
-    .form-check-label { font-size: 14px; font-weight: 600; color: #a1a1aa; cursor: pointer; }
-    .btn-cancel { flex: 1; padding: 14px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 14px; font-weight: 700; cursor: pointer; }
-    .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
-    .btn-save:hover { background: #16a34a; }
-
-    @media (max-width: 768px) {
-        .group-show-header { flex-direction: column; align-items: flex-start; }
-        .two-col-grid { grid-template-columns: 1fr; }
-        .form-row-2 { grid-template-columns: 1fr; }
-    }
-</style>
-
 @endsection
