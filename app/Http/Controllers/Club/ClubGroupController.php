@@ -32,7 +32,12 @@ class ClubGroupController extends Controller
 
         $groups = $base
             ->where('status', $tab)
-            ->with('coach:id,name,first_name,last_name')
+            ->with([
+                'coach:id,name,first_name,last_name',
+                // Активные участники с пакетами — для точек-остатка на карточке.
+                'members' => fn($q) => $q->where('status', 'active')
+                    ->with(['enrollments:id,group_member_id,sessions', 'attendance:id,group_member_id,charged']),
+            ])
             ->withCount(['members as active_members_count' => fn($q) => $q->where('status', 'active')])
             ->orderBy('name')
             ->get();

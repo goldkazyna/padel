@@ -71,6 +71,14 @@
                 <span class="gc-value">
                     <span class="{{ $full ? 'gc-full' : '' }}">{{ $group->active_members_count }}</span>@if($group->capacity)<span class="gc-muted"> / {{ $group->capacity }}</span>@endif
                 </span>
+                @if($group->members->isNotEmpty())
+                    <span class="gc-dots" title="Остаток занятий: зелёный — 3+, красный — 1–2, серый — 0">
+                        @foreach($group->members as $m)
+                            @php $rem = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count(); @endphp
+                            <span class="gc-dot {{ $rem <= 0 ? 'gcd-zero' : ($rem <= 2 ? 'gcd-low' : 'gcd-ok') }}"></span>
+                        @endforeach
+                    </span>
+                @endif
             </div>
 
             {{-- Цена --}}
@@ -193,6 +201,11 @@
     .gc-label { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
     .gc-value { font-size: 14px; font-weight: 700; color: #f4f4f5; }
     .gc-muted { color: #71717a; font-weight: 500; }
+    .gc-dots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .gc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .gcd-ok { background: #22c55e; }
+    .gcd-low { background: #e5564e; }
+    .gcd-zero { background: #4b5157; }
     .gc-price { color: #22c55e; }
     .gc-full { color: #eab308; }
 
