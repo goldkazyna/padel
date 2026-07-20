@@ -60,8 +60,28 @@
 
     .gsch-empty { text-align: center; color: #6b7278; font-size: 14px; padding: 30px 0; }
 
+    /* Сворачиваемая карточка + точки-сводка */
+    .gsch-head-btn { display: block; width: 100%; text-align: left; background: none; border: none; padding: 0; cursor: pointer; }
+    .gsch-card-top { border-bottom: none; }
+    .gsch-chev { flex-shrink: 0; color: #5d646a; font-size: 13px; transition: transform .2s; margin-left: 2px; }
+    .gsch-card.open .gsch-chev { transform: rotate(180deg); }
+    .gsch-dots { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 16px 14px 82px; }
+    .gsch-d { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .gd-came { background: #22c55e; }
+    .gd-absent { background: #e5564e; }
+    .gd-frozen { background: #4d8ff0; }
+    .gd-plan { background: #4b5157; }
+    .gd-trial { background: #a88bfa; }
+    .gsch-card.open .gsch-dots { display: none; }
+    .gsch-card.open .gsch-card-top { border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+    /* Легенда */
+    .gsch-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 16px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 6px; }
+    .gsch-leg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9aa1a7; }
+
     @media (max-width: 560px) {
         .gsch-stats { grid-template-columns: repeat(2, 1fr); }
+        .gsch-dots { padding-left: 16px; }
     }
 </style>
 @endpush
@@ -131,6 +151,16 @@
         </div>
     @endif
 
+    {{-- Легенда точек --}}
+    <div class="gsch-sec-title" style="margin-top:26px;">Занятия</div>
+    <div class="gsch-legend">
+        <span class="gsch-leg"><span class="gsch-d gd-came"></span> был</span>
+        <span class="gsch-leg"><span class="gsch-d gd-absent"></span> не был</span>
+        <span class="gsch-leg"><span class="gsch-d gd-frozen"></span> заморозка</span>
+        <span class="gsch-leg"><span class="gsch-d gd-trial"></span> пробный</span>
+        <span class="gsch-leg"><span class="gsch-d gd-plan"></span> запланировано</span>
+    </div>
+
     {{-- Предстоящие --}}
     <div class="gsch-sec-title">Предстоящие</div>
     @if($upcoming->isEmpty())
@@ -151,4 +181,14 @@
         @endforeach
     @endif
 </div>
+
+<script>
+    function gschToggle(btn) {
+        const card = btn.closest('.gsch-card');
+        if (!card) return;
+        card.classList.toggle('open');
+        const body = card.querySelector('.gsch-members');
+        if (body) body.style.display = card.classList.contains('open') ? '' : 'none';
+    }
+</script>
 @endsection

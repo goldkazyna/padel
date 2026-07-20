@@ -15,53 +15,70 @@
 
     // Пробные гости (без членства в группе).
     $guests = $s->attendance->filter(fn($a) => $a->group_member_id === null && $a->client_id !== null);
+
+    // Строки участников + точки-сводка.
+    $rows = [];
+    foreach ($activeMembers as $m) {
+        $frozen = $isFrozenOn($m, $d);
+        $name = optional($m->client)->name ?? '—';
+        if ($s->status === 'held') {
+            $att = $s->attendance->firstWhere('group_member_id', $m->id);
+            $came = $att && $att->attended;
+            if ($came) {
+                if ($att->is_trial)    { $tagCls = 'tag-trial';   $tagTxt = 'пробное'; }
+                elseif ($att->charged) { $tagCls = 'tag-charged'; $tagTxt = 'списано'; }
+                elseif ($frozen)       { $tagCls = 'tag-frozen';  $tagTxt = 'заморозка'; }
+                else                   { $tagCls = 'tag-free';    $tagTxt = 'бесплатно'; }
+            } else { $tagCls = 'tag-absent'; $tagTxt = 'не был'; }
+            $dotDetail = $came ? 'dot-came' : 'dot-absent';
+            $dotSum = $frozen ? 'gd-frozen' : ($came ? 'gd-came' : 'gd-absent');
+        } else {
+            $tagCls = $frozen ? 'tag-frozen' : 'tag-plain';
+            $tagTxt = $frozen ? 'заморозка' : 'в группе';
+            $dotDetail = $frozen ? 'dot-frozen' : 'dot-planned';
+            $dotSum = $frozen ? 'gd-frozen' : 'gd-plan';
+        }
+        $rows[] = compact('name', 'tagCls', 'tagTxt', 'dotDetail', 'dotSum');
+    }
+    $collapsible = $s->status !== 'cancelled';
 @endphp
 
 <div class="gsch-card">
-    <div class="gsch-card-top">
-        <div class="gsch-date">
-            <div class="d">{{ $d->format('d') }}</div>
-            <div class="m">{{ $months[(int) $d->format('n')] }}</div>
-        </div>
-        <div class="gsch-meta">
-            <div class="r1">{{ $wd }}, {{ $t }}</div>
-            <div class="r2">
-                {{ optional($s->court)->name ?? 'Корт' }}@if($s->coach) · {{ $s->coach->full_name }}@endif
+    @if($collapsible)
+        <button type="button" class="gsch-head-btn" onclick="gschToggle(this)">
+    @endif
+        <div class="gsch-card-top">
+            <div class="gsch-date">
+                <div class="d">{{ $d->format('d') }}</div>
+                <div class="m">{{ $months[(int) $d->format('n')] }}</div>
             </div>
+            <div class="gsch-meta">
+                <div class="r1">{{ $wd }}, {{ $t }}</div>
+                <div class="r2">
+                    {{ optional($s->court)->name ?? 'Корт' }}@if($s->coach) · {{ $s->coach->full_name }}@endif
+                </div>
+            </div>
+            <span class="gsch-pill {{ $pillCls }}">{{ $pillTxt }}</span>
+            @if($collapsible)<i class="bi bi-chevron-down gsch-chev"></i>@endif
         </div>
-        <span class="gsch-pill {{ $pillCls }}">{{ $pillTxt }}</span>
-    </div>
 
-    @if($s->status !== 'cancelled')
-        <div class="gsch-members">
-            @foreach($activeMembers as $m)
-                @php
-                    $frozen = $isFrozenOn($m, $d);
-                    $name = optional($m->client)->name ?? '—';
+        @if($collapsible && (count($rows) || $guests->count()))
+            <div class="gsch-dots">
+                @foreach($rows as $r)<span class="gsch-d {{ $r['dotSum'] }}"></span>@endforeach
+                @foreach($guests as $g)<span class="gsch-d gd-trial"></span>@endforeach
+            </div>
+        @endif
+    @if($collapsible)
+        </button>
+    @endif
 
-                    if ($s->status === 'held') {
-                        $att = $s->attendance->firstWhere('group_member_id', $m->id);
-                        $came = $att && $att->attended;
-                        if ($came) {
-                            $dot = 'dot-came';
-                            if ($att->is_trial)       { $tagCls = 'tag-trial';   $tagTxt = 'пробное'; }
-                            elseif ($att->charged)    { $tagCls = 'tag-charged'; $tagTxt = 'списано'; }
-                            elseif ($frozen)          { $tagCls = 'tag-frozen';  $tagTxt = 'заморозка'; }
-                            else                      { $tagCls = 'tag-free';    $tagTxt = 'бесплатно'; }
-                        } else {
-                            $dot = 'dot-absent'; $tagCls = 'tag-absent'; $tagTxt = 'не был';
-                        }
-                    } else {
-                        // Запланированное занятие: покажем, кто в группе и кто в заморозке.
-                        $dot = $frozen ? 'dot-frozen' : 'dot-planned';
-                        $tagCls = $frozen ? 'tag-frozen' : 'tag-plain';
-                        $tagTxt = $frozen ? 'заморозка' : 'в группе';
-                    }
-                @endphp
+    @if($collapsible)
+        <div class="gsch-members" style="display:none;">
+            @foreach($rows as $r)
                 <div class="gsch-mrow">
-                    <span class="gsch-dot {{ $dot }}"></span>
-                    <span class="gsch-mname">{{ $name }}</span>
-                    <span class="gsch-mtag {{ $tagCls }}">{{ $tagTxt }}</span>
+                    <span class="gsch-dot {{ $r['dotDetail'] }}"></span>
+                    <span class="gsch-mname">{{ $r['name'] }}</span>
+                    <span class="gsch-mtag {{ $r['tagCls'] }}">{{ $r['tagTxt'] }}</span>
                 </div>
             @endforeach
 
