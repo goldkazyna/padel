@@ -68,7 +68,7 @@
 </div>
 
 <style>
-    .rem-container { max-width: 820px; margin: 0 auto; padding: 24px 16px 40px; }
+    .rem-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
 
     .rem-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
     .rem-back { width: 38px; height: 38px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: #15181A; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #d4d7da; font-size: 18px; text-decoration: none; transition: border-color 0.15s; }
