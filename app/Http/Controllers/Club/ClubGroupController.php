@@ -105,11 +105,12 @@ class ClubGroupController extends Controller
                 $r = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count();
                 if ($r > 2) continue;
                 $row = [
-                    'name'     => optional($m->client)->name ?? '—',
-                    'group'    => $g->name,
-                    'group_id' => $g->id,
-                    'coach'    => optional($g->coach)->full_name,
-                    'rem'      => $r,
+                    'name'      => optional($m->client)->name ?? '—',
+                    'client_id' => optional($m->client)->id,
+                    'group'     => $g->name,
+                    'group_id'  => $g->id,
+                    'coach'     => optional($g->coach)->full_name,
+                    'rem'       => $r,
                 ];
                 if ($r <= 0) $ended[] = $row; else $ending[] = $row;
             }

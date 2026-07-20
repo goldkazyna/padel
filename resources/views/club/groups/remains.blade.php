@@ -38,14 +38,20 @@
         <div class="rem-sec">
             <div class="rem-sec-title"><span class="rem-sec-dot zero"></span> Закончились <span class="rem-sec-count">{{ count($remEnded) }}</span></div>
             @foreach($remEnded as $r)
-                <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row">
+                <div class="rem-row">
+                    <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row-cover" aria-label="Открыть группу"></a>
                     <span class="rem-dot zero"></span>
                     <div class="rem-info">
-                        <span class="rem-name">{{ $r['name'] }}</span>
+                        <div class="rem-name-line">
+                            <span class="rem-name">{{ $r['name'] }}</span>
+                            @if($r['client_id'])
+                                <a href="{{ route('club.clients.index', ['selected' => $r['client_id']]) }}" class="rem-card-ico" title="Карточка клиента"><i class="bi bi-person-vcard"></i></a>
+                            @endif
+                        </div>
                         <span class="rem-group">{{ $r['group'] }}@if($r['coach']) · {{ $r['coach'] }}@endif</span>
                     </div>
                     <span class="rem-badge zero">{{ $r['rem'] }} {{ $plZan($r['rem']) }}</span>
-                </a>
+                </div>
             @endforeach
         </div>
     @endif
@@ -54,14 +60,20 @@
         <div class="rem-sec">
             <div class="rem-sec-title"><span class="rem-sec-dot low"></span> Заканчиваются <span class="rem-sec-count">{{ count($remEnding) }}</span></div>
             @foreach($remEnding as $r)
-                <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row">
+                <div class="rem-row">
+                    <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row-cover" aria-label="Открыть группу"></a>
                     <span class="rem-dot low"></span>
                     <div class="rem-info">
-                        <span class="rem-name">{{ $r['name'] }}</span>
+                        <div class="rem-name-line">
+                            <span class="rem-name">{{ $r['name'] }}</span>
+                            @if($r['client_id'])
+                                <a href="{{ route('club.clients.index', ['selected' => $r['client_id']]) }}" class="rem-card-ico" title="Карточка клиента"><i class="bi bi-person-vcard"></i></a>
+                            @endif
+                        </div>
                         <span class="rem-group">{{ $r['group'] }}@if($r['coach']) · {{ $r['coach'] }}@endif</span>
                     </div>
                     <span class="rem-badge low">{{ $r['rem'] }} {{ $plZan($r['rem']) }}</span>
-                </a>
+                </div>
             @endforeach
         </div>
     @endif
@@ -93,13 +105,17 @@
     .rem-sec-dot.low { background: #eab308; }
     .rem-sec-count { margin-left: auto; font-size: 12px; font-weight: 800; color: #71717a; }
 
-    .rem-row { display: flex; align-items: center; gap: 12px; padding: 13px 15px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 8px; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
+    .rem-row { position: relative; display: flex; align-items: center; gap: 12px; padding: 13px 15px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 8px; transition: border-color 0.15s, background 0.15s; }
     .rem-row:hover { border-color: rgba(255,255,255,0.16); background: #171a1e; }
+    .rem-row-cover { position: absolute; inset: 0; z-index: 1; border-radius: 12px; }
     .rem-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
     .rem-dot.zero { background: #e5564e; }
     .rem-dot.low { background: #eab308; }
     .rem-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .rem-name-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .rem-name { font-size: 15px; font-weight: 700; color: #f4f6f7; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .rem-card-ico { position: relative; z-index: 2; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.28); color: #34d17f; font-size: 13px; text-decoration: none; transition: background 0.15s; }
+    .rem-card-ico:hover { background: rgba(34,197,94,0.22); }
     .rem-group { font-size: 12.5px; color: #8b9298; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .rem-badge { flex-shrink: 0; font-size: 12px; font-weight: 800; padding: 5px 11px; border-radius: 9px; font-variant-numeric: tabular-nums; }
     .rem-badge.zero { background: rgba(229,86,78,0.14); color: #ef7a73; }
