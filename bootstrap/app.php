@@ -37,6 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping();
 
+        // Авто-проведение групповых занятий (клубы с включённой настройкой).
+        $schedule->command('group-sessions:auto-conduct')
+            ->everyTenMinutes()
+            ->withoutOverlapping();
+
         // Ежедневный бэкап БД + загруженных файлов (локально 7 копий + облако).
         $schedule->command('backup:run')
             ->dailyAt('03:30')

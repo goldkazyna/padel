@@ -60,6 +60,16 @@
             </span>
         </label>
 
+        <label class="settings-toggle-row">
+            <input type="hidden" name="auto_conduct_group_sessions" value="0">
+            <input type="checkbox" name="auto_conduct_group_sessions" value="1"
+                   {{ ($club->auto_conduct_group_sessions ?? false) ? 'checked' : '' }}>
+            <span class="settings-toggle-text">
+                <span class="settings-toggle-title">Автоматически проводить групповые занятия</span>
+                <small class="form-hint">Если включено — после окончания занятия оно проводится само: всем участникам отмечается посещение и списываются часы (кроме заморозки; при пустом пакете — бесплатно).</small>
+            </span>
+        </label>
+
         <div class="settings-actions">
             <button type="submit" class="btn-save">Сохранить</button>
         </div>

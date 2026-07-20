@@ -33,6 +33,7 @@ class Club extends Model
         'card_payment_description',
         'online_payment_enabled',
         'allow_booking_without_payment',
+        'auto_conduct_group_sessions',
         'plexy_api_key',
         'plexy_merchant_id',
         'plexy_webhook_secret',
@@ -80,6 +81,7 @@ class Club extends Model
         'hide_phones' => 'boolean',
         'online_payment_enabled' => 'boolean',
         'allow_booking_without_payment' => 'boolean',
+        'auto_conduct_group_sessions' => 'boolean',
         'features' => 'array',
     ];
 

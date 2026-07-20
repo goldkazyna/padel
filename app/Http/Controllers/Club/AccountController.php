@@ -28,6 +28,7 @@ class AccountController extends Controller
 
         $club->update([
             'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
+            'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
         ]);
 
         return back()->with('success', 'Настройки клуба обновлены');

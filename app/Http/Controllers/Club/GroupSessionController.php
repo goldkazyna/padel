@@ -259,7 +259,7 @@ class GroupSessionController extends Controller
         return view('club.group-sessions.show', compact('session', 'members', 'existing', 'guests', 'club'));
     }
 
-    public function conduct(Request $request, ClubGroupSession $session)
+    public function conduct(Request $request, ClubGroupSession $session, \App\Services\GroupSessionService $service)
     {
         $club = $this->getClub();
         $this->authorizeSession($club, $session);
@@ -299,49 +299,9 @@ class GroupSessionController extends Controller
             }
         }
 
-        // Применяем посещаемость
-        foreach ($rows as $memberId => $row) {
-            $member = \App\Models\ClubGroupMember::find($memberId);
-            if (!$member || $member->group_id !== $session->group_id) continue;
-
-            $status = $row['status'] ?? 'absent';
-            $frozen = $member->isFrozenOn($sessionDate);
-            $isTrial = $status === 'trial';
-            // Списать можно только charge + не заморожен. Заморозка/пробное пакет не тратят.
-            $charged = $status === 'charge' && !$frozen;
-            $attended = in_array($status, ['charge', 'trial'], true);
-            $trialAmount = $isTrial ? (int) ($row['trial_amount'] ?? 0) : null;
-
-            \App\Models\ClubGroupAttendance::updateOrCreate(
-                ['session_id' => $session->id, 'group_member_id' => $member->id],
-                ['attended' => $attended, 'charged' => $charged, 'is_trial' => $isTrial, 'trial_amount' => $trialAmount]
-            );
-        }
-
-        $session->update([
-            'status' => 'held',
-            'held_at' => now(),
-            'conducted_by' => auth()->id(),
-        ]);
-
-        // Замораживаем выплату тренеру по ставке, действующей на момент проведения,
-        // чтобы последующее изменение rate_group не меняло прошлые занятия.
-        $booking = $session->courtBooking;
-        if ($booking && $booking->coach_id) {
-            $coach = \App\Models\ClubCoach::where('club_id', $club->id)
-                ->where('user_id', $booking->coach_id)->first();
-            $sM = Carbon::parse($booking->start_time)->hour * 60 + Carbon::parse($booking->start_time)->minute;
-            $eM = Carbon::parse($booking->end_time)->hour * 60 + Carbon::parse($booking->end_time)->minute;
-            if ($eM <= $sM) $eM += 1440;
-            $hrs = ($eM - $sM) / 60;
-            $frozen = ($coach && $coach->rate_group !== null)
-                ? (float) $coach->rate_group * $hrs
-                : (float) ($coach?->getRateForHours((int) $hrs) ?? 0);
-            $booking->update(['coach_price' => $frozen]);
-        }
-
-        \App\Models\ActivityLog::log('updated', 'ClubGroupSession', $session->id,
-            "Занятие проведено: «{$session->group->name}»", clubId: $club->id);
+        // Применяем посещаемость + помечаем проведено + замораживаем выплату тренеру
+        // (общее ядро с авто-кроном).
+        $service->conduct($session, $rows, auth()->id(), $club);
 
         return redirect()->route('club.groupSessions.index')->with('success', 'Занятие проведено');
     }
