@@ -58,7 +58,7 @@
             <div class="gc-mid">
                 <div class="gc-info">
                     @if($cm)<span class="gc-coach-name">{{ $cm['name'] }}</span>@else<span class="gc-muted">без тренера</span>@endif
-                    @if($group->price_per_session > 0)<span class="gc-sep">·</span><span class="gc-muted">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸</span>@endif
+                    @if($group->price_per_session > 0)<span class="gc-sep">·</span><span class="gc-muted">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸ / занятие</span>@endif
                 </div>
                 <div class="gc-count {{ $full ? 'full' : '' }}">{{ $group->active_members_count }}@if($group->capacity)/{{ $group->capacity }}@endif</div>
             </div>
