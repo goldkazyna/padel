@@ -37,7 +37,7 @@
         <label>по <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" class="gr-date"></label>
         <button type="submit" class="gr-btn gr-green">Показать</button>
         @if($sessions->isNotEmpty())
-        <button type="button" id="gr-export" class="gr-btn gr-excel">📥 Выгрузить в Excel</button>
+        <button type="button" id="gr-export" class="gr-btn gr-excel"><i class="bi bi-file-earmark-arrow-down"></i> Выгрузить в Excel</button>
         @endif
         <span class="gr-summary">
             Занятий: <b>{{ $sessions->count() }}</b> ·
@@ -112,7 +112,7 @@
 .gr-title{font-size:21px;font-weight:800;margin:0;letter-spacing:-.3px}
 .gr-club{color:var(--text-muted);font-weight:500}
 .gr-spacer{flex:1}
-.gr-btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;padding:9px 15px;text-decoration:none;display:inline-flex;align-items:center}
+.gr-btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;padding:9px 15px;text-decoration:none;display:inline-flex;align-items:center;gap:7px}
 .gr-ghost{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)}
 .gr-green{background:var(--accent);color:#06210f}
 .gr-excel{background:#217346;color:#fff}
