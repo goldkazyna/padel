@@ -65,7 +65,7 @@
 
             {{-- Остаток занятий у участников --}}
             @if($group->members->isNotEmpty())
-                <div class="gc-dots" title="Остаток занятий: зелёный — 3+, красный — 1–2, серый — 0">
+                <div class="gc-dots" title="Остаток занятий: зелёный — 3+, жёлтый — 1–2, красный — закончилось">
                     @foreach($group->members as $m)
                         @php $rem = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count(); @endphp
                         <span class="gc-dot {{ $rem <= 0 ? 'gcd-zero' : ($rem <= 2 ? 'gcd-low' : 'gcd-ok') }}"></span>
@@ -186,9 +186,9 @@
 
     .gc-dots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
     .gc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .gcd-ok { background: #22c55e; }
-    .gcd-low { background: #e5564e; }
-    .gcd-zero { background: #4b5157; }
+    .gcd-ok { background: #22c55e; }   /* 3+ занятий — всё норм */
+    .gcd-low { background: #eab308; }  /* 1–2 — заканчивается */
+    .gcd-zero { background: #e5564e; } /* 0 — закончилось */
 
     .empty-state { text-align: center; padding: 60px 20px; color: #71717a; }
     .empty-state p { font-size: 16px; margin-bottom: 20px; }
