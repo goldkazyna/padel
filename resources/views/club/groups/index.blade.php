@@ -40,41 +40,26 @@
             $cm = $group->coach_id ? ($coachMeta[$group->coach_id] ?? null) : null;
         @endphp
         <a href="{{ route('club.groups.show', $group) }}" class="group-card">
-            {{-- Название на всю ширину + статус --}}
+            {{-- Название + статус --}}
             <div class="gc-top">
-                <div class="gc-name">{{ $group->name }}</div>
+                <div class="gc-name-wrap">
+                    <div class="gc-name">{{ $group->name }}</div>
+                    @if($group->note)<div class="gc-note">{{ $group->note }}</div>@endif
+                </div>
                 @if($group->status === 'active')
-                    <span class="gc-status active"><span class="badge-dot"></span> Активна</span>
+                    <span class="gc-status active"><span class="gc-live"></span> Активна</span>
                 @else
-                    <span class="gc-status archived">Архив</span>
+                    <span class="gc-status archived"><i class="bi bi-archive"></i> Архив</span>
                 @endif
             </div>
-            @if($group->note)<div class="gc-note">{{ $group->note }}</div>@endif
 
-            {{-- Мета: тренер · участники (красным если полная) · цена --}}
-            <div class="gc-meta">
-                @if($cm)
-                    <span class="gc-chip">
-                        <span class="gc-avatar" @if(!$cm['photo']) style="background:{{ $cm['color'] }}" @endif>
-                            @if($cm['photo'])<img src="{{ $cm['photo'] }}" alt="">@else{{ $cm['initials'] }}@endif
-                        </span>
-                        <span class="gc-coach-name">{{ $cm['name'] }}</span>
-                    </span>
-                @else
-                    <span class="gc-chip gc-muted"><i class="bi bi-person"></i> без тренера</span>
-                @endif
-
-                <span class="gc-chip {{ $full ? 'gc-chip-full' : '' }}">
-                    <i class="bi bi-people-fill"></i>
-                    {{ $group->active_members_count }}@if($group->capacity)/{{ $group->capacity }}@endif
-                    @if($full)<span class="gc-full-tag">полная</span>@endif
-                </span>
-
-                @if($group->price_per_session > 0)
-                    <span class="gc-chip"><i class="bi bi-cash-stack"></i> {{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/зан</span>
-                @endif
-
-                <span class="gc-arrow">&#8594;</span>
+            {{-- Тренер · цена  ····  заполненность (красным если полная) --}}
+            <div class="gc-mid">
+                <div class="gc-info">
+                    @if($cm)<span class="gc-coach-name">{{ $cm['name'] }}</span>@else<span class="gc-muted">без тренера</span>@endif
+                    @if($group->price_per_session > 0)<span class="gc-sep">·</span><span class="gc-muted">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸</span>@endif
+                </div>
+                <div class="gc-count {{ $full ? 'full' : '' }}">{{ $group->active_members_count }}@if($group->capacity)/{{ $group->capacity }}@endif</div>
             </div>
 
             {{-- Остаток занятий у участников --}}
@@ -182,22 +167,18 @@
     .gc-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
     .gc-status.active { background: rgba(34,197,94,0.14); color: #34d17f; }
     .gc-status.archived { background: rgba(139,146,152,0.14); color: #8b9298; }
-    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d17f; }
+    .gc-status i { font-size: 11px; }
+    .gc-live { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.45); animation: gcpulse 2s infinite; }
+    @keyframes gcpulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.45); } 70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    @media (prefers-reduced-motion: reduce) { .gc-live { animation: none; } }
 
-    .gc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-    .gc-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; font-size: 13px; font-weight: 600; color: #d4d7da; }
-    .gc-chip i { font-size: 14px; color: #8b9298; }
-    .gc-chip.gc-muted { color: #8b9298; }
-    .gc-chip-full { background: rgba(229,86,78,0.13); border-color: rgba(229,86,78,0.35); color: #ef7a73; }
-    .gc-chip-full i { color: #ef7a73; }
-    .gc-full-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; background: rgba(229,86,78,0.22); color: #ef7a73; padding: 2px 6px; border-radius: 6px; }
-
-    .gc-avatar { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; overflow: hidden; }
-    .gc-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .gc-coach-name { font-size: 13px; font-weight: 600; color: #e4e4e7; }
-
-    .gc-arrow { margin-left: auto; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; color: #9aa1a7; font-size: 16px; transition: all 0.15s; flex-shrink: 0; }
-    .group-card:hover .gc-arrow { border-color: #22c55e; color: #34d17f; }
+    .gc-name-wrap { min-width: 0; }
+    .gc-mid { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; }
+    .gc-info { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: #8b9298; overflow: hidden; white-space: nowrap; }
+    .gc-coach-name { font-weight: 600; color: #b3babf; overflow: hidden; text-overflow: ellipsis; }
+    .gc-sep { color: #3a4045; }
+    .gc-count { flex-shrink: 0; font-size: 16px; font-weight: 800; color: #d4d7da; font-variant-numeric: tabular-nums; letter-spacing: -0.2px; }
+    .gc-count.full { color: #ef7a73; }
 
     .gc-dots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
     .gc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
