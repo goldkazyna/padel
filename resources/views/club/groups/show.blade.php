@@ -137,31 +137,34 @@
         <!-- Занятия группы -->
         <div class="section-card">
             <div class="section-card-header">
-                <h2 class="section-title">Занятия группы</h2>
-                <span class="sessions-count">{{ $sessions->count() }}</span>
+                <h2 class="section-title">Занятия <span class="sessions-count">{{ $sessions->count() }}</span></h2>
+                <a href="{{ route('club.groups.schedule', $group) }}" class="btn-schedule-link">Всё расписание →</a>
             </div>
             @if($sessions->isEmpty())
-                <div class="empty-state-small">
-                    <p>Занятий пока нет.</p>
-                </div>
+                <div class="empty-state-small"><p>Занятий пока нет.</p></div>
             @else
+                @php
+                    $gmonths = [1=>'янв',2=>'фев',3=>'мар',4=>'апр',5=>'мая',6=>'июн',7=>'июл',8=>'авг',9=>'сен',10=>'окт',11=>'ноя',12=>'дек'];
+                    $gwd = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+                @endphp
                 @foreach($sessions as $s)
+                    @php $sd = $s->date instanceof \Carbon\Carbon ? $s->date : \Carbon\Carbon::parse($s->date); @endphp
                     <a href="{{ route('club.groupSessions.show', $s) }}" class="session-row">
-                        <div class="session-date">{{ $s->date ? $s->date->format('d.m.Y') : '—' }}</div>
-                        <div class="session-time">
-                            {{ $s->start_time ? substr($s->start_time, 0, 5) : '—' }}
-                            @if($s->end_time)– {{ substr($s->end_time, 0, 5) }}@endif
+                        <div class="s-date">
+                            <span class="d">{{ $sd->format('d') }}</span>
+                            <span class="m">{{ $gmonths[(int) $sd->format('n')] }}</span>
                         </div>
-                        <div class="session-court">{{ optional($s->court)->name ?? '—' }}</div>
-                        <div>
-                            @if($s->status === 'held')
-                                <span class="badge-held">Проведено</span>
-                            @elseif($s->status === 'cancelled')
-                                <span class="badge-cancelled">Отменено</span>
-                            @else
-                                <span class="badge-planned">Запланировано</span>
-                            @endif
+                        <div class="s-info">
+                            <div class="s-r1">{{ $gwd[$sd->dayOfWeekIso - 1] ?? '' }}, {{ substr((string) $s->start_time, 0, 5) }}@if($s->end_time)–{{ substr((string) $s->end_time, 0, 5) }}@endif</div>
+                            <div class="s-r2">{{ optional($s->court)->name ?? '—' }}</div>
                         </div>
+                        @if($s->status === 'held')
+                            <span class="s-pill pill-held">Проведено</span>
+                        @elseif($s->status === 'cancelled')
+                            <span class="s-pill pill-cancelled">Отменено</span>
+                        @else
+                            <span class="s-pill pill-planned">Запланировано</span>
+                        @endif
                     </a>
                 @endforeach
             @endif
@@ -560,78 +563,87 @@
 </script>
 
 <style>
-    .group-show-container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
-    .group-show-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
-    .group-show-title-block { display: flex; flex-direction: column; gap: 6px; }
-    .back-link { font-size: 13px; color: #71717a; text-decoration: none; font-weight: 600; }
+    /* === Дизайн под страницу расписания === */
+    .group-show-container { max-width: 1000px; margin: 0 auto; padding: 12px 8px 40px; }
+    .group-show-header { display: flex; align-items: center; justify-content: space-between; margin: 8px 0 22px; flex-wrap: wrap; gap: 14px; }
+    .group-show-title-block { display: flex; flex-direction: column; gap: 5px; }
+    .back-link { font-size: 13px; color: #6b7278; text-decoration: none; font-weight: 600; }
     .back-link:hover { color: #a1a1aa; }
-    .group-show-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #f4f4f5; margin: 0; }
-    .group-show-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 14px; }
-    .meta-item { color: #a1a1aa; font-weight: 500; }
-    .meta-price { color: #22c55e; font-weight: 600; }
-    .meta-sep { color: #52525b; }
-    .badge-active { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; }
-    .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 6px; font-size: 12px; font-weight: 700; }
-    .btn-edit { display: flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-edit:hover { border-color: #3b82f6; color: #3b82f6; }
-    .btn-delete-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-delete-group:hover { border-color: #ef4444; color: #ef4444; }
-    .btn-archive-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-archive-group:hover { border-color: #eab308; color: #eab308; }
-    .btn-unarchive-group { display: inline-flex; align-items: center; gap: 8px; background: #16161a; color: #a1a1aa; border: 1px solid #27272a; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-    .btn-unarchive-group:hover { border-color: #22c55e; color: #22c55e; }
+    .group-show-title { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; color: #f4f6f7; margin: 2px 0 0; }
+    .group-show-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 13.5px; margin-top: 2px; }
+    .meta-item { color: #8b9298; font-weight: 500; }
+    .meta-price { color: #34d17f; font-weight: 600; }
+    .meta-sep { color: #3f4449; }
+    .badge-active { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(34,197,94,0.14); color: #34d17f; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+    .badge-archived { display: inline-flex; align-items: center; padding: 3px 10px; background: rgba(139,146,152,0.14); color: #8b9298; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+    .btn-edit, .btn-delete-group, .btn-archive-group, .btn-unarchive-group {
+        display: inline-flex; align-items: center; gap: 7px; background: #15181A; color: #cfd3d6;
+        border: 1px solid rgba(255,255,255,0.08); padding: 9px 15px; border-radius: 10px;
+        font-size: 13px; font-weight: 700; cursor: pointer; transition: .15s;
+    }
+    .btn-edit:hover { border-color: #4d8ff0; color: #6aa4f5; }
+    .btn-delete-group:hover { border-color: #e5564e; color: #ef7a73; }
+    .btn-archive-group:hover { border-color: #eab34e; color: #edbf63; }
+    .btn-unarchive-group:hover { border-color: #22c55e; color: #34d17f; }
 
-    .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
-    .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-    .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .flash-message { padding: 13px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; margin-bottom: 18px; }
+    .flash-success { background: rgba(34,197,94,0.14); color: #34d17f; }
+    .flash-error { background: rgba(229,86,78,0.14); color: #ef7a73; }
 
-    .note-card { display: flex; align-items: flex-start; gap: 12px; background: #111113; border: 1px solid #27272a; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
-    .note-icon { font-size: 18px; color: #22c55e; flex-shrink: 0; }
-    .note-text { font-size: 14px; color: #a1a1aa; font-weight: 500; line-height: 1.5; }
+    .note-card { display: flex; align-items: flex-start; gap: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px; }
+    .note-icon { font-size: 17px; color: #34d17f; flex-shrink: 0; }
+    .note-text { font-size: 14px; color: #9aa1a7; font-weight: 500; line-height: 1.5; }
 
-    .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .section-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; }
-    .section-card-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #27272a; }
-    .section-title { font-size: 15px; font-weight: 700; color: #f4f4f5; margin: 0; }
-    .sessions-count { font-size: 13px; color: #71717a; font-weight: 600; background: #16161a; border: 1px solid #27272a; border-radius: 6px; padding: 3px 10px; }
-    .btn-add-small { background: #22c55e; color: #0a0a0b; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .btn-add-small:hover { background: #16a34a; }
+    .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .section-card { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
+    .section-card-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .section-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #6b7278; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .sessions-count { font-size: 11px; color: #8b9298; font-weight: 700; background: rgba(255,255,255,0.05); border-radius: 999px; padding: 2px 8px; letter-spacing: 0; }
+    .btn-add-small { background: rgba(34,197,94,0.14); color: #34d17f; border: 1px solid rgba(34,197,94,0.30); padding: 7px 13px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+    .btn-add-small:hover { background: rgba(34,197,94,0.22); }
+    .btn-schedule-link { font-size: 12.5px; font-weight: 700; color: #34d17f; text-decoration: none; }
+    .btn-schedule-link:hover { color: #22c55e; }
 
-    .member-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #1c1c1f; transition: background 0.15s; }
+    .member-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .member-row:last-child { border-bottom: none; }
-    .member-row:hover { background: #16161a; }
-    .member-name { font-size: 14px; font-weight: 600; color: #f4f4f5; }
-    .member-right { display: flex; align-items: center; gap: 8px; }
-    .rem-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; }
-    .rem-ok { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-    .rem-low { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-    .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 7px; cursor: pointer; color: #a1a1aa; font-size: 14px; transition: all 0.2s; font-weight: 700; }
-    .action-renew:hover { border-color: #22c55e; color: #22c55e; }
-    .action-remove:hover { border-color: #ef4444; color: #ef4444; }
-    .action-freeze:hover { border-color: #38bdf8; color: #38bdf8; }
-    .action-edit:hover { border-color: #f59e0b; color: #f59e0b; }
+    .member-name { font-size: 14px; font-weight: 600; color: #e6e9eb; min-width: 0; }
+    .member-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .rem-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 4px 9px; border-radius: 8px; font-size: 12.5px; font-weight: 700; }
+    .rem-ok { background: rgba(34,197,94,0.13); color: #34d17f; }
+    .rem-low { background: rgba(255,255,255,0.05); color: #8b9298; }
+    .action-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; color: #9aa1a7; font-size: 14px; transition: all 0.15s; font-weight: 700; }
+    .action-renew:hover { border-color: #22c55e; color: #34d17f; }
+    .action-remove:hover { border-color: #e5564e; color: #ef7a73; }
+    .action-freeze:hover { border-color: #4d8ff0; color: #6aa4f5; }
+    .action-edit:hover { border-color: #eab34e; color: #edbf63; }
+
+    /* Занятия — карточки как в расписании */
+    .s-date { flex-shrink: 0; text-align: center; width: 42px; }
+    .s-date .d { display: block; font-size: 19px; font-weight: 800; color: #f4f6f7; line-height: 1; }
+    .s-date .m { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #7c848a; margin-top: 3px; }
+    .s-info { flex: 1; min-width: 0; }
+    .s-r1 { font-size: 14px; font-weight: 700; color: #eef1f2; }
+    .s-r2 { font-size: 12.5px; color: #8b9298; margin-top: 2px; }
+    .s-pill { flex-shrink: 0; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; }
+    .pill-held { background: rgba(34,197,94,0.14); color: #34d17f; }
+    .pill-planned { background: rgba(77,143,240,0.14); color: #6aa4f5; }
+    .pill-cancelled { background: rgba(229,86,78,0.14); color: #ef7a73; }
     .pm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
     .pm-chip { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; background: #16161a; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 10.5px; line-height: 1.15; text-align: center; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
     .pm-chip i { font-size: 15px; }
     .pm-chip:hover { border-color: #3f3f46; color: #d4d4d8; }
     .pm-chip.active { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
     .freeze-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56,189,248,.12); border-radius: 6px; padding: 2px 7px; }
-    .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 10px 20px; }
+    .member-freezes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px 16px; }
     .freeze-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #93c5fd; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); border-radius: 999px; padding: 2px 4px 2px 10px; }
     .freeze-chip-x { background: none; border: none; color: #71717a; cursor: pointer; font-size: 11px; padding: 0 4px; }
     .freeze-chip-x:hover { color: #ef4444; }
 
-    .session-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #1c1c1f; text-decoration: none; transition: background 0.15s; }
+    .session-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); text-decoration: none; transition: background 0.15s; }
     .session-row:last-child { border-bottom: none; }
-    .session-row:hover { background: #16161a; }
-    .session-date { font-size: 14px; font-weight: 600; color: #f4f4f5; min-width: 80px; }
-    .session-time { font-size: 13px; color: #71717a; font-weight: 500; min-width: 90px; }
-    .session-court { font-size: 13px; color: #a1a1aa; flex: 1; }
-    .badge-held { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
-    .badge-cancelled { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
-    .badge-planned { display: inline-flex; align-items: center; padding: 3px 8px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .session-row:hover { background: rgba(255,255,255,0.025); }
 
-    .empty-state-small { padding: 32px 20px; text-align: center; color: #71717a; font-size: 14px; }
+    .empty-state-small { padding: 32px 20px; text-align: center; color: #6b7278; font-size: 14px; }
 
     /* Modal */
     .modal-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; margin: 20px; }
