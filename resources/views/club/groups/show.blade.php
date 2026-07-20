@@ -62,6 +62,9 @@
     .dot-absent { background: #4b5157; }
     .dot-frozen { background: #eab34e; }
     .dot-planned { background: #4d8ff0; }
+    .dot-rem-ok { background: #22c55e; }   /* 3+ занятий */
+    .dot-rem-low { background: #eab308; }  /* 1–2 занятия */
+    .dot-rem-zero { background: #e5564e; } /* закончилось */
     .gsch-mname { flex: 1; min-width: 0; font-size: 14px; color: #e6e9eb; display: flex; flex-direction: column; gap: 2px; }
     .gsch-mname .msub { font-size: 11.5px; }
     .gsch-mtag { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 8px; }
@@ -69,6 +72,9 @@
     .tag-free { background: rgba(77,143,240,0.13); color: #6aa4f5; }
     .tag-frozen { background: rgba(234,179,78,0.13); color: #edbf63; }
     .tag-absent { background: rgba(255,255,255,0.05); color: #7c848a; }
+    .tag-rem-ok { background: rgba(34,197,94,0.13); color: #34d17f; }
+    .tag-rem-low { background: rgba(234,179,8,0.15); color: #eab308; }
+    .tag-rem-zero { background: rgba(229,86,78,0.14); color: #ef7a73; }
     .tag-trial { background: rgba(168,139,250,0.15); color: #b9a3fb; }
     .tag-plain { background: rgba(255,255,255,0.05); color: #9aa1a7; }
 
@@ -226,7 +232,7 @@
                     $frozenNow = $isFrozenOn($m, $today);
                 @endphp
                 <div class="gsch-mrow">
-                    <span class="gsch-dot {{ $frozenNow ? 'dot-frozen' : 'dot-came' }}"></span>
+                    <span class="gsch-dot {{ $rem <= 0 ? 'dot-rem-zero' : ($rem <= 2 ? 'dot-rem-low' : 'dot-rem-ok') }}"></span>
                     <span class="gsch-mname">
                         <span>{{ optional($m->client)->name ?? '—' }}</span>
                         @if($m->subscription_ends_at)
@@ -234,7 +240,7 @@
                         @endif
                     </span>
                     @if($frozenNow)<span class="gsch-mtag tag-frozen">заморозка</span>@endif
-                    <span class="gsch-mtag {{ $rem > 0 ? 'tag-charged' : 'tag-absent' }}">{{ $rem }} занятий</span>
+                    <span class="gsch-mtag {{ $rem <= 0 ? 'tag-rem-zero' : ($rem <= 2 ? 'tag-rem-low' : 'tag-rem-ok') }}">{{ $rem }} занятий</span>
                     <div class="mrow-actions">
                         <button class="action-btn action-freeze" onclick="openFreezeModal({{ $m->id }})" title="Заморозить">❄</button>
                         <button class="action-btn action-renew" onclick="openEnrollModal({{ $m->id }})" title="Продлить">+</button>
