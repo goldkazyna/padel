@@ -307,7 +307,9 @@ class ClubGroupController extends Controller
         $client = \App\Models\ClubClient::find($validated['client_id']);
         if (!$client || $client->club_id !== $club->id) abort(403);
 
-        if ($group->members()->where('client_id', $client->id)->exists()) {
+        // Мог остаться неактивный след от прошлого участия (мягкое удаление).
+        $existing = $group->members()->where('client_id', $client->id)->first();
+        if ($existing && $existing->status === 'active') {
             return back()->with('error', 'Клиент уже в этой группе');
         }
 
@@ -316,11 +318,21 @@ class ClubGroupController extends Controller
             return back()->with('error', 'Группа заполнена (достигнута вместимость)');
         }
 
-        $member = \App\Models\ClubGroupMember::create([
-            'group_id' => $group->id,
-            'client_id' => $client->id,
-            'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
-        ]);
+        if ($existing) {
+            // Возвращаем «бывшего» участника — сохраняем его историю (посещаемость/пакеты).
+            $existing->update([
+                'status' => 'active',
+                'left_at' => null,
+                'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+            ]);
+            $member = $existing;
+        } else {
+            $member = \App\Models\ClubGroupMember::create([
+                'group_id' => $group->id,
+                'client_id' => $client->id,
+                'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+            ]);
+        }
         $this->createEnrollment($member, $validated);
 
         \App\Models\ActivityLog::log('created', 'ClubGroupMember', $member->id,
@@ -371,7 +383,13 @@ class ClubGroupController extends Controller
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
 
-        $member->delete();
+        // Мягкое удаление: помечаем неактивным и фиксируем дату ухода.
+        // Записи посещаемости/пакетов НЕ удаляем — они нужны для отчётов и выручки.
+        $member->update(['status' => 'inactive', 'left_at' => now()]);
+
+        \App\Models\ActivityLog::log('updated', 'ClubGroupMember', $member->id,
+            "Из группы «{$group->name}» убран {$member->client?->name}", clubId: $club->id);
+
         return back()->with('success', 'Участник убран из группы');
     }
 

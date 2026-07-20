@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClubGroupMember extends Model
 {
-    protected $fillable = ['group_id', 'client_id', 'status', 'subscription_ends_at'];
+    protected $fillable = ['group_id', 'client_id', 'status', 'subscription_ends_at', 'left_at'];
 
-    protected $casts = ['subscription_ends_at' => 'date'];
+    protected $casts = ['subscription_ends_at' => 'date', 'left_at' => 'datetime'];
 
     public function group() { return $this->belongsTo(ClubGroup::class, 'group_id'); }
     public function client() { return $this->belongsTo(ClubClient::class, 'client_id'); }
