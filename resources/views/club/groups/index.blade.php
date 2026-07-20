@@ -40,71 +40,52 @@
             $cm = $group->coach_id ? ($coachMeta[$group->coach_id] ?? null) : null;
         @endphp
         <a href="{{ route('club.groups.show', $group) }}" class="group-card">
-            {{-- Название --}}
-            <div class="gc-name-block">
+            {{-- Название на всю ширину + статус --}}
+            <div class="gc-top">
                 <div class="gc-name">{{ $group->name }}</div>
-                @if($group->note)
-                    <div class="gc-sub">{{ $group->note }}</div>
-                @elseif($group->capacity)
-                    <div class="gc-sub">макс. {{ $group->capacity }} участников</div>
+                @if($group->status === 'active')
+                    <span class="gc-status active"><span class="badge-dot"></span> Активна</span>
+                @else
+                    <span class="gc-status archived">Архив</span>
                 @endif
             </div>
+            @if($group->note)<div class="gc-note">{{ $group->note }}</div>@endif
 
-            {{-- Тренер --}}
-            <div class="gc-col">
-                <span class="gc-label">Тренер</span>
+            {{-- Мета: тренер · участники (красным если полная) · цена --}}
+            <div class="gc-meta">
                 @if($cm)
-                    <span class="gc-coach">
+                    <span class="gc-chip">
                         <span class="gc-avatar" @if(!$cm['photo']) style="background:{{ $cm['color'] }}" @endif>
                             @if($cm['photo'])<img src="{{ $cm['photo'] }}" alt="">@else{{ $cm['initials'] }}@endif
                         </span>
                         <span class="gc-coach-name">{{ $cm['name'] }}</span>
                     </span>
                 @else
-                    <span class="gc-value gc-muted">— без тренера —</span>
+                    <span class="gc-chip gc-muted"><i class="bi bi-person"></i> без тренера</span>
                 @endif
-            </div>
 
-            {{-- Участников --}}
-            <div class="gc-col">
-                <span class="gc-label">Участников</span>
-                <span class="gc-value">
-                    <span class="{{ $full ? 'gc-full' : '' }}">{{ $group->active_members_count }}</span>@if($group->capacity)<span class="gc-muted"> / {{ $group->capacity }}</span>@endif
+                <span class="gc-chip {{ $full ? 'gc-chip-full' : '' }}">
+                    <i class="bi bi-people-fill"></i>
+                    {{ $group->active_members_count }}@if($group->capacity)/{{ $group->capacity }}@endif
+                    @if($full)<span class="gc-full-tag">полная</span>@endif
                 </span>
-                @if($group->members->isNotEmpty())
-                    <span class="gc-dots" title="Остаток занятий: зелёный — 3+, красный — 1–2, серый — 0">
-                        @foreach($group->members as $m)
-                            @php $rem = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count(); @endphp
-                            <span class="gc-dot {{ $rem <= 0 ? 'gcd-zero' : ($rem <= 2 ? 'gcd-low' : 'gcd-ok') }}"></span>
-                        @endforeach
-                    </span>
+
+                @if($group->price_per_session > 0)
+                    <span class="gc-chip"><i class="bi bi-cash-stack"></i> {{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/зан</span>
                 @endif
+
+                <span class="gc-arrow">&#8594;</span>
             </div>
 
-            {{-- Цена --}}
-            <div class="gc-col">
-                <span class="gc-label">Цена занятия (клиент)</span>
-                <span class="gc-value {{ $group->price_per_session > 0 ? 'gc-price' : 'gc-muted' }}">
-                    @if($group->price_per_session > 0)
-                        {{ number_format($group->price_per_session, 0, '.', ' ') }} ₸
-                    @else
-                        —
-                    @endif
-                </span>
-            </div>
-
-            {{-- Статус --}}
-            <div class="gc-col">
-                <span class="gc-label">Статус</span>
-                @if($group->status === 'active')
-                    <span class="badge-active"><span class="badge-dot"></span> Активна</span>
-                @else
-                    <span class="badge-archived">Архив</span>
-                @endif
-            </div>
-
-            {{-- Стрелка --}}
-            <span class="gc-arrow">&#8594;</span>
+            {{-- Остаток занятий у участников --}}
+            @if($group->members->isNotEmpty())
+                <div class="gc-dots" title="Остаток занятий: зелёный — 3+, красный — 1–2, серый — 0">
+                    @foreach($group->members as $m)
+                        @php $rem = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count(); @endphp
+                        <span class="gc-dot {{ $rem <= 0 ? 'gcd-zero' : ($rem <= 2 ? 'gcd-low' : 'gcd-ok') }}"></span>
+                    @endforeach
+                </div>
+            @endif
         </a>
     @empty
         <div class="empty-state">
@@ -172,7 +153,7 @@
 </div>
 
 <style>
-    .groups-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .groups-container { max-width: 1000px; margin: 0 auto; padding: 24px 16px 40px; }
     .groups-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
     .groups-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
     .groups-title-club { color: #71717a; font-weight: 500; }
@@ -190,36 +171,39 @@
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
     .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 
-    .group-card { display: grid; grid-template-columns: minmax(200px, 1.7fr) 1.5fr 0.9fr 1fr 0.95fr 44px; align-items: center; gap: 20px; background: #111113; border: 1px solid #27272a; border-radius: 16px; margin-bottom: 14px; padding: 18px 24px; transition: border-color 0.2s, background 0.2s; text-decoration: none; }
-    .group-card:hover { border-color: #3f3f46; background: #141416; }
+    .group-card { display: block; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; margin-bottom: 12px; padding: 16px 18px; transition: border-color 0.15s, background 0.15s; text-decoration: none; }
+    .group-card:hover { border-color: rgba(255,255,255,0.14); background: #171a1e; }
 
-    .gc-name-block { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .gc-name { font-size: 16px; font-weight: 700; color: #f4f4f5; line-height: 1.35; overflow-wrap: anywhere; }
-    .gc-sub { font-size: 13px; color: #71717a; font-weight: 500; overflow-wrap: anywhere; }
+    .gc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .gc-name { font-size: 17px; font-weight: 800; color: #f4f6f7; line-height: 1.25; overflow-wrap: anywhere; }
+    .gc-note { font-size: 13px; color: #7c848a; margin-top: 5px; overflow-wrap: anywhere; }
+    .gc-muted { color: #8b9298; }
 
-    .gc-col { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-    .gc-label { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
-    .gc-value { font-size: 14px; font-weight: 700; color: #f4f4f5; }
-    .gc-muted { color: #71717a; font-weight: 500; }
-    .gc-dots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .gc-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; }
+    .gc-status.active { background: rgba(34,197,94,0.14); color: #34d17f; }
+    .gc-status.archived { background: rgba(139,146,152,0.14); color: #8b9298; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d17f; }
+
+    .gc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .gc-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; font-size: 13px; font-weight: 600; color: #d4d7da; }
+    .gc-chip i { font-size: 14px; color: #8b9298; }
+    .gc-chip.gc-muted { color: #8b9298; }
+    .gc-chip-full { background: rgba(229,86,78,0.13); border-color: rgba(229,86,78,0.35); color: #ef7a73; }
+    .gc-chip-full i { color: #ef7a73; }
+    .gc-full-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; background: rgba(229,86,78,0.22); color: #ef7a73; padding: 2px 6px; border-radius: 6px; }
+
+    .gc-avatar { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; overflow: hidden; }
+    .gc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .gc-coach-name { font-size: 13px; font-weight: 600; color: #e4e4e7; }
+
+    .gc-arrow { margin-left: auto; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; color: #9aa1a7; font-size: 16px; transition: all 0.15s; flex-shrink: 0; }
+    .group-card:hover .gc-arrow { border-color: #22c55e; color: #34d17f; }
+
+    .gc-dots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
     .gc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .gcd-ok { background: #22c55e; }
     .gcd-low { background: #e5564e; }
     .gcd-zero { background: #4b5157; }
-    .gc-price { color: #22c55e; }
-    .gc-full { color: #eab308; }
-
-    .gc-coach { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
-    .gc-avatar { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; overflow: hidden; }
-    .gc-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .gc-coach-name { font-size: 14px; font-weight: 600; color: #e4e4e7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    .badge-active { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.28); border-radius: 7px; font-size: 12px; font-weight: 700; width: fit-content; }
-    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
-    .badge-archived { display: inline-flex; align-items: center; padding: 5px 11px; background: rgba(113,113,122,0.15); color: #71717a; border: 1px solid rgba(113,113,122,0.3); border-radius: 7px; font-size: 12px; font-weight: 700; width: fit-content; }
-
-    .gc-arrow { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; background: #16161a; border: 1px solid #27272a; border-radius: 9px; color: #a1a1aa; font-size: 18px; transition: all 0.2s; }
-    .group-card:hover .gc-arrow { border-color: #22c55e; color: #22c55e; }
 
     .empty-state { text-align: center; padding: 60px 20px; color: #71717a; }
     .empty-state p { font-size: 16px; margin-bottom: 20px; }
@@ -244,13 +228,7 @@
 
     @media (max-width: 900px) {
         .groups-header { flex-direction: column; align-items: flex-start; }
-        .group-card { grid-template-columns: 1fr 1fr; gap: 16px 20px; position: relative; }
-        .gc-name-block { grid-column: 1 / -1; }
-        .gc-arrow { position: absolute; top: 18px; right: 18px; }
         .form-row-2 { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 520px) {
-        .group-card { grid-template-columns: 1fr; }
     }
 </style>
 
