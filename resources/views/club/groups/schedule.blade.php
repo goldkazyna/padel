@@ -112,6 +112,13 @@
     $isFrozenOn = function ($member, $date) {
         return $member->freezes->contains(fn($f) => $f->freeze_from->lte($date) && $f->freeze_until->gte($date));
     };
+    $plZan = function ($n) {
+        $n = abs((int) $n); $d100 = $n % 100; $d10 = $n % 10;
+        if ($d100 >= 11 && $d100 <= 14) return 'занятий';
+        if ($d10 === 1) return 'занятие';
+        if ($d10 >= 2 && $d10 <= 4) return 'занятия';
+        return 'занятий';
+    };
 @endphp
 
 <div class="gsch-wrap">
@@ -150,7 +157,7 @@
                         <span class="gsch-dot {{ $rem <= 0 ? 'dot-rem-zero' : ($rem <= 2 ? 'dot-rem-low' : 'dot-rem-ok') }}"></span>
                         <span class="gsch-mname">{{ optional($m->client)->name ?? '—' }}</span>
                         @if($frozenNow)<span class="gsch-mtag tag-frozen">заморозка</span>@endif
-                        <span class="gsch-mtag {{ $rem <= 0 ? 'tag-rem-zero' : ($rem <= 2 ? 'tag-rem-low' : 'tag-rem-ok') }}">{{ $rem }} занятий</span>
+                        <span class="gsch-mtag {{ $rem <= 0 ? 'tag-rem-zero' : ($rem <= 2 ? 'tag-rem-low' : 'tag-rem-ok') }}">{{ $rem }} {{ $plZan($rem) }}</span>
                     </div>
                 @endforeach
             </div>
