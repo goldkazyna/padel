@@ -1348,6 +1348,10 @@
                                 </div>
                                 <ul id="editGmList" class="gm-list"></ul>
                                 <div id="editGmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                                <a id="editGmScheduleLink" href="#" target="_blank" rel="noopener"
+                                   style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.35);color:#34d17f;font-size:13px;font-weight:700;text-decoration:none;">
+                                    <i class="bi bi-calendar3"></i> Всё расписание группы
+                                </a>
                             </div>
                             <div style="margin-top:14px;padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
                                 Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
@@ -2362,6 +2366,15 @@
         list.innerHTML = '';
         const g = (window.__groupMembers && data.groupId && window.__groupMembers[data.groupId]) || null;
         const members = g ? (g.members || []) : [];
+        const schedLink = document.getElementById('editGmScheduleLink');
+        if (schedLink) {
+            if (data.groupId) {
+                schedLink.href = '{{ url('club/groups') }}/' + data.groupId + '/schedule';
+                schedLink.style.display = 'flex';
+            } else {
+                schedLink.style.display = 'none';
+            }
+        }
         const priceEl = document.getElementById('editGmPrice');
         if (priceEl) {
             const p = Number((g && g.price) || 0);
