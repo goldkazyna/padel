@@ -57,8 +57,13 @@ class GroupSessionService
 
         $this->freezeCoachPay($session, $club);
 
-        ActivityLog::log('updated', 'ClubGroupSession', $session->id,
-            "Занятие проведено: «{$session->group->name}»", clubId: $club->id);
+        // Лог пишем только для ручного проведения (есть пользователь). В авто-режиме
+        // (крон, $conductedBy === null) auth()->id() null, а activity_logs.user_id NOT NULL —
+        // факт авто-проведения виден по conducted_by = null.
+        if ($conductedBy !== null) {
+            ActivityLog::log('updated', 'ClubGroupSession', $session->id,
+                "Занятие проведено: «{$session->group->name}»", clubId: $club->id);
+        }
     }
 
     /**
