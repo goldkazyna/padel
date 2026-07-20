@@ -103,6 +103,29 @@ class ClubGroupController extends Controller
         return view('club.groups.show', compact('group', 'club', 'sessions', 'coaches', 'clients'));
     }
 
+    /** Полное расписание группы: все занятия (прошедшие + будущие) с посещаемостью. */
+    public function schedule(ClubGroup $group)
+    {
+        $club = $this->getClub();
+        if (!$club || $group->club_id !== $club->id) abort(403);
+
+        $group->load([
+            'coach',
+            'members' => fn($q) => $q->where('status', 'active')->orderBy('id'),
+            'members.client',
+            'members.enrollments',
+            'members.attendance',
+            'members.freezes',
+        ]);
+
+        $sessions = $group->sessions()
+            ->with(['court', 'coach', 'attendance.client'])
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
+
+        return view('club.groups.schedule', compact('club', 'group', 'sessions'));
+    }
+
     public function update(Request $request, ClubGroup $group)
     {
         $club = $this->getClub();

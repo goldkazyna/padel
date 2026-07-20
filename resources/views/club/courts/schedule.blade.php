@@ -649,6 +649,10 @@
                                     </div>
                                     <ul id="gmList" class="gm-list"></ul>
                                     <div id="gmEmpty" class="gm-empty" style="display:none;">В группе пока нет участников</div>
+                                    <a id="gmScheduleLink" href="#" target="_blank" rel="noopener"
+                                       style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.35);color:#34d17f;font-size:13px;font-weight:700;text-decoration:none;">
+                                        <i class="bi bi-calendar3"></i> Всё расписание группы
+                                    </a>
                                 </div>
                                 <div id="groupCoachBlock" class="form-group" style="display:none;">
                                     <label for="bookGroupCoachSelect" class="form-label">Тренер</label>
@@ -1853,6 +1857,7 @@
         const coachHint = document.getElementById('bookGroupCoachHint');
         const coachIdInput = document.getElementById('bookCoachId');
         const priceEl = document.getElementById('gmPrice');
+        const schedLink = document.getElementById('gmScheduleLink');
         if (!block || !list) return;
         if (!groupId) {
             block.style.display = 'none';
@@ -1861,7 +1866,12 @@
             if (coachSelect) coachSelect.value = '';
             if (coachIdInput) coachIdInput.value = '';
             if (priceEl) priceEl.style.display = 'none';
+            if (schedLink) schedLink.style.display = 'none';
             return;
+        }
+        if (schedLink) {
+            schedLink.href = '{{ url('club/groups') }}/' + groupId + '/schedule';
+            schedLink.style.display = 'flex';
         }
         const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
         if (priceEl) {

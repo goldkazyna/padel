@@ -313,6 +313,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/groups', [App\Http\Controllers\Club\ClubGroupController::class, 'index'])->name('groups.index');
             Route::post('/groups', [App\Http\Controllers\Club\ClubGroupController::class, 'store'])->name('groups.store');
             Route::get('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'show'])->name('groups.show');
+            Route::get('/groups/{group}/schedule', [App\Http\Controllers\Club\ClubGroupController::class, 'schedule'])->name('groups.schedule');
             Route::put('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'update'])->name('groups.update');
             Route::delete('/groups/{group}', [App\Http\Controllers\Club\ClubGroupController::class, 'destroy'])->name('groups.destroy');
             Route::post('/groups/{group}/archive', [App\Http\Controllers\Club\ClubGroupController::class, 'archive'])->name('groups.archive');
