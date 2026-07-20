@@ -11,6 +11,9 @@
                 <i class="bi bi-hourglass-split"></i> Остатки
                 @if($remCount > 0)<span class="btn-remains-count">{{ $remCount }}</span>@endif
             </a>
+            @if($groups->isNotEmpty())
+            <button type="button" id="grp-export" class="btn-excel" data-tab="{{ $tab }}"><i class="bi bi-file-earmark-arrow-down"></i> Выгрузить в Excel</button>
+            @endif
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>
     </div>
@@ -46,7 +49,13 @@
             $full = $group->capacity && $group->active_members_count >= $group->capacity;
             $cm = $group->coach_id ? ($coachMeta[$group->coach_id] ?? null) : null;
         @endphp
-        <a href="{{ route('club.groups.show', $group) }}" class="group-card">
+        <a href="{{ route('club.groups.show', $group) }}" class="group-card"
+           data-name="{{ $group->name }}"
+           data-coach="{{ $cm['name'] ?? 'без тренера' }}"
+           data-price="{{ $group->price_per_session > 0 ? number_format($group->price_per_session, 0, '.', ' ') : '' }}"
+           data-count="{{ $group->active_members_count }}"
+           data-capacity="{{ $group->capacity ?? '' }}"
+           data-status="{{ $group->status === 'active' ? 'Активна' : 'Архив' }}">
             {{-- Название + статус --}}
             <div class="gc-top">
                 <div class="gc-name-wrap">
@@ -222,6 +231,9 @@
     .btn-remains:hover { background: rgba(234,179,8,0.2); }
     .btn-remains i { font-size: 15px; }
     .btn-remains-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; background: #eab308; color: #1a1400; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .btn-excel { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #217346; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+    .btn-excel:hover { background: #1a5c38; }
+    .btn-excel i { font-size: 15px; }
 
     @media (max-width: 720px) {
         .groups-grid { grid-template-columns: 1fr; }
@@ -231,5 +243,44 @@
         .form-row-2 { grid-template-columns: 1fr; }
     }
 </style>
+
+<script>
+(function(){
+    var btn = document.getElementById('grp-export');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+        var esc = function(s){ return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+        var cards = Array.prototype.slice.call(document.querySelectorAll('.group-card'));
+        if(!cards.length) return;
+        var headers = ['Группа','Тренер','Цена за занятие (₸)','Участников','Вместимость','Статус'];
+        var cols = ['name','coach','price','count','capacity','status'];
+        var html = '<table border="1"><thead><tr>';
+        headers.forEach(function(h){ html += '<th>' + esc(h) + '</th>'; });
+        html += '</tr></thead><tbody>';
+        cards.forEach(function(c){
+            html += '<tr>';
+            cols.forEach(function(col){
+                var v = c.getAttribute('data-' + col);
+                if(v === null) v = '';
+                if((col === 'price' || col === 'capacity') && v === '') v = '—';
+                html += '<td>' + esc(v) + '</td>';
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        var full = '﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>' + html + '</body></html>';
+        var blob = new Blob([full], { type: 'application/vnd.ms-excel' });
+        var fname = 'gruppy' + (btn.dataset.tab === 'archived' ? '-arhiv' : '-aktivnye');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fname + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    });
+})();
+</script>
 
 @endsection
