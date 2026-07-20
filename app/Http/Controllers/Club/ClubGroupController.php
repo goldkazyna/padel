@@ -57,7 +57,36 @@ class ClubGroupController extends Controller
             }
         }
 
-        return view('club.groups.index', compact('groups', 'club', 'coaches', 'coachMeta', 'tab', 'activeCount', 'archivedCount'));
+        // Сводка «Остатки»: участники с 0 (закончились) и 1–2 (заканчиваются)
+        // занятиями по ВСЕМ активным группам (независимо от выбранной вкладки).
+        $remGroups = ClubGroup::where('club_id', $club->id)
+            ->where('status', 'active')
+            ->with([
+                'members' => fn($q) => $q->where('status', 'active')
+                    ->with(['client:id,name', 'enrollments:id,group_member_id,sessions', 'attendance:id,group_member_id,charged']),
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $remEnded = [];   // 0 занятий и меньше
+        $remEnding = [];  // 1–2 занятия
+        foreach ($remGroups as $g) {
+            foreach ($g->members as $m) {
+                $rem = (int) $m->enrollments->sum('sessions') - $m->attendance->where('charged', true)->count();
+                if ($rem > 2) continue;
+                $row = [
+                    'name'     => optional($m->client)->name ?? '—',
+                    'group'    => $g->name,
+                    'group_id' => $g->id,
+                    'rem'      => $rem,
+                ];
+                if ($rem <= 0) $remEnded[] = $row; else $remEnding[] = $row;
+            }
+        }
+        usort($remEnded, fn($a, $b) => $a['rem'] <=> $b['rem']);
+        usort($remEnding, fn($a, $b) => $a['rem'] <=> $b['rem']);
+
+        return view('club.groups.index', compact('groups', 'club', 'coaches', 'coachMeta', 'tab', 'activeCount', 'archivedCount', 'remEnded', 'remEnding'));
     }
 
     /** Метаданные тренера для аватарки: фото / инициалы / цвет-заглушка. */
