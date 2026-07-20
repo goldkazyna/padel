@@ -7,12 +7,10 @@
     <div class="groups-header">
         <h1 class="groups-title">Группы <span class="groups-title-club">— {{ $club->name }}</span></h1>
         <div class="groups-header-actions">
-            @if(count($remEnded) + count($remEnding) > 0)
-                <button class="btn-remains" onclick="document.getElementById('remainsModal').style.display='flex'">
-                    <i class="bi bi-hourglass-split"></i> Остатки
-                    <span class="btn-remains-count">{{ count($remEnded) + count($remEnding) }}</span>
-                </button>
-            @endif
+            <a href="{{ route('club.groups.remains') }}" class="btn-remains">
+                <i class="bi bi-hourglass-split"></i> Остатки
+                @if($remCount > 0)<span class="btn-remains-count">{{ $remCount }}</span>@endif
+            </a>
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>
     </div>
@@ -87,47 +85,6 @@
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>
     @endforelse
-    </div>
-</div>
-
-<!-- Модал «Остатки» -->
-<div id="remainsModal"
-     style="display:none;position:fixed;inset:0;z-index:2000;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);"
-     onclick="if(event.target===this)this.style.display='none'">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div class="modal-header-row">
-            <h5 class="modal-title-text">Остатки занятий</h5>
-            <button type="button" class="modal-close-btn" onclick="document.getElementById('remainsModal').style.display='none'">&#10005;</button>
-        </div>
-        <div class="modal-body-area">
-            @php
-                $plZan = function ($n) { $n = abs((int) $n); $d100 = $n % 100; $d10 = $n % 10; if ($d100 >= 11 && $d100 <= 14) return 'занятий'; if ($d10 === 1) return 'занятие'; if ($d10 >= 2 && $d10 <= 4) return 'занятия'; return 'занятий'; };
-            @endphp
-            @if(count($remEnded))
-                <div class="rem-sec">
-                    <div class="rem-sec-title"><span class="rem-sec-dot zero"></span> Закончились <span class="rem-sec-count">{{ count($remEnded) }}</span></div>
-                    @foreach($remEnded as $r)
-                        <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row">
-                            <span class="rem-name">{{ $r['name'] }}</span>
-                            <span class="rem-group">{{ $r['group'] }}</span>
-                            <span class="rem-badge zero">{{ $r['rem'] }} {{ $plZan($r['rem']) }}</span>
-                        </a>
-                    @endforeach
-                </div>
-            @endif
-            @if(count($remEnding))
-                <div class="rem-sec">
-                    <div class="rem-sec-title"><span class="rem-sec-dot low"></span> Заканчиваются <span class="rem-sec-count">{{ count($remEnding) }}</span></div>
-                    @foreach($remEnding as $r)
-                        <a href="{{ route('club.groups.show', $r['group_id']) }}" class="rem-row">
-                            <span class="rem-name">{{ $r['name'] }}</span>
-                            <span class="rem-group">{{ $r['group'] }}</span>
-                            <span class="rem-badge low">{{ $r['rem'] }} {{ $plZan($r['rem']) }}</span>
-                        </a>
-                    @endforeach
-                </div>
-            @endif
-        </div>
     </div>
 </div>
 
@@ -261,25 +218,10 @@
     .btn-save:hover { background: #16a34a; }
 
     .groups-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    .btn-remains { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.32); border-radius: 10px; color: #eab308; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+    .btn-remains { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.32); border-radius: 10px; color: #eab308; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; text-decoration: none; transition: background 0.15s; }
     .btn-remains:hover { background: rgba(234,179,8,0.2); }
     .btn-remains i { font-size: 15px; }
     .btn-remains-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; background: #eab308; color: #1a1400; border-radius: 999px; font-size: 12px; font-weight: 800; }
-
-    .rem-sec { margin-bottom: 22px; }
-    .rem-sec:last-child { margin-bottom: 0; }
-    .rem-sec-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #a1a1aa; margin-bottom: 10px; }
-    .rem-sec-dot { width: 8px; height: 8px; border-radius: 50%; }
-    .rem-sec-dot.zero { background: #e5564e; }
-    .rem-sec-dot.low { background: #eab308; }
-    .rem-sec-count { margin-left: auto; font-size: 12px; font-weight: 800; color: #71717a; }
-    .rem-row { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: #16161a; border: 1px solid #23232a; border-radius: 10px; margin-bottom: 7px; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
-    .rem-row:hover { border-color: #3a3a44; background: #191920; }
-    .rem-name { font-size: 14px; font-weight: 600; color: #f4f4f5; flex-shrink: 0; }
-    .rem-group { flex: 1; min-width: 0; font-size: 12.5px; color: #8b9298; text-align: right; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .rem-badge { flex-shrink: 0; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 8px; }
-    .rem-badge.zero { background: rgba(229,86,78,0.14); color: #ef7a73; }
-    .rem-badge.low { background: rgba(234,179,8,0.15); color: #eab308; }
 
     @media (max-width: 720px) {
         .groups-grid { grid-template-columns: 1fr; }
