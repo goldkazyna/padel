@@ -139,9 +139,7 @@ class CourtController extends Controller
                 ->where('status', 'active')
                 ->with(['members' => function ($q) {
                     $q->where('status', 'active')->with('client:id,name');
-                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes',
-                    // Запланированные (ещё не проведённые) занятия — для учёта в остатке участника.
-                    'sessions' => fn($q) => $q->where('status', 'planned')->select('id', 'group_id', 'date', 'status')])
+                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes'])
                 ->orderBy('name')
                 ->get()
             : collect();
@@ -348,9 +346,7 @@ class CourtController extends Controller
                 ->where('status', 'active')
                 ->with(['members' => function ($q) {
                     $q->where('status', 'active')->with('client:id,name');
-                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes',
-                    // Запланированные (ещё не проведённые) занятия — для учёта в остатке участника.
-                    'sessions' => fn($q) => $q->where('status', 'planned')->select('id', 'group_id', 'date', 'status')])
+                }, 'members.enrollments:id,group_member_id,sessions', 'members.attendance', 'members.freezes'])
                 ->orderBy('name')
                 ->get()
             : collect();
