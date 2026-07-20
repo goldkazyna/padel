@@ -34,6 +34,7 @@
         </a>
     </div>
 
+    <div class="groups-grid">
     @forelse($groups as $group)
         @php
             $full = $group->capacity && $group->active_members_count >= $group->capacity;
@@ -78,6 +79,7 @@
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>
     @endforelse
+    </div>
 </div>
 
 <!-- Модал создания группы -->
@@ -138,7 +140,9 @@
 </div>
 
 <style>
-    .groups-container { max-width: 1000px; margin: 0 auto; padding: 24px 16px 40px; }
+    .groups-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+    .groups-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+    .groups-grid .empty-state { grid-column: 1 / -1; }
     .groups-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
     .groups-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
     .groups-title-club { color: #71717a; font-weight: 500; }
@@ -156,7 +160,7 @@
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
     .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 
-    .group-card { display: block; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; margin-bottom: 12px; padding: 16px 18px; transition: border-color 0.15s, background 0.15s; text-decoration: none; }
+    .group-card { display: block; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 18px; transition: border-color 0.15s, background 0.15s; text-decoration: none; }
     .group-card:hover { border-color: rgba(255,255,255,0.14); background: #171a1e; }
 
     .gc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -207,6 +211,9 @@
     .btn-save { flex: 2; padding: 14px; background: #22c55e; border: none; border-radius: 10px; color: #0a0a0b; font-size: 14px; font-weight: 800; cursor: pointer; }
     .btn-save:hover { background: #16a34a; }
 
+    @media (max-width: 720px) {
+        .groups-grid { grid-template-columns: 1fr; }
+    }
     @media (max-width: 900px) {
         .groups-header { flex-direction: column; align-items: flex-start; }
         .form-row-2 { grid-template-columns: 1fr; }
