@@ -28,7 +28,10 @@ class HelpController extends Controller
             [
                 'title' => 'Группы и занятия',
                 'icon' => 'bi-people',
-                'articles' => [],
+                'articles' => [
+                    ['slug' => 'manage-group', 'title' => 'Группа: создание и участники', 'excerpt' => 'Создать группу, добавить участника, абонементы.'],
+                    ['slug' => 'conduct-session', 'title' => 'Проведение занятия', 'excerpt' => 'Журнал, создание занятия, посещаемость, списание.'],
+                ],
             ],
             [
                 'title' => 'Клиенты и карты',
