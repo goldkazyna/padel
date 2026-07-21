@@ -1023,6 +1023,12 @@
 						</a>
 					</li>
 					@endif
+						<li class="nav-item">
+							<a href="{{ route('club.help.index') }}" class="nav-link {{ request()->routeIs('club.help.*') ? 'active' : '' }}">
+								<i class="bi bi-question-circle"></i>
+								<span>Помощь</span>
+							</a>
+						</li>
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
 					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
 					<li class="nav-section-title">Работа клуба</li>
@@ -1119,6 +1125,12 @@
 						</a>
 					</li>
 					@endif
+						<li class="nav-item">
+							<a href="{{ route('club.help.index') }}" class="nav-link {{ request()->routeIs('club.help.*') ? 'active' : '' }}">
+								<i class="bi bi-question-circle"></i>
+								<span>Помощь</span>
+							</a>
+						</li>
 				@endif
 
                 @if(auth()->user()->isSuperAdmin())
