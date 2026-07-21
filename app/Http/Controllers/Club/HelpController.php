@@ -20,6 +20,7 @@ class HelpController extends Controller
                 'articles' => [
                     ['slug' => 'create-tournament', 'title' => 'Как создать турнир', 'excerpt' => 'Пошагово: от выбора типа до публикации и старта.'],
                     ['slug' => 'conduct-americano', 'title' => 'Как проводить Американо', 'excerpt' => 'Участники, старт, ввод счёта, таблица, завершение.'],
+                    ['slug' => 'conduct-team', 'title' => 'Как проводить командный турнир', 'excerpt' => 'Пары, группы, круговой этап, плей-офф, победитель.'],
                 ],
             ],
             [
