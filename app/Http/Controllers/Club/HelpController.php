@@ -19,6 +19,7 @@ class HelpController extends Controller
                 'icon' => 'bi-trophy',
                 'articles' => [
                     ['slug' => 'create-tournament', 'title' => 'Как создать турнир', 'excerpt' => 'Пошагово: от выбора типа до публикации и старта.'],
+                    ['slug' => 'conduct-americano', 'title' => 'Как проводить Американо', 'excerpt' => 'Участники, старт, ввод счёта, таблица, завершение.'],
                 ],
             ],
             [
