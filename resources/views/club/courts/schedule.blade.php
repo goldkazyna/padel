@@ -682,6 +682,7 @@
                                                 'frozen_until' => $freeze ? $freeze->freeze_until->format('d.m.y') : null,
                                                 'not_started' => $m->starts_at && $m->starts_at->gt($gmFreezeDate),
                                                 'starts_at' => $m->starts_at ? $m->starts_at->format('d.m.y') : null,
+                                                'note' => $m->note,
                                             ];
                                         })->values(),
                                     ]];
@@ -1903,8 +1904,11 @@
                 const notStarted = m.not_started
                     ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + m.starts_at + '</span>'
                     : '';
+                const note = m.note
+                    ? '<span class="gm-mnote" style="flex-basis:100%;color:#71717a;font-size:11.5px;"><i class="bi bi-chat-square-text" style="font-size:10px;"></i> ' + escapeHtml(m.note) + '</span>'
+                    : '';
                 li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
-                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>' + note;
                 if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
@@ -2005,8 +2009,11 @@
                 const notStarted = m.not_started
                     ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + m.starts_at + '</span>'
                     : '';
+                const note = m.note
+                    ? '<span class="gm-mnote" style="flex-basis:100%;color:#71717a;font-size:11.5px;"><i class="bi bi-chat-square-text" style="font-size:10px;"></i> ' + escapeHtml(m.note) + '</span>'
+                    : '';
                 li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
-                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>' + note;
                 if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
@@ -3374,8 +3381,9 @@
     .gm-item {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         justify-content: space-between;
-        gap: 12px;
+        gap: 6px 12px;
         padding: 8px 0;
         border-top: 1px solid rgba(255,255,255,0.05);
     }

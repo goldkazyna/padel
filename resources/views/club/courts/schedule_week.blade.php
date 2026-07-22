@@ -974,7 +974,7 @@
     .gm-title { font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
     .gm-count { font-size: 12px; color: #a1a1aa; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px; }
     .gm-list { list-style: none; margin: 0; padding: 0; }
-    .gm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+    .gm-item { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.05); }
     .gm-item:first-child { border-top: none; }
     .gm-name { font-size: 13px; color: #f4f4f5; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gm-rem { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
@@ -1178,6 +1178,7 @@
                                                 ])->values(),
                                                 // Дата начала — флаг «ещё не начал» считаем в JS на дату слота.
                                                 'starts_at' => $m->starts_at ? $m->starts_at->toDateString() : null,
+                                                'note' => $m->note,
                                             ];
                                         })->values(),
                                     ]];
@@ -2317,8 +2318,11 @@
                 const notStarted = (sa && bdVal && bdVal < sa)
                     ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + sa.slice(8,10) + '.' + sa.slice(5,7) + '.' + sa.slice(2,4) + '</span>'
                     : '';
+                const note = m.note
+                    ? '<span class="gm-mnote" style="flex-basis:100%;color:#71717a;font-size:11.5px;"><i class="bi bi-chat-square-text" style="font-size:10px;"></i> ' + escapeHtml(m.note) + '</span>'
+                    : '';
                 li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
-                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>' + note;
                 if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
@@ -2403,8 +2407,11 @@
                 const notStarted = (sa2 && data.date && data.date < sa2)
                     ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + sa2.slice(8,10) + '.' + sa2.slice(5,7) + '.' + sa2.slice(2,4) + '</span>'
                     : '';
+                const note = m.note
+                    ? '<span class="gm-mnote" style="flex-basis:100%;color:#71717a;font-size:11.5px;"><i class="bi bi-chat-square-text" style="font-size:10px;"></i> ' + escapeHtml(m.note) + '</span>'
+                    : '';
                 li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
-                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
+                    '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>' + note;
                 if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
             });
