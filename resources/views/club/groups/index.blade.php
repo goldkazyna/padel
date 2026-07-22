@@ -14,6 +14,7 @@
             @if($groups->isNotEmpty())
             <button type="button" id="grp-export" class="btn-excel" data-tab="{{ $tab }}"><i class="bi bi-file-earmark-arrow-down"></i> Выгрузить в Excel</button>
             @endif
+            <a href="{{ route('club.groupSessions.report') }}" class="btn-report"><i class="bi bi-bar-chart-line"></i> Отчёты</a>
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>
     </div>
@@ -32,6 +33,10 @@
         </div>
     @endif
 
+    @php
+        $coachFilterList = $groups->map(fn($g) => $g->coach_id ? ($coachMeta[$g->coach_id]['name'] ?? null) : null)->filter()->unique()->sort()->values();
+        $hasNoCoach = $groups->contains(fn($g) => !$g->coach_id);
+    @endphp
     <div class="groups-tabs">
         <a href="{{ route('club.groups.index') }}"
            class="tab-link {{ $tab === 'active' ? 'tab-active' : '' }}">
@@ -41,6 +46,13 @@
            class="tab-link {{ $tab === 'archived' ? 'tab-active' : '' }}">
             Архивные <span class="tab-count">{{ $archivedCount }}</span>
         </a>
+        @if($coachFilterList->isNotEmpty() || $hasNoCoach)
+        <select id="coachFilter" class="coach-filter" onchange="filterByCoach(this.value)">
+            <option value="">Все тренеры</option>
+            @foreach($coachFilterList as $cn)<option value="{{ $cn }}">{{ $cn }}</option>@endforeach
+            @if($hasNoCoach)<option value="без тренера">Без тренера</option>@endif
+        </select>
+        @endif
     </div>
 
     <div class="groups-grid">
@@ -234,6 +246,11 @@
     .btn-excel { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #217346; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.15s; }
     .btn-excel:hover { background: #1a5c38; }
     .btn-excel i { font-size: 15px; }
+    .btn-report { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; color: #d4d7da; font-size: 14px; font-weight: 700; text-decoration: none; transition: background 0.15s; }
+    .btn-report:hover { background: rgba(255,255,255,0.09); color: #f4f6f7; }
+    .btn-report i { font-size: 15px; }
+    .coach-filter { margin-left: auto; align-self: center; margin-bottom: 8px; background: #15181a; border: 1px solid rgba(255,255,255,0.14); border-radius: 9px; color: #d4d7da; padding: 8px 12px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
+    .coach-filter:focus { outline: none; border-color: var(--accent, #22c55e); }
 
     @media (max-width: 720px) {
         .groups-grid { grid-template-columns: 1fr; }
@@ -245,6 +262,12 @@
 </style>
 
 <script>
+// Фильтр списка групп по тренеру (клиентский — скрывает карточки).
+function filterByCoach(coach) {
+    document.querySelectorAll('.group-card').forEach(function(c) {
+        c.style.display = (!coach || c.getAttribute('data-coach') === coach) ? '' : 'none';
+    });
+}
 (function(){
     var btn = document.getElementById('grp-export');
     if(!btn) return;
