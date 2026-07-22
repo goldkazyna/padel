@@ -13,8 +13,8 @@
             --bg-primary: #0c0e0f;
             --bg-secondary: #141414;
             --bg-sidebar: #0c0e0f;
-            --bg-card: #1a1a1a;
-            --bg-card-hover: #222222;
+            --bg-card: #15181a;
+            --bg-card-hover: #1c2023;
             --accent: #22c55e;
             --accent-dark: #16a34a;
             --accent-glow: rgba(34, 197, 94, 0.15);
