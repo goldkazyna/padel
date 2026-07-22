@@ -11,7 +11,7 @@
     <style>
         :root {
             --bg-primary: #0c0e0f;
-            --bg-secondary: #141414;
+            --bg-secondary: #131619;
             --bg-sidebar: #0c0e0f;
             --bg-card: #15181a;
             --bg-card-hover: #1c2023;
