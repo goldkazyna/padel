@@ -680,6 +680,8 @@
                                                 'remaining' => $bought - $used,
                                                 'frozen' => $freeze !== null,
                                                 'frozen_until' => $freeze ? $freeze->freeze_until->format('d.m.y') : null,
+                                                'not_started' => $m->starts_at && $m->starts_at->gt($gmFreezeDate),
+                                                'starts_at' => $m->starts_at ? $m->starts_at->format('d.m.y') : null,
                                             ];
                                         })->values(),
                                     ]];
@@ -1898,7 +1900,10 @@
                 const frozen = m.frozen
                     ? '<span class="gm-frozen">❄ заморожен' + (m.frozen_until ? ' до ' + m.frozen_until : '') + '</span>'
                     : '';
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
+                const notStarted = m.not_started
+                    ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + m.starts_at + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
                 if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
@@ -1997,7 +2002,10 @@
                 const frozen = m.frozen
                     ? '<span class="gm-frozen">❄ заморожен' + (m.frozen_until ? ' до ' + m.frozen_until : '') + '</span>'
                     : '';
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
+                const notStarted = m.not_started
+                    ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + m.starts_at + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
                 if (m.frozen) li.classList.add('gm-item-frozen');
                 list.appendChild(li);

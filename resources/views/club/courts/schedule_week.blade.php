@@ -1176,6 +1176,8 @@
                                                     'from' => $f->freeze_from->toDateString(),
                                                     'until' => $f->freeze_until->toDateString(),
                                                 ])->values(),
+                                                // Дата начала — флаг «ещё не начал» считаем в JS на дату слота.
+                                                'starts_at' => $m->starts_at ? $m->starts_at->toDateString() : null,
                                             ];
                                         })->values(),
                                     ]];
@@ -2308,9 +2310,14 @@
                 const lowClass = remaining <= 0 ? 'gm-rem-zero' : (remaining <= 2 ? 'gm-rem-low' : 'gm-rem-ok');
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
                 const bd = document.getElementById('bookDate');
-                const fzUntil = gmFrozenUntil(m, bd ? bd.value : '');
+                const bdVal = bd ? bd.value : '';
+                const fzUntil = gmFrozenUntil(m, bdVal);
                 const frozen = fzUntil ? '<span class="gm-frozen">❄ заморожен до ' + fzUntil + '</span>' : '';
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
+                const sa = m.starts_at;
+                const notStarted = (sa && bdVal && bdVal < sa)
+                    ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + sa.slice(8,10) + '.' + sa.slice(5,7) + '.' + sa.slice(2,4) + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
                 if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
@@ -2392,7 +2399,11 @@
                 const word = remaining === 1 ? 'занятие' : (remaining >= 2 && remaining <= 4 ? 'занятия' : 'занятий');
                 const fzUntil = gmFrozenUntil(m, data.date || '');
                 const frozen = fzUntil ? '<span class="gm-frozen">❄ заморожен до ' + fzUntil + '</span>' : '';
-                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen +
+                const sa2 = m.starts_at;
+                const notStarted = (sa2 && data.date && data.date < sa2)
+                    ? '<span class="gm-frozen" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с ' + sa2.slice(8,10) + '.' + sa2.slice(5,7) + '.' + sa2.slice(2,4) + '</span>'
+                    : '';
+                li.innerHTML = '<span class="gm-name">' + escapeHtml(m.name) + '</span>' + frozen + notStarted +
                     '<span class="gm-rem ' + lowClass + '">' + remaining + ' ' + word + '</span>';
                 if (fzUntil) li.classList.add('gm-item-frozen');
                 list.appendChild(li);
