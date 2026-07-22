@@ -38,8 +38,10 @@ class GroupSessionService
 
             $status = $row['status'] ?? 'absent';
             $frozen = $member->isFrozenOn($sessionDate);
+            $notStarted = !$member->hasStartedOn($sessionDate); // ещё не начал ходить
             $isTrial = $status === 'trial';
-            $charged = $status === 'charge' && !$frozen && $member->remaining > 0;
+            // Списываем: charge + не заморожен + уже начал ходить + остаток > 0.
+            $charged = $status === 'charge' && !$frozen && !$notStarted && $member->remaining > 0;
             $attended = in_array($status, ['charge', 'trial'], true);
             $trialAmount = $isTrial ? (int) ($row['trial_amount'] ?? 0) : null;
 

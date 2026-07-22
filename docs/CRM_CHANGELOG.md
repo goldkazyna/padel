@@ -7,6 +7,9 @@
 
 ## 2026-07-22
 
+### Группы: «дата начала» участника (отложенный старт)
+- Необязательное поле `starts_at` у участника группы: клиент занимает место сразу, но занятия НЕ списываются до этой даты. Логика в `GroupSessionService::conduct` (charge только если `hasStartedOn`). Поле в модалках добавления/редактирования участника; бейджи «начнёт с …» на странице группы и в проведении занятия (charge заблокирован до старта, как заморозка). Колонка `club_group_members.starts_at`. Деплой миграции: `php artisan migrate --path=database/migrations/2026_07_22_000001_add_starts_at_to_club_group_members.php`
+
 ### Восстановление пароля по телефону + SMS (/forgot-password)
 - Фирменная страница (тёмная тема, зелёный, логотип) на 2 шага: ввод телефона → SMS-код + новый пароль/повтор → смена и автологин. SMS через тот же `SmsService`, что и приложение (текст «Padel KZ Ваш код OTP: {code}», тестовый код 1111). Контроллер `Auth\PhonePasswordResetController` (sendCode/reset), роуты `password.phone.send`/`password.phone.reset`. Деплой: `git pull && php artisan route:clear && php artisan view:clear`.
 

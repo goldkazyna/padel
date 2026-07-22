@@ -301,6 +301,7 @@ class ClubGroupController extends Controller
             'amount' => 'nullable|numeric|min:0',
             'is_paid' => 'nullable|boolean',
             'subscription_ends_at' => 'nullable|date',
+            'starts_at' => 'nullable|date',
             'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
 
@@ -324,6 +325,7 @@ class ClubGroupController extends Controller
                 'status' => 'active',
                 'left_at' => null,
                 'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+                'starts_at' => $validated['starts_at'] ?? null,
             ]);
             $member = $existing;
         } else {
@@ -331,6 +333,7 @@ class ClubGroupController extends Controller
                 'group_id' => $group->id,
                 'client_id' => $client->id,
                 'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+                'starts_at' => $validated['starts_at'] ?? null,
             ]);
         }
         $this->createEnrollment($member, $validated);
@@ -349,9 +352,13 @@ class ClubGroupController extends Controller
 
         $validated = $request->validate([
             'subscription_ends_at' => 'nullable|date',
+            'starts_at' => 'nullable|date',
             'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
-        $member->update(['subscription_ends_at' => $validated['subscription_ends_at'] ?? null]);
+        $member->update([
+            'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
+            'starts_at' => $validated['starts_at'] ?? null,
+        ]);
 
         // Способ оплаты правим у последнего пакета участника (он привязан к пакету).
         $lastEnrollment = $member->enrollments()->latest('id')->first();

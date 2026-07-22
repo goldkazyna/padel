@@ -108,7 +108,9 @@
                         @php
                             $rem = $m->remaining;
                             $frozen = $m->freezes->first(fn($f) => $f->freeze_from->lte($session->date) && $f->freeze_until->gte($session->date));
-                            $canCharge = $rem > 0 && !$frozen;
+                            // Ещё не начал ходить — занимает место, но не списывается.
+                            $notStarted = $m->starts_at && $m->starts_at->gt($session->date);
+                            $canCharge = $rem > 0 && !$frozen && !$notStarted;
                             // Дефолт: списать (если можно), иначе «не был».
                             $default = $canCharge ? 'charge' : 'absent';
                         @endphp
@@ -118,6 +120,7 @@
                                 <div class="name-block">
                                     <span class="att-name">{{ $m->client->name }}</span>
                                     @if($frozen)<span class="freeze-badge">❄ заморожен до {{ $frozen->freeze_until->format('d.m.y') }}</span>@endif
+                                    @if($notStarted)<span class="freeze-badge" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт с {{ $m->starts_at->format('d.m.y') }}</span>@endif
                                 </div>
                             </div>
                             <div class="ta-center">
