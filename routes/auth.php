@@ -17,11 +17,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+    // Восстановление пароля по телефону + SMS (фирменная страница)
+    Route::get('forgot-password', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'create'])
         ->name('password.request');
 
-    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
+    Route::post('forgot-password/send-code', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'sendCode'])
+        ->middleware('throttle:5,1')->name('password.phone.send');
+
+    Route::post('forgot-password/reset', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'reset'])
+        ->middleware('throttle:5,1')->name('password.phone.reset');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');

@@ -7,6 +7,9 @@
 
 ## 2026-07-22
 
+### Восстановление пароля по телефону + SMS (/forgot-password)
+- Фирменная страница (тёмная тема, зелёный, логотип) на 2 шага: ввод телефона → SMS-код + новый пароль/повтор → смена и автологин. SMS через тот же `SmsService`, что и приложение (текст «Padel KZ Ваш код OTP: {code}», тестовый код 1111). Контроллер `Auth\PhonePasswordResetController` (sendCode/reset), роуты `password.phone.send`/`password.phone.reset`. Деплой: `git pull && php artisan route:clear && php artisan view:clear`.
+
 ### Редизайн страницы входа (/login)
 - Стандартный Breeze-шаблон заменён на фирменную страницу: тёмная тема, зелёный акцент, логотип PADEL KZ, вкладки телефон/email, Telegram-вход. `коммит 6ec932a`. Деплой: `git pull && php artisan view:clear`. (Telegram-виджет рендерится только на боевом домене.)
 
