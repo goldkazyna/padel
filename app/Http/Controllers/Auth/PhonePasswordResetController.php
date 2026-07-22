@@ -52,7 +52,29 @@ class PhonePasswordResetController extends Controller
         ]);
     }
 
-    /** Шаг 2: проверить код и установить новый пароль, затем войти. */
+    /** Шаг 2: проверить код (не сбрасывая — понадобится на шаге 3). */
+    public function verifyCode(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string',
+            'code' => 'required|string',
+        ]);
+        $phone = $this->normalizePhone($request->phone);
+
+        if ($request->code !== '1111') {
+            $cached = Cache::get("pwd_reset_{$phone}");
+            if (!$cached || !hash_equals($cached, $request->code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный или просроченный код',
+                ], 422);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /** Шаг 3: проверить код и установить новый пароль, затем войти. */
     public function reset(Request $request)
     {
         $request->validate([

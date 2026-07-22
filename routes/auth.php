@@ -24,6 +24,9 @@ Route::middleware('guest')->group(function () {
     Route::post('forgot-password/send-code', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'sendCode'])
         ->middleware('throttle:5,1')->name('password.phone.send');
 
+    Route::post('forgot-password/verify-code', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'verifyCode'])
+        ->middleware('throttle:10,1')->name('password.phone.verify');
+
     Route::post('forgot-password/reset', [App\Http\Controllers\Auth\PhonePasswordResetController::class, 'reset'])
         ->middleware('throttle:5,1')->name('password.phone.reset');
 

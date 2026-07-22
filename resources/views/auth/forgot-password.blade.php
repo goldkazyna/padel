@@ -79,15 +79,25 @@
                 <div class="alt"><a href="{{ route('login') }}">← Вернуться ко входу</a></div>
             </div>
 
-            {{-- Шаг 2: код + новый пароль --}}
-            <div id="step-reset" class="hidden">
-                <h1 class="card-title">Новый пароль</h1>
-                <p class="card-lead" id="sentTo">Введите код из SMS и придумайте новый пароль.</p>
-                <form id="formReset">
+            {{-- Шаг 2: код из SMS --}}
+            <div id="step-code" class="hidden">
+                <h1 class="card-title">Введите код</h1>
+                <p class="card-lead" id="sentTo">Мы отправили код в SMS.</p>
+                <form id="formCode">
                     <div class="fg">
                         <label class="lbl" for="code">Код из SMS</label>
-                        <input class="inp code" id="code" type="text" inputmode="numeric" maxlength="4" name="code" placeholder="0000" required>
+                        <input class="inp code" id="code" type="text" inputmode="numeric" maxlength="4" placeholder="0000" required>
                     </div>
+                    <button type="submit" class="btn" id="btnVerify">Подтвердить</button>
+                </form>
+                <div class="alt"><button type="button" class="linkbtn" id="backToPhone">← Изменить номер</button></div>
+            </div>
+
+            {{-- Шаг 3: новый пароль --}}
+            <div id="step-password" class="hidden">
+                <h1 class="card-title">Новый пароль</h1>
+                <p class="card-lead">Придумайте новый пароль для входа.</p>
+                <form id="formReset">
                     <div class="fg">
                         <label class="lbl" for="password">Новый пароль</label>
                         <input class="inp" id="password" type="password" name="password" autocomplete="new-password" placeholder="Минимум 6 символов" required>
@@ -98,7 +108,7 @@
                     </div>
                     <button type="submit" class="btn" id="btnReset">Сменить пароль и войти</button>
                 </form>
-                <div class="alt"><button type="button" class="linkbtn" id="backBtn">← Изменить номер</button></div>
+                <div class="alt"><button type="button" class="linkbtn" id="backToCode">← Назад к коду</button></div>
             </div>
         </div>
     </div>
@@ -107,9 +117,14 @@
     const csrf = document.querySelector('meta[name=csrf-token]').content;
     const msg = document.getElementById('msg');
     let currentPhone = '';
+    let currentCode = '';
 
     function showMsg(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
     function clearMsg(){ msg.className = 'msg'; msg.textContent = ''; }
+    function goStep(id){
+        ['step-phone','step-code','step-password'].forEach(s => document.getElementById(s).classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    }
 
     async function post(url, data){
         const r = await fetch(url, {
@@ -132,9 +147,8 @@
         btn.disabled = false; btn.textContent = 'Отправить код';
         if (res.ok && res.data.success) {
             currentPhone = document.getElementById('phone').value;
-            document.getElementById('step-phone').classList.add('hidden');
-            document.getElementById('step-reset').classList.remove('hidden');
-            document.getElementById('sentTo').textContent = res.data.message + '. Введите код и новый пароль.';
+            goStep('step-code');
+            document.getElementById('sentTo').textContent = res.data.message + '.';
             showMsg(res.data.message, true);
             document.getElementById('code').focus();
         } else {
@@ -142,7 +156,25 @@
         }
     });
 
-    // Шаг 2 — сменить пароль
+    // Шаг 2 — проверить код
+    document.getElementById('formCode').addEventListener('submit', async function(e){
+        e.preventDefault();
+        clearMsg();
+        const code = document.getElementById('code').value.trim();
+        const btn = document.getElementById('btnVerify');
+        btn.disabled = true; btn.textContent = 'Проверяем…';
+        const res = await post('{{ route('password.phone.verify') }}', { phone: currentPhone, code });
+        btn.disabled = false; btn.textContent = 'Подтвердить';
+        if (res.ok && res.data.success) {
+            currentCode = code;
+            goStep('step-password');
+            document.getElementById('password').focus();
+        } else {
+            showMsg(res.data.message || 'Неверный код');
+        }
+    });
+
+    // Шаг 3 — сменить пароль
     document.getElementById('formReset').addEventListener('submit', async function(e){
         e.preventDefault();
         clearMsg();
@@ -154,7 +186,7 @@
         btn.disabled = true; btn.textContent = 'Сохраняем…';
         const res = await post('{{ route('password.phone.reset') }}', {
             phone: currentPhone,
-            code: document.getElementById('code').value,
+            code: currentCode,
             password: p,
             password_confirmation: p2
         });
@@ -167,11 +199,8 @@
         }
     });
 
-    document.getElementById('backBtn').addEventListener('click', function(){
-        clearMsg();
-        document.getElementById('step-reset').classList.add('hidden');
-        document.getElementById('step-phone').classList.remove('hidden');
-    });
+    document.getElementById('backToPhone').addEventListener('click', function(){ clearMsg(); goStep('step-phone'); });
+    document.getElementById('backToCode').addEventListener('click', function(){ clearMsg(); goStep('step-code'); });
 
     // Маска телефона
     document.getElementById('phone').addEventListener('input', function(e){
