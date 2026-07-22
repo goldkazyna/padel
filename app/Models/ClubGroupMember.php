@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClubGroupMember extends Model
 {
-    protected $fillable = ['group_id', 'client_id', 'status', 'subscription_ends_at', 'left_at', 'starts_at'];
+    protected $fillable = ['group_id', 'client_id', 'status', 'subscription_ends_at', 'left_at', 'starts_at', 'note'];
 
     protected $casts = ['subscription_ends_at' => 'date', 'left_at' => 'datetime', 'starts_at' => 'date'];
 

@@ -245,6 +245,9 @@
                         @if($m->subscription_ends_at)
                             <span class="msub" style="color:{{ $m->subscription_ends_at->lt($today) ? '#ef7a73' : '#6b7278' }};">Абонемент до {{ $m->subscription_ends_at->format('d.m.Y') }}{{ $m->subscription_ends_at->lt($today) ? ' · истёк' : '' }}</span>
                         @endif
+                        @if($m->note)
+                            <span class="msub" style="color:#8b9298;"><i class="bi bi-chat-square-text" style="font-size:11px;"></i> {{ $m->note }}</span>
+                        @endif
                     </span>
                     @if($frozenNow)<span class="gsch-mtag tag-frozen">заморозка</span>@endif
                     @if($m->starts_at && $m->starts_at->gt($today))<span class="gsch-mtag" style="background:rgba(106,164,245,.14);color:#6aa4f5;">начнёт {{ $m->starts_at->format('d.m') }}</span>@endif
@@ -362,6 +365,10 @@
                     <label class="form-label">Начинает ходить с</label>
                     <input type="date" name="starts_at" class="form-input" value="{{ old('starts_at') }}">
                     <small style="color:#71717a;font-size:12px;">Необязательно. До этой даты занимает место, но занятия не списываются.</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Комментарий</label>
+                    <textarea name="note" class="form-input" rows="2" placeholder="Заметка по участнику (необязательно)">{{ old('note') }}</textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Дата окончания абонемента</label>
@@ -506,6 +513,8 @@
                     <small style="color:#71717a;font-size:12px;display:block;margin-bottom:14px;">До этой даты занятия не списываются.</small>
                     <label class="form-label">Дата окончания абонемента</label>
                     <input type="date" name="subscription_ends_at" id="editMemberEndsAt" class="form-input">
+                    <label class="form-label" style="margin-top:14px;">Комментарий</label>
+                    <textarea name="note" id="editMemberNote" class="form-input" rows="2" placeholder="Заметка по участнику"></textarea>
                     <small style="color:#71717a;font-size:12px;">Необязательно. Оставьте пустым, чтобы убрать дату.</small>
                 </div>
                 <div class="form-group">
@@ -636,6 +645,7 @@
             url: "{{ route('club.groups.members.update', [$group, $member]) }}",
             date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}",
             starts: "{{ $member->starts_at ? $member->starts_at->format('Y-m-d') : '' }}",
+            note: @json($member->note ?? ''),
             pm: "{{ optional($member->enrollments->sortByDesc('id')->first())->payment_method ?? '' }}"
         },
         @endforeach
@@ -645,6 +655,7 @@
         document.getElementById('editMemberForm').action = d.url || '';
         document.getElementById('editMemberEndsAt').value = d.date || '';
         document.getElementById('editMemberStartsAt').value = d.starts || '';
+        document.getElementById('editMemberNote').value = d.note || '';
         pmSet('editMember', d.pm || '');
         document.getElementById('editMemberModal').style.display = 'flex';
     }
