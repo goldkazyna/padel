@@ -10,9 +10,9 @@
 	
     <style>
         :root {
-            --bg-primary: #0f0f0f;
+            --bg-primary: #0c0e0f;
             --bg-secondary: #141414;
-            --bg-sidebar: #0a0a0a;
+            --bg-sidebar: #0c0e0f;
             --bg-card: #1a1a1a;
             --bg-card-hover: #222222;
             --accent: #22c55e;
