@@ -1129,49 +1129,51 @@ class MobileTournamentController extends Controller
             ], 422);
         }
 
-        // Отдаём из кэша, если уже считали.
-        $cached = TournamentAiAnalysis::where('tournament_id', $tournament->id)
-            ->where('user_id', $userId)
-            ->first();
-        if ($cached) {
+        try {
+            // Отдаём из кэша, если уже считали.
+            $cached = TournamentAiAnalysis::where('tournament_id', $tournament->id)
+                ->where('user_id', $userId)
+                ->first();
+            if ($cached) {
+                return response()->json([
+                    'success' => true,
+                    'cached' => true,
+                    'analysis' => $cached->content,
+                ]);
+            }
+
+            $context = $this->buildAiContext($tournament, $userId);
+            if ($context === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Нет данных о вашем выступлении в этом турнире',
+                ], 422);
+            }
+
+            $result = app(TournamentAiAnalysisService::class)->generate($context, $lang);
+
+            // firstOrCreate защищает от гонки (два запроса одновременно).
+            $stored = TournamentAiAnalysis::firstOrCreate(
+                ['tournament_id' => $tournament->id, 'user_id' => $userId],
+                ['content' => $result['analysis'], 'model' => $result['model'], 'lang' => $lang]
+            );
+
             return response()->json([
                 'success' => true,
-                'cached' => true,
-                'analysis' => $cached->content,
+                'cached' => false,
+                'analysis' => $stored->content,
             ]);
-        }
-
-        $context = $this->buildAiContext($tournament, $userId);
-        if ($context === null) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Нет данных о вашем выступлении в этом турнире',
-            ], 422);
-        }
-
-        try {
-            $result = app(TournamentAiAnalysisService::class)->generate($context, $lang);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('AI analysis failed', [
                 'tournament' => $tournament->id, 'user' => $userId, 'error' => $e->getMessage(),
             ]);
+            // Возвращаем причину в сообщении — помогает на этапе настройки
+            // (ключ/таблица/сеть); секретов в тексте ошибок нет.
             return response()->json([
                 'success' => false,
-                'message' => 'Не удалось сгенерировать разбор. Попробуйте позже.',
+                'message' => 'Не удалось сгенерировать разбор: ' . $e->getMessage(),
             ], 503);
         }
-
-        // firstOrCreate защищает от гонки (два запроса одновременно).
-        $stored = TournamentAiAnalysis::firstOrCreate(
-            ['tournament_id' => $tournament->id, 'user_id' => $userId],
-            ['content' => $result['analysis'], 'model' => $result['model'], 'lang' => $lang]
-        );
-
-        return response()->json([
-            'success' => true,
-            'cached' => false,
-            'analysis' => $stored->content,
-        ]);
     }
 
     /**

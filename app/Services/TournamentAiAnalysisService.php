@@ -43,7 +43,7 @@ class TournamentAiAnalysisService
             'x-api-key' => $key,
             'anthropic-version' => config('services.anthropic.version', '2023-06-01'),
             'content-type' => 'application/json',
-        ])->timeout(60)->post(self::ENDPOINT, [
+        ])->connectTimeout(15)->timeout(60)->post(self::ENDPOINT, [
             'model' => $model,
             'max_tokens' => 1400,
             'system' => $this->systemPrompt($langName),
