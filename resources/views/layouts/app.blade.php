@@ -45,10 +45,7 @@
         * { box-sizing: border-box; }
         
         body {
-            background:
-                radial-gradient(1200px 900px at 68% -12%, rgba(34,197,94,0.09), rgba(34,197,94,0) 55%),
-                var(--bg-primary);
-            background-attachment: fixed;
+            background: var(--bg-primary);
             color: var(--text-primary);
             font-family: 'Segoe UI', system-ui, sans-serif;
             min-height: 100vh;

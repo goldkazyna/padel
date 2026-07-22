@@ -273,10 +273,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
         :root {
-            --bg-primary: #0a0a0b;
-            --bg-secondary: #111113;
-            --bg-card: #18181b;
-            --bg-hover: #1f1f23;
+            --bg-primary: #0c0e0f;
+            --bg-secondary: #131619;
+            --bg-card: #15181a;
+            --bg-hover: #1c2023;
             --accent: #22c55e;
             --accent-dim: #16a34a;
             --accent-glow: rgba(34, 197, 94, 0.15);
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         body {
-            font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
