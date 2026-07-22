@@ -208,6 +208,19 @@ class ClubCoach extends Model
 
         if ($hasBooking) return false;
 
+        // Мультитренер: занят, если добавлен как доп. тренер в пересекающейся броне.
+        $inMultiBooking = CourtBooking::whereDate('date', $date)
+            ->where('status', 'confirmed')
+            ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
+            ->whereHas('coaches', fn($q) => $q->where('coach_id', $this->user_id))
+            ->where(function ($q) use ($startFormatted, $endFormatted) {
+                $q->where('start_time', '<', $endFormatted)
+                  ->where('end_time', '>', $startFormatted);
+            })
+            ->exists();
+
+        if ($inMultiBooking) return false;
+
         // Проверяем ручные блокировки
         $blocks = CoachBlock::where('club_coach_id', $this->id)
             ->whereDate('date', \Carbon\Carbon::parse($date)->format('Y-m-d'))

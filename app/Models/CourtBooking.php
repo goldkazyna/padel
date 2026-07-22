@@ -64,6 +64,12 @@ class CourtBooking extends Model
         return $this->belongsTo(User::class, 'coach_id');
     }
 
+    /** Все тренеры брони (мультитренер / спарринг) — у каждого своя цена и оплата. */
+    public function coaches()
+    {
+        return $this->hasMany(CourtBookingCoach::class, 'court_booking_id');
+    }
+
     public function clubCard()
     {
         return $this->belongsTo(ClubCard::class, 'club_card_id');

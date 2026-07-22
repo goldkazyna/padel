@@ -644,6 +644,11 @@ class CourtController extends Controller
             'coach_id' => 'nullable|exists:users,id',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
+            // Несколько тренеров (спарринг) — только для индивидуальной брони.
+            'coaches' => 'nullable|array|max:5',
+            'coaches.*.coach_id' => 'required_with:coaches|exists:users,id',
+            'coaches.*.price' => 'nullable|numeric|min:0',
+            'coaches.*.paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
@@ -740,6 +745,31 @@ class CourtController extends Controller
         $cardAvailable = $counterCard ? $cardService->availableBalance($counterCard) : 0;
         $slotHours = $counterCard ? $cardService->slotHours($startTime, $endTime) : 0;
 
+        // Мультитренер (спарринг) — только для НЕ групповой брони. Собираем строки
+        // тренеров с индивидуальной ценой/оплатой; дубли по coach_id схлопываем.
+        $coachRows = [];
+        if (!$isGroupBooking && is_array($request->input('coaches'))) {
+            foreach ($request->input('coaches') as $c) {
+                $cid = (int) ($c['coach_id'] ?? 0);
+                if ($cid <= 0) continue;
+                $coachRows[$cid] = [
+                    'coach_id' => $cid,
+                    'coach_price' => (isset($c['price']) && $c['price'] !== '' && $c['price'] !== null) ? (float) $c['price'] : null,
+                    'coach_paid' => !empty($c['paid']),
+                ];
+            }
+            $coachRows = array_values($coachRows);
+        }
+        // Обратная совместимость: пришёл одиночный coach_id без массива → один тренер.
+        if (empty($coachRows) && !$isGroupBooking && !empty($validated['coach_id'])) {
+            $coachRows[] = [
+                'coach_id' => (int) $validated['coach_id'],
+                'coach_price' => $validated['coach_price'] ?? null,
+                'coach_paid' => $request->boolean('coach_paid'),
+            ];
+        }
+        $primaryCoach = $coachRows[0] ?? null; // основной тренер брони
+
         $created = [];   // [['date' => Y-m-d, 'id' => X], ...]
         $skipped = [];   // ['Y-m-d' => 'причина']
         $firstBooking = null;
@@ -751,17 +781,24 @@ class CourtController extends Controller
                 continue;
             }
 
-            // Проверка тренера. Для групповой брони пропускаем проверку графика —
-            // тренер привязан к группе на уровне группы, а не к слот-графику.
-            if (!empty($validated['coach_id'])) {
+            // Проверка тренеров. Групповая — один тренер группы (график пропускаем).
+            // Индивидуальная — все выбранные тренеры должны быть свободны.
+            $coachIdsToCheck = $isGroupBooking
+                ? (!empty($validated['coach_id']) ? [(int) $validated['coach_id']] : [])
+                : array_column($coachRows, 'coach_id');
+            $coachBusy = false;
+            foreach ($coachIdsToCheck as $cid) {
                 $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
-                    ->where('user_id', $validated['coach_id'])
-                    ->first();
+                    ->where('user_id', $cid)->first();
                 $skipSchedule = $isGroupBooking;
                 if (!$clubCoach || !$clubCoach->isFreeAt($date, $startTime, $endTime, null, $skipSchedule)) {
-                    $skipped[$date] = 'тренер занят на это время';
-                    continue;
+                    $coachBusy = true;
+                    break;
                 }
+            }
+            if ($coachBusy) {
+                $skipped[$date] = 'тренер занят на это время';
+                continue;
             }
 
             // Цена для конкретной даты (будни/выходные). Кастомная цена, если
@@ -799,15 +836,29 @@ class CourtController extends Controller
                 'is_paid' => $validated['is_paid'] ?? false,
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
-                'coach_id' => $validated['coach_id'] ?? null,
-                // Групповые занятия: тренер всегда считается оплаченным (в форме группы
-                // нет переключателя оплаты). Иначе — берём из формы.
-                'coach_paid' => !empty($validated['coach_id'])
-                    ? ($isGroupBooking ? true : $request->boolean('coach_paid'))
-                    : null,
-                'coach_price' => !empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null,
+                // Групповая — тренер группы; индивидуальная — основной (первый) тренер.
+                'coach_id' => $isGroupBooking ? ($validated['coach_id'] ?? null) : ($primaryCoach['coach_id'] ?? null),
+                // Групповые занятия: тренер всегда «оплачен» (в форме нет переключателя).
+                'coach_paid' => $isGroupBooking
+                    ? (!empty($validated['coach_id']) ? true : null)
+                    : ($primaryCoach ? $primaryCoach['coach_paid'] : null),
+                'coach_price' => $isGroupBooking
+                    ? (!empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null)
+                    : ($primaryCoach['coach_price'] ?? null),
                 'club_card_id' => $clubCardId,
             ]);
+
+            // Мультитренер: сохраняем всех тренеров индивидуальной брони в пивот.
+            if (!$isGroupBooking && !empty($coachRows)) {
+                foreach ($coachRows as $cr) {
+                    \App\Models\CourtBookingCoach::create([
+                        'court_booking_id' => $booking->id,
+                        'coach_id' => $cr['coach_id'],
+                        'coach_price' => $cr['coach_price'],
+                        'coach_paid' => $cr['coach_paid'],
+                    ]);
+                }
+            }
             $firstBooking ??= $booking;
             $created[] = ['date' => $date, 'id' => $booking->id];
 
