@@ -28,10 +28,33 @@ class CoachesReportService
             ->whereNotNull('coach_id')
             ->whereDate('date', '>=', $from->toDateString())
             ->whereDate('date', '<=', $to->toDateString())
-            ->with('court')
+            ->with(['court', 'coaches'])
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
+    }
+
+    /**
+     * Тренеры брони как отдельные «ноги» выплаты. Индивидуальная бронь со спаррингом
+     * (несколько тренеров в пивоте) → по одной ноге на каждого тренера с его ценой/оплатой.
+     * Групповая бронь и старые брони без пивота → одна нога по coach_id.
+     *
+     * @return array<int, array{coach_id:int, coach_price:mixed, coach_paid:bool}>
+     */
+    private function coachLegs(CourtBooking $b): array
+    {
+        if ($b->booking_type !== 'group' && $b->coaches->isNotEmpty()) {
+            return $b->coaches->map(fn($pc) => [
+                'coach_id' => (int) $pc->coach_id,
+                'coach_price' => $pc->coach_price,
+                'coach_paid' => (bool) $pc->coach_paid,
+            ])->all();
+        }
+        return [[
+            'coach_id' => (int) $b->coach_id,
+            'coach_price' => $b->coach_price,
+            'coach_paid' => (bool) $b->coach_paid,
+        ]];
     }
 
     private function coachName(int $userId, array &$cache): string
@@ -135,24 +158,24 @@ class CoachesReportService
         $agg = []; // userId => [group, individual, soft, tournament, other]
 
         foreach ($bookings as $b) {
-            $id = $b->coach_id;
-            $agg[$id] ??= $blank;
-
-            $prof = $profiles->get($id);
             $h = $this->hours($b->start_time, $b->end_time);
-            if ($b->coach_price !== null) {
-                // Зафиксированная сумма (замороженная при проведении / ручная).
-                $earn = (float) $b->coach_price;
-            } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                // Группа ещё не проведена — прикидка по текущей групповой ставке.
-                $earn = (float) $prof->rate_group * $h;
-            } else {
-                $earn = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
-            }
-
             $type = in_array($b->booking_type, ['group', 'individual', 'soft', 'tournament'], true)
                 ? $b->booking_type : 'other';
-            $agg[$id][$type] += $earn;
+            foreach ($this->coachLegs($b) as $leg) {
+                $id = $leg['coach_id'];
+                $agg[$id] ??= $blank;
+                $prof = $profiles->get($id);
+                if ($leg['coach_price'] !== null) {
+                    // Зафиксированная сумма (замороженная при проведении / ручная).
+                    $earn = (float) $leg['coach_price'];
+                } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                    // Группа ещё не проведена — прикидка по текущей групповой ставке.
+                    $earn = (float) $prof->rate_group * $h;
+                } else {
+                    $earn = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
+                }
+                $agg[$id][$type] += $earn;
+            }
         }
 
         $rows = [];
@@ -217,18 +240,22 @@ class CoachesReportService
         }
 
         // Индивидуальные (всё, кроме групповых): coach_price либо ставка × часы.
+        // Спарринг с несколькими тренерами — суммируем всех тренеров пивота.
         $bookings = CourtBooking::whereIn('court_id', $courtIds)
             ->where('status', 'confirmed')
             ->whereNotNull('coach_id')
             ->where(fn($q) => $q->where('booking_type', '!=', 'group')->orWhereNull('booking_type'))
             ->whereDate('date', '>=', $fromD)
             ->whereDate('date', '<=', $toD)
+            ->with('coaches')
             ->get();
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
-            $individual += $b->coach_price !== null
-                ? (float) $b->coach_price
-                : ($profiles->get($b->coach_id)?->getRateForHours((int) floor($h)) ?? 0.0);
+            foreach ($this->coachLegs($b) as $leg) {
+                $individual += $leg['coach_price'] !== null
+                    ? (float) $leg['coach_price']
+                    : ($profiles->get($leg['coach_id'])?->getRateForHours((int) floor($h)) ?? 0.0);
+            }
         }
 
         return ['group' => $group, 'individual' => $individual];
@@ -241,13 +268,14 @@ class CoachesReportService
      */
     public function unpaid(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
+        // Берём все брони с тренером за период и фильтруем неоплаченные «ноги»
+        // (у мультитренера оплата у каждого своя — DB-фильтр по броне не годится).
         $bookings = CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
             ->where('status', 'confirmed')
             ->whereNotNull('coach_id')
-            ->where('coach_paid', false)
             ->whereDate('date', '>=', $from->toDateString())
             ->whereDate('date', '<=', $to->toDateString())
-            ->with('court')
+            ->with(['court', 'coaches'])
             ->get();
 
         $names = [];
@@ -263,28 +291,31 @@ class CoachesReportService
         $total = 0.0;
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
-            $prof = $profiles->get($b->coach_id);
-            if ($b->coach_price !== null) {
-                // Зафиксированная сумма (замороженная при проведении / ручная).
-                $amount = (float) $b->coach_price;
-            } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                // Группа ещё не проведена — прикидка по текущей групповой ставке.
-                $amount = (float) $prof->rate_group * $h;
-            } else {
-                $amount = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
-            }
+            foreach ($this->coachLegs($b) as $leg) {
+                if ($leg['coach_paid']) continue; // оплаченных не показываем
+                $prof = $profiles->get($leg['coach_id']);
+                if ($leg['coach_price'] !== null) {
+                    // Зафиксированная сумма (замороженная при проведении / ручная).
+                    $amount = (float) $leg['coach_price'];
+                } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
+                    // Группа ещё не проведена — прикидка по текущей групповой ставке.
+                    $amount = (float) $prof->rate_group * $h;
+                } else {
+                    $amount = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
+                }
 
-            $rows[] = [
-                $this->formatDate($b->date),
-                Carbon::parse($b->start_time)->format('H:i') . '–' . Carbon::parse($b->end_time)->format('H:i'),
-                $b->court->name ?? '',
-                $this->coachName($b->coach_id, $names),
-                $b->client_name ?? '',
-                $typeLabels[$b->booking_type] ?? '',
-                round($amount, 2),
-                $b->date instanceof Carbon ? $b->date->toDateString() : (string) $b->date, // sort key
-            ];
-            $total += $amount;
+                $rows[] = [
+                    $this->formatDate($b->date),
+                    Carbon::parse($b->start_time)->format('H:i') . '–' . Carbon::parse($b->end_time)->format('H:i'),
+                    $b->court->name ?? '',
+                    $this->coachName($leg['coach_id'], $names),
+                    $b->client_name ?? '',
+                    $typeLabels[$b->booking_type] ?? '',
+                    round($amount, 2),
+                    $b->date instanceof Carbon ? $b->date->toDateString() : (string) $b->date, // sort key
+                ];
+                $total += $amount;
+            }
         }
 
         // Сортировка: по тренеру, затем по дате.
@@ -310,15 +341,16 @@ class CoachesReportService
         $agg = []; // userId => [sessions, hours, pay]
         foreach ($bookings as $b) {
             $h = $this->hours($b->start_time, $b->end_time);
-            $profile = $profiles->get($b->coach_id);
             $wholeHours = (int) floor($h);
-            $pay = $profile ? $profile->getRateForHours($wholeHours) : 0.0;
-
-            $id = $b->coach_id;
-            $agg[$id] ??= [0, 0.0, 0.0];
-            $agg[$id][0]++;
-            $agg[$id][1] += $h;
-            $agg[$id][2] += $pay;
+            foreach ($this->coachLegs($b) as $leg) {
+                $id = $leg['coach_id'];
+                $profile = $profiles->get($id);
+                $pay = $profile ? $profile->getRateForHours($wholeHours) : 0.0;
+                $agg[$id] ??= [0, 0.0, 0.0];
+                $agg[$id][0]++;
+                $agg[$id][1] += $h;
+                $agg[$id][2] += $pay;
+            }
         }
         $rows = [];
         $tS = 0;

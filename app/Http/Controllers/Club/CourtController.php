@@ -129,7 +129,7 @@ class CourtController extends Controller
         $unprocessedBookings = CourtBooking::whereIn('court_id', $courts->pluck('id'))
             ->where('status', 'confirmed')
             ->where('is_processed', false)
-            ->with('court')
+            ->with(['court', 'coaches.coach'])
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
@@ -199,7 +199,7 @@ class CourtController extends Controller
         $allBookings = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
             ->whereBetween('date', [$weekStartStr, $weekEndStr])
             ->where('status', 'confirmed')
-            ->with('coach')
+            ->with(['coach', 'coaches.coach'])
             ->get()
             ->groupBy(fn($b) => $b->court_id . '|' . Carbon::parse($b->date)->format('Y-m-d'));
 
@@ -298,7 +298,7 @@ class CourtController extends Controller
         $unprocessedBookings = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
             ->where('status', 'confirmed')
             ->where('is_processed', false)
-            ->with('court')
+            ->with(['court', 'coaches.coach'])
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
@@ -1031,6 +1031,10 @@ class CourtController extends Controller
             'coach_id' => 'nullable',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
+            'coaches' => 'nullable|array|max:5',
+            'coaches.*.coach_id' => 'required_with:coaches|exists:users,id',
+            'coaches.*.price' => 'nullable|numeric|min:0',
+            'coaches.*.paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
@@ -1094,18 +1098,47 @@ class CourtController extends Controller
             }
         }
 
+        // Мультитренер (спарринг) — только для НЕ групповой брони. Собираем строки
+        // тренеров с индивидуальной ценой/оплатой; дубли по coach_id схлопываем.
+        $coachRows = [];
+        if (!$isGroupBooking && is_array($request->input('coaches'))) {
+            foreach ($request->input('coaches') as $c) {
+                $cid = (int) ($c['coach_id'] ?? 0);
+                if ($cid <= 0) continue;
+                $coachRows[$cid] = [
+                    'coach_id' => $cid,
+                    'coach_price' => (isset($c['price']) && $c['price'] !== '' && $c['price'] !== null) ? (float) $c['price'] : null,
+                    'coach_paid' => !empty($c['paid']),
+                ];
+            }
+            $coachRows = array_values($coachRows);
+        }
+        // Обратная совместимость: пришёл одиночный coach_id без массива → один тренер.
+        if (empty($coachRows) && !$isGroupBooking && !empty($validated['coach_id'])) {
+            $coachRows[] = [
+                'coach_id' => (int) $validated['coach_id'],
+                'coach_price' => $validated['coach_price'] ?? null,
+                'coach_paid' => $request->boolean('coach_paid'),
+            ];
+        }
+        $primaryCoach = $coachRows[0] ?? null; // основной тренер брони (совместимость)
+
         // Для групповой брони клиент/оплата не трогаются — обновляем только
         // комментарий, тип, тренера. Иначе обновляем всё, включая клиента/оплату.
         $updateData = [
             'is_processed' => $validated['is_processed'] ?? $booking->is_processed,
             'comment' => $validated['comment'] ?? null,
             'booking_type' => $validated['booking_type'] ?? null,
-            'coach_id' => ($validated['coach_id'] ?? null) ?: null,
+            'coach_id' => $isGroupBooking
+                ? (($validated['coach_id'] ?? null) ?: null)
+                : ($primaryCoach['coach_id'] ?? null),
             // Групповые занятия: тренер всегда считается оплаченным.
-            'coach_paid' => !empty($validated['coach_id'])
-                ? ($isGroupBooking ? true : $request->boolean('coach_paid'))
-                : null,
-            'coach_price' => !empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null,
+            'coach_paid' => $isGroupBooking
+                ? (!empty($validated['coach_id']) ? true : null)
+                : ($primaryCoach ? $primaryCoach['coach_paid'] : null),
+            'coach_price' => $isGroupBooking
+                ? (!empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null)
+                : ($primaryCoach['coach_price'] ?? null),
         ];
         if (!$isGroupBooking) {
             $updateData['client_name'] = $validated['client_name'];
@@ -1143,13 +1176,15 @@ class CourtController extends Controller
                 return back()->with('error', 'Новая длительность пересекается с другой бронью или блокировкой');
             }
 
-            // Проверка тренера на расширенный интервал (если он привязан)
-            $coachIdToCheck = $updateData['coach_id'] ?? null;
-            if ($coachIdToCheck) {
+            // Проверка тренеров на расширенный интервал (все тренеры брони).
+            $coachIdsToCheck = $isGroupBooking
+                ? array_filter([$updateData['coach_id'] ?? null])
+                : array_column($coachRows, 'coach_id');
+            foreach ($coachIdsToCheck as $coachIdToCheck) {
                 $clubCoach = \App\Models\ClubCoach::where('club_id', $club->id)
                     ->where('user_id', $coachIdToCheck)
                     ->first();
-                if (!$clubCoach || !$clubCoach->isFreeAt($bookingDate, $newStart, $newEndTime, $booking->id)) {
+                if (!$clubCoach || !$clubCoach->isFreeAt($bookingDate, $newStart, $newEndTime, $booking->id, $isGroupBooking)) {
                     return back()->with('error', 'Тренер недоступен на новый интервал');
                 }
             }
@@ -1192,6 +1227,22 @@ class CourtController extends Controller
         }
 
         $booking->update($updateData);
+
+        // Мультитренер: пересобираем пивот тренеров индивидуальной брони.
+        // Групповая бронь пивот не использует (тренер один, в coach_id) — чистим.
+        if ($isGroupBooking) {
+            $booking->coaches()->delete();
+        } else {
+            $booking->coaches()->delete();
+            foreach ($coachRows as $cr) {
+                \App\Models\CourtBookingCoach::create([
+                    'court_booking_id' => $booking->id,
+                    'coach_id' => $cr['coach_id'],
+                    'coach_price' => $cr['coach_price'],
+                    'coach_paid' => $cr['coach_paid'],
+                ]);
+            }
+        }
 
         // Синхронизируем тренера у связанного занятия журнала. Если в брони
         // сменили тренера (занятие проведёт другой), занятие должно показывать

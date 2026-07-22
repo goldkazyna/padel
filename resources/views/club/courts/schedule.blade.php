@@ -361,10 +361,28 @@
                                                 $coachTotal = $ccObj->getRateForHours((int) $bkHours);
                                             }
                                         }
+
+                                        // Мультитренер (спарринг): дополнительные тренеры сверх основного.
+                                        $extraCoaches = [];
+                                        if ($booking->booking_type !== 'group' && $booking->coaches->count() > 1) {
+                                            foreach ($booking->coaches as $pc) {
+                                                if ((int) $pc->coach_id === (int) $booking->coach_id) continue;
+                                                $pcObj = $clubCoaches->firstWhere('user_id', $pc->coach_id);
+                                                $pcTotal = $pc->coach_price !== null
+                                                    ? (float) $pc->coach_price
+                                                    : ($pcObj ? $pcObj->getRateForHours((int) $bkHours) : 0);
+                                                $extraCoaches[] = [
+                                                    'user' => $pc->coach,
+                                                    'photo' => $pcObj ? $pcObj->photo : null,
+                                                    'total' => $pcTotal,
+                                                    'paid' => $pc->coach_paid,
+                                                ];
+                                            }
+                                        }
                                     @endphp
                                     <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid) ? ' has-icons' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, cardCharged: {{ $booking->card_charged_at ? 'true' : 'false' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, coaches: {!! json_encode($booking->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values()) !!}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, cardCharged: {{ $booking->card_charged_at ? 'true' : 'false' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
                                         @if($pm)
                                         <div class="slot-pm-strip" style="--pm: {{ $pm[2] }}" title="Оплата: {{ $pm[0] }}">
                                             <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
@@ -404,6 +422,22 @@
                                             @endif
                                         </div>
                                         @endif
+                                        @foreach($extraCoaches as $ec)
+                                        <div class="slot-row slot-row-sub">
+                                            <div class="slot-left">
+                                                <span class="slot-coach"><span class="slot-coach-avatar">@if($ec['photo'])<img src="{{ $ec['photo'] }}" alt="">@else{{ mb_strtoupper(mb_substr(optional($ec['user'])->first_name ?? '?', 0, 1)) }}@endif</span>{{ optional($ec['user'])->first_name }}</span>
+                                            </div>
+                                            @if($ec['total'] > 0)
+                                            <div class="slot-right">
+                                                @if($ec['paid'] === null)
+                                                    <span class="slot-price-coach">+ {{ number_format($ec['total'], 0, '', ' ') }} &#8376;</span>
+                                                @else
+                                                    <span class="slot-coach-cap {{ $ec['paid'] ? 'paid' : 'unpaid' }}" title="{{ $ec['paid'] ? 'Тренер оплачен' : 'Тренер не оплачен' }}"><i class="bi {{ $ec['paid'] ? 'bi-check-circle-fill' : 'bi-hourglass-split' }}"></i>+ {{ number_format($ec['total'], 0, '', ' ') }} &#8376;</span>
+                                                @endif
+                                            </div>
+                                            @endif
+                                        </div>
+                                        @endforeach
                                     </div>
                                 </td>
                             @elseif($slot['status'] === 'blocked')
@@ -494,6 +528,7 @@
                                 'bookingType' => $ub->booking_type,
                                 'coachId' => $ub->coach_id,
                                 'coachPaid' => $ub->coach_paid,
+                                'coaches' => $ub->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
                                 'clubCardId' => $ub->club_card_id,
                                 'cardCharged' => (bool) $ub->card_charged_at,
                                 'slotDuration' => $ub->court->slot_duration ?? 60,
@@ -577,6 +612,7 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
+                        <div id="bookSelectedCoaches" class="sel-coaches js-hide-for-group"></div>
 
                         <div class="form-group js-hide-for-group" id="bookCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
@@ -823,6 +859,7 @@
                             @endforeach
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
+                        <div id="editSelectedCoaches" class="sel-coaches js-edit-hide-for-group"></div>
 
                         <div class="form-group js-edit-hide-for-group" id="editCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
@@ -1416,51 +1453,56 @@
         document.querySelectorAll('.processed-btn').forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-value') === processedVal);
         });
-        document.getElementById('editCoachId').value = data.coachId || '';
-        // Проверить доступность тренеров + подсветить выбранного
+        // Список тренеров брони: из пивота (мультитренер) либо синтез из одиночного
+        // coachId (старые брони без пивота).
+        let coachList = Array.isArray(data.coaches) ? data.coaches.slice() : [];
+        if (coachList.length === 0 && data.coachId) {
+            coachList = [{ coachId: data.coachId, price: data.coachPrice, paid: data.coachPaid }];
+        }
+        // Групповая бронь — тренер задаётся отдельным селектом (renderEditGroup), не мультитренером.
+        if (data.bookingType === 'group') coachList = [];
+        const selectedIds = coachList.map(c => String(c.coachId));
+        document.getElementById('editCoachId').value = selectedIds.length ? selectedIds[0] : '';
+
+        // Часы брони (для расчёта цены по ставке, если у тренера не задана цена).
+        const _sMin = parseTimeToMinutes(data.startTime);
+        let _eMin = parseTimeToMinutes(data.endTime);
+        if (_eMin <= _sMin) _eMin += 1440;
+        const _hours = Math.max(1, Math.round((_eMin - _sMin) / 60));
+
+        // Доступность + подсветка выбранных тренеров.
         document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => {
             const coachId = b.getAttribute('data-coach-id');
-            const isCurrentCoach = coachId == data.coachId;
-            const available = isCurrentCoach || (coachAvailability[coachId] && coachAvailability[coachId][data.startTime]);
+            const isSelected = selectedIds.includes(String(coachId));
+            const available = isSelected || (coachAvailability[coachId] && coachAvailability[coachId][data.startTime]);
             b.classList.remove('active', 'unavailable');
-            if (!available) {
-                b.classList.add('unavailable');
-            }
-            if (isCurrentCoach && data.coachId) {
-                b.classList.add('active');
-            }
+            if (!available) b.classList.add('unavailable');
+            if (isSelected) b.classList.add('active');
         });
-        // Оплата тренера — показываем блок только если тренер выбран
-        const editCoachPaidGroup = document.getElementById('editCoachPaidGroup');
-        const coachPaidVal = data.coachPaid === true ? '1' : (data.coachPaid === false ? '0' : '');
-        document.getElementById('editCoachPaidInput').value = coachPaidVal;
-        document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => {
-            b.classList.toggle('active', coachPaidVal !== '' && b.getAttribute('data-value') === coachPaidVal);
-        });
-        editCoachPaidGroup.style.display = data.coachId ? '' : 'none';
 
-        // Цена тренера — показываем при выбранном тренере; берём сохранённую или ставку×часы.
+        // Строки выбранных тренеров с ценой/оплатой.
+        const editSelContainer = document.getElementById('editSelectedCoaches');
+        editSelContainer.innerHTML = '';
+        coachList.forEach(c => {
+            const btn = document.querySelector('#editCoachButtons .coach-btn[data-coach-id="' + c.coachId + '"]');
+            const name = btn ? (btn.querySelector('.coach-btn-name')?.textContent || '') : ('#' + c.coachId);
+            let price = (c.price !== null && c.price !== undefined && c.price !== '') ? Math.round(c.price) : '';
+            if (price === '') {
+                const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
+                price = rate > 0 ? Math.round(rate * _hours) : '';
+            }
+            editSelContainer.insertAdjacentHTML('beforeend', editCoachRowHtml(c.coachId, name, price, c.paid === true));
+        });
+
+        // Старые одиночные поля не используются в мультитренере — прячем.
+        const editCoachPaidGroup = document.getElementById('editCoachPaidGroup');
+        document.getElementById('editCoachPaidInput').value = '';
+        editCoachPaidGroup.style.display = 'none';
         const editCoachPriceGroup = document.getElementById('editCoachPriceGroup');
         const editCoachPrice = document.getElementById('editCoachPrice');
         if (editCoachPriceGroup && editCoachPrice) {
-            if (data.coachId) {
-                editCoachPriceGroup.style.display = '';
-                if (data.coachPrice !== null && data.coachPrice !== undefined) {
-                    editCoachPrice.value = Math.round(data.coachPrice);
-                } else {
-                    const btn = document.querySelector('#editCoachButtons .coach-btn[data-coach-id="' + data.coachId + '"]');
-                    const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
-                    const slotDur = data.slotDuration || 60;
-                    const sMin = parseTimeToMinutes(data.startTime);
-                    let eMin = parseTimeToMinutes(data.endTime);
-                    if (eMin <= sMin) eMin += 1440;
-                    const hours = Math.max(1, Math.round((eMin - sMin) / 60));
-                    editCoachPrice.value = rate > 0 ? Math.round(rate * hours) : '';
-                }
-            } else {
-                editCoachPriceGroup.style.display = 'none';
-                editCoachPrice.value = '';
-            }
+            editCoachPriceGroup.style.display = 'none';
+            editCoachPrice.value = '';
         }
 
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
@@ -1583,6 +1625,14 @@
             const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
             if (rate > 0) coachPrice.value = Math.round(rate * slots);
         }
+        // Мультитренер: пересчитать цену в каждой строке по ставке тренера.
+        document.querySelectorAll('#editSelectedCoaches .sel-coach-row').forEach(row => {
+            const cid = row.getAttribute('data-cid');
+            const btn = document.querySelector('#editCoachButtons .coach-btn[data-coach-id="' + cid + '"]');
+            const rate = btn ? (parseFloat(btn.getAttribute('data-rate')) || 0) : 0;
+            const priceInp = row.querySelector('.sel-coach-price');
+            if (rate > 0 && priceInp) priceInp.value = Math.round(rate * slots);
+        });
     }
 
     function parseTimeToMinutes(t) {
@@ -1723,10 +1773,14 @@
                 return;
             }
         }
-        // Если выбран тренер — статус его оплаты обязателен
+        // Если выбран тренер по старому одиночному полю (виден блок оплаты) —
+        // статус его оплаты обязателен. В мультитренере оплата задаётся чекбоксом
+        // в каждой строке (пустой не бывает), поэтому проверка не нужна.
         const coachId = document.getElementById('editCoachId').value;
         const coachPaid = document.getElementById('editCoachPaidInput').value;
-        if (coachId && coachPaid === '') {
+        const legacyPaidGroup = document.getElementById('editCoachPaidGroup');
+        const legacyPaidVisible = legacyPaidGroup && legacyPaidGroup.style.display !== 'none';
+        if (coachId && legacyPaidVisible && coachPaid === '') {
             e.preventDefault();
             showEditFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#editCoachPaidGroup .paid-toggle'));
             return;
@@ -2086,10 +2140,13 @@
             }
         }
         // Статус оплаты тренера обязателен только для разовых броней — для group оплата идёт через пакеты.
+        // Проверяем только старое одиночное поле (видимо); в мультитренере оплата — чекбокс в строке.
         if (!isGroup) {
             const coachId = document.getElementById('bookCoachId').value;
             const coachPaid = document.getElementById('bookCoachPaidInput').value;
-            if (coachId && coachPaid === '') {
+            const legacyBookPaid = document.getElementById('bookCoachPaidGroup');
+            const legacyBookPaidVisible = legacyBookPaid && legacyBookPaid.style.display !== 'none';
+            if (coachId && legacyBookPaidVisible && coachPaid === '') {
                 e.preventDefault();
                 showBookFormError('Выберите статус оплаты тренера: «Оплачен» или «Не оплачен»', document.querySelector('#bookCoachPaidGroup .paid-toggle'));
                 return;
@@ -2128,33 +2185,39 @@
             }
         });
         document.getElementById('bookCoachId').value = '';
+        const sc = document.getElementById('bookSelectedCoaches');
+        if (sc) sc.innerHTML = '';
     }
 
+    // Мультивыбор тренеров (спарринг): у каждого своя цена и статус оплаты.
+    function bookCoachRowHtml(coachId, name, price) {
+        return '<div class="sel-coach-row" data-cid="' + coachId + '">' +
+            '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
+            '<input type="hidden" name="coaches[' + coachId + '][coach_id]" value="' + coachId + '">' +
+            '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + (price || '') + '">' +
+            '<label class="sel-coach-paid"><input type="checkbox" name="coaches[' + coachId + '][paid]" value="1"> оплачен</label>' +
+            '</div>';
+    }
     function selectBookCoach(btn) {
         if (btn.classList.contains('unavailable')) return;
         const coachId = btn.getAttribute('data-coach-id');
-        const input = document.getElementById('bookCoachId');
-        const isActive = btn.classList.contains('active');
-        document.querySelectorAll('#bookCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
-        const paidGroup = document.getElementById('bookCoachPaidGroup');
-        const priceGroup = document.getElementById('bookCoachPriceGroup');
-        const priceInput = document.getElementById('bookCoachPrice');
-        if (isActive) {
-            input.value = '';
-            if (paidGroup) paidGroup.style.display = 'none';
-            if (priceGroup) priceGroup.style.display = 'none';
-            if (priceInput) priceInput.value = '';
+        const container = document.getElementById('bookSelectedCoaches');
+        const existing = container.querySelector('.sel-coach-row[data-cid="' + coachId + '"]');
+        if (existing) {
+            existing.remove();
+            btn.classList.remove('active');
         } else {
             btn.classList.add('active');
-            input.value = coachId;
-            if (paidGroup) paidGroup.style.display = '';
-            if (priceGroup) priceGroup.style.display = '';
-            if (priceInput) {
-                const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
-                const dur = (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
-                priceInput.value = rate > 0 ? Math.round(rate * dur) : '';
-            }
+            const nameEl = btn.querySelector('.coach-btn-name');
+            const name = nameEl ? nameEl.textContent : '';
+            const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
+            const dur = (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
+            const price = rate > 0 ? Math.round(rate * dur) : '';
+            container.insertAdjacentHTML('beforeend', bookCoachRowHtml(coachId, name, price));
         }
+        // Основной тренер (совместимость) = первый выбранный.
+        const first = container.querySelector('.sel-coach-row');
+        document.getElementById('bookCoachId').value = first ? first.getAttribute('data-cid') : '';
     }
     function setBookCoachPaid(btn) {
         document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
@@ -2168,31 +2231,35 @@
         document.getElementById('editIsProcessedInput').value = btn.getAttribute('data-value');
     }
 
+    // Мультивыбор тренеров в окне редактирования брони (спарринг).
+    function editCoachRowHtml(coachId, name, price, paid) {
+        const checked = paid ? ' checked' : '';
+        return '<div class="sel-coach-row" data-cid="' + coachId + '">' +
+            '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
+            '<input type="hidden" name="coaches[' + coachId + '][coach_id]" value="' + coachId + '">' +
+            '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + (price === '' || price === null || price === undefined ? '' : price) + '">' +
+            '<label class="sel-coach-paid"><input type="checkbox" name="coaches[' + coachId + '][paid]" value="1"' + checked + '> оплачен</label>' +
+            '</div>';
+    }
     function selectEditCoach(btn) {
         if (btn.classList.contains('unavailable')) return;
         const coachId = btn.getAttribute('data-coach-id');
-        const input = document.getElementById('editCoachId');
-        const isActive = btn.classList.contains('active');
-        document.querySelectorAll('#editCoachButtons .coach-btn').forEach(b => b.classList.remove('active'));
-        const paidGroup = document.getElementById('editCoachPaidGroup');
-        const priceGroup = document.getElementById('editCoachPriceGroup');
-        const priceInput = document.getElementById('editCoachPrice');
-        if (isActive) {
-            input.value = '';
-            if (paidGroup) paidGroup.style.display = 'none';
-            if (priceGroup) priceGroup.style.display = 'none';
-            if (priceInput) priceInput.value = '';
+        const container = document.getElementById('editSelectedCoaches');
+        const existing = container.querySelector('.sel-coach-row[data-cid="' + coachId + '"]');
+        if (existing) {
+            existing.remove();
+            btn.classList.remove('active');
         } else {
             btn.classList.add('active');
-            input.value = coachId;
-            if (paidGroup) paidGroup.style.display = '';
-            if (priceGroup) priceGroup.style.display = '';
-            if (priceInput) {
-                const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
-                const slots = parseInt(document.getElementById('editSlots')?.value) || 1;
-                priceInput.value = rate > 0 ? Math.round(rate * slots) : '';
-            }
+            const nameEl = btn.querySelector('.coach-btn-name');
+            const name = nameEl ? nameEl.textContent : '';
+            const rate = parseFloat(btn.getAttribute('data-rate')) || 0;
+            const slots = parseInt(document.getElementById('editSlots')?.value) || 1;
+            const price = rate > 0 ? Math.round(rate * slots) : '';
+            container.insertAdjacentHTML('beforeend', editCoachRowHtml(coachId, name, price, false));
         }
+        const first = container.querySelector('.sel-coach-row');
+        document.getElementById('editCoachId').value = first ? first.getAttribute('data-cid') : '';
     }
     function setEditCoachPaid(btn) {
         document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
@@ -3678,6 +3745,52 @@
         border-color: #a78bfa;
         color: #a78bfa;
     }
+
+    /* Выбранные тренеры (мультитренер / спарринг) */
+    .sel-coaches {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .sel-coaches:empty { margin-top: 0; }
+    .sel-coach-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        background: var(--sch-card-alt);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+    }
+    .sel-coach-name {
+        flex: 1;
+        min-width: 90px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--sch-text);
+    }
+    .sel-coach-price {
+        width: 110px;
+        padding: 7px 10px;
+        background: var(--sch-card);
+        border: 1px solid var(--sch-border);
+        border-radius: 7px;
+        color: var(--sch-text);
+        font-size: 13px;
+    }
+    .sel-coach-paid {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--sch-text-dim);
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .sel-coach-paid input { accent-color: var(--sch-accent); }
 
     .paid-toggle {
         display: flex;

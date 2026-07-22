@@ -54,7 +54,7 @@ class CourtScheduleService
             $bookings = CourtBooking::where('court_id', $court->id)
                 ->whereDate('date', $date)
                 ->where('status', 'confirmed')
-                ->with('coach')
+                ->with(['coach', 'coaches.coach'])
                 ->get();
         }
 
