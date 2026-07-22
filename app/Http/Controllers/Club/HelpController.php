@@ -36,7 +36,10 @@ class HelpController extends Controller
             [
                 'title' => 'Клиенты и карты',
                 'icon' => 'bi-person-vcard',
-                'articles' => [],
+                'articles' => [
+                    ['slug' => 'clients', 'title' => 'Клиенты', 'excerpt' => 'База клиентов, карточка, добавление, импорт.'],
+                    ['slug' => 'club-cards', 'title' => 'Клубные карты', 'excerpt' => 'Тип карты, выпуск клиенту, списание часов.'],
+                ],
             ],
             [
                 'title' => 'Расписание и брони',
