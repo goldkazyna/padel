@@ -22,9 +22,9 @@
 
         .wrap{position:relative;width:100%;max-width:410px}
         .brand{display:flex;flex-direction:column;align-items:center;margin-bottom:24px}
-        .brand-tile{width:88px;height:88px;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;
-            box-shadow:0 18px 48px -14px rgba(34,197,94,.45);overflow:hidden}
-        .brand-tile img{width:74px;height:74px;object-fit:contain}
+        .brand-tile{width:92px;height:92px;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;
+            padding:16px;box-shadow:0 18px 48px -14px rgba(34,197,94,.45)}
+        .brand-tile img{width:100%;height:100%;object-fit:contain;display:block}
         .brand-sub{margin-top:16px;font-size:13px;color:var(--mut);letter-spacing:.3px}
 
         .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 24px 24px;
@@ -116,16 +116,6 @@
 
                 <button type="submit" class="btn">Войти</button>
             </form>
-
-            <div class="divider">или</div>
-            <div class="tg">
-                <script async src="https://telegram.org/js/telegram-widget.js?22"
-                        data-telegram-login="add_padel_tournament_bot"
-                        data-size="large"
-                        data-radius="10"
-                        data-onauth="onTelegramAuth(user)"
-                        data-request-access="write"></script>
-            </div>
         </div>
 
         <div class="foot">
@@ -136,11 +126,6 @@
     </div>
 
     <script>
-    function onTelegramAuth(user) {
-        const params = new URLSearchParams(user).toString();
-        window.location.href = "{{ route('auth.telegram.callback') }}?" + params;
-    }
-
     function switchTab(type) {
         const tabPhone = document.getElementById('tab-phone');
         const tabEmail = document.getElementById('tab-email');
