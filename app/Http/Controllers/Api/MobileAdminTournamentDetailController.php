@@ -98,6 +98,23 @@ class MobileAdminTournamentDetailController extends Controller
             'courts_count' => 'nullable|integer|min:1|max:32',
             // Клуб-площадка (где играем) — необязательный.
             'venue_club_id' => 'nullable|exists:clubs,id',
+            // Доп. поля (как при создании) — до старта менять безопасно.
+            'duration_hours' => 'nullable|integer|min:1|max:8',
+            'is_rated' => 'nullable|boolean',
+            'reserve_count' => 'nullable|integer|min:0|max:10',
+            'waitlist_size' => 'nullable|integer|min:0|max:32',
+            'groups_count' => 'nullable|integer|in:1,2,3,4',
+            'rounds_count' => 'nullable|integer|min:1|max:30',
+            'teams_advance' => 'nullable|integer|in:1,2,3,4',
+            'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+            'playoff_type' => 'nullable|in:final_only,semifinal_final',
+            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
+            'telegram_registration_url' => 'nullable|url|max:500',
+            'chat_enabled' => 'nullable|boolean',
+            'chat_write_mode' => 'nullable|in:admin,participants,everyone',
+            'is_paired' => 'nullable|boolean',
+            'courts' => 'nullable|array',
+            'courts.*' => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -157,6 +174,51 @@ class MobileAdminTournamentDetailController extends Controller
         // venue_club_id — меняем только если прислан (в т.ч. null для очистки).
         if (!$request->has('venue_club_id')) {
             unset($validated['venue_club_id']);
+        }
+
+        // Булевы — применяем только если поле прислано.
+        if ($request->has('is_rated')) {
+            $validated['is_rated'] = $request->boolean('is_rated');
+        }
+        if ($request->has('chat_enabled')) {
+            $validated['chat_enabled'] = $request->boolean('chat_enabled');
+        }
+
+        // Названия кортов — нормализуем как при создании (пустые слоты → null; всё пусто → null).
+        if ($request->has('courts')) {
+            $courts = $validated['courts'] ?? null;
+            if (is_array($courts)) {
+                $courts = array_map(fn($c) => $c ?: null, $courts);
+                $validated['courts'] = empty(array_filter($courts)) ? null : $courts;
+            } else {
+                $validated['courts'] = null;
+            }
+        }
+
+        // Парный режим (Flex / King of Court / Just Padel It) — менять нельзя, если уже есть записи.
+        if ($request->has('is_paired')) {
+            $paired = $request->boolean('is_paired');
+            if ($tournament->takenSlotsCount() > 0 && $paired !== (bool) $tournament->is_paired) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Нельзя менять парный режим — уже есть записи',
+                ], 422);
+            }
+            $type = $tournament->type;
+            if ($paired && in_array($type, ['americano_flex', 'king_of_court', 'just_padel_it'], true)) {
+                $validated['is_paired'] = true;
+                if ($type === 'americano_flex') {
+                    $validated['pairing_mode'] = 'admin';
+                    if (((int) $validated['max_participants']) % 2 !== 0) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Для парного турнира число игроков должно быть чётным',
+                        ], 422);
+                    }
+                }
+            } else {
+                $validated['is_paired'] = false;
+            }
         }
 
         // Не позволяем уменьшать max_participants ниже текущих участников
