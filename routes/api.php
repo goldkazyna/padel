@@ -232,6 +232,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/tournaments/moderation-pending', [MobileTournamentController::class, 'moderationPending']);
         Route::get('/tournaments/{tournament}', [MobileTournamentController::class, 'show']);
         Route::get('/tournaments/{tournament}/results', [MobileTournamentController::class, 'results']);
+        Route::get('/tournaments/{tournament}/ai-analysis', [MobileTournamentController::class, 'aiAnalysis']);
         Route::get('/tournaments/{tournament}/stats', [MobileTournamentController::class, 'stats']);
         Route::get('/tournaments/{tournament}/live', [MobileTournamentController::class, 'live']);
         Route::post('/tournaments/{tournament}/register', [MobileTournamentController::class, 'register']);

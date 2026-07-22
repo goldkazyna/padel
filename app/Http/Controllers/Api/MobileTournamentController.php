@@ -9,6 +9,8 @@ use App\Models\TournamentSubscription;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use App\Models\RatingHistory;
+use App\Models\TournamentAiAnalysis;
+use App\Services\TournamentAiAnalysisService;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1103,6 +1105,152 @@ class MobileTournamentController extends Controller
             'leaderboard' => $this->getLeaderboard($tournament),
             'playoff' => $this->getPlayoff($tournament),
         ]);
+    }
+
+    /**
+     * AI-разбор выступления игрока в турнире (Claude).
+     * GET /api/mobile/tournaments/{id}/ai-analysis
+     *
+     * Считается один раз на пару (турнир, игрок) и кэшируется в БД —
+     * рейтинг применяется единожды при завершении и не меняется.
+     */
+    public function aiAnalysis(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+        $userId = (int) $request->input('player_id', $user->id);
+        $lang = in_array($request->input('lang'), ['ru', 'en', 'kk'], true)
+            ? $request->input('lang') : 'ru';
+
+        // Разбор имеет смысл только для завершённого рейтингового турнира.
+        if ($tournament->status !== 'completed' || !$tournament->is_rated) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Разбор доступен только для завершённых рейтинговых турниров',
+            ], 422);
+        }
+
+        // Отдаём из кэша, если уже считали.
+        $cached = TournamentAiAnalysis::where('tournament_id', $tournament->id)
+            ->where('user_id', $userId)
+            ->first();
+        if ($cached) {
+            return response()->json([
+                'success' => true,
+                'cached' => true,
+                'analysis' => $cached->content,
+            ]);
+        }
+
+        $context = $this->buildAiContext($tournament, $userId);
+        if ($context === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нет данных о вашем выступлении в этом турнире',
+            ], 422);
+        }
+
+        try {
+            $result = app(TournamentAiAnalysisService::class)->generate($context, $lang);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('AI analysis failed', [
+                'tournament' => $tournament->id, 'user' => $userId, 'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось сгенерировать разбор. Попробуйте позже.',
+            ], 503);
+        }
+
+        // firstOrCreate защищает от гонки (два запроса одновременно).
+        $stored = TournamentAiAnalysis::firstOrCreate(
+            ['tournament_id' => $tournament->id, 'user_id' => $userId],
+            ['content' => $result['analysis'], 'model' => $result['model'], 'lang' => $lang]
+        );
+
+        return response()->json([
+            'success' => true,
+            'cached' => false,
+            'analysis' => $stored->content,
+        ]);
+    }
+
+    /**
+     * Собрать данные выступления игрока для AI (те же источники, что и results()).
+     * Возвращает null, если игрок не участвовал / нет матчей.
+     */
+    private function buildAiContext(Tournament $tournament, int $userId): ?array
+    {
+        $tournament->loadMissing(['club', 'venueClub']);
+
+        $userMatches = [];
+        if (in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
+            $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
+        } elseif ($tournament->type === 'team') {
+            $userMatches = $this->getTeamBasedMatches($tournament, $userId);
+        }
+
+        $ratingHistory = RatingHistory::where('user_id', $userId)
+            ->where('tournament_id', $tournament->id)
+            ->first();
+
+        // Нет ни матчей, ни рейтинговой записи — разбирать нечего.
+        if (empty($userMatches) && !$ratingHistory) {
+            return null;
+        }
+
+        // Рейтинги/уровни всех участников — чтобы обогатить соперников в матчах.
+        $ratingById = $tournament->participants()
+            ->wherePivot('status', '!=', 'cancelled')
+            ->get()
+            ->mapWithKeys(fn($u) => [$u->id => ['rating' => $u->rating, 'level' => $u->level]]);
+
+        $enrich = function (array $players) use ($ratingById) {
+            return array_map(function ($p) use ($ratingById) {
+                $extra = $ratingById[$p['id']] ?? [];
+                return [
+                    'name' => $p['name'] ?? '',
+                    'rating' => $extra['rating'] ?? null,
+                    'level' => $extra['level'] ?? null,
+                ];
+            }, $players);
+        };
+
+        $matches = array_map(fn($m) => [
+            'round' => $m['round_name'] ?? ('Раунд ' . ($m['round'] ?? '')),
+            'is_final' => $m['is_final'] ?? false,
+            'score_my' => $m['score_my'] ?? 0,
+            'score_opponent' => $m['score_opponent'] ?? 0,
+            'result' => $m['result'] ?? '',
+            'rating_change' => $m['rating_change'] ?? 0,
+            'my_team' => $enrich($m['my_team'] ?? []),
+            'opponents' => $enrich($m['opponent_team'] ?? []),
+        ], $userMatches);
+
+        $me = User::find($userId);
+        $wins = count(array_filter($userMatches, fn($m) => ($m['result'] ?? '') === 'win'));
+        $losses = count($userMatches) - $wins;
+
+        return [
+            'tournament' => [
+                'name' => $tournament->name,
+                'format' => $tournament->type_name,
+                'date' => optional($tournament->start_date)->translatedFormat('j F Y'),
+                'club' => $tournament->club?->name,
+            ],
+            'player' => [
+                'name' => $me?->name,
+                'rating_before' => $ratingHistory?->rating_before,
+                'rating_after' => $ratingHistory?->rating_after,
+                'rating_change' => $ratingHistory?->change ?? array_sum(array_column($userMatches, 'rating_change')),
+                'place' => $this->getUserPlace($tournament, $userId),
+                'wins' => $wins,
+                'losses' => $losses,
+            ],
+            'matches' => $matches,
+            'field' => $ratingById->map(fn($v, $id) => [
+                'rating' => $v['rating'], 'level' => $v['level'],
+            ])->values(),
+        ];
     }
 
     /**

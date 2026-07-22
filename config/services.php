@@ -78,4 +78,11 @@ return [
 		'originator' => env('KAZINFOTEH_ORIGINATOR', 'KiT_Notify'),
 	],
 
+	// Claude API (Anthropic) — AI-разбор выступления игрока в турнире.
+	'anthropic' => [
+		'key' => env('ANTHROPIC_API_KEY'),
+		'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001'),
+		'version' => env('ANTHROPIC_VERSION', '2023-06-01'),
+	],
+
 ];
