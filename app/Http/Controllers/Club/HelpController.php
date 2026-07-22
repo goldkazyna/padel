@@ -44,7 +44,9 @@ class HelpController extends Controller
             [
                 'title' => 'Расписание и брони',
                 'icon' => 'bi-calendar3',
-                'articles' => [],
+                'articles' => [
+                    ['slug' => 'schedule-bookings', 'title' => 'Расписание и брони кортов', 'excerpt' => 'Сетка кортов, создание брони, оплата, неделя.'],
+                ],
             ],
         ];
     }
