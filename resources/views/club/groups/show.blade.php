@@ -176,7 +176,8 @@
 <div class="gsch-wrap">
     {{-- Шапка + управление --}}
     <div class="gsch-head">
-        <a href="{{ route('club.groups.index') }}" class="gsch-back">&#8592;</a>
+        <a href="{{ route('club.groups.index') }}" class="gsch-back" title="Назад"
+           onclick="if (window.history.length > 1) { window.history.back(); return false; } return true;">&#8592;</a>
         <div style="min-width:0;">
             <div class="gsch-title">{{ $group->name }}</div>
             <div class="gsch-sub">
