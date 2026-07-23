@@ -874,7 +874,7 @@ class CourtController extends Controller
             ) {
                 $group = \App\Models\ClubGroup::find($validated['group_id']);
                 if ($group && $group->club_id === $club->id && $group->status === 'active') {
-                    \App\Models\ClubGroupSession::create([
+                    $groupSession = \App\Models\ClubGroupSession::create([
                         'group_id' => $group->id,
                         'court_id' => $court->id,
                         'court_booking_id' => $booking->id,
@@ -884,6 +884,9 @@ class CourtController extends Controller
                         'coach_id' => $validated['coach_id'] ?? $group->coach_id,
                         'status' => 'planned',
                     ]);
+                    // В журнал группы (занятие создано из расписания кортов).
+                    \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroupSession', $groupSession->id,
+                        "Занятие создано (из расписания): «{$group->name}» — {$court->name}, {$date} {$startTime}–{$endTime}", clubId: $club->id);
                 }
             }
 
@@ -1253,7 +1256,8 @@ class CourtController extends Controller
             ->first();
         if ($linkedSession) {
             $newSessionCoach = $booking->coach_id ?: optional($linkedSession->group)->coach_id;
-            if ((int) $linkedSession->coach_id !== (int) $newSessionCoach) {
+            $coachChanged = (int) $linkedSession->coach_id !== (int) $newSessionCoach;
+            if ($coachChanged) {
                 $linkedSession->update(['coach_id' => $newSessionCoach]);
             }
 
@@ -1263,6 +1267,12 @@ class CourtController extends Controller
                 $booking->update([
                     'price' => (float) $grp->price_per_session * $grp->members()->where('status', 'active')->count(),
                 ]);
+
+                // В журнал группы (занятие отредактировано из расписания кортов).
+                $dateLabel = $linkedSession->date->format('d.m.Y') . ' ' . Carbon::parse($linkedSession->start_time)->format('H:i');
+                $coachNote = $coachChanged ? ' — сменили тренера' : '';
+                \App\Models\ActivityLog::logGroup($grp->id, 'updated', 'ClubGroupSession', $linkedSession->id,
+                    "Занятие изменено (из расписания): «{$grp->name}» ({$dateLabel}){$coachNote}", clubId: $club->id);
             }
         }
 
