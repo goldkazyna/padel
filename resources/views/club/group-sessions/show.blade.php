@@ -238,14 +238,28 @@
                     <h3 class="gcancel-title">Отменить занятие?</h3>
                     <p class="gcancel-sub">Корт освободится. Причину видно в журнале группы — по ней потом понятно, за что отменили.</p>
                     <label class="gcancel-label">Причина отмены</label>
-                    <textarea name="reason" class="gcancel-textarea" rows="3" maxlength="255" placeholder="Например: заболел тренер, нет игроков, перенос…"></textarea>
+                    <textarea name="reason" id="cancelReasonText" class="gcancel-textarea" rows="3" maxlength="255" placeholder="Например: заболел тренер, нет игроков, перенос…"></textarea>
+                    <div id="cancelReasonErr" style="display:none;color:#ef4444;font-size:13px;margin-top:6px;font-weight:600;">Укажите причину отмены — минимум 5 символов.</div>
                     <div class="gcancel-actions">
                         <button type="button" class="gcancel-btn-secondary" onclick="document.getElementById('cancelReasonModal').style.display='none'">Назад</button>
-                        <button type="submit" class="gcancel-btn-danger">Отменить занятие</button>
+                        <button type="button" class="gcancel-btn-danger" onclick="submitCancelSession()">Отменить занятие</button>
                     </div>
                 </div>
             </div>
         </form>
+        <script>
+        function submitCancelSession() {
+            var ta = document.getElementById('cancelReasonText');
+            var val = (ta ? ta.value : '').trim();
+            var err = document.getElementById('cancelReasonErr');
+            if (val.length < 5) {
+                if (err) err.style.display = 'block';
+                if (ta) { ta.style.borderColor = '#ef4444'; ta.focus(); }
+                return;
+            }
+            document.getElementById('cancelForm').submit();
+        }
+        </script>
         @endif
 
     @elseif($session->status === 'held')

@@ -312,6 +312,9 @@ class GroupSessionController extends Controller
         $this->authorizeSession($club, $session);
 
         $reason = trim((string) $request->input('reason', ''));
+        if (mb_strlen($reason) < 5) {
+            return back()->with('error', 'Укажите причину отмены занятия (минимум 5 символов)');
+        }
 
         // Сначала помечаем сессию — тогда booted-хук брони не залогирует её повторно.
         $session->update(['status' => 'cancelled']);

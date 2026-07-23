@@ -1375,6 +1375,10 @@ class CourtController extends Controller
         $linkedSession = \App\Models\ClubGroupSession::where('court_booking_id', $booking->id)
             ->where('status', '!=', 'cancelled')
             ->first();
+        // Групповая бронь: причина отмены обязательна (мин. 5 символов).
+        if ($linkedSession && mb_strlen($reason) < 5) {
+            return back()->with('error', 'Укажите причину отмены занятия (минимум 5 символов)');
+        }
         if ($linkedSession) {
             $grp = $linkedSession->group;
             $linkedSession->update(['status' => 'cancelled']);

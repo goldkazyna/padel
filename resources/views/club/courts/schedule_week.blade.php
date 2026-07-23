@@ -1456,6 +1456,7 @@
                     <p class="gcancel-sub">Корт освободится, занятие отменится. Причину видно в журнале группы.</p>
                     <label class="gcancel-label">Причина отмены</label>
                     <textarea id="cancelBookingReasonText" class="gcancel-textarea" rows="3" maxlength="255" placeholder="Например: заболел тренер, нет игроков, перенос…"></textarea>
+                    <div id="cancelReasonError" style="display:none;color:#ef4444;font-size:13px;margin-top:6px;font-weight:600;">Укажите причину отмены — минимум 5 символов.</div>
                     <div class="gcancel-actions">
                         <button type="button" class="gcancel-btn-secondary" onclick="document.getElementById('cancelBookingReasonModal').style.display='none'">Назад</button>
                         <button type="button" class="gcancel-btn-danger" onclick="submitCancelWithReason()">Отменить бронь</button>
@@ -1936,8 +1937,16 @@
     }
     function submitCancelWithReason() {
         const ta = document.getElementById('cancelBookingReasonText');
+        const val = (ta ? ta.value : '').trim();
+        const err = document.getElementById('cancelReasonError');
+        if (val.length < 5) {
+            if (err) err.style.display = 'block';
+            if (ta) { ta.style.borderColor = '#ef4444'; ta.focus(); }
+            return;
+        }
+        if (err) err.style.display = 'none';
         const reasonInput = document.getElementById('cancelBookingReason');
-        if (reasonInput) reasonInput.value = ta ? ta.value : '';
+        if (reasonInput) reasonInput.value = val;
         document.getElementById('cancelBookingReasonModal').style.display = 'none';
         document.getElementById('cancelBookingForm').submit();
     }
