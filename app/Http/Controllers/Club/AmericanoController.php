@@ -116,22 +116,6 @@ class AmericanoController extends Controller
 	/**
 	 * Сгенерировать плей-офф
 	 */
-	/**
-	 * Раскрыть следующий раунд (генерация по кнопке).
-	 */
-	public function nextRound(Tournament $tournament, AmericanoService $americanoService)
-	{
-		if (!$americanoService->canGenerateNextRound($tournament)) {
-			return back()->with('error', 'Сначала доиграйте текущий раунд');
-		}
-
-		if ($americanoService->generateNextRound($tournament)) {
-			return back()->with('success', 'Следующий раунд сгенерирован');
-		}
-
-		return back()->with('error', 'Не удалось сгенерировать раунд');
-	}
-
 	public function generatePlayoff(Tournament $tournament, AmericanoService $americanoService)
 	{
 		if (!$americanoService->canGeneratePlayoff($tournament)) {

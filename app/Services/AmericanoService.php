@@ -431,8 +431,16 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 
         if ($allCompleted) {
             $round->update(['status' => 'completed']);
-            // Следующий раунд НЕ раскрываем автоматически — только по кнопке
-            // «Сгенерировать следующий раунд» (AmericanoService::generateNextRound).
+
+            // Следующий раунд ЭТОЙ ЖЕ группы открываем автоматически — каждая
+            // группа идёт независимо (не ждёт другие группы).
+            $nextRound = AmericanoRound::where('tournament_group_id', $round->tournament_group_id)
+                ->where('round_number', $round->round_number + 1)
+                ->first();
+
+            if ($nextRound) {
+                $nextRound->update(['status' => 'in_progress']);
+            }
         }
     }
 
@@ -441,13 +449,10 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 	 */
 	public function canFinishTournament(Tournament $tournament): bool
 	{
-		// Проверяем все групповые матчи. Нераскрытые раунды (pending) пропускаем —
-		// турнир можно завершить между раундами, доиграв только текущие.
+		// Проверяем все групповые матчи — турнир завершается, когда все раунды
+		// всех групп доиграны.
 		foreach ($tournament->groups as $group) {
 			foreach ($group->rounds as $round) {
-				if ($round->status === 'pending') {
-					continue;
-				}
 				if (!$round->isCompleted()) {
 					return false;
 				}
@@ -484,61 +489,6 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 		return true;
 	}
 
-	/**
-	 * Можно ли раскрыть следующий раунд: есть ещё нераскрытый (pending) раунд
-	 * и все уже раскрытые раунды доиграны.
-	 */
-	public function canGenerateNextRound(Tournament $tournament): bool
-	{
-		$hasPending = false;
-		foreach ($tournament->groups as $group) {
-			foreach ($group->rounds as $round) {
-				if ($round->status === 'pending') {
-					$hasPending = true;
-				} elseif (!$round->isCompleted()) {
-					return false; // текущий раскрытый раунд ещё не доигран
-				}
-			}
-		}
-		return $hasPending;
-	}
-
-	/**
-	 * Раскрыть следующий раунд (pending → in_progress) во всех группах.
-	 * Расписание уже сгенерировано при старте — просто открываем очередной раунд.
-	 */
-	public function generateNextRound(Tournament $tournament): bool
-	{
-		if (!$this->canGenerateNextRound($tournament)) {
-			return false;
-		}
-
-		// Минимальный номер среди нераскрытых раундов.
-		$nextNum = null;
-		foreach ($tournament->groups as $group) {
-			foreach ($group->rounds as $round) {
-				if ($round->status === 'pending') {
-					$nextNum = $nextNum === null
-						? (int) $round->round_number
-						: min($nextNum, (int) $round->round_number);
-				}
-			}
-		}
-		if ($nextNum === null) {
-			return false;
-		}
-
-		// Раскрываем этот раунд во всех группах.
-		foreach ($tournament->groups as $group) {
-			foreach ($group->rounds as $round) {
-				if ($round->status === 'pending' && (int) $round->round_number === $nextNum) {
-					$round->update(['status' => 'in_progress']);
-				}
-			}
-		}
-		return true;
-	}
-
     /**
      * Завершить турнир и начислить Эло
      */
@@ -547,18 +497,6 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
 		if (!$this->canFinishTournament($tournament)) {
 			return false;
 		}
-
-		// Ранний финиш: удаляем нераскрытые (pending) раунды и их матчи, чтобы они
-		// не попали в результаты/статистику как несыгранные.
-		foreach ($tournament->groups as $group) {
-			foreach ($group->rounds as $round) {
-				if ($round->status === 'pending') {
-					$round->matches()->delete();
-					$round->delete();
-				}
-			}
-		}
-		$tournament->load('groups.rounds.matches');
 
 		// Не рейтинговый турнир — завершаем без начисления рейтинга.
 		if (!$tournament->is_rated) {

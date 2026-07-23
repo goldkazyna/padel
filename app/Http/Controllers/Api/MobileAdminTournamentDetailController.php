@@ -1737,10 +1737,7 @@ class MobileAdminTournamentDetailController extends Controller
         $matchesPlayed = 0;
 
         $groups = $tournament->groups->sortBy('id')->values()->map(function ($group) use (&$matchesTotal, &$matchesPlayed) {
-            // Нераскрытые (pending) раунды не показываем и не считаем — они
-            // раскрываются по кнопке «Сгенерировать следующий раунд».
-            $rounds = $group->rounds->where('status', '!=', 'pending')
-                ->sortBy('round_number')->values()->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+            $rounds = $group->rounds->sortBy('round_number')->values()->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
                 $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
                     $matchesTotal++;
                     if ($m->status === 'completed') {
@@ -1792,8 +1789,6 @@ class MobileAdminTournamentDetailController extends Controller
                 // Действия доступны только пока турнир идёт.
                 'can_finish' => $isLive
                     && app(AmericanoService::class)->canFinishTournament($tournament),
-                'can_generate_next_round' => $isLive
-                    && app(AmericanoService::class)->canGenerateNextRound($tournament),
                 'can_generate_playoff' => $isLive
                     && app(AmericanoService::class)->canGeneratePlayoff($tournament),
             ],
@@ -2289,20 +2284,6 @@ class MobileAdminTournamentDetailController extends Controller
 
             $tournament->refresh();
             return response()->json($this->buildBaliKocMatches($tournament));
-        }
-
-        if ($tournament->isAmericano()) {
-            $americano = app(AmericanoService::class);
-            if (!$americano->canGenerateNextRound($tournament)) {
-                return $this->error('Текущий раунд ещё не завершён');
-            }
-            $ok = $americano->generateNextRound($tournament);
-            if (!$ok) {
-                return $this->error('Не удалось сгенерировать следующий раунд');
-            }
-
-            $tournament->refresh();
-            return response()->json($this->buildAmericanoMatches($tournament));
         }
 
         return $this->error(

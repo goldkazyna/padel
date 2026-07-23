@@ -87,20 +87,8 @@
                     @php
                         $canFinish = app(\App\Services\AmericanoService::class)->canFinishTournament($tournament);
                         $canGeneratePlayoff = app(\App\Services\AmericanoService::class)->canGeneratePlayoff($tournament);
-                        $canGenerateNextRound = app(\App\Services\AmericanoService::class)->canGenerateNextRound($tournament);
                         $hasPlayoffMatches = $tournament->playoffMatches()->count() > 0;
                     @endphp
-
-                    {{-- Кнопка генерации следующего раунда --}}
-                    @if($canGenerateNextRound)
-                        <form action="{{ route('club.americano.nextRound', $tournament) }}" method="POST"
-                              onsubmit="return confirm('Сгенерировать следующий раунд?')">
-                            @csrf
-                            <button type="submit" class="btn-primary-custom">
-                                <i class="bi bi-plus-circle"></i> Сгенерировать раунд
-                            </button>
-                        </form>
-                    @endif
 
                     {{-- Кнопка генерации плей-офф --}}
                     @if($tournament->hasPlayoff() && $canGeneratePlayoff)

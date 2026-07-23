@@ -427,8 +427,6 @@ Route::middleware('auth')->group(function () {
                 ->name('americano.saveScore');
             Route::put('/americano/match/{match}/score', [AmericanoController::class, 'updateScore'])
                 ->name('americano.updateScore');
-            Route::post('/americano/tournament/{tournament}/next-round', [AmericanoController::class, 'nextRound'])
-                ->name('americano.nextRound');
             Route::post('/americano/tournament/{tournament}/generate-playoff', [AmericanoController::class, 'generatePlayoff'])
                 ->name('americano.generatePlayoff');
             Route::post('/americano/playoff-match/{match}/score', [AmericanoController::class, 'savePlayoffScore'])
