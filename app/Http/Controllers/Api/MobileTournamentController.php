@@ -1130,6 +1130,10 @@ class MobileTournamentController extends Controller
         }
 
         try {
+            // Поматчевая разбивка считается детерминированно (Elo), не через AI —
+            // цифры точные и бесплатные, пересчитываем каждый раз.
+            $matches = $this->buildMatchBreakdown($tournament, $userId);
+
             // Отдаём из кэша, если уже считали.
             $cached = TournamentAiAnalysis::where('tournament_id', $tournament->id)
                 ->where('user_id', $userId)
@@ -1139,6 +1143,7 @@ class MobileTournamentController extends Controller
                     'success' => true,
                     'cached' => true,
                     'analysis' => $cached->content,
+                    'matches' => $matches,
                 ]);
             }
 
@@ -1162,6 +1167,7 @@ class MobileTournamentController extends Controller
                 'success' => true,
                 'cached' => false,
                 'analysis' => $stored->content,
+                'matches' => $matches,
             ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('AI analysis failed', [
@@ -1253,6 +1259,59 @@ class MobileTournamentController extends Controller
                 'rating' => $v['rating'], 'level' => $v['level'],
             ])->values(),
         ];
+    }
+
+    /**
+     * Поматчевая разбивка для AI-разбора: по каждому матчу средний рейтинг
+     * пары игрока и пары соперников, шанс на победу (Elo expectedScore) и
+     * итоговая дельта рейтинга. Текст-пояснение собирается на клиенте
+     * (локализация). Пусто для форматов без поматчевых данных (koc/jpi/...).
+     */
+    private function buildMatchBreakdown(Tournament $tournament, int $userId): array
+    {
+        $userMatches = [];
+        if (in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
+            $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
+        } elseif ($tournament->type === 'team') {
+            $userMatches = $this->getTeamBasedMatches($tournament, $userId);
+        }
+        if (empty($userMatches)) {
+            return [];
+        }
+
+        $ratingById = $tournament->participants()
+            ->wherePivot('status', '!=', 'cancelled')
+            ->get()
+            ->mapWithKeys(fn($u) => [$u->id => (float) $u->rating]);
+
+        $avg = function (array $players) use ($ratingById) {
+            $rs = [];
+            foreach ($players as $p) {
+                $r = $ratingById[$p['id'] ?? 0] ?? null;
+                if ($r !== null) $rs[] = (float) $r;
+            }
+            return count($rs) ? array_sum($rs) / count($rs) : null;
+        };
+
+        $out = [];
+        foreach ($userMatches as $m) {
+            $myAvg = $avg($m['my_team'] ?? []);
+            $oppAvg = $avg($m['opponent_team'] ?? []);
+            $winProb = ($myAvg !== null && $oppAvg !== null)
+                ? (int) round($this->expectedScore($myAvg, $oppAvg) * 100)
+                : null;
+            $out[] = [
+                'round' => $m['round_name'] ?? '',
+                'score_my' => $m['score_my'] ?? 0,
+                'score_opponent' => $m['score_opponent'] ?? 0,
+                'result' => $m['result'] ?? '',
+                'my_avg' => $myAvg !== null ? (int) round($myAvg) : null,
+                'opp_avg' => $oppAvg !== null ? (int) round($oppAvg) : null,
+                'win_prob' => $winProb,
+                'delta' => (int) ($m['rating_change'] ?? 0),
+            ];
+        }
+        return $out;
     }
 
     /**
