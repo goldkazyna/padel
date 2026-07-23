@@ -1255,24 +1255,47 @@ class CourtController extends Controller
             ->where('status', '!=', 'cancelled')
             ->first();
         if ($linkedSession) {
-            $newSessionCoach = $booking->coach_id ?: optional($linkedSession->group)->coach_id;
-            $coachChanged = (int) $linkedSession->coach_id !== (int) $newSessionCoach;
-            if ($coachChanged) {
-                $linkedSession->update(['coach_id' => $newSessionCoach]);
+            $grp = $linkedSession->group;
+
+            // Собираем, что РЕАЛЬНО поменялось у занятия (тренер и/или время),
+            // и синхронизируем занятие с бронью. Логируем только при изменениях.
+            $changes = [];
+
+            $newSessionCoach = $booking->coach_id ?: optional($grp)->coach_id;
+            if ((int) $linkedSession->coach_id !== (int) $newSessionCoach) {
+                $oldCoach = optional(\App\Models\User::find($linkedSession->coach_id))->full_name ?? '—';
+                $newCoach = optional(\App\Models\User::find($newSessionCoach))->full_name ?? '—';
+                $changes['Тренер'] = ['old' => $oldCoach, 'new' => $newCoach];
             }
 
-            // Пересчёт цены групповой брони = цена занятия × число активных участников.
-            $grp = $linkedSession->group;
+            $oldEnd = substr((string) $linkedSession->end_time, 0, 5);
+            $newEnd = substr((string) $booking->end_time, 0, 5);
+            if ($oldEnd !== $newEnd) {
+                $startLabel = substr((string) $linkedSession->start_time, 0, 5);
+                $changes['Время'] = ['old' => "{$startLabel}–{$oldEnd}", 'new' => "{$startLabel}–{$newEnd}"];
+            }
+
+            // Синхронизация занятия с бронью (тренер + длительность).
+            $linkedSession->update([
+                'coach_id' => $newSessionCoach,
+                'end_time' => $booking->end_time,
+            ]);
+
             if ($grp) {
+                // Пересчёт цены групповой брони = цена занятия × число активных участников.
                 $booking->update([
                     'price' => (float) $grp->price_per_session * $grp->members()->where('status', 'active')->count(),
                 ]);
 
-                // В журнал группы (занятие отредактировано из расписания кортов).
-                $dateLabel = $linkedSession->date->format('d.m.Y') . ' ' . Carbon::parse($linkedSession->start_time)->format('H:i');
-                $coachNote = $coachChanged ? ' — сменили тренера' : '';
-                \App\Models\ActivityLog::logGroup($grp->id, 'updated', 'ClubGroupSession', $linkedSession->id,
-                    "Занятие изменено (из расписания): «{$grp->name}» ({$dateLabel}){$coachNote}", clubId: $club->id);
+                // В журнал — только если что-то реально изменилось, с деталями в тексте.
+                if (!empty($changes)) {
+                    $summary = collect($changes)->map(function ($c, $field) {
+                        return mb_strtolower($field) . ': ' . $c['old'] . ' → ' . $c['new'];
+                    })->implode('; ');
+                    $dateLabel = $linkedSession->date->format('d.m.Y') . ' ' . substr((string) $linkedSession->start_time, 0, 5);
+                    \App\Models\ActivityLog::logGroup($grp->id, 'updated', 'ClubGroupSession', $linkedSession->id,
+                        "Занятие изменено (из расписания): «{$grp->name}» ({$dateLabel}) — {$summary}", $changes, clubId: $club->id);
+                }
             }
         }
 
