@@ -2374,8 +2374,24 @@
             const defaultCoach = data.coach_id ? String(data.coach_id) : '';
             coachSelect.value = defaultCoach;
             coachIdInput.value = defaultCoach;
+            // Занятые тренеры (ведут другое занятие / не работают) — серым и недоступны.
+            const cb = (typeof currentBook === 'object' && currentBook) ? currentBook : {};
+            markGroupCoachAvailabilityWeek(coachSelect, cb.date, cb.time, defaultCoach);
             if (coachHint) coachHint.style.display = defaultCoach ? 'block' : 'none';
         }
+    }
+    // Доступность тренеров в недельном виде: coachAvailability[date][coachId][time].
+    function markGroupCoachAvailabilityWeek(selectEl, date, time, currentCoachId) {
+        if (!selectEl) return;
+        const dayAvail = (typeof coachAvailability === 'object' && coachAvailability && coachAvailability[date]) ? coachAvailability[date] : {};
+        Array.from(selectEl.options).forEach(function (opt) {
+            opt.textContent = opt.textContent.replace(/\s+—\s+занят$/, '');
+            opt.disabled = false;
+            if (!opt.value) return;
+            const isCurrent = String(opt.value) === String(currentCoachId || '');
+            const free = isCurrent || (dayAvail[opt.value] && dayAvail[opt.value][time]);
+            if (!free) { opt.disabled = true; opt.textContent = opt.textContent + ' — занят'; }
+        });
     }
     function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

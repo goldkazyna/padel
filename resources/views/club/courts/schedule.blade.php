@@ -1731,6 +1731,12 @@
         const form = e.target;
         const bookingType = document.getElementById('editBookingTypeInput').value;
         const isGroup = bookingType === 'group';
+        // Групповая бронь: гарантируем отправку выбранного тренера в coach_id
+        // (на случай, если onchange селекта не сработал).
+        if (isGroup) {
+            const gsel = document.getElementById('editGroupCoachSelect');
+            if (gsel) document.getElementById('editCoachId').value = gsel.value;
+        }
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -1972,6 +1978,9 @@
             const defaultCoach = data.coach_id ? String(data.coach_id) : '';
             coachSelect.value = defaultCoach;
             coachIdInput.value = defaultCoach;
+            // Занятые тренеры (ведут другое занятие / не работают) — серым и недоступны.
+            const bookTime = (typeof currentBook === 'object' && currentBook && currentBook.time) ? currentBook.time : null;
+            markGroupCoachAvailability(coachSelect, bookTime, defaultCoach);
             if (coachHint) coachHint.style.display = defaultCoach ? 'block' : 'none';
         }
     }
@@ -2012,10 +2021,31 @@
     }
 
     // Заполнить тренера и список участников группы в окне редактирования.
+    // Пометить занятых тренеров в <select> группы: недоступных в это время
+    // делаем disabled и дописываем «— занят» (кроме уже назначенного на бронь).
+    function markGroupCoachAvailability(selectEl, time, currentCoachId) {
+        if (!selectEl) return;
+        const avail = (typeof coachAvailability === 'object' && coachAvailability) ? coachAvailability : {};
+        Array.from(selectEl.options).forEach(function (opt) {
+            // Сброс прошлой пометки.
+            opt.textContent = opt.textContent.replace(/\s+—\s+занят$/, '');
+            opt.disabled = false;
+            if (!opt.value) return; // «— без тренера —»
+            const isCurrent = String(opt.value) === String(currentCoachId || '');
+            const free = isCurrent || (avail[opt.value] && avail[opt.value][time]);
+            if (!free) {
+                opt.disabled = true;
+                opt.textContent = opt.textContent + ' — занят';
+            }
+        });
+    }
+
     function renderEditGroup(data) {
         const coachSelect = document.getElementById('editGroupCoachSelect');
         if (coachSelect) {
             coachSelect.value = data.coachId ? String(data.coachId) : '';
+            // Занятые тренеры (ведут другое занятие / не работают) — серым и недоступны.
+            markGroupCoachAvailability(coachSelect, data.startTime, data.coachId);
             // Держим скрытое поле coach_id в соответствии с выбором (на случай рассинхрона).
             const editCoachIdInput = document.getElementById('editCoachId');
             if (editCoachIdInput) editCoachIdInput.value = coachSelect.value;
