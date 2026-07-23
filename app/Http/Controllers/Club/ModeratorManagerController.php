@@ -94,6 +94,31 @@ class ModeratorManagerController extends Controller
         return back()->with('success', "Права для {$user->name} обновлены");
     }
 
+    /**
+     * Изменить ФИО модератора (Имя + Фамилия).
+     */
+    public function updateProfile(Request $request, User $user)
+    {
+        $club = $this->getClub();
+        if (!$club || !$club->moderators()->where('user_id', $user->id)->exists()) {
+            return back()->with('error', 'Нет доступа');
+        }
+
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+        ]);
+
+        $name = trim($validated['first_name'] . ' ' . $validated['last_name']);
+        $user->update([
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'name' => $name,
+        ]);
+
+        return back()->with('success', "Данные модератора {$name} обновлены");
+    }
+
     public function updatePassword(Request $request, User $user)
     {
         $club = $this->getClub();

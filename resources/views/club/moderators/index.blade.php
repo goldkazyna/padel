@@ -39,6 +39,7 @@
                 </div>
             </div>
             <div class="mod-card-right">
+                <button class="action-btn edit" title="Редактировать ФИО" data-bs-toggle="modal" data-bs-target="#nameModal{{ $mod->id }}"><i class="bi bi-pencil"></i></button>
                 <button class="action-btn edit" title="Права на турниры" data-bs-toggle="modal" data-bs-target="#permModal{{ $mod->id }}"><i class="bi bi-shield-check"></i></button>
                 <button class="action-btn edit" title="Сменить пароль" data-bs-toggle="modal" data-bs-target="#passModal{{ $mod->id }}"><i class="bi bi-key"></i></button>
                 <form action="{{ route('club.moderators.destroy', $mod) }}" method="POST" style="display:inline;" onsubmit="return confirm('Удалить модератора {{ $mod->name }}?')">
@@ -46,6 +47,35 @@
                     @method('DELETE')
                     <button type="submit" class="action-btn delete" title="Удалить"><i class="bi bi-trash"></i></button>
                 </form>
+            </div>
+        </div>
+        <!-- Edit Name Modal -->
+        <div class="modal fade" id="nameModal{{ $mod->id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="background:#111113;border:1px solid #27272a;border-radius:16px;">
+                    <div class="modal-header" style="border-bottom:1px solid #27272a;padding:20px 24px;">
+                        <h5 class="modal-title" style="font-weight:700;">Редактировать — {{ $mod->name }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ route('club.moderators.updateProfile', $mod) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-body" style="padding:24px;">
+                            <div class="form-group">
+                                <label class="form-label">Имя *</label>
+                                <input type="text" name="first_name" class="form-input" value="{{ $mod->first_name }}" placeholder="Имя" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Фамилия *</label>
+                                <input type="text" name="last_name" class="form-input" value="{{ $mod->last_name }}" placeholder="Фамилия" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top:1px solid #27272a;padding:20px 24px;">
+                            <button type="button" class="btn-cancel" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn-save">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
         <!-- Permissions Modal -->
