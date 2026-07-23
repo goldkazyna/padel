@@ -801,7 +801,7 @@
                 <h2>Редактирование брони</h2>
                 <button class="sch-modal-close" data-bs-dismiss="modal">&#10005;</button>
             </div>
-            <form id="editBookingForm" method="POST">
+            <form id="editBookingForm" method="POST" novalidate>
                 @csrf
                 @method('PUT')
 
