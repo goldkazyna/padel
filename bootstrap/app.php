@@ -37,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping();
 
+        $schedule->command('bookings:send-reminders')
+            ->everyMinute()
+            ->withoutOverlapping();
+
         // Авто-проведение групповых занятий (клубы с включённой настройкой).
         $schedule->command('group-sessions:auto-conduct')
             ->everyTenMinutes()

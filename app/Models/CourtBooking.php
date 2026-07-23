@@ -33,6 +33,9 @@ class CourtBooking extends Model
         'needs_coach',
         'club_card_id',
         'card_charged_at',
+        'reminded_1d_at',
+        'reminded_2h_at',
+        'reminded_1h_at',
     ];
 
     protected $casts = [
@@ -47,6 +50,9 @@ class CourtBooking extends Model
         'coach_paid' => 'boolean',
         'coach_price' => 'decimal:2',
         'card_charged_at' => 'datetime',
+        'reminded_1d_at' => 'datetime',
+        'reminded_2h_at' => 'datetime',
+        'reminded_1h_at' => 'datetime',
     ];
 
     public function court()
