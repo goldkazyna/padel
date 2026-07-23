@@ -28,8 +28,10 @@ class ActivityLogController extends Controller
             return redirect()->route('club.dashboard')->with('error', 'Нет доступа к журналу действий');
         }
 
-        // Модератор (не владелец/не супер-админ) видит только СВОИ действия.
-        $restrictUserId = ($user->isClubModerator() && !$user->isSuperAdmin()) ? $user->id : null;
+        // Журнал доступен модератору только с флагом can_view_activity_log (проверено выше).
+        // При наличии доступа он видит действия ВСЕХ сотрудников клуба (как владелец),
+        // а не только свои.
+        $restrictUserId = null;
 
         $query = ActivityLog::where('club_id', $club->id)
             ->with('user')
