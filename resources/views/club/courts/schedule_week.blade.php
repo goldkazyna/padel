@@ -610,7 +610,31 @@
                                 }
                             @endphp
                             <div class="ws-card {{ $cls }}" @if($pmW) style="--pm: {{ $pmW[2] }}" @endif
-                                 onclick="openViewModal({ id: {{ $b->id }}, courtId: {{ $court->id }}, date: '{{ $wd['date'] }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($b->client_name ?? '') }}', clientPhone: '{{ addslashes($b->client_phone ?? '') }}', price: {{ $b->price ?? 0 }}, paymentMethod: '{{ $b->payment_method ?? '' }}', isPaid: {{ $b->is_paid ? 'true' : 'false' }}, isProcessed: {{ $b->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($b->comment ?? '') }}', bookingType: '{{ $b->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$b->id] ?? 'null' }}, coachId: {{ $b->coach_id ?? 'null' }}, coachPaid: {{ $b->coach_paid === null ? 'null' : ($b->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $b->coach_price !== null ? $b->coach_price : 'null' }}, coaches: {{ json_encode($b->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values()) }}, discount: {{ $b->discount ?? 0 }}, clubCardId: {{ $b->club_card_id ?? 'null' }}, cardCharged: {{ $b->card_charged_at ? 'true' : 'false' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                 onclick="openViewModal({{ json_encode([
+                                    'id' => $b->id,
+                                    'courtId' => $court->id,
+                                    'date' => $wd['date'],
+                                    'courtName' => $court->name,
+                                    'startTime' => $bStart,
+                                    'endTime' => $bEnd,
+                                    'clientName' => $b->client_name ?? '',
+                                    'clientPhone' => $b->client_phone ?? '',
+                                    'price' => (float) ($b->price ?? 0),
+                                    'paymentMethod' => $b->payment_method ?? '',
+                                    'isPaid' => (bool) $b->is_paid,
+                                    'isProcessed' => (bool) $b->is_processed,
+                                    'comment' => $b->comment ?? '',
+                                    'bookingType' => $b->booking_type ?? '',
+                                    'groupId' => $bookingGroupIds[$b->id] ?? null,
+                                    'coachId' => $b->coach_id,
+                                    'coachPaid' => $b->coach_paid === null ? null : (bool) $b->coach_paid,
+                                    'coachPrice' => $b->coach_price !== null ? (float) $b->coach_price : null,
+                                    'coaches' => $b->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
+                                    'discount' => (float) ($b->discount ?? 0),
+                                    'clubCardId' => $b->club_card_id,
+                                    'cardCharged' => (bool) $b->card_charged_at,
+                                    'slotDuration' => $court->slot_duration ?? 60,
+                                ]) }})">
                                 @if($pmW)<div class="ws-pm-strip" title="Оплата: {{ $pmW[0] }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span></div>@endif
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>

@@ -382,7 +382,31 @@
                                     @endphp
                                     <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid) ? ' has-icons' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
-                                         onclick="openViewModal({ id: {{ $booking->id }}, courtId: {{ $court->id }}, date: '{{ $date }}', courtName: '{{ addslashes($court->name) }}', startTime: '{{ $bStart }}', endTime: '{{ $bEnd }}', clientName: '{{ addslashes($booking->client_name ?? '') }}', clientPhone: '{{ addslashes($booking->client_phone ?? '') }}', price: {{ $booking->price ?? 0 }}, paymentMethod: '{{ $booking->payment_method ?? '' }}', isPaid: {{ $booking->is_paid ? 'true' : 'false' }}, isProcessed: {{ $booking->is_processed ? 'true' : 'false' }}, comment: '{{ addslashes($booking->comment ?? '') }}', bookingType: '{{ $booking->booking_type ?? '' }}', groupId: {{ $bookingGroupIds[$booking->id] ?? 'null' }}, coachId: {{ $booking->coach_id ?? 'null' }}, coachPaid: {{ $booking->coach_paid === null ? 'null' : ($booking->coach_paid ? 'true' : 'false') }}, coachPrice: {{ $booking->coach_price !== null ? $booking->coach_price : 'null' }}, coaches: {{ json_encode($booking->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values()) }}, discount: {{ $booking->discount ?? 0 }}, clubCardId: {{ $booking->club_card_id ?? 'null' }}, cardCharged: {{ $booking->card_charged_at ? 'true' : 'false' }}, slotDuration: {{ $court->slot_duration ?? 60 }} })">
+                                         onclick="openViewModal({{ json_encode([
+                                            'id' => $booking->id,
+                                            'courtId' => $court->id,
+                                            'date' => $date,
+                                            'courtName' => $court->name,
+                                            'startTime' => $bStart,
+                                            'endTime' => $bEnd,
+                                            'clientName' => $booking->client_name ?? '',
+                                            'clientPhone' => $booking->client_phone ?? '',
+                                            'price' => (float) ($booking->price ?? 0),
+                                            'paymentMethod' => $booking->payment_method ?? '',
+                                            'isPaid' => (bool) $booking->is_paid,
+                                            'isProcessed' => (bool) $booking->is_processed,
+                                            'comment' => $booking->comment ?? '',
+                                            'bookingType' => $booking->booking_type ?? '',
+                                            'groupId' => $bookingGroupIds[$booking->id] ?? null,
+                                            'coachId' => $booking->coach_id,
+                                            'coachPaid' => $booking->coach_paid === null ? null : (bool) $booking->coach_paid,
+                                            'coachPrice' => $booking->coach_price !== null ? (float) $booking->coach_price : null,
+                                            'coaches' => $booking->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
+                                            'discount' => (float) ($booking->discount ?? 0),
+                                            'clubCardId' => $booking->club_card_id,
+                                            'cardCharged' => (bool) $booking->card_charged_at,
+                                            'slotDuration' => $court->slot_duration ?? 60,
+                                        ]) }})">
                                         @if($pm)
                                         <div class="slot-pm-strip" style="--pm: {{ $pm[2] }}" title="Оплата: {{ $pm[0] }}">
                                             <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
