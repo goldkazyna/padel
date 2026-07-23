@@ -1357,7 +1357,7 @@ class CourtController extends Controller
         return redirect()->route('club.courts.schedule', ['date' => $bookingDate])->with('success', 'Бронирование обновлено');
     }
 
-    public function cancelBooking(CourtBooking $booking)
+    public function cancelBooking(Request $request, CourtBooking $booking)
     {
         $club = $this->getClub();
         $court = $booking->court;
@@ -1365,6 +1365,25 @@ class CourtController extends Controller
 
         if ($booking->card_charged_at !== null) {
             return back()->with('error', 'Нельзя отменить проведённую бронь — часы уже списаны с клубной карты');
+        }
+
+        $reason = trim((string) $request->input('reason', ''));
+
+        // Групповая бронь: отменяем связанное занятие ЗАРАНЕЕ и с причиной в
+        // журнал группы, чтобы booted-хук брони не залогировал его повторно
+        // с авто-причиной («бронь снята в расписании»).
+        $linkedSession = \App\Models\ClubGroupSession::where('court_booking_id', $booking->id)
+            ->where('status', '!=', 'cancelled')
+            ->first();
+        if ($linkedSession) {
+            $grp = $linkedSession->group;
+            $linkedSession->update(['status' => 'cancelled']);
+            if ($grp) {
+                $dateLabel = $linkedSession->date->format('d.m.Y') . ' ' . Carbon::parse($linkedSession->start_time)->format('H:i');
+                $suffix = $reason !== '' ? " — {$reason}" : '';
+                \App\Models\ActivityLog::logGroup($grp->id, 'cancelled', 'ClubGroupSession', $linkedSession->id,
+                    "Занятие отменено (из расписания): «{$grp->name}» ({$dateLabel}){$suffix}", clubId: $club->id);
+            }
         }
 
         $booking->update([

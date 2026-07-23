@@ -1449,7 +1449,31 @@
                     <button type="button" class="btn-danger" style="width: 100%;" id="cancelBookingBtn" onclick="cancelBooking()">Отменить бронь</button>
                 </div>
             </form>
-            <form id="cancelBookingForm" method="POST" style="display:none;">@csrf</form>
+            <form id="cancelBookingForm" method="POST" style="display:none;">@csrf<input type="hidden" name="reason" id="cancelBookingReason" value=""></form>
+            <div id="cancelBookingReasonModal" class="gcancel-modal" style="display:none;">
+                <div class="gcancel-box">
+                    <h3 class="gcancel-title">Отменить бронь занятия?</h3>
+                    <p class="gcancel-sub">Корт освободится, занятие отменится. Причину видно в журнале группы.</p>
+                    <label class="gcancel-label">Причина отмены</label>
+                    <textarea id="cancelBookingReasonText" class="gcancel-textarea" rows="3" maxlength="255" placeholder="Например: заболел тренер, нет игроков, перенос…"></textarea>
+                    <div class="gcancel-actions">
+                        <button type="button" class="gcancel-btn-secondary" onclick="document.getElementById('cancelBookingReasonModal').style.display='none'">Назад</button>
+                        <button type="button" class="gcancel-btn-danger" onclick="submitCancelWithReason()">Отменить бронь</button>
+                    </div>
+                </div>
+            </div>
+            <style>
+            .gcancel-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
+            .gcancel-box { background: #131619; border: 1px solid #27272a; border-radius: 16px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+            .gcancel-title { font-size: 20px; font-weight: 800; color: #f4f4f5; margin: 0 0 6px; }
+            .gcancel-sub { font-size: 14px; color: #a1a1aa; line-height: 1.5; margin: 0 0 16px; }
+            .gcancel-label { display: block; font-size: 13px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+            .gcancel-textarea { width: 100%; background: #0c0e0f; border: 1px solid #27272a; border-radius: 10px; padding: 12px 14px; color: #e4e4e7; font-size: 15px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+            .gcancel-textarea:focus { outline: none; border-color: #ef4444; }
+            .gcancel-actions { display: flex; gap: 10px; margin-top: 18px; }
+            .gcancel-btn-secondary { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #27272a; background: #16161a; color: #a1a1aa; font-size: 15px; font-weight: 700; cursor: pointer; }
+            .gcancel-btn-danger { flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+            </style>
         </div>
     </div>
 </div>
@@ -1897,7 +1921,21 @@
     }
 
     function cancelBooking() {
+        const isGroup = document.getElementById('editBookingTypeInput').value === 'group';
+        if (isGroup) {
+            const ta = document.getElementById('cancelBookingReasonText');
+            if (ta) ta.value = '';
+            document.getElementById('cancelBookingReasonModal').style.display = 'flex';
+            return;
+        }
         if (confirm('Вы уверены, что хотите отменить бронь?')) document.getElementById('cancelBookingForm').submit();
+    }
+    function submitCancelWithReason() {
+        const ta = document.getElementById('cancelBookingReasonText');
+        const reasonInput = document.getElementById('cancelBookingReason');
+        if (reasonInput) reasonInput.value = ta ? ta.value : '';
+        document.getElementById('cancelBookingReasonModal').style.display = 'none';
+        document.getElementById('cancelBookingForm').submit();
     }
 
     // Лок/анлок клиентских полей + валидация edit-формы (как в book)
