@@ -1206,23 +1206,12 @@ class MobileTournamentController extends Controller
             return null;
         }
 
-        // Рейтинги/уровни всех участников — чтобы обогатить соперников в матчах.
-        $ratingById = $tournament->participants()
-            ->wherePivot('status', '!=', 'cancelled')
-            ->get()
-            ->mapWithKeys(fn($u) => [$u->id => ['rating' => $u->rating, 'level' => $u->level]]);
+        $names = fn(array $players) => array_values(array_filter(
+            array_map(fn($p) => $p['name'] ?? null, $players)
+        ));
 
-        $enrich = function (array $players) use ($ratingById) {
-            return array_map(function ($p) use ($ratingById) {
-                $extra = $ratingById[$p['id']] ?? [];
-                return [
-                    'name' => $p['name'] ?? '',
-                    'rating' => $extra['rating'] ?? null,
-                    'level' => $extra['level'] ?? null,
-                ];
-            }, $players);
-        };
-
+        // Средние рейтинги пар и шанс на победу — НА МОМЕНТ матча (из форматтеров),
+        // согласованы с фактической дельтой. Не текущие рейтинги игроков.
         $matches = array_map(fn($m) => [
             'round' => $m['round_name'] ?? ('Раунд ' . ($m['round'] ?? '')),
             'is_final' => $m['is_final'] ?? false,
@@ -1230,8 +1219,11 @@ class MobileTournamentController extends Controller
             'score_opponent' => $m['score_opponent'] ?? 0,
             'result' => $m['result'] ?? '',
             'rating_change' => $m['rating_change'] ?? 0,
-            'my_team' => $enrich($m['my_team'] ?? []),
-            'opponents' => $enrich($m['opponent_team'] ?? []),
+            'my_pair_avg_rating' => $m['my_avg'] ?? null,
+            'opponent_pair_avg_rating' => $m['opp_avg'] ?? null,
+            'win_probability_percent' => $m['win_prob'] ?? null,
+            'partners' => $names($m['my_team'] ?? []),
+            'opponents' => $names($m['opponent_team'] ?? []),
         ], $userMatches);
 
         $me = User::find($userId);
@@ -1255,9 +1247,6 @@ class MobileTournamentController extends Controller
                 'losses' => $losses,
             ],
             'matches' => $matches,
-            'field' => $ratingById->map(fn($v, $id) => [
-                'rating' => $v['rating'], 'level' => $v['level'],
-            ])->values(),
         ];
     }
 
@@ -1275,43 +1264,19 @@ class MobileTournamentController extends Controller
         } elseif ($tournament->type === 'team') {
             $userMatches = $this->getTeamBasedMatches($tournament, $userId);
         }
-        if (empty($userMatches)) {
-            return [];
-        }
 
-        $ratingById = $tournament->participants()
-            ->wherePivot('status', '!=', 'cancelled')
-            ->get()
-            ->mapWithKeys(fn($u) => [$u->id => (float) $u->rating]);
-
-        $avg = function (array $players) use ($ratingById) {
-            $rs = [];
-            foreach ($players as $p) {
-                $r = $ratingById[$p['id'] ?? 0] ?? null;
-                if ($r !== null) $rs[] = (float) $r;
-            }
-            return count($rs) ? array_sum($rs) / count($rs) : null;
-        };
-
-        $out = [];
-        foreach ($userMatches as $m) {
-            $myAvg = $avg($m['my_team'] ?? []);
-            $oppAvg = $avg($m['opponent_team'] ?? []);
-            $winProb = ($myAvg !== null && $oppAvg !== null)
-                ? (int) round($this->expectedScore($myAvg, $oppAvg) * 100)
-                : null;
-            $out[] = [
-                'round' => $m['round_name'] ?? '',
-                'score_my' => $m['score_my'] ?? 0,
-                'score_opponent' => $m['score_opponent'] ?? 0,
-                'result' => $m['result'] ?? '',
-                'my_avg' => $myAvg !== null ? (int) round($myAvg) : null,
-                'opp_avg' => $oppAvg !== null ? (int) round($oppAvg) : null,
-                'win_prob' => $winProb,
-                'delta' => (int) ($m['rating_change'] ?? 0),
-            ];
-        }
-        return $out;
+        // my_avg/opp_avg/win_prob уже посчитаны в форматтерах по рейтингам НА
+        // МОМЕНТ матча (эволюционируют по ходу турнира) — согласованы с дельтой.
+        return array_map(fn($m) => [
+            'round' => $m['round_name'] ?? '',
+            'score_my' => $m['score_my'] ?? 0,
+            'score_opponent' => $m['score_opponent'] ?? 0,
+            'result' => $m['result'] ?? '',
+            'my_avg' => $m['my_avg'] ?? null,
+            'opp_avg' => $m['opp_avg'] ?? null,
+            'win_prob' => $m['win_prob'] ?? null,
+            'delta' => (int) ($m['rating_change'] ?? 0),
+        ], $userMatches);
     }
 
     /**
@@ -1981,6 +1946,11 @@ class MobileTournamentController extends Controller
         $ratings[$p2_1] = $this->applyRatingChange($ratings[$p2_1] ?? 1000, $result['change2']);
         $ratings[$p2_2] = $this->applyRatingChange($ratings[$p2_2] ?? 1000, $result['change2']);
 
+        // Средние рейтинги пар ДО матча (эволюционируют по ходу турнира) —
+        // для поматчевой разбивки/шанса на победу. Согласованы с дельтой.
+        $result['team1Rating'] = $team1Rating;
+        $result['team2Rating'] = $team2Rating;
+
         return $result;
     }
 
@@ -2003,6 +1973,10 @@ class MobileTournamentController extends Controller
         $ratings[$team2->player1_id] = $this->applyRatingChange($ratings[$team2->player1_id] ?? 1000, $result['change2']);
         $ratings[$team2->player2_id] = $this->applyRatingChange($ratings[$team2->player2_id] ?? 1000, $result['change2']);
 
+        // Средние рейтинги команд ДО матча — для поматчевой разбивки.
+        $result['team1Rating'] = $team1Rating;
+        $result['team2Rating'] = $team2Rating;
+
         return $result;
     }
 
@@ -2017,6 +1991,23 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * По результату processPlayerMatch/processTeamMatch вернуть средние рейтинги
+     * пары игрока и пары соперников ДО матча + шанс на победу (Elo), %.
+     * @return array{0:?int,1:?int,2:?int} [myAvg, oppAvg, winProb]
+     */
+    private function matchRatingMeta(array $change, bool $isTeam1): array
+    {
+        $t1 = $change['team1Rating'] ?? null;
+        $t2 = $change['team2Rating'] ?? null;
+        if ($t1 === null || $t2 === null) {
+            return [null, null, null];
+        }
+        $myR = $isTeam1 ? $t1 : $t2;
+        $oppR = $isTeam1 ? $t2 : $t1;
+        return [(int) round($myR), (int) round($oppR), (int) round($this->expectedScore($myR, $oppR) * 100)];
+    }
+
+    /**
      * Форматировать матч (player-based) для результатов
      */
     private function formatResultMatch($match, int $userId, int $roundNum, array $change, bool $isFinal, ?string $stageName = null): array
@@ -2026,6 +2017,9 @@ class MobileTournamentController extends Controller
         $myScore = $isTeam1 ? $match->team1_score : $match->team2_score;
         $oppScore = $isTeam1 ? $match->team2_score : $match->team1_score;
         $ratingChange = $isTeam1 ? $change['change1'] : $change['change2'];
+
+        // Средние рейтинги пар ДО матча (на момент турнира) и шанс на победу.
+        [$myAvg, $oppAvg, $winProb] = $this->matchRatingMeta($change, $isTeam1);
 
         $partner = $isTeam1
             ? ($match->team1_player1_id == $userId ? $match->team1Player2 : $match->team1Player1)
@@ -2050,6 +2044,9 @@ class MobileTournamentController extends Controller
             'score_opponent' => $oppScore,
             'result' => $myScore > $oppScore ? 'win' : 'loss',
             'rating_change' => $ratingChange,
+            'my_avg' => $myAvg,
+            'opp_avg' => $oppAvg,
+            'win_prob' => $winProb,
             'my_team' => array_values(array_filter([
                 $me ? $this->formatPlayerShort($me) : null,
                 $partner ? $this->formatPlayerShort($partner) : null,
@@ -2075,6 +2072,8 @@ class MobileTournamentController extends Controller
         $oppScore = $isTeam1 ? $match->team2_score : $match->team1_score;
         $ratingChange = $isTeam1 ? $change['change1'] : $change['change2'];
 
+        [$myAvg, $oppAvg, $winProb] = $this->matchRatingMeta($change, $isTeam1);
+
         $partner = $myTeam->player1_id == $userId ? $myTeam->player2 : $myTeam->player1;
         $me = $myTeam->player1_id == $userId ? $myTeam->player1 : $myTeam->player2;
 
@@ -2091,6 +2090,9 @@ class MobileTournamentController extends Controller
             'score_opponent' => $oppScore,
             'result' => $myScore > $oppScore ? 'win' : 'loss',
             'rating_change' => $ratingChange,
+            'my_avg' => $myAvg,
+            'opp_avg' => $oppAvg,
+            'win_prob' => $winProb,
             'my_team' => array_values(array_filter([
                 $me ? $this->formatPlayerShort($me) : null,
                 $partner ? $this->formatPlayerShort($partner) : null,
