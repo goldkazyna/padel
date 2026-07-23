@@ -239,8 +239,8 @@ class GroupSessionController extends Controller
             'status' => 'planned',
         ]);
 
-        \App\Models\ActivityLog::log('created', 'ClubGroupSession', $session->id,
-            "Занятие группы «{$group->name}»: {$court->name}, {$validated['date']} {$startTime}–{$endTime}", clubId: $club->id);
+        \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroupSession', $session->id,
+            "Занятие создано: «{$group->name}» — {$court->name}, {$validated['date']} {$startTime}–{$endTime}", clubId: $club->id);
 
         return redirect()->route('club.groupSessions.index')->with('success', 'Занятие создано');
     }
@@ -306,18 +306,23 @@ class GroupSessionController extends Controller
         return redirect()->route('club.groupSessions.index')->with('success', 'Занятие проведено');
     }
 
-    public function cancel(ClubGroupSession $session)
+    public function cancel(Request $request, ClubGroupSession $session)
     {
         $club = $this->getClub();
         $this->authorizeSession($club, $session);
 
+        $reason = trim((string) $request->input('reason', ''));
+
+        // Сначала помечаем сессию — тогда booted-хук брони не залогирует её повторно.
         $session->update(['status' => 'cancelled']);
         if ($session->courtBooking) {
             $session->courtBooking->update(['status' => 'cancelled', 'cancelled_at' => now()]);
         }
 
-        \App\Models\ActivityLog::log('cancelled', 'ClubGroupSession', $session->id,
-            "Занятие отменено: «{$session->group->name}»", clubId: $club->id);
+        $dateLabel = $session->date->format('d.m.Y') . ' ' . \Carbon\Carbon::parse($session->start_time)->format('H:i');
+        $suffix = $reason !== '' ? " — {$reason}" : '';
+        \App\Models\ActivityLog::logGroup($session->group_id, 'cancelled', 'ClubGroupSession', $session->id,
+            "Занятие отменено: «{$session->group->name}» ({$dateLabel}){$suffix}", clubId: $club->id);
 
         return back()->with('success', 'Занятие отменено, корт освобождён');
     }

@@ -89,6 +89,19 @@ class CourtBooking extends Model
                 ->first();
             if ($session) {
                 $session->update(['status' => 'cancelled']);
+                // Сюда попадаем, только если сессию не отменили явно из потока группы
+                // (там её статус ставят заранее). Значит бронь сняли в расписании —
+                // фиксируем это в журнале группы с понятной причиной.
+                $group = \App\Models\ClubGroup::find($session->group_id);
+                $dateLabel = $session->date->format('d.m.Y') . ' ' . \Carbon\Carbon::parse($session->start_time)->format('H:i');
+                \App\Models\ActivityLog::logGroup(
+                    $session->group_id,
+                    'cancelled',
+                    'ClubGroupSession',
+                    $session->id,
+                    'Занятие отменено — бронь корта снята в расписании' . ($group ? ": «{$group->name}» ({$dateLabel})" : ''),
+                    clubId: $group?->club_id,
+                );
             }
         });
     }

@@ -30,6 +30,8 @@ class GroupSessionService
     {
         $sessionDate = $session->date->toDateString();
 
+        $attendedCount = 0;
+        $chargedCount = 0;
         foreach ($rows as $memberId => $row) {
             $member = ClubGroupMember::find($memberId);
             if (!$member || $member->group_id !== $session->group_id) {
@@ -44,6 +46,9 @@ class GroupSessionService
             $charged = $status === 'charge' && !$frozen && !$notStarted && $member->remaining > 0;
             $attended = in_array($status, ['charge', 'trial'], true);
             $trialAmount = $isTrial ? (int) ($row['trial_amount'] ?? 0) : null;
+
+            if ($attended) $attendedCount++;
+            if ($charged) $chargedCount++;
 
             ClubGroupAttendance::updateOrCreate(
                 ['session_id' => $session->id, 'group_member_id' => $member->id],
@@ -63,8 +68,9 @@ class GroupSessionService
         // (крон, $conductedBy === null) auth()->id() null, а activity_logs.user_id NOT NULL —
         // факт авто-проведения виден по conducted_by = null.
         if ($conductedBy !== null) {
-            ActivityLog::log('updated', 'ClubGroupSession', $session->id,
-                "Занятие проведено: «{$session->group->name}»", clubId: $club->id);
+            $dateLabel = $session->date->format('d.m.Y') . ' ' . Carbon::parse($session->start_time)->format('H:i');
+            ActivityLog::logGroup($session->group_id, 'conducted', 'ClubGroupSession', $session->id,
+                "Занятие проведено: «{$session->group->name}» ({$dateLabel}) — присутствовали {$attendedCount}, списано {$chargedCount}", clubId: $club->id);
         }
     }
 

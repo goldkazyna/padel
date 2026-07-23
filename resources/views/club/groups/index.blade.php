@@ -14,6 +14,7 @@
             @if($groups->isNotEmpty())
             <button type="button" id="grp-export" class="btn-excel" data-tab="{{ $tab }}"><i class="bi bi-file-earmark-arrow-down"></i> Выгрузить в Excel</button>
             @endif
+            <a href="{{ route('club.groups.journal') }}" class="btn-report"><i class="bi bi-clock-history"></i> Журнал</a>
             <a href="{{ route('club.groupSessions.report') }}" class="btn-report"><i class="bi bi-bar-chart-line"></i> Отчёты</a>
             <button class="btn-add" onclick="document.getElementById('createGroupModal').style.display='flex'">+ Создать группу</button>
         </div>

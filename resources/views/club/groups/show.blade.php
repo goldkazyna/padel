@@ -187,6 +187,7 @@
             </div>
         </div>
         <div class="gs-head-actions">
+            <a href="{{ route('club.groups.journal', ['group' => $group->id]) }}" class="gs-mbtn"><i class="bi bi-clock-history"></i> Журнал</a>
             <button class="gs-mbtn edit" onclick="document.getElementById('editGroupModal').style.display='flex'">&#9998; Редактировать</button>
             @if($group->status === 'active')
                 <form method="POST" action="{{ route('club.groups.archive', $group) }}" onsubmit="return confirm('Перенести «{{ $group->name }}» в архив? Будущие занятия будут отменены, корты освободятся. История сохранится.')" style="display:inline;">

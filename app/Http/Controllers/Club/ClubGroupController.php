@@ -121,6 +121,61 @@ class ClubGroupController extends Controller
         return ['ended' => $ended, 'ending' => $ending];
     }
 
+    /**
+     * Журнал групп — все события по группам клуба (создание/отмена занятий,
+     * участники, заморозки и т.д.) с фильтром по конкретной группе, типу и дате.
+     */
+    public function journal(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $query = \App\Models\ActivityLog::where('club_id', $club->id)
+            ->whereNotNull('group_id')
+            ->with(['user', 'group:id,name'])
+            ->orderByDesc('created_at');
+
+        if ($request->filled('group')) {
+            $query->where('group_id', (int) $request->get('group'));
+        }
+        if ($request->filled('action')) {
+            $query->where('action', $request->get('action'));
+        }
+        if ($request->filled('search')) {
+            $query->where('description', 'like', '%' . $request->get('search') . '%');
+        }
+        $date = $request->get('date');
+        if ($date) {
+            $start = \Carbon\Carbon::parse($date, 'Asia/Almaty')->startOfDay()->utc();
+            $end = \Carbon\Carbon::parse($date, 'Asia/Almaty')->endOfDay()->utc();
+            $query->whereBetween('created_at', [$start, $end]);
+        }
+
+        $logs = $query->paginate(30)->withQueryString();
+        $groupedLogs = $logs->getCollection()
+            ->groupBy(fn($log) => $log->created_at->timezone('Asia/Almaty')->format('Y-m-d'));
+
+        // Список групп для фильтра (активные + архивные, по имени).
+        $groups = ClubGroup::where('club_id', $club->id)->orderBy('name')->get(['id', 'name', 'status']);
+
+        // Статистика по журналу групп.
+        $base = \App\Models\ActivityLog::where('club_id', $club->id)->whereNotNull('group_id');
+        $stats = [
+            'total'     => (clone $base)->count(),
+            'sessions'  => (clone $base)->where('subject_type', 'ClubGroupSession')->count(),
+            'cancelled' => (clone $base)->where('action', 'cancelled')->count(),
+            'conducted' => (clone $base)->where('action', 'conducted')->count(),
+        ];
+
+        $selectedGroup = $request->filled('group')
+            ? $groups->firstWhere('id', (int) $request->get('group'))
+            : null;
+
+        return view('club.groups.journal', compact(
+            'club', 'logs', 'groupedLogs', 'groups', 'stats', 'date', 'selectedGroup'
+        ));
+    }
+
     /** Метаданные тренера для аватарки: фото / инициалы / цвет-заглушка. */
     private function coachMeta($user, ?string $photo, array $palette): array
     {
@@ -151,7 +206,8 @@ class ClubGroupController extends Controller
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
 
         $group = ClubGroup::create($validated);
-        \App\Models\ActivityLog::log('created', 'ClubGroup', $group->id, "Группа создана: {$group->name}", clubId: $club->id);
+        \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroup', $group->id,
+            "Группа создана: {$group->name}", clubId: $club->id);
 
         return redirect()->route('club.groups.show', $group)->with('success', 'Группа создана');
     }
@@ -209,7 +265,25 @@ class ClubGroupController extends Controller
         ]);
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
 
+        // Фиксируем «было → стало» по значимым полям для журнала.
+        $labels = [
+            'name' => 'Название', 'coach_id' => 'Тренер', 'price_per_session' => 'Цена занятия',
+            'capacity' => 'Вместимость', 'note' => 'Заметка', 'status' => 'Статус',
+        ];
+        $changes = [];
+        foreach ($labels as $field => $label) {
+            if (!array_key_exists($field, $validated)) continue;
+            $old = $group->getOriginal($field);
+            $new = $validated[$field];
+            if ((string) $old === (string) $new) continue;
+            $fmt = fn($v) => $field === 'coach_id' ? (optional(\App\Models\User::find($v))->full_name ?? '—') : ($v === null || $v === '' ? '—' : $v);
+            $changes[$label] = ['old' => $fmt($old), 'new' => $fmt($new)];
+        }
+
         $group->update($validated);
+
+        \App\Models\ActivityLog::logGroup($group->id, 'updated', 'ClubGroup', $group->id,
+            "Группа изменена: {$group->name}", $changes ?: null, clubId: $club->id);
 
         return back()->with('success', 'Группа обновлена');
     }
@@ -219,27 +293,33 @@ class ClubGroupController extends Controller
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id) abort(403);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($group) {
+        $cancelledCount = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($group, &$cancelledCount) {
             // Отменяем будущие/не отменённые брони — корты освободятся.
             // CourtBooking::booted-хук автоматически переведёт сессии в cancelled.
             $group->sessions()
                 ->where('status', '!=', 'cancelled')
                 ->with('courtBooking')
                 ->get()
-                ->each(function ($session) {
+                ->each(function ($session) use (&$cancelledCount) {
                     if ($session->courtBooking && $session->courtBooking->status !== 'cancelled') {
+                        // Помечаем сессию до брони — чтобы booted-хук брони не
+                        // залогировал её отдельно (причину даём на уровне группы).
+                        $session->update(['status' => 'cancelled']);
                         $session->courtBooking->update([
                             'status' => 'cancelled',
                             'cancelled_at' => now(),
                         ]);
+                        $cancelledCount++;
                     }
                 });
 
             $group->update(['status' => 'archived']);
         });
 
-        \App\Models\ActivityLog::log('updated', 'ClubGroup', $group->id,
-            "Группа в архиве: {$group->name}", clubId: $club->id);
+        $suffix = $cancelledCount > 0 ? " — отменено {$cancelledCount} будущих занятий" : '';
+        \App\Models\ActivityLog::logGroup($group->id, 'updated', 'ClubGroup', $group->id,
+            "Группа в архиве: {$group->name}{$suffix}", clubId: $club->id);
 
         return redirect()->route('club.groups.index', ['tab' => 'archived'])
             ->with('success', 'Группа перенесена в архив');
@@ -252,7 +332,7 @@ class ClubGroupController extends Controller
 
         $group->update(['status' => 'active']);
 
-        \App\Models\ActivityLog::log('updated', 'ClubGroup', $group->id,
+        \App\Models\ActivityLog::logGroup($group->id, 'updated', 'ClubGroup', $group->id,
             "Группа возвращена из архива: {$group->name}", clubId: $club->id);
 
         return redirect()->route('club.groups.show', $group)
@@ -264,7 +344,10 @@ class ClubGroupController extends Controller
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id) abort(403);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($group) {
+        $groupId = $group->id;
+        $groupName = $group->name;
+        $cancelledCount = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($group, &$cancelledCount) {
             // У всех НЕ отменённых занятий — отменяем связанную бронь,
             // чтобы корты освободились в общем расписании.
             // (Затем cascadeOnDelete снесёт сами сессии вместе с группой.)
@@ -272,20 +355,25 @@ class ClubGroupController extends Controller
                 ->where('status', '!=', 'cancelled')
                 ->with('courtBooking')
                 ->get()
-                ->each(function ($session) {
+                ->each(function ($session) use (&$cancelledCount) {
                     if ($session->courtBooking && $session->courtBooking->status !== 'cancelled') {
+                        // Помечаем сессию до брони — чтобы booted-хук брони не
+                        // залогировал её отдельно (причину даём на уровне группы).
+                        $session->update(['status' => 'cancelled']);
                         $session->courtBooking->update([
                             'status' => 'cancelled',
                             'cancelled_at' => now(),
                         ]);
+                        $cancelledCount++;
                     }
                 });
 
             $group->delete();
         });
 
-        \App\Models\ActivityLog::log('deleted', 'ClubGroup', $group->id,
-            "Группа удалена: {$group->name}", clubId: $club->id);
+        $suffix = $cancelledCount > 0 ? " — отменено {$cancelledCount} будущих занятий" : '';
+        \App\Models\ActivityLog::logGroup($groupId, 'deleted', 'ClubGroup', $groupId,
+            "Группа удалена: {$groupName}{$suffix}", clubId: $club->id);
 
         return redirect()->route('club.groups.index')->with('success', 'Группа удалена');
     }
@@ -320,6 +408,7 @@ class ClubGroupController extends Controller
             return back()->with('error', 'Группа заполнена (достигнута вместимость)');
         }
 
+        $isRestore = (bool) $existing;
         if ($existing) {
             // Возвращаем «бывшего» участника — сохраняем его историю (посещаемость/пакеты).
             $existing->update([
@@ -341,8 +430,9 @@ class ClubGroupController extends Controller
         }
         $this->createEnrollment($member, $validated);
 
-        \App\Models\ActivityLog::log('created', 'ClubGroupMember', $member->id,
-            "В группу «{$group->name}» добавлен {$client->name} ({$validated['sessions']} занятий)", clubId: $club->id);
+        $verb = $isRestore ? 'возвращён в группу' : 'добавлен в группу';
+        \App\Models\ActivityLog::logGroup($group->id, $isRestore ? 'restored' : 'created', 'ClubGroupMember', $member->id,
+            "{$client->name} {$verb} «{$group->name}» ({$validated['sessions']} занятий)", clubId: $club->id);
 
         return back()->with('success', 'Участник добавлен');
     }
@@ -359,6 +449,19 @@ class ClubGroupController extends Controller
             'note' => 'nullable|string|max:1000',
             'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
         ]);
+        // Фиксируем изменения абонемента для журнала.
+        $fmtDate = fn($v) => $v ? \Carbon\Carbon::parse($v)->format('d.m.Y') : '—';
+        $changes = [];
+        $subOld = optional($member->subscription_ends_at)->format('Y-m-d');
+        $subNew = $validated['subscription_ends_at'] ?? null;
+        if ($subOld !== $subNew) $changes['Абонемент до'] = ['old' => $fmtDate($subOld), 'new' => $fmtDate($subNew)];
+        $startOld = optional($member->starts_at)->format('Y-m-d');
+        $startNew = $validated['starts_at'] ?? null;
+        if ($startOld !== $startNew) $changes['Начало'] = ['old' => $fmtDate($startOld), 'new' => $fmtDate($startNew)];
+        if ((string) $member->note !== (string) ($validated['note'] ?? '')) {
+            $changes['Заметка'] = ['old' => $member->note ?: '—', 'new' => ($validated['note'] ?? '') ?: '—'];
+        }
+
         $member->update([
             'subscription_ends_at' => $validated['subscription_ends_at'] ?? null,
             'starts_at' => $validated['starts_at'] ?? null,
@@ -370,6 +473,9 @@ class ClubGroupController extends Controller
         if ($lastEnrollment) {
             $lastEnrollment->update(['payment_method' => $validated['payment_method'] ?? null]);
         }
+
+        \App\Models\ActivityLog::logGroup($group->id, 'updated', 'ClubGroupMember', $member->id,
+            "Абонемент изменён: {$member->client?->name} («{$group->name}»)", $changes ?: null, clubId: $club->id);
 
         return back()->with('success', 'Абонемент участника обновлён');
     }
@@ -387,6 +493,12 @@ class ClubGroupController extends Controller
         ]);
         $this->createEnrollment($member, $validated);
 
+        $amount = (float) ($validated['amount'] ?? 0);
+        $paid = !empty($validated['is_paid']) ? 'оплачено' : 'не оплачено';
+        $sum = $amount > 0 ? ', ' . number_format($amount, 0, '', ' ') . ' ₸ (' . $paid . ')' : '';
+        \App\Models\ActivityLog::logGroup($group->id, 'enrolled', 'ClubGroupMember', $member->id,
+            "Продление абонемента: {$member->client?->name} +{$validated['sessions']} занятий{$sum}", clubId: $club->id);
+
         return back()->with('success', 'Пакет занятий добавлен');
     }
 
@@ -399,8 +511,8 @@ class ClubGroupController extends Controller
         // Записи посещаемости/пакетов НЕ удаляем — они нужны для отчётов и выручки.
         $member->update(['status' => 'inactive', 'left_at' => now()]);
 
-        \App\Models\ActivityLog::log('updated', 'ClubGroupMember', $member->id,
-            "Из группы «{$group->name}» убран {$member->client?->name}", clubId: $club->id);
+        \App\Models\ActivityLog::logGroup($group->id, 'deleted', 'ClubGroupMember', $member->id,
+            "Участник убран из группы «{$group->name}»: {$member->client?->name}", clubId: $club->id);
 
         return back()->with('success', 'Участник убран из группы');
     }
@@ -434,6 +546,12 @@ class ClubGroupController extends Controller
             ]);
         }
 
+        $from = \Carbon\Carbon::parse($validated['freeze_from'])->format('d.m.Y');
+        $until = \Carbon\Carbon::parse($validated['freeze_until'])->format('d.m.Y');
+        $noteTxt = !empty($validated['note']) ? ' — ' . $validated['note'] : '';
+        \App\Models\ActivityLog::logGroup($group->id, 'frozen', 'ClubGroupMember', $member->id,
+            "Заморозка: {$member->client?->name} на {$freezeDays} дн. ({$from}–{$until}){$noteTxt}", clubId: $club->id);
+
         return back()->with('success', 'Заморозка добавлена');
     }
 
@@ -452,7 +570,13 @@ class ClubGroupController extends Controller
             ]);
         }
 
+        $from = $freeze->freeze_from->format('d.m.Y');
+        $until = $freeze->freeze_until->format('d.m.Y');
         $freeze->delete();
+
+        \App\Models\ActivityLog::logGroup($group->id, 'unfrozen', 'ClubGroupMember', $member->id,
+            "Заморозка снята: {$member->client?->name} ({$from}–{$until})", clubId: $club->id);
+
         return back()->with('success', 'Заморозка снята');
     }
 

@@ -227,13 +227,24 @@
 
             <div class="session-actions">
                 <button type="submit" form="conductForm" class="btn-conduct">&#10003; Провести занятие</button>
-                <button type="button" class="btn-cancel-session" onclick="document.getElementById('cancelForm').submit()">&#10005; Отменить занятие</button>
+                <button type="button" class="btn-cancel-session" onclick="document.getElementById('cancelReasonModal').style.display='flex'">&#10005; Отменить занятие</button>
             </div>
 
-        {{-- Скрытая форма отмены занятия --}}
-        <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" id="cancelForm"
-              onsubmit="return confirm('Отменить занятие и освободить корт?')" style="display:none;">
+        {{-- Отмена занятия с указанием причины (сохраняется в журнал группы) --}}
+        <form method="POST" action="{{ route('club.groupSessions.cancel', $session) }}" id="cancelForm">
             @csrf
+            <div id="cancelReasonModal" class="gcancel-modal" style="display:none;">
+                <div class="gcancel-box">
+                    <h3 class="gcancel-title">Отменить занятие?</h3>
+                    <p class="gcancel-sub">Корт освободится. Причину видно в журнале группы — по ней потом понятно, за что отменили.</p>
+                    <label class="gcancel-label">Причина отмены</label>
+                    <textarea name="reason" class="gcancel-textarea" rows="3" maxlength="255" placeholder="Например: заболел тренер, нет игроков, перенос…"></textarea>
+                    <div class="gcancel-actions">
+                        <button type="button" class="gcancel-btn-secondary" onclick="document.getElementById('cancelReasonModal').style.display='none'">Назад</button>
+                        <button type="submit" class="gcancel-btn-danger">Отменить занятие</button>
+                    </div>
+                </div>
+            </div>
         </form>
         @endif
 
@@ -292,6 +303,21 @@
     @endif
 
 </div>
+
+<style>
+.gcancel-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.gcancel-box { background: #131619; border: 1px solid #27272a; border-radius: 16px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.gcancel-title { font-size: 20px; font-weight: 800; color: #f4f4f5; margin: 0 0 6px; }
+.gcancel-sub { font-size: 14px; color: #a1a1aa; line-height: 1.5; margin: 0 0 16px; }
+.gcancel-label { display: block; font-size: 13px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.gcancel-textarea { width: 100%; background: #0c0e0f; border: 1px solid #27272a; border-radius: 10px; padding: 12px 14px; color: #e4e4e7; font-size: 15px; font-family: inherit; resize: vertical; box-sizing: border-box; }
+.gcancel-textarea:focus { outline: none; border-color: #ef4444; }
+.gcancel-actions { display: flex; gap: 10px; margin-top: 18px; }
+.gcancel-btn-secondary { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #27272a; background: #16161a; color: #a1a1aa; font-size: 15px; font-weight: 700; cursor: pointer; }
+.gcancel-btn-secondary:hover { border-color: #3f3f46; color: #e4e4e7; }
+.gcancel-btn-danger { flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+.gcancel-btn-danger:hover { background: #dc2626; }
+</style>
 
 <script>
     var GUESTS_COUNT = {{ $guestsCount }};

@@ -172,6 +172,11 @@
                                 'unblocked' => 'Разблокировка',
                                 'deleted' => 'Удаление',
                                 'level_changed' => 'Изменение уровня',
+                                'conducted' => 'Проведено',
+                                'frozen' => 'Заморозка',
+                                'unfrozen' => 'Разморозка',
+                                'restored' => 'Возврат',
+                                'enrolled' => 'Продление',
                             ];
                             $subjectLabels = [
                                 'CourtBooking' => ['label' => 'Бронь', 'class' => 'booking', 'icon' => 'bi-calendar-check'],
@@ -179,6 +184,9 @@
                                 'CourtBlock' => ['label' => 'Блок', 'class' => 'block', 'icon' => 'bi-lock'],
                                 'Tournament' => ['label' => 'Турнир', 'class' => 'tournament', 'icon' => 'bi-trophy'],
                                 'User' => ['label' => 'Игрок', 'class' => 'client', 'icon' => 'bi-person-badge'],
+                                'ClubGroup' => ['label' => 'Группа', 'class' => 'client', 'icon' => 'bi-people-fill'],
+                                'ClubGroupMember' => ['label' => 'Участник', 'class' => 'client', 'icon' => 'bi-person'],
+                                'ClubGroupSession' => ['label' => 'Занятие', 'class' => 'booking', 'icon' => 'bi-calendar-check'],
                             ];
                             $subj = $subjectLabels[$log->subject_type] ?? ['label' => $log->subject_type, 'class' => '', 'icon' => 'bi-circle'];
                             $initials = '';

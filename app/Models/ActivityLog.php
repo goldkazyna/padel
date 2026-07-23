@@ -12,6 +12,7 @@ class ActivityLog extends Model
         'action',
         'subject_type',
         'subject_id',
+        'group_id',
         'changes',
         'description',
     ];
@@ -30,6 +31,11 @@ class ActivityLog extends Model
         return $this->belongsTo(Club::class);
     }
 
+    public function group()
+    {
+        return $this->belongsTo(ClubGroup::class, 'group_id');
+    }
+
     /**
      * Быстрый метод логирования
      *
@@ -43,6 +49,7 @@ class ActivityLog extends Model
         ?string $description = null,
         ?array $changes = null,
         ?int $clubId = null,
+        ?int $groupId = null,
     ): self {
         $user = auth()->user();
 
@@ -62,8 +69,25 @@ class ActivityLog extends Model
             'action' => $action,
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,
+            'group_id' => $groupId,
             'description' => $description,
             'changes' => $changes,
         ]);
+    }
+
+    /**
+     * Хелпер для событий групп: всегда с group_id и понятным действием.
+     * $action — «человеческий» тип события журнала групп (см. GroupJournalController).
+     */
+    public static function logGroup(
+        int $groupId,
+        string $action,
+        string $subjectType,
+        ?int $subjectId,
+        string $description,
+        ?array $changes = null,
+        ?int $clubId = null,
+    ): self {
+        return self::log($action, $subjectType, $subjectId, $description, $changes, $clubId, $groupId);
     }
 }
