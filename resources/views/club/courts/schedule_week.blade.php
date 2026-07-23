@@ -1925,7 +1925,11 @@
         if (isGroup) {
             const ta = document.getElementById('cancelBookingReasonText');
             if (ta) ta.value = '';
-            document.getElementById('cancelBookingReasonModal').style.display = 'flex';
+            const rm = document.getElementById('cancelBookingReasonModal');
+            const modalEl = document.getElementById('viewModal');
+            if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
+            rm.style.display = 'flex';
+            setTimeout(function () { if (ta) ta.focus(); }, 50);
             return;
         }
         if (confirm('Вы уверены, что хотите отменить бронь?')) document.getElementById('cancelBookingForm').submit();

@@ -1684,7 +1684,13 @@
         if (isGroup) {
             const ta = document.getElementById('cancelBookingReasonText');
             if (ta) ta.value = '';
-            document.getElementById('cancelBookingReasonModal').style.display = 'flex';
+            const rm = document.getElementById('cancelBookingReasonModal');
+            // Переносим окно ВНУТРЬ bootstrap-модалки, иначе её focus-trap не даёт
+            // печатать в поле (крадёт фокус обратно).
+            const modalEl = document.getElementById('viewModal');
+            if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
+            rm.style.display = 'flex';
+            setTimeout(function () { if (ta) ta.focus(); }, 50);
             return;
         }
         if (confirm('Вы уверены, что хотите отменить бронь?')) {
