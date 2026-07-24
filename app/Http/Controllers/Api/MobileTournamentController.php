@@ -571,6 +571,9 @@ class MobileTournamentController extends Controller
         // Журнал записей: отписка игрока.
         \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'unregistered');
 
+        // Пуш организатору: участник вышел из турнира.
+        self::notifyOrganizerParticipantLeft($tournament, $user->name, $user->id);
+
         // Освободилось место в основном составе — пробуем подтянуть из waitlist.
         // Только если уходил человек из основного состава.
         $promoted = null;
@@ -859,6 +862,9 @@ class MobileTournamentController extends Controller
         if ($partner && $partner->id) {
             \App\Models\TournamentRegistrationLog::record($tournament->id, $partner->id, 'unregistered');
         }
+
+        // Пуш организатору: пара вышла из турнира.
+        self::notifyOrganizerParticipantLeft($tournament, "{$user->name} + {$partnerName}", $user->id);
 
         // Освободилось место в основном составе — подтягиваем пару из waitlist
         if ($wasMain && $tournament->status === 'open') {
@@ -2371,6 +2377,42 @@ class MobileTournamentController extends Controller
                 'tournament_id' => (string) $tournament->id,
             ]);
         }
+    }
+
+    /**
+     * Пуш организатору (создателю турнира): участник/пара вышли из турнира.
+     * Тап по пушу открывает админ-экран турнира на вкладке «Участники».
+     */
+    public static function notifyOrganizerParticipantLeft(Tournament $tournament, string $whoName, ?int $leaverUserId = null): void
+    {
+        $organizer = $tournament->creator;
+        if (!$organizer) {
+            return;
+        }
+        // Не уведомляем организатора, если он сам вышел из своего турнира.
+        if ($leaverUserId !== null && (int) $organizer->id === (int) $leaverUserId) {
+            return;
+        }
+
+        $title = 'Участник покинул турнир';
+        $body = "{$whoName} снялся с турнира «{$tournament->name}»";
+
+        \App\Models\Notification::create([
+            'user_id' => $organizer->id,
+            'title' => $title,
+            'body' => $body,
+            'type' => 'tournament_participant_left',
+            'category' => 'tournament',
+            'data' => [
+                'tournament_id' => $tournament->id,
+                'tournament_name' => $tournament->name,
+            ],
+        ]);
+
+        app(\App\Services\FCMNotificationService::class)->sendToUser($organizer, $title, $body, [
+            'type' => 'tournament_participant_left',
+            'tournament_id' => (string) $tournament->id,
+        ]);
     }
 
     /**
