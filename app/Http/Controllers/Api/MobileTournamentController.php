@@ -2385,34 +2385,57 @@ class MobileTournamentController extends Controller
      */
     public static function notifyOrganizerParticipantLeft(Tournament $tournament, string $whoName, ?int $leaverUserId = null): void
     {
-        $organizer = $tournament->creator;
-        if (!$organizer) {
-            return;
+        // Кто «организатор»:
+        // - личный турнир → создатель (creator_id);
+        // - клубный турнир → админы клуба + модераторы с доступом к турнирам
+        //   (у клубных турниров creator_id не заполняется — он служит флагом
+        //   «личный/приватный», поэтому создателя как такового нет).
+        $recipients = collect();
+        if ($tournament->creator) {
+            $recipients->push($tournament->creator);
+        } elseif ($tournament->club_id) {
+            $club = $tournament->club;
+            if ($club) {
+                $recipients = $recipients
+                    ->merge($club->admins)
+                    ->merge($club->moderators->filter(
+                        fn($m) => (bool) ($m->pivot->tournaments_full_access ?? false)
+                    ));
+            }
         }
-        // Не уведомляем организатора, если он сам вышел из своего турнира.
-        if ($leaverUserId !== null && (int) $organizer->id === (int) $leaverUserId) {
+
+        // Уникальные получатели, исключая самого вышедшего.
+        $recipients = $recipients
+            ->filter()
+            ->unique('id')
+            ->filter(fn($u) => $leaverUserId === null || (int) $u->id !== (int) $leaverUserId);
+
+        if ($recipients->isEmpty()) {
             return;
         }
 
         $title = 'Участник покинул турнир';
         $body = "{$whoName} снялся с турнира «{$tournament->name}»";
+        $fcm = app(\App\Services\FCMNotificationService::class);
 
-        \App\Models\Notification::create([
-            'user_id' => $organizer->id,
-            'title' => $title,
-            'body' => $body,
-            'type' => 'tournament_participant_left',
-            'category' => 'tournament',
-            'data' => [
-                'tournament_id' => $tournament->id,
-                'tournament_name' => $tournament->name,
-            ],
-        ]);
+        foreach ($recipients as $organizer) {
+            \App\Models\Notification::create([
+                'user_id' => $organizer->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => 'tournament_participant_left',
+                'category' => 'tournament',
+                'data' => [
+                    'tournament_id' => $tournament->id,
+                    'tournament_name' => $tournament->name,
+                ],
+            ]);
 
-        app(\App\Services\FCMNotificationService::class)->sendToUser($organizer, $title, $body, [
-            'type' => 'tournament_participant_left',
-            'tournament_id' => (string) $tournament->id,
-        ]);
+            $fcm->sendToUser($organizer, $title, $body, [
+                'type' => 'tournament_participant_left',
+                'tournament_id' => (string) $tournament->id,
+            ]);
+        }
     }
 
     /**
