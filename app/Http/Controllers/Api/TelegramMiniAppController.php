@@ -390,6 +390,9 @@ class TelegramMiniAppController extends Controller
 
 		$tournament->participants()->detach($user->id);
 
+		// Пуш организатору: участник вышел из турнира.
+		MobileTournamentController::notifyOrganizerParticipantLeft($tournament, $user->name, $user->id);
+
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
 			$channelService = new \App\Services\TelegramChannelService($tournament->club);
@@ -773,7 +776,14 @@ class TelegramMiniAppController extends Controller
 			return response()->json(['error' => 'Вы не зарегистрированы'], 404);
 		}
 
+		$team->load(['player1', 'player2']);
+		$partner = $team->player1_id === $user->id ? $team->player2 : $team->player1;
+		$partnerName = $partner->name ?? '—';
+
 		$team->delete();
+
+		// Пуш организатору: пара вышла из турнира.
+		MobileTournamentController::notifyOrganizerParticipantLeft($tournament, "{$user->name} + {$partnerName}", $user->id);
 
 		return response()->json([
 			'success' => true,
