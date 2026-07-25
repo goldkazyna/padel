@@ -48,6 +48,9 @@ class MobileClubCardController extends Controller
                         'name' => $card->club?->name,
                         'logo' => $card->club?->logo ? url($card->club->logo) : null,
                         'address' => $card->club?->address,
+                        'card_bg_color' => $card->club?->card_bg_color,
+                        'card_accent_color' => $card->club?->card_accent_color,
+                        'card_progress_color' => $card->club?->card_progress_color,
                     ],
                     'active_count' => 0,
                     'total_count' => 0,
@@ -146,6 +149,9 @@ class MobileClubCardController extends Controller
                 'name' => $card->club?->name,
                 'logo' => $card->club?->logo ? url($card->club->logo) : null,
                 'address' => $card->club?->address,
+                'card_bg_color' => $card->club?->card_bg_color,
+                'card_accent_color' => $card->club?->card_accent_color,
+                'card_progress_color' => $card->club?->card_progress_color,
             ];
         }
 

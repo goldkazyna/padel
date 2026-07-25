@@ -34,9 +34,19 @@ class AccountController extends Controller
             'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
             'booking_cancel_hours' => $cancelHours,
+            'card_bg_color' => $this->hexOrNull($request->input('card_bg_color')),
+            'card_accent_color' => $this->hexOrNull($request->input('card_accent_color')),
+            'card_progress_color' => $this->hexOrNull($request->input('card_progress_color')),
         ]);
 
         return back()->with('success', 'Настройки клуба обновлены');
+    }
+
+    /** #RRGGBB → нормализованный HEX или null. */
+    private function hexOrNull($value): ?string
+    {
+        $v = trim((string) $value);
+        return preg_match('/^#[0-9A-Fa-f]{6}$/', $v) ? strtoupper($v) : null;
     }
 
     /** Клуб текущего пользователя (админ/модератор). Супер-админ — null. */

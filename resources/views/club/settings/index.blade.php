@@ -77,10 +77,72 @@
             <small class="form-hint">За сколько часов до начала клиент ещё может отменить бронь в приложении. 0 — отмена разрешена в любое время.</small>
         </div>
 
+        {{-- Дизайн клубной карты в приложении --}}
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a">
+            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Дизайн клубной карты</div>
+            <div class="form-hint" style="margin-bottom:14px">Как выглядит клубная карта в приложении. Цвета берутся отсюда.</div>
+
+            <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:18px">
+                <label style="display:flex;flex-direction:column;gap:7px;font-size:11px;color:#a1a1aa;font-weight:700;text-transform:uppercase;letter-spacing:.4px">
+                    Фон карты
+                    <input type="color" id="cdBg" name="card_bg_color" value="{{ old('card_bg_color', $club->card_bg_color ?? '#1C2421') }}"
+                           style="width:60px;height:40px;border:1px solid #2a3330;border-radius:9px;background:none;cursor:pointer;padding:2px">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:7px;font-size:11px;color:#a1a1aa;font-weight:700;text-transform:uppercase;letter-spacing:.4px">
+                    Акцент (слева / свечение)
+                    <input type="color" id="cdAccent" name="card_accent_color" value="{{ old('card_accent_color', $club->card_accent_color ?? '#22C55E') }}"
+                           style="width:60px;height:40px;border:1px solid #2a3330;border-radius:9px;background:none;cursor:pointer;padding:2px">
+                </label>
+                <label style="display:flex;flex-direction:column;gap:7px;font-size:11px;color:#a1a1aa;font-weight:700;text-transform:uppercase;letter-spacing:.4px">
+                    Прогресс-бар
+                    <input type="color" id="cdProg" name="card_progress_color" value="{{ old('card_progress_color', $club->card_progress_color ?? '#22C55E') }}"
+                           style="width:60px;height:40px;border:1px solid #2a3330;border-radius:9px;background:none;cursor:pointer;padding:2px">
+                </label>
+            </div>
+
+            {{-- Живое превью --}}
+            <div id="cdCard" style="position:relative;width:300px;max-width:100%;height:184px;border-radius:18px;overflow:hidden;padding:18px;color:#fff;box-shadow:0 14px 34px rgba(0,0,0,.45)">
+                <div id="cdStripe" style="position:absolute;left:0;top:0;bottom:0;width:5px"></div>
+                <div id="cdGlow" style="position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;pointer-events:none"></div>
+                <div style="position:relative;display:flex;justify-content:space-between;align-items:center">
+                    <div style="width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px">ЛОГО</div>
+                    <span style="font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:5px 9px;border-radius:20px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.2)">Занятия</span>
+                </div>
+                <div style="position:relative;margin-top:14px;font-size:16px;font-weight:800">Абонемент 10 занятий</div>
+                <div style="position:relative;margin-top:6px;font-size:26px;font-weight:900;letter-spacing:-.5px">8 <span style="font-size:13px;opacity:.7;font-weight:700">/ 10 ч</span></div>
+                <div style="position:relative;height:6px;border-radius:4px;background:rgba(0,0,0,.32);margin-top:10px;overflow:hidden"><div id="cdBar" style="height:100%;width:80%"></div></div>
+                <div style="position:absolute;left:18px;bottom:14px;font-family:monospace;font-size:12px;letter-spacing:1px;opacity:.85">EMC000064</div>
+            </div>
+        </div>
+
         <div class="settings-actions">
             <button type="submit" class="btn-save">Сохранить</button>
         </div>
     </form>
+
+    <script>
+    (function(){
+        var bg=document.getElementById('cdBg'),ac=document.getElementById('cdAccent'),pr=document.getElementById('cdProg');
+        var card=document.getElementById('cdCard'),stripe=document.getElementById('cdStripe'),bar=document.getElementById('cdBar'),glow=document.getElementById('cdGlow');
+        if(!card) return;
+        function shade(hex,p){
+            var n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+            r=Math.max(0,Math.min(255,Math.round(r+r*p)));
+            g=Math.max(0,Math.min(255,Math.round(g+g*p)));
+            b=Math.max(0,Math.min(255,Math.round(b+b*p)));
+            return 'rgb('+r+','+g+','+b+')';
+        }
+        function rgba(hex,a){var n=parseInt(hex.slice(1),16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
+        function upd(){
+            card.style.background='linear-gradient(150deg,'+shade(bg.value,0.12)+' 0%,'+shade(bg.value,-0.28)+' 100%)';
+            stripe.style.background='linear-gradient(180deg,'+ac.value+','+shade(ac.value,-0.4)+')';
+            glow.style.background='radial-gradient(circle,'+rgba(ac.value,0.5)+',transparent 68%)';
+            bar.style.background='linear-gradient(90deg,'+pr.value+','+shade(pr.value,0.35)+')';
+        }
+        [bg,ac,pr].forEach(function(i){i.addEventListener('input',upd);});
+        upd();
+    })();
+    </script>
     @endif
 
     {{-- Смена пароля --}}
