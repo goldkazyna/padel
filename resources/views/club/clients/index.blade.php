@@ -409,13 +409,15 @@
                             <span style="font-size:13px;color:#e4e4e7">
                                 Привязан: <b>{{ $selectedClient->user->name }}</b><span style="color:#8a8a8f"> · {{ $selectedClient->user->phone }}</span>
                             </span>
-                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#f87171;cursor:pointer;white-space:nowrap">
-                                <input type="checkbox" name="unlink_app_user" value="1"> Отвязать
-                            </label>
+                            <button type="submit" formnovalidate
+                                    formaction="{{ route('club.clients.unlinkAppUser', $selectedClient) }}"
+                                    style="background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.4);color:#f87171;font-size:12px;font-weight:700;padding:7px 13px;border-radius:8px;cursor:pointer;white-space:nowrap">
+                                Отозвать
+                            </button>
                         </div>
                     @endif
-                    <input type="text" name="app_link_phone" class="form-input" placeholder="Номер, под которым клиент в приложении">
-                    <small class="form-hint">Если телефон в базе не совпадает с номером в приложении — впишите сюда номер клиента из приложения, чтобы он увидел свои клубные карты. Пусто — не менять.</small>
+                    <input type="text" name="app_link_phone" class="form-input" placeholder="+7 702 806 53 31">
+                    <small class="form-hint">Если телефон в базе не совпадает с номером в приложении — впишите сюда номер клиента из приложения (можно с +7, 8, пробелами), чтобы он увидел свои клубные карты. Пусто — не менять.</small>
                 </div>
             </div>
             <div class="modal-footer">

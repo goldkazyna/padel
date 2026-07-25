@@ -425,15 +425,10 @@ class ClientController extends Controller
         $changes = $client->getChanges();
         unset($changes['updated_at']);
 
-        // Привязка/отвязка пользователя приложения (когда телефон в базе клуба
-        // не совпадает с номером в приложении — клуб связывает вручную).
-        if ($request->boolean('unlink_app_user')) {
-            $client->update(['user_id' => null]);
-        } elseif (trim((string) $request->input('app_link_phone')) !== '') {
-            $last10 = substr(preg_replace('/\D/', '', (string) $request->input('app_link_phone')), -10);
-            $linkUser = strlen($last10) === 10
-                ? \App\Models\User::whereRaw('RIGHT(phone, 10) = ?', [$last10])->first()
-                : null;
+        // Привязка пользователя приложения (когда телефон в базе клуба не
+        // совпадает с номером в приложении). Отвязка — отдельной кнопкой.
+        if (trim((string) $request->input('app_link_phone')) !== '') {
+            $linkUser = $this->findAppUserByPhone($request->input('app_link_phone'));
             if ($linkUser) {
                 $client->update(['user_id' => $linkUser->id]);
             } else {
@@ -478,6 +473,37 @@ class ClientController extends Controller
 
         return redirect()->route('club.clients.index', ['selected' => $client->id])
             ->with('success', 'Клиент обновлён');
+    }
+
+    /**
+     * Найти пользователя приложения по номеру (терпимо к формату: +7 / 8 / пробелы).
+     * Сверка по последним 10 цифрам.
+     */
+    private function findAppUserByPhone($raw): ?\App\Models\User
+    {
+        $last10 = substr(preg_replace('/\D/', '', (string) $raw), -10);
+        if (strlen($last10) !== 10) {
+            return null;
+        }
+        $tail = substr($last10, -8);
+        return \App\Models\User::whereNotNull('phone')
+            ->where('phone', 'like', '%' . $tail . '%')
+            ->get(['id', 'phone'])
+            ->first(fn($u) =>
+                substr(preg_replace('/\D/', '', (string) $u->phone), -10) === $last10);
+    }
+
+    /** Отвязать пользователя приложения от клиента (отдельная кнопка «Отозвать»). */
+    public function unlinkAppUser(Request $request, ClubClient $client)
+    {
+        $club = $this->getClub();
+        if (!$club || $client->club_id !== $club->id) {
+            abort(403);
+        }
+        $client->update(['user_id' => null]);
+
+        return redirect()->route('club.clients.index', ['selected' => $client->id])
+            ->with('success', 'Пользователь отвязан от клиента');
     }
 
     /**
