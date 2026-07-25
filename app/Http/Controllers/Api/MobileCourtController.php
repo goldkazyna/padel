@@ -415,17 +415,18 @@ class MobileCourtController extends Controller
             ->get();
 
         $today = now()->format('Y-m-d');
-        $cancelMinHours = 12;
 
-        $format = function (CourtBooking $b) use ($today, $cancelMinHours) {
+        $format = function (CourtBooking $b) use ($today) {
             $isFuture = $b->date->format('Y-m-d') >= $today;
+            // Лимит отмены — из настройки клуба (0 — без ограничения).
+            $cancelMinHours = (int) ($b->court?->club?->booking_cancel_hours ?? 2);
             $startDt = Carbon::parse(
                 $b->date->format('Y-m-d') . ' ' . Carbon::parse($b->start_time)->format('H:i:s')
             );
             $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
             $canCancel = $isFuture
                 && $b->status === 'confirmed'
-                && $hoursUntilStart >= $cancelMinHours;
+                && ($cancelMinHours <= 0 || $hoursUntilStart >= $cancelMinHours);
 
             return [
                 'id' => $b->id,

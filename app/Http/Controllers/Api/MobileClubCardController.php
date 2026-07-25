@@ -101,15 +101,20 @@ class MobileClubCardController extends Controller
             ->get();
 
         return response()->json([
-            'bookings' => $bookings->map(fn($b) => [
-                'id' => $b->id,
-                'date' => optional($b->date)->toDateString(),
-                'start_time' => $this->hm($b->start_time),
-                'end_time' => $this->hm($b->end_time),
-                'court_name' => $b->court?->name,
-                'club_name' => $b->court?->club?->name,
-                'status' => $b->status,
-            ])->values(),
+            'bookings' => $bookings->map(function ($b) {
+                [$canCancel, $cancelHours] = $this->cancelInfo($b);
+                return [
+                    'id' => $b->id,
+                    'date' => optional($b->date)->toDateString(),
+                    'start_time' => $this->hm($b->start_time),
+                    'end_time' => $this->hm($b->end_time),
+                    'court_name' => $b->court?->name,
+                    'club_name' => $b->court?->club?->name,
+                    'status' => $b->status,
+                    'can_cancel' => $canCancel,
+                    'cancel_min_hours' => $cancelHours,
+                ];
+            })->values(),
         ]);
     }
 
@@ -191,5 +196,21 @@ class MobileClubCardController extends Controller
             return null;
         }
         return substr($time, 0, 5);
+    }
+
+    /** [можно ли отменить бронь, лимит часов] по настройке клуба (0 — без лимита). */
+    private function cancelInfo(CourtBooking $b): array
+    {
+        $hours = (int) ($b->court?->club?->booking_cancel_hours ?? 2);
+        if ($b->status !== 'confirmed') {
+            return [false, $hours];
+        }
+        $startDt = \Carbon\Carbon::parse(
+            optional($b->date)->format('Y-m-d') . ' ' .
+            \Carbon\Carbon::parse($b->start_time)->format('H:i:s')
+        );
+        $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
+        $can = $hours <= 0 || $hoursUntilStart >= $hours;
+        return [$can, $hours];
     }
 }
