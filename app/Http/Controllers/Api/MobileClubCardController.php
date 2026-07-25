@@ -46,7 +46,7 @@ class MobileClubCardController extends Controller
                     'club' => [
                         'id' => $card->club?->id,
                         'name' => $card->club?->name,
-                        'logo' => $card->club?->logo,
+                        'logo' => $card->club?->logo ? url($card->club->logo) : null,
                         'address' => $card->club?->address,
                     ],
                     'active_count' => 0,
@@ -144,7 +144,7 @@ class MobileClubCardController extends Controller
             $data['club'] = [
                 'id' => $card->club?->id,
                 'name' => $card->club?->name,
-                'logo' => $card->club?->logo,
+                'logo' => $card->club?->logo ? url($card->club->logo) : null,
                 'address' => $card->club?->address,
             ];
         }
