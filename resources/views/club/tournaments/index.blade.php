@@ -38,7 +38,7 @@
                 <div class="month-header {{ $isCurrentMonth ? 'open' : '' }}" onclick="toggleMonth(this)">
                     <div class="month-header-left">
                         <i class="bi bi-chevron-right month-arrow"></i>
-                        <span class="month-title">{{ \Carbon\Carbon::parse($monthKey . '-01')->translatedFormat('F Y') }}</span>
+                        <span class="month-title">{{ $monthKey === 'no-date' ? 'Без даты' : \Carbon\Carbon::parse($monthKey . '-01')->translatedFormat('F Y') }}</span>
                         <span class="month-count">{{ $tournaments->count() }}</span>
                     </div>
                 </div>
@@ -46,8 +46,8 @@
                     @foreach($tournaments as $tournament)
                         <div class="tournament-row {{ $tournament->status }}">
                             <div class="tournament-date-box">
-                                <div class="tournament-day">{{ $tournament->start_date->format('d') }}</div>
-                                <div class="tournament-month">{{ $tournament->start_date->translatedFormat('M') }}</div>
+                                <div class="tournament-day">{{ $tournament->start_date?->format('d') ?? '—' }}</div>
+                                <div class="tournament-month">{{ $tournament->start_date?->translatedFormat('M') ?? '' }}</div>
                             </div>
                             <div class="tournament-info">
                                 <div class="tournament-name">
@@ -60,7 +60,9 @@
                                     @if(!$club)
                                         <span><i class="bi bi-building"></i> {{ $tournament->club->name }}</span>
                                     @endif
+                                    @if($tournament->start_date)
                                     <span><i class="bi bi-clock"></i> {{ $tournament->start_date->format('H:i') }}</span>
+                                    @endif
                                     <span><i class="bi bi-bar-chart"></i> {{ $tournament->min_level }}–{{ $tournament->max_level }}</span>
                                     @if($tournament->verified_only)
                                         <span class="text-success"><i class="bi bi-patch-check"></i> Только верифицированные</span>

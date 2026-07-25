@@ -53,7 +53,8 @@ class TournamentController extends Controller
 				->get();
 		}
 
-		$groupedTournaments = $tournaments->groupBy(fn ($t) => $t->start_date->format('Y-m'));
+		// start_date может быть null (черновики) — такие уходят в группу «no-date».
+		$groupedTournaments = $tournaments->groupBy(fn ($t) => $t->start_date?->format('Y-m') ?? 'no-date');
 
 		return view('club.tournaments.index', compact('groupedTournaments', 'club'));
 	}
