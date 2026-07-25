@@ -23,6 +23,11 @@ class ClubCard extends Model
         'initial_balance' => 'integer',
     ];
 
+    public function club()
+    {
+        return $this->belongsTo(Club::class);
+    }
+
     public function type()
     {
         return $this->belongsTo(ClubCardType::class, 'club_card_type_id');

@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MobileChallengeController;
 use App\Http\Controllers\Api\MobileCourtController;
 use App\Http\Controllers\Api\MobileClubController;
+use App\Http\Controllers\Api\MobileClubCardController;
 use App\Http\Controllers\Api\MobileAdminTournamentController;
 use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 use App\Http\Controllers\Api\MobileAdminUserController;
@@ -100,6 +101,11 @@ Route::prefix('mobile')->group(function () {
 
         // Главная
         Route::get('/home', [MobileHomeController::class, 'index']);
+
+        // Клубные карты (только чтение; связка user↔клиент клуба по телефону)
+        Route::get('/club-cards', [MobileClubCardController::class, 'index']);
+        Route::get('/club-cards/{card}', [MobileClubCardController::class, 'show']);
+        Route::get('/club-cards/{card}/bookings', [MobileClubCardController::class, 'bookings']);
 
         // Админка клуба (только для club_admin данного клуба или super_admin)
         Route::get('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'index']);
