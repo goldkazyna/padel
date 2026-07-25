@@ -47,6 +47,7 @@ class MobileClubCardController extends Controller
                         'id' => $card->club?->id,
                         'name' => $card->club?->name,
                         'logo' => $card->club?->logo,
+                        'address' => $card->club?->address,
                     ],
                     'active_count' => 0,
                     'total_count' => 0,
@@ -144,6 +145,7 @@ class MobileClubCardController extends Controller
                 'id' => $card->club?->id,
                 'name' => $card->club?->name,
                 'logo' => $card->club?->logo,
+                'address' => $card->club?->address,
             ];
         }
 
