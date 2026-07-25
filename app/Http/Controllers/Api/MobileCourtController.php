@@ -508,11 +508,15 @@ class MobileCourtController extends Controller
         $start = \Carbon\Carbon::parse($booking->start_time)->format('H:i');
         $end = \Carbon\Carbon::parse($booking->end_time)->format('H:i');
         $date = \Carbon\Carbon::parse($booking->date)->format('Y-m-d');
+        // Отдельная формулировка, если бронь оплачена клубной картой.
+        $prefix = $booking->club_card_id
+            ? 'Отмена брони по клубной карте из приложения'
+            : 'Отмена брони из приложения';
         \App\Models\ActivityLog::log(
             'cancelled',
             'CourtBooking',
             $booking->id,
-            "Отмена брони из приложения: {$booking->client_name}, {$court->name}, {$date} {$start}–{$end}",
+            "{$prefix}: {$booking->client_name}, {$court->name}, {$date} {$start}–{$end}",
             null,
             $court->club_id,
         );
