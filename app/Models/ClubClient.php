@@ -8,6 +8,7 @@ class ClubClient extends Model
 {
     protected $fillable = [
         'club_id',
+        'user_id',
         'name',
         'phone',
         'email',
@@ -24,5 +25,11 @@ class ClubClient extends Model
     public function club()
     {
         return $this->belongsTo(Club::class);
+    }
+
+    /** Пользователь приложения, привязанный к этому клиенту (может быть null). */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

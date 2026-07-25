@@ -22,12 +22,10 @@ class MobileClubCardController extends Controller
     /** GET /api/mobile/club-cards — карты пользователя, сгруппированные по клубам. */
     public function index(Request $request): JsonResponse
     {
+        $userId = $request->user()?->id;
         $last10 = $this->userPhoneLast10($request);
-        if ($last10 === null) {
-            return response()->json(['clubs' => []]);
-        }
 
-        $clientIds = $this->matchingClientIds($last10);
+        $clientIds = $this->matchingClientIds($userId, $last10);
         if (empty($clientIds)) {
             return response()->json(['clubs' => []]);
         }
@@ -168,33 +166,53 @@ class MobileClubCardController extends Controller
         return substr($digits, -10);
     }
 
-    /** id клиентов клубов, чей телефон совпадает по последним 10 цифрам. */
-    private function matchingClientIds(string $last10): array
+    /**
+     * id клиентов клубов, принадлежащих пользователю:
+     * по явной привязке (user_id) ИЛИ по совпадению телефона (последние 10 цифр).
+     */
+    private function matchingClientIds(?int $userId, ?string $last10): array
     {
-        // Сужаем выборку по хвосту номера (терпимо к формату), затем точная
-        // сверка последних 10 цифр в PHP.
-        $tail = substr($last10, -8);
+        $ids = [];
 
-        return ClubClient::whereNotNull('phone')
-            ->where('phone', 'like', '%' . $tail . '%')
-            ->pluck('phone', 'id')
-            ->filter(fn($phone) => substr(preg_replace('/\D+/', '', (string) $phone), -10) === $last10)
-            ->keys()
-            ->all();
+        // Явная привязка из CRM.
+        if ($userId !== null) {
+            $ids = ClubClient::where('user_id', $userId)->pluck('id')->all();
+        }
+
+        // Совпадение телефона (терпимо к формату): сузили по хвосту, точная сверка в PHP.
+        if ($last10 !== null) {
+            $tail = substr($last10, -8);
+            $byPhone = ClubClient::whereNotNull('phone')
+                ->where('phone', 'like', '%' . $tail . '%')
+                ->pluck('phone', 'id')
+                ->filter(fn($phone) =>
+                    substr(preg_replace('/\D+/', '', (string) $phone), -10) === $last10)
+                ->keys()
+                ->all();
+            $ids = array_merge($ids, $byPhone);
+        }
+
+        return array_values(array_unique($ids));
     }
 
-    /** Принадлежит ли карта текущему пользователю (по телефону клиента). */
+    /** Принадлежит ли карта текущему пользователю (по user_id или телефону клиента). */
     private function ownsCard(Request $request, ClubCard $card): bool
     {
+        $client = $card->client()->first(['id', 'user_id', 'phone']);
+        if ($client === null) {
+            return false;
+        }
+
+        $userId = $request->user()?->id;
+        if ($userId !== null && (int) $client->user_id === (int) $userId) {
+            return true;
+        }
+
         $last10 = $this->userPhoneLast10($request);
-        if ($last10 === null) {
-            return false;
+        if ($last10 !== null && $client->phone !== null) {
+            return substr(preg_replace('/\D+/', '', (string) $client->phone), -10) === $last10;
         }
-        $clientPhone = $card->client()->value('phone');
-        if ($clientPhone === null) {
-            return false;
-        }
-        return substr(preg_replace('/\D+/', '', (string) $clientPhone), -10) === $last10;
+        return false;
     }
 
     /** «19:00:00» → «19:00». */

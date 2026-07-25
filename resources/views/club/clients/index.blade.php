@@ -70,6 +70,12 @@
             {{ session('error') }}
         </div>
     @endif
+    @if(session('link_warning'))
+        <div class="alert-error">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            {{ session('link_warning') }}
+        </div>
+    @endif
 
     <!-- Layout: list + detail -->
     <div class="clients-layout">
@@ -393,6 +399,23 @@
                 <div class="form-group">
                     <label class="form-label">Заметка</label>
                     <textarea name="note" class="form-input form-textarea" rows="3">{{ $selectedClient->note }}</textarea>
+                </div>
+
+                {{-- Привязка к пользователю приложения --}}
+                <div class="form-group" style="border-top:1px solid #27272a;padding-top:14px;margin-top:4px">
+                    <label class="form-label">Пользователь приложения</label>
+                    @if($selectedClient->user)
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+                            <span style="font-size:13px;color:#e4e4e7">
+                                Привязан: <b>{{ $selectedClient->user->name }}</b><span style="color:#8a8a8f"> · {{ $selectedClient->user->phone }}</span>
+                            </span>
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#f87171;cursor:pointer;white-space:nowrap">
+                                <input type="checkbox" name="unlink_app_user" value="1"> Отвязать
+                            </label>
+                        </div>
+                    @endif
+                    <input type="text" name="app_link_phone" class="form-input" placeholder="Номер, под которым клиент в приложении">
+                    <small class="form-hint">Если телефон в базе не совпадает с номером в приложении — впишите сюда номер клиента из приложения, чтобы он увидел свои клубные карты. Пусто — не менять.</small>
                 </div>
             </div>
             <div class="modal-footer">

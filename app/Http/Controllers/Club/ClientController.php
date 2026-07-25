@@ -425,6 +425,23 @@ class ClientController extends Controller
         $changes = $client->getChanges();
         unset($changes['updated_at']);
 
+        // Привязка/отвязка пользователя приложения (когда телефон в базе клуба
+        // не совпадает с номером в приложении — клуб связывает вручную).
+        if ($request->boolean('unlink_app_user')) {
+            $client->update(['user_id' => null]);
+        } elseif (trim((string) $request->input('app_link_phone')) !== '') {
+            $last10 = substr(preg_replace('/\D/', '', (string) $request->input('app_link_phone')), -10);
+            $linkUser = strlen($last10) === 10
+                ? \App\Models\User::whereRaw('RIGHT(phone, 10) = ?', [$last10])->first()
+                : null;
+            if ($linkUser) {
+                $client->update(['user_id' => $linkUser->id]);
+            } else {
+                $request->session()->flash('link_warning',
+                    'Пользователь приложения с таким номером не найден — привязка не выполнена.');
+            }
+        }
+
         // Синхронизация имени/телефона в court_bookings.
         // Брони хранят client_name/client_phone текстом — при правке карточки
         // имя/телефон в существующих бронях не подтягиваются автоматически.
