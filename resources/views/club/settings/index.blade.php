@@ -103,7 +103,6 @@
             {{-- Живое превью --}}
             <div id="cdCard" style="position:relative;width:300px;max-width:100%;height:184px;border-radius:18px;overflow:hidden;padding:18px;color:#fff;box-shadow:0 14px 34px rgba(0,0,0,.45)">
                 <div id="cdStripe" style="position:absolute;left:0;top:0;bottom:0;width:5px"></div>
-                <div id="cdGlow" style="position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;pointer-events:none"></div>
                 <div style="position:relative;display:flex;justify-content:space-between;align-items:center">
                     <div style="width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px">ЛОГО</div>
                     <span style="font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:5px 9px;border-radius:20px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.2)">Занятия</span>
@@ -123,7 +122,7 @@
     <script>
     (function(){
         var bg=document.getElementById('cdBg'),ac=document.getElementById('cdAccent'),pr=document.getElementById('cdProg');
-        var card=document.getElementById('cdCard'),stripe=document.getElementById('cdStripe'),bar=document.getElementById('cdBar'),glow=document.getElementById('cdGlow');
+        var card=document.getElementById('cdCard'),stripe=document.getElementById('cdStripe'),bar=document.getElementById('cdBar');
         if(!card) return;
         function shade(hex,p){
             var n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
@@ -132,11 +131,9 @@
             b=Math.max(0,Math.min(255,Math.round(b+b*p)));
             return 'rgb('+r+','+g+','+b+')';
         }
-        function rgba(hex,a){var n=parseInt(hex.slice(1),16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';}
         function upd(){
-            card.style.background='linear-gradient(150deg,'+shade(bg.value,0.12)+' 0%,'+shade(bg.value,-0.28)+' 100%)';
+            card.style.background='linear-gradient(90deg,'+shade(bg.value,0.14)+' 0%,'+bg.value+' 50%,'+shade(bg.value,-0.26)+' 100%)';
             stripe.style.background='linear-gradient(180deg,'+ac.value+','+shade(ac.value,-0.4)+')';
-            glow.style.background='radial-gradient(circle,'+rgba(ac.value,0.5)+',transparent 68%)';
             bar.style.background='linear-gradient(90deg,'+pr.value+','+shade(pr.value,0.35)+')';
         }
         [bg,ac,pr].forEach(function(i){i.addEventListener('input',upd);});
