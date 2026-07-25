@@ -481,16 +481,21 @@ class MobileCourtController extends Controller
             ], 422);
         }
 
-        $cancelMinHours = 12;
-        $startDt = Carbon::parse(
-            $booking->date->format('Y-m-d') . ' ' . Carbon::parse($booking->start_time)->format('H:i:s')
-        );
-        $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
-        if ($hoursUntilStart < $cancelMinHours) {
-            return response()->json([
-                'success' => false,
-                'message' => "Отмена менее чем за {$cancelMinHours} часов через приложение невозможна. Свяжитесь с клубом.",
-            ], 422);
+        // За сколько часов до начала клиент ещё может отменить бронь — берём
+        // из настроек клуба (0 — отмена разрешена в любое время).
+        $club = $booking->court?->club;
+        $cancelMinHours = (int) ($club->booking_cancel_hours ?? 2);
+        if ($cancelMinHours > 0) {
+            $startDt = Carbon::parse(
+                $booking->date->format('Y-m-d') . ' ' . Carbon::parse($booking->start_time)->format('H:i:s')
+            );
+            $hoursUntilStart = now()->diffInMinutes($startDt, false) / 60.0;
+            if ($hoursUntilStart < $cancelMinHours) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Отмена менее чем за {$cancelMinHours} ч через приложение невозможна. Свяжитесь с клубом.",
+                ], 422);
+            }
         }
 
         $booking->update([

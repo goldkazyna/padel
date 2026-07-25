@@ -26,9 +26,14 @@ class AccountController extends Controller
             return back()->with('error', 'Клуб не найден');
         }
 
+        // Часы отмены брони: 0..168 (0 — без ограничения).
+        $cancelHours = (int) $request->input('booking_cancel_hours', 2);
+        $cancelHours = max(0, min(168, $cancelHours));
+
         $club->update([
             'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
+            'booking_cancel_hours' => $cancelHours,
         ]);
 
         return back()->with('success', 'Настройки клуба обновлены');

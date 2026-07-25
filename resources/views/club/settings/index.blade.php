@@ -70,6 +70,13 @@
             </span>
         </label>
 
+        <div class="form-group" style="margin-top:6px">
+            <label class="form-label">Отмена брони — не позднее чем за (часов)</label>
+            <input type="number" name="booking_cancel_hours" class="form-input" min="0" max="168"
+                   value="{{ old('booking_cancel_hours', $club->booking_cancel_hours ?? 2) }}">
+            <small class="form-hint">За сколько часов до начала клиент ещё может отменить бронь в приложении. 0 — отмена разрешена в любое время.</small>
+        </div>
+
         <div class="settings-actions">
             <button type="submit" class="btn-save">Сохранить</button>
         </div>
