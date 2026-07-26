@@ -3851,7 +3851,7 @@ class MobileAdminTournamentDetailController extends Controller
                 $rows[] = [
                     'id' => $p1->id ?? 0,
                     'name' => $name,
-                    'avatar' => $p1 && $p1->avatar ? asset('storage/' . $p1->avatar) : null,
+                    'avatar' => $p1?->avatar, // в БД уже готовый URL
                     'rating' => null,
                     'rating_before' => null,
                     'rating_after' => null,
@@ -3883,7 +3883,7 @@ class MobileAdminTournamentDetailController extends Controller
             $rows[] = [
                 'id' => $u->id,
                 'name' => $u->full_name ?? $u->name,
-                'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'avatar' => $u->avatar, // в БД уже готовый URL (как в рейтинге)
                 'verified' => (bool) $u->level_verified,
                 'rating' => (int) ($u->rating ?? 0),
                 'rating_before' => $fp->rating_before !== null ? (int) $fp->rating_before : null,
