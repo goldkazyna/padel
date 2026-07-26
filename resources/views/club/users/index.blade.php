@@ -203,6 +203,11 @@
                         </td>
                         <td>
                             <div class="user-actions">
+                                @if(isset($ratingLocks[$user->id]))
+                                <span title="Рейтинг зафиксирован до {{ $ratingLocks[$user->id]->format('d.m.Y') }}" style="display:inline-flex;align-items:center;color:#eab34e;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                </span>
+                                @endif
                                 <button class="action-btn edit" title="Редактировать" onclick="openModal({{ $user->id }})">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 </button>
@@ -282,11 +287,22 @@
                     <label class="form-label">Имя</label>
                     <input type="text" name="name" class="form-input" value="{{ $user->name }}" placeholder="Введите имя" required>
                 </div>
+                @php $ratingLock = $ratingLocks[$user->id] ?? null; @endphp
+                @if($ratingLock)
+                <div class="form-group">
+                    <div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#2d1f0f;border:1px solid #eab34e44;border-radius:6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab34e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span style="color:#eab34e;font-size:12px;line-height:1.4;">Рейтинг недавно менялся вручную. Изменить уровень и рейтинг можно с <b>{{ $ratingLock->format('d.m.Y') }}</b> (ограничение — раз в 2 месяца).</span>
+                    </div>
+                </div>
+                @endif
                 <div class="form-group">
                     <label class="form-label">Уровень</label>
                     <input type="number" name="level" class="form-input" value="{{ $user->level }}"
-                           min="1" max="5.75" step="0.25">
+                           min="1" max="5.75" step="0.25" {{ $ratingLock ? 'disabled' : '' }}>
+                    @unless($ratingLock)
                     <small style="color:#888;font-size:11px;">Рейтинг пересчитается автоматически (уровень × 1000 + 125).</small>
+                    @endunless
                 </div>
                 @if(auth()->user()->isSuperAdmin())
                 <div class="form-group">

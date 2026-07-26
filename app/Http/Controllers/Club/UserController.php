@@ -91,6 +91,27 @@ class UserController extends Controller
 
         $users = $query->paginate(20)->withQueryString();
 
+        // Кулдаун ручной смены рейтинга: 2 месяца с последней ручной
+        // корректировки. Карта [user_id => Carbon дата_разблокировки] для
+        // игроков на текущей странице. Супер-админ не ограничен — пустая карта.
+        $ratingLocks = [];
+        if (!auth()->user()->isSuperAdmin()) {
+            $ids = $users->pluck('id')->all();
+            if (!empty($ids)) {
+                $rows = \App\Models\RatingHistory::whereIn('user_id', $ids)
+                    ->where('reason', 'Ручная корректировка')
+                    ->selectRaw('user_id, MAX(created_at) as last_manual')
+                    ->groupBy('user_id')
+                    ->get();
+                foreach ($rows as $r) {
+                    $until = \Carbon\Carbon::parse($r->last_manual)->addMonths(2);
+                    if ($until->isFuture()) {
+                        $ratingLocks[$r->user_id] = $until;
+                    }
+                }
+            }
+        }
+
         // Статистика по уровням
         $levelStatsQuery = User::human();
         if ($club && $club->city) {
@@ -116,7 +137,7 @@ class UserController extends Controller
             ->first();
 
         $clubCity = $club ? $club->city : null;
-        return view('club.users.index', compact('users', 'levelStats', 'clubCity'));
+        return view('club.users.index', compact('users', 'levelStats', 'clubCity', 'ratingLocks'));
     }
 
     public function update(Request $request, User $user)
@@ -132,6 +153,19 @@ class UserController extends Controller
         $oldLevel = $user->level !== null ? (float) $user->level : null;
         $oldVerified = (bool) $user->level_verified;
         $oldRating = (int) ($user->rating ?? 0);
+
+        // Кулдаун 2 месяца: клубный админ/модератор не может менять
+        // уровень/рейтинг, если рейтинг уже правили вручную менее 2 месяцев
+        // назад. Супер-админ — без ограничений. Имя менять можно всегда.
+        if (!auth()->user()->isSuperAdmin()) {
+            $lastManual = \App\Models\RatingHistory::where('user_id', $user->id)
+                ->where('reason', 'Ручная корректировка')
+                ->latest('created_at')
+                ->first();
+            if ($lastManual && $lastManual->created_at->copy()->addMonths(2)->isFuture()) {
+                unset($validated['level'], $validated['rating']);
+            }
+        }
 
         $update = ['name' => $validated['name']];
 
