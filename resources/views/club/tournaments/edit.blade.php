@@ -163,11 +163,43 @@
 						</div>
 					</div>
 					@if($tournament->isAmericano())
+					@php
+						$amNotStarted  = in_array($tournament->status, ['draft', 'open']);
+						$amGroupsFormed = $tournament->groups()->count() > 0;
+						$amGroups = old('groups_count', $tournament->groups_count);
+						$amRounds = old('rounds_count', $tournament->rounds_count);
+					@endphp
 					<div class="row">
 						<div class="col-md-6 mb-4">
 							<label class="form-label">Количество групп</label>
-							<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
-							<small class="text-secondary">Нельзя изменить после создания</small>
+							@if($amNotStarted && !$amGroupsFormed)
+								<select name="groups_count" class="form-select">
+									@for($g = 1; $g <= 4; $g++)
+										<option value="{{ $g }}" {{ (int) $amGroups === $g ? 'selected' : '' }}>{{ $g }} {{ $g === 1 ? 'группа' : ($g >= 5 ? 'групп' : 'группы') }}</option>
+									@endfor
+								</select>
+								<small class="text-secondary">Игроки распределятся по группам при формировании.</small>
+							@else
+								<input type="text" class="form-control" value="{{ $tournament->groups_count }}" disabled>
+								<small class="text-secondary">
+									@if($amGroupsFormed)
+										Группы уже сформированы. Чтобы изменить — сбросьте их в редакторе групп.
+									@else
+										Турнир уже начат — изменить нельзя.
+									@endif
+								</small>
+							@endif
+						</div>
+						<div class="col-md-6 mb-4">
+							<label class="form-label">Количество раундов</label>
+							@if($amNotStarted)
+								<input type="number" name="rounds_count" class="form-control"
+									   value="{{ $amRounds }}" min="1" max="30">
+								<small class="text-secondary">Не больше, чем «игроков в группе − 1». По умолчанию — авто.</small>
+							@else
+								<input type="text" class="form-control" value="{{ $tournament->rounds_count }}" disabled>
+								<small class="text-secondary">Турнир уже начат — изменить нельзя.</small>
+							@endif
 						</div>
 					</div>
 

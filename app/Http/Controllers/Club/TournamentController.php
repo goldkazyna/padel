@@ -314,7 +314,24 @@ class TournamentController extends Controller
 			'courts_count' => 'nullable|integer|min:1|max:32',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
 			'pairing_mode' => 'nullable|in:self,admin',
+			'groups_count' => 'nullable|integer|in:1,2,3,4',
+			'rounds_count' => 'nullable|integer|min:1|max:30',
 		]);
+
+		// Кол-во групп/раундов (Американо) — менять можно только ДО старта.
+		// Группы — пока они ещё не сформированы (иначе рассинхрон с редактором).
+		if ($tournament->isAmericano()) {
+			$notStarted = in_array($tournament->status, ['draft', 'open'], true);
+			$groupsFormed = $tournament->groups()->count() > 0;
+			if (!$notStarted) {
+				unset($validated['rounds_count']);
+			}
+			if (!$notStarted || $groupsFormed) {
+				unset($validated['groups_count']);
+			}
+		} else {
+			unset($validated['groups_count'], $validated['rounds_count']);
+		}
 
 		// Americano Flex — кол-во кортов задаётся вручную (хранится в courts_count).
 		if ($tournament->type === 'americano_flex' && $request->filled('flex_courts_count')) {
