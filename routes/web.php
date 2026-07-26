@@ -593,6 +593,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/clubs/{club}/admins', [ClubController::class, 'admins'])->name('clubs.admins');
         Route::post('/clubs/{club}/admins', [ClubController::class, 'addAdmin'])->name('clubs.admins.add');
         Route::delete('/clubs/{club}/admins/{user}', [ClubController::class, 'removeAdmin'])->name('clubs.admins.remove');
+        Route::post('/clubs/{club}/admins/{user}/password', [ClubController::class, 'setAdminPassword'])->name('clubs.admins.password');
         
         // Поиск игроков
         Route::get('/players/search', [ClubController::class, 'searchPlayer'])->name('players.search');

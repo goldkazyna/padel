@@ -37,14 +37,26 @@
                                     <small class="text-secondary">{{ $admin->email }}</small>
                                 </div>
                             </div>
-                            <form action="{{ route('admin.clubs.admins.remove', [$club, $admin]) }}" method="POST"
-                                  onsubmit="return confirm('Удалить админа?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn-danger-custom btn-sm">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </form>
+                            <div class="d-flex align-items-center gap-2">
+                                <form action="{{ route('admin.clubs.admins.password', [$club, $admin]) }}" method="POST"
+                                      class="d-flex align-items-center gap-2">
+                                    @csrf
+                                    <input type="text" name="password" class="form-control form-control-sm"
+                                           style="width: 150px;" placeholder="новый пароль"
+                                           minlength="6" required autocomplete="new-password">
+                                    <button type="submit" class="btn-primary-custom btn-sm" title="Сменить пароль">
+                                        <i class="bi bi-key"></i>
+                                    </button>
+                                </form>
+                                <form action="{{ route('admin.clubs.admins.remove', [$club, $admin]) }}" method="POST"
+                                      onsubmit="return confirm('Удалить админа?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn-danger-custom btn-sm">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     @endforeach
                 @else

@@ -305,8 +305,27 @@ class ClubController extends Controller
 
 		return redirect()->route('admin.clubs.admins', $club)->with('success', 'Админ удалён!');
 	}
-	
-	
+
+	/** Сменить пароль существующему админу клуба. */
+	public function setAdminPassword(Request $request, Club $club, User $user)
+	{
+		$validated = $request->validate([
+			'password' => 'required|string|min:6|max:255',
+		]);
+
+		// Безопасность: менять пароль можно только админу ЭТОГО клуба.
+		if (!$club->admins()->where('users.id', $user->id)->exists()) {
+			return redirect()->route('admin.clubs.admins', $club)
+				->with('error', 'Пользователь не является админом этого клуба');
+		}
+
+		$user->update(['password' => bcrypt($validated['password'])]);
+
+		return redirect()->route('admin.clubs.admins', $club)
+			->with('success', 'Пароль обновлён для ' . $user->full_name);
+	}
+
+
     public function destroy(Club $club)
     {
         $club->delete();
