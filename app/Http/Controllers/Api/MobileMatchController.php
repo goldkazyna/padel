@@ -251,7 +251,7 @@ class MobileMatchController extends Controller
             'tournament_name' => $tournament->name ?? 'Турнир',
             'date' => $tournament->start_date?->format('Y-m-d') ?? $match->updated_at->format('Y-m-d'),
             'format' => $format,
-            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
             'partner' => $partner ? [
                 'id' => $partner->id,
@@ -292,7 +292,7 @@ class MobileMatchController extends Controller
             'tournament_name' => $tournament->name ?? 'Турнир',
             'date' => $tournament->start_date?->format('Y-m-d') ?? $match->updated_at->format('Y-m-d'),
             'format' => 'bali_koc',
-            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
             'partner' => $partner ? [
                 'id' => $partner->id,
@@ -328,7 +328,7 @@ class MobileMatchController extends Controller
             'tournament_name' => $tournament->name ?? 'Турнир',
             'date' => $tournament->start_date?->format('Y-m-d') ?? $match->updated_at->format('Y-m-d'),
             'format' => $format,
-            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
             'partner' => $partner ? [
                 'id' => $partner->id,
