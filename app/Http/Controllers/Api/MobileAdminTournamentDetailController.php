@@ -3884,6 +3884,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'id' => $u->id,
                 'name' => $u->full_name ?? $u->name,
                 'avatar' => $u->avatar ? asset('storage/' . $u->avatar) : null,
+                'verified' => (bool) $u->level_verified,
                 'rating' => (int) ($u->rating ?? 0),
                 'rating_before' => $fp->rating_before !== null ? (int) $fp->rating_before : null,
                 'rating_after' => $fp->rating_after !== null ? (int) $fp->rating_after : null,
