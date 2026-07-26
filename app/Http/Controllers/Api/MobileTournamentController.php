@@ -2203,34 +2203,15 @@ class MobileTournamentController extends Controller
             }
         }
 
-        // По лидерборду (americano/mexicano)
+        // Место по лидерборду (americano/mexicano) — берём из ТОЙ ЖЕ таблицы,
+        // что показывается в «Таблице лидеров» (сортировка: очки → победы →
+        // разница → личная встреча). Иначе при равных очках место в истории
+        // расходится с таблицей турнира.
         if (in_array($tournament->type, ['americano', 'mexicano'])) {
-            if ($tournament->type === 'mexicano') {
-                $players = $tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->get();
-                foreach ($players as $i => $mp) {
-                    if ($mp->user_id === $userId) return $i + 1;
+            foreach ($this->getLeaderboard($tournament) as $row) {
+                if ((int) $row['id'] === $userId) {
+                    return (int) $row['position'];
                 }
-            } else {
-                $groups = $tournament->groups()->with('players')->get();
-                $allPlayers = collect();
-                foreach ($groups as $group) {
-                    foreach ($group->players as $player) {
-                        $existing = $allPlayers->firstWhere('id', $player->id);
-                        if ($existing) {
-                            $allPlayers = $allPlayers->map(fn($p) => $p['id'] === $player->id
-                                ? array_merge($p, ['total_points' => $p['total_points'] + (int)($player->pivot->total_points ?? 0)])
-                                : $p);
-                        } else {
-                            $allPlayers->push([
-                                'id' => $player->id,
-                                'total_points' => (int) ($player->pivot->total_points ?? 0),
-                            ]);
-                        }
-                    }
-                }
-                $sorted = $allPlayers->sortByDesc('total_points')->values();
-                $index = $sorted->search(fn($p) => $p['id'] === $userId);
-                if ($index !== false) return $index + 1;
             }
         }
 
