@@ -2203,16 +2203,11 @@ class MobileTournamentController extends Controller
             }
         }
 
-        // Место по лидерборду (americano/mexicano) — берём из ТОЙ ЖЕ таблицы,
-        // что показывается в «Таблице лидеров» (сортировка: очки → победы →
-        // разница → личная встреча). Иначе при равных очках место в истории
-        // расходится с таблицей турнира.
+        // Место по лидерборду (americano/mexicano) — единый источник ранжирования
+        // (очки → победы → разница → личная встреча), совпадает с «Таблицей».
         if (in_array($tournament->type, ['americano', 'mexicano'])) {
-            foreach ($this->getLeaderboard($tournament) as $row) {
-                if ((int) $row['id'] === $userId) {
-                    return (int) $row['position'];
-                }
-            }
+            $place = \App\Support\AmericanoRanking::place($tournament, $userId);
+            if ($place !== null) return $place;
         }
 
         // Team турнир — место по группе

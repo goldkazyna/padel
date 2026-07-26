@@ -745,26 +745,11 @@ class MobileRatingController extends Controller
             }
         }
 
-        // По лидерборду (позиция в группе по очкам)
+        // Место по лидерборду (americano/mexicano) — единый источник ранжирования
+        // (очки → победы → разница → личная встреча), совпадает с «Таблицей».
         if (in_array($tournament->type, ['americano', 'mexicano'])) {
-            $groups = $tournament->groups()->with('players')->get();
-            $allPlayers = collect();
-            foreach ($groups as $group) {
-                foreach ($group->players as $player) {
-                    $existing = $allPlayers->firstWhere('id', $player->id);
-                    if ($existing) {
-                        $existing['total_points'] += (int) ($player->pivot->total_points ?? 0);
-                    } else {
-                        $allPlayers->push([
-                            'id' => $player->id,
-                            'total_points' => (int) ($player->pivot->total_points ?? 0),
-                        ]);
-                    }
-                }
-            }
-            $sorted = $allPlayers->sortByDesc('total_points')->values();
-            $index = $sorted->search(fn($p) => $p['id'] === $userId);
-            if ($index !== false) return $index + 1;
+            $place = \App\Support\AmericanoRanking::place($tournament, $userId);
+            if ($place !== null) return $place;
         }
 
         // Король корта — место по лидерборду
