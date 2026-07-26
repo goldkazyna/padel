@@ -90,6 +90,27 @@ class MobileAdminUserController extends Controller
         $perPage = 30;
         $paginator = $query->paginate($perPage)->withQueryString();
 
+        // Кулдаун ручной смены рейтинга: 2 месяца с последней ручной
+        // корректировки. Карта [user_id => Carbon дата_разблокировки] для
+        // игроков на странице. Супер-админ не ограничен — пустая карта.
+        $ratingLocks = [];
+        if (!$user->isSuperAdmin()) {
+            $ids = $paginator->getCollection()->pluck('id')->all();
+            if (!empty($ids)) {
+                $rows = \App\Models\RatingHistory::whereIn('user_id', $ids)
+                    ->where('reason', 'Ручная корректировка')
+                    ->selectRaw('user_id, MAX(created_at) as last_manual')
+                    ->groupBy('user_id')
+                    ->get();
+                foreach ($rows as $r) {
+                    $until = \Carbon\Carbon::parse($r->last_manual)->addMonths(2);
+                    if ($until->isFuture()) {
+                        $ratingLocks[$r->user_id] = $until;
+                    }
+                }
+            }
+        }
+
         // Статистика по уровням (без фильтров поиска/уровня — глобально по городу)
         $statsQuery = User::human();
         if ($club->city) {
@@ -114,7 +135,7 @@ class MobileAdminUserController extends Controller
 
         return response()->json([
             'success' => true,
-            'users' => $paginator->getCollection()->map(fn($u) => $this->formatUserRow($u))->values(),
+            'users' => $paginator->getCollection()->map(fn($u) => $this->formatUserRow($u, $ratingLocks[$u->id] ?? null))->values(),
             'page' => $paginator->currentPage(),
             'total_pages' => $paginator->lastPage(),
             'total' => $paginator->total(),
@@ -163,6 +184,30 @@ class MobileAdminUserController extends Controller
         $oldLevel = $target->level !== null ? (float) $target->level : null;
         $oldVerified = (bool) $target->level_verified;
         $oldRating = (int) ($target->rating ?? 0);
+
+        // Кулдаун 2 месяца: клубный админ не может менять уровень/рейтинг,
+        // если рейтинг уже правили вручную менее 2 месяцев назад. Супер-админ
+        // — без ограничений. Имя менять можно всегда.
+        if (!$actor->isSuperAdmin()) {
+            $lastManual = \App\Models\RatingHistory::where('user_id', $target->id)
+                ->where('reason', 'Ручная корректировка')
+                ->latest('created_at')
+                ->first();
+            if ($lastManual && ($until = $lastManual->created_at->copy()->addMonths(2))->isFuture()) {
+                $attemptedLevel = array_key_exists('level', $validated) && $validated['level'] !== null
+                    ? (float) $validated['level'] : null;
+                if ($attemptedLevel !== null && $attemptedLevel !== $oldLevel) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Рейтинг игрока менялся недавно. Изменить уровень можно с '
+                            . $until->format('d.m.Y') . ' — не чаще раза в 2 месяца.',
+                        'rating_locked_until' => $until->toIso8601String(),
+                    ], 422);
+                }
+                // Защита от обхода: уровень/рейтинг не трогаем, даже если пришли.
+                unset($validated['level']);
+            }
+        }
 
         $update = ['name' => $validated['name']];
         $newLevel = null;
@@ -239,9 +284,22 @@ class MobileAdminUserController extends Controller
             ]);
         }
 
+        // Актуальная дата блокировки для ответа (после возможной новой ручной
+        // корректировки): чтобы приложение сразу заблокировало поле.
+        $respLock = null;
+        if (!$actor->isSuperAdmin()) {
+            $lm = \App\Models\RatingHistory::where('user_id', $target->id)
+                ->where('reason', 'Ручная корректировка')
+                ->latest('created_at')
+                ->first();
+            if ($lm && ($u2 = $lm->created_at->copy()->addMonths(2))->isFuture()) {
+                $respLock = $u2;
+            }
+        }
+
         return response()->json([
             'success' => true,
-            'user' => $this->formatUserRow($target->refresh()),
+            'user' => $this->formatUserRow($target->refresh(), $respLock),
         ]);
     }
 
@@ -260,7 +318,7 @@ class MobileAdminUserController extends Controller
         ], 403);
     }
 
-    private function formatUserRow(User $u): array
+    private function formatUserRow(User $u, ?\Carbon\Carbon $lockedUntil = null): array
     {
         return [
             'id' => $u->id,
@@ -269,6 +327,8 @@ class MobileAdminUserController extends Controller
             'rating' => (int) ($u->rating ?? 0),
             'level_verified' => (bool) $u->level_verified,
             'avatar_url' => $u->avatar ?: null,
+            // Дата, до которой запрещено менять уровень/рейтинг (ISO8601) или null.
+            'rating_locked_until' => $lockedUntil?->toIso8601String(),
         ];
     }
 }
