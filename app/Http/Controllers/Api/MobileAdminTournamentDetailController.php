@@ -601,6 +601,7 @@ class MobileAdminTournamentDetailController extends Controller
             'club' => $t->club ? [
                 'id' => $t->club->id,
                 'name' => $t->club->name,
+                'logo' => $t->club->logo ? url($t->club->logo) : null,
             ] : null,
             'is_personal' => $t->isPersonal(),
             'creator' => $t->creator ? [
