@@ -1573,7 +1573,9 @@
         const startIdx = orderedTimes.indexOf(currentBook.time);
         if (startIdx >= 0 && startIdx + slots < orderedTimes.length) return orderedTimes[startIdx + slots];
         const [h, m] = currentBook.time.split(':').map(Number);
-        const nh = h + slots;
+        // % 24: последний слот 23:00 + 1ч → «00:00» (не «24:00», которое
+        // отклоняет валидатор H:i на бэке и блокировка не создаётся).
+        const nh = (h + slots) % 24;
         return String(nh).padStart(2, '0') + ':' + String(m).padStart(2, '0');
     }
 
