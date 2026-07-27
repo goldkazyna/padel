@@ -3655,7 +3655,8 @@
     .form-input::placeholder { color: #52525b; }
 
     .duration-selector {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
         gap: 6px;
     }
 

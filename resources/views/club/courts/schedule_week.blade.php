@@ -855,7 +855,7 @@
     .form-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }
     .form-input::placeholder { color: #52525b; }
 
-    .duration-selector { display: flex; gap: 6px; }
+    .duration-selector { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .duration-btn { flex: 1; height: 44px; padding: 0; background: #16161a; border: 1px solid #27272a; border-radius: 10px; color: #a1a1aa; font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; }
     .duration-btn small { font-size: 10px; font-weight: 600; opacity: 0.7; }
     .duration-btn.active { background: #22c55e; color: #0a0a0b; border-color: #22c55e; }
