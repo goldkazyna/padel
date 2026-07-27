@@ -1636,7 +1636,7 @@
     }
 
     function openBookModal(courtId, courtName, time, price, maxSlots, date) {
-        currentBook = { courtId, courtName, time, date, price, maxSlots: Math.min(maxSlots, 6), duration: 1 };
+        currentBook = { courtId, courtName, time, date, price, maxSlots: Math.min(maxSlots, 12), duration: 1 };
 
         document.getElementById('bookForm').action = courtRoutes[courtId].book;
         document.getElementById('blockForm').action = courtRoutes[courtId].block;
@@ -1878,7 +1878,7 @@
         const dateMap = (freeSlotsByDate || {})[date] || {};
         let max = currentSlots;
         let i = startIdx + currentSlots;
-        while (i < orderedTimes.length && max < 8) {
+        while (i < orderedTimes.length && max < 12) {
             const key = courtId + '-' + orderedTimes[i];
             if (dateMap[key] !== undefined) {
                 max++;

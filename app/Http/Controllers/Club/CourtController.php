@@ -631,7 +631,7 @@ class CourtController extends Controller
         $validated = $request->validate([
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
-            'slots' => 'required|integer|min:1|max:8',
+            'slots' => 'required|integer|min:1|max:12',
             // Клиент/оплата не нужны для типа «Групповые» — оплата идёт через пакеты группы.
             'client_name' => 'required_unless:booking_type,group|nullable|string|max:255',
             'client_phone' => 'required_unless:booking_type,group|nullable|string|max:50',
@@ -1041,7 +1041,7 @@ class CourtController extends Controller
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
-            'slots' => 'nullable|integer|min:1|max:8',
+            'slots' => 'nullable|integer|min:1|max:12',
         ], [
             'client_name.required' => 'Укажите имя клиента',
             'client_phone.required' => 'Укажите номер телефона',

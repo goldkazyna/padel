@@ -1372,7 +1372,7 @@
             courtName: courtName,
             time: time,
             price: price,
-            maxSlots: Math.min(maxSlots, 6),
+            maxSlots: Math.min(maxSlots, 12),
             duration: 1
         };
 
@@ -1635,7 +1635,7 @@
         const dateMap = (freeSlotsByDate || {})[date] || {};
         let max = currentSlots;
         let i = startIdx + currentSlots;
-        while (i < orderedTimes.length && max < 8) {
+        while (i < orderedTimes.length && max < 12) {
             const key = courtId + '-' + orderedTimes[i];
             if (dateMap[key] !== undefined) {
                 max++;
