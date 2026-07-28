@@ -185,6 +185,37 @@ class MobileCourtController extends Controller
      * Бронирование корта
      * POST /api/mobile/courts/clubs/{club}/book
      */
+    /** GET /courts/clubs/{club}/cards — карты-счётчики игрока в этом клубе (для брони). */
+    public function clubCards(Request $request, Club $club)
+    {
+        $clientIds = \App\Support\ClubCardAccess::clientIdsForUser($request->user());
+        if (empty($clientIds)) {
+            return response()->json(['cards' => []]);
+        }
+        $cards = \App\Models\ClubCard::where('club_id', $club->id)
+            ->whereIn('club_client_id', $clientIds)
+            ->with('type')
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn($c) => $c->isCounter() && $c->isActual())
+            ->values();
+
+        $svc = app(\App\Services\ClubCardService::class);
+        return response()->json([
+            'cards' => $cards->map(fn($c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'type_name' => $c->type?->name,
+                'balance' => (int) ($c->balance ?? 0),
+                'initial_balance' => $c->initial_balance !== null ? (int) $c->initial_balance : null,
+                'available' => $svc->availableBalance($c),
+            ])->all(),
+            'card_bg_color' => $club->card_bg_color,
+            'card_accent_color' => $club->card_accent_color,
+            'card_progress_color' => $club->card_progress_color,
+        ]);
+    }
+
     public function book(Request $request, Club $club)
     {
         $validated = $request->validate([
@@ -197,6 +228,7 @@ class MobileCourtController extends Controller
             'coach_id' => 'nullable|integer',
             'comment' => 'nullable|string|max:500',
             'needs_coach' => 'nullable|boolean',
+            'club_card_id' => 'nullable|integer',
         ]);
 
         // Проверяем что корт принадлежит клубу и активен
@@ -257,6 +289,36 @@ class MobileCourtController extends Controller
         $user = $request->user();
         $courtPrice = $this->scheduleService->calculatePrice($court, $validated['date'], $startTimeStr, $endTimeStr);
 
+        // Оплата клубной картой (счётчик). Проверяем принадлежность игроку,
+        // клубу, актуальность и остаток часов. Логика как в CRM: карту помечаем
+        // на броне, часы списываются существующим механизмом (крон/клуб).
+        $clubCardId = null;
+        $cardPaymentMethod = null;
+        if (!empty($validated['club_card_id'])) {
+            $clientIds = \App\Support\ClubCardAccess::clientIdsForUser($user);
+            $card = \App\Models\ClubCard::with('type')
+                ->where('club_id', $club->id)
+                ->whereIn('club_client_id', $clientIds ?: [0])
+                ->find($validated['club_card_id']);
+            if (!$card || !$card->isActual() || !$card->isCounter()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Клубная карта недоступна для оплаты',
+                ], 422);
+            }
+            $cardService = app(\App\Services\ClubCardService::class);
+            $need = $cardService->slotHours($startTimeStr, $endTimeStr);
+            $available = $cardService->availableBalance($card);
+            if ($need > $available) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Не хватает часов на карте (осталось {$available} ч)",
+                ], 422);
+            }
+            $clubCardId = $card->id;
+            $cardPaymentMethod = 'club_card';
+        }
+
         $booking = CourtBooking::create([
             'court_id' => $court->id,
             'date' => $validated['date'],
@@ -273,6 +335,8 @@ class MobileCourtController extends Controller
             'comment' => $validated['comment'] ?? null,
             'coach_id' => $validated['coach_id'] ?? null,
             'needs_coach' => !empty($validated['needs_coach']),
+            'club_card_id' => $clubCardId,
+            'payment_method' => $cardPaymentMethod,
         ]);
 
         $logDesc = "Бронь из приложения: {$booking->client_name}, {$court->name}, {$validated['date']} {$startTimeStr}–{$endTimeStr}";
