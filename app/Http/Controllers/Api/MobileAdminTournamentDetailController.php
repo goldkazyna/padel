@@ -2021,6 +2021,11 @@ class MobileAdminTournamentDetailController extends Controller
                 );
             }
             $ok = $americano->finishTournament($tournament);
+        } elseif ($tournament->isMexicano()) {
+            if (!$mexicano->canFinishTournament($tournament)) {
+                return $this->error('Доиграйте все раунды (и финал плей-офф)');
+            }
+            $ok = $mexicano->finishTournament($tournament);
         } elseif ($tournament->isAmericanoFlex()) {
             if (!$flex->canFinishTournament($tournament)) {
                 return $this->error('Доиграйте текущий раунд');

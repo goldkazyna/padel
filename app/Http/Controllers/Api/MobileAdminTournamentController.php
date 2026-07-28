@@ -243,7 +243,7 @@ class MobileAdminTournamentController extends Controller
     private function tournamentValidationRules(): array
     {
         return [
-            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it',
+            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it,mexicano',
             'venue_club_id' => 'nullable|exists:clubs,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
