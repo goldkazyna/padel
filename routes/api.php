@@ -171,6 +171,12 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'saveAmericanoPlayoffScore']);
         Route::put('/admin/tournaments/{tournament}/americano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'updateAmericanoPlayoffScore']);
 
+        // Мексикано — ввод счёта, счёт плей-офф, досрочное завершение (next-round/playoff/generate/finish общие ниже)
+        Route::post('/admin/tournaments/{tournament}/mexicano/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveMexicanoScore']);
+        Route::put('/admin/tournaments/{tournament}/mexicano/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'updateMexicanoScore']);
+        Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/mexicano/playoff/{match}/score', [MobileAdminTournamentDetailController::class, 'saveMexicanoPlayoffScore']);
+        Route::post('/admin/tournaments/{tournament}/mexicano/finish-early', [MobileAdminTournamentDetailController::class, 'mexicanoFinishEarly']);
+
         // Этап 3d — генерация плей-офф и завершение турнира
         Route::post('/admin/tournaments/{tournament}/playoff/generate', [MobileAdminTournamentDetailController::class, 'generatePlayoff']);
         Route::post('/admin/tournaments/{tournament}/finish', [MobileAdminTournamentDetailController::class, 'finish']);

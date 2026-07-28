@@ -1547,7 +1547,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildTeamMatches($tournament));
         }
 
-        // Mexicano — пока заглушка
+        if ($tournament->isMexicano()) {
+            return response()->json($this->buildMexicanoMatches($tournament));
+        }
+
         return response()->json([
             'success' => true,
             'type' => $tournament->type,
@@ -1970,6 +1973,18 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->forbidden();
         }
 
+        if ($tournament->isMexicano()) {
+            $mx = app(MexicanoService::class);
+            if (!$mx->canGeneratePlayoff($tournament)) {
+                return $this->error('Невозможно сгенерировать плей-офф. Не все раунды сыграны.');
+            }
+            if (!$mx->generatePlayoff($tournament)) {
+                return $this->error('Не удалось сгенерировать плей-офф');
+            }
+            $tournament->refresh();
+            return response()->json($this->buildMexicanoMatches($tournament));
+        }
+
         if (!$tournament->isAmericano()) {
             return $this->error(
                 'Генерация плей-офф из мобилы пока поддерживается только для Американо'
@@ -1989,6 +2004,285 @@ class MobileAdminTournamentDetailController extends Controller
 
         $tournament->refresh();
         return response()->json($this->buildAmericanoMatches($tournament));
+    }
+
+    // ==================== MEXICANO (мобильная админка) ====================
+    // Структура ответа как у Американо (одна «группа» = все игроки), чтобы
+    // переиспользовать UI проведения на фронте.
+
+    private function buildMexicanoMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'mexicanoRounds.matches.team1Player1',
+            'mexicanoRounds.matches.team1Player2',
+            'mexicanoRounds.matches.team2Player1',
+            'mexicanoRounds.matches.team2Player2',
+            'mexicanoPlayers.user',
+            'playoffMatches.team1Player1',
+            'playoffMatches.team1Player2',
+            'playoffMatches.team2Player1',
+            'playoffMatches.team2Player2',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+        $rounds = $tournament->mexicanoRounds->sortBy('round_number')->values()->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+            $matches = $round->matches->map(function ($m) use (&$matchesTotal, &$matchesPlayed) {
+                $matchesTotal++;
+                if ($m->status === 'completed') $matchesPlayed++;
+                return $this->formatMexicanoMatch($m);
+            });
+            return [
+                'id' => $round->id,
+                'round_number' => (int) $round->round_number,
+                'status' => $round->status,
+                'matches' => $matches,
+            ];
+        });
+
+        $group = [
+            'id' => 0,
+            'name' => '',
+            'rounds' => $rounds,
+            'leaderboard' => $this->buildMexicanoLeaderboard($tournament),
+        ];
+
+        $playoffMatches = $tournament->playoffMatches
+            ->filter(fn($m) => (bool) $m->team1_player1_id)
+            ->values();
+        $playoff = [
+            'has_playoff' => (bool) $tournament->has_playoff,
+            'is_generated' => $playoffMatches->count() > 0,
+            'matches' => $playoffMatches->map(fn($m) => $this->formatPlayoffMatch($m))->values(),
+        ];
+
+        $isLive = $tournament->status === 'in_progress';
+        $svc = app(MexicanoService::class);
+        $lastRound = $tournament->mexicanoRounds->sortByDesc('round_number')->first();
+        $roundDone = $lastRound && $lastRound->matches->where('status', 'pending')->count() === 0;
+        $canFinishEarly = $isLive && $roundDone
+            && (int) ($lastRound->round_number ?? 0) < (int) $tournament->rounds_count
+            && $playoffMatches->count() === 0;
+
+        return [
+            'success' => true,
+            'type' => 'mexicano',
+            'groups' => [$group],
+            'playoff' => $playoff,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $isLive && $svc->canFinishTournament($tournament),
+                'can_generate_playoff' => $isLive && $svc->canGeneratePlayoff($tournament),
+                'can_generate_next_round' => $isLive && $svc->canGenerateNextRound($tournament),
+                'can_finish_early' => $canFinishEarly,
+            ],
+        ];
+    }
+
+    private function buildMexicanoLeaderboard(Tournament $tournament): array
+    {
+        $stats = [];
+        foreach ($tournament->mexicanoPlayers as $mp) {
+            $u = $mp->user;
+            if (!$u) continue;
+            $stats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->full_name ?? $u->name,
+                'avatar' => $u->avatar,
+                'verified' => (bool) $u->level_verified,
+                'rating' => (int) ($u->rating ?? 0),
+                'wins' => 0, 'losses' => 0, 'draws' => 0,
+                'points_for' => 0, 'points_against' => 0,
+                'total_points' => (int) ($mp->total_points ?? 0),
+            ];
+        }
+
+        foreach ($tournament->mexicanoRounds as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                foreach ([$m->team1_player1_id, $m->team1_player2_id] as $pId) {
+                    if (!isset($stats[$pId])) continue;
+                    $stats[$pId]['points_for'] += (int) $m->team1_score;
+                    $stats[$pId]['points_against'] += (int) $m->team2_score;
+                    if ($m->team1_score > $m->team2_score) $stats[$pId]['wins']++;
+                    elseif ($m->team1_score < $m->team2_score) $stats[$pId]['losses']++;
+                }
+                foreach ([$m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                    if (!isset($stats[$pId])) continue;
+                    $stats[$pId]['points_for'] += (int) $m->team2_score;
+                    $stats[$pId]['points_against'] += (int) $m->team1_score;
+                    if ($m->team2_score > $m->team1_score) $stats[$pId]['wins']++;
+                    elseif ($m->team2_score < $m->team1_score) $stats[$pId]['losses']++;
+                }
+                if ((int) $m->team1_score === (int) $m->team2_score) {
+                    foreach ([$m->team1_player1_id, $m->team1_player2_id, $m->team2_player1_id, $m->team2_player2_id] as $pId) {
+                        if (isset($stats[$pId])) $stats[$pId]['draws']++;
+                    }
+                }
+            }
+        }
+
+        uasort($stats, function ($a, $b) {
+            if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+            $diffA = $a['points_for'] - $a['points_against'];
+            $diffB = $b['points_for'] - $b['points_against'];
+            if ($diffA !== $diffB) return $diffB <=> $diffA;
+            return $b['wins'] <=> $a['wins'];
+        });
+
+        $position = 1;
+        $rows = [];
+        foreach ($stats as $s) {
+            $totalGames = $s['wins'] + $s['losses'] + $s['draws'];
+            $totalBalls = $s['points_for'] + $s['points_against'];
+            $rows[] = array_merge($s, [
+                'position' => $position++,
+                'games_played' => $totalGames,
+                'point_diff' => $s['points_for'] - $s['points_against'],
+                'win_percent' => $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0,
+                'ball_percent' => $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0,
+            ]);
+        }
+        return $rows;
+    }
+
+    private function formatMexicanoMatch(\App\Models\MexicanoMatch $m): array
+    {
+        return [
+            'id' => $m->id,
+            'court_number' => $m->court_number !== null ? (int) $m->court_number : null,
+            'team1' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team1Player1),
+                    $this->formatMatchPlayer($m->team1Player2),
+                ]),
+                'score' => $m->team1_score,
+            ],
+            'team2' => [
+                'players' => array_filter([
+                    $this->formatMatchPlayer($m->team2Player1),
+                    $this->formatMatchPlayer($m->team2Player2),
+                ]),
+                'score' => $m->team2_score,
+            ],
+            'status' => $m->status,
+            'winner' => $m->winning_team ?? null,
+        ];
+    }
+
+    public function saveMexicanoScore(Request $request, Tournament $tournament, \App\Models\MexicanoMatch $match): JsonResponse
+    {
+        return $this->handleMexicanoScore($request, $tournament, $match, false);
+    }
+
+    public function updateMexicanoScore(Request $request, Tournament $tournament, \App\Models\MexicanoMatch $match): JsonResponse
+    {
+        return $this->handleMexicanoScore($request, $tournament, $match, true);
+    }
+
+    private function handleMexicanoScore(Request $request, Tournament $tournament, \App\Models\MexicanoMatch $match, bool $isUpdate): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        $match->loadMissing('round');
+        if (!$match->round || (int) $match->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+        $s1 = (int) $request->input('team1_score');
+        $s2 = (int) $request->input('team2_score');
+        $service = app(MexicanoService::class);
+        if ($isUpdate) {
+            if ($match->status !== 'completed') {
+                return $this->error('Матч ещё не сыгран — используйте сохранение');
+            }
+            $service->updateMatchResult($match, $s1, $s2);
+        } else {
+            if ($match->status === 'completed') {
+                return $this->error('Матч уже сыгран — используйте обновление счёта');
+            }
+            $service->saveMatchResult($match, $s1, $s2);
+        }
+        $match->refresh();
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+                'winner' => $match->winning_team ?? null,
+            ],
+        ]);
+    }
+
+    /** Счёт плей-офф Мексикано (player-based TournamentPlayoffMatch). */
+    public function saveMexicanoPlayoffScore(Request $request, Tournament $tournament, \App\Models\TournamentPlayoffMatch $match): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if ((int) $match->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+        $match->update([
+            'team1_score' => (int) $request->input('team1_score'),
+            'team2_score' => (int) $request->input('team2_score'),
+            'status' => 'completed',
+        ]);
+        if ($match->stage === 'Полуфинал') {
+            app(MexicanoService::class)->updateFinalAfterSemifinal($match);
+        }
+        $tournament->refresh();
+        return response()->json($this->buildMexicanoMatches($tournament));
+    }
+
+    /** Досрочно завершить Мексикано / перейти в плей-офф (как в вебе). */
+    public function mexicanoFinishEarly(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$tournament->isMexicano() || $tournament->status !== 'in_progress') {
+            return $this->error('Недоступно для этого турнира');
+        }
+        $last = $tournament->mexicanoRounds()->reorder('round_number', 'desc')->first();
+        if (!$last || $last->matches()->where('status', 'pending')->exists()) {
+            return $this->error('Сначала доиграйте текущий раунд');
+        }
+        if ($tournament->playoffMatches()->count() > 0) {
+            return $this->error('Плей-офф уже сгенерирован');
+        }
+        $completed = $tournament->mexicanoRounds()->where('status', 'completed')->count();
+        $tournament->update(['rounds_count' => $completed]);
+        $svc = app(MexicanoService::class);
+        if ($tournament->hasPlayoff()) {
+            if (!$svc->generatePlayoff($tournament)) {
+                return $this->error('Не удалось сгенерировать плей-офф');
+            }
+        } else {
+            if (!$svc->finishTournament($tournament)) {
+                return $this->error('Не удалось завершить турнир');
+            }
+        }
+        $tournament->refresh();
+        return response()->json($this->buildMexicanoMatches($tournament));
     }
 
     /**
@@ -2200,6 +2494,18 @@ class MobileAdminTournamentDetailController extends Controller
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
+        }
+
+        if ($tournament->isMexicano()) {
+            $mx = app(MexicanoService::class);
+            if (!$mx->canGenerateNextRound($tournament)) {
+                return $this->error('Текущий раунд ещё не завершён');
+            }
+            if (!$mx->generateNextRound($tournament)) {
+                return $this->error('Не удалось сгенерировать следующий раунд');
+            }
+            $tournament->refresh();
+            return response()->json($this->buildMexicanoMatches($tournament));
         }
 
         if ($tournament->isRoundRobin()) {
