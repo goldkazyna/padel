@@ -172,6 +172,44 @@ class MexicanoController extends Controller
 	}
 
 	/**
+	 * Досрочно завершить отборочный этап Мексикано (не доигрывая все раунды).
+	 * Без плей-офф — завершаем турнир. С плей-офф — сразу генерим плей-офф.
+	 * Доступно только когда текущий раунд доигран всеми парами.
+	 */
+	public function finishEarly(Tournament $tournament, MexicanoService $mexicanoService)
+	{
+		if (!$tournament->isMexicano() || $tournament->status !== 'in_progress') {
+			return back()->with('error', 'Недоступно для этого турнира');
+		}
+
+		// Текущий раунд должен быть доигран.
+		$last = $tournament->mexicanoRounds()->reorder('round_number', 'desc')->first();
+		if (!$last || $last->matches()->where('status', 'pending')->exists()) {
+			return back()->with('error', 'Сначала доиграйте текущий раунд');
+		}
+		if ($tournament->playoffMatches()->count() > 0) {
+			return back()->with('error', 'Плей-офф уже сгенерирован');
+		}
+
+		// Обрезаем план раундов до фактически сыгранных — дальше штатная логика
+		// (canFinish/canGeneratePlayoff проверяют completedRounds >= rounds_count).
+		$completed = $tournament->mexicanoRounds()->where('status', 'completed')->count();
+		$tournament->update(['rounds_count' => $completed]);
+
+		if ($tournament->hasPlayoff()) {
+			$ok = $mexicanoService->generatePlayoff($tournament);
+			return $ok
+				? back()->with('success', 'Отборочный этап завершён, плей-офф сгенерирован')
+				: back()->with('error', 'Не удалось сгенерировать плей-офф');
+		}
+
+		$ok = $mexicanoService->finishTournament($tournament);
+		return $ok
+			? back()->with('success', 'Турнир завершён')
+			: back()->with('error', 'Не удалось завершить турнир');
+	}
+
+	/**
 	 * Сохранить счёт плей-офф матча
 	 */
 	public function savePlayoffScore(Request $request, \App\Models\TournamentPlayoffMatch $match, MexicanoService $mexicanoService)

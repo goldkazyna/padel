@@ -167,13 +167,19 @@
         @endforeach
     </div>
 
-    {{-- Кнопка следующего раунда --}}
+    {{-- Кнопка следующего раунда + досрочное завершение --}}
     @if($tournament->status === 'in_progress')
         @php
             $canGenerateNext = app(\App\Services\MexicanoService::class)->canGenerateNextRound($tournament);
             $currentRoundNumber = $tournament->mexicanoRounds->max('round_number') ?? 0;
+            $lastRound = $tournament->mexicanoRounds->sortByDesc('round_number')->first();
+            $roundDone = $lastRound && $lastRound->matches->where('status', 'pending')->count() === 0;
+            $playoffStarted = $tournament->hasPlayoff() && $tournament->playoffMatches()->count() > 0;
+            // Досрочно завершить/перейти в плей-офф можно, пока остались раунды
+            // и текущий доигран всеми парами.
+            $showEarly = $roundDone && $currentRoundNumber < $tournament->rounds_count && !$playoffStarted;
         @endphp
-        
+
         @if($canGenerateNext)
             <div class="text-center mt-4">
                 <form action="{{ route('club.mexicano.nextRound', $tournament) }}" method="POST"
@@ -183,6 +189,28 @@
                         <i class="bi bi-plus-circle me-2"></i> Сгенерировать раунд {{ $currentRoundNumber + 1 }}
                     </button>
                 </form>
+            </div>
+        @endif
+
+        @if($showEarly)
+            <div class="text-center mt-3">
+                @if($tournament->hasPlayoff())
+                    <form action="{{ route('club.mexicano.finishEarly', $tournament) }}" method="POST"
+                          onsubmit="return confirm('Завершить отборочный этап досрочно и перейти в плей-офф? Оставшиеся раунды не будут сыграны.')">
+                        @csrf
+                        <button type="submit" class="btn-outline-custom btn-lg">
+                            <i class="bi bi-trophy me-2"></i> Перейти в плей-офф
+                        </button>
+                    </form>
+                @else
+                    <form action="{{ route('club.mexicano.finishEarly', $tournament) }}" method="POST"
+                          onsubmit="return confirm('Закончить турнир сейчас? Оставшиеся раунды не будут сыграны, рейтинг начислится по текущей таблице.')">
+                        @csrf
+                        <button type="submit" class="btn-outline-custom btn-lg">
+                            <i class="bi bi-flag me-2"></i> Закончить турнир
+                        </button>
+                    </form>
+                @endif
             </div>
         @endif
     @endif

@@ -444,6 +444,8 @@ Route::middleware('auth')->group(function () {
                 ->name('mexicano.nextRound');
             Route::post('/mexicano/tournament/{tournament}/generate-playoff', [MexicanoController::class, 'generatePlayoff'])
                 ->name('mexicano.generatePlayoff');
+            Route::post('/mexicano/tournament/{tournament}/finish-early', [MexicanoController::class, 'finishEarly'])
+                ->name('mexicano.finishEarly');
             Route::post('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'savePlayoffScore'])
                 ->name('mexicano.savePlayoffScore');
             Route::put('/mexicano/playoff-match/{match}/score', [MexicanoController::class, 'updatePlayoffScore'])
