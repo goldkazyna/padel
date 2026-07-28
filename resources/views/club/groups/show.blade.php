@@ -258,9 +258,10 @@
                         <button class="action-btn action-freeze" onclick="openFreezeModal({{ $m->id }})" title="Заморозить">❄</button>
                         <button class="action-btn action-renew" onclick="openEnrollModal({{ $m->id }})" title="Продлить">+</button>
                         <button class="action-btn action-edit" onclick="openEditMemberModal({{ $m->id }})" title="Абонемент">✎</button>
-                        <form method="POST" action="{{ route('club.groups.members.destroy', [$group, $m]) }}" onsubmit="return confirm('Убрать участника из группы?')" style="display:inline;">
+                        <form method="POST" action="{{ route('club.groups.members.destroy', [$group, $m]) }}" onsubmit="return removeMemberSubmit(this, {{ $rem }})" style="display:inline;">
                             @csrf
                             @method('DELETE')
+                            <input type="hidden" name="zero_balance" value="0">
                             <button type="submit" class="action-btn action-remove" title="Убрать">&#10005;</button>
                         </form>
                     </div>
@@ -612,6 +613,18 @@
     function openFreezeModal(memberId) {
         document.getElementById('freezeForm').action = freezeRoutes[memberId] || '';
         document.getElementById('freezeModal').style.display = 'flex';
+    }
+    // Удаление участника: сначала подтверждаем удаление, затем — если есть
+    // остаток пакета — спрашиваем, обнулить ли его. Ответ уходит в zero_balance.
+    function removeMemberSubmit(form, rem) {
+        if (!confirm('Убрать участника из группы?')) return false;
+        var zero = form.querySelector('input[name="zero_balance"]');
+        if (rem > 0) {
+            zero.value = confirm('У участника осталось ' + rem + ' зан. по пакету.\n\nОК — обнулить остаток\nОтмена — оставить остаток') ? '1' : '0';
+        } else {
+            zero.value = '0';
+        }
+        return true;
     }
     function openEnrollModal(memberId) {
         document.getElementById('enrollForm').action = enrollRoutes[memberId] || '';

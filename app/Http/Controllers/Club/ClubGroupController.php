@@ -502,10 +502,13 @@ class ClubGroupController extends Controller
         return back()->with('success', 'Пакет занятий добавлен');
     }
 
-    public function removeMember(ClubGroup $group, \App\Models\ClubGroupMember $member)
+    public function removeMember(Request $request, ClubGroup $group, \App\Models\ClubGroupMember $member)
     {
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id || $member->group_id !== $group->id) abort(403);
+
+        // Остаток пакета до удаления (куплено − проведённые).
+        $remaining = $member->remaining;
 
         // Мягкое удаление: помечаем неактивным и фиксируем дату ухода.
         // Записи посещаемости/пакетов НЕ удаляем — они нужны для отчётов и выручки.
@@ -514,7 +517,27 @@ class ClubGroupController extends Controller
         \App\Models\ActivityLog::logGroup($group->id, 'deleted', 'ClubGroupMember', $member->id,
             "Участник убран из группы «{$group->name}»: {$member->client?->name}", clubId: $club->id);
 
-        return back()->with('success', 'Участник убран из группы');
+        // По выбору админа — обнулить остаток занятий. Пишем компенсирующую
+        // запись пакета на −остаток (с историей, без удаления данных), чтобы
+        // `remaining` стал 0.
+        $zeroed = false;
+        if ($request->boolean('zero_balance') && $remaining > 0) {
+            \App\Models\ClubGroupEnrollment::create([
+                'group_member_id' => $member->id,
+                'sessions' => -$remaining,
+                'amount' => 0,
+                'is_paid' => true,
+                'payment_method' => null,
+                'created_by' => auth()->id(),
+            ]);
+            \App\Models\ActivityLog::logGroup($group->id, 'enrolled', 'ClubGroupMember', $member->id,
+                "Остаток обнулён при удалении: −{$remaining} занятий ({$member->client?->name})", clubId: $club->id);
+            $zeroed = true;
+        }
+
+        return back()->with('success', $zeroed
+            ? "Участник убран, остаток обнулён (−{$remaining})"
+            : 'Участник убран из группы');
     }
 
     /** Заморозить участника на период (даты включительно). */
