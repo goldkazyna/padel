@@ -978,6 +978,7 @@
                             <button type="button" class="pay-btn" data-value="cashback" onclick="selectEditPayment(this)"><i class="bi bi-arrow-repeat"></i><span>Кешбэк</span></button>
                             <button type="button" class="pay-btn" data-value="cashless" onclick="selectEditPayment(this)"><i class="bi bi-bank"></i><span>Безналичный</span></button>
                             <button type="button" class="pay-btn" data-value="free" onclick="selectEditPayment(this)"><i class="bi bi-gift"></i><span>Бесплатно</span></button>
+                            <button type="button" class="pay-btn" data-value="plexy" onclick="selectEditPayment(this)"><i class="bi bi-phone"></i><span>Онлайн</span></button>
                         </div>
                         <input type="hidden" name="payment_method" id="editPaymentMethodInput">
 
