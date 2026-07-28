@@ -288,6 +288,14 @@ class MobileCourtController extends Controller
             $club->id,
         );
 
+        // Telegram-уведомление клубу о новой брони (после ответа, чтобы не тормозить).
+        $newBookingId = $booking->id;
+        app()->terminating(function () use ($newBookingId) {
+            \App\Services\ClubTelegramNotifier::notifyBooking(
+                \App\Models\CourtBooking::find($newBookingId), 'new'
+            );
+        });
+
         return response()->json([
             'success' => true,
             'booking' => [
@@ -503,6 +511,14 @@ class MobileCourtController extends Controller
             'status' => 'cancelled',
             'cancelled_at' => now(),
         ]);
+
+        // Telegram-уведомление клубу об отмене (обычной или по клубной карте).
+        $cancelledBookingId = $booking->id;
+        app()->terminating(function () use ($cancelledBookingId) {
+            \App\Services\ClubTelegramNotifier::notifyBooking(
+                \App\Models\CourtBooking::find($cancelledBookingId), 'cancel'
+            );
+        });
 
         $court = $booking->court;
         $start = \Carbon\Carbon::parse($booking->start_time)->format('H:i');

@@ -114,9 +114,47 @@
             </div>
         </div>
 
+        {{-- Telegram-уведомления о бронях --}}
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a">
+            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Telegram-уведомления о бронях</div>
+            <div class="form-hint" style="margin-bottom:14px">Бот присылает уведомление, когда игрок бронирует корт или отменяет бронь в приложении. В сообщении — имя, телефон и ID игрока.</div>
+
+            <label class="settings-toggle-row">
+                <input type="hidden" name="telegram_notify_enabled" value="0">
+                <input type="checkbox" name="telegram_notify_enabled" value="1"
+                       {{ old('telegram_notify_enabled', $club->telegram_notify_enabled) ? 'checked' : '' }}>
+                <span class="settings-toggle-text">
+                    <span class="settings-toggle-title">Включить уведомления о бронях</span>
+                    <small class="form-hint">Присылать в Telegram при новой брони и отмене (обычной и по клубной карте).</small>
+                </span>
+            </label>
+
+            <div class="form-group" style="margin-top:6px">
+                <label class="form-label">Токен бота</label>
+                <input type="text" name="telegram_bot_token" class="form-input" autocomplete="off"
+                       placeholder="{{ $club->telegram_bot_token ? '•••••••• (задан — оставьте пустым, чтобы не менять)' : '123456:ABC-DEF...' }}">
+                <small class="form-hint">Создайте бота у @BotFather и вставьте его токен. Секрет не показывается — впишите заново, чтобы заменить.</small>
+            </div>
+
+            <div class="form-group" style="margin-top:6px">
+                <label class="form-label">Кому слать (chat id)</label>
+                <textarea name="telegram_chat_ids" class="form-input" rows="3"
+                          placeholder="Один chat id в строке">{{ old('telegram_chat_ids', $club->telegram_chat_ids) }}</textarea>
+                <small class="form-hint">Получатели — по одному в строке (или через запятую). Личный id узнают у @userinfobot; для группы/канала добавьте бота туда и укажите id (например -100…). Важно: получатель должен сначала написать боту /start.</small>
+            </div>
+        </div>
+
         <div class="settings-actions">
             <button type="submit" class="btn-save">Сохранить</button>
         </div>
+    </form>
+
+    {{-- Тест Telegram (отдельная форма — по уже сохранённым настройкам) --}}
+    <form action="{{ route('club.settings.club.telegramTest') }}" method="POST" style="margin:-8px 0 8px">
+        @csrf
+        <button type="submit" class="btn-save" style="background:#1d211c;border:1px solid #2a3330;color:#e4e4e7">
+            Отправить тестовое уведомление
+        </button>
     </form>
 
     <script>

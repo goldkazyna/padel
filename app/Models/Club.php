@@ -43,6 +43,8 @@ class Club extends Model
         'features',
         'telegram_channel_id',
         'telegram_bot_token',
+        'telegram_notify_enabled',
+        'telegram_chat_ids',
     ];
 
     /** Секреты не отдаём в API-ответах. */
@@ -85,8 +87,29 @@ class Club extends Model
         'online_payment_enabled' => 'boolean',
         'allow_booking_without_payment' => 'boolean',
         'auto_conduct_group_sessions' => 'boolean',
+        'telegram_notify_enabled' => 'boolean',
         'features' => 'array',
     ];
+
+    /** Chat id получателей Telegram-уведомлений о бронях (массив строк). */
+    public function telegramChatIds(): array
+    {
+        $raw = (string) ($this->telegram_chat_ids ?? '');
+        return collect(preg_split('/[\s,;]+/', $raw))
+            ->map(fn($v) => trim($v))
+            ->filter(fn($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** Готов ли клуб слать Telegram-уведомления о бронях. */
+    public function telegramNotifyReady(): bool
+    {
+        return $this->telegram_notify_enabled
+            && !empty($this->telegram_bot_token)
+            && count($this->telegramChatIds()) > 0;
+    }
 
     protected static array $featureDefaults = [
         'coach_booking' => false,

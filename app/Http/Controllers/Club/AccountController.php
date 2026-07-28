@@ -30,16 +30,46 @@ class AccountController extends Controller
         $cancelHours = (int) $request->input('booking_cancel_hours', 2);
         $cancelHours = max(0, min(168, $cancelHours));
 
-        $club->update([
+        $update = [
             'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
             'booking_cancel_hours' => $cancelHours,
             'card_bg_color' => $this->hexOrNull($request->input('card_bg_color')),
             'card_accent_color' => $this->hexOrNull($request->input('card_accent_color')),
             'card_progress_color' => $this->hexOrNull($request->input('card_progress_color')),
-        ]);
+            // Telegram-уведомления о бронях.
+            'telegram_notify_enabled' => $request->boolean('telegram_notify_enabled'),
+            'telegram_chat_ids' => trim((string) $request->input('telegram_chat_ids')) ?: null,
+        ];
+        // Токен бота: пустое поле — не затираем существующий.
+        $botToken = trim((string) $request->input('telegram_bot_token'));
+        if ($botToken !== '') {
+            $update['telegram_bot_token'] = $botToken;
+        }
+
+        $club->update($update);
 
         return back()->with('success', 'Настройки клуба обновлены');
+    }
+
+    /** Отправить тестовое Telegram-уведомление получателям клуба. */
+    public function testTelegram(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) {
+            return back()->with('error', 'Клуб не найден');
+        }
+        if (!$club->telegram_notify_enabled) {
+            return back()->with('error', 'Включите уведомления и сохраните настройки');
+        }
+        if (empty($club->telegram_bot_token) || count($club->telegramChatIds()) === 0) {
+            return back()->with('error', 'Заполните токен бота и хотя бы один chat id, затем сохраните');
+        }
+        \App\Services\ClubTelegramNotifier::send(
+            $club,
+            "✅ Тест уведомлений\n" . $club->name . ': бот и получатели настроены.'
+        );
+        return back()->with('success', 'Тестовое сообщение отправлено — проверьте Telegram');
     }
 
     /** #RRGGBB → нормализованный HEX или null. */

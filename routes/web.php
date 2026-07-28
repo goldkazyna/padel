@@ -216,6 +216,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/profile', [App\Http\Controllers\Club\AccountController::class, 'updateProfile'])->name('settings.profile');
         Route::put('/settings/password', [App\Http\Controllers\Club\AccountController::class, 'updatePassword'])->name('settings.password');
         Route::put('/settings/club', [App\Http\Controllers\Club\AccountController::class, 'updateClubSettings'])->name('settings.club');
+        Route::post('/settings/club/telegram-test', [App\Http\Controllers\Club\AccountController::class, 'testTelegram'])->name('settings.club.telegramTest');
 
         // Помощь / инструкции (доступны всем ролям клуба)
         Route::get('/help', [App\Http\Controllers\Club\HelpController::class, 'index'])->name('help.index');
