@@ -109,6 +109,31 @@ class MobileGameController extends Controller
         return $token;
     }
 
+    /** Детали игры. */
+    public function show(Request $request, Game $game)
+    {
+        $game->load(['creator', 'club', 'court', 'players.user']);
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game, $request->user()),
+        ]);
+    }
+
+    /** Лента игр — только публичные, набирающие состав, будущие. */
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $games = Game::with(['creator', 'club', 'court', 'players.user'])
+            ->where('visibility', Game::VISIBILITY_PUBLIC)
+            ->whereIn('status', [Game::STATUS_OPEN, Game::STATUS_FULL])
+            ->where('starts_at', '>=', now())
+            ->orderBy('starts_at')
+            ->get()
+            ->map(fn ($g) => $this->formatGame($g, $user));
+
+        return response()->json(['success' => true, 'data' => $games]);
+    }
+
     /** Форматтер игры для API. $user может быть null (публичный переход по ссылке). */
     public function formatGame(Game $game, ?User $user): array
     {
