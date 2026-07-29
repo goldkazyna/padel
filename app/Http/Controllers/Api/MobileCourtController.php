@@ -201,18 +201,41 @@ class MobileCourtController extends Controller
             ->values();
 
         $svc = app(\App\Services\ClubCardService::class);
-        return response()->json([
-            'cards' => $cards->map(fn($c) => [
-                'id' => $c->id,
-                'code' => $c->code,
-                'type_name' => $c->type?->name,
-                'balance' => (int) ($c->balance ?? 0),
-                'initial_balance' => $c->initial_balance !== null ? (int) $c->initial_balance : null,
-                'available' => $svc->availableBalance($c),
-            ])->all(),
+        $clubBrief = [
+            'id' => $club->id,
+            'name' => $club->name,
+            'logo' => $club->logo ? url($club->logo) : null,
+            'address' => $club->address,
             'card_bg_color' => $club->card_bg_color,
             'card_accent_color' => $club->card_accent_color,
             'card_progress_color' => $club->card_progress_color,
+        ];
+        return response()->json([
+            'cards' => $cards->map(function ($c) use ($svc, $clubBrief) {
+                $avail = $svc->availableBalance($c);
+                $initial = $c->initial_balance !== null ? (int) $c->initial_balance : 0;
+                $typePrice = (int) ($c->type?->price ?? 0);
+                // Цена часа по карте = стоимость карты / часов (200 000 / 10 = 20 000).
+                $hourPrice = $initial > 0 ? (int) round($typePrice / $initial) : 0;
+                return [
+                    'id' => $c->id,
+                    'code' => $c->code,
+                    'type_name' => $c->type?->name,
+                    'kind' => $c->type?->kind,
+                    'kind_name' => $c->type?->kindName(),
+                    'is_counter' => $c->isCounter(),
+                    'balance' => $avail,           // показываем ДОСТУПНО (с учётом резервов)
+                    'initial_balance' => $initial,
+                    'discount_percent' => $c->type?->discount_percent !== null ? (int) $c->type->discount_percent : null,
+                    'expires_at' => optional($c->expires_at)->toDateString(),
+                    'is_expired' => $c->isExpired(),
+                    'is_actual' => $c->isActual(),
+                    'status' => $c->status,
+                    'available' => $avail,
+                    'hour_price' => $hourPrice,
+                    'club' => $clubBrief,
+                ];
+            })->all(),
         ]);
     }
 
@@ -317,6 +340,11 @@ class MobileCourtController extends Controller
             }
             $clubCardId = $card->id;
             $cardPaymentMethod = 'club_card';
+            // Цена брони по карте = цена часа карты × часы (не тариф корта).
+            $initial = (int) ($card->initial_balance ?? 0);
+            $typePrice = (int) ($card->type?->price ?? 0);
+            $hourPrice = $initial > 0 ? (int) round($typePrice / $initial) : 0;
+            $courtPrice = $hourPrice * $need;
         }
 
         $booking = CourtBooking::create([
