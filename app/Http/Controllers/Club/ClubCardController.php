@@ -234,18 +234,30 @@ class ClubCardController extends Controller
         $card->expires_at = $newExpiry;
         $card->save();
 
-        // Журнал действий: кто и что поменял на карте.
+        // Журнал действий: кто и что поменял на карте (детально).
         if (!empty($changes)) {
             $parts = [];
-            if (isset($changes['balance'])) $parts[] = 'остаток ' . $changes['balance'][0] . '→' . $changes['balance'][1] . ' ч';
-            if (isset($changes['initial_balance'])) $parts[] = 'всего ' . $changes['initial_balance'][0] . '→' . $changes['initial_balance'][1] . ' ч';
+            if (isset($changes['balance'])) $parts[] = 'остаток ' . $changes['balance'][0] . ' → ' . $changes['balance'][1] . ' ч';
+            if (isset($changes['initial_balance'])) $parts[] = 'всего ' . $changes['initial_balance'][0] . ' → ' . $changes['initial_balance'][1] . ' ч';
             if (isset($changes['expires_at'])) $parts[] = 'срок ' . ($changes['expires_at'][0] ?? 'бессрочно') . ' → ' . ($changes['expires_at'][1] ?? 'бессрочно');
+
+            $typeName = $card->type?->name ?? 'Карта';
+            $clientName = $card->client?->name ?? 'без клиента';
+            $desc = "Правка карты «{$typeName}» {$card->code} (клиент: {$clientName}): " . implode(', ', $parts);
+
             \App\Models\ActivityLog::log(
                 'updated',
                 'ClubCard',
                 $card->id,
-                'Карта ' . $card->code . ': ' . implode(', ', $parts),
-                $changes,
+                $desc,
+                [
+                    'card_id'     => $card->id,
+                    'card_code'   => $card->code,
+                    'card_type'   => $typeName,
+                    'client_id'   => $card->client?->id,
+                    'client_name' => $clientName,
+                    'changes'     => $changes,
+                ],
                 $club->id,
             );
         }
