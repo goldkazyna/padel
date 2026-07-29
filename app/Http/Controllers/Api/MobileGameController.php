@@ -11,6 +11,7 @@ use App\Models\Invitation;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\FCMNotificationService;
+use App\Support\GameAmericanoRanking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -401,6 +402,9 @@ class MobileGameController extends Controller
                 'tiebreak_b' => $r->tiebreak_b,
                 'is_played' => (bool) $r->is_played,
             ])->values(),
+            'americano_ranking' => $game->format === Game::FORMAT_AMERICANO
+                ? GameAmericanoRanking::table($game)
+                : null,
         ];
     }
 
