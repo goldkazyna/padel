@@ -482,6 +482,56 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Выйти из игры (участник, до старта). Организатор — нельзя. */
+    public function leave(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if ($game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Организатор не может выйти — передайте организацию или отмените игру'], 422);
+        }
+        if (in_array($game->status, [Game::STATUS_IN_PROGRESS, Game::STATUS_FINISHED, Game::STATUS_DISPUTED], true)) {
+            return response()->json(['success' => false, 'message' => 'Игра уже началась'], 422);
+        }
+        $player = $game->players()->where('user_id', $user->id)->where('status', GamePlayer::STATUS_ACCEPTED)->first();
+        if (!$player) {
+            return response()->json(['success' => false, 'message' => 'Вы не в этой игре'], 404);
+        }
+
+        $player->update(['status' => GamePlayer::STATUS_LEFT, 'position' => null]);
+        $this->syncFullness($game);
+        $this->notifyGame($game->creator, 'Игрок вышел', "{$user->name} покинул игру", 'game_left', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
+    /** Удалить участника (организатор). */
+    public function removePlayer(Request $request, Game $game, GamePlayer $player)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($player->game_id !== $game->id || $player->status !== GamePlayer::STATUS_ACCEPTED) {
+            return response()->json(['success' => false, 'message' => 'Участник не найден'], 422);
+        }
+        if ($player->user_id === $user->id) {
+            return response()->json(['success' => false, 'message' => 'Нельзя удалить себя'], 422);
+        }
+
+        $removed = $player->user;
+        $player->update(['status' => GamePlayer::STATUS_REMOVED, 'position' => null]);
+        $this->syncFullness($game);
+        $this->notifyGame($removed, 'Вас удалили из игры', 'Организатор удалил вас из состава', 'game_removed', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
     /** Поиск игрока по телефону (для приглашений). */
     public function searchPlayer(Request $request)
     {
