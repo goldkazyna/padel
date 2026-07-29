@@ -65,6 +65,14 @@
     }
     .paid-btn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .7; }
 
+    /* построчный статус оплаты тренера — точка слева, как у крупных плиток */
+    .scp-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .scp-btn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .7; }
+
+    /* убрать стрелки-спиннеры у числовых полей цены/скидки */
+    .price-input::-webkit-outer-spin-button, .price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .price-input { -moz-appearance: textfield; appearance: textfield; }
+
     @media (max-width: 560px) {
         .payment-methods { grid-template-columns: repeat(2, 1fr); }
         .booking-type-buttons { grid-template-columns: repeat(2, 1fr); }

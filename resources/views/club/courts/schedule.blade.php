@@ -2337,12 +2337,18 @@
         if (sc) sc.innerHTML = '';
     }
 
+    // Аватар тренера берём из его кнопки выбора (там уже фото или инициал).
+    function coachAvatarHtml(coachId) {
+        const el = document.querySelector('.coach-btn[data-coach-id="' + coachId + '"] .coach-btn-avatar');
+        return '<span class="sel-coach-avatar">' + (el ? el.innerHTML : '') + '</span>';
+    }
     // Мультивыбор тренеров (спарринг): одна карточка-рамка на тренера —
-    // имя + цена + переключатель «Не оплачен / Оплачен» под ним.
+    // аватар + имя + цена + переключатель «Не оплачен / Оплачен» под ним.
     function coachRowHtml(coachId, name, price, paid) {
         const priceVal = (price === '' || price === null || price === undefined) ? '' : price;
         return '<div class="sel-coach-row" data-cid="' + coachId + '">' +
             '<div class="sel-coach-head">' +
+                coachAvatarHtml(coachId) +
                 '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
                 '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + priceVal + '">' +
             '</div>' +
@@ -3932,6 +3938,21 @@
         align-items: center;
         gap: 10px;
     }
+    .sel-coach-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #a78bfa, #7c3aed);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .sel-coach-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .sel-coach-name {
         flex: 1;
         min-width: 90px;
