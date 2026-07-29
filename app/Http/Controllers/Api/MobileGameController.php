@@ -43,6 +43,12 @@ class MobileGameController extends Controller
         $user = $request->user();
         $validated = $this->validateGame($request);
 
+        // Валидация format_meta по формату
+        $metaErr = $this->validateFormatMeta($validated['format'], $validated['format_meta'] ?? null);
+        if ($metaErr !== null) {
+            return response()->json(['success' => false, 'message' => $metaErr], 422);
+        }
+
         // Длительность 30 мин – 6 ч.
         $mins = Carbon::parse($validated['starts_at'])->diffInMinutes(Carbon::parse($validated['ends_at']));
         if ($mins < 30 || $mins > 360) {
@@ -103,6 +109,49 @@ class MobileGameController extends Controller
             'price' => 'nullable|integer|min:0',
             'description' => 'nullable|string|max:1000',
         ]);
+    }
+
+    /** Валидация format_meta по формату. Возвращает текст ошибки или null. */
+    private function validateFormatMeta(string $format, ?array $meta): ?string
+    {
+        $meta = $meta ?? [];
+
+        if ($format === Game::FORMAT_POINTS) {
+            $mode = $meta['points_mode'] ?? null;
+            if (!in_array($mode, ['first_to', 'total'], true)) {
+                return 'Укажите режим: до N очков или на сумму очков';
+            }
+            if ($mode === 'first_to') {
+                $target = $meta['points_target'] ?? null;
+                if (!is_int($target) || $target < 1) {
+                    return 'Укажите целевое количество очков';
+                }
+            }
+            if (array_key_exists('points_cap', $meta) && $meta['points_cap'] !== null) {
+                if (!is_int($meta['points_cap']) || $meta['points_cap'] < 1) {
+                    return 'Некорректный лимит очков';
+                }
+            }
+            return null;
+        }
+
+        if ($format === Game::FORMAT_AMERICANO) {
+            $sub = $meta['sub'] ?? null;
+            if (!in_array($sub, ['by_sets', 'by_tiebreak', 'by_points'], true)) {
+                return 'Выберите подформат Американо';
+            }
+            $target = $meta['target'] ?? null;
+            if (!is_int($target) || $target < 1) {
+                return 'Укажите значение для подформата';
+            }
+            return null;
+        }
+
+        // sets: format_meta опционален; если есть tiebreak — должен быть boolean.
+        if (array_key_exists('tiebreak', $meta) && !is_bool($meta['tiebreak'])) {
+            return 'Некорректное значение тай-брейка';
+        }
+        return null;
     }
 
     private function uniqueShareToken(): string
