@@ -165,15 +165,39 @@ class MobileGameController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $games = Game::with(['creator', 'club', 'court', 'players.user'])
+
+        $query = Game::with(['creator', 'club', 'court', 'players.user'])
             ->where('visibility', Game::VISIBILITY_PUBLIC)
             ->whereIn('status', [Game::STATUS_OPEN, Game::STATUS_FULL])
             ->where('starts_at', '>=', now())
-            ->orderBy('starts_at')
-            ->get()
-            ->map(fn ($g) => $this->formatGame($g, $user));
+            ->orderBy('starts_at');
+
+        // Диапазон рейтинга — фильтр «самотёка»: по умолчанию прячем игры вне уровня.
+        if (!$request->boolean('show_out_of_level')) {
+            $level = (float) $user->level;
+            $query->where(function ($q) use ($level) {
+                $q->whereNull('rating_min')->orWhere('rating_min', '<=', $level);
+            })->where(function ($q) use ($level) {
+                $q->whereNull('rating_max')->orWhere('rating_max', '>=', $level);
+            });
+        }
+
+        $games = $query->get()->map(fn ($g) => $this->formatGame($g, $user));
 
         return response()->json(['success' => true, 'data' => $games]);
+    }
+
+    /** Уровень пользователя в диапазоне игры (null-границы = без ограничения). */
+    private function userInRange(Game $game, User $user): bool
+    {
+        $level = (float) $user->level;
+        if ($game->rating_min !== null && $level < (float) $game->rating_min) {
+            return false;
+        }
+        if ($game->rating_max !== null && $level > (float) $game->rating_max) {
+            return false;
+        }
+        return true;
     }
 
     /** Редактировать игру. Только организатор, пока счёт не залочен. */
