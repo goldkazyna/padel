@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\MobileAdminTournamentController;
 use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 use App\Http\Controllers\Api\MobileAdminUserController;
 use App\Http\Controllers\Api\MobileAdminModeratorController;
+use App\Http\Controllers\Api\MobileGameController;
 
 /*
 |--------------------------------------------------------------------------
@@ -302,6 +303,9 @@ Route::prefix('mobile')->group(function () {
         Route::post('/challenges/{challenge}/confirm-score', [MobileChallengeController::class, 'confirmScore']);
         Route::post('/challenges/{challenge}/cancel', [MobileChallengeController::class, 'cancel']);
         Route::post('/challenges/{challenge}/leave', [MobileChallengeController::class, 'leave']);
+
+        // Игры (games) — новый домен, рядом с поединками (challenges)
+        Route::get('/games/clubs', [MobileGameController::class, 'clubs']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
