@@ -347,6 +347,9 @@ class MobileCourtController extends Controller
             $courtPrice = $hourPrice * $need;
         }
 
+        // Оплата клубной картой — предоплата: бронь сразу помечаем оплаченной.
+        $paidNow = $clubCardId !== null;
+
         $booking = CourtBooking::create([
             'court_id' => $court->id,
             'date' => $validated['date'],
@@ -357,7 +360,9 @@ class MobileCourtController extends Controller
             'status' => 'confirmed',
             'booked_by' => $user->id,
             'price' => $courtPrice + $coachPrice,
-            'is_paid' => false,
+            'is_paid' => $paidNow,
+            'payment_status' => $paidNow ? 'paid' : 'not_required',
+            'paid_at' => $paidNow ? now() : null,
             'is_processed' => false,
             'source' => 'app',
             'comment' => $validated['comment'] ?? null,
