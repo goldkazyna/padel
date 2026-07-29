@@ -173,6 +173,47 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Перевыпустить ссылку-приглашение (старая перестаёт работать). */
+    public function shareRotate(Request $request, Game $game)
+    {
+        if (!$game->isOrganizer($request->user()->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        $game->update([
+            'share_token' => $this->uniqueShareToken(),
+            'share_revoked_at' => null,
+            'share_uses' => 0,
+        ]);
+        return response()->json([
+            'success' => true,
+            'data' => ['share_token' => $game->share_token, 'share_active' => $game->shareLinkActive()],
+        ]);
+    }
+
+    /** Отозвать ссылку-приглашение. */
+    public function shareRevoke(Request $request, Game $game)
+    {
+        if (!$game->isOrganizer($request->user()->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        $game->update(['share_revoked_at' => now()]);
+        return response()->json(['success' => true]);
+    }
+
+    /** Публичный переход по ссылке-приглашению → карточка игры. */
+    public function resolveByShare(string $token)
+    {
+        $game = Game::where('share_token', $token)->first();
+        if (!$game) {
+            return response()->json(['success' => false, 'message' => 'Ссылка не найдена'], 404);
+        }
+        if (!$game->shareLinkActive()) {
+            return response()->json(['success' => false, 'message' => 'Ссылка недействительна'], 410);
+        }
+        $game->load(['creator', 'club', 'court', 'players.user']);
+        return response()->json(['success' => true, 'data' => $this->formatGame($game, null)]);
+    }
+
     /** Форматтер игры для API. $user может быть null (публичный переход по ссылке). */
     public function formatGame(Game $game, ?User $user): array
     {

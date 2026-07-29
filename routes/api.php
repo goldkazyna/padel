@@ -86,6 +86,9 @@ Route::prefix('mobile')->group(function () {
     // Apple Sign-In (без токена)
     Route::post('/auth/apple', [MobileAuthController::class, 'appleSignIn'])->middleware('throttle:10,1');
 
+    // Публичный переход по ссылке-приглашению игры (без токена)
+    Route::get('/games/by-share/{token}', [MobileGameController::class, 'resolveByShare']);
+
     // Защищённые роуты (требуют токен)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
@@ -310,6 +313,8 @@ Route::prefix('mobile')->group(function () {
         Route::get('/games', [MobileGameController::class, 'index']);
         Route::get('/games/{game}', [MobileGameController::class, 'show']);
         Route::put('/games/{game}', [\App\Http\Controllers\Api\MobileGameController::class, 'update']);
+        Route::post('/games/{game}/share/rotate', [MobileGameController::class, 'shareRotate']);
+        Route::post('/games/{game}/share/revoke', [MobileGameController::class, 'shareRevoke']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
