@@ -713,6 +713,7 @@ class MobileGameController extends Controller
         }
 
         $game->update(['status' => Game::STATUS_IN_PROGRESS]);
+        $this->generateAmericanoRounds($game);
 
         return response()->json([
             'success' => true,
@@ -740,6 +741,13 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Классическое расписание Американо 4/1: слоты 0..3, 3 раунда, каждый партнёрит каждого 1 раз. */
+    private const AMERICANO_4_SCHEDULE = [
+        [[0, 1], [2, 3]],
+        [[0, 2], [1, 3]],
+        [[0, 3], [1, 2]],
+    ];
+
     /** Проверка пар раунда. Возвращает текст ошибки или null. */
     private function validateRoundPairs(Game $game, array $pairA, array $pairB): ?string
     {
@@ -759,6 +767,41 @@ class MobileGameController extends Controller
             }
         }
         return null;
+    }
+
+    /** Генерирует раунды Американо при старте (4 игрока, если раундов ещё нет). No-op иначе. */
+    private function generateAmericanoRounds(Game $game): void
+    {
+        if ($game->format !== Game::FORMAT_AMERICANO) {
+            return;
+        }
+        if ($game->rounds()->exists()) {
+            return; // расписание уже есть — не дублируем при повторном старте
+        }
+
+        $userIds = $game->players()
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->orderBy('position')
+            ->pluck('user_id')
+            ->all();
+
+        if (count($userIds) !== 4) {
+            return; // расписание определено только для 4 игроков
+        }
+
+        shuffle($userIds); // слот→игрок случайно: варьирует партнёрства
+
+        $roundNo = 1;
+        foreach (self::AMERICANO_4_SCHEDULE as $slots) {
+            [$a, $b] = $slots;
+            GameRound::create([
+                'game_id' => $game->id,
+                'round_no' => $roundNo++,
+                'pair_a' => [$userIds[$a[0]], $userIds[$a[1]]],
+                'pair_b' => [$userIds[$b[0]], $userIds[$b[1]]],
+                'is_played' => false,
+            ]);
+        }
     }
 
     /** Добавить раунд (сет/партию) с парами и опциональным счётом. */
