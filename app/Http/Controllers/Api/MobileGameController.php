@@ -263,6 +263,11 @@ class MobileGameController extends Controller
 
         $validated = $this->validateGame($request);
 
+        $metaErr = $this->validateFormatMeta($validated['format'], $validated['format_meta'] ?? null);
+        if ($metaErr !== null) {
+            return response()->json(['success' => false, 'message' => $metaErr], 422);
+        }
+
         $mins = Carbon::parse($validated['starts_at'])->diffInMinutes(Carbon::parse($validated['ends_at']));
         if ($mins < 30 || $mins > 360) {
             return response()->json(['success' => false, 'message' => 'Длительность игры должна быть от 30 минут до 6 часов'], 422);
