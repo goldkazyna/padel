@@ -306,6 +306,7 @@ Route::prefix('mobile')->group(function () {
 
         // Игры (games) — новый домен, рядом с поединками (challenges)
         Route::get('/games/clubs', [MobileGameController::class, 'clubs']);
+        Route::post('/games', [\App\Http\Controllers\Api\MobileGameController::class, 'store']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
