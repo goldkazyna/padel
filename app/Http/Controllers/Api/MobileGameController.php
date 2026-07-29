@@ -358,6 +358,79 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Подать заявку на игру (кандидат). */
+    public function apply(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $data = $request->validate(['source' => 'nullable|in:app_feed,app_link']);
+
+        if ($game->players()->where('user_id', $user->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Вы уже в этой игре'], 422);
+        }
+        if (!in_array($game->status, [Game::STATUS_OPEN, Game::STATUS_FULL], true)) {
+            return response()->json(['success' => false, 'message' => 'Игра недоступна для заявок'], 422);
+        }
+
+        GamePlayer::create([
+            'game_id' => $game->id,
+            'user_id' => $user->id,
+            'position' => null,
+            'status' => GamePlayer::STATUS_CANDIDATE,
+            'source' => ($data['source'] ?? 'app_feed') === 'app_link' ? GamePlayer::SOURCE_APP_LINK : GamePlayer::SOURCE_APP_FEED,
+        ]);
+
+        $this->notifyGame($game->creator, 'Новая заявка', "{$user->name} хочет присоединиться к игре", 'game_application', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
+    /** Одобрить заявку кандидата (организатор). */
+    public function approveApplication(Request $request, Game $game, GamePlayer $player)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($player->game_id !== $game->id || $player->status !== GamePlayer::STATUS_CANDIDATE) {
+            return response()->json(['success' => false, 'message' => 'Заявка не найдена'], 422);
+        }
+        $position = $this->nextFreePosition($game);
+        if ($position === null) {
+            return response()->json(['success' => false, 'message' => 'Мест больше нет'], 422);
+        }
+
+        $player->update(['status' => GamePlayer::STATUS_ACCEPTED, 'position' => $position, 'responded_at' => now()]);
+        $this->syncFullness($game);
+        $this->notifyGame($player->user, 'Заявка одобрена', 'Вас приняли в игру', 'game_application_approved', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
+    /** Отклонить заявку кандидата (организатор). */
+    public function rejectApplication(Request $request, Game $game, GamePlayer $player)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($player->game_id !== $game->id || $player->status !== GamePlayer::STATUS_CANDIDATE) {
+            return response()->json(['success' => false, 'message' => 'Заявка не найдена'], 422);
+        }
+        $player->update(['status' => GamePlayer::STATUS_DECLINED, 'responded_at' => now()]);
+        $this->notifyGame($player->user, 'Заявка отклонена', 'Организатор отклонил вашу заявку', 'game_application_rejected', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
     /** Поиск игрока по телефону (для приглашений). */
     public function searchPlayer(Request $request)
     {
