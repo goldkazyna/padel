@@ -320,6 +320,8 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/apply', [MobileGameController::class, 'apply']);
         Route::post('/games/{game}/applications/{player}/approve', [MobileGameController::class, 'approveApplication']);
         Route::post('/games/{game}/applications/{player}/reject', [MobileGameController::class, 'rejectApplication']);
+        Route::post('/games/{game}/accept', [MobileGameController::class, 'accept']);
+        Route::post('/games/{game}/decline', [MobileGameController::class, 'decline']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);

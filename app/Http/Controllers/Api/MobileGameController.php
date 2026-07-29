@@ -431,6 +431,57 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Принять приглашение в игру. */
+    public function accept(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $player = $game->players()->where('user_id', $user->id)->where('status', GamePlayer::STATUS_INVITED)->first();
+        if (!$player) {
+            return response()->json(['success' => false, 'message' => 'Приглашение не найдено'], 404);
+        }
+
+        $player->update(['status' => GamePlayer::STATUS_ACCEPTED, 'responded_at' => now()]);
+
+        Invitation::where('invitable_type', Game::class)
+            ->where('invitable_id', $game->id)
+            ->where('user_id', $user->id)
+            ->where('status', Invitation::STATUS_PENDING)
+            ->update(['status' => Invitation::STATUS_ACCEPTED]);
+
+        $this->syncFullness($game);
+        $this->notifyGame($game->creator, 'Приглашение принято', "{$user->name} принял приглашение", 'game_invite_accepted', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
+    /** Отклонить приглашение в игру. */
+    public function decline(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $player = $game->players()->where('user_id', $user->id)->where('status', GamePlayer::STATUS_INVITED)->first();
+        if (!$player) {
+            return response()->json(['success' => false, 'message' => 'Приглашение не найдено'], 404);
+        }
+
+        $player->update(['status' => GamePlayer::STATUS_DECLINED, 'position' => null, 'responded_at' => now()]);
+
+        Invitation::where('invitable_type', Game::class)
+            ->where('invitable_id', $game->id)
+            ->where('user_id', $user->id)
+            ->where('status', Invitation::STATUS_PENDING)
+            ->update(['status' => Invitation::STATUS_DECLINED]);
+
+        $this->notifyGame($game->creator, 'Приглашение отклонено', "{$user->name} отклонил приглашение", 'game_invite_declined', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
     /** Поиск игрока по телефону (для приглашений). */
     public function searchPlayer(Request $request)
     {
