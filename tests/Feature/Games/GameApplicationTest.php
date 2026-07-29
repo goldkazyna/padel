@@ -79,4 +79,20 @@ class GameApplicationTest extends TestCase
         $this->postJson("/api/mobile/games/{$game->id}/applications/{$player->id}/reject")->assertOk();
         $this->assertSame(GamePlayer::STATUS_DECLINED, $player->fresh()->status);
     }
+
+    public function test_can_reapply_after_leave(): void
+    {
+        $this->fakePush();
+        $organizer = User::factory()->create();
+        $game = $this->openGame($organizer);
+        $applicant = User::factory()->create();
+        GamePlayer::factory()->create(['game_id' => $game->id, 'user_id' => $applicant->id, 'position' => null, 'status' => GamePlayer::STATUS_LEFT]);
+        Sanctum::actingAs($applicant);
+
+        $this->postJson("/api/mobile/games/{$game->id}/apply")->assertOk();
+
+        $this->assertSame(1, GamePlayer::where('game_id', $game->id)->where('user_id', $applicant->id)->count());
+        $player = GamePlayer::where('game_id', $game->id)->where('user_id', $applicant->id)->first();
+        $this->assertSame(GamePlayer::STATUS_CANDIDATE, $player->status);
+    }
 }

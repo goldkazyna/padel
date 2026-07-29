@@ -322,7 +322,9 @@ class MobileGameController extends Controller
             'position' => 'nullable|integer|min:1',
         ]);
 
-        if ($game->players()->where('user_id', $data['user_id'])->exists()) {
+        $existing = $game->players()->where('user_id', $data['user_id'])->first();
+        $activeStatuses = [GamePlayer::STATUS_INVITED, GamePlayer::STATUS_CANDIDATE, GamePlayer::STATUS_ACCEPTED];
+        if ($existing && in_array($existing->status, $activeStatuses, true)) {
             return response()->json(['success' => false, 'message' => 'Игрок уже в игре'], 422);
         }
 
@@ -331,23 +333,44 @@ class MobileGameController extends Controller
             ? $data['position']
             : ($free[0] ?? null);
 
-        GamePlayer::create([
-            'game_id' => $game->id,
-            'user_id' => $data['user_id'],
-            'position' => $position,
-            'status' => GamePlayer::STATUS_INVITED,
-            'source' => GamePlayer::SOURCE_INVITE,
-        ]);
+        if ($existing) {
+            $existing->update([
+                'status' => GamePlayer::STATUS_INVITED,
+                'source' => GamePlayer::SOURCE_INVITE,
+                'position' => $position,
+                'responded_at' => null,
+            ]);
+        } else {
+            GamePlayer::create([
+                'game_id' => $game->id,
+                'user_id' => $data['user_id'],
+                'position' => $position,
+                'status' => GamePlayer::STATUS_INVITED,
+                'source' => GamePlayer::SOURCE_INVITE,
+            ]);
+        }
 
-        Invitation::create([
-            'user_id' => $data['user_id'],
-            'inviter_id' => $user->id,
-            'invitable_type' => Game::class,
-            'invitable_id' => $game->id,
-            'kind' => Invitation::KIND_GAME,
-            'status' => Invitation::STATUS_PENDING,
-            'expires_at' => $game->starts_at,
-        ]);
+        $invitation = Invitation::where('invitable_type', Game::class)
+            ->where('invitable_id', $game->id)
+            ->where('user_id', $data['user_id'])
+            ->first();
+        if ($invitation) {
+            $invitation->update([
+                'inviter_id' => $user->id,
+                'status' => Invitation::STATUS_PENDING,
+                'expires_at' => $game->starts_at,
+            ]);
+        } else {
+            Invitation::create([
+                'user_id' => $data['user_id'],
+                'inviter_id' => $user->id,
+                'invitable_type' => Game::class,
+                'invitable_id' => $game->id,
+                'kind' => Invitation::KIND_GAME,
+                'status' => Invitation::STATUS_PENDING,
+                'expires_at' => $game->starts_at,
+            ]);
+        }
 
         $invitee = User::find($data['user_id']);
         $this->notifyGame($invitee, 'Приглашение в игру', "{$user->name} приглашает вас в игру", 'game_invite', $game->id);
@@ -364,20 +387,33 @@ class MobileGameController extends Controller
         $user = $request->user();
         $data = $request->validate(['source' => 'nullable|in:app_feed,app_link']);
 
-        if ($game->players()->where('user_id', $user->id)->exists()) {
+        $existing = $game->players()->where('user_id', $user->id)->first();
+        $activeStatuses = [GamePlayer::STATUS_INVITED, GamePlayer::STATUS_CANDIDATE, GamePlayer::STATUS_ACCEPTED];
+        if ($existing && in_array($existing->status, $activeStatuses, true)) {
             return response()->json(['success' => false, 'message' => 'Вы уже в этой игре'], 422);
         }
         if (!in_array($game->status, [Game::STATUS_OPEN, Game::STATUS_FULL], true)) {
             return response()->json(['success' => false, 'message' => 'Игра недоступна для заявок'], 422);
         }
 
-        GamePlayer::create([
-            'game_id' => $game->id,
-            'user_id' => $user->id,
-            'position' => null,
-            'status' => GamePlayer::STATUS_CANDIDATE,
-            'source' => ($data['source'] ?? 'app_feed') === 'app_link' ? GamePlayer::SOURCE_APP_LINK : GamePlayer::SOURCE_APP_FEED,
-        ]);
+        $source = ($data['source'] ?? 'app_feed') === 'app_link' ? GamePlayer::SOURCE_APP_LINK : GamePlayer::SOURCE_APP_FEED;
+
+        if ($existing) {
+            $existing->update([
+                'status' => GamePlayer::STATUS_CANDIDATE,
+                'position' => null,
+                'source' => $source,
+                'responded_at' => null,
+            ]);
+        } else {
+            GamePlayer::create([
+                'game_id' => $game->id,
+                'user_id' => $user->id,
+                'position' => null,
+                'status' => GamePlayer::STATUS_CANDIDATE,
+                'source' => $source,
+            ]);
+        }
 
         $this->notifyGame($game->creator, 'Новая заявка', "{$user->name} хочет присоединиться к игре", 'game_application', $game->id);
 
