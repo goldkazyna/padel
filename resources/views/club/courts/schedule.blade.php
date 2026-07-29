@@ -648,7 +648,7 @@
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
                         <div id="bookSelectedCoaches" class="sel-coaches js-hide-for-group"></div>
 
-                        <div class="form-group js-hide-for-group" id="bookCoachPriceGroup" style="display:none; margin-top:14px;">
+                        <div class="form-group" id="bookCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
                             <input type="number" name="coach_price" id="bookCoachPrice" class="form-input" min="0" step="100" placeholder="0">
                             <small class="form-hint" style="color:#71717a;">По умолчанию — ставка тренера, можно изменить</small>
@@ -895,7 +895,7 @@
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
                         <div id="editSelectedCoaches" class="sel-coaches js-edit-hide-for-group"></div>
 
-                        <div class="form-group js-edit-hide-for-group" id="editCoachPriceGroup" style="display:none; margin-top:14px;">
+                        <div class="form-group" id="editCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
                             <input type="number" name="coach_price" id="editCoachPrice" class="form-input" min="0" step="100" placeholder="0">
                             <small class="form-hint" style="color:#71717a;">По умолчанию — ставка тренера, можно изменить</small>
