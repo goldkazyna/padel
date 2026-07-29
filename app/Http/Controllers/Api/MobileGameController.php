@@ -13,7 +13,7 @@ class MobileGameController extends Controller
     {
         $user = $request->user();
 
-        $query = Club::where('is_active', true);
+        $query = Club::active()->notTest();
         if (!empty($user->city)) {
             $query->where('city', $user->city);
         }

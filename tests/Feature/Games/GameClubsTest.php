@@ -26,6 +26,14 @@ class GameClubsTest extends TestCase
         $this->assertCount(1, $ids);
     }
 
+    public function test_clubs_excludes_test_clubs(): void
+    {
+        Club::factory()->create(['is_active' => true, 'is_test' => true]);
+        Sanctum::actingAs(User::factory()->create());
+        $res = $this->getJson('/api/mobile/games/clubs')->assertOk();
+        $this->assertCount(0, $res->json('data'));
+    }
+
     public function test_clubs_requires_auth(): void
     {
         $this->getJson('/api/mobile/games/clubs')->assertUnauthorized();
