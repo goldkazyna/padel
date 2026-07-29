@@ -145,7 +145,9 @@ function openCardTypeModal(t, readOnly) {
     const validityIds = ['ctValidityMode', 'ctDate', 'ctValidity'];
 
     modal.querySelectorAll('input, select').forEach(function (el) {
-        if (el.id === 'ctMethod') return;
+        // Скрытые поля (_token CSRF, _method) не трогаем: disabled-инпут не
+        // отправляется с формой — без _token сервер вернёт 419 Page Expired.
+        if (el.type === 'hidden') return;
         if (readOnly) { el.disabled = true; return; }
         el.disabled = validityOnly ? !validityIds.includes(el.id) : false;
     });
