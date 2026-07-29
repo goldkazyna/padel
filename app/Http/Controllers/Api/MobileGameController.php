@@ -755,4 +755,52 @@ class MobileGameController extends Controller
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
         ]);
     }
+
+    /** Изменить раунд (счёт/пары). */
+    public function updateRound(Request $request, Game $game, GameRound $round)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($round->game_id !== $game->id) {
+            return response()->json(['success' => false, 'message' => 'Раунд не найден'], 422);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Счёт можно менять только у идущей игры'], 422);
+        }
+
+        $data = $request->validate([
+            'pair_a' => 'nullable|array',
+            'pair_b' => 'nullable|array',
+            'pair_a.*' => 'integer',
+            'pair_b.*' => 'integer',
+            'score_a' => 'nullable|integer|min:0',
+            'score_b' => 'nullable|integer|min:0',
+            'tiebreak_a' => 'nullable|integer|min:0',
+            'tiebreak_b' => 'nullable|integer|min:0',
+        ]);
+
+        if (isset($data['pair_a'], $data['pair_b'])) {
+            $err = $this->validateRoundPairs($game, $data['pair_a'], $data['pair_b']);
+            if ($err !== null) {
+                return response()->json(['success' => false, 'message' => $err], 422);
+            }
+            $round->pair_a = array_values($data['pair_a']);
+            $round->pair_b = array_values($data['pair_b']);
+        }
+
+        foreach (['score_a', 'score_b', 'tiebreak_a', 'tiebreak_b'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $round->{$field} = $data[$field];
+            }
+        }
+        $round->is_played = $round->score_a !== null && $round->score_b !== null;
+        $round->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
 }
