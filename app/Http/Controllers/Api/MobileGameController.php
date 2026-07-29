@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Game;
 use App\Models\GamePlayer;
+use App\Models\Invitation;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\FCMNotificationService;
@@ -307,6 +308,54 @@ class MobileGameController extends Controller
             'my_status' => $mine?->status,
             'my_position' => $mine?->position,
         ];
+    }
+
+    /** Персональное приглашение игрока (только организатор). */
+    public function invite(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор может приглашать'], 403);
+        }
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'position' => 'nullable|integer|min:1',
+        ]);
+
+        if ($game->players()->where('user_id', $data['user_id'])->exists()) {
+            return response()->json(['success' => false, 'message' => 'Игрок уже в игре'], 422);
+        }
+
+        $free = $game->getAvailablePositions();
+        $position = (!empty($data['position']) && in_array($data['position'], $free, true))
+            ? $data['position']
+            : ($free[0] ?? null);
+
+        GamePlayer::create([
+            'game_id' => $game->id,
+            'user_id' => $data['user_id'],
+            'position' => $position,
+            'status' => GamePlayer::STATUS_INVITED,
+            'source' => GamePlayer::SOURCE_INVITE,
+        ]);
+
+        Invitation::create([
+            'user_id' => $data['user_id'],
+            'inviter_id' => $user->id,
+            'invitable_type' => Game::class,
+            'invitable_id' => $game->id,
+            'kind' => Invitation::KIND_GAME,
+            'status' => Invitation::STATUS_PENDING,
+            'expires_at' => $game->starts_at,
+        ]);
+
+        $invitee = User::find($data['user_id']);
+        $this->notifyGame($invitee, 'Приглашение в игру', "{$user->name} приглашает вас в игру", 'game_invite', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
     }
 
     /** Поиск игрока по телефону (для приглашений). */

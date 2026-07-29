@@ -316,6 +316,7 @@ Route::prefix('mobile')->group(function () {
         Route::put('/games/{game}', [\App\Http\Controllers\Api\MobileGameController::class, 'update']);
         Route::post('/games/{game}/share/rotate', [MobileGameController::class, 'shareRotate']);
         Route::post('/games/{game}/share/revoke', [MobileGameController::class, 'shareRevoke']);
+        Route::post('/games/{game}/invite', [MobileGameController::class, 'invite']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
