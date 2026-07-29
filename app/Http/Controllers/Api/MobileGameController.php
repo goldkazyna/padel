@@ -346,6 +346,9 @@ class MobileGameController extends Controller
             'position' => 'nullable|integer|min:1',
         ]);
 
+        $invitee = User::find($data['user_id']);
+        $outOfRange = !$this->userInRange($game, $invitee);
+
         $existing = $game->players()->where('user_id', $data['user_id'])->first();
         $activeStatuses = [GamePlayer::STATUS_INVITED, GamePlayer::STATUS_CANDIDATE, GamePlayer::STATUS_ACCEPTED];
         if ($existing && in_array($existing->status, $activeStatuses, true)) {
@@ -363,6 +366,7 @@ class MobileGameController extends Controller
                 'source' => GamePlayer::SOURCE_INVITE,
                 'position' => $position,
                 'responded_at' => null,
+                'out_of_range' => $outOfRange,
             ]);
         } else {
             GamePlayer::create([
@@ -371,6 +375,7 @@ class MobileGameController extends Controller
                 'position' => $position,
                 'status' => GamePlayer::STATUS_INVITED,
                 'source' => GamePlayer::SOURCE_INVITE,
+                'out_of_range' => $outOfRange,
             ]);
         }
 
@@ -411,6 +416,8 @@ class MobileGameController extends Controller
         $user = $request->user();
         $data = $request->validate(['source' => 'nullable|in:app_feed,app_link']);
 
+        $outOfRange = !$this->userInRange($game, $user);
+
         $existing = $game->players()->where('user_id', $user->id)->first();
         $activeStatuses = [GamePlayer::STATUS_INVITED, GamePlayer::STATUS_CANDIDATE, GamePlayer::STATUS_ACCEPTED];
         if ($existing && in_array($existing->status, $activeStatuses, true)) {
@@ -428,6 +435,7 @@ class MobileGameController extends Controller
                 'position' => null,
                 'source' => $source,
                 'responded_at' => null,
+                'out_of_range' => $outOfRange,
             ]);
         } else {
             GamePlayer::create([
@@ -436,6 +444,7 @@ class MobileGameController extends Controller
                 'position' => null,
                 'status' => GamePlayer::STATUS_CANDIDATE,
                 'source' => $source,
+                'out_of_range' => $outOfRange,
             ]);
         }
 
