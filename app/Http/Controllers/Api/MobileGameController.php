@@ -803,4 +803,26 @@ class MobileGameController extends Controller
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
         ]);
     }
+
+    /** Удалить раунд. */
+    public function deleteRound(Request $request, Game $game, GameRound $round)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($round->game_id !== $game->id) {
+            return response()->json(['success' => false, 'message' => 'Раунд не найден'], 422);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Раунд можно удалить только у идущей игры'], 422);
+        }
+
+        $round->delete();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
 }

@@ -328,6 +328,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/start/cancel', [MobileGameController::class, 'startCancel']);
         Route::post('/games/{game}/rounds', [MobileGameController::class, 'addRound']);
         Route::put('/games/{game}/rounds/{round}', [MobileGameController::class, 'updateRound']);
+        Route::delete('/games/{game}/rounds/{round}', [MobileGameController::class, 'deleteRound']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);
