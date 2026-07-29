@@ -741,6 +741,32 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Перегенерировать расписание Американо (пока счёт не введён; только организатор). */
+    public function regenerateSchedule(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($game->format !== Game::FORMAT_AMERICANO) {
+            return response()->json(['success' => false, 'message' => 'Расписание есть только у Американо'], 422);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Перегенерация недоступна'], 422);
+        }
+        if ($game->rounds()->where('is_played', true)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Нельзя перегенерировать: уже введён счёт'], 422);
+        }
+
+        $game->rounds()->delete();
+        $this->generateAmericanoRounds($game);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
     /** Классическое расписание Американо 4/1: слоты 0..3, 3 раунда, каждый партнёрит каждого 1 раз. */
     private const AMERICANO_4_SCHEDULE = [
         [[0, 1], [2, 3]],
