@@ -309,6 +309,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games', [\App\Http\Controllers\Api\MobileGameController::class, 'store']);
         Route::get('/games', [MobileGameController::class, 'index']);
         Route::get('/games/{game}', [MobileGameController::class, 'show']);
+        Route::put('/games/{game}', [\App\Http\Controllers\Api\MobileGameController::class, 'update']);
 
         // Клубы
         Route::get('/clubs', [MobileClubController::class, 'index']);

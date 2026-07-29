@@ -134,6 +134,45 @@ class MobileGameController extends Controller
         return response()->json(['success' => true, 'data' => $games]);
     }
 
+    /** Редактировать игру. Только организатор, пока счёт не залочен. */
+    public function update(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор может редактировать игру'], 403);
+        }
+        if ($game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Счёт утверждён, редактирование недоступно'], 403);
+        }
+
+        $validated = $this->validateGame($request);
+
+        $mins = Carbon::parse($validated['starts_at'])->diffInMinutes(Carbon::parse($validated['ends_at']));
+        if ($mins < 30 || $mins > 360) {
+            return response()->json(['success' => false, 'message' => 'Длительность игры должна быть от 30 минут до 6 часов'], 422);
+        }
+
+        $game->update([
+            'club_id' => $validated['club_id'],
+            'court_id' => $validated['court_id'] ?? null,
+            'starts_at' => $validated['starts_at'],
+            'ends_at' => $validated['ends_at'],
+            'type' => $validated['type'],
+            'visibility' => $validated['visibility'],
+            'format' => $validated['format'],
+            'format_meta' => $validated['format_meta'] ?? null,
+            'rating_min' => $validated['rating_min'] ?? null,
+            'rating_max' => $validated['rating_max'] ?? null,
+            'price' => $validated['price'] ?? null,
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
     /** Форматтер игры для API. $user может быть null (публичный переход по ссылке). */
     public function formatGame(Game $game, ?User $user): array
     {
