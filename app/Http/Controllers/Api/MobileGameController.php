@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Game;
 use App\Models\GamePlayer;
+use App\Models\GameRound;
 use App\Models\Invitation;
 use App\Models\Notification;
 use App\Models\User;
@@ -301,6 +302,10 @@ class MobileGameController extends Controller
 
         $mine = $user ? $game->players->firstWhere('user_id', $user->id) : null;
 
+        $rounds = $game->relationLoaded('rounds')
+            ? $game->rounds
+            : $game->rounds()->orderBy('round_no')->get();
+
         return [
             'id' => $game->id,
             'creator_id' => $game->creator_id,
@@ -331,6 +336,17 @@ class MobileGameController extends Controller
             'is_participant' => $mine !== null,
             'my_status' => $mine?->status,
             'my_position' => $mine?->position,
+            'rounds' => $rounds->map(fn ($r) => [
+                'id' => $r->id,
+                'round_no' => $r->round_no,
+                'pair_a' => $r->pair_a,
+                'pair_b' => $r->pair_b,
+                'score_a' => $r->score_a,
+                'score_b' => $r->score_b,
+                'tiebreak_a' => $r->tiebreak_a,
+                'tiebreak_b' => $r->tiebreak_b,
+                'is_played' => (bool) $r->is_played,
+            ])->values(),
         ];
     }
 
@@ -663,6 +679,76 @@ class MobileGameController extends Controller
 
         $game->update(['status' => Game::STATUS_FULL]);
         $this->syncFullness($game);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /** Проверка пар раунда. Возвращает текст ошибки или null. */
+    private function validateRoundPairs(Game $game, array $pairA, array $pairB): ?string
+    {
+        if (count($pairA) !== 2 || count($pairB) !== 2) {
+            return 'В каждой паре должно быть по 2 игрока';
+        }
+        $all = array_merge($pairA, $pairB);
+        if (count(array_unique($all)) !== 4) {
+            return 'Игроки в парах не должны повторяться';
+        }
+        $acceptedIds = $game->players()
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->pluck('user_id')->all();
+        foreach ($all as $uid) {
+            if (!in_array($uid, $acceptedIds)) {
+                return 'Все игроки раунда должны быть участниками игры';
+            }
+        }
+        return null;
+    }
+
+    /** Добавить раунд (сет/партию) с парами и опциональным счётом. */
+    public function addRound(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Счёт можно вводить только у идущей игры'], 422);
+        }
+
+        $data = $request->validate([
+            'pair_a' => 'required|array',
+            'pair_b' => 'required|array',
+            'pair_a.*' => 'integer',
+            'pair_b.*' => 'integer',
+            'score_a' => 'nullable|integer|min:0',
+            'score_b' => 'nullable|integer|min:0',
+            'tiebreak_a' => 'nullable|integer|min:0',
+            'tiebreak_b' => 'nullable|integer|min:0',
+        ]);
+
+        $err = $this->validateRoundPairs($game, $data['pair_a'], $data['pair_b']);
+        if ($err !== null) {
+            return response()->json(['success' => false, 'message' => $err], 422);
+        }
+
+        $nextNo = (int) ($game->rounds()->max('round_no') ?? 0) + 1;
+        $played = array_key_exists('score_a', $data) && $data['score_a'] !== null
+            && array_key_exists('score_b', $data) && $data['score_b'] !== null;
+
+        GameRound::create([
+            'game_id' => $game->id,
+            'round_no' => $nextNo,
+            'pair_a' => array_values($data['pair_a']),
+            'pair_b' => array_values($data['pair_b']),
+            'score_a' => $data['score_a'] ?? null,
+            'score_b' => $data['score_b'] ?? null,
+            'tiebreak_a' => $data['tiebreak_a'] ?? null,
+            'tiebreak_b' => $data['tiebreak_b'] ?? null,
+            'is_played' => $played,
+        ]);
 
         return response()->json([
             'success' => true,
