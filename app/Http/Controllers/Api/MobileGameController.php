@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Game;
 use App\Models\GamePlayer;
+use App\Models\Notification;
 use App\Models\User;
+use App\Services\FCMNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -107,6 +109,45 @@ class MobileGameController extends Controller
             $token = Str::random(32);
         } while (Game::where('share_token', $token)->exists());
         return $token;
+    }
+
+    /** Уведомление участнику игры: запись в notifications + FCM. */
+    private function notifyGame(User $user, string $title, string $body, string $type, int $gameId): void
+    {
+        Notification::create([
+            'user_id' => $user->id,
+            'title' => $title,
+            'body' => $body,
+            'type' => $type,
+            'category' => 'game',
+            'data' => ['game_id' => $gameId],
+        ]);
+
+        app(FCMNotificationService::class)->sendToUser($user, $title, $body, [
+            'type' => $type,
+            'game_id' => (string) $gameId,
+        ]);
+    }
+
+    /** Синхронизировать статус open/full по числу accepted (пока игра не начата). */
+    private function syncFullness(Game $game): void
+    {
+        $game->refresh();
+        if (!in_array($game->status, [Game::STATUS_OPEN, Game::STATUS_FULL], true)) {
+            return;
+        }
+        $accepted = $game->acceptedCount();
+        $target = $accepted >= (int) $game->capacity ? Game::STATUS_FULL : Game::STATUS_OPEN;
+        if ($game->status !== $target) {
+            $game->update(['status' => $target]);
+        }
+    }
+
+    /** Первая свободная позиция (1..capacity), либо null. */
+    private function nextFreePosition(Game $game): ?int
+    {
+        $free = $game->getAvailablePositions();
+        return $free[0] ?? null;
     }
 
     /** Детали игры. */
@@ -233,6 +274,8 @@ class MobileGameController extends Controller
             ];
         })->values();
 
+        $mine = $user ? $game->players->firstWhere('user_id', $user->id) : null;
+
         return [
             'id' => $game->id,
             'creator_id' => $game->creator_id,
@@ -260,6 +303,36 @@ class MobileGameController extends Controller
             'available_positions' => $game->getAvailablePositions(),
             'accepted_count' => $game->acceptedCount(),
             'players' => $players,
+            'is_participant' => $mine !== null,
+            'my_status' => $mine?->status,
+            'my_position' => $mine?->position,
         ];
+    }
+
+    /** Поиск игрока по телефону (для приглашений). */
+    public function searchPlayer(Request $request)
+    {
+        $request->validate(['phone' => 'required|string|min:3']);
+
+        $users = User::where('phone', 'like', '%' . $request->phone . '%')->limit(10)->get();
+        if ($users->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Пользователь не найден'], 404);
+        }
+
+        $data = $users->map(function ($u) {
+            $name = $u->name ?? 'Без имени';
+            $parts = explode(' ', $name, 2);
+            return [
+                'id' => $u->id,
+                'first_name' => $parts[0] ?? '',
+                'last_name' => $parts[1] ?? '',
+                'full_name' => $name,
+                'phone' => $u->phone,
+                'rating' => $u->rating,
+                'level' => (float) $u->level,
+            ];
+        });
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 }
