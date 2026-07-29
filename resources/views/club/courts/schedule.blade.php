@@ -2308,14 +2308,34 @@
         if (sc) sc.innerHTML = '';
     }
 
-    // Мультивыбор тренеров (спарринг): у каждого своя цена и статус оплаты.
-    function bookCoachRowHtml(coachId, name, price) {
+    // Мультивыбор тренеров (спарринг): одна карточка-рамка на тренера —
+    // имя + цена + переключатель «Не оплачен / Оплачен» под ним.
+    function coachRowHtml(coachId, name, price, paid) {
+        const priceVal = (price === '' || price === null || price === undefined) ? '' : price;
         return '<div class="sel-coach-row" data-cid="' + coachId + '">' +
-            '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
+            '<div class="sel-coach-head">' +
+                '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
+                '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + priceVal + '">' +
+            '</div>' +
             '<input type="hidden" name="coaches[' + coachId + '][coach_id]" value="' + coachId + '">' +
-            '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + (price || '') + '">' +
-            '<label class="sel-coach-paid"><input type="checkbox" name="coaches[' + coachId + '][paid]" value="1"> оплачен</label>' +
-            '</div>';
+            '<input type="checkbox" class="sel-coach-paid-cb" name="coaches[' + coachId + '][paid]" value="1"' + (paid ? ' checked' : '') + ' hidden>' +
+            '<div class="sel-coach-paidtoggle">' +
+                '<button type="button" class="scp-btn scp-unpaid' + (paid ? '' : ' active') + '" onclick="setCoachRowPaid(this,0)">Не оплачен</button>' +
+                '<button type="button" class="scp-btn scp-paid' + (paid ? ' active' : '') + '" onclick="setCoachRowPaid(this,1)">Оплачен</button>' +
+            '</div>' +
+        '</div>';
+    }
+    function bookCoachRowHtml(coachId, name, price) {
+        return coachRowHtml(coachId, name, price, false);
+    }
+    // Переключение статуса оплаты в строке тренера (двигает скрытый чекбокс).
+    function setCoachRowPaid(btn, val) {
+        const row = btn.closest('.sel-coach-row');
+        if (!row) return;
+        const cb = row.querySelector('.sel-coach-paid-cb');
+        if (cb) cb.checked = (val === 1);
+        row.querySelectorAll('.scp-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
     }
     function selectBookCoach(btn) {
         if (btn.classList.contains('unavailable')) return;
@@ -2352,13 +2372,7 @@
 
     // Мультивыбор тренеров в окне редактирования брони (спарринг).
     function editCoachRowHtml(coachId, name, price, paid) {
-        const checked = paid ? ' checked' : '';
-        return '<div class="sel-coach-row" data-cid="' + coachId + '">' +
-            '<span class="sel-coach-name">' + escapeHtml(name) + '</span>' +
-            '<input type="hidden" name="coaches[' + coachId + '][coach_id]" value="' + coachId + '">' +
-            '<input type="number" class="sel-coach-price" name="coaches[' + coachId + '][price]" min="0" step="100" placeholder="цена ₸" value="' + (price === '' || price === null || price === undefined ? '' : price) + '">' +
-            '<label class="sel-coach-paid"><input type="checkbox" name="coaches[' + coachId + '][paid]" value="1"' + checked + '> оплачен</label>' +
-            '</div>';
+        return coachRowHtml(coachId, name, price, !!paid);
     }
     function selectEditCoach(btn) {
         if (btn.classList.contains('unavailable')) return;
@@ -3876,23 +3890,27 @@
     .sel-coaches:empty { margin-top: 0; }
     .sel-coach-row {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        padding: 8px 10px;
+        flex-direction: column;
+        gap: 9px;
+        padding: 11px 12px;
         background: var(--sch-card-alt);
         border: 1px solid var(--sch-border);
-        border-radius: 8px;
+        border-radius: 10px;
+    }
+    .sel-coach-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     .sel-coach-name {
         flex: 1;
         min-width: 90px;
-        font-size: 13px;
-        font-weight: 600;
+        font-size: 13.5px;
+        font-weight: 700;
         color: var(--sch-text);
     }
     .sel-coach-price {
-        width: 110px;
+        width: 120px;
         padding: 7px 10px;
         background: var(--sch-card);
         border: 1px solid var(--sch-border);
@@ -3900,17 +3918,34 @@
         color: var(--sch-text);
         font-size: 13px;
     }
-    .sel-coach-paid {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--sch-text-dim);
-        cursor: pointer;
-        white-space: nowrap;
+    /* Построчный статус оплаты тренера — как основной переключатель оплаты */
+    .sel-coach-paidtoggle {
+        display: flex;
+        gap: 6px;
     }
-    .sel-coach-paid input { accent-color: var(--sch-accent); }
+    .scp-btn {
+        flex: 1;
+        padding: 8px 10px;
+        background: var(--sch-card);
+        border: 1px solid var(--sch-border);
+        border-radius: 8px;
+        color: var(--sch-text-dim);
+        font-size: 12.5px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    .scp-btn.scp-unpaid.active {
+        background: rgba(251, 146, 60, 0.2);
+        color: #fb923c;
+        border-color: #fb923c;
+    }
+    .scp-btn.scp-paid.active {
+        background: var(--sch-accent);
+        color: var(--sch-bg);
+        border-color: var(--sch-accent);
+    }
 
     .paid-toggle {
         display: flex;
