@@ -182,19 +182,75 @@ class ClubCardController extends Controller
         ]);
     }
 
-    /** Изменить дату окончания карты. Пусто = бессрочно. Любая дата (в т.ч. прошлая). */
+    /**
+     * Редактировать карту: остаток и всего часов + дата окончания.
+     * Изменение остатка пишется в историю карты (транзакцией), а сам факт
+     * правки — в журнал действий (кто/когда). Пусто у даты = бессрочно.
+     */
     public function updateExpiry(Request $request, ClubCard $card)
     {
         $club = $this->getClub();
         if (!$club || $card->club_id !== $club->id) abort(403);
 
+        $isCounter = $card->isCounter();
         $data = $request->validate([
-            'expires_at' => 'nullable|date',
+            'expires_at'      => 'nullable|date',
+            'balance'         => $isCounter ? 'required|integer|min:0|max:100000' : 'nullable',
+            'initial_balance' => $isCounter ? 'required|integer|min:1|max:100000' : 'nullable',
         ]);
 
-        $card->update(['expires_at' => $data['expires_at'] ?? null]);
+        $actor = auth()->user()?->full_name ?: (auth()->user()?->name ?? 'админ');
+        $changes = [];
 
-        return back()->with('success', 'Дата окончания обновлена');
+        if ($isCounter) {
+            $oldBalance = (int) $card->balance;
+            $oldInitial = (int) $card->initial_balance;
+            $newInitial = (int) $data['initial_balance'];
+            $newBalance = min((int) $data['balance'], $newInitial); // остаток не больше «всего»
+
+            if ($newBalance !== $oldBalance) $changes['balance'] = [$oldBalance, $newBalance];
+            if ($newInitial !== $oldInitial) $changes['initial_balance'] = [$oldInitial, $newInitial];
+
+            $card->balance = $newBalance;
+            $card->initial_balance = $newInitial;
+
+            // Разница остатка — запись в историю карты (видна в списке операций).
+            $delta = $newBalance - $oldBalance;
+            if ($delta !== 0) {
+                \App\Models\ClubCardTransaction::create([
+                    'club_id'          => $card->club_id,
+                    'club_card_id'     => $card->id,
+                    'court_booking_id' => null,
+                    'amount'           => $delta,
+                    'balance_after'    => $newBalance,
+                    'note'             => 'Ручная корректировка · ' . $actor,
+                ]);
+            }
+        }
+
+        $oldExpiry = $card->expires_at?->format('Y-m-d');
+        $newExpiry = $data['expires_at'] ?? null;
+        if ($oldExpiry !== $newExpiry) $changes['expires_at'] = [$oldExpiry, $newExpiry];
+        $card->expires_at = $newExpiry;
+        $card->save();
+
+        // Журнал действий: кто и что поменял на карте.
+        if (!empty($changes)) {
+            $parts = [];
+            if (isset($changes['balance'])) $parts[] = 'остаток ' . $changes['balance'][0] . '→' . $changes['balance'][1] . ' ч';
+            if (isset($changes['initial_balance'])) $parts[] = 'всего ' . $changes['initial_balance'][0] . '→' . $changes['initial_balance'][1] . ' ч';
+            if (isset($changes['expires_at'])) $parts[] = 'срок ' . ($changes['expires_at'][0] ?? 'бессрочно') . ' → ' . ($changes['expires_at'][1] ?? 'бессрочно');
+            \App\Models\ActivityLog::log(
+                'updated',
+                'ClubCard',
+                $card->id,
+                'Карта ' . $card->code . ': ' . implode(', ', $parts),
+                $changes,
+                $club->id,
+            );
+        }
+
+        return back()->with('success', 'Карта обновлена');
     }
 
     /** Очередь броней к ручному списанию с карты. */
