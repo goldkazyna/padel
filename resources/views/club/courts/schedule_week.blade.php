@@ -895,7 +895,9 @@
     .sel-coach-row { display: flex; flex-direction: column; gap: 9px; padding: 11px 12px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; }
     .sel-coach-head { display: flex; align-items: center; gap: 10px; }
     .sel-coach-name { flex: 1; min-width: 90px; font-size: 13.5px; font-weight: 700; color: #e4e4e7; }
-    .sel-coach-price { width: 120px; padding: 7px 10px; background: #111113; border: 1px solid #27272a; border-radius: 7px; color: #e4e4e7; font-size: 13px; }
+    .sel-coach-price { width: 120px; padding: 7px 10px; background: #111113; border: 1px solid #27272a; border-radius: 7px; color: #e4e4e7; text-align: right; font-weight: 700; font-size: 15px; }
+    .sel-coach-price::-webkit-outer-spin-button, .sel-coach-price::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .sel-coach-price { -moz-appearance: textfield; appearance: textfield; }
     .sel-coach-paidtoggle { display: flex; gap: 6px; }
     .scp-btn { flex: 1; padding: 8px 10px; background: #111113; border: 1px solid #27272a; border-radius: 8px; color: #a1a1aa; font-size: 12.5px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
     .scp-btn.scp-unpaid.active { background: rgba(251, 146, 60, 0.2); color: #fb923c; border-color: #fb923c; }
@@ -914,7 +916,11 @@
     .price-edit-group { flex: 1; }
     .price-input { text-align: right; font-weight: 700; font-size: 15px !important; }
 
-    .total-price { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.20); border-radius: 10px; margin-bottom: 20px; }
+    .total-price { display: flex; flex-direction: column; gap: 8px; padding: 14px 20px; background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.20); border-radius: 10px; margin-bottom: 20px; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; }
+    .total-sub-label { font-size: 13px; color: #a1a1aa; }
+    .total-sub-value { font-size: 14px; font-weight: 700; color: #e4e4e7; }
+    .total-row-final { padding-top: 8px; margin-top: 2px; border-top: 1px solid rgba(34, 197, 94, 0.25); }
     .total-price-label { font-size: 14px; font-weight: 600; color: #a1a1aa; }
     .total-price-value { font-size: 20px; font-weight: 800; color: #22c55e; }
 
@@ -1105,8 +1111,18 @@
                             </div>
                         </div>
                         <div class="total-price">
-                            <span class="total-price-label">Итого</span>
-                            <span class="total-price-value" id="bookTotalPrice"></span>
+                            <div class="total-row">
+                                <span class="total-sub-label">Цена за корт</span>
+                                <span class="total-sub-value" id="bookCourtPrice"></span>
+                            </div>
+                            <div class="total-row" id="bookCoachTotalRow" style="display:none;">
+                                <span class="total-sub-label">Цена за тренера</span>
+                                <span class="total-sub-value" id="bookCoachTotal"></span>
+                            </div>
+                            <div class="total-row total-row-final">
+                                <span class="total-price-label">Итого</span>
+                                <span class="total-price-value" id="bookTotalPrice"></span>
+                            </div>
                         </div>
 
                         <div class="modal-section-title">Тренер</div>
@@ -1604,11 +1620,31 @@
         if (rate > 0) priceInput.value = Math.round(rate * dur);
     }
 
+    // Сумма цен всех выбранных тренеров (мультитренер).
+    function sumBookCoachPrices() {
+        let sum = 0;
+        document.querySelectorAll('#bookSelectedCoaches .sel-coach-price').forEach(inp => {
+            sum += parseInt(inp.value) || 0;
+        });
+        return sum;
+    }
     function updateFinalPrice() {
         const price = parseInt(document.getElementById('bookCustomPrice').value) || 0;
         const discount = parseInt(document.getElementById('bookDiscount').value) || 0;
-        document.getElementById('bookTotalPrice').innerHTML = formatPrice(Math.max(0, price - discount)) + ' &#8376;';
+        const courtPrice = Math.max(0, price - discount);
+        const coachTotal = sumBookCoachPrices();
+        document.getElementById('bookCourtPrice').innerHTML = formatPrice(courtPrice) + ' &#8376;';
+        const coachRow = document.getElementById('bookCoachTotalRow');
+        if (coachTotal > 0) {
+            document.getElementById('bookCoachTotal').innerHTML = formatPrice(coachTotal) + ' &#8376;';
+            coachRow.style.display = '';
+        } else {
+            coachRow.style.display = 'none';
+        }
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal) + ' &#8376;';
     }
+    // Правка цены тренера в строке → пересчёт итога.
+    document.getElementById('bookSelectedCoaches')?.addEventListener('input', updateFinalPrice);
 
     function setDuration(n) {
         currentBook.duration = n;
@@ -2701,6 +2737,7 @@
         }
         const first = container.querySelector('.sel-coach-row');
         document.getElementById('bookCoachId').value = first ? first.getAttribute('data-cid') : '';
+        updateFinalPrice();
     }
     function setBookCoachPaid(btn) {
         document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));

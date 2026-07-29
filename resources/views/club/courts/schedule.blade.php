@@ -621,8 +621,18 @@
                             </div>
                         </div>
                         <div class="total-price js-hide-for-group">
-                            <span class="total-price-label">Итого</span>
-                            <span class="total-price-value" id="bookTotalPrice"></span>
+                            <div class="total-row">
+                                <span class="total-sub-label">Цена за корт</span>
+                                <span class="total-sub-value" id="bookCourtPrice"></span>
+                            </div>
+                            <div class="total-row" id="bookCoachTotalRow" style="display:none;">
+                                <span class="total-sub-label">Цена за тренера</span>
+                                <span class="total-sub-value" id="bookCoachTotal"></span>
+                            </div>
+                            <div class="total-row total-row-final">
+                                <span class="total-price-label">Итого</span>
+                                <span class="total-price-value" id="bookTotalPrice"></span>
+                            </div>
                         </div>
 
                         <div class="modal-section-title js-hide-for-group">Тренер</div>
@@ -1175,12 +1185,31 @@
         if (rate > 0) priceInput.value = Math.round(rate * dur);
     }
 
+    // Сумма цен всех выбранных тренеров (мультитренер).
+    function sumBookCoachPrices() {
+        let sum = 0;
+        document.querySelectorAll('#bookSelectedCoaches .sel-coach-price').forEach(inp => {
+            sum += parseInt(inp.value) || 0;
+        });
+        return sum;
+    }
     function updateFinalPrice() {
         const price = parseInt(document.getElementById('bookCustomPrice').value) || 0;
         const discount = parseInt(document.getElementById('bookDiscount').value) || 0;
-        const final_price = Math.max(0, price - discount);
-        document.getElementById('bookTotalPrice').innerHTML = formatPrice(final_price) + ' &#8376;';
+        const courtPrice = Math.max(0, price - discount);
+        const coachTotal = sumBookCoachPrices();
+        document.getElementById('bookCourtPrice').innerHTML = formatPrice(courtPrice) + ' &#8376;';
+        const coachRow = document.getElementById('bookCoachTotalRow');
+        if (coachTotal > 0) {
+            document.getElementById('bookCoachTotal').innerHTML = formatPrice(coachTotal) + ' &#8376;';
+            coachRow.style.display = '';
+        } else {
+            coachRow.style.display = 'none';
+        }
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal) + ' &#8376;';
     }
+    // Правка цены тренера в строке → пересчёт итога.
+    document.getElementById('bookSelectedCoaches')?.addEventListener('input', updateFinalPrice);
 
     // ====== Клубные карты в окне брони (кнопки) ======
     const cardsForClientUrl = @json(route('club.cards.forClient'));
@@ -2357,6 +2386,7 @@
         // Основной тренер (совместимость) = первый выбранный.
         const first = container.querySelector('.sel-coach-row');
         document.getElementById('bookCoachId').value = first ? first.getAttribute('data-cid') : '';
+        updateFinalPrice();
     }
     function setBookCoachPaid(btn) {
         document.querySelectorAll('#bookCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
@@ -3916,8 +3946,14 @@
         border: 1px solid var(--sch-border);
         border-radius: 7px;
         color: var(--sch-text);
-        font-size: 13px;
+        text-align: right;
+        font-weight: 700;
+        font-size: 15px;
     }
+    /* Убираем стрелки-спиннеры у поля цены тренера */
+    .sel-coach-price::-webkit-outer-spin-button,
+    .sel-coach-price::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .sel-coach-price { -moz-appearance: textfield; appearance: textfield; }
     /* Построчный статус оплаты тренера — как основной переключатель оплаты */
     .sel-coach-paidtoggle {
         display: flex;
@@ -4032,13 +4068,32 @@
 
     .total-price {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 20px;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 20px;
         background: rgba(34, 197, 94, 0.1);
         border: 1px solid rgba(34, 197, 94, 0.2);
         border-radius: 10px;
         margin-bottom: 20px;
+    }
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .total-sub-label {
+        font-size: 13px;
+        color: var(--sch-text-dim);
+    }
+    .total-sub-value {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--sch-text);
+    }
+    .total-row-final {
+        padding-top: 8px;
+        margin-top: 2px;
+        border-top: 1px solid rgba(34, 197, 94, 0.25);
     }
 
     .total-price-label {
