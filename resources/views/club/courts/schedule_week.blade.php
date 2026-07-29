@@ -1335,8 +1335,8 @@
                         <div class="sch-modal-info">
                             <div class="sch-modal-info-row"><span class="sch-modal-info-label">Корт</span><span class="sch-modal-info-value" id="viewCourtName"></span></div>
                             <div class="sch-modal-info-row"><span class="sch-modal-info-label">Дата</span><span class="sch-modal-info-value" id="viewDate"></span></div>
-                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Время</span><span class="sch-modal-info-value" id="viewTime"></span></div>
-                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Цена</span><span class="sch-modal-info-value" style="color: #22c55e; font-size: 18px;" id="viewPrice"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Начало</span><span class="sch-modal-info-value" id="viewTime"></span></div>
+                            <div class="sch-modal-info-row"><span class="sch-modal-info-label">Цена/час</span><span class="sch-modal-info-value" id="viewPrice"></span></div>
                         </div>
 
                         <div class="modal-section-title">Длительность</div>
@@ -1347,11 +1347,25 @@
                         <div class="price-edit-row">
                             <div class="price-edit-group">
                                 <label class="form-label">Цена</label>
-                                <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100">
+                                <input type="number" name="custom_price" id="editCustomPrice" class="form-input price-input" min="0" step="100" onchange="updateEditFinalPrice()" oninput="updateEditFinalPrice()">
                             </div>
                             <div class="price-edit-group">
                                 <label class="form-label">Скидка</label>
-                                <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0">
+                                <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateEditFinalPrice()" oninput="updateEditFinalPrice()">
+                            </div>
+                        </div>
+                        <div class="total-price">
+                            <div class="total-row">
+                                <span class="total-sub-label">Цена за корт</span>
+                                <span class="total-sub-value" id="editCourtPrice"></span>
+                            </div>
+                            <div class="total-row" id="editCoachTotalRow" style="display:none;">
+                                <span class="total-sub-label">Цена за тренера</span>
+                                <span class="total-sub-value" id="editCoachTotal"></span>
+                            </div>
+                            <div class="total-row total-row-final">
+                                <span class="total-price-label">Итого</span>
+                                <span class="total-price-value" id="editTotalPrice"></span>
                             </div>
                         </div>
 
@@ -1648,6 +1662,33 @@
     // Правка цены тренера в строке → пересчёт итога.
     document.getElementById('bookSelectedCoaches')?.addEventListener('input', updateFinalPrice);
 
+    // ===== Итог в окне редактирования (корт + тренеры) =====
+    function sumEditCoachPrices() {
+        let sum = 0;
+        document.querySelectorAll('#editSelectedCoaches .sel-coach-price').forEach(inp => {
+            sum += parseInt(inp.value) || 0;
+        });
+        return sum;
+    }
+    function updateEditFinalPrice() {
+        const priceEl = document.getElementById('editCustomPrice');
+        if (!priceEl) return;
+        const price = parseInt(priceEl.value) || 0;
+        const discount = parseInt(document.getElementById('editDiscount').value) || 0;
+        const courtPrice = Math.max(0, price - discount);
+        const coachTotal = sumEditCoachPrices();
+        document.getElementById('editCourtPrice').innerHTML = formatPrice(courtPrice) + ' &#8376;';
+        const coachRow = document.getElementById('editCoachTotalRow');
+        if (coachTotal > 0) {
+            document.getElementById('editCoachTotal').innerHTML = formatPrice(coachTotal) + ' &#8376;';
+            coachRow.style.display = '';
+        } else {
+            coachRow.style.display = 'none';
+        }
+        document.getElementById('editTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal) + ' &#8376;';
+    }
+    document.getElementById('editSelectedCoaches')?.addEventListener('input', updateEditFinalPrice);
+
     function setDuration(n) {
         currentBook.duration = n;
         document.querySelectorAll('#durationSelector .duration-btn').forEach(btn => {
@@ -1750,8 +1791,12 @@
     function openViewModal(data) {
         document.getElementById('viewCourtName').textContent = data.courtName;
         document.getElementById('viewDate').textContent = formatDateLabel(data.date);
-        document.getElementById('viewTime').textContent = data.startTime + ' — ' + data.endTime;
-        document.getElementById('viewPrice').innerHTML = formatPrice(data.price) + ' &#8376;';
+        document.getElementById('viewTime').textContent = data.startTime;
+        // Цена/час = цена брони ÷ длительность в часах (как в окне создания).
+        let _durMin = parseTimeToMinutes(data.endTime) - parseTimeToMinutes(data.startTime);
+        if (_durMin <= 0) _durMin += 1440;
+        const _durH = Math.max(1, Math.round(_durMin / 60));
+        document.getElementById('viewPrice').innerHTML = formatPrice(Math.round((data.price || 0) / _durH)) + ' &#8376;';
 
         unlockClientFields('edit');
         clearEditFormError();
@@ -1842,6 +1887,7 @@
             }
             editSelContainer.insertAdjacentHTML('beforeend', editCoachRowHtml(c.coachId, name, price, c.paid === true));
         });
+        updateEditFinalPrice();
 
         // Старые одиночные поля в мультитренере не используются — прячем.
         const editCoachPaidGroupW = document.getElementById('editCoachPaidGroup');
@@ -1972,6 +2018,7 @@
             const priceInp = row.querySelector('.sel-coach-price');
             if (rate > 0 && priceInp) priceInp.value = Math.round(rate * slots);
         });
+        updateEditFinalPrice();
     }
 
     function parseTimeToMinutes(t) {
@@ -2775,6 +2822,7 @@
         }
         const first = container.querySelector('.sel-coach-row');
         document.getElementById('editCoachId').value = first ? first.getAttribute('data-cid') : '';
+        updateEditFinalPrice();
     }
     function setEditCoachPaid(btn) {
         document.querySelectorAll('#editCoachPaidGroup .paid-btn').forEach(b => b.classList.remove('active'));
