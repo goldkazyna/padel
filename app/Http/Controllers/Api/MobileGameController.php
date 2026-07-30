@@ -9,15 +9,19 @@ use App\Models\GamePlayer;
 use App\Models\GameRound;
 use App\Models\Invitation;
 use App\Models\Notification;
+use App\Models\RatingHistory;
 use App\Models\User;
 use App\Services\FCMNotificationService;
 use App\Support\GameAmericanoRanking;
+use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class MobileGameController extends Controller
 {
+    use RatingCalculator;
+
     /** Справочник клубов для создания игры (активные, опц. фильтр по городу). */
     public function clubs(Request $request)
     {
@@ -793,7 +797,7 @@ class MobileGameController extends Controller
 
         if ($this->allScoreConfirmed($game)) {
             $game->update(['status' => Game::STATUS_FINISHED]);
-            // ELO начисляется в Task 3 (хук здесь).
+            $this->applyGameElo($game);
         }
 
         return response()->json([
@@ -809,6 +813,84 @@ class MobileGameController extends Controller
             ->where('status', GamePlayer::STATUS_ACCEPTED)
             ->where('score_confirmed', false)
             ->count() === 0;
+    }
+
+    /** Начислить ELO завершённой rated-игре по сыгранным раундам (миррор challenge/americano). */
+    private function applyGameElo(Game $game): void
+    {
+        if ($game->type !== Game::TYPE_RATED) {
+            return;
+        }
+
+        $accepted = $game->players()
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->with('user')
+            ->get();
+
+        // Сид: живой рейтинг принятых игроков.
+        $before = [];   // user_id => rating_before (снимок)
+        $current = [];  // user_id => накопительный рейтинг
+        $players = [];  // user_id => GamePlayer
+        foreach ($accepted as $gp) {
+            if (!$gp->user) continue;
+            $before[$gp->user_id] = (int) $gp->user->rating;
+            $current[$gp->user_id] = (int) $gp->user->rating;
+            $players[$gp->user_id] = $gp;
+        }
+
+        // Накопление по каждому сыгранному раунду (2×2 командный средний).
+        $rounds = $game->relationLoaded('rounds') ? $game->rounds : $game->rounds()->get();
+        foreach ($rounds as $round) {
+            if (!$round->is_played || $round->score_a === null || $round->score_b === null) {
+                continue;
+            }
+            $pairA = array_values(array_filter((array) $round->pair_a, fn ($id) => isset($current[$id])));
+            $pairB = array_values(array_filter((array) $round->pair_b, fn ($id) => isset($current[$id])));
+            if (count($pairA) < 1 || count($pairB) < 1) {
+                continue;
+            }
+            $avgA = array_sum(array_map(fn ($id) => $current[$id], $pairA)) / count($pairA);
+            $avgB = array_sum(array_map(fn ($id) => $current[$id], $pairB)) / count($pairB);
+            $changes = $this->calculateRatingChange($avgA, $avgB, (int) $round->score_a, (int) $round->score_b);
+            foreach ($pairA as $id) {
+                $current[$id] = $this->applyRatingChange($current[$id], $changes['change1']);
+            }
+            foreach ($pairB as $id) {
+                $current[$id] = $this->applyRatingChange($current[$id], $changes['change2']);
+            }
+        }
+
+        // Коммит один раз на игрока.
+        foreach ($players as $uid => $gp) {
+            $this->applyPlayerRating($gp, $before[$uid], $current[$uid]);
+        }
+    }
+
+    /** Записать итог рейтинга игрока (миррор MobileChallengeController::applyPlayerRating). */
+    private function applyPlayerRating(GamePlayer $player, int $before, int $after): void
+    {
+        $user = $player->user;
+        if (!$user) {
+            return;
+        }
+
+        $player->update([
+            'rating_before' => $before,
+            'rating_after' => $after,
+            'rating_change' => $after - $before,
+        ]);
+
+        $user->update(['rating' => $after]);
+        $this->updateLevel($user);
+
+        RatingHistory::create([
+            'user_id' => $user->id,
+            'tournament_id' => null,
+            'rating_before' => $before,
+            'rating_after' => $after,
+            'change' => $after - $before,
+            'reason' => 'game',
+        ]);
     }
 
     /** Перегенерировать расписание Американо (пока счёт не введён; только организатор). */
