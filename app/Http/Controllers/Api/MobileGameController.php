@@ -476,6 +476,7 @@ class MobileGameController extends Controller
             $name = $p->user->name ?? 'Без имени';
             return [
                 'id' => $p->user->id,
+                'player_id' => $p->id,
                 'position' => $p->position,
                 'status' => $p->status,
                 'source' => $p->source,
