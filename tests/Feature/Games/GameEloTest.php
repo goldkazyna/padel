@@ -91,4 +91,45 @@ class GameEloTest extends TestCase
         $this->assertSame(1500, User::find($ids[0])->rating);
         $this->assertSame(1500, User::find($ids[2])->rating);
     }
+
+    /**
+     * Многораундовое накопление (running-average): u0 выигрывает все 3 раунда, партнёря
+     * каждого по разу. Если бы применялся только один раунд, u0 лишь СРАВНялся бы с партнёром
+     * того раунда — поэтому строгое «u0 выше каждого» ловит поломку накопления.
+     */
+    public function test_multi_round_accumulation_makes_sweeper_strictly_highest(): void
+    {
+        $organizer = User::factory()->create();
+        [$game, $ids] = $this->pendingRated($organizer, 6, 0); // pendingRated создаёт R1 (u0,u1)>(u2,u3)
+        // Добавляем R2 и R3: u0 снова в выигрывающей паре с другими партнёрами.
+        GameRound::create([
+            'game_id' => $game->id, 'round_no' => 2,
+            'pair_a' => [$ids[0], $ids[2]], 'pair_b' => [$ids[1], $ids[3]],
+            'score_a' => 6, 'score_b' => 0, 'is_played' => true,
+        ]);
+        GameRound::create([
+            'game_id' => $game->id, 'round_no' => 3,
+            'pair_a' => [$ids[0], $ids[3]], 'pair_b' => [$ids[1], $ids[2]],
+            'score_a' => 6, 'score_b' => 0, 'is_played' => true,
+        ]);
+
+        $this->confirmAll($game, $ids);
+        $this->assertSame('finished', $game->fresh()->status);
+
+        $r0 = User::find($ids[0])->rating;
+        $r1 = User::find($ids[1])->rating;
+        $r2 = User::find($ids[2])->rating;
+        $r3 = User::find($ids[3])->rating;
+
+        // u0 выиграл все 3 раунда → строго выше каждого из остальных.
+        $this->assertGreaterThan(1500, $r0);
+        $this->assertGreaterThan($r1, $r0);
+        $this->assertGreaterThan($r2, $r0);
+        $this->assertGreaterThan($r3, $r0);
+
+        // По одной записи истории на игрока; консистентность gp.rating_after == users.rating.
+        $this->assertSame(4, RatingHistory::where('reason', 'game')->count());
+        $gp0 = GamePlayer::where('game_id', $game->id)->where('user_id', $ids[0])->first();
+        $this->assertSame($gp0->rating_after, $r0);
+    }
 }
