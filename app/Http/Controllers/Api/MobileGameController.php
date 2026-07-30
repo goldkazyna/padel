@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Game;
+use App\Models\GameActionLog;
 use App\Models\GamePlayer;
 use App\Models\GameRound;
 use App\Models\Invitation;
@@ -182,6 +183,17 @@ class MobileGameController extends Controller
         app(FCMNotificationService::class)->sendToUser($user, $title, $body, [
             'type' => $type,
             'game_id' => (string) $gameId,
+        ]);
+    }
+
+    /** Записать действие в журнал игры. */
+    private function logGameAction(Game $game, int $userId, string $action, array $payload = []): void
+    {
+        GameActionLog::create([
+            'game_id' => $game->id,
+            'user_id' => $userId,
+            'action' => $action,
+            'payload' => $payload ?: null,
         ]);
     }
 
@@ -671,9 +683,11 @@ class MobileGameController extends Controller
         }
 
         $removed = $player->user;
+        $removedUserId = $player->user_id;
         $player->update(['status' => GamePlayer::STATUS_REMOVED, 'position' => null]);
         $this->syncFullness($game);
         $this->notifyGame($removed, 'Вас удалили из игры', 'Организатор удалил вас из состава', 'game_removed', $game->id);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_PLAYER_REMOVE, ['removed_user_id' => $removedUserId]);
 
         return response()->json([
             'success' => true,
@@ -724,6 +738,7 @@ class MobileGameController extends Controller
 
         $game->update(['status' => Game::STATUS_IN_PROGRESS]);
         $this->generateAmericanoRounds($game);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_START);
 
         return response()->json([
             'success' => true,
@@ -744,6 +759,7 @@ class MobileGameController extends Controller
 
         $game->update(['status' => Game::STATUS_FULL]);
         $this->syncFullness($game);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_START_CANCEL);
 
         return response()->json([
             'success' => true,
@@ -771,6 +787,8 @@ class MobileGameController extends Controller
             ->where('user_id', $user->id)
             ->where('status', GamePlayer::STATUS_ACCEPTED)
             ->update(['score_confirmed' => true]);
+
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_FINISH);
 
         return response()->json([
             'success' => true,
@@ -912,6 +930,7 @@ class MobileGameController extends Controller
 
         $game->rounds()->delete();
         $this->generateAmericanoRounds($game);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_SCHEDULE_REGENERATE);
 
         return response()->json([
             'success' => true,
@@ -1025,6 +1044,8 @@ class MobileGameController extends Controller
             'is_played' => $played,
         ]);
 
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_ROUND_ADD, ['round_no' => $nextNo]);
+
         return response()->json([
             'success' => true,
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
@@ -1073,6 +1094,8 @@ class MobileGameController extends Controller
         $round->is_played = $round->score_a !== null && $round->score_b !== null;
         $round->save();
 
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_ROUND_UPDATE, ['round_no' => $round->round_no]);
+
         return response()->json([
             'success' => true,
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
@@ -1093,7 +1116,9 @@ class MobileGameController extends Controller
             return response()->json(['success' => false, 'message' => 'Раунд можно удалить только у идущей игры'], 422);
         }
 
+        $roundNo = $round->round_no;
         $round->delete();
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_ROUND_DELETE, ['round_no' => $roundNo]);
 
         return response()->json([
             'success' => true,

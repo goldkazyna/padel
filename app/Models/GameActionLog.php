@@ -6,6 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class GameActionLog extends Model
 {
+    const ACTION_START = 'start';
+    const ACTION_START_CANCEL = 'start_cancel';
+    const ACTION_FINISH = 'finish';
+    const ACTION_ROUND_ADD = 'round_add';
+    const ACTION_ROUND_UPDATE = 'round_update';
+    const ACTION_ROUND_DELETE = 'round_delete';
+    const ACTION_PLAYER_REMOVE = 'player_remove';
+    const ACTION_SCHEDULE_REGENERATE = 'schedule_regenerate';
+
     protected $fillable = ['game_id', 'user_id', 'action', 'payload'];
 
     protected $casts = ['payload' => 'array'];
