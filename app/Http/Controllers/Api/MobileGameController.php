@@ -765,6 +765,63 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Принять передачу прав (только целевой участник). */
+    public function transferAccept(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $transfer = GameTransfer::where('game_id', $game->id)
+            ->where('status', GameTransfer::STATUS_PENDING)
+            ->where('to_user_id', $user->id)
+            ->latest('id')
+            ->first();
+        if (!$transfer) {
+            return response()->json(['success' => false, 'message' => 'Нет передачи для вас'], 403);
+        }
+
+        $previousOwner = $game->creator_id;
+        $game->update(['creator_id' => $user->id]);
+        $transfer->update(['status' => GameTransfer::STATUS_ACCEPTED]);
+        // Прочие pending этой игры закрываем.
+        GameTransfer::where('game_id', $game->id)
+            ->where('status', GameTransfer::STATUS_PENDING)
+            ->update(['status' => GameTransfer::STATUS_CANCELLED]);
+
+        $prev = User::find($previousOwner);
+        if ($prev) {
+            $this->notifyGame($prev, 'Права переданы', 'Участник принял роль организатора', 'game_transfer_accepted', $game->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /** Отклонить передачу прав (только целевой участник). */
+    public function transferDecline(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $transfer = GameTransfer::where('game_id', $game->id)
+            ->where('status', GameTransfer::STATUS_PENDING)
+            ->where('to_user_id', $user->id)
+            ->latest('id')
+            ->first();
+        if (!$transfer) {
+            return response()->json(['success' => false, 'message' => 'Нет передачи для вас'], 403);
+        }
+
+        $transfer->update(['status' => GameTransfer::STATUS_DECLINED]);
+        $initiator = User::find($transfer->from_user_id);
+        if ($initiator) {
+            $this->notifyGame($initiator, 'Передача отклонена', 'Участник отказался стать организатором', 'game_transfer_declined', $game->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
     /** Поиск игрока по телефону (для приглашений). */
     public function searchPlayer(Request $request)
     {
