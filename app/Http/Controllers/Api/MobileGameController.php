@@ -352,6 +352,7 @@ class MobileGameController extends Controller
                 'rating' => $p->user->rating,
                 'level' => (float) $p->user->level,
                 'is_me' => $user && $p->user->id === $user->id,
+                'score_confirmed' => (bool) $p->score_confirmed,
             ];
         })->values();
 
@@ -391,6 +392,7 @@ class MobileGameController extends Controller
             'is_participant' => $mine !== null,
             'my_status' => $mine?->status,
             'my_position' => $mine?->position,
+            'my_score_confirmed' => (bool) ($mine?->score_confirmed),
             'rounds' => $rounds->map(fn ($r) => [
                 'id' => $r->id,
                 'round_no' => $r->round_no,
@@ -738,6 +740,33 @@ class MobileGameController extends Controller
 
         $game->update(['status' => Game::STATUS_FULL]);
         $this->syncFullness($game);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /** Зафиксировать счёт и открыть фазу подтверждения (только организатор). */
+    public function finish(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Игру нельзя завершить в этом статусе'], 422);
+        }
+        if (!$game->rounds()->where('is_played', true)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Введите счёт хотя бы одного раунда'], 422);
+        }
+
+        $game->update(['score_locked' => true]);
+        // Организатор автоматически подтверждает счёт.
+        $game->players()
+            ->where('user_id', $user->id)
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->update(['score_confirmed' => true]);
 
         return response()->json([
             'success' => true,
