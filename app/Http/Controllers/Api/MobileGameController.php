@@ -487,6 +487,9 @@ class MobileGameController extends Controller
                 'level' => (float) $p->user->level,
                 'is_me' => $user && $p->user->id === $user->id,
                 'score_confirmed' => (bool) $p->score_confirmed,
+                'rating_before' => $p->rating_before,
+                'rating_after' => $p->rating_after,
+                'rating_change' => $p->rating_change,
             ];
         })->values();
 
