@@ -312,6 +312,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games', [\App\Http\Controllers\Api\MobileGameController::class, 'store']);
         Route::post('/games/search-player', [MobileGameController::class, 'searchPlayer']);
         Route::get('/games', [MobileGameController::class, 'index']);
+        Route::get('/games/my', [MobileGameController::class, 'myGames']);
         Route::get('/games/{game}', [MobileGameController::class, 'show']);
         Route::put('/games/{game}', [\App\Http\Controllers\Api\MobileGameController::class, 'update']);
         Route::post('/games/{game}/share/rotate', [MobileGameController::class, 'shareRotate']);

@@ -292,6 +292,50 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Мои игры: где я организатор или активный участник. */
+    public function myGames(Request $request)
+    {
+        $user = $request->user();
+        $filters = $request->validate([
+            'status' => 'nullable|string',
+            'per_page' => 'nullable|integer|min:1|max:50',
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $query = Game::with(['creator', 'club', 'court', 'players.user'])
+            ->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                    ->orWhereHas('players', function ($p) use ($user) {
+                        $p->where('user_id', $user->id)
+                            ->whereNotIn('status', [
+                                GamePlayer::STATUS_DECLINED,
+                                GamePlayer::STATUS_LEFT,
+                                GamePlayer::STATUS_REMOVED,
+                            ]);
+                    });
+            })
+            ->orderByDesc('starts_at');
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $paginator = $query->paginate($perPage);
+        $data = collect($paginator->items())->map(fn ($g) => $this->formatGame($g, $user));
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
     /** Уровень пользователя в диапазоне игры (null-границы = без ограничения). */
     private function userInRange(Game $game, User $user): bool
     {
