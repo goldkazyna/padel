@@ -1125,4 +1125,33 @@ class MobileGameController extends Controller
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
         ]);
     }
+
+    /** Журнал действий игры (организатор или принятый участник). */
+    public function logs(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $isParticipant = $game->players()
+            ->where('user_id', $user->id)
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->exists();
+        if (!$game->isOrganizer($user->id) && !$isParticipant) {
+            return response()->json(['success' => false, 'message' => 'Нет доступа к журналу'], 403);
+        }
+
+        $logs = GameActionLog::where('game_id', $game->id)
+            ->with('user:id,name')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'user_id' => $l->user_id,
+                'user_name' => $l->user->name ?? null,
+                'action' => $l->action,
+                'payload' => $l->payload,
+                'created_at' => $l->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['success' => true, 'data' => $logs]);
+    }
 }
