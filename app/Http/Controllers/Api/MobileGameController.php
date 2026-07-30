@@ -229,10 +229,20 @@ class MobileGameController extends Controller
         ]);
     }
 
-    /** Лента игр — только публичные, набирающие состав, будущие. */
+    /** Лента игр — публичные, набирающие состав, будущие; фильтры + пагинация. */
     public function index(Request $request)
     {
         $user = $request->user();
+
+        $filters = $request->validate([
+            'club_id' => 'nullable|integer',
+            'format' => 'nullable|in:sets,points,americano',
+            'type' => 'nullable|in:rated,friendly',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+            'per_page' => 'nullable|integer|min:1|max:50',
+            'page' => 'nullable|integer|min:1',
+        ]);
 
         $query = Game::with(['creator', 'club', 'court', 'players.user'])
             ->where('visibility', Game::VISIBILITY_PUBLIC)
@@ -240,7 +250,23 @@ class MobileGameController extends Controller
             ->where('starts_at', '>=', now())
             ->orderBy('starts_at');
 
-        // Диапазон рейтинга — фильтр «самотёка»: по умолчанию прячем игры вне уровня.
+        if (!empty($filters['club_id'])) {
+            $query->where('club_id', $filters['club_id']);
+        }
+        if (!empty($filters['format'])) {
+            $query->where('format', $filters['format']);
+        }
+        if (!empty($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+        if (!empty($filters['date_from'])) {
+            $query->where('starts_at', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->where('starts_at', '<=', $filters['date_to']);
+        }
+
+        // Диапазон рейтинга — фильтр «самотёка» (S3).
         if (!$request->boolean('show_out_of_level')) {
             $level = (float) $user->level;
             $query->where(function ($q) use ($level) {
@@ -250,9 +276,20 @@ class MobileGameController extends Controller
             });
         }
 
-        $games = $query->get()->map(fn ($g) => $this->formatGame($g, $user));
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $paginator = $query->paginate($perPage);
+        $data = collect($paginator->items())->map(fn ($g) => $this->formatGame($g, $user));
 
-        return response()->json(['success' => true, 'data' => $games]);
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
     /** Уровень пользователя в диапазоне игры (null-границы = без ограничения). */
