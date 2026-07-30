@@ -336,6 +336,41 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Инбокс: приглашения текущего пользователя в игры. */
+    public function invitations(Request $request)
+    {
+        $user = $request->user();
+        $status = $request->query('status');
+
+        $query = Invitation::where('user_id', $user->id)
+            ->where('kind', Invitation::KIND_GAME)
+            ->where('invitable_type', Game::class)
+            ->with(['inviter:id,name', 'invitable.creator', 'invitable.club', 'invitable.court', 'invitable.players.user'])
+            ->orderByDesc('created_at');
+
+        if ($status) {
+            $query->where('status', $status);
+        } else {
+            $query->where('status', Invitation::STATUS_PENDING)
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>=', now());
+                });
+        }
+
+        $data = $query->get()
+            ->filter(fn ($inv) => $inv->invitable !== null) // игра могла быть удалена
+            ->map(fn ($inv) => [
+                'invitation_id' => $inv->id,
+                'status' => $inv->status,
+                'expires_at' => $inv->expires_at?->toIso8601String(),
+                'inviter' => $inv->inviter ? ['id' => $inv->inviter->id, 'name' => $inv->inviter->name] : null,
+                'game' => $this->formatGame($inv->invitable, $user),
+            ])
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     /** Уровень пользователя в диапазоне игры (null-границы = без ограничения). */
     private function userInRange(Game $game, User $user): bool
     {
