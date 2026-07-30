@@ -774,6 +774,43 @@ class MobileGameController extends Controller
         ]);
     }
 
+    /** Подтвердить счёт участником; при полном подтверждении — завершить игру. */
+    public function confirmScore(Request $request, Game $game)
+    {
+        $user = $request->user();
+        $player = $game->players()
+            ->where('user_id', $user->id)
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->first();
+        if (!$player) {
+            return response()->json(['success' => false, 'message' => 'Только участник игры'], 403);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || !$game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Счёт сейчас не подтверждается'], 422);
+        }
+
+        $player->update(['score_confirmed' => true]);
+
+        if ($this->allScoreConfirmed($game)) {
+            $game->update(['status' => Game::STATUS_FINISHED]);
+            // ELO начисляется в Task 3 (хук здесь).
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /** Все ли принятые игроки подтвердили счёт. */
+    private function allScoreConfirmed(Game $game): bool
+    {
+        return $game->players()
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->where('score_confirmed', false)
+            ->count() === 0;
+    }
+
     /** Перегенерировать расписание Американо (пока счёт не введён; только организатор). */
     public function regenerateSchedule(Request $request, Game $game)
     {

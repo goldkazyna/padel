@@ -327,6 +327,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/start', [MobileGameController::class, 'start']);
         Route::post('/games/{game}/start/cancel', [MobileGameController::class, 'startCancel']);
         Route::post('/games/{game}/finish', [MobileGameController::class, 'finish']);
+        Route::post('/games/{game}/confirm-score', [MobileGameController::class, 'confirmScore']);
         Route::post('/games/{game}/schedule/regenerate', [MobileGameController::class, 'regenerateSchedule']);
         Route::post('/games/{game}/rounds', [MobileGameController::class, 'addRound']);
         Route::put('/games/{game}/rounds/{round}', [MobileGameController::class, 'updateRound']);
