@@ -54,24 +54,36 @@ class AmericanoService
 				}
 			}
 		} else {
-			// Старая логика — создаём группы и распределяем игроков
+			// Создаём группы и распределяем игроков ЗМЕЙКОЙ по рейтингу,
+			// чтобы силы групп были равны: ранги 1→A, 2→B, 3→B, 4→A, 5→A, 6→B, ...
+			// (организатор при желании перераспределит вручную через редактор групп).
+			$groups = [];
 			for ($i = 0; $i < $groupsCount; $i++) {
-				$group = TournamentGroup::create([
+				$groups[$i] = TournamentGroup::create([
 					'tournament_id' => $tournament->id,
 					'name' => 'Группа ' . chr(65 + $i),
 				]);
-				
-				$groupPlayers = $participants->slice($i * $playersPerGroup, $playersPerGroup);
-				foreach ($groupPlayers as $player) {
-					$group->players()->attach($player->id, [
-						'total_points' => 0,
-						'rating_before' => $player->rating,
-						'rating_after' => null,
-					]);
-				}
-				
+			}
+
+			// participants уже отсортированы по рейтингу DESC.
+			$groupPlayerIds = array_fill(0, $groupsCount, []);
+			foreach ($participants->values() as $index => $player) {
+				$row = intdiv($index, $groupsCount);
+				$pos = $index % $groupsCount;
+				// Чётные ряды слева-направо, нечётные — справа-налево (змейка).
+				$groupIndex = ($row % 2 === 0) ? $pos : ($groupsCount - 1 - $pos);
+
+				$groups[$groupIndex]->players()->attach($player->id, [
+					'total_points' => 0,
+					'rating_before' => $player->rating,
+					'rating_after' => null,
+				]);
+				$groupPlayerIds[$groupIndex][] = $player->id;
+			}
+
+			foreach ($groups as $i => $group) {
 				$courtStartNumber = $i * $courtsPerGroup + 1;
-				$this->generateRounds($group, $groupPlayers->pluck('id')->toArray(), $courtStartNumber);
+				$this->generateRounds($group, $groupPlayerIds[$i], $courtStartNumber);
 			}
 		}
 		
