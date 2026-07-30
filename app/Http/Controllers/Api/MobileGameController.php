@@ -8,6 +8,7 @@ use App\Models\Game;
 use App\Models\GameActionLog;
 use App\Models\GamePlayer;
 use App\Models\GameRound;
+use App\Models\GameTransfer;
 use App\Models\Invitation;
 use App\Models\Notification;
 use App\Models\RatingHistory;
@@ -692,6 +693,75 @@ class MobileGameController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
+    /** Инициировать передачу прав организатора принятому участнику. */
+    public function transferInitiate(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if (in_array($game->status, [Game::STATUS_FINISHED, Game::STATUS_CANCELLED], true)) {
+            return response()->json(['success' => false, 'message' => 'Игра завершена'], 422);
+        }
+        $data = $request->validate(['to_user_id' => 'required|integer']);
+        if ((int) $data['to_user_id'] === $user->id) {
+            return response()->json(['success' => false, 'message' => 'Нельзя передать самому себе'], 422);
+        }
+        $isAccepted = $game->players()
+            ->where('user_id', $data['to_user_id'])
+            ->where('status', GamePlayer::STATUS_ACCEPTED)
+            ->exists();
+        if (!$isAccepted) {
+            return response()->json(['success' => false, 'message' => 'Получатель должен быть участником игры'], 422);
+        }
+
+        $transfer = GameTransfer::where('game_id', $game->id)
+            ->where('status', GameTransfer::STATUS_PENDING)
+            ->first();
+        if ($transfer) {
+            $transfer->update(['from_user_id' => $user->id, 'to_user_id' => $data['to_user_id']]);
+        } else {
+            GameTransfer::create([
+                'game_id' => $game->id,
+                'from_user_id' => $user->id,
+                'to_user_id' => $data['to_user_id'],
+                'status' => GameTransfer::STATUS_PENDING,
+            ]);
+        }
+
+        $target = User::find($data['to_user_id']);
+        if ($target) {
+            $this->notifyGame($target, 'Передача прав', 'Вам предлагают стать организатором игры', 'game_transfer_offer', $game->id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /** Отменить свою pending-передачу (организатор). */
+    public function transferCancel(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        $transfer = GameTransfer::where('game_id', $game->id)
+            ->where('status', GameTransfer::STATUS_PENDING)
+            ->latest('id')
+            ->first();
+        if (!$transfer) {
+            return response()->json(['success' => false, 'message' => 'Нет активной передачи'], 422);
+        }
+        $transfer->update(['status' => GameTransfer::STATUS_CANCELLED]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
         ]);
     }
 
