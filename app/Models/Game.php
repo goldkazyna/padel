@@ -31,6 +31,7 @@ class Game extends Model
         'type', 'visibility', 'format', 'format_meta', 'rating_min', 'rating_max',
         'capacity', 'price', 'description', 'status', 'score_locked',
         'share_token', 'share_expires_at', 'share_max_uses', 'share_uses', 'share_revoked_at',
+        'reminded_1d_at', 'reminded_2h_at', 'reminded_1h_at',
     ];
 
     protected $casts = [
@@ -46,6 +47,9 @@ class Game extends Model
         'share_max_uses' => 'integer',
         'share_uses' => 'integer',
         'share_revoked_at' => 'datetime',
+        'reminded_1d_at' => 'datetime',
+        'reminded_2h_at' => 'datetime',
+        'reminded_1h_at' => 'datetime',
     ];
 
     public function creator()
