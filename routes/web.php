@@ -320,6 +320,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/certificates', [App\Http\Controllers\Club\CertificateController::class, 'store'])->name('certificates.store');
         Route::get('/certificates/design', [App\Http\Controllers\Club\CertificateController::class, 'design'])->name('certificates.design');
         Route::post('/certificates/design', [App\Http\Controllers\Club\CertificateController::class, 'designUpdate'])->name('certificates.design.update');
+        Route::get('/clients/{client}/certificates', [App\Http\Controllers\Club\CertificateController::class, 'client'])->name('certificates.client');
+        Route::post('/certificates/{certificate}/redeem', [App\Http\Controllers\Club\CertificateController::class, 'redeem'])->name('certificates.redeem');
         Route::get('/certificates/{certificate}', [App\Http\Controllers\Club\CertificateController::class, 'show'])->name('certificates.show');
         Route::delete('/certificates/{certificate}', [App\Http\Controllers\Club\CertificateController::class, 'destroy'])->name('certificates.destroy');
 

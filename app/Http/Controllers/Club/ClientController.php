@@ -28,7 +28,12 @@ class ClientController extends Controller
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $query = ClubClient::where('club_id', $club->id)->orderBy('name');
+        $query = ClubClient::where('club_id', $club->id)
+            ->withCount([
+                'certificates',
+                'certificates as certificates_used_count' => fn($q) => $q->whereNotNull('used_at'),
+            ])
+            ->orderBy('name');
 
         if ($search = $request->get('search')) {
             // Для phone сравниваем только цифры из запроса (без +, пробелов, скобок),
@@ -49,6 +54,12 @@ class ClientController extends Controller
         $selectedClient = $selectedId
             ? ClubClient::where('club_id', $club->id)->find($selectedId)
             : $clients->first();
+
+        // Счётчики сертификатов для выбранного клиента (для кнопки в деталях).
+        $selectedClient?->loadCount([
+            'certificates',
+            'certificates as certificates_used_count' => fn($q) => $q->whereNotNull('used_at'),
+        ]);
 
         $clientGroups = collect();
         $clientCards = collect();

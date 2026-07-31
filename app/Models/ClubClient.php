@@ -32,4 +32,9 @@ class ClubClient extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function certificates()
+    {
+        return $this->hasMany(Certificate::class, 'client_id');
+    }
 }

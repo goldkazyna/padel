@@ -16,7 +16,11 @@ class Certificate extends Model
 
     protected $fillable = [
         'club_id', 'type', 'recipient_name', 'client_id', 'number', 'title', 'created_by', 'template_id',
-        'value_type', 'amount', 'hours', 'tournaments',
+        'value_type', 'amount', 'hours', 'tournaments', 'used_at',
+    ];
+
+    protected $casts = [
+        'used_at' => 'datetime',
     ];
 
     public function club()
@@ -85,5 +89,15 @@ class Certificate extends Model
     public function isNamed(): bool
     {
         return $this->type === self::TYPE_NAMED;
+    }
+
+    public function isUsed(): bool
+    {
+        return $this->used_at !== null;
+    }
+
+    public function statusName(): string
+    {
+        return $this->isUsed() ? 'Погашен' : 'Активен';
     }
 }

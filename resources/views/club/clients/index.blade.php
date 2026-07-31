@@ -48,6 +48,22 @@
             color:var(--cl-text,#f4f4f5);text-decoration:none;font-weight:700;font-size:14px;}
         .clients-overview-btns a:hover{background:#1e1e24;border-color:#3f3f46;}
         .clients-overview-btns i{color:var(--cl-accent,#22c55e);font-size:17px;}
+
+        /* Бейдж сертификатов в строке клиента */
+        .client-cert-badge{display:inline-flex;align-items:center;gap:5px;margin-top:4px;
+            font-size:12px;font-weight:700;color:#a78bfa;}
+        .client-cert-badge i{font-size:13px;}
+        .client-cert-badge span{color:#71717a;font-weight:600;}
+
+        /* Кнопка «Сертификаты» в деталях клиента */
+        .client-cert-btn{display:flex;align-items:center;gap:10px;padding:13px 16px;
+            border-radius:12px;background:var(--cl-card,#16161a);border:1px solid var(--cl-border,#27272a);
+            color:var(--cl-text,#f4f4f5);text-decoration:none;font-weight:700;transition:border-color .15s,background .15s;}
+        .client-cert-btn:hover{border-color:#22c55e;background:rgba(34,197,94,.08);}
+        .client-cert-btn > i:first-child{color:#22c55e;font-size:18px;}
+        .client-cert-btn b{background:#22c55e;color:#062e15;border-radius:20px;padding:1px 9px;font-size:13px;}
+        .client-cert-btn em{color:#a1a1aa;font-style:normal;font-weight:500;font-size:13px;}
+        .client-cert-btn-arrow{margin-left:auto;color:#71717a;}
     </style>
 
     <!-- Search -->
@@ -101,6 +117,9 @@
                                 @endif
                             </div>
                             <div class="client-list-phone">@phoneFmt($client->phone)</div>
+                            @if(($client->certificates_count ?? 0) > 0)
+                                <div class="client-cert-badge"><i class="bi bi-award"></i> {{ $client->certificates_count }}@if(($client->certificates_used_count ?? 0) > 0) <span>({{ $client->certificates_used_count }})</span>@endif</div>
+                            @endif
                         </div>
                     </a>
                 @empty
@@ -199,6 +218,18 @@
                             <span class="field-value">{{ $selectedClient->created_at->format('d.m.Y') }}</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="client-detail-section">
+                    <a href="{{ route('club.certificates.client', $selectedClient) }}" class="client-cert-btn">
+                        <i class="bi bi-award"></i>
+                        <span>Сертификаты</span>
+                        <b>{{ $selectedClient->certificates_count ?? 0 }}</b>
+                        @if(($selectedClient->certificates_used_count ?? 0) > 0)
+                            <em>({{ $selectedClient->certificates_used_count }} использ.)</em>
+                        @endif
+                        <i class="bi bi-chevron-right client-cert-btn-arrow"></i>
+                    </a>
                 </div>
 
                 @if(isset($clientGroups) && $clientGroups->count())

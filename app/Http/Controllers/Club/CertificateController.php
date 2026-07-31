@@ -154,6 +154,32 @@ class CertificateController extends Controller
             ->with('success', 'Шаблон сохранён');
     }
 
+    /** Сертификаты конкретного клиента. */
+    public function client(\App\Models\ClubClient $client)
+    {
+        $club = $this->getClub();
+        if (!$club || $client->club_id !== $club->id) abort(403);
+
+        $certificates = Certificate::where('client_id', $client->id)
+            ->latest()
+            ->get();
+
+        return view('club.certificates.client', compact('certificates', 'client', 'club'));
+    }
+
+    /** Погасить / вернуть в активные. */
+    public function redeem(Certificate $certificate)
+    {
+        $club = $this->getClub();
+        if (!$club || $certificate->club_id !== $club->id) abort(403);
+
+        $certificate->update(['used_at' => $certificate->used_at ? null : now()]);
+
+        return back()->with('success', $certificate->isUsed()
+            ? 'Сертификат погашен: ' . $certificate->number
+            : 'Сертификат снова активен: ' . $certificate->number);
+    }
+
     /** Удалить сертификат. */
     public function destroy(Certificate $certificate)
     {

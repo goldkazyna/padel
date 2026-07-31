@@ -220,6 +220,67 @@ class CertificateTest extends TestCase
         $this->assertSame(0, Certificate::count());
     }
 
+    public function test_client_page_lists_client_certificates(): void
+    {
+        [$admin, $club] = $this->admin();
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Клиент А', 'phone' => '77010000001']);
+        $cert = Certificate::create([
+            'club_id' => $club->id, 'client_id' => $client->id, 'type' => 'named',
+            'recipient_name' => 'Клиент А', 'value_type' => 'amount', 'amount' => 5000,
+            'number' => Certificate::generateNumber($club->id),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.certificates.client', $client))
+            ->assertOk()
+            ->assertSee($cert->number)
+            ->assertSee('Активен');
+    }
+
+    public function test_client_page_forbids_other_club(): void
+    {
+        [$admin, $club] = $this->admin();
+        $other = Club::factory()->create();
+        $foreignClient = ClubClient::create(['club_id' => $other->id, 'name' => 'Ч', 'phone' => '77020000002']);
+
+        $this->actingAs($admin)
+            ->get(route('club.certificates.client', $foreignClient))
+            ->assertForbidden();
+    }
+
+    public function test_redeem_toggles_used(): void
+    {
+        [$admin, $club] = $this->admin();
+        $cert = Certificate::create([
+            'club_id' => $club->id, 'type' => 'generic', 'value_type' => 'amount', 'amount' => 5000,
+            'number' => Certificate::generateNumber($club->id),
+        ]);
+        $this->assertFalse($cert->isUsed());
+
+        $this->actingAs($admin)->post(route('club.certificates.redeem', $cert))->assertRedirect();
+        $this->assertNotNull($cert->fresh()->used_at);
+
+        $this->actingAs($admin)->post(route('club.certificates.redeem', $cert))->assertRedirect();
+        $this->assertNull($cert->fresh()->used_at);
+    }
+
+    public function test_client_certificate_counts_on_list(): void
+    {
+        [$admin, $club] = $this->admin();
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Счётчик', 'phone' => '77010000003']);
+        // 2 сертификата, 1 погашен.
+        Certificate::create(['club_id' => $club->id, 'client_id' => $client->id, 'type' => 'generic', 'value_type' => 'amount', 'amount' => 1000, 'number' => Certificate::generateNumber($club->id)]);
+        Certificate::create(['club_id' => $club->id, 'client_id' => $client->id, 'type' => 'generic', 'value_type' => 'amount', 'amount' => 2000, 'number' => Certificate::generateNumber($club->id), 'used_at' => now()]);
+
+        $fresh = ClubClient::where('id', $client->id)->withCount([
+            'certificates',
+            'certificates as certificates_used_count' => fn($q) => $q->whereNotNull('used_at'),
+        ])->first();
+
+        $this->assertSame(2, $fresh->certificates_count);
+        $this->assertSame(1, $fresh->certificates_used_count);
+    }
+
     public function test_show_renders_template(): void
     {
         [$admin, $club] = $this->admin();

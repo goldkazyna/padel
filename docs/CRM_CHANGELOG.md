@@ -7,6 +7,9 @@
 
 ## 2026-07-31
 
+### Сертификаты у клиента + статус (погашен/активен)
+- На странице клиентов (`/club/clients`) у каждого клиента с сертификатами — бейдж «🏅 N (M)» (N — всего, M — использовано), а в панели деталей клиента — кнопка **«Сертификаты N (M использ.) →»**, ведущая на страницу его сертификатов (`/club/clients/{id}/certificates`). Там список с **статусом** (Активен/Погашен) и кнопкой **«Погасить»/«Вернуть в активные»** (`certificates.used_at`, POST `certificates.redeem`). Счётчики в списке клиентов — через `withCount`. **Деплой (важно, иначе список клиентов упадёт — он теперь читает `used_at`):** `php artisan migrate --path=database/migrations/2026_07_31_000008_add_used_at_to_certificates_table.php`, `php artisan view:clear`.
+
 ### Сертификаты: настраиваемый префикс номера
 - В конструкторе (`/club/certificates/design`) появилось поле **«Префикс»** номера с живым превью. Номер стал `{prefix}-{clubId}-{год}-{уникальный код}` (напр. `padelhills-21-2026-ZMWQKF` вместо `CERT-…`). Префикс — буквы/цифры/`-`/`_`, до 30 символов; хранится в `certificate_templates.number_prefix` (дефолт `CERT`). Уникальность суффикса сохранена. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000007_add_number_prefix_to_certificate_templates.php`, `php artisan view:clear`.
 
