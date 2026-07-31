@@ -61,6 +61,7 @@ class CertificateController extends Controller
         }
 
         $vt = $data['value_type'];
+        $template = CertificateTemplate::defaultForClub($club->id);
 
         $certificate = Certificate::create([
             'club_id' => $club->id,
@@ -71,9 +72,9 @@ class CertificateController extends Controller
             'amount' => $vt === Certificate::VALUE_AMOUNT ? $data['amount'] : null,
             'hours' => $vt === Certificate::VALUE_HOURS ? $data['hours'] : null,
             'tournaments' => $vt === Certificate::VALUE_TOURNAMENT ? $data['tournaments'] : null,
-            'number' => Certificate::generateNumber($club->id),
+            'number' => Certificate::generateNumber($club->id, $template->number_prefix),
             'title' => $data['title'] ?? null,
-            'template_id' => CertificateTemplate::defaultForClub($club->id)->id,
+            'template_id' => $template->id,
             'created_by' => auth()->id(),
         ]);
 
@@ -113,6 +114,7 @@ class CertificateController extends Controller
         $template = CertificateTemplate::defaultForClub($club->id);
 
         $data = $request->validate([
+            'number_prefix' => 'nullable|regex:/^[A-Za-z0-9_-]{1,30}$/',
             'heading' => 'required|string|max:120',
             'subtitle_named' => 'required|string|max:200',
             'subtitle_generic' => 'required|string|max:200',
@@ -126,7 +128,12 @@ class CertificateController extends Controller
             'remove_logo' => 'nullable|boolean',
         ]);
 
-        $fields = collect($data)->except(['logo', 'remove_logo'])->toArray();
+        $fields = collect($data)->except(['logo', 'remove_logo', 'number_prefix'])->toArray();
+
+        // Префикс номера: сохраняем только если задан валидный (иначе не затираем текущий).
+        if (!empty($data['number_prefix'])) {
+            $fields['number_prefix'] = trim($data['number_prefix']);
+        }
 
         if ($request->boolean('remove_logo') && $template->logo_path) {
             \Storage::disk('public')->delete($template->logo_path);

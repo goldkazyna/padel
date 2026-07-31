@@ -39,11 +39,14 @@ class Certificate extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /** Уникальный номер сертификата: CERT-{clubId}-{год}-{6 символов}. */
-    public static function generateNumber(int $clubId): string
+    /** Уникальный номер сертификата: {prefix}-{clubId}-{год}-{6 символов}. */
+    public static function generateNumber(int $clubId, ?string $prefix = 'CERT'): string
     {
+        $prefix = trim((string) $prefix);
+        $prefix = $prefix !== '' ? $prefix : 'CERT';
+
         do {
-            $number = 'CERT-' . $clubId . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+            $number = $prefix . '-' . $clubId . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
         } while (self::where('number', $number)->exists());
 
         return $number;

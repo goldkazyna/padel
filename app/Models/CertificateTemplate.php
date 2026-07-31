@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CertificateTemplate extends Model
 {
     protected $fillable = [
-        'club_id', 'name', 'heading', 'subtitle_named', 'subtitle_generic',
+        'club_id', 'name', 'number_prefix', 'heading', 'subtitle_named', 'subtitle_generic',
         'body_text', 'background_color', 'accent_color', 'border_color',
         'text_color', 'logo_path', 'orientation', 'is_default',
     ];

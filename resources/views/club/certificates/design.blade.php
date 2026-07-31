@@ -17,6 +17,13 @@
         @csrf
         <div class="crtc-form">
             <div class="crtc-group">
+                <div class="crtc-gt">Номер сертификата</div>
+                <label>Префикс</label>
+                <input type="text" name="number_prefix" id="f_prefix" value="{{ old('number_prefix', $template->number_prefix) }}" maxlength="30" placeholder="напр. padelhills">
+                <div class="crtc-numprev">Пример номера: <b id="numPreview">{{ ($template->number_prefix ?: 'CERT') }}-{{ $club->id }}-{{ now()->format('Y') }}-XXXXXX</b></div>
+                <div class="crtc-numhint">Разрешены буквы, цифры, «-» и «_». Дальше — id клуба, год и уникальный код (не повторяется).</div>
+            </div>
+            <div class="crtc-group">
                 <div class="crtc-gt">Тексты</div>
                 <label>Заголовок</label>
                 <input type="text" name="heading" id="f_heading" value="{{ old('heading', $template->heading) }}" maxlength="120">
@@ -92,6 +99,9 @@
 .crtc-colors input[type=color] { width:48px; height:34px; border:none; background:none; cursor:pointer; }
 .crtc-check { display:flex !important; align-items:center; gap:8px; }
 .crtc-check input { width:auto !important; }
+.crtc-numprev { margin-top:10px; color:#a1a1aa; font-size:.82rem; }
+.crtc-numprev b { color:#22C55E; font-family:monospace; letter-spacing:.5px; }
+.crtc-numhint { color:#71717a; font-size:.76rem; margin-top:6px; }
 
 .crtc-preview-col { flex:1.3; min-width:360px; position:sticky; top:16px; }
 .crtc-preview-hint { color:#71717a; font-size:.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
@@ -150,6 +160,12 @@
     var orient = document.getElementById('f_orient');
     if(orient) orient.addEventListener('change', function(e){ pv.classList.toggle('portrait', e.target.value === 'portrait'); });
     if(orient && orient.value === 'portrait') pv.classList.add('portrait');
+
+    var pfx = document.getElementById('f_prefix');
+    if (pfx) pfx.addEventListener('input', function (e) {
+        var v = (e.target.value.trim() || 'CERT');
+        document.getElementById('numPreview').textContent = v + '-{{ $club->id }}-{{ now()->format('Y') }}-XXXXXX';
+    });
 
     var logo = document.getElementById('f_logo');
     if(logo) logo.addEventListener('change', function(e){

@@ -269,6 +269,39 @@ class CertificateTest extends TestCase
         $this->assertSame('portrait', $tpl->orientation);
     }
 
+    public function test_number_uses_custom_prefix_from_template(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        // Задаём префикс через конструктор.
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'number_prefix' => 'padelhills',
+            'heading' => 'Сертификат', 'subtitle_named' => 'a', 'subtitle_generic' => 'b',
+            'background_color' => '#ffffff', 'accent_color' => '#ff0000',
+            'border_color' => '#00ff00', 'text_color' => '#0000ff', 'orientation' => 'landscape',
+        ])->assertRedirect();
+
+        // Создаём сертификат — номер с новым префиксом.
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'amount', 'amount' => 5000,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertStringStartsWith('padelhills-' . $club->id . '-', $cert->number);
+    }
+
+    public function test_design_rejects_bad_prefix(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'number_prefix' => 'bad prefix!', // пробел и «!» запрещены
+            'heading' => 'X', 'subtitle_named' => 'a', 'subtitle_generic' => 'b',
+            'background_color' => '#ffffff', 'accent_color' => '#ff0000',
+            'border_color' => '#00ff00', 'text_color' => '#0000ff', 'orientation' => 'landscape',
+        ])->assertSessionHasErrors('number_prefix');
+    }
+
     public function test_design_rejects_bad_color(): void
     {
         [$admin, $club] = $this->admin();

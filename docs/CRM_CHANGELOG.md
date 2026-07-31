@@ -7,6 +7,9 @@
 
 ## 2026-07-31
 
+### Сертификаты: настраиваемый префикс номера
+- В конструкторе (`/club/certificates/design`) появилось поле **«Префикс»** номера с живым превью. Номер стал `{prefix}-{clubId}-{год}-{уникальный код}` (напр. `padelhills-21-2026-ZMWQKF` вместо `CERT-…`). Префикс — буквы/цифры/`-`/`_`, до 30 символов; хранится в `certificate_templates.number_prefix` (дефолт `CERT`). Уникальность суффикса сохранена. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000007_add_number_prefix_to_certificate_templates.php`, `php artisan view:clear`.
+
 ### Сертификаты: номинал (сумма / часы / турнир) + редизайн модалки
 - Номинал сертификата: **«На сумму»** (₸), **«Бесплатные часы»** или **«Бесплатный турнир»** (кол-во турниров). Хранится в `certificates.value_type` (`amount`/`hours`/`tournament`) + `amount`/`hours`/`tournaments`. Показан колонкой в списке и крупно на шаблоне (склонение: «2 часа», «1 турнир»).
 - **Редизайн модалки:** переключатели «Тип» и «Номинал» переделаны в аккуратные **карточки-сегменты** с иконкой и подсветкой выбранного (зелёная рамка/фон через `:has(input:checked)`) — раньше радио «висело» из-за конфликта с `.ct-field label{display:block}`. Плюс фокус-стейт полей, скрытие спиннеров у number, аккуратный футер. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000005_add_value_to_certificates_table.php` и `--path=...2026_07_31_000006_add_tournaments_to_certificates_table.php`, `php artisan view:clear`.
