@@ -72,9 +72,14 @@ class MexicanoController extends Controller
         $tournament = $match->round->tournament;
         
         $leaderboard = $tournament->mexicanoPlayers()
-            ->orderBy('total_points', 'desc')
             ->with('user')
             ->get()
+            ->sort(function ($a, $b) {
+                if ($a->total_points !== $b->total_points) return $b->total_points <=> $a->total_points;
+                // Финальный тай-брейк — по рейтингу (стартовая таблица сверху вниз по рейтингу).
+                return ($b->user->rating ?? 0) <=> ($a->user->rating ?? 0);
+            })
+            ->values()
             ->map(function($player) {
                 return [
                     'id' => $player->user_id,

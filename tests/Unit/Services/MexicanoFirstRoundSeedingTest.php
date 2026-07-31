@@ -80,6 +80,26 @@ class MexicanoFirstRoundSeedingTest extends TestCase
         $this->assertSame($expectedCourt2, $court2Ids, 'Корт 2 — следующие по рейтингу');
     }
 
+    public function test_initial_leaderboard_ordered_by_rating_desc(): void
+    {
+        // Разный порядок регистрации, чтобы проверить именно сортировку по рейтингу.
+        $ratings = [1400, 2000, 1600, 1300, 1900, 1500, 1800, 1700];
+        [$tournament, $u] = $this->makeTournament($ratings);
+        $this->service->startTournament($tournament->fresh());
+
+        // Ни один матч не сыгран → таблица должна идти сверху вниз по рейтингу.
+        $controller = new \App\Http\Controllers\Api\MobileAdminTournamentDetailController();
+        $method = new \ReflectionMethod($controller, 'buildMexicanoLeaderboard');
+        $method->setAccessible(true);
+        $rows = $method->invoke($controller, $tournament->fresh());
+
+        $ratingsInOrder = array_map(fn ($r) => $r['rating'], $rows);
+        $expected = [2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300];
+        $this->assertSame($expected, $ratingsInOrder, 'Стартовая таблица должна идти по рейтингу DESC');
+        $this->assertSame(1, $rows[0]['position']);
+        $this->assertSame($u[2000]->id, $rows[0]['id']);
+    }
+
     public function test_first_round_is_deterministic_by_rating(): void
     {
         $ratings = [2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300];

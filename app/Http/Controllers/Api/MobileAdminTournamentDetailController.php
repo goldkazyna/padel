@@ -2129,7 +2129,9 @@ class MobileAdminTournamentDetailController extends Controller
             $diffA = $a['points_for'] - $a['points_against'];
             $diffB = $b['points_for'] - $b['points_against'];
             if ($diffA !== $diffB) return $diffB <=> $diffA;
-            return $b['wins'] <=> $a['wins'];
+            if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+            // Финальный тай-брейк — по рейтингу: стартовая таблица (все по 0) идёт сверху вниз по рейтингу.
+            return ($b['rating'] ?? 0) <=> ($a['rating'] ?? 0);
         });
 
         $position = 1;

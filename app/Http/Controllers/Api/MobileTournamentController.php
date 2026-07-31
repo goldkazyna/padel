@@ -1639,7 +1639,10 @@ class MobileTournamentController extends Controller
                 $diffA = $a['points_for'] - $a['points_against'];
                 $diffB = $b['points_for'] - $b['points_against'];
                 if ($diffA !== $diffB) return $diffB <=> $diffA;
-                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                $tie = \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                if ($tie !== 0) return $tie;
+                // Финальный тай-брейк — по рейтингу (стартовая таблица сверху вниз по рейтингу).
+                return ($b['rating'] ?? 0) <=> ($a['rating'] ?? 0);
             });
         }
 

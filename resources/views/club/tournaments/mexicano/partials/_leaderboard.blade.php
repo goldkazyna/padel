@@ -77,7 +77,9 @@
 		$totalB = $b['points_for'] + $b['points_against'];
 		$pctA = $totalA > 0 ? $a['points_for'] / $totalA : 0;
 		$pctB = $totalB > 0 ? $b['points_for'] / $totalB : 0;
-		return $pctB <=> $pctA;
+		if ($pctA !== $pctB) return $pctB <=> $pctA;
+		// Финальный тай-брейк — по рейтингу (стартовая таблица сверху вниз по рейтингу).
+		return (optional($b['player'])->rating ?? 0) <=> (optional($a['player'])->rating ?? 0);
 	});
 @endphp
 
