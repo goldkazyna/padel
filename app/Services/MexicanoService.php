@@ -58,28 +58,35 @@ class MexicanoService
 
 		$courtNumber = 1;
 
-		// Первый раунд — случайные пары
-		shuffle($playerIds);
-		
+		// Первый раунд — по РЕЙТИНГУ: $playerIds уже отсортированы по рейтингу DESC
+		// (сильнейший — 1-е место, слабейший — последнее). Режем по 4 подряд:
+		// корт 1 — четыре сильнейших, и т.д. Внутри четвёрки пары 1+4 vs 2+3 (баланс),
+		// как в последующих раундах.
 		for ($i = 0; $i < count($playerIds); $i += 4) {
 			if (isset($playerIds[$i + 3])) {
+				$p1 = $playerIds[$i];     // сильнейший в четвёрке
+				$p2 = $playerIds[$i + 1]; // 2-й
+				$p3 = $playerIds[$i + 2]; // 3-й
+				$p4 = $playerIds[$i + 3]; // слабейший в четвёрке
+
+				// Команда 1 = 1+4, команда 2 = 2+3.
 				MexicanoMatch::create([
 					'mexicano_round_id' => $round->id,
 					'court_number' => $courtNumber,
-					'team1_player1_id' => $playerIds[$i],
-					'team1_player2_id' => $playerIds[$i + 1],
-					'team2_player1_id' => $playerIds[$i + 2],
-					'team2_player2_id' => $playerIds[$i + 3],
+					'team1_player1_id' => $p1,
+					'team1_player2_id' => $p4,
+					'team2_player1_id' => $p2,
+					'team2_player2_id' => $p3,
 					'status' => 'pending',
 				]);
 
 				// Записываем историю пар
-				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 1], true);
-				$this->recordPairHistory($tournament->id, $playerIds[$i + 2], $playerIds[$i + 3], true);
-				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 2], false);
-				$this->recordPairHistory($tournament->id, $playerIds[$i], $playerIds[$i + 3], false);
-				$this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 2], false);
-				$this->recordPairHistory($tournament->id, $playerIds[$i + 1], $playerIds[$i + 3], false);
+				$this->recordPairHistory($tournament->id, $p1, $p4, true);
+				$this->recordPairHistory($tournament->id, $p2, $p3, true);
+				$this->recordPairHistory($tournament->id, $p1, $p2, false);
+				$this->recordPairHistory($tournament->id, $p1, $p3, false);
+				$this->recordPairHistory($tournament->id, $p4, $p2, false);
+				$this->recordPairHistory($tournament->id, $p4, $p3, false);
 
 				$courtNumber++;
 			}
