@@ -315,6 +315,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/cards/{card}/expiry', [App\Http\Controllers\Club\ClubCardController::class, 'updateExpiry'])->name('cards.updateExpiry');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');
 
+        // Сертификаты клуба
+        Route::get('/certificates', [App\Http\Controllers\Club\CertificateController::class, 'index'])->name('certificates.index');
+        Route::post('/certificates', [App\Http\Controllers\Club\CertificateController::class, 'store'])->name('certificates.store');
+        Route::get('/certificates/{certificate}', [App\Http\Controllers\Club\CertificateController::class, 'show'])->name('certificates.show');
+        Route::delete('/certificates/{certificate}', [App\Http\Controllers\Club\CertificateController::class, 'destroy'])->name('certificates.destroy');
+
         // Групповые занятия
         Route::middleware('club.feature:groups')->group(function () {
             Route::get('/groups', [App\Http\Controllers\Club\ClubGroupController::class, 'index'])->name('groups.index');
