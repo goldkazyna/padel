@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Certificate;
+use App\Models\CertificateTemplate;
 use App\Models\Club;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CertificateTest extends TestCase
@@ -98,5 +101,82 @@ class CertificateTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.certificates.show', $foreign))
             ->assertForbidden();
+    }
+
+    public function test_show_renders_template(): void
+    {
+        [$admin, $club] = $this->admin();
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'named', 'recipient_name' => 'Пётр Петров',
+        ]);
+        $cert = Certificate::first();
+
+        $this->actingAs($admin)
+            ->get(route('club.certificates.show', $cert))
+            ->assertOk()
+            ->assertSee('Пётр Петров')
+            ->assertSee($cert->number);
+    }
+
+    public function test_design_page_loads_and_creates_default_template(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->get(route('club.certificates.design'))->assertOk();
+
+        $this->assertDatabaseHas('certificate_templates', [
+            'club_id' => $club->id, 'is_default' => true,
+        ]);
+    }
+
+    public function test_design_update_saves_colors_and_texts(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'heading' => 'Диплом',
+            'subtitle_named' => 'Вручается',
+            'subtitle_generic' => 'Выдан',
+            'body_text' => 'за победу',
+            'background_color' => '#ffffff',
+            'accent_color' => '#ff0000',
+            'border_color' => '#00ff00',
+            'text_color' => '#0000ff',
+            'orientation' => 'portrait',
+        ])->assertRedirect(route('club.certificates.design'));
+
+        $tpl = CertificateTemplate::defaultForClub($club->id);
+        $this->assertSame('Диплом', $tpl->heading);
+        $this->assertSame('#ff0000', $tpl->accent_color);
+        $this->assertSame('portrait', $tpl->orientation);
+    }
+
+    public function test_design_rejects_bad_color(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'heading' => 'X', 'subtitle_named' => 'a', 'subtitle_generic' => 'b',
+            'background_color' => 'red', // не hex
+            'accent_color' => '#ff0000', 'border_color' => '#00ff00', 'text_color' => '#0000ff',
+            'orientation' => 'landscape',
+        ])->assertSessionHasErrors('background_color');
+    }
+
+    public function test_design_uploads_logo(): void
+    {
+        Storage::fake('public');
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'heading' => 'Сертификат', 'subtitle_named' => 'a', 'subtitle_generic' => 'b',
+            'background_color' => '#ffffff', 'accent_color' => '#ff0000',
+            'border_color' => '#00ff00', 'text_color' => '#0000ff', 'orientation' => 'landscape',
+            'logo' => UploadedFile::fake()->image('logo.png', 200, 80),
+        ])->assertRedirect();
+
+        $tpl = CertificateTemplate::defaultForClub($club->id);
+        $this->assertNotNull($tpl->logo_path);
+        Storage::disk('public')->assertExists($tpl->logo_path);
     }
 }

@@ -7,6 +7,7 @@
         <h1 class="cc-title">Сертификаты <span class="cc-club">— {{ $club->name }}</span></h1>
         <span class="cc-stat"><b>{{ $certificates->total() }}</b><span>Всего</span></span>
         <span class="cc-spacer"></span>
+        <a href="{{ route('club.certificates.design') }}" class="cc-btn cc-ghost">Конструктор шаблона</a>
         <button class="cc-btn cc-green" onclick="openCertModal()">+ Добавить сертификат</button>
     </div>
 

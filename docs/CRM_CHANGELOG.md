@@ -7,6 +7,9 @@
 
 ## 2026-07-31
 
+### Сертификаты: конструктор шаблона
+- На странице сертификатов кнопка **«Конструктор шаблона»** → `/club/certificates/design`. Форма с **живым превью**: тексты (заголовок, подзаголовки для именного/обычного, текст по умолчанию), **цвета** (фон, акцент, рамка, заголовок), **логотип** (загрузка/удаление) и **ориентация** (альбомная/книжная). У клуба один дефолтный шаблон (`certificate_templates`, `firstOrCreate`); сертификаты ссылаются на него (`certificates.template_id`), печатный шаблон рендерится из настроек. Логотипы — в `storage/app/public/certificates/logos` (нужен `storage:link`). Новые: таблица `certificate_templates`, колонка `certificates.template_id`, модель `CertificateTemplate`, методы `design`/`designUpdate`. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000002_create_certificate_templates_table.php` и `--path=...2026_07_31_000003_add_template_id_to_certificates_table.php`, `php artisan storage:link` (если ещё нет), `php artisan view:clear`.
+
 ### Сертификаты клуба (новый раздел)
 - В левом меню клуба появился пункт **«Сертификаты»** (`bi-award`). Страница `/club/certificates` — список всех сертификатов клуба (номер, тип, кому, дата) + кнопка **«Добавить сертификат»**. В модалке выбирается тип: **Обычный** (на предъявителя) или **Именной** (вводится ФИО). Номер генерируется автоматически и уникален (`CERT-{clubId}-{год}-{6 символов}`). Кнопка «Открыть» показывает **печатный шаблон** сертификата (типовой дизайн, А4-альбомная, кнопка «Печать/PDF»); дальше планируется конструктор шаблонов. Новые: таблица `certificates`, модель `Certificate`, `Club\CertificateController`, вьюхи `club/certificates/{index,template}`. **Деплой с миграцией:** `php artisan migrate --path=database/migrations/2026_07_31_000001_create_certificates_table.php`, затем `php artisan view:clear`.
 

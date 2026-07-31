@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
+use App\Models\CertificateTemplate;
 use Illuminate\Http\Request;
 
 class CertificateController extends Controller
@@ -49,6 +50,7 @@ class CertificateController extends Controller
             'recipient_name' => $data['type'] === Certificate::TYPE_NAMED ? trim($data['recipient_name']) : null,
             'number' => Certificate::generateNumber($club->id),
             'title' => $data['title'] ?? null,
+            'template_id' => CertificateTemplate::defaultForClub($club->id)->id,
             'created_by' => auth()->id(),
         ]);
 
@@ -63,7 +65,63 @@ class CertificateController extends Controller
         $club = $this->getClub();
         if (!$club || $certificate->club_id !== $club->id) abort(403);
 
-        return view('club.certificates.template', compact('certificate', 'club'));
+        $template = $certificate->template ?? CertificateTemplate::defaultForClub($club->id);
+
+        return view('club.certificates.template', compact('certificate', 'club', 'template'));
+    }
+
+    /** Конструктор шаблона (дизайн сертификата). */
+    public function design()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $template = CertificateTemplate::defaultForClub($club->id);
+
+        return view('club.certificates.design', compact('template', 'club'));
+    }
+
+    /** Сохранить дизайн шаблона. */
+    public function designUpdate(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $template = CertificateTemplate::defaultForClub($club->id);
+
+        $data = $request->validate([
+            'heading' => 'required|string|max:120',
+            'subtitle_named' => 'required|string|max:200',
+            'subtitle_generic' => 'required|string|max:200',
+            'body_text' => 'nullable|string|max:500',
+            'background_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'accent_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'border_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'text_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'orientation' => 'required|in:landscape,portrait',
+            'logo' => 'nullable|image|max:2048',
+            'remove_logo' => 'nullable|boolean',
+        ]);
+
+        $fields = collect($data)->except(['logo', 'remove_logo'])->toArray();
+
+        if ($request->boolean('remove_logo') && $template->logo_path) {
+            \Storage::disk('public')->delete($template->logo_path);
+            $fields['logo_path'] = null;
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($template->logo_path) {
+                \Storage::disk('public')->delete($template->logo_path);
+            }
+            $fields['logo_path'] = $request->file('logo')->store('certificates/logos', 'public');
+        }
+
+        $template->update($fields);
+
+        return redirect()
+            ->route('club.certificates.design')
+            ->with('success', 'Шаблон сохранён');
     }
 
     /** Удалить сертификат. */
