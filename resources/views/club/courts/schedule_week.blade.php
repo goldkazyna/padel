@@ -1182,6 +1182,13 @@
                             <small class="form-hint" id="bookCardHint" style="display:none;"></small>
                         </div>
 
+                        <div class="form-group" id="bookCertWrap" style="display:none;">
+                            <label class="form-label">Сертификаты клиента</label>
+                            <input type="hidden" name="certificate_id" id="bookCertInput" value="">
+                            <div class="client-card-buttons" id="bookCertButtons"></div>
+                            <small class="form-hint" id="bookCertHint" style="display:none;"></small>
+                        </div>
+
                         <div class="modal-section-title">Тип брони</div>
                         <div class="booking-type-buttons" id="bookingTypeButtons">
                             <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectBookingType(this)"><i class="bi bi-clock-history"></i><span>Мягкая бронь</span></button>
@@ -2196,6 +2203,7 @@
         const val = btn.getAttribute('data-value');
         document.getElementById('editPaymentMethodInput').value = val;
         if (val !== 'club_card') deselectCard('edit');
+        if (val !== 'certificate') deselectCert('edit');
         // «Бесплатно» — цена и скидка 0, статус → Оплачено
         if (val === 'free') {
             const p = document.getElementById('editCustomPrice'); if (p) p.value = 0;
@@ -2245,6 +2253,7 @@
         document.getElementById('paymentMethodInput').value = val;
         // Выбран не «Клубная карта» — снимаем карту и возвращаем обычную цену.
         if (val !== 'club_card') deselectCard('book');
+        if (val !== 'certificate') deselectCert('book');
         // «Бесплатно» — цена и скидка 0, статус → Оплачено
         if (val === 'free') {
             const p = document.getElementById('bookCustomPrice'); if (p) p.value = 0;
@@ -2319,6 +2328,7 @@
     let editingBookingId = null;
 
     function loadClientCards(prefix, phone, preselectId) {
+        loadClientCertificates(prefix, phone);
         const wrap = document.getElementById(prefix + 'CardWrap');
         const box = document.getElementById(prefix + 'CardButtons');
         const input = document.getElementById(prefix + 'CardInput');
@@ -2452,6 +2462,103 @@
             discEl.value = Math.round(price * (card.discount_percent || 0) / 100);
         }
         if (prefix === 'book') updateFinalPrice();
+    }
+
+    // ==== Сертификаты клиента (по аналогии с картами) ====
+    const certsForClientUrl = @json(route('club.certificates.forClient'));
+    let certCache = { book: [], edit: [] };
+    let selectedCert = { book: null, edit: null };
+
+    function loadClientCertificates(prefix, phone) {
+        const wrap = document.getElementById(prefix + 'CertWrap');
+        const box = document.getElementById(prefix + 'CertButtons');
+        const input = document.getElementById(prefix + 'CertInput');
+        const hint = document.getElementById(prefix + 'CertHint');
+        if (!wrap || !box) return;
+        const reset = () => {
+            wrap.style.display = 'none'; box.innerHTML = '';
+            if (input) input.value = '';
+            if (hint) hint.style.display = 'none';
+            selectedCert[prefix] = null; certCache[prefix] = [];
+        };
+        const digits = (phone || '').replace(/\D/g, '');
+        if (digits.length < 5) { reset(); return; }
+        fetch(certsForClientUrl + '?phone=' + encodeURIComponent(digits))
+            .then(r => r.json())
+            .then(d => {
+                const certs = (d && d.certificates) ? d.certificates : [];
+                certCache[prefix] = certs;
+                selectedCert[prefix] = null;
+                if (input) input.value = '';
+                if (!certs.length) { reset(); return; }
+                box.innerHTML = certs.map(c =>
+                    '<button type="button" class="client-card-btn" data-id="' + c.id + '" onclick="onCertButton(\'' + prefix + '\',' + c.id + ')">' +
+                    '<span class="ccb-name">' + cardEsc(c.label) + '</span>' +
+                    '<span class="ccb-code">' + cardEsc(c.number) + '</span>' +
+                    '<span class="ccb-sub">' + (c.is_free ? 'бесплатно' : 'на сумму') + '</span></button>'
+                ).join('');
+                wrap.style.display = '';
+            })
+            .catch(() => reset());
+    }
+
+    function onCertButton(prefix, certId) {
+        const cert = (certCache[prefix] || []).find(c => String(c.id) === String(certId));
+        if (!cert) return;
+        const box = document.getElementById(prefix + 'CertButtons');
+        const input = document.getElementById(prefix + 'CertInput');
+        const already = selectedCert[prefix] && String(selectedCert[prefix].id) === String(certId);
+        if (already) { deselectCert(prefix); return; }
+
+        deselectCard(prefix); // сертификат исключает карту
+        selectedCert[prefix] = cert;
+        if (input) input.value = cert.id;
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b =>
+            b.classList.toggle('active', String(b.dataset.id) === String(certId)));
+        setPaymentCertificate(prefix);
+        applyCertPricing(prefix);
+    }
+
+    function deselectCert(prefix) {
+        if (!selectedCert[prefix]) return;
+        selectedCert[prefix] = null;
+        const input = document.getElementById(prefix + 'CertInput');
+        const box = document.getElementById(prefix + 'CertButtons');
+        const hint = document.getElementById(prefix + 'CertHint');
+        if (input) input.value = '';
+        if (box) box.querySelectorAll('.client-card-btn').forEach(b => b.classList.remove('active'));
+        if (hint) hint.style.display = 'none';
+        const discEl = document.getElementById(prefix === 'book' ? 'bookDiscount' : 'editDiscount');
+        if (discEl) discEl.value = 0;
+        if (prefix === 'book' && typeof updateFinalPrice === 'function') updateFinalPrice();
+        if (prefix === 'edit' && typeof updateEditFinalPrice === 'function') updateEditFinalPrice();
+    }
+
+    function setPaymentCertificate(prefix) {
+        const sel = (prefix === 'book') ? '#paymentMethods' : '#editPaymentMethods';
+        const inputId = (prefix === 'book') ? 'paymentMethodInput' : 'editPaymentMethodInput';
+        document.querySelectorAll(sel + ' .pay-btn').forEach(b =>
+            b.classList.toggle('active', b.getAttribute('data-value') === 'certificate'));
+        const inp = document.getElementById(inputId);
+        if (inp) inp.value = 'certificate';
+    }
+
+    function applyCertPricing(prefix) {
+        const cert = selectedCert[prefix];
+        const priceEl = document.getElementById(prefix === 'book' ? 'bookCustomPrice' : 'editCustomPrice');
+        const discEl = document.getElementById(prefix === 'book' ? 'bookDiscount' : 'editDiscount');
+        const hint = document.getElementById(prefix + 'CertHint');
+        if (!cert || !priceEl || !discEl) return;
+        const price = parseInt(priceEl.value) || 0;
+        if (cert.is_free) {
+            discEl.value = price; // максимальная скидка → итог 0
+            if (hint) { hint.textContent = 'Бесплатно по сертификату — итог 0 ₸.'; hint.style.display = ''; }
+        } else {
+            discEl.value = Math.min(cert.amount || 0, price); // номинал, но не больше цены
+            if (hint) { hint.textContent = 'Скидка по сертификату: ' + (cert.amount || 0) + ' ₸.'; hint.style.display = ''; }
+        }
+        if (prefix === 'book' && typeof updateFinalPrice === 'function') updateFinalPrice();
+        if (prefix === 'edit' && typeof updateEditFinalPrice === 'function') updateEditFinalPrice();
     }
 
     // ====== Группы (идентично дневному виду) ======

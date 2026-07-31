@@ -32,6 +32,7 @@ class CourtBooking extends Model
         'coach_price',
         'needs_coach',
         'club_card_id',
+        'certificate_id',
         'card_charged_at',
         'reminded_1d_at',
         'reminded_2h_at',

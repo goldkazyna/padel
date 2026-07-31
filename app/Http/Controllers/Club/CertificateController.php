@@ -154,6 +154,37 @@ class CertificateController extends Controller
             ->with('success', 'Шаблон сохранён');
     }
 
+    /** Активные сертификаты клиента по телефону (для модалки брони). */
+    public function forClient(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) return response()->json(['certificates' => []]);
+
+        $digits = preg_replace('/\D/', '', (string) $request->get('phone', ''));
+        if (strlen($digits) < 5) return response()->json(['certificates' => []]);
+        $last10 = substr($digits, -10);
+
+        $client = \App\Models\ClubClient::where('club_id', $club->id)
+            ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
+            ->first();
+        if (!$client) return response()->json(['certificates' => []]);
+
+        $certs = Certificate::where('client_id', $client->id)
+            ->whereNull('used_at')
+            ->latest()
+            ->get()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'number' => $c->number,
+                'value_type' => $c->value_type,
+                'amount' => (int) ($c->amount ?? 0),
+                'is_free' => in_array($c->value_type, [Certificate::VALUE_HOURS, Certificate::VALUE_TOURNAMENT], true),
+                'label' => $c->valueLabel(),
+            ]);
+
+        return response()->json(['certificates' => $certs]);
+    }
+
     /** Сертификаты конкретного клиента. */
     public function client(\App\Models\ClubClient $client)
     {

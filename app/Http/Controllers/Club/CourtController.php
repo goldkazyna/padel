@@ -652,6 +652,7 @@ class CourtController extends Controller
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
+            'certificate_id' => 'nullable|integer',
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
         ], [
@@ -745,6 +746,16 @@ class CourtController extends Controller
         $cardAvailable = $counterCard ? $cardService->availableBalance($counterCard) : 0;
         $slotHours = $counterCard ? $cardService->slotHours($startTime, $endTime) : 0;
 
+        // Сертификат клиента (если выбран): задаёт скидку и гасится при бронировании.
+        $certificate = null;
+        if (!empty($validated['certificate_id'])) {
+            $certificate = \App\Models\Certificate::where('club_id', $club->id)
+                ->where('id', $validated['certificate_id'])
+                ->whereNull('used_at')
+                ->first();
+        }
+        $certApplied = false;
+
         // Мультитренер (спарринг) — только для НЕ групповой брони. Собираем строки
         // тренеров с индивидуальной ценой/оплатой; дубли по coach_id схлопываем.
         $coachRows = [];
@@ -810,6 +821,19 @@ class CourtController extends Controller
                 : $baseDiscount;
             $price = max(0, $priceBeforeDiscount - $discount);
 
+            // Сертификат: amount → скидка = номинал (не больше цены); free (часы/турнир) → бесплатно (итог 0).
+            $bookingCertificateId = null;
+            if ($certificate && !$certApplied && !$isGroupBooking) {
+                if ($certificate->value_type === \App\Models\Certificate::VALUE_AMOUNT) {
+                    $discount = min((int) $certificate->amount, (int) round($priceBeforeDiscount));
+                } else {
+                    $discount = (int) round($priceBeforeDiscount);
+                }
+                $price = max(0, (int) round($priceBeforeDiscount) - $discount);
+                $bookingCertificateId = $certificate->id;
+                $certApplied = true;
+            }
+
             // Групповая бронь: цена = цена занятия группы (без скидки).
             if ($isGroupBooking) {
                 $price = $groupSessionPrice;
@@ -846,7 +870,13 @@ class CourtController extends Controller
                     ? (!empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null)
                     : ($primaryCoach['coach_price'] ?? null),
                 'club_card_id' => $clubCardId,
+                'certificate_id' => $bookingCertificateId,
             ]);
+
+            // Сертификат погашается при использовании в брони.
+            if ($bookingCertificateId && $certificate) {
+                $certificate->update(['used_at' => now()]);
+            }
 
             // Мультитренер: сохраняем всех тренеров индивидуальной брони в пивот.
             if (!$isGroupBooking && !empty($coachRows)) {
