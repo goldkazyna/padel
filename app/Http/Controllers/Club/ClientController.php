@@ -96,7 +96,18 @@ class ClientController extends Controller
                 ->get();
         }
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes'));
+        // У кого есть аккаунт в приложении (зарегистрирован на этом номере).
+        $clientDigits = $clients->pluck('phone')->filter()
+            ->map(fn($p) => preg_replace('/\D/', '', (string) $p))
+            ->filter()->values()->all();
+        $appPhones = [];
+        if (!empty($clientDigits)) {
+            $appPhones = array_flip(
+                \App\Models\User::whereIn('phone', $clientDigits)->pluck('phone')->all()
+            );
+        }
+
+        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes', 'appPhones'));
     }
 
     /**

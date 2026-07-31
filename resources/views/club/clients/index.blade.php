@@ -55,6 +55,10 @@
         .client-cert-badge i{font-size:13px;}
         .client-cert-badge span{color:#71717a;font-weight:600;}
 
+        /* Иконка «есть аккаунт в приложении Padel KZ» */
+        .client-app-badge{width:26px;height:26px;object-fit:contain;margin-left:auto;flex:none;
+            border-radius:6px;opacity:.95;}
+
         /* Кнопка «Сертификаты» в деталях клиента */
         .client-cert-btn{display:flex;align-items:center;gap:10px;padding:13px 16px;
             border-radius:12px;background:var(--cl-card,#16161a);border:1px solid var(--cl-border,#27272a);
@@ -121,6 +125,10 @@
                                 <div class="client-cert-badge"><i class="bi bi-award"></i> {{ $client->certificates_count }}@if(($client->certificates_used_count ?? 0) > 0) <span>({{ $client->certificates_used_count }})</span>@endif</div>
                             @endif
                         </div>
+                        @php($clientDigitsRow = preg_replace('/\D/', '', (string) $client->phone))
+                        @if($client->user_id || isset($appPhones[$clientDigitsRow]))
+                            <img src="{{ asset('images/padel-logo.png') }}" alt="Padel KZ" title="Зарегистрирован в приложении Padel KZ" class="client-app-badge">
+                        @endif
                     </a>
                 @empty
                     <div class="clients-empty">
