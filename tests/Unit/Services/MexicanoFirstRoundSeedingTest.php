@@ -23,13 +23,13 @@ class MexicanoFirstRoundSeedingTest extends TestCase
     }
 
     /** @return array<int,User> ключ = рейтинг */
-    private function makeTournament(array $ratings): array
+    private function makeTournament(array $ratings, int $roundsCount = 1): array
     {
         $tournament = Tournament::factory()->create([
             'type' => 'mexicano',
             'status' => 'open',
             'max_participants' => count($ratings),
-            'rounds_count' => 1,
+            'rounds_count' => $roundsCount,
         ]);
 
         $byRating = [];
@@ -98,6 +98,34 @@ class MexicanoFirstRoundSeedingTest extends TestCase
         $this->assertSame($expected, $ratingsInOrder, 'Стартовая таблица должна идти по рейтингу DESC');
         $this->assertSame(1, $rows[0]['position']);
         $this->assertSame($u[2000]->id, $rows[0]['id']);
+    }
+
+    public function test_next_round_pairing_tiebreak_follows_rating(): void
+    {
+        // Все игроки равны по статистике (матчи не сыграны) → разбивка на пары
+        // должна сидироваться по рейтингу, как таблица: 1+4 vs 2+3.
+        $ratings = [2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300];
+        [$tournament, $u] = $this->makeTournament($ratings, 2);
+        $this->service->startTournament($tournament->fresh());
+
+        $round2 = $this->service->generateNextRound($tournament->fresh());
+        $this->assertNotNull($round2);
+
+        $matches = MexicanoMatch::where('mexicano_round_id', $round2->id)
+            ->orderBy('court_number')->get();
+
+        // Корт 1 = четыре сильнейших; пары 1+4 vs 2+3 по рейтингу.
+        $c1 = $matches[0];
+        $this->assertEqualsCanonicalizing(
+            [$u[2000]->id, $u[1700]->id],
+            [$c1->team1_player1_id, $c1->team1_player2_id],
+            'Команда 1 корта 1 — сильнейший(2000) + 4-й(1700)'
+        );
+        $this->assertEqualsCanonicalizing(
+            [$u[1900]->id, $u[1800]->id],
+            [$c1->team2_player1_id, $c1->team2_player2_id],
+            'Команда 2 корта 1 — 2-й(1900) + 3-й(1800)'
+        );
     }
 
     public function test_first_round_is_deterministic_by_rating(): void

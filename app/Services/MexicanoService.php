@@ -136,11 +136,13 @@ class MexicanoService
 		// Собираем статистику по матчам для правильной сортировки
 		$playerStats = $this->calculatePlayerStats($tournament);
 		
-		// Сортируем игроков по очкам, разнице, проценту
+		// Сортируем игроков как в таблице лидеров: очки → разница → % → рейтинг.
+		// Рейтинг обязателен финальным тай-брейком, иначе при полном равенстве
+		// порядок разбивки на пары расходится с отображаемой таблицей.
 		$sortedPlayers = $players->sort(function($a, $b) use ($playerStats) {
 			$statsA = $playerStats[$a->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
 			$statsB = $playerStats[$b->user_id] ?? ['total_points' => 0, 'diff' => 0, 'pct' => 0];
-			
+
 			// По очкам
 			if ($statsA['total_points'] !== $statsB['total_points']) {
 				return $statsB['total_points'] <=> $statsA['total_points'];
@@ -150,7 +152,11 @@ class MexicanoService
 				return $statsB['diff'] <=> $statsA['diff'];
 			}
 			// По проценту
-			return $statsB['pct'] <=> $statsA['pct'];
+			if ($statsA['pct'] !== $statsB['pct']) {
+				return $statsB['pct'] <=> $statsA['pct'];
+			}
+			// Финальный тай-брейк — по рейтингу (как в таблице лидеров).
+			return (optional($b->user)->rating ?? 0) <=> (optional($a->user)->rating ?? 0);
 		});
 
 		$round = MexicanoRound::create([
