@@ -41,8 +41,13 @@ class CertificateController extends Controller
             'recipient_name' => 'required_if:type,named|nullable|string|max:255',
             'client_id' => 'nullable|integer',
             'title' => 'nullable|string|max:255',
+            'value_type' => 'required|in:amount,hours',
+            'amount' => 'required_if:value_type,amount|nullable|integer|min:1|max:100000000',
+            'hours' => 'required_if:value_type,hours|nullable|integer|min:1|max:1000',
         ], [
             'recipient_name.required_if' => 'Укажите ФИО для именного сертификата.',
+            'amount.required_if' => 'Укажите сумму сертификата.',
+            'hours.required_if' => 'Укажите количество часов.',
         ]);
 
         // Привязка к клиенту — только если он из этого клуба.
@@ -53,11 +58,16 @@ class CertificateController extends Controller
                 ->value('id');
         }
 
+        $isAmount = $data['value_type'] === Certificate::VALUE_AMOUNT;
+
         $certificate = Certificate::create([
             'club_id' => $club->id,
             'type' => $data['type'],
             'recipient_name' => $data['type'] === Certificate::TYPE_NAMED ? trim($data['recipient_name']) : null,
             'client_id' => $clientId,
+            'value_type' => $data['value_type'],
+            'amount' => $isAmount ? $data['amount'] : null,
+            'hours' => $isAmount ? null : $data['hours'],
             'number' => Certificate::generateNumber($club->id),
             'title' => $data['title'] ?? null,
             'template_id' => CertificateTemplate::defaultForClub($club->id)->id,

@@ -58,6 +58,7 @@
             padding:2px 26px 10px; margin-bottom:22px; min-width:340px;
         }
         .cert-name.generic { border-bottom:2px dashed #a8a29e; color:#78716c; min-width:420px; }
+        .cert-nominal { font-size:2rem; font-weight:700; color:{{ $border }}; margin:0 auto 20px; letter-spacing:1px; }
         .cert-reason { font-family:-apple-system,Segoe UI,Roboto,sans-serif; color:#44403c; font-size:1.12rem; max-width:640px; margin:0 auto 38px; }
         .cert-foot {
             display:flex; justify-content:space-between; align-items:flex-end;
@@ -96,6 +97,8 @@
                 <div class="cert-sub">{{ $template->subtitle_generic }}</div>
                 <div class="cert-name generic">Предъявителю</div>
             @endif
+
+            <div class="cert-nominal">{{ $certificate->valueLabel() }}</div>
 
             <div class="cert-reason">
                 {{ $certificate->title ?: ($template->body_text ?: 'подтверждает право на получение услуг клуба.') }}

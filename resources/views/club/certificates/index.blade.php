@@ -25,6 +25,7 @@
                 <tr>
                     <th>Номер</th>
                     <th>Тип</th>
+                    <th>Номинал</th>
                     <th>Кому</th>
                     <th>Создан</th>
                     <th></th>
@@ -35,6 +36,7 @@
                 <tr>
                     <td class="crt-num">{{ $c->number }}</td>
                     <td><span class="crt-badge {{ $c->isNamed() ? 'crt-named' : 'crt-generic' }}">{{ $c->type_name }}</span></td>
+                    <td class="crt-nominal">{{ $c->valueLabel() }}</td>
                     <td>{{ $c->recipient_name ?? '—' }}</td>
                     <td>{{ $c->created_at->format('d.m.Y H:i') }}</td>
                     <td class="crt-actions">
@@ -84,6 +86,27 @@
                     <div id="crtClientHint" class="crt-hint2"></div>
                 </div>
                 <div class="ct-field">
+                    <label>Номинал сертификата</label>
+                    <div class="crt-type-toggle">
+                        <label class="crt-type-opt">
+                            <input type="radio" name="value_type" value="amount" checked onchange="crtToggleValue()">
+                            <span>На сумму</span>
+                        </label>
+                        <label class="crt-type-opt">
+                            <input type="radio" name="value_type" value="hours" onchange="crtToggleValue()">
+                            <span>Бесплатные часы</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="ct-field" id="crtAmountField">
+                    <label>Сумма, ₸</label>
+                    <input type="number" name="amount" min="1" step="1" placeholder="Напр.: 10000">
+                </div>
+                <div class="ct-field" id="crtHoursField" style="display:none;">
+                    <label>Количество часов</label>
+                    <input type="number" name="hours" min="1" step="1" value="1" placeholder="Напр.: 1">
+                </div>
+                <div class="ct-field">
                     <label>Заголовок / за что (необязательно)</label>
                     <input type="text" name="title" placeholder="Напр.: За участие в турнире" maxlength="255">
                 </div>
@@ -123,6 +146,7 @@
 .crt-table td { padding:12px 16px; border-bottom:1px solid #1f1f23; color:#e4e4e7; vertical-align:middle; }
 .crt-table tr:last-child td { border-bottom:none; }
 .crt-num { font-family:monospace; color:#22C55E; }
+.crt-nominal { font-weight:700; color:#e4e4e7; white-space:nowrap; }
 .crt-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.78rem; }
 .crt-named { background:rgba(124,58,237,.18); color:#a78bfa; }
 .crt-generic { background:rgba(148,163,184,.15); color:#cbd5e1; }
@@ -151,6 +175,12 @@
 function openCertModal() {
     document.getElementById('certModal').style.display = 'flex';
     crtToggleType();
+    crtToggleValue();
+}
+function crtToggleValue() {
+    var amount = document.querySelector('input[name="value_type"]:checked').value === 'amount';
+    document.getElementById('crtAmountField').style.display = amount ? 'block' : 'none';
+    document.getElementById('crtHoursField').style.display = amount ? 'none' : 'block';
 }
 function crtToggleType() {
     var named = document.querySelector('input[name="type"]:checked').value === 'named';

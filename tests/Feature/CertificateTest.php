@@ -42,6 +42,8 @@ class CertificateTest extends TestCase
                 'type' => 'named',
                 'recipient_name' => 'Иванов Иван',
                 'title' => 'За участие',
+                'value_type' => 'amount',
+                'amount' => 5000,
             ])
             ->assertRedirect(route('club.certificates.index'));
 
@@ -69,7 +71,7 @@ class CertificateTest extends TestCase
         [$admin, $club] = $this->admin();
 
         $this->actingAs($admin)
-            ->post(route('club.certificates.store'), ['type' => 'generic'])
+            ->post(route('club.certificates.store'), ['type' => 'generic', 'value_type' => 'amount', 'amount' => 3000])
             ->assertRedirect();
 
         $cert = Certificate::first();
@@ -82,7 +84,7 @@ class CertificateTest extends TestCase
         [$admin, $club] = $this->admin();
 
         for ($i = 0; $i < 20; $i++) {
-            $this->actingAs($admin)->post(route('club.certificates.store'), ['type' => 'generic']);
+            $this->actingAs($admin)->post(route('club.certificates.store'), ['type' => 'generic', 'value_type' => 'amount', 'amount' => 1000]);
         }
 
         $this->assertSame(20, Certificate::count());
@@ -113,6 +115,8 @@ class CertificateTest extends TestCase
             'type' => 'named',
             'recipient_name' => 'Иван Клиент',
             'client_id' => $client->id,
+            'value_type' => 'amount',
+            'amount' => 5000,
         ])->assertRedirect();
 
         $cert = Certificate::first();
@@ -130,6 +134,8 @@ class CertificateTest extends TestCase
             'type' => 'named',
             'recipient_name' => 'Чужой',
             'client_id' => $foreignClient->id,
+            'value_type' => 'amount',
+            'amount' => 5000,
         ])->assertRedirect();
 
         $cert = Certificate::first();
@@ -148,11 +154,53 @@ class CertificateTest extends TestCase
             ->assertJsonFragment(['name' => 'Пётр Поиск']);
     }
 
+    public function test_amount_certificate_stores_amount_only(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'amount', 'amount' => 15000,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertSame('amount', $cert->value_type);
+        $this->assertSame(15000, $cert->amount);
+        $this->assertNull($cert->hours);
+        $this->assertSame('15 000 ₸', $cert->valueLabel());
+    }
+
+    public function test_hours_certificate_stores_hours_only(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'hours', 'hours' => 2,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertSame('hours', $cert->value_type);
+        $this->assertSame(2, $cert->hours);
+        $this->assertNull($cert->amount);
+        $this->assertSame('2 часа', $cert->valueLabel());
+    }
+
+    public function test_amount_required_when_value_type_amount(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'amount',
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertSame(0, Certificate::count());
+    }
+
     public function test_show_renders_template(): void
     {
         [$admin, $club] = $this->admin();
         $this->actingAs($admin)->post(route('club.certificates.store'), [
             'type' => 'named', 'recipient_name' => 'Пётр Петров',
+            'value_type' => 'hours', 'hours' => 2,
         ]);
         $cert = Certificate::first();
 
