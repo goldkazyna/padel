@@ -67,13 +67,15 @@
             <div class="ct-modal-body">
                 <div class="ct-field">
                     <label>Тип сертификата</label>
-                    <div class="crt-type-toggle">
-                        <label class="crt-type-opt">
+                    <div class="crt-seg">
+                        <label class="crt-opt">
                             <input type="radio" name="type" value="generic" checked onchange="crtToggleType()">
+                            <span class="crt-opt-ico"><i class="bi bi-ticket-perforated"></i></span>
                             <span>Обычный</span>
                         </label>
-                        <label class="crt-type-opt">
+                        <label class="crt-opt">
                             <input type="radio" name="type" value="named" onchange="crtToggleType()">
+                            <span class="crt-opt-ico"><i class="bi bi-person-badge"></i></span>
                             <span>Именной</span>
                         </label>
                     </div>
@@ -87,14 +89,21 @@
                 </div>
                 <div class="ct-field">
                     <label>Номинал сертификата</label>
-                    <div class="crt-type-toggle">
-                        <label class="crt-type-opt">
+                    <div class="crt-seg crt-seg-3">
+                        <label class="crt-opt">
                             <input type="radio" name="value_type" value="amount" checked onchange="crtToggleValue()">
+                            <span class="crt-opt-ico">₸</span>
                             <span>На сумму</span>
                         </label>
-                        <label class="crt-type-opt">
+                        <label class="crt-opt">
                             <input type="radio" name="value_type" value="hours" onchange="crtToggleValue()">
+                            <span class="crt-opt-ico"><i class="bi bi-clock"></i></span>
                             <span>Бесплатные часы</span>
+                        </label>
+                        <label class="crt-opt">
+                            <input type="radio" name="value_type" value="tournament" onchange="crtToggleValue()">
+                            <span class="crt-opt-ico"><i class="bi bi-trophy"></i></span>
+                            <span>Бесплатный турнир</span>
                         </label>
                     </div>
                 </div>
@@ -105,6 +114,10 @@
                 <div class="ct-field" id="crtHoursField" style="display:none;">
                     <label>Количество часов</label>
                     <input type="number" name="hours" min="1" step="1" value="1" placeholder="Напр.: 1">
+                </div>
+                <div class="ct-field" id="crtTournField" style="display:none;">
+                    <label>Количество турниров</label>
+                    <input type="number" name="tournaments" min="1" step="1" value="1" placeholder="Напр.: 1">
                 </div>
                 <div class="ct-field">
                     <label>Заголовок / за что (необязательно)</label>
@@ -155,10 +168,32 @@
 .cc-btn.cc-danger { background:#3f1d1d; color:#f87171; border:1px solid #7f1d1d; }
 .cc-btn.cc-danger:hover { background:#7f1d1d; color:#fff; }
 .crt-pagination { margin-top:16px; }
-.crt-type-toggle { display:flex; gap:10px; }
-.crt-type-opt { flex:1; display:flex; align-items:center; gap:8px; padding:10px 14px; border:1px solid #27272a; border-radius:10px; cursor:pointer; color:#e4e4e7; }
-.crt-type-opt input { accent-color:#22C55E; }
+/* Сегментированный выбор (карточки с иконкой) */
+.crt-seg { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.crt-seg-3 { grid-template-columns:1fr 1fr 1fr; }
+.crt-opt {
+    display:flex !important; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; text-align:center; padding:14px 8px;
+    border:1.5px solid #27272a; border-radius:12px; cursor:pointer;
+    color:#d4d4d8 !important; font-size:.84rem !important; line-height:1.2;
+    margin-bottom:0 !important; transition:border-color .15s, background .15s, color .15s; position:relative;
+}
+.crt-opt:hover { border-color:#3f3f46; }
+.crt-opt input { position:absolute; opacity:0; pointer-events:none; }
+.crt-opt-ico { font-size:1.15rem; color:#71717a; transition:color .15s; line-height:1; }
+.crt-opt:has(input:checked) { border-color:#22C55E; background:rgba(34,197,94,.10); color:#fff !important; }
+.crt-opt:has(input:checked) .crt-opt-ico { color:#22C55E; }
 .crt-hint { color:#71717a; font-size:.82rem; margin:6px 0 0; }
+
+/* Полировка полей модалки */
+#certModal .ct-field input:focus, #certModal .ct-field select:focus { outline:none; border-color:#22C55E; }
+#certModal input[type=number]::-webkit-outer-spin-button,
+#certModal input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+#certModal input[type=number] { -moz-appearance:textfield; }
+#certModal .ct-modal-body { max-height:78vh; overflow-y:auto; }
+#certModal .ct-modal-foot { justify-content:flex-end; }
+#certModal .btn-cancel { flex:0 0 auto; padding:11px 22px; }
+#certModal .ct-modal-foot .cc-btn { padding:11px 26px; }
 .ct-modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid #27272a; }
 
 /* Автокомплит клиентов */
@@ -178,9 +213,10 @@ function openCertModal() {
     crtToggleValue();
 }
 function crtToggleValue() {
-    var amount = document.querySelector('input[name="value_type"]:checked').value === 'amount';
-    document.getElementById('crtAmountField').style.display = amount ? 'block' : 'none';
-    document.getElementById('crtHoursField').style.display = amount ? 'none' : 'block';
+    var v = document.querySelector('input[name="value_type"]:checked').value;
+    document.getElementById('crtAmountField').style.display = v === 'amount' ? 'block' : 'none';
+    document.getElementById('crtHoursField').style.display = v === 'hours' ? 'block' : 'none';
+    document.getElementById('crtTournField').style.display = v === 'tournament' ? 'block' : 'none';
 }
 function crtToggleType() {
     var named = document.querySelector('input[name="type"]:checked').value === 'named';

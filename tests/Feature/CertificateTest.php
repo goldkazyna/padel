@@ -184,6 +184,31 @@ class CertificateTest extends TestCase
         $this->assertSame('2 часа', $cert->valueLabel());
     }
 
+    public function test_tournament_certificate_stores_tournaments_only(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'tournament', 'tournaments' => 1,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertSame('tournament', $cert->value_type);
+        $this->assertSame(1, $cert->tournaments);
+        $this->assertNull($cert->amount);
+        $this->assertNull($cert->hours);
+        $this->assertSame('1 турнир', $cert->valueLabel());
+    }
+
+    public function test_tournament_required_when_value_type_tournament(): void
+    {
+        [$admin, $club] = $this->admin();
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'generic', 'value_type' => 'tournament',
+        ])->assertSessionHasErrors('tournaments');
+    }
+
     public function test_amount_required_when_value_type_amount(): void
     {
         [$admin, $club] = $this->admin();

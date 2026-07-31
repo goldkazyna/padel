@@ -12,10 +12,11 @@ class Certificate extends Model
 
     const VALUE_AMOUNT = 'amount';
     const VALUE_HOURS = 'hours';
+    const VALUE_TOURNAMENT = 'tournament';
 
     protected $fillable = [
         'club_id', 'type', 'recipient_name', 'client_id', 'number', 'title', 'created_by', 'template_id',
-        'value_type', 'amount', 'hours',
+        'value_type', 'amount', 'hours', 'tournaments',
     ];
 
     public function club()
@@ -53,24 +54,29 @@ class Certificate extends Model
         return $this->type === self::TYPE_NAMED ? 'Именной' : 'Обычный';
     }
 
-    /** Читаемый номинал: «5 000 ₸» или «2 часа». */
+    /** Читаемый номинал: «5 000 ₸», «2 часа» или «1 турнир». */
     public function valueLabel(): string
     {
         if ($this->value_type === self::VALUE_HOURS) {
             $h = (int) ($this->hours ?? 0);
-            return $h . ' ' . self::pluralHours($h);
+            return $h . ' ' . self::plural($h, 'час', 'часа', 'часов');
+        }
+        if ($this->value_type === self::VALUE_TOURNAMENT) {
+            $t = (int) ($this->tournaments ?? 0);
+            return $t . ' ' . self::plural($t, 'турнир', 'турнира', 'турниров');
         }
         return number_format((int) ($this->amount ?? 0), 0, '', ' ') . ' ₸';
     }
 
-    private static function pluralHours(int $n): string
+    /** Русское склонение по числу: (1) one, (2-4) few, (0,5-20) many. */
+    private static function plural(int $n, string $one, string $few, string $many): string
     {
         $n = abs($n) % 100;
         $n1 = $n % 10;
-        if ($n > 10 && $n < 20) return 'часов';
-        if ($n1 > 1 && $n1 < 5) return 'часа';
-        if ($n1 === 1) return 'час';
-        return 'часов';
+        if ($n > 10 && $n < 20) return $many;
+        if ($n1 > 1 && $n1 < 5) return $few;
+        if ($n1 === 1) return $one;
+        return $many;
     }
 
     public function isNamed(): bool
