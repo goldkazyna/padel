@@ -2,6 +2,7 @@
 @section('title', 'Конструктор сертификата')
 
 @section('content')
+@include('club.cards._cards_shared_css')
 <div class="cc-page">
     <div class="cc-head">
         <h1 class="cc-title">Конструктор сертификата <span class="cc-club">— {{ $club->name }}</span></h1>

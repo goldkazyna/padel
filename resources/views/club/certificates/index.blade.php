@@ -2,6 +2,7 @@
 @section('title', 'Сертификаты')
 
 @section('content')
+@include('club.cards._cards_shared_css')
 <div class="cc-page">
     <div class="cc-head">
         <h1 class="cc-title">Сертификаты <span class="cc-club">— {{ $club->name }}</span></h1>
@@ -94,6 +95,25 @@
 </div>
 
 <style>
+/* Недостающие в общем cc-* : статистика и пустое состояние */
+.cc-stat { display:inline-flex; flex-direction:column; align-items:center; margin-right:18px; }
+.cc-stat b { color:#fff; font-size:1.05rem; line-height:1.1; }
+.cc-stat span { color:#a1a1aa; font-size:.72rem; }
+.cc-empty { background:#18181b; border:1px solid #27272a; border-radius:12px; padding:28px; text-align:center; color:#a1a1aa; }
+
+/* Модалка (стиль как у карт) */
+.ct-modal { display:none; position:fixed; inset:0; z-index:2000; align-items:center; justify-content:center; background:rgba(0,0,0,.7); }
+.ct-modal-card { background:#111113; border:1px solid #27272a; border-radius:16px; width:460px; max-width:94vw; }
+.ct-modal-head { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #27272a; }
+.ct-modal-head h5 { color:#fff; margin:0; font-size:17px; }
+.ct-modal-close { background:none; border:none; color:#a1a1aa; font-size:18px; cursor:pointer; }
+.ct-modal-body { padding:18px 20px; }
+.ct-field { margin-bottom:14px; }
+.ct-field label { display:block; color:#a1a1aa; font-size:12px; margin-bottom:6px; }
+.ct-field input, .ct-field select { width:100%; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:10px 12px; color:#fff; }
+.ct-modal-foot { display:flex; gap:12px; padding:14px 20px; border-top:1px solid #27272a; }
+.btn-cancel { flex:1; background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:11px; cursor:pointer; }
+
 .crt-table-wrap { overflow-x:auto; background:#18181b; border:1px solid #27272a; border-radius:12px; }
 .crt-table { width:100%; border-collapse:collapse; font-size:.92rem; }
 .crt-table th { text-align:left; padding:12px 16px; color:#a1a1aa; font-weight:600; border-bottom:1px solid #27272a; white-space:nowrap; }
