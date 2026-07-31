@@ -217,6 +217,10 @@ class CertificateController extends Controller
         $club = $this->getClub();
         if (!$club || $certificate->club_id !== $club->id) abort(403);
 
+        if ($certificate->isUsed()) {
+            return back()->with('error', 'Нельзя удалить погашенный сертификат. Чтобы вернуть его — отмените бронь, в которой он использован.');
+        }
+
         $number = $certificate->number;
         $certificate->delete();
 

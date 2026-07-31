@@ -248,6 +248,31 @@ class CertificateTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_cannot_delete_used_certificate(): void
+    {
+        [$admin, $club] = $this->admin();
+        $cert = Certificate::create([
+            'club_id' => $club->id, 'type' => 'generic', 'value_type' => 'amount', 'amount' => 5000,
+            'number' => Certificate::generateNumber($club->id), 'used_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->delete(route('club.certificates.destroy', $cert))
+            ->assertSessionHas('error');
+        $this->assertDatabaseHas('certificates', ['id' => $cert->id]);
+    }
+
+    public function test_can_delete_active_certificate(): void
+    {
+        [$admin, $club] = $this->admin();
+        $cert = Certificate::create([
+            'club_id' => $club->id, 'type' => 'generic', 'value_type' => 'amount', 'amount' => 5000,
+            'number' => Certificate::generateNumber($club->id),
+        ]);
+
+        $this->actingAs($admin)->delete(route('club.certificates.destroy', $cert))->assertRedirect();
+        $this->assertDatabaseMissing('certificates', ['id' => $cert->id]);
+    }
+
     public function test_redeem_toggles_used(): void
     {
         [$admin, $club] = $this->admin();

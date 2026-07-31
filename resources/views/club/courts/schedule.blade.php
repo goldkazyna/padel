@@ -405,6 +405,7 @@
                                             'discount' => (float) ($booking->discount ?? 0),
                                             'clubCardId' => $booking->club_card_id,
                                             'cardCharged' => (bool) $booking->card_charged_at,
+                                            'hasCertificate' => (bool) $booking->certificate_id,
                                             'slotDuration' => $court->slot_duration ?? 60,
                                         ]) }})">
                                         @if($pm)
@@ -1759,6 +1760,7 @@
 
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
+        window._viewHasCert = !!data.hasCertificate;
 
         // Если часы по клубной карте уже списаны — отмена брони недоступна.
         const cancelBookingBtn = document.getElementById('cancelBookingBtn');
@@ -1903,9 +1905,9 @@
     }
 
     function cancelBooking() {
-        // Групповая бронь — спрашиваем причину (сохранится в журнал группы).
+        // Групповая бронь ИЛИ бронь по сертификату — спрашиваем причину.
         const isGroup = document.getElementById('editBookingTypeInput').value === 'group';
-        if (isGroup) {
+        if (isGroup || window._viewHasCert) {
             const ta = document.getElementById('cancelBookingReasonText');
             if (ta) ta.value = '';
             const rm = document.getElementById('cancelBookingReasonModal');

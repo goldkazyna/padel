@@ -1420,10 +1420,22 @@ class CourtController extends Controller
             }
         }
 
+        // Бронь по сертификату: причина отмены обязательна (как у групповых).
+        if ($booking->certificate_id && mb_strlen($reason) < 5) {
+            return back()->with('error', 'Укажите причину отмены (минимум 5 символов)');
+        }
+
         $booking->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
+            'cancel_reason' => $reason !== '' ? $reason : null,
         ]);
+
+        // Отмена брони «распогашивает» сертификат — он снова активен.
+        if ($booking->certificate_id) {
+            \App\Models\Certificate::where('id', $booking->certificate_id)
+                ->update(['used_at' => null]);
+        }
 
         // Push + уведомление об отмене — отложено
         if ($booking->booked_by) {

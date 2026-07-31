@@ -96,6 +96,36 @@ class CertificateBookingTest extends TestCase
         $this->assertNotNull($cert->fresh()->used_at);
     }
 
+    public function test_cancel_cert_booking_requires_reason_and_returns_certificate(): void
+    {
+        [$club, $admin, $court, $client] = $this->scene();
+        $cert = $this->cert($club, $client, ['value_type' => 'amount', 'amount' => 3000]);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00', 'slots' => 1,
+            'client_name' => 'Иван Иванов', 'client_phone' => '77770001122',
+            'payment_method' => 'certificate', 'is_paid' => 1,
+            'custom_price' => 10000, 'certificate_id' => $cert->id,
+        ])->assertRedirect();
+
+        $booking = CourtBooking::first();
+        $this->assertNotNull($cert->fresh()->used_at, 'после брони погашен');
+
+        // Отмена без причины — заблокирована.
+        $this->actingAs($admin)->post(route('club.courts.cancelBooking', $booking), [])
+            ->assertSessionHas('error');
+        $this->assertNotNull($cert->fresh()->used_at, 'без причины не отменилось, сертификат ещё погашен');
+        $this->assertNotSame('cancelled', $booking->fresh()->status);
+
+        // Отмена с причиной — ок, сертификат возвращается в активные.
+        $this->actingAs($admin)->post(route('club.courts.cancelBooking', $booking), ['reason' => 'клиент передумал'])
+            ->assertRedirect();
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertNull($cert->fresh()->used_at, 'после отмены снова активен');
+        $this->assertSame('клиент передумал', $booking->fresh()->cancel_reason);
+    }
+
     public function test_for_client_endpoint_returns_only_active_certs(): void
     {
         [$club, $admin, , $client] = $this->scene();
