@@ -11,12 +11,17 @@ class Certificate extends Model
     const TYPE_GENERIC = 'generic';
 
     protected $fillable = [
-        'club_id', 'type', 'recipient_name', 'number', 'title', 'created_by', 'template_id',
+        'club_id', 'type', 'recipient_name', 'client_id', 'number', 'title', 'created_by', 'template_id',
     ];
 
     public function club()
     {
         return $this->belongsTo(Club::class);
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(ClubClient::class, 'client_id');
     }
 
     public function template()

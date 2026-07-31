@@ -39,15 +39,25 @@ class CertificateController extends Controller
         $data = $request->validate([
             'type' => 'required|in:named,generic',
             'recipient_name' => 'required_if:type,named|nullable|string|max:255',
+            'client_id' => 'nullable|integer',
             'title' => 'nullable|string|max:255',
         ], [
             'recipient_name.required_if' => 'Укажите ФИО для именного сертификата.',
         ]);
 
+        // Привязка к клиенту — только если он из этого клуба.
+        $clientId = null;
+        if ($data['type'] === Certificate::TYPE_NAMED && !empty($data['client_id'])) {
+            $clientId = \App\Models\ClubClient::where('club_id', $club->id)
+                ->where('id', $data['client_id'])
+                ->value('id');
+        }
+
         $certificate = Certificate::create([
             'club_id' => $club->id,
             'type' => $data['type'],
             'recipient_name' => $data['type'] === Certificate::TYPE_NAMED ? trim($data['recipient_name']) : null,
+            'client_id' => $clientId,
             'number' => Certificate::generateNumber($club->id),
             'title' => $data['title'] ?? null,
             'template_id' => CertificateTemplate::defaultForClub($club->id)->id,

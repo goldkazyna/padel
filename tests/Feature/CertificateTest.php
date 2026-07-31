@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Certificate;
 use App\Models\CertificateTemplate;
 use App\Models\Club;
+use App\Models\ClubClient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -101,6 +102,50 @@ class CertificateTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.certificates.show', $foreign))
             ->assertForbidden();
+    }
+
+    public function test_named_links_selected_client(): void
+    {
+        [$admin, $club] = $this->admin();
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Иван Клиент', 'phone' => '77010000000']);
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'named',
+            'recipient_name' => 'Иван Клиент',
+            'client_id' => $client->id,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertSame($client->id, $cert->client_id);
+        $this->assertSame('Иван Клиент', $cert->recipient_name);
+    }
+
+    public function test_foreign_client_id_is_ignored(): void
+    {
+        [$admin, $club] = $this->admin();
+        $otherClub = Club::factory()->create();
+        $foreignClient = ClubClient::create(['club_id' => $otherClub->id, 'name' => 'Чужой', 'phone' => '77020000000']);
+
+        $this->actingAs($admin)->post(route('club.certificates.store'), [
+            'type' => 'named',
+            'recipient_name' => 'Чужой',
+            'client_id' => $foreignClient->id,
+        ])->assertRedirect();
+
+        $cert = Certificate::first();
+        $this->assertNull($cert->client_id);          // чужой клиент не привязан
+        $this->assertSame('Чужой', $cert->recipient_name); // но ФИО осталось
+    }
+
+    public function test_client_search_endpoint_finds_by_name(): void
+    {
+        [$admin, $club] = $this->admin();
+        ClubClient::create(['club_id' => $club->id, 'name' => 'Пётр Поиск', 'phone' => '77015550000']);
+
+        $this->actingAs($admin)
+            ->getJson(route('club.clients.search', ['q' => 'Пётр', 'field' => 'name']))
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Пётр Поиск']);
     }
 
     public function test_show_renders_template(): void

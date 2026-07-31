@@ -76,9 +76,12 @@
                         </label>
                     </div>
                 </div>
-                <div class="ct-field" id="crtNameField" style="display:none;">
-                    <label>ФИО получателя</label>
-                    <input type="text" name="recipient_name" id="crtNameInput" placeholder="Иванов Иван Иванович" maxlength="255">
+                <div class="ct-field" id="crtNameField" style="display:none; position:relative;">
+                    <label>ФИО получателя (поиск по клиентам)</label>
+                    <input type="text" name="recipient_name" id="crtNameInput" placeholder="Начните вводить ФИО или телефон…" maxlength="255" autocomplete="off" oninput="crtSearchClients()">
+                    <input type="hidden" name="client_id" id="crtClientId">
+                    <div id="crtClientDrop" class="crt-drop" style="display:none;"></div>
+                    <div id="crtClientHint" class="crt-hint2"></div>
                 </div>
                 <div class="ct-field">
                     <label>Заголовок / за что (необязательно)</label>
@@ -133,6 +136,15 @@
 .crt-type-opt input { accent-color:#22C55E; }
 .crt-hint { color:#71717a; font-size:.82rem; margin:6px 0 0; }
 .ct-modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid #27272a; }
+
+/* Автокомплит клиентов */
+.crt-drop { position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:10; background:#111113; border:1px solid #27272a; border-radius:10px; max-height:220px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+.crt-drop-item { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; border-bottom:1px solid #1f1f23; }
+.crt-drop-item:last-child { border-bottom:none; }
+.crt-drop-item:hover { background:#18181b; }
+.crt-drop-item span { color:#e4e4e7; font-size:.9rem; }
+.crt-drop-item small { color:#22C55E; font-family:monospace; font-size:.8rem; white-space:nowrap; }
+.crt-hint2 { color:#71717a; font-size:.8rem; margin-top:6px; min-height:1em; }
 </style>
 
 <script>
@@ -143,6 +155,60 @@ function openCertModal() {
 function crtToggleType() {
     var named = document.querySelector('input[name="type"]:checked').value === 'named';
     document.getElementById('crtNameField').style.display = named ? 'block' : 'none';
+    if (!named) {
+        document.getElementById('crtClientId').value = '';
+        document.getElementById('crtClientDrop').style.display = 'none';
+        document.getElementById('crtClientHint').textContent = '';
+    }
+}
+
+var crtSearchTimer = null;
+function crtSearchClients() {
+    var input = document.getElementById('crtNameInput');
+    var drop = document.getElementById('crtClientDrop');
+    var hint = document.getElementById('crtClientHint');
+    var q = input.value.trim();
+    // Ручной ввод сбрасывает привязку к клиенту.
+    document.getElementById('crtClientId').value = '';
+
+    if (q.length < 3) {
+        drop.style.display = 'none';
+        hint.textContent = 'Для поиска введите не меньше 3 символов.';
+        return;
+    }
+    hint.textContent = 'Поиск…';
+    clearTimeout(crtSearchTimer);
+    crtSearchTimer = setTimeout(function () {
+        var isPhone = /^[\d\s\+\-\(\)]+$/.test(q);
+        var url = "{{ route('club.clients.search') }}?q=" + encodeURIComponent(q) + "&field=" + (isPhone ? 'phone' : 'name');
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (list) {
+                if (!Array.isArray(list) || list.length === 0) {
+                    drop.style.display = 'none';
+                    hint.textContent = 'Клиент не найден — сертификат создастся на введённое ФИО.';
+                    return;
+                }
+                hint.textContent = 'Найдено: ' + list.length + '. Выберите из списка или оставьте своё ФИО.';
+                drop.innerHTML = '';
+                list.forEach(function (c) {
+                    var it = document.createElement('div');
+                    it.className = 'crt-drop-item';
+                    var nm = document.createElement('span'); nm.textContent = c.name || '—';
+                    var ph = document.createElement('small'); ph.textContent = c.phone || '';
+                    it.appendChild(nm); it.appendChild(ph);
+                    it.addEventListener('click', function () {
+                        input.value = c.name || '';
+                        document.getElementById('crtClientId').value = c.id;
+                        drop.style.display = 'none';
+                        hint.textContent = 'Выбран клиент: ' + (c.name || '') + (c.phone ? ' · ' + c.phone : '');
+                    });
+                    drop.appendChild(it);
+                });
+                drop.style.display = 'block';
+            })
+            .catch(function () { drop.style.display = 'none'; hint.textContent = ''; });
+    }, 300);
 }
 </script>
 @endsection

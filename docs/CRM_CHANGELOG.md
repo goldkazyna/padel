@@ -7,6 +7,9 @@
 
 ## 2026-07-31
 
+### Сертификаты: именной — поиск по клиентам клуба
+- В модалке создания при типе **«Именной»** поле ФИО стало **поиском по клиентам клуба**: вводишь ФИО или телефон (от 3 символов) → под полем выпадают подсказки (имя + телефон, переиспользован эндпоинт `club.clients.search`). Выбор клиента подставляет ФИО и **привязывает сертификат к клиенту** (`certificates.client_id` → `club_clients`). Можно и оставить произвольное ФИО (если клиента нет в базе) — тогда без привязки. Чужой (не из этого клуба) `client_id` игнорируется. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000004_add_client_id_to_certificates_table.php`, `php artisan view:clear`.
+
 ### Сертификаты: конструктор шаблона
 - На странице сертификатов кнопка **«Конструктор шаблона»** → `/club/certificates/design`. Форма с **живым превью**: тексты (заголовок, подзаголовки для именного/обычного, текст по умолчанию), **цвета** (фон, акцент, рамка, заголовок), **логотип** (загрузка/удаление) и **ориентация** (альбомная/книжная). У клуба один дефолтный шаблон (`certificate_templates`, `firstOrCreate`); сертификаты ссылаются на него (`certificates.template_id`), печатный шаблон рендерится из настроек. Логотипы — в `storage/app/public/certificates/logos` (нужен `storage:link`). Новые: таблица `certificate_templates`, колонка `certificates.template_id`, модель `CertificateTemplate`, методы `design`/`designUpdate`. **Деплой:** `php artisan migrate --path=database/migrations/2026_07_31_000002_create_certificate_templates_table.php` и `--path=...2026_07_31_000003_add_template_id_to_certificates_table.php`, `php artisan storage:link` (если ещё нет), `php artisan view:clear`.
 
