@@ -1911,6 +1911,15 @@
             const ta = document.getElementById('cancelBookingReasonText');
             if (ta) ta.value = '';
             const rm = document.getElementById('cancelBookingReasonModal');
+            const rmTitle = rm.querySelector('.gcancel-title');
+            const rmSub = rm.querySelector('.gcancel-sub');
+            if (isGroup) {
+                if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
+                if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
+            } else {
+                if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+                if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
+            }
             // Переносим окно ВНУТРЬ bootstrap-модалки, иначе её focus-trap не даёт
             // печатать в поле (крадёт фокус обратно).
             const modalEl = document.getElementById('viewModal');

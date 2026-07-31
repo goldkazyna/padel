@@ -2049,6 +2049,16 @@
         if (isGroup || window._viewHasCert) {
             const ta = document.getElementById('cancelBookingReasonText');
             if (ta) ta.value = '';
+            const rmm = document.getElementById('cancelBookingReasonModal');
+            const rmTitle = rmm ? rmm.querySelector('.gcancel-title') : null;
+            const rmSub = rmm ? rmm.querySelector('.gcancel-sub') : null;
+            if (isGroup) {
+                if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
+                if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
+            } else {
+                if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+                if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
+            }
             const rm = document.getElementById('cancelBookingReasonModal');
             const modalEl = document.getElementById('viewModal');
             if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
