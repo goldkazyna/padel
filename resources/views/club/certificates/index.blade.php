@@ -27,6 +27,7 @@
                     <th>Тип</th>
                     <th>Номинал</th>
                     <th>Кому</th>
+                    <th>Статус</th>
                     <th>Создан</th>
                     <th></th>
                 </tr>
@@ -38,6 +39,10 @@
                     <td><span class="crt-badge {{ $c->isNamed() ? 'crt-named' : 'crt-generic' }}">{{ $c->type_name }}</span></td>
                     <td class="crt-nominal">{{ $c->valueLabel() }}</td>
                     <td>{{ $c->recipient_name ?? '—' }}</td>
+                    <td>
+                        <span class="crt-status {{ $c->isUsed() ? 'crt-st-used' : 'crt-st-active' }}">{{ $c->statusName() }}</span>
+                        @if($c->isUsed())<div class="crt-used-at">{{ $c->used_at->format('d.m.Y') }}</div>@endif
+                    </td>
                     <td>{{ $c->created_at->format('d.m.Y H:i') }}</td>
                     <td class="crt-actions">
                         <a href="{{ route('club.certificates.show', $c) }}" target="_blank" class="cc-btn cc-ghost cc-sm">Открыть</a>
@@ -160,6 +165,10 @@
 .crt-table tr:last-child td { border-bottom:none; }
 .crt-num { font-family:monospace; color:#22C55E; }
 .crt-nominal { font-weight:700; color:#e4e4e7; white-space:nowrap; }
+.crt-status { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.78rem; font-weight:700; }
+.crt-st-active { background:rgba(34,197,94,.15); color:#22C55E; }
+.crt-st-used { background:rgba(148,163,184,.15); color:#94a3b8; }
+.crt-used-at { color:#71717a; font-size:.72rem; margin-top:3px; }
 .crt-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.78rem; }
 .crt-named { background:rgba(124,58,237,.18); color:#a78bfa; }
 .crt-generic { background:rgba(148,163,184,.15); color:#cbd5e1; }
