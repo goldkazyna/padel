@@ -1094,6 +1094,12 @@
 							@if($cardsPendingNav > 0)<span class="unprocessed-badge">{{ $cardsPendingNav }}</span>@endif
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.certificates.index') }}" class="nav-link {{ request()->routeIs('club.certificates.*') ? 'active' : '' }}">
+							<i class="bi bi-award"></i>
+							<span>Сертификаты</span>
+						</a>
+					</li>
 					@if(!$navClub || $navClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
