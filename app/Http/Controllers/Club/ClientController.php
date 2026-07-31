@@ -106,8 +106,12 @@ class ClientController extends Controller
                 \App\Models\User::whereIn('phone', $clientDigits)->pluck('phone')->all()
             );
         }
+        foreach ($clients as $c) {
+            $digits = preg_replace('/\D/', '', (string) $c->phone);
+            $c->has_app = (bool) ($c->user_id || isset($appPhones[$digits]));
+        }
 
-        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes', 'appPhones'));
+        return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes'));
     }
 
     /**

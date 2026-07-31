@@ -125,8 +125,7 @@
                                 <div class="client-cert-badge"><i class="bi bi-award"></i> {{ $client->certificates_count }}@if(($client->certificates_used_count ?? 0) > 0) <span>({{ $client->certificates_used_count }})</span>@endif</div>
                             @endif
                         </div>
-                        @php($clientDigitsRow = preg_replace('/\D/', '', (string) $client->phone))
-                        @if($client->user_id || isset($appPhones[$clientDigitsRow]))
+                        @if(!empty($client->has_app))
                             <img src="{{ asset('images/padel-logo.png') }}" alt="Padel KZ" title="Зарегистрирован в приложении Padel KZ" class="client-app-badge">
                         @endif
                     </a>
