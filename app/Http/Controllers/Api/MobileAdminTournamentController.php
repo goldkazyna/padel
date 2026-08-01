@@ -265,6 +265,8 @@ class MobileAdminTournamentController extends Controller
             'rounds_count' => 'nullable|integer|min:1|max:30',
             'teams_advance' => 'nullable|integer|in:1,2,3,4',
             'has_playoff' => 'nullable|boolean',
+            'has_prizes' => 'nullable|boolean',
+            'prizes' => 'nullable|string|max:2000',
             'has_lower_bracket' => 'nullable|boolean',
             'has_bronze_match' => 'nullable|boolean',
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
@@ -302,6 +304,10 @@ class MobileAdminTournamentController extends Controller
         }
 
         // Нормализация плей-офф по чекбоксу (team теперь может быть без плей-офф).
+        $validated['has_prizes'] = $request->boolean('has_prizes');
+        if (!$validated['has_prizes']) {
+            $validated['prizes'] = null;
+        }
         $validated['has_lower_bracket'] = $request->boolean('has_lower_bracket');
         $validated['has_bronze_match'] = $request->boolean('has_bronze_match');
         $validated['has_playoff'] = $request->boolean('has_playoff')

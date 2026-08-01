@@ -104,6 +104,8 @@ class TournamentController extends Controller
 			'rounds_count' => 'nullable|integer|min:3|max:30',
 			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
+			'has_prizes' => 'nullable|boolean',
+			'prizes' => 'nullable|string|max:2000',
 			'has_lower_bracket' => 'nullable|boolean',
 			'has_bronze_match' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
@@ -174,6 +176,11 @@ class TournamentController extends Controller
         if ($club && $validated['club_id'] != $club->id) {
             abort(403);
         }
+
+		$validated['has_prizes'] = $request->boolean('has_prizes');
+		if (!$validated['has_prizes']) {
+			$validated['prizes'] = null;
+		}
 
         $tournament = Tournament::create($validated);
 		// Убираем пустые названия кортов
@@ -304,6 +311,8 @@ class TournamentController extends Controller
 			'status' => 'required|in:draft,open,closed,in_progress,completed,cancelled',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'has_playoff' => 'nullable|boolean',
+			'has_prizes' => 'nullable|boolean',
+			'prizes' => 'nullable|string|max:2000',
 			'has_lower_bracket' => 'nullable|boolean',
 			'has_bronze_match' => 'nullable|boolean',
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
@@ -373,6 +382,11 @@ class TournamentController extends Controller
 			$validated['playoff_format'] = null;
 		}
 		
+		$validated['has_prizes'] = $request->boolean('has_prizes');
+		if (!$validated['has_prizes']) {
+			$validated['prizes'] = null;
+		}
+
 		$tournament->update($validated);
 		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
 	}

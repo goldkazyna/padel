@@ -63,6 +63,17 @@
                     </div>
 
                     <div class="mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="has_prizes" id="hasPrizes" value="1" {{ old('has_prizes') ? 'checked' : '' }} onchange="togglePrizes()">
+                            <label class="form-check-label" for="hasPrizes">Призовой турнир</label>
+                        </div>
+                        <div id="prizesWrap" class="mt-2" style="display:{{ old('has_prizes') ? 'block' : 'none' }};">
+                            <label class="form-label">Призы</label>
+                            <textarea name="prizes" class="form-control" rows="3" maxlength="2000" placeholder="Напишите, какие призы будут: 1 место — …, 2 место — …, и т.д.">{{ old('prizes') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
                         <label class="form-label">Клуб (площадка)</label>
                         <div class="venue-club-wrapper">
                             <input type="text" id="venueClubSearch" class="form-control" placeholder="Начните вводить название клуба..." autocomplete="off">
@@ -544,6 +555,10 @@
     </div>
 </div>
 <script>
+function togglePrizes() {
+    var on = document.getElementById('hasPrizes').checked;
+    document.getElementById('prizesWrap').style.display = on ? 'block' : 'none';
+}
 function toggleTypeFields() {
     const type = document.getElementById('tournamentType').value;
     const americanoFields = document.getElementById('americanoFields');
