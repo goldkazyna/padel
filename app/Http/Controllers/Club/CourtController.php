@@ -1399,6 +1399,11 @@ class CourtController extends Controller
 
         $reason = trim((string) $request->input('reason', ''));
 
+        // Причина отмены обязательна для ЛЮБОЙ брони (минимум 5 символов).
+        if (mb_strlen($reason) < 5) {
+            return back()->with('error', 'Укажите причину отмены (минимум 5 символов)');
+        }
+
         // Групповая бронь: отменяем связанное занятие ЗАРАНЕЕ и с причиной в
         // журнал группы, чтобы booted-хук брони не залогировал его повторно
         // с авто-причиной («бронь снята в расписании»).
@@ -1420,15 +1425,10 @@ class CourtController extends Controller
             }
         }
 
-        // Бронь по сертификату: причина отмены обязательна (как у групповых).
-        if ($booking->certificate_id && mb_strlen($reason) < 5) {
-            return back()->with('error', 'Укажите причину отмены (минимум 5 символов)');
-        }
-
         $booking->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
-            'cancel_reason' => $reason !== '' ? $reason : null,
+            'cancel_reason' => $reason,
         ]);
 
         // Отмена брони «распогашивает» сертификат — он снова активен.
@@ -1436,6 +1436,17 @@ class CourtController extends Controller
             \App\Models\Certificate::where('id', $booking->certificate_id)
                 ->update(['used_at' => null]);
         }
+
+        // Уведомление в клубный бот об отмене (если настроен).
+        $courtName = $court->name ?: 'Корт';
+        $dateStr = $booking->date->format('d.m.Y');
+        $timeStr = substr((string) $booking->start_time, 0, 5) . '–' . substr((string) $booking->end_time, 0, 5);
+        $tgText = "❌ Администратор отменил бронь\n"
+            . e($club->name) . ' · ' . e($courtName) . "\n"
+            . e($dateStr . ' ' . $timeStr) . "\n"
+            . 'Клиент: ' . e(trim((string) $booking->client_name) ?: '—') . "\n"
+            . 'Причина: ' . e($reason);
+        \App\Services\ClubTelegramNotifier::send($club, $tgText);
 
         // Push + уведомление об отмене — отложено
         if ($booking->booked_by) {

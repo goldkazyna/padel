@@ -126,6 +126,30 @@ class CertificateBookingTest extends TestCase
         $this->assertSame('клиент передумал', $booking->fresh()->cancel_reason);
     }
 
+    public function test_any_booking_cancel_requires_reason(): void
+    {
+        [$club, $admin, $court, $client] = $this->scene();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '14:00', 'slots' => 1,
+            'client_name' => 'Иван Иванов', 'client_phone' => '77770001122',
+            'payment_method' => 'cash', 'is_paid' => 1, 'custom_price' => 10000,
+        ])->assertRedirect();
+        $booking = CourtBooking::first();
+
+        // Без причины — отмена заблокирована.
+        $this->actingAs($admin)->post(route('club.courts.cancelBooking', $booking))
+            ->assertSessionHas('error');
+        $this->assertNotSame('cancelled', $booking->fresh()->status);
+
+        // С причиной — отменяется, причина сохраняется.
+        $this->actingAs($admin)->post(route('club.courts.cancelBooking', $booking), ['reason' => 'клиент не пришёл'])
+            ->assertRedirect();
+        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertSame('клиент не пришёл', $booking->fresh()->cancel_reason);
+    }
+
     public function test_for_client_endpoint_returns_only_active_certs(): void
     {
         [$club, $admin, , $client] = $this->scene();

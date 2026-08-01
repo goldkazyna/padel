@@ -1905,32 +1905,30 @@
     }
 
     function cancelBooking() {
-        // Групповая бронь ИЛИ бронь по сертификату — спрашиваем причину.
+        // Причину спрашиваем ВСЕГДА, для любой брони.
         const isGroup = document.getElementById('editBookingTypeInput').value === 'group';
-        if (isGroup || window._viewHasCert) {
-            const ta = document.getElementById('cancelBookingReasonText');
-            if (ta) ta.value = '';
-            const rm = document.getElementById('cancelBookingReasonModal');
-            const rmTitle = rm.querySelector('.gcancel-title');
-            const rmSub = rm.querySelector('.gcancel-sub');
-            if (isGroup) {
-                if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
-                if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
-            } else {
-                if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
-                if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
-            }
-            // Переносим окно ВНУТРЬ bootstrap-модалки, иначе её focus-trap не даёт
-            // печатать в поле (крадёт фокус обратно).
-            const modalEl = document.getElementById('viewModal');
-            if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
-            rm.style.display = 'flex';
-            setTimeout(function () { if (ta) ta.focus(); }, 50);
-            return;
+        const hasCert = !!window._viewHasCert;
+        const ta = document.getElementById('cancelBookingReasonText');
+        if (ta) ta.value = '';
+        const rm = document.getElementById('cancelBookingReasonModal');
+        const rmTitle = rm.querySelector('.gcancel-title');
+        const rmSub = rm.querySelector('.gcancel-sub');
+        if (isGroup) {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
+            if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
+        } else if (hasCert) {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+            if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
+        } else {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+            if (rmSub) rmSub.textContent = 'Корт освободится. Укажите причину — она сохранится к брони.';
         }
-        if (confirm('Вы уверены, что хотите отменить бронь?')) {
-            submitCancelBooking();
-        }
+        // Переносим окно ВНУТРЬ bootstrap-модалки, иначе её focus-trap не даёт
+        // печатать в поле (крадёт фокус обратно).
+        const modalEl = document.getElementById('viewModal');
+        if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
+        rm.style.display = 'flex';
+        setTimeout(function () { if (ta) ta.focus(); }, 50);
     }
     function submitCancelWithReason() {
         const ta = document.getElementById('cancelBookingReasonText');

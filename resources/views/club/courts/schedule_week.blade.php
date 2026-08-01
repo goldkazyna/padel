@@ -2045,28 +2045,28 @@
     }
 
     function cancelBooking() {
+        // Причину спрашиваем ВСЕГДА, для любой брони.
         const isGroup = document.getElementById('editBookingTypeInput').value === 'group';
-        if (isGroup || window._viewHasCert) {
-            const ta = document.getElementById('cancelBookingReasonText');
-            if (ta) ta.value = '';
-            const rmm = document.getElementById('cancelBookingReasonModal');
-            const rmTitle = rmm ? rmm.querySelector('.gcancel-title') : null;
-            const rmSub = rmm ? rmm.querySelector('.gcancel-sub') : null;
-            if (isGroup) {
-                if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
-                if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
-            } else {
-                if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
-                if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
-            }
-            const rm = document.getElementById('cancelBookingReasonModal');
-            const modalEl = document.getElementById('viewModal');
-            if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
-            rm.style.display = 'flex';
-            setTimeout(function () { if (ta) ta.focus(); }, 50);
-            return;
+        const hasCert = !!window._viewHasCert;
+        const ta = document.getElementById('cancelBookingReasonText');
+        if (ta) ta.value = '';
+        const rm = document.getElementById('cancelBookingReasonModal');
+        const rmTitle = rm ? rm.querySelector('.gcancel-title') : null;
+        const rmSub = rm ? rm.querySelector('.gcancel-sub') : null;
+        if (isGroup) {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь занятия?';
+            if (rmSub) rmSub.textContent = 'Корт освободится, занятие отменится. Причину видно в журнале группы — по ней потом понятно, за что отменили.';
+        } else if (hasCert) {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+            if (rmSub) rmSub.textContent = 'Корт освободится, сертификат вернётся в активные. Причина сохранится к брони.';
+        } else {
+            if (rmTitle) rmTitle.textContent = 'Отменить бронь?';
+            if (rmSub) rmSub.textContent = 'Корт освободится. Укажите причину — она сохранится к брони.';
         }
-        if (confirm('Вы уверены, что хотите отменить бронь?')) document.getElementById('cancelBookingForm').submit();
+        const modalEl = document.getElementById('viewModal');
+        if (modalEl && rm && rm.parentElement !== modalEl) modalEl.appendChild(rm);
+        rm.style.display = 'flex';
+        setTimeout(function () { if (ta) ta.focus(); }, 50);
     }
     function submitCancelWithReason() {
         const ta = document.getElementById('cancelBookingReasonText');
