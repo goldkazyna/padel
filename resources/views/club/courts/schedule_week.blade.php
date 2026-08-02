@@ -634,6 +634,7 @@
                                     'clubCardId' => $b->club_card_id,
                                     'cardCharged' => (bool) $b->card_charged_at,
                                     'hasCertificate' => (bool) $b->certificate_id,
+                                    'certificateId' => $b->certificate_id,
                                     'slotDuration' => $court->slot_duration ?? 60,
                                 ]) }})">
                                 @if($pmW)<div class="ws-pm-strip" title="Оплата: {{ $pmW[0] }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span></div>@endif
@@ -1824,9 +1825,9 @@
                 })
                 .catch(() => {});
         }
-        // Клубные карты клиента (с предвыбором текущей карты брони).
+        // Клубные карты + сертификаты клиента (с предвыбором текущих для брони).
         editingBookingId = data.id || null;
-        loadClientCards('edit', phoneNorm, data.clubCardId || null);
+        loadClientCards('edit', phoneNorm, data.clubCardId || null, data.certificateId || null);
 
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';
         document.querySelectorAll('#editPaymentMethods .pay-btn').forEach(b => {
@@ -2341,8 +2342,8 @@
     // (иначе своя же бронь показала бы «нет свободных часов»).
     let editingBookingId = null;
 
-    function loadClientCards(prefix, phone, preselectId) {
-        loadClientCertificates(prefix, phone);
+    function loadClientCards(prefix, phone, preselectId, preselectCertId) {
+        loadClientCertificates(prefix, phone, preselectCertId);
         const wrap = document.getElementById(prefix + 'CardWrap');
         const box = document.getElementById(prefix + 'CardButtons');
         const input = document.getElementById(prefix + 'CardInput');
@@ -2483,7 +2484,7 @@
     let certCache = { book: [], edit: [] };
     let selectedCert = { book: null, edit: null };
 
-    function loadClientCertificates(prefix, phone) {
+    function loadClientCertificates(prefix, phone, preselectCertId) {
         const wrap = document.getElementById(prefix + 'CertWrap');
         const box = document.getElementById(prefix + 'CertButtons');
         const input = document.getElementById(prefix + 'CertInput');
@@ -2497,7 +2498,10 @@
         };
         const digits = (phone || '').replace(/\D/g, '');
         if (digits.length < 5) { reset(); return; }
-        fetch(certsForClientUrl + '?phone=' + encodeURIComponent(digits))
+        // include — id сертификата редактируемой брони (погашен, но должен быть в списке).
+        let url = certsForClientUrl + '?phone=' + encodeURIComponent(digits);
+        if (preselectCertId) url += '&include=' + encodeURIComponent(preselectCertId);
+        fetch(url)
             .then(r => r.json())
             .then(d => {
                 const certs = (d && d.certificates) ? d.certificates : [];
@@ -2512,6 +2516,16 @@
                     '<span class="ccb-sub">' + (c.is_free ? 'бесплатно' : 'на сумму') + '</span></button>'
                 ).join('');
                 wrap.style.display = '';
+                if (preselectCertId) {
+                    const cert = certs.find(c => String(c.id) === String(preselectCertId));
+                    if (cert) {
+                        selectedCert[prefix] = cert;
+                        if (input) input.value = cert.id;
+                        box.querySelectorAll('.client-card-btn').forEach(b =>
+                            b.classList.toggle('active', String(b.dataset.id) === String(cert.id)));
+                        setPaymentCertificate(prefix);
+                    }
+                }
             })
             .catch(() => reset());
     }

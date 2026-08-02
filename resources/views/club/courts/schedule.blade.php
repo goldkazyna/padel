@@ -406,6 +406,7 @@
                                             'clubCardId' => $booking->club_card_id,
                                             'cardCharged' => (bool) $booking->card_charged_at,
                                             'hasCertificate' => (bool) $booking->certificate_id,
+                                            'certificateId' => $booking->certificate_id,
                                             'slotDuration' => $court->slot_duration ?? 60,
                                         ]) }})">
                                         @if($pm)
@@ -1292,8 +1293,8 @@
     // (иначе своя же бронь показала бы «нет свободных часов»).
     let editingBookingId = null;
 
-    function loadClientCards(prefix, phone, preselectId) {
-        loadClientCertificates(prefix, phone);
+    function loadClientCards(prefix, phone, preselectId, preselectCertId) {
+        loadClientCertificates(prefix, phone, preselectCertId);
         const wrap = document.getElementById(prefix + 'CardWrap');
         const box = document.getElementById(prefix + 'CardButtons');
         const input = document.getElementById(prefix + 'CardInput');
@@ -1438,7 +1439,7 @@
     let certCache = { book: [], edit: [] };
     let selectedCert = { book: null, edit: null };
 
-    function loadClientCertificates(prefix, phone) {
+    function loadClientCertificates(prefix, phone, preselectCertId) {
         const wrap = document.getElementById(prefix + 'CertWrap');
         const box = document.getElementById(prefix + 'CertButtons');
         const input = document.getElementById(prefix + 'CertInput');
@@ -1452,7 +1453,10 @@
         };
         const digits = (phone || '').replace(/\D/g, '');
         if (digits.length < 5) { reset(); return; }
-        fetch(certsForClientUrl + '?phone=' + encodeURIComponent(digits))
+        // include — id сертификата редактируемой брони (он погашен, но должен быть в списке).
+        let url = certsForClientUrl + '?phone=' + encodeURIComponent(digits);
+        if (preselectCertId) url += '&include=' + encodeURIComponent(preselectCertId);
+        fetch(url)
             .then(r => r.json())
             .then(d => {
                 const certs = (d && d.certificates) ? d.certificates : [];
@@ -1467,6 +1471,18 @@
                     '<span class="ccb-sub">' + (c.is_free ? 'бесплатно' : 'на сумму') + '</span></button>'
                 ).join('');
                 wrap.style.display = '';
+                // Преселект сертификата редактируемой брони (без пересчёта — скидка
+                // уже загружена из брони).
+                if (preselectCertId) {
+                    const cert = certs.find(c => String(c.id) === String(preselectCertId));
+                    if (cert) {
+                        selectedCert[prefix] = cert;
+                        if (input) input.value = cert.id;
+                        box.querySelectorAll('.client-card-btn').forEach(b =>
+                            b.classList.toggle('active', String(b.dataset.id) === String(cert.id)));
+                        setPaymentCertificate(prefix);
+                    }
+                }
             })
             .catch(() => reset());
     }
@@ -1683,9 +1699,9 @@
                 })
                 .catch(() => {});
         }
-        // Клубные карты клиента (с предвыбором текущей карты брони).
+        // Клубные карты + сертификаты клиента (с предвыбором текущих для брони).
         editingBookingId = data.id || null;
-        loadClientCards('edit', phoneNorm, data.clubCardId || null);
+        loadClientCards('edit', phoneNorm, data.clubCardId || null, data.certificateId || null);
 
         // Payment method
         document.getElementById('editPaymentMethodInput').value = data.paymentMethod || '';

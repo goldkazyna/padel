@@ -171,6 +171,25 @@ class CertificateBookingTest extends TestCase
         $this->assertSame('клиент не пришёл', $booking->fresh()->cancel_reason);
     }
 
+    public function test_for_client_include_returns_used_cert_for_editing(): void
+    {
+        [$club, $admin, , $client] = $this->scene();
+        $used = $this->cert($club, $client, ['value_type' => 'hours', 'hours' => 2, 'used_at' => now()]);
+
+        // Без include — погашенного нет.
+        $this->actingAs($admin)
+            ->getJson(route('club.certificates.forClient', ['phone' => '77770001122']))
+            ->assertOk()->assertJsonCount(0, 'certificates');
+
+        // С include=<id> — погашенный серт брони возвращается (для редактирования).
+        $resp = $this->actingAs($admin)->getJson(
+            route('club.certificates.forClient', ['phone' => '77770001122', 'include' => $used->id])
+        );
+        $resp->assertOk()->assertJsonCount(1, 'certificates');
+        $resp->assertJsonPath('certificates.0.id', $used->id);
+        $resp->assertJsonPath('certificates.0.hours', 2);
+    }
+
     public function test_for_client_endpoint_returns_only_active_certs(): void
     {
         [$club, $admin, , $client] = $this->scene();

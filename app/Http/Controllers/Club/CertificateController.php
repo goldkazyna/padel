@@ -169,11 +169,18 @@ class CertificateController extends Controller
             ->first();
         if (!$client) return response()->json(['certificates' => []]);
 
+        // При редактировании брони её сертификат уже погашен (used_at) — чтобы он
+        // отображался и был выбран, его id передаётся в include и включается всегда.
+        $includeId = (int) $request->get('include', 0);
+
         $certs = Certificate::where('client_id', $client->id)
-            ->whereNull('used_at')
-            // Для брони корта применимы только «на сумму» и «на часы»
-            // (турнирные сертификаты — для регистрации на турнир).
             ->whereIn('value_type', [Certificate::VALUE_AMOUNT, Certificate::VALUE_HOURS])
+            ->where(function ($q) use ($includeId) {
+                $q->whereNull('used_at');
+                if ($includeId > 0) {
+                    $q->orWhere('id', $includeId);
+                }
+            })
             ->latest()
             ->get()
             ->map(fn($c) => [
