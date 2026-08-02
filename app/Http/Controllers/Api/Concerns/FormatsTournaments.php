@@ -38,6 +38,7 @@ trait FormatsTournaments
                 'telegram_url' => $club?->telegram_url,
                 'logo' => $club?->logo ? url($club->logo) : null,
                 'is_community' => (bool) ($club?->is_community ?? false),
+                'created_at' => $club?->created_at?->toIso8601String(),
             ],
             'is_personal' => $t->isPersonal(),
             'creator' => $creator ? ['id' => $creator->id, 'name' => $creator->name] : null,
