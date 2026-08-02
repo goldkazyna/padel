@@ -105,6 +105,7 @@ class TournamentController extends Controller
 			'teams_advance' => 'nullable|integer|in:1,2,3,4',
 			'has_playoff' => 'nullable|boolean',
 			'has_prizes' => 'nullable|boolean',
+			'jpi_rank_by_wins' => 'nullable|boolean',
 			'prizes' => 'nullable|string|max:2000',
 			'has_lower_bracket' => 'nullable|boolean',
 			'has_bronze_match' => 'nullable|boolean',
@@ -177,6 +178,7 @@ class TournamentController extends Controller
             abort(403);
         }
 
+		$validated['jpi_rank_by_wins'] = $request->boolean('jpi_rank_by_wins');
 		$validated['has_prizes'] = $request->boolean('has_prizes');
 		if (!$validated['has_prizes']) {
 			$validated['prizes'] = null;
@@ -312,6 +314,7 @@ class TournamentController extends Controller
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'has_playoff' => 'nullable|boolean',
 			'has_prizes' => 'nullable|boolean',
+			'jpi_rank_by_wins' => 'nullable|boolean',
 			'prizes' => 'nullable|string|max:2000',
 			'has_lower_bracket' => 'nullable|boolean',
 			'has_bronze_match' => 'nullable|boolean',
@@ -382,6 +385,7 @@ class TournamentController extends Controller
 			$validated['playoff_format'] = null;
 		}
 		
+		$validated['jpi_rank_by_wins'] = $request->boolean('jpi_rank_by_wins');
 		$validated['has_prizes'] = $request->boolean('has_prizes');
 		if (!$validated['has_prizes']) {
 			$validated['prizes'] = null;

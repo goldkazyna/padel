@@ -2897,18 +2897,17 @@ class MobileAdminTournamentDetailController extends Controller
 
     private function buildJustPadelItLeaderboard(Tournament $tournament): array
     {
-        // Сортировка как в JustPadelItScoring::sortStandings и веб-таблице:
-        // очки ↓, при равенстве — победы ↓, далее — разница мячей ↓.
-        // (sortByDesc('total_points') сам по себе тай-брейка не даёт — при
-        // равных очках сохранял исходный порядок игроков.)
+        // Единый порядок (см. JustPadelItScoring::sortKey): по очкам или по победам,
+        // в зависимости от флага jpi_rank_by_wins.
+        $byWins = (bool) $tournament->jpi_rank_by_wins;
         $players = $tournament->justPadelItPlayers
-            ->sort(fn ($a, $b) => [
+            ->sort(fn ($a, $b) => \App\Services\JustPadelItScoring::sortKey(
                 (int) $b->total_points, (int) $b->wins,
-                (int) $b->points_for - (int) $b->points_against,
-            ] <=> [
+                (int) $b->points_for - (int) $b->points_against, $byWins
+            ) <=> \App\Services\JustPadelItScoring::sortKey(
                 (int) $a->total_points, (int) $a->wins,
-                (int) $a->points_for - (int) $a->points_against,
-            ])
+                (int) $a->points_for - (int) $a->points_against, $byWins
+            ))
             ->values();
 
         $rows = [];

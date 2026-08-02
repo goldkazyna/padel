@@ -660,7 +660,7 @@ class JustPadelItService
             ];
         }
 
-        return JustPadelItScoring::sortStandings($rows);
+        return JustPadelItScoring::sortStandings($rows, (bool) $tournament->jpi_rank_by_wins);
     }
 
     /**

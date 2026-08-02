@@ -143,6 +143,16 @@
                             <small class="text-secondary">Игроков должно быть ровно кортов × 4, чтобы начать посев. Напр. 3 корта = 12 игроков.</small>
                         </div>
                         @endif
+                        @if($tournament->isJustPadelIt())
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Таблица лидеров</label>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankByWins" value="1" {{ old('jpi_rank_by_wins', $tournament->jpi_rank_by_wins) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="jpiRankByWins">Ранжировать по победам</label>
+                                <div><small class="text-secondary">По умолчанию — по очкам. Если включено: сначала победы, потом очки.</small></div>
+                            </div>
+                        </div>
+                        @endif
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
                             <input type="number" name="waitlist_size" class="form-control"

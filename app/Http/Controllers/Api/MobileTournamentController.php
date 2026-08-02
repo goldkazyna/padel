@@ -2258,11 +2258,13 @@ class MobileTournamentController extends Controller
                 }
                 return null;
             }
-            $players = $tournament->justPadelItPlayers()
-                ->orderByDesc('total_points')
-                ->orderByDesc('wins')
-                ->get();
-            foreach ($players as $i => $kp) {
+            $q = $tournament->justPadelItPlayers();
+            if ($tournament->jpi_rank_by_wins) {
+                $q->orderByDesc('wins')->orderByDesc('total_points');
+            } else {
+                $q->orderByDesc('total_points')->orderByDesc('wins');
+            }
+            foreach ($q->get() as $i => $kp) {
                 if ($kp->user_id === $userId) return $i + 1;
             }
         }
@@ -3705,10 +3707,16 @@ class MobileTournamentController extends Controller
                 ];
             }
         } else {
-            uasort($playerStats, function ($a, $b) {
-                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
-                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+            $byWins = (bool) $tournament->jpi_rank_by_wins;
+            uasort($playerStats, function ($a, $b) use ($byWins) {
+                // b<=>a — убывание.
+                return \App\Services\JustPadelItScoring::sortKey(
+                    (int) $b['total_points'], (int) $b['wins'],
+                    (int) $b['points_for'] - (int) $b['points_against'], $byWins
+                ) <=> \App\Services\JustPadelItScoring::sortKey(
+                    (int) $a['total_points'], (int) $a['wins'],
+                    (int) $a['points_for'] - (int) $a['points_against'], $byWins
+                );
             });
 
             $position = 1;

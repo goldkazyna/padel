@@ -473,6 +473,15 @@
 								<label class="form-check-label text-muted" for="jpiScoreSets">По сетам <small>(скоро)</small></label>
 							</div>
 						</div>
+						<div class="mb-3">
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" name="jpi_rank_by_wins" value="1" id="jpiRankByWins"
+									   {{ old('jpi_rank_by_wins') ? 'checked' : '' }}>
+								<label class="form-check-label" for="jpiRankByWins">
+									Ранжировать таблицу по победам <small class="text-muted">(по умолчанию — по очкам). Если включено: сначала победы, потом очки.</small>
+								</label>
+							</div>
+						</div>
 					</div>
 
 					<div id="roundRobinFields" style="display: none;">

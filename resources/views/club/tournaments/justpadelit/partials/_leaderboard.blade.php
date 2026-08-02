@@ -55,7 +55,7 @@
         'player' => $p->user, 'total_points' => $p->total_points, 'wins' => $p->wins,
         'losses' => $p->losses, 'points_for' => $p->points_for, 'points_against' => $p->points_against,
     ])->values()->all();
-    $rows = \App\Services\JustPadelItScoring::sortStandings($rows);
+    $rows = \App\Services\JustPadelItScoring::sortStandings($rows, (bool) $tournament->jpi_rank_by_wins);
 @endphp
 
 <div class="leaderboard-table-wrapper mb-4">

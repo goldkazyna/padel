@@ -266,6 +266,7 @@ class MobileAdminTournamentController extends Controller
             'teams_advance' => 'nullable|integer|in:1,2,3,4',
             'has_playoff' => 'nullable|boolean',
             'has_prizes' => 'nullable|boolean',
+            'jpi_rank_by_wins' => 'nullable|boolean',
             'prizes' => 'nullable|string|max:2000',
             'has_lower_bracket' => 'nullable|boolean',
             'has_bronze_match' => 'nullable|boolean',
@@ -304,6 +305,7 @@ class MobileAdminTournamentController extends Controller
         }
 
         // Нормализация плей-офф по чекбоксу (team теперь может быть без плей-офф).
+        $validated['jpi_rank_by_wins'] = $request->boolean('jpi_rank_by_wins');
         $validated['has_prizes'] = $request->boolean('has_prizes');
         if (!$validated['has_prizes']) {
             $validated['prizes'] = null;

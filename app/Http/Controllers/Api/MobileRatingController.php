@@ -786,11 +786,13 @@ class MobileRatingController extends Controller
                 }
                 return null;
             }
-            $players = $tournament->justPadelItPlayers()
-                ->orderByDesc('total_points')
-                ->orderByDesc('wins')
-                ->get();
-            foreach ($players as $i => $player) {
+            $q = $tournament->justPadelItPlayers();
+            if ($tournament->jpi_rank_by_wins) {
+                $q->orderByDesc('wins')->orderByDesc('total_points');
+            } else {
+                $q->orderByDesc('total_points')->orderByDesc('wins');
+            }
+            foreach ($q->get() as $i => $player) {
                 if ($player->user_id === $userId) return $i + 1;
             }
         }
