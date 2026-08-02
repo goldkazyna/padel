@@ -463,17 +463,6 @@
 							</div>
 						</div>
 						<div class="mb-3">
-							<label class="form-label">Тип подсчёта</label>
-							<div class="form-check">
-								<input type="radio" class="form-check-input" name="jpi_score_type" id="jpiScorePoints" value="points" checked>
-								<label class="form-check-label" for="jpiScorePoints">По очкам</label>
-							</div>
-							<div class="form-check">
-								<input type="radio" class="form-check-input" id="jpiScoreSets" value="sets" disabled>
-								<label class="form-check-label text-muted" for="jpiScoreSets">По сетам <small>(скоро)</small></label>
-							</div>
-						</div>
-						<div class="mb-3">
 							<label class="form-label">Ранжирование таблицы</label>
 							<div class="form-check">
 								<input type="radio" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankPoints" value="0" {{ old('jpi_rank_by_wins') ? '' : 'checked' }}>
