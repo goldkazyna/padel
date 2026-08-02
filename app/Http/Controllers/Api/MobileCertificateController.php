@@ -89,6 +89,10 @@ class MobileCertificateController extends Controller
     private function design(?CertificateTemplate $tpl, Certificate $cert): array
     {
         return [
+            // Режим v2: клуб загрузил картинку-фон + разложил поля.
+            'background_image' => $tpl?->backgroundImageUrl(),
+            'layout' => $tpl && $tpl->hasBackgroundImage() ? $tpl->fieldLayout() : null,
+            // Режим v1 (старый конструктор — если картинки нет).
             'heading' => $tpl->heading ?? 'Сертификат',
             'subtitle_named' => $tpl->subtitle_named ?? 'Настоящий сертификат выдан',
             'subtitle_generic' => $tpl->subtitle_generic ?? 'Сертификат на предъявителя',

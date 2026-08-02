@@ -67,10 +67,23 @@
         }
         .cert-foot .lbl { color:#a8a29e; font-size:.72rem; text-transform:uppercase; letter-spacing:1px; }
         .cert-num { font-family:monospace; font-size:1rem; color:{{ $border }}; font-weight:700; }
+        /* ===== Режим v2: картинка-фон + поля поверх ===== */
+        .certimg {
+            position:relative; width:min(1000px, 96vw); max-width:100%;
+            container-type:inline-size; box-shadow:0 12px 40px rgba(0,0,0,.35);
+            background:#fff; line-height:1;
+        }
+        .certimg img { display:block; width:100%; height:auto; }
+        .cf {
+            position:absolute; transform:translateY(-50%);
+            font-family:-apple-system,'Segoe UI',Roboto,sans-serif; font-weight:700;
+            white-space:nowrap; pointer-events:none;
+        }
         @media print {
             body { background:#fff; padding:0; }
             .toolbar { display:none; }
             .cert { box-shadow:none; width:100%; }
+            .certimg { width:100%; box-shadow:none; }
             @page { size:{{ $pageSize }}; margin:0; }
         }
     </style>
@@ -81,6 +94,25 @@
         <a href="{{ route('club.certificates.index') }}">← К списку</a>
     </div>
 
+    @if($template->hasBackgroundImage())
+        @php
+            $L = $template->fieldLayout();
+            $tf = fn($a) => $a === 'center' ? 'translate(-50%,-50%)' : ($a === 'right' ? 'translate(-100%,-50%)' : 'translateY(-50%)');
+            $fields = [
+                'name' => $certificate->isNamed() ? $certificate->recipient_name : null,
+                'value' => $certificate->title ?: $certificate->valueLabel(),
+                'number' => $certificate->number,
+            ];
+        @endphp
+        <div class="certimg">
+            <img src="{{ $template->backgroundImageUrl() }}" alt="Сертификат">
+            @foreach($fields as $key => $text)
+                @continue($text === null)
+                @php $f = $L[$key]; @endphp
+                <div class="cf" style="left:{{ $f['x'] }}%;top:{{ $f['y'] }}%;font-size:{{ $f['size'] / 10 }}cqw;color:{{ $f['color'] }};text-align:{{ $f['align'] }};transform:{{ $tf($f['align']) }};">{{ $text }}</div>
+            @endforeach
+        </div>
+    @else
     <div class="cert">
         <div class="cert-inner">
             @if($template->logoUrl())
@@ -116,5 +148,6 @@
             </div>
         </div>
     </div>
+    @endif
 </body>
 </html>

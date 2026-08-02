@@ -423,4 +423,31 @@ class CertificateTest extends TestCase
         $this->assertNotNull($tpl->logo_path);
         Storage::disk('public')->assertExists($tpl->logo_path);
     }
+
+    public function test_design_uploads_background_and_layout(): void
+    {
+        Storage::fake('public');
+        [$admin, $club] = $this->admin();
+
+        $layout = json_encode([
+            'name' => ['x' => 20, 'y' => 45, 'size' => 40, 'color' => '#123456', 'align' => 'center'],
+            'value' => ['x' => 24, 'y' => 56, 'size' => 34, 'color' => '#334155', 'align' => 'left'],
+            'number' => ['x' => 33, 'y' => 63, 'size' => 26, 'color' => '#334155', 'align' => 'right'],
+        ]);
+
+        $this->actingAs($admin)->post(route('club.certificates.design.update'), [
+            'background_image' => UploadedFile::fake()->image('cert.png', 1000, 700),
+            'layout' => $layout,
+        ])->assertRedirect();
+
+        $tpl = CertificateTemplate::defaultForClub($club->id);
+        $this->assertTrue($tpl->hasBackgroundImage());
+        Storage::disk('public')->assertExists($tpl->background_image_path);
+
+        $l = $tpl->fieldLayout();
+        $this->assertEquals(20, $l['name']['x']);
+        $this->assertSame('center', $l['name']['align']);
+        $this->assertSame('#123456', $l['name']['color']);
+        $this->assertSame('right', $l['number']['align']);
+    }
 }

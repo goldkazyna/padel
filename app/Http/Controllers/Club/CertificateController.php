@@ -113,33 +113,44 @@ class CertificateController extends Controller
 
         $template = CertificateTemplate::defaultForClub($club->id);
 
-        $data = $request->validate([
+        $request->validate([
             'number_prefix' => 'nullable|regex:/^[A-Za-z0-9_-]{1,30}$/',
-            'heading' => 'required|string|max:120',
-            'subtitle_named' => 'required|string|max:200',
-            'subtitle_generic' => 'required|string|max:200',
+            'heading' => 'nullable|string|max:120',
+            'subtitle_named' => 'nullable|string|max:200',
+            'subtitle_generic' => 'nullable|string|max:200',
             'body_text' => 'nullable|string|max:500',
-            'background_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'accent_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'border_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'text_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'orientation' => 'required|in:landscape,portrait',
+            'background_color' => 'nullable|regex:/^#[0-9A-Fa-f]{6}$/',
+            'accent_color' => 'nullable|regex:/^#[0-9A-Fa-f]{6}$/',
+            'border_color' => 'nullable|regex:/^#[0-9A-Fa-f]{6}$/',
+            'text_color' => 'nullable|regex:/^#[0-9A-Fa-f]{6}$/',
+            'orientation' => 'nullable|in:landscape,portrait',
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
+            'background_image' => 'nullable|image|max:6144',
+            'remove_background' => 'nullable|boolean',
+            'layout' => 'nullable|string',
         ]);
 
-        $fields = collect($data)->except(['logo', 'remove_logo', 'number_prefix'])->toArray();
-
-        // Префикс номера: сохраняем только если задан валидный (иначе не затираем текущий).
-        if (!empty($data['number_prefix'])) {
-            $fields['number_prefix'] = trim($data['number_prefix']);
+        // Старые поля (цвета/тексты) обновляем только если пришли — новый
+        // конструктор (по картинке) их может не присылать.
+        $fields = [];
+        foreach ([
+            'heading', 'subtitle_named', 'subtitle_generic', 'body_text',
+            'background_color', 'accent_color', 'border_color', 'text_color', 'orientation',
+        ] as $k) {
+            if ($request->has($k)) {
+                $fields[$k] = $request->input($k);
+            }
+        }
+        if ($request->filled('number_prefix')) {
+            $fields['number_prefix'] = trim($request->input('number_prefix'));
         }
 
+        // Логотип.
         if ($request->boolean('remove_logo') && $template->logo_path) {
             \Storage::disk('public')->delete($template->logo_path);
             $fields['logo_path'] = null;
         }
-
         if ($request->hasFile('logo')) {
             if ($template->logo_path) {
                 \Storage::disk('public')->delete($template->logo_path);
@@ -147,11 +158,52 @@ class CertificateController extends Controller
             $fields['logo_path'] = $request->file('logo')->store('certificates/logos', 'public');
         }
 
+        // Картинка-фон (режим v2).
+        if ($request->boolean('remove_background') && $template->background_image_path) {
+            \Storage::disk('public')->delete($template->background_image_path);
+            $fields['background_image_path'] = null;
+            $fields['layout'] = null;
+        }
+        if ($request->hasFile('background_image')) {
+            if ($template->background_image_path) {
+                \Storage::disk('public')->delete($template->background_image_path);
+            }
+            $fields['background_image_path'] =
+                $request->file('background_image')->store('certificates/backgrounds', 'public');
+        }
+
+        // Позиции полей (JSON строкой).
+        if ($request->filled('layout')) {
+            $decoded = json_decode($request->input('layout'), true);
+            if (is_array($decoded)) {
+                $fields['layout'] = $this->sanitizeLayout($decoded);
+            }
+        }
+
         $template->update($fields);
 
         return redirect()
             ->route('club.certificates.design')
             ->with('success', 'Шаблон сохранён');
+    }
+
+    /** Валидируем позиции полей: name/value/number → x%, y%, size, color, align. */
+    private function sanitizeLayout(array $in): array
+    {
+        $out = [];
+        foreach (['name', 'value', 'number'] as $key) {
+            $f = is_array($in[$key] ?? null) ? $in[$key] : [];
+            $color = (string) ($f['color'] ?? '');
+            $align = $f['align'] ?? 'left';
+            $out[$key] = [
+                'x' => max(0, min(100, (float) ($f['x'] ?? 0))),
+                'y' => max(0, min(100, (float) ($f['y'] ?? 0))),
+                'size' => max(8, min(120, (int) ($f['size'] ?? 30))),
+                'color' => preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? $color : '#1e2a44',
+                'align' => in_array($align, ['left', 'center', 'right'], true) ? $align : 'left',
+            ];
+        }
+        return $out;
     }
 
     /** Активные сертификаты клиента по телефону (для модалки брони). */
