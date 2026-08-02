@@ -34,6 +34,7 @@ trait FormatsTournaments
                 'name' => $club?->name ?? ($creator?->name ?? 'Личный турнир'),
                 'phone' => $club?->phone,
                 'address' => $club?->address,
+                'city' => $club?->city,
                 'payment_url' => $club?->payment_url,
                 'telegram_url' => $club?->telegram_url,
                 'logo' => $club?->logo ? url($club->logo) : null,
