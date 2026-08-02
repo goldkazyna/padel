@@ -51,10 +51,12 @@
 @else
 
 @php
+    // Единый порядок (очки → разница → % мячей → личная встреча → рейтинг → id).
     $playerStats = [];
-    foreach ($tournament->kingOfCourtPlayers as $kp) {
-        $playerStats[$kp->user_id] = [
-            'player' => $kp->user,
+    foreach (\App\Support\KingOfCourtRanking::standings($tournament) as $row) {
+        $kp = $row['kp'];
+        $playerStats[$row['id']] = [
+            'player' => $row['user'],
             'wins' => $kp->wins,
             'losses' => $kp->losses,
             'points_for' => $kp->points_for,
@@ -62,26 +64,6 @@
             'total_points' => $kp->total_points,
         ];
     }
-
-    uasort($playerStats, function($a, $b) {
-        if ($a['total_points'] !== $b['total_points']) {
-            return $b['total_points'] <=> $a['total_points'];
-        }
-        $diffA = $a['points_for'] - $a['points_against'];
-        $diffB = $b['points_for'] - $b['points_against'];
-        if ($diffA !== $diffB) {
-            return $diffB <=> $diffA;
-        }
-        $totalA = $a['points_for'] + $a['points_against'];
-        $totalB = $b['points_for'] + $b['points_against'];
-        $pctA = $totalA > 0 ? $a['points_for'] / $totalA : 0;
-        $pctB = $totalB > 0 ? $b['points_for'] / $totalB : 0;
-        if ($pctA != $pctB) {
-            return $pctB <=> $pctA;
-        }
-        // Финальный тайбрейк — рейтинг (стартовая таблица идёт сверху вниз по рейтингу).
-        return (int) ($b['player']->rating ?? 0) <=> (int) ($a['player']->rating ?? 0);
-    });
 @endphp
 
 <div class="leaderboard-table-wrapper mb-4">

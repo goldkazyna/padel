@@ -2237,13 +2237,8 @@ class MobileTournamentController extends Controller
                 }
                 return null;
             }
-            $players = $tournament->kingOfCourtPlayers()
-                ->orderByDesc('total_points')
-                ->orderByDesc('wins')
-                ->get();
-            foreach ($players as $i => $kp) {
-                if ($kp->user_id === $userId) return $i + 1;
-            }
+            // Единый порядок (очки → разница → % → личная встреча → рейтинг → id).
+            return \App\Support\KingOfCourtRanking::place($tournament, $userId);
         }
 
         // Just Padel It — место по лидерборду
@@ -3515,13 +3510,14 @@ class MobileTournamentController extends Controller
                 ];
             }
         } else {
-            uasort($playerStats, function ($a, $b) {
-                if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
-                if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-                $diff = ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
-                if ($diff !== 0) return $diff;
-                // Финальный тайбрейк — рейтинг (стартовая таблица идёт по рейтингу).
-                return ($b['rating'] ?? 0) <=> ($a['rating'] ?? 0);
+            // Единый порядок соло-КК (очки → разница → % → личная встреча →
+            // рейтинг → id) — тот же, что в «месте» и admin-таблице.
+            $order = [];
+            foreach (\App\Support\KingOfCourtRanking::standings($tournament) as $i => $row) {
+                $order[$row['id']] = $i;
+            }
+            uasort($playerStats, function ($a, $b) use ($order) {
+                return ($order[$a['id']] ?? PHP_INT_MAX) <=> ($order[$b['id']] ?? PHP_INT_MAX);
             });
 
             $position = 1;

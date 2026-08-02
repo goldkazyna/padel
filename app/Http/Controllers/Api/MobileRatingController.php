@@ -765,13 +765,8 @@ class MobileRatingController extends Controller
                 }
                 return null;
             }
-            $players = $tournament->kingOfCourtPlayers()
-                ->orderByDesc('total_points')
-                ->orderByDesc('wins')
-                ->get();
-            foreach ($players as $i => $player) {
-                if ($player->user_id === $userId) return $i + 1;
-            }
+            // Единый порядок (очки → разница → % → личная встреча → рейтинг → id).
+            return \App\Support\KingOfCourtRanking::place($tournament, $userId);
         }
 
         // Just Padel It — место по лидерборду
