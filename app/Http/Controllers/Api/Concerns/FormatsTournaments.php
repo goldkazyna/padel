@@ -22,6 +22,8 @@ trait FormatsTournaments
             'id' => $t->id,
             'name' => $t->name,
             'description' => $t->description,
+            'has_prizes' => (bool) $t->has_prizes,
+            'prizes' => $t->prizes,
             'telegram_registration_url' => $t->telegram_registration_url,
             // Для личного турнира клуба нет — в качестве «организатора»
             // показываем имя создателя.
