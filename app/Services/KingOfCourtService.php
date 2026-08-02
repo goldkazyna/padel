@@ -657,7 +657,11 @@ class KingOfCourtService
         usort($rows, function ($x, $y) {
             if ($x['total_points'] !== $y['total_points']) return $y['total_points'] <=> $x['total_points'];
             if ($x['diff'] !== $y['diff']) return $y['diff'] <=> $x['diff'];
-            return $y['win_rate'] <=> $x['win_rate'];
+            if ($x['win_rate'] !== $y['win_rate']) return $y['win_rate'] <=> $x['win_rate'];
+            // Финальный тайбрейк — суммарный рейтинг пары (стартовая таблица идёт по рейтингу).
+            $rx = (int) (($x['pair']->player1->rating ?? 0) + ($x['pair']->player2->rating ?? 0));
+            $ry = (int) (($y['pair']->player1->rating ?? 0) + ($y['pair']->player2->rating ?? 0));
+            return $ry <=> $rx;
         });
 
         return $rows;

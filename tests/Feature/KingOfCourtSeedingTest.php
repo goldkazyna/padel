@@ -75,6 +75,31 @@ class KingOfCourtSeedingTest extends TestCase
         $this->assertSame($u[2000]->id, $matches[0]->team1_player1_id);
     }
 
+    public function test_solo_initial_leaderboard_ordered_by_rating(): void
+    {
+        // Порядок регистрации перемешан; матчей нет → таблица должна идти по рейтингу.
+        $ratings = [1400, 2000, 1600, 1300, 1900, 1500, 1800, 1700];
+        $t = $this->tournament(false, count($ratings));
+        foreach ($ratings as $r) {
+            $u = User::factory()->create(['rating' => $r]);
+            $t->participants()->attach($u->id, ['status' => 'registered']);
+        }
+        (new KingOfCourtService())->startTournament($t->fresh());
+
+        $controller = new \App\Http\Controllers\Api\MobileAdminTournamentDetailController();
+        $method = new \ReflectionMethod($controller, 'buildKingOfCourtLeaderboard');
+        $method->setAccessible(true);
+        $rows = $method->invoke($controller, $t->fresh());
+
+        $ratingsInOrder = array_map(fn ($row) => $row['rating'], $rows);
+        $this->assertSame(
+            [2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300],
+            $ratingsInOrder,
+            'Стартовая таблица КК должна идти по рейтингу DESC'
+        );
+        $this->assertSame(1, $rows[0]['position']);
+    }
+
     public function test_paired_first_round_strongest_pairs_on_court_one(): void
     {
         $t = $this->tournament(true, 8);

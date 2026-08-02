@@ -3511,7 +3511,10 @@ class MobileTournamentController extends Controller
             uasort($playerStats, function ($a, $b) {
                 if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
                 if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
-                return ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+                $diff = ($b['points_for'] - $b['points_against']) <=> ($a['points_for'] - $a['points_against']);
+                if ($diff !== 0) return $diff;
+                // Финальный тайбрейк — рейтинг (стартовая таблица идёт по рейтингу).
+                return ($b['rating'] ?? 0) <=> ($a['rating'] ?? 0);
             });
 
             $position = 1;

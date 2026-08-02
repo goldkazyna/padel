@@ -2711,8 +2711,22 @@ class MobileAdminTournamentDetailController extends Controller
 
     private function buildKingOfCourtLeaderboard(Tournament $tournament): array
     {
-        $players = $tournament->kingOfCourtPlayers
-            ->sortByDesc('total_points')
+        $players = $tournament->kingOfCourtPlayers()->with('user')->get()
+            ->sort(function ($a, $b) {
+                if ((int) $a->total_points !== (int) $b->total_points) {
+                    return (int) $b->total_points <=> (int) $a->total_points;
+                }
+                $da = (int) $a->points_for - (int) $a->points_against;
+                $db = (int) $b->points_for - (int) $b->points_against;
+                if ($da !== $db) return $db <=> $da;
+                $ga = (int) $a->wins + (int) $a->losses;
+                $gb = (int) $b->wins + (int) $b->losses;
+                $wa = $ga > 0 ? $a->wins / $ga : 0;
+                $wb = $gb > 0 ? $b->wins / $gb : 0;
+                if ($wa != $wb) return $wb <=> $wa;
+                // Финальный тайбрейк — рейтинг (стартовая таблица идёт по рейтингу).
+                return (int) ($b->user->rating ?? 0) <=> (int) ($a->user->rating ?? 0);
+            })
             ->values();
 
         $rows = [];
