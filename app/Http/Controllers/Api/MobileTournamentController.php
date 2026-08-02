@@ -1201,6 +1201,8 @@ class MobileTournamentController extends Controller
             $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
         } elseif ($tournament->type === 'team') {
             $userMatches = $this->getTeamBasedMatches($tournament, $userId);
+        } elseif ($tournament->type === 'king_of_court') {
+            $userMatches = $this->getKingOfCourtBasedMatches($tournament, $userId);
         }
 
         $ratingHistory = RatingHistory::where('user_id', $userId)
@@ -2019,6 +2021,62 @@ class MobileTournamentController extends Controller
     /**
      * Форматировать матч (player-based) для результатов
      */
+    /**
+     * Матчи игрока в «Короле корта» для AI-разбора. Per-match Elo для КК не
+     * считается (рейтинг применяется суммарно), поэтому rating_change = 0, а
+     * средние/шанс — null; главное — счёт, результат, партнёр и соперники,
+     * чтобы AI видел реальные победы/поражения (а не «матчей не было»).
+     */
+    private function getKingOfCourtBasedMatches(Tournament $tournament, int $userId): array
+    {
+        $me = \App\Models\User::find($userId);
+        $out = [];
+        $rounds = $tournament->kingOfCourtRounds()
+            ->with(['matches.team1Player1', 'matches.team1Player2',
+                    'matches.team2Player1', 'matches.team2Player2'])
+            ->orderBy('round_number')->get();
+
+        foreach ($rounds as $round) {
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') continue;
+                if ((int) $m->team1_score === 0 && (int) $m->team2_score === 0) continue;
+                $isT1 = in_array($userId, [$m->team1_player1_id, $m->team1_player2_id], true);
+                $isT2 = in_array($userId, [$m->team2_player1_id, $m->team2_player2_id], true);
+                if (!$isT1 && !$isT2) continue;
+
+                $myScore = $isT1 ? (int) $m->team1_score : (int) $m->team2_score;
+                $oppScore = $isT1 ? (int) $m->team2_score : (int) $m->team1_score;
+                $partner = $isT1
+                    ? ($m->team1_player1_id == $userId ? $m->team1Player2 : $m->team1Player1)
+                    : ($m->team2_player1_id == $userId ? $m->team2Player2 : $m->team2Player1);
+                $opponents = $isT1
+                    ? [$m->team2Player1, $m->team2Player2]
+                    : [$m->team1Player1, $m->team1Player2];
+
+                $out[] = [
+                    'round_name' => 'РАУНД ' . $round->round_number,
+                    'is_final' => false,
+                    'score_my' => $myScore,
+                    'score_opponent' => $oppScore,
+                    'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
+                    'rating_change' => 0,
+                    'my_avg' => null,
+                    'opp_avg' => null,
+                    'win_prob' => null,
+                    'my_team' => array_values(array_filter([
+                        $me ? $this->formatPlayerShort($me) : null,
+                        $partner ? $this->formatPlayerShort($partner) : null,
+                    ])),
+                    'opponent_team' => array_values(array_filter(array_map(
+                        fn($p) => $p ? $this->formatPlayerShort($p) : null,
+                        $opponents
+                    ))),
+                ];
+            }
+        }
+        return $out;
+    }
+
     private function formatResultMatch($match, int $userId, int $roundNum, array $change, bool $isFinal, ?string $stageName = null): array
     {
         $isTeam1 = in_array($userId, [$match->team1_player1_id, $match->team1_player2_id]);
