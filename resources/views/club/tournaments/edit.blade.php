@@ -33,7 +33,7 @@
                         <textarea name="description" class="form-control" rows="3">{{ old('description', $tournament->description) }}</textarea>
                     </div>
 
-                    @php($prizesOn = old('has_prizes', $tournament->has_prizes))
+                    @php $prizesOn = old('has_prizes', $tournament->has_prizes); @endphp
                     <div class="mb-4">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" name="has_prizes" id="hasPrizes" value="1" {{ $prizesOn ? 'checked' : '' }} onchange="togglePrizes()">
