@@ -4183,6 +4183,11 @@ class MobileAdminTournamentDetailController extends Controller
                     'id' => $p1->id ?? 0,
                     'name' => $name,
                     'avatar' => $p1?->avatar, // в БД уже готовый URL
+                    // Пара: оба игрока с аватарами — для отображения на двух строках.
+                    'players' => [
+                        ['id' => (int) ($p1->id ?? 0), 'name' => $p1->name ?? '—', 'avatar' => $p1?->avatar, 'verified' => (bool) ($p1->level_verified ?? false)],
+                        ['id' => (int) ($p2->id ?? 0), 'name' => $p2->name ?? '—', 'avatar' => $p2?->avatar, 'verified' => (bool) ($p2->level_verified ?? false)],
+                    ],
                     'rating' => null,
                     'rating_before' => null,
                     'rating_after' => null,

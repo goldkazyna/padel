@@ -2989,6 +2989,11 @@ class MobileTournamentController extends Controller
                     'id' => $r['p1']->id ?? 0,
                     'name' => $name,
                     'avatar' => $r['avatar'],
+                    // Пара: оба игрока с аватарами — для отображения на двух строках.
+                    'players' => [
+                        ['id' => (int) ($r['p1']->id ?? 0), 'name' => $r['p1']->name ?? '—', 'avatar' => $r['p1']?->avatar, 'verified' => (bool) ($r['p1']->level_verified ?? false)],
+                        ['id' => (int) ($r['p2']->id ?? 0), 'name' => $r['p2']->name ?? '—', 'avatar' => $r['p2']?->avatar, 'verified' => (bool) ($r['p2']->level_verified ?? false)],
+                    ],
                     'rating' => null,
                     'wins' => $r['wins'],
                     'losses' => $r['losses'],
