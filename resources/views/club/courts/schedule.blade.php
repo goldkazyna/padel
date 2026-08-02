@@ -995,6 +995,13 @@
                             <small class="form-hint" id="editCardHint" style="display:none;"></small>
                         </div>
 
+                        <div class="form-group" id="editCertWrap" style="display:none;">
+                            <label class="form-label">Сертификаты клиента</label>
+                            <input type="hidden" name="certificate_id" id="editCertInput" value="">
+                            <div class="client-card-buttons" id="editCertButtons"></div>
+                            <small class="form-hint" id="editCertHint" style="display:none;"></small>
+                        </div>
+
                         <div class="modal-section-title">Тип брони</div>
                         <div class="booking-type-buttons" id="editBookingTypeButtons">
                             <button type="button" class="bt-btn bt-soft" data-value="soft" onclick="selectEditBookingType(this)"><i class="bi bi-clock-history"></i><span>Мягкая бронь</span></button>
