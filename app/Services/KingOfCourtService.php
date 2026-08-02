@@ -237,7 +237,13 @@ class KingOfCourtService
 
         if ($paired) {
             // Фиксированные пары: 2 пары на корт, без миксования.
-            $pairs = $tournament->kingOfCourtPairs()->get()->shuffle()->values();
+            // Посев по суммарному рейтингу пары: корт 1 — две сильнейшие пары,
+            // корт 2 — следующие две, и т.д.
+            $pairs = $tournament->kingOfCourtPairs()
+                ->with(['player1', 'player2'])
+                ->get()
+                ->sortByDesc(fn ($p) => (int) (($p->player1->rating ?? 0) + ($p->player2->rating ?? 0)))
+                ->values();
             $courtsCount = (int) ($pairs->count() / 2);
             $courts = [];
             for ($i = 0; $i < $courtsCount; $i++) {
@@ -245,16 +251,19 @@ class KingOfCourtService
             }
             $this->createRoundFromPairs($tournament, 1, $courts);
         } else {
-            // Соло: рандомное распределение по 4 игрока на корт.
-            $shuffled = $participants->shuffle()->values();
+            // Соло: посев по рейтингу — корт 1 получает топ-4 по рейтингу,
+            // корт 2 — следующие 4, и т.д. (корт королей — первый).
+            $seeded = $participants
+                ->sortByDesc(fn ($u) => (int) ($u->rating ?? 0))
+                ->values();
             $courts = [];
             $courtsCount = (int) ($count / 4);
             for ($i = 0; $i < $courtsCount; $i++) {
                 $courts[] = [
-                    $shuffled[$i * 4]->id,
-                    $shuffled[$i * 4 + 1]->id,
-                    $shuffled[$i * 4 + 2]->id,
-                    $shuffled[$i * 4 + 3]->id,
+                    $seeded[$i * 4]->id,
+                    $seeded[$i * 4 + 1]->id,
+                    $seeded[$i * 4 + 2]->id,
+                    $seeded[$i * 4 + 3]->id,
                 ];
             }
             $this->createRoundFromCourts($tournament, 1, $courts);
@@ -505,7 +514,8 @@ class KingOfCourtService
         ]);
 
         foreach ($courts as $courtIdx => $players) {
-            // players уже перемешаны (для первого раунда — рандом, для последующих — shuffle в generateNextRound)
+            // Порядок игроков корта задаётся вызывающим: 1-й раунд — посев по
+            // рейтингу (топ-4 на корт 1), последующие — shuffle в generateNextRound.
             // Pair: 0+2 vs 1+3 (типичная схема перемешивания пар)
             KingOfCourtMatch::create([
                 'kingofcourt_round_id' => $round->id,
