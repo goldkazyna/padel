@@ -1813,7 +1813,9 @@
         let _durMin = parseTimeToMinutes(data.endTime) - parseTimeToMinutes(data.startTime);
         if (_durMin <= 0) _durMin += 1440;
         const _durH = Math.max(1, Math.round(_durMin / 60));
-        document.getElementById('viewPrice').innerHTML = formatPrice(Math.round((data.price || 0) / _durH)) + ' &#8376;';
+        // Полная цена = сохранённая (после скидки) + скидка. Цена/час считаем из неё.
+        const _preDiscount = (Number(data.price) || 0) + (Number(data.discount) || 0);
+        document.getElementById('viewPrice').innerHTML = formatPrice(Math.round(_preDiscount / _durH)) + ' &#8376;';
 
         unlockClientFields('edit');
         clearEditFormError();
@@ -1854,7 +1856,8 @@
             b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
         });
 
-        document.getElementById('editCustomPrice').value = Math.round(data.price) || 0;
+        // В поле ЦЕНА — полная цена (до скидки), скидка отдельно; иначе двойное вычитание.
+        document.getElementById('editCustomPrice').value = Math.round(_preDiscount) || 0;
         document.getElementById('editDiscount').value = Math.round(data.discount) || 0;
         document.getElementById('editComment').value = data.comment || '';
 
@@ -1946,7 +1949,9 @@
         const courtId = data.courtId;
         const maxSlots = computeMaxEditSlots(courtId, date, data.startTime, currentSlots);
 
-        const pricePerSlot = currentSlots > 0 ? (Number(data.price) / currentSlots) : 0;
+        // Цена за слот брони — из полной цены (до скидки), для корректного пересчёта длительности.
+        const _pre = (Number(data.price) || 0) + (Number(data.discount) || 0);
+        const pricePerSlot = currentSlots > 0 ? (_pre / currentSlots) : 0;
         currentEdit = {
             id: data.id,
             courtId: courtId,
