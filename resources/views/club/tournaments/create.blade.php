@@ -474,12 +474,14 @@
 							</div>
 						</div>
 						<div class="mb-3">
+							<label class="form-label">Ранжирование таблицы</label>
 							<div class="form-check">
-								<input type="checkbox" class="form-check-input" name="jpi_rank_by_wins" value="1" id="jpiRankByWins"
-									   {{ old('jpi_rank_by_wins') ? 'checked' : '' }}>
-								<label class="form-check-label" for="jpiRankByWins">
-									Ранжировать таблицу по победам <small class="text-muted">(по умолчанию — по очкам). Если включено: сначала победы, потом очки.</small>
-								</label>
+								<input type="radio" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankPoints" value="0" {{ old('jpi_rank_by_wins') ? '' : 'checked' }}>
+								<label class="form-check-label" for="jpiRankPoints">По очкам <small class="text-muted">(по умолчанию)</small></label>
+							</div>
+							<div class="form-check">
+								<input type="radio" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankWins" value="1" {{ old('jpi_rank_by_wins') ? 'checked' : '' }}>
+								<label class="form-check-label" for="jpiRankWins">По победам</label>
 							</div>
 						</div>
 					</div>

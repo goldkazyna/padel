@@ -144,12 +144,16 @@
                         </div>
                         @endif
                         @if($tournament->isJustPadelIt())
+                        @php $jpiByWins = old('jpi_rank_by_wins', $tournament->jpi_rank_by_wins); @endphp
                         <div class="col-md-6 mb-4">
-                            <label class="form-label">Таблица лидеров</label>
+                            <label class="form-label">Ранжирование таблицы</label>
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankByWins" value="1" {{ old('jpi_rank_by_wins', $tournament->jpi_rank_by_wins) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="jpiRankByWins">Ранжировать по победам</label>
-                                <div><small class="text-secondary">По умолчанию — по очкам. Если включено: сначала победы, потом очки.</small></div>
+                                <input type="radio" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankPoints" value="0" {{ $jpiByWins ? '' : 'checked' }}>
+                                <label class="form-check-label" for="jpiRankPoints">По очкам <small class="text-secondary">(по умолчанию)</small></label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" class="form-check-input" name="jpi_rank_by_wins" id="jpiRankWins" value="1" {{ $jpiByWins ? 'checked' : '' }}>
+                                <label class="form-check-label" for="jpiRankWins">По победам</label>
                             </div>
                         </div>
                         @endif
