@@ -111,6 +111,9 @@ Route::prefix('mobile')->group(function () {
         Route::get('/club-cards/{card}', [MobileClubCardController::class, 'show']);
         Route::get('/club-cards/{card}/bookings', [MobileClubCardController::class, 'bookings']);
 
+        // Сертификаты клиента (все клубы; связка по user_id/телефону, дизайн из шаблона)
+        Route::get('/certificates', [\App\Http\Controllers\Api\MobileCertificateController::class, 'index']);
+
         // Админка клуба (только для club_admin данного клуба или super_admin)
         Route::get('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'index']);
         Route::post('/admin/clubs/{club}/tournaments', [MobileAdminTournamentController::class, 'store']);
