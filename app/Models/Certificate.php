@@ -49,8 +49,9 @@ class Certificate extends Model
         $prefix = trim((string) $prefix);
         $prefix = $prefix !== '' ? $prefix : 'CERT';
 
+        // Формат: ПРЕФИКС-ДДММ-ГГГГ-XXXXXX (ДДММ — текущая дата, напр. 0208 = 2 авг).
         do {
-            $number = $prefix . '-' . $clubId . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+            $number = $prefix . '-' . now()->format('dm') . '-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
         } while (self::where('number', $number)->exists());
 
         return $number;

@@ -52,7 +52,11 @@ class CertificateTest extends TestCase
         $this->assertSame('named', $cert->type);
         $this->assertSame('Иванов Иван', $cert->recipient_name);
         $this->assertNotEmpty($cert->number);
-        $this->assertStringStartsWith('CERT-' . $club->id . '-', $cert->number);
+        // Формат: ПРЕФИКС-ДДММ-ГГГГ-XXXXXX (дата вместо id клуба).
+        $this->assertStringStartsWith(
+            'CERT-' . now()->format('dm') . '-' . now()->format('Y') . '-',
+            $cert->number
+        );
     }
 
     public function test_named_requires_recipient_name(): void
@@ -373,7 +377,10 @@ class CertificateTest extends TestCase
         ])->assertRedirect();
 
         $cert = Certificate::first();
-        $this->assertStringStartsWith('padelhills-' . $club->id . '-', $cert->number);
+        $this->assertStringStartsWith(
+            'padelhills-' . now()->format('dm') . '-' . now()->format('Y') . '-',
+            $cert->number
+        );
     }
 
     public function test_design_rejects_bad_prefix(): void
