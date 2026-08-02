@@ -96,6 +96,27 @@ class CertificateBookingTest extends TestCase
         $this->assertNotNull($cert->fresh()->used_at);
     }
 
+    public function test_hours_certificate_covers_only_its_hours(): void
+    {
+        [$club, $admin, $court, $client] = $this->scene();
+        $cert = $this->cert($club, $client, ['value_type' => 'hours', 'hours' => 2]);
+
+        // Бронь 3 часа, цена 30000 (10000/ч). Сертификат на 2 ч → покрывает 2 ч,
+        // остаётся 1 час платно.
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '09:00', 'slots' => 3,
+            'client_name' => 'Иван Иванов', 'client_phone' => '77770001122',
+            'payment_method' => 'certificate', 'is_paid' => 1,
+            'custom_price' => 30000, 'certificate_id' => $cert->id,
+        ])->assertRedirect();
+
+        $booking = CourtBooking::first();
+        $this->assertSame(20000, (int) $booking->discount, 'сертификат покрывает 2 из 3 часов');
+        $this->assertSame(10000, (int) $booking->price, 'остаётся 1 час платно');
+        $this->assertNotNull($cert->fresh()->used_at);
+    }
+
     public function test_cancel_cert_booking_requires_reason_and_returns_certificate(): void
     {
         [$club, $admin, $court, $client] = $this->scene();

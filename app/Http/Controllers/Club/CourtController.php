@@ -821,17 +821,27 @@ class CourtController extends Controller
                 : $baseDiscount;
             $price = max(0, $priceBeforeDiscount - $discount);
 
-            // Сертификат: amount → скидка = номинал (не больше цены); free (часы/турнир) → бесплатно (итог 0).
+            // Сертификат: amount → скидка = номинал (не больше цены);
+            // часы → покрываем только часы сертификата (остальное платно, из расчёта
+            // средней цены за час брони); турнир — к брони корта не применяется.
             $bookingCertificateId = null;
             if ($certificate && !$certApplied && !$isGroupBooking) {
+                $before = (int) round($priceBeforeDiscount);
                 if ($certificate->value_type === \App\Models\Certificate::VALUE_AMOUNT) {
-                    $discount = min((int) $certificate->amount, (int) round($priceBeforeDiscount));
-                } else {
-                    $discount = (int) round($priceBeforeDiscount);
+                    $discount = min((int) $certificate->amount, $before);
+                    $bookingCertificateId = $certificate->id;
+                    $certApplied = true;
+                } elseif ($certificate->value_type === \App\Models\Certificate::VALUE_HOURS) {
+                    $bookingHours = $cardService->slotHours($startTime, $endTime);
+                    $coveredHours = min((float) $certificate->hours, (float) $bookingHours);
+                    $perHour = $bookingHours > 0 ? $priceBeforeDiscount / $bookingHours : 0;
+                    $discount = (int) round($perHour * $coveredHours);
+                    $bookingCertificateId = $certificate->id;
+                    $certApplied = true;
                 }
-                $price = max(0, (int) round($priceBeforeDiscount) - $discount);
-                $bookingCertificateId = $certificate->id;
-                $certApplied = true;
+                if ($certApplied) {
+                    $price = max(0, $before - $discount);
+                }
             }
 
             // Групповая бронь: цена = цена занятия группы (без скидки).

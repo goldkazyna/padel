@@ -1628,8 +1628,9 @@
         document.getElementById('bookDiscount').value = 0;
         updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
-        // Длительность сбросила цену/скидку — переприменим выбранную карту.
+        // Длительность сбросила цену/скидку — переприменим выбранную карту/сертификат.
         if (typeof selectedCard === 'object' && selectedCard.book) applyCardPricing('book');
+        if (typeof selectedCert === 'object' && selectedCert.book) applyCertPricing('book');
         recalcBookCoachPrice();
     }
 
@@ -1963,6 +1964,7 @@
                 btn.classList.add('active');
                 document.getElementById('editSlots').value = i;
                 applyEditPriceForSlots(i);
+                if (typeof selectedCert === 'object' && selectedCert.edit) applyCertPricing('edit');
             };
             container.appendChild(btn);
         }
@@ -2555,6 +2557,14 @@
         if (inp) inp.value = 'certificate';
     }
 
+    // Часы брони (для сертификата на часы).
+    function certBookingHours(prefix) {
+        if (prefix === 'book') {
+            return (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
+        }
+        return parseInt(document.getElementById('editSlots')?.value) || 1;
+    }
+
     function applyCertPricing(prefix) {
         const cert = selectedCert[prefix];
         const priceEl = document.getElementById(prefix === 'book' ? 'bookCustomPrice' : 'editCustomPrice');
@@ -2562,9 +2572,20 @@
         const hint = document.getElementById(prefix + 'CertHint');
         if (!cert || !priceEl || !discEl) return;
         const price = parseInt(priceEl.value) || 0;
-        if (cert.is_free) {
-            discEl.value = price; // максимальная скидка → итог 0
-            if (hint) { hint.textContent = 'Бесплатно по сертификату — итог 0 ₸.'; hint.style.display = ''; }
+        if (cert.value_type === 'hours') {
+            // Сертификат на часы: покрываем только часы сертификата, остальное платно.
+            const bookingHours = certBookingHours(prefix);
+            const certHours = parseInt(cert.hours) || 0;
+            const covered = Math.min(certHours, bookingHours);
+            const perHour = bookingHours > 0 ? price / bookingHours : 0;
+            const disc = Math.min(price, Math.round(perHour * covered));
+            discEl.value = disc;
+            if (hint) {
+                hint.textContent = covered >= bookingHours
+                    ? 'Бесплатно по сертификату (' + certHours + ' ч) — итог 0 ₸.'
+                    : 'Сертификат покрывает ' + covered + ' ч из ' + bookingHours + ' — остальное платно.';
+                hint.style.display = '';
+            }
         } else {
             discEl.value = Math.min(cert.amount || 0, price); // номинал, но не больше цены
             if (hint) { hint.textContent = 'Скидка по сертификату: ' + (cert.amount || 0) + ' ₸.'; hint.style.display = ''; }

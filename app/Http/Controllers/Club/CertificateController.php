@@ -171,6 +171,9 @@ class CertificateController extends Controller
 
         $certs = Certificate::where('client_id', $client->id)
             ->whereNull('used_at')
+            // Для брони корта применимы только «на сумму» и «на часы»
+            // (турнирные сертификаты — для регистрации на турнир).
+            ->whereIn('value_type', [Certificate::VALUE_AMOUNT, Certificate::VALUE_HOURS])
             ->latest()
             ->get()
             ->map(fn($c) => [
@@ -178,7 +181,8 @@ class CertificateController extends Controller
                 'number' => $c->number,
                 'value_type' => $c->value_type,
                 'amount' => (int) ($c->amount ?? 0),
-                'is_free' => in_array($c->value_type, [Certificate::VALUE_HOURS, Certificate::VALUE_TOURNAMENT], true),
+                'hours' => (int) ($c->hours ?? 0),
+                'is_free' => $c->value_type === Certificate::VALUE_HOURS,
                 'label' => $c->valueLabel(),
             ]);
 
