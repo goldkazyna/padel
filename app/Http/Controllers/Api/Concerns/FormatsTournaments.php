@@ -49,6 +49,7 @@ trait FormatsTournaments
                 : $t->start_date->format('H:i'),
             'duration_hours' => $t->duration_hours,
             'datetime' => $t->start_date->toIso8601String(),
+            'created_at' => $t->created_at?->toIso8601String(),
             'type' => $t->type,
             'type_name' => $t->type_name,
             // Клуб-площадка (где играют) — null, если не задан.
