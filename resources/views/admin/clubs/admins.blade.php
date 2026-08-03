@@ -34,7 +34,10 @@
                                 </div>
                                 <div>
                                     <div class="fw-medium">{{ $admin->full_name }}</div>
-                                    <small class="text-secondary">{{ $admin->email }}</small>
+                                    <small class="text-secondary d-flex flex-wrap gap-2">
+                                        <span><i class="bi bi-telephone"></i> {{ $admin->phone ?: '—' }}</span>
+                                        <span><i class="bi bi-envelope"></i> {{ $admin->email ?: '—' }}</span>
+                                    </small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-2">
@@ -111,7 +114,10 @@
                                 </div>
                                 <div>
                                     <div class="fw-medium">{{ $moderator->full_name }}</div>
-                                    <small class="text-secondary">{{ $moderator->email }}</small>
+                                    <small class="text-secondary d-flex flex-wrap gap-2">
+                                        <span><i class="bi bi-telephone"></i> {{ $moderator->phone ?: '—' }}</span>
+                                        <span><i class="bi bi-envelope"></i> {{ $moderator->email ?: '—' }}</span>
+                                    </small>
                                 </div>
                             </div>
                             <form action="{{ route('admin.clubs.moderators.remove', [$club, $moderator]) }}" method="POST"
