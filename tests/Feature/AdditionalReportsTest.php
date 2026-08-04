@@ -24,7 +24,7 @@ class AdditionalReportsTest extends TestCase
     public function test_each_report_downloads_xlsx(): void
     {
         [, $admin] = $this->clubAdmin();
-        $slugs = ['club-hours','club-weekdays','club-months','clients-visits','coaches-usage','coaches-sessions','coaches-salary','finance-sales','finance-days','finance-weeks','finance-months','finance-debts','managers-sales'];
+        $slugs = ['club-hours','club-weekdays','club-months','clients-visits','coaches-usage','coaches-sessions','coaches-salary','finance-sales','finance-days','finance-weeks','finance-months','finance-debts','managers-sales','cards-sales','cards-charges'];
         foreach ($slugs as $slug) {
             $resp = $this->actingAs($admin)->get("/club/reports/extra/{$slug}?from=2026-05-01&to=2026-05-31");
             $resp->assertOk();

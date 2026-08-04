@@ -10,6 +10,7 @@ use App\Reports\ClientsReportService;
 use App\Reports\CoachesReportService;
 use App\Reports\FinanceReportService;
 use App\Reports\ManagersReportService;
+use App\Reports\CardsReportService;
 use App\Exports\GenericSheetExport;
 use App\Support\ResolvesReportPeriod;
 use Illuminate\Http\Request;
@@ -37,6 +38,8 @@ class AdditionalReportsController extends Controller
         'finance-months'   => [FinanceReportService::class,  'byMonths',  'prodazhi-po-mesyacam',   'Финансы', 'Продажи по месяцам'],
         'finance-debts'    => [FinanceReportService::class,  'debts',     'zadolzhennosti',         'Финансы', 'Задолженности'],
         'managers-sales'   => [ManagersReportService::class, 'sales',     'menedzhery-prodazhi',    'Менеджеры', 'Аналитика продаж менеджеров'],
+        'cards-sales'      => [CardsReportService::class,    'sales',     'karty-prodazhi',         'Клубные карты', 'Продажи карт'],
+        'cards-charges'    => [CardsReportService::class,    'charges',   'karty-spisaniya',        'Клубные карты', 'Списания часов'],
     ];
 
     private function getClub(): ?Club
