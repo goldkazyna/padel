@@ -28,7 +28,7 @@ class DashboardController extends Controller
 
         // Кол-во часов занятий (брони) на выбранный день — по фактическим броням.
         $busyHours = 0.0;
-        $dayBookings = \App\Models\CourtBooking::where('coach_id', $cc->user_id)
+        $dayBookings = \App\Models\CourtBooking::forCoach($cc->user_id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
             ->get();
@@ -44,7 +44,7 @@ class DashboardController extends Controller
 
         // Часы занятий по каждому дню недели (для бейджей в навигации).
         $weekEnd = $weekStart->copy()->addDays(6);
-        $weekBookings = \App\Models\CourtBooking::where('coach_id', $cc->user_id)
+        $weekBookings = \App\Models\CourtBooking::forCoach($cc->user_id)
             ->whereDate('date', '>=', $weekStart->format('Y-m-d'))
             ->whereDate('date', '<=', $weekEnd->format('Y-m-d'))
             ->where('status', 'confirmed')

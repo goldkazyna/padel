@@ -84,7 +84,7 @@ class ClubCoach extends Model
             }
         }
 
-        $bookings = CourtBooking::where('coach_id', $this->user_id)
+        $bookings = CourtBooking::forCoach($this->user_id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
             ->with('court')

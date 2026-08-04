@@ -78,6 +78,19 @@ class CourtBooking extends Model
         return $this->hasMany(CourtBookingCoach::class, 'court_booking_id');
     }
 
+    /**
+     * Брони, где данный пользователь — тренер: либо основной (coach_id),
+     * либо один из нескольких (пивот court_booking_coaches).
+     * Мультитренерская бронь должна попадать в расписание КАЖДОГО тренера.
+     */
+    public function scopeForCoach($query, int $userId)
+    {
+        return $query->where(function ($q) use ($userId) {
+            $q->where('coach_id', $userId)
+                ->orWhereHas('coaches', fn ($c) => $c->where('coach_id', $userId));
+        });
+    }
+
     public function clubCard()
     {
         return $this->belongsTo(ClubCard::class, 'club_card_id');

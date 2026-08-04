@@ -31,7 +31,7 @@ class MobileCoachController extends Controller
         $date = $request->query('date', now()->format('Y-m-d'));
         ['timeSlots' => $timeSlots, 'schedule' => $schedule] = $cc->daySchedule($date);
 
-        $dayBookings = CourtBooking::where('coach_id', $cc->user_id)
+        $dayBookings = CourtBooking::forCoach($cc->user_id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
             ->with('court')
@@ -81,7 +81,7 @@ class MobileCoachController extends Controller
         $selected = Carbon::parse($date);
         $weekStart = $selected->copy()->startOfWeek(Carbon::MONDAY);
         $weekEnd = $weekStart->copy()->addDays(6);
-        $weekBookings = CourtBooking::where('coach_id', $cc->user_id)
+        $weekBookings = CourtBooking::forCoach($cc->user_id)
             ->whereDate('date', '>=', $weekStart->format('Y-m-d'))
             ->whereDate('date', '<=', $weekEnd->format('Y-m-d'))
             ->where('status', 'confirmed')
@@ -132,7 +132,7 @@ class MobileCoachController extends Controller
             return response()->json(['hours' => (object) []]);
         }
 
-        $q = CourtBooking::where('coach_id', $cc->user_id)
+        $q = CourtBooking::forCoach($cc->user_id)
             ->where('status', 'confirmed');
         if ($request->filled('from')) {
             $q->whereDate('date', '>=', $request->query('from'));
