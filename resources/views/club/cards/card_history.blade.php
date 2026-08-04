@@ -46,29 +46,61 @@
         </form>
     </div>
 
-    <div class="ch-section-title">История операций</div>
-    @if($card->transactions->isEmpty())
-        <div class="ch-empty">Списаний пока нет. Часы списываются автоматически после завершения брони.</div>
-    @else
-    <div class="ch-list">
-        @foreach($card->transactions as $tx)
-        <div class="ch-row">
-            <div class="ch-row-main">
-                <div class="ch-row-date">{{ $tx->created_at->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->format('d.m.Y H:i') }}</div>
-                <div class="ch-row-sub">
-                    @if($tx->booking)
-                        {{ $tx->booking->court?->name }} · {{ \Illuminate\Support\Carbon::parse($tx->booking->date)->format('d.m.Y') }}, {{ substr($tx->booking->start_time,0,5) }}–{{ substr($tx->booking->end_time,0,5) }}
-                    @else
-                        {{ $tx->note ?? 'Операция' }}
-                    @endif
-                </div>
-            </div>
-            <div class="ch-row-amt {{ $tx->amount < 0 ? 'minus' : 'plus' }}">{{ $tx->amount > 0 ? '+' : '' }}{{ $tx->amount }} ч</div>
-            <div class="ch-row-bal">ост. {{ $tx->balance_after }} ч</div>
-        </div>
-        @endforeach
+    <div class="ch-tabs">
+        <button type="button" class="ch-tab active" data-tab="upcoming" onclick="chTab('upcoming')">Будущие<span class="ch-tab-count">{{ $upcoming->count() }}</span></button>
+        <button type="button" class="ch-tab" data-tab="history" onclick="chTab('history')">История операций<span class="ch-tab-count">{{ $card->transactions->count() }}</span></button>
     </div>
-    @endif
+
+    {{-- БУДУЩИЕ БРОНИ --}}
+    <div class="ch-pane" data-pane="upcoming">
+        @if($upcoming->isEmpty())
+            <div class="ch-empty">Будущих броней по этой карте нет.</div>
+        @else
+        <div class="ch-list">
+            @foreach($upcoming as $b)
+            <div class="ch-row">
+                <div class="ch-row-main">
+                    <div class="ch-row-date">{{ \Illuminate\Support\Carbon::parse($b->date)->format('d.m.Y') }}, {{ substr($b->start_time,0,5) }}–{{ substr($b->end_time,0,5) }}</div>
+                    <div class="ch-row-sub">{{ $b->court?->name }}@if($b->client_name) · {{ $b->client_name }}@endif</div>
+                </div>
+                @if($card->isCounter())
+                    <div class="ch-row-amt pending">−{{ $b->planned_hours }} ч</div>
+                    <div class="ch-row-bal">запланировано</div>
+                @else
+                    <div class="ch-row-amt"></div>
+                    <div class="ch-row-bal">скидка</div>
+                @endif
+            </div>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
+    {{-- ИСТОРИЯ СПИСАНИЙ --}}
+    <div class="ch-pane" data-pane="history" style="display:none;">
+        @if($card->transactions->isEmpty())
+            <div class="ch-empty">Списаний пока нет. Часы списываются автоматически после завершения брони.</div>
+        @else
+        <div class="ch-list">
+            @foreach($card->transactions as $tx)
+            <div class="ch-row">
+                <div class="ch-row-main">
+                    <div class="ch-row-date">{{ $tx->created_at->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->format('d.m.Y H:i') }}</div>
+                    <div class="ch-row-sub">
+                        @if($tx->booking)
+                            {{ $tx->booking->court?->name }} · {{ \Illuminate\Support\Carbon::parse($tx->booking->date)->format('d.m.Y') }}, {{ substr($tx->booking->start_time,0,5) }}–{{ substr($tx->booking->end_time,0,5) }}
+                        @else
+                            {{ $tx->note ?? 'Операция' }}
+                        @endif
+                    </div>
+                </div>
+                <div class="ch-row-amt {{ $tx->amount < 0 ? 'minus' : 'plus' }}">{{ $tx->amount > 0 ? '+' : '' }}{{ $tx->amount }} ч</div>
+                <div class="ch-row-bal">ост. {{ $tx->balance_after }} ч</div>
+            </div>
+            @endforeach
+        </div>
+        @endif
+    </div>
 </div>
 
 <style>
@@ -98,6 +130,12 @@
 .ch-status.ok { background: rgba(34,197,94,.14); color: #22c55e; }
 .ch-status.dead { background: rgba(239,68,68,.14); color: #ef4444; }
 .ch-section-title { color: #a1a1aa; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin: 8px 0 12px; }
+.ch-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.ch-tab { display: inline-flex; align-items: center; gap: 7px; background: #18181b; border: 1px solid #27272a; color: #a1a1aa; border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.ch-tab:hover { color: #e4e4e7; border-color: #3f3f46; }
+.ch-tab.active { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.4); color: #22c55e; }
+.ch-tab-count { min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; background: #27272a; color: #a1a1aa; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.ch-tab.active .ch-tab-count { background: rgba(34,197,94,.25); color: #22c55e; }
 .ch-empty { color: #71717a; padding: 24px; text-align: center; background: #18181b; border: 1px solid #27272a; border-radius: 12px; }
 .ch-list { display: flex; flex-direction: column; gap: 8px; }
 .ch-row { display: grid; grid-template-columns: 1fr 80px 90px; gap: 12px; align-items: center; background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 11px 14px; }
@@ -106,12 +144,21 @@
 .ch-row-amt { font-weight: 800; font-size: 16px; text-align: right; }
 .ch-row-amt.minus { color: #f08446; }
 .ch-row-amt.plus { color: #22c55e; }
+.ch-row-amt.pending { color: #a1a1aa; }
 .ch-row-bal { color: #71717a; font-size: 12px; text-align: right; }
 </style>
 
 <script>
 function chToggleEdit(open) {
     document.getElementById('ch-edit-form').style.display = open ? 'block' : 'none';
+}
+function chTab(name) {
+    document.querySelectorAll('.ch-tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === name);
+    });
+    document.querySelectorAll('.ch-pane').forEach(function (p) {
+        p.style.display = p.dataset.pane === name ? 'block' : 'none';
+    });
 }
 </script>
 @endsection

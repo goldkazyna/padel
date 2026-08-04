@@ -175,9 +175,26 @@ class ClubCardController extends Controller
 
         $card->load(['type', 'client', 'transactions.booking.court']);
 
+        // Будущие брони по этой карте: подтверждённые и ещё не списанные
+        // (списание происходит после завершения брони). Для карт-счётчиков
+        // рядом показываем, сколько часов спишется.
+        $svc = app(\App\Services\ClubCardService::class);
+        $upcoming = \App\Models\CourtBooking::with('court')
+            ->where('club_card_id', $card->id)
+            ->where('status', 'confirmed')
+            ->whereNull('card_charged_at')
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($b) use ($svc) {
+                $b->planned_hours = $svc->slotHours((string) $b->start_time, (string) $b->end_time);
+                return $b;
+            });
+
         return view('club.cards.card_history', [
             'club' => $club,
             'card' => $card,
+            'upcoming' => $upcoming,
             '__layout' => request()->boolean('bare') ? 'layouts.bare' : 'layouts.app',
         ]);
     }
