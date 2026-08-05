@@ -138,7 +138,7 @@
                             </div>
                             <div class="hd-meta">
                                 {{ $sup ? 'Поддержка' : ($selected->user->name ?? 'Игрок') }}
-                                · {{ optional($m->created_at)->format('H:i') }}
+                                · {{ optional($m->created_at)?->timezone(config('app.schedule_timezone', 'Asia/Almaty'))->format('d.m.Y H:i') }}
                             </div>
                         </div>
                     @endforeach
