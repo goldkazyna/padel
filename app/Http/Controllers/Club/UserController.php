@@ -51,13 +51,24 @@ class UserController extends Controller
         }
 
         // Поиск
+        $isSuper = auth()->user()->isSuperAdmin();
         if ($search = $request->get('search')) {
-            $query->where(function($q) use ($search) {
+            $query->where(function($q) use ($search, $isSuper) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%");
                 if (ctype_digit((string) $search)) {
                     $q->orWhere('id', (int) $search);
+                }
+                // Поиск по номеру телефона — только супер-админ.
+                if ($isSuper) {
+                    $digits = preg_replace('/\D/', '', (string) $search);
+                    if ($digits !== '') {
+                        $q->orWhereRaw(
+                            "REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') LIKE ?",
+                            ["%{$digits}%"]
+                        );
+                    }
                 }
             });
         }
@@ -137,7 +148,7 @@ class UserController extends Controller
             ->first();
 
         $clubCity = $club ? $club->city : null;
-        return view('club.users.index', compact('users', 'levelStats', 'clubCity', 'ratingLocks'));
+        return view('club.users.index', compact('users', 'levelStats', 'clubCity', 'ratingLocks', 'isSuper'));
     }
 
     public function update(Request $request, User $user)
