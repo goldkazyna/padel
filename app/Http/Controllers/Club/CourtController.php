@@ -151,15 +151,20 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
-        // Турниры для брони типа «Турнир» + живой пересчёт цен за этот день.
-        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
-            ->pickerData($club, [$date]);
-
         // Карта court_booking_id => tournament_id — чтобы окно редактирования
-        // подставило турнир в селект.
+        // подставило турнир в селект. Только видимые брони этого дня: без
+        // ограничения карта росла бы неограниченно и целиком уезжала в разметку.
         $bookingTournamentIds = CourtBooking::whereIn('court_id', $courts->pluck('id'))
             ->whereNotNull('tournament_id')
+            ->whereDate('date', $date)
+            ->where('status', 'confirmed')
             ->pluck('tournament_id', 'id');
+
+        // Турниры для брони типа «Турнир» + живой пересчёт цен за этот день.
+        // Турниры уже существующих броней подмешиваем в любом статусе — иначе
+        // завершённый турнир исчезает из селекта и его бронь не сохранить.
+        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
+            ->pickerData($club, [$date], $bookingTournamentIds->values()->all());
 
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
@@ -369,13 +374,19 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
-        // Турниры для брони типа «Турнир» + живой пересчёт цен за неделю.
-        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
-            ->pickerData($club, collect($weekDays)->pluck('date')->all());
-
+        // Карта court_booking_id => tournament_id — только по видимой неделе
+        // и только подтверждённые брони (иначе карта растёт неограниченно).
         $bookingTournamentIds = CourtBooking::whereIn('court_id', $courts->pluck('id'))
             ->whereNotNull('tournament_id')
+            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->where('status', 'confirmed')
             ->pluck('tournament_id', 'id');
+
+        // Турниры для брони типа «Турнир» + живой пересчёт цен за неделю.
+        // Турниры уже существующих броней подмешиваем в любом статусе — иначе
+        // завершённый турнир исчезает из селекта и его бронь не сохранить.
+        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
+            ->pickerData($club, collect($weekDays)->pluck('date')->all(), $bookingTournamentIds->values()->all());
 
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
@@ -650,7 +661,6 @@ class CourtController extends Controller
         // Турнирная бронь, как и групповая, не требует клиента и оплаты:
         // цену задаёт турнир, а игроки платят взносы отдельно.
         $isTournamentBooking = ($request->input('booking_type') === 'tournament');
-        $isAutoBooking = $isGroupBooking || $isTournamentBooking;
 
         $validated = $request->validate([
             'date' => 'required|date',
@@ -1052,8 +1062,13 @@ class CourtController extends Controller
 
         // Сообщение об успехе
         $createdCount = count($created);
+        // Турнирной броне цену выставляет сервис уже ПОСЛЕ создания ($price в цикле
+        // был 0) — берём фактическую из брони, иначе в сообщении всегда «0 ₸».
+        $messagePrice = ($isTournamentBooking && $firstBooking)
+            ? (float) $firstBooking->fresh()->price
+            : $price;
         if ($createdCount === 1 && empty($skipped)) {
-            $message = "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($price, 0, '', ' ') . " ₸";
+            $message = "Забронировано: {$validated['client_name']}, {$startTime}–{$endTime}, " . number_format($messagePrice, 0, '', ' ') . " ₸";
         } else {
             $parts = ["Создано {$createdCount} бронирований"];
             if (!empty($skipped)) {
@@ -1124,6 +1139,16 @@ class CourtController extends Controller
         // тоже нужно пересчитать, иначе оставшиеся брони сохранят старую долю.
         $previousTournamentId = $booking->tournament_id;
         $previousDate = $booking->date->format('Y-m-d');
+        // Бронь УЖЕ была турнирной до правки. Кнопка «Турнир» существовала до
+        // появления привязки к турниру, поэтому на проде есть брони с
+        // booking_type='tournament' и tournament_id=NULL. Требовать турнир у них
+        // нельзя — иначе такую бронь вообще не сохранить (ни отметить
+        // обработанной, ни поправить комментарий).
+        $wasTournamentBooking = ($booking->booking_type === 'tournament');
+        // Турнир обязателен только когда обычную бронь превращают в турнирную.
+        $tournamentIdRules = $wasTournamentBooking
+            ? 'nullable|exists:tournaments,id'
+            : 'required_if:booking_type,tournament|nullable|exists:tournaments,id';
 
         $validated = $request->validate([
             'client_name' => 'required_unless:booking_type,group,tournament|nullable|string|max:255',
@@ -1134,7 +1159,7 @@ class CourtController extends Controller
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
-            'tournament_id' => 'required_if:booking_type,tournament|nullable|exists:tournaments,id',
+            'tournament_id' => $tournamentIdRules,
             'coach_id' => 'nullable',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
@@ -1247,12 +1272,13 @@ class CourtController extends Controller
             'coach_price' => $isGroupBooking
                 ? (!empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null)
                 : ($primaryCoach['coach_price'] ?? null),
-            // Только проверенный турнир (принадлежит клубу) — не сырое значение из запроса,
-            // иначе можно подставить чужой tournament_id и задеть чужие брони при пересчёте.
-            'tournament_id' => $isTournamentBooking
-                ? (\App\Models\Tournament::where('club_id', $club->id)->find($request->input('tournament_id'))?->id)
-                : null,
         ];
+        // Только проверенный турнир (принадлежит клубу) — не сырое значение из запроса,
+        // иначе можно подставить чужой tournament_id и задеть чужие брони при пересчёте.
+        $tournamentForBooking = $isTournamentBooking
+            ? \App\Models\Tournament::where('club_id', $club->id)->find($request->input('tournament_id'))
+            : null;
+        $updateData['tournament_id'] = $tournamentForBooking?->id;
         if (!$isGroupBooking && !$isTournamentBooking) {
             $updateData['client_name'] = $validated['client_name'];
             $updateData['client_phone'] = $validated['client_phone'];
@@ -1271,18 +1297,29 @@ class CourtController extends Controller
             $updateData['club_card_id'] = $clubCardId;
         }
         if ($isTournamentBooking) {
-            $tournamentForBooking = \App\Models\Tournament::where('club_id', $club->id)
-                ->find($request->input('tournament_id'));
-            $updateData['client_name'] = $tournamentForBooking
-                ? ('Турнир: ' . $tournamentForBooking->name)
-                : 'Турнир';
-            $updateData['client_phone'] = null;
-            $updateData['payment_method'] = null;
-            $updateData['is_paid'] = false;
-            // Скидка/кастомная цена турнирную бронь не касаются — цену считает сервис
-            // по сумме взносов участников, поэтому обнуляем явно (иначе скидка может
-            // пережить пересчёт, если после смены типа брони цена не изменится).
-            $updateData['discount'] = 0;
+            // Клиента/оплату переписываем, только когда турнир реально привязан
+            // или когда бронь ТОЛЬКО СТАНОВИТСЯ турнирной. Легаси-бронь (тип
+            // «Турнир» без турнира, цена введена руками) сохраняем как есть —
+            // иначе её ручная цена и способ оплаты молча пропали бы.
+            if ($tournamentForBooking || !$wasTournamentBooking) {
+                $updateData['client_name'] = $tournamentForBooking
+                    ? ('Турнир: ' . $tournamentForBooking->name)
+                    : 'Турнир';
+                $updateData['client_phone'] = null;
+                $updateData['payment_method'] = null;
+                $updateData['is_paid'] = false;
+                // Скидка/кастомная цена турнирную бронь не касаются — цену считает сервис
+                // по сумме взносов участников, поэтому обнуляем явно (иначе скидка может
+                // пережить пересчёт, если после смены типа брони цена не изменится).
+                $updateData['discount'] = 0;
+            }
+            // Клубная карта турнирной броне не нужна: способ оплаты обнуляется,
+            // а крон cards:charge-due отбирает брони по club_card_id и о типе
+            // брони не знает — иначе у клиента спишутся часы за турнир.
+            // Уже списанную (card_charged_at) привязку не рвём — это история.
+            if ($booking->card_charged_at === null) {
+                $updateData['club_card_id'] = null;
+            }
         }
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {
@@ -1318,8 +1355,10 @@ class CourtController extends Controller
 
             $updateData['end_time'] = $newEndTime;
 
-            // Если кастомная цена не передана, пересчитаем по тарифу клуба
-            if (!isset($validated['custom_price'])) {
+            // Если кастомная цена не передана, пересчитаем по тарифу клуба.
+            // Турнирной брони это не касается: её цену задаёт турнир, а у легаси-брони
+            // (тип «Турнир» без турнира) цена введена руками — тариф корта её затёр бы.
+            if (!isset($validated['custom_price']) && !$isTournamentBooking) {
                 $autoPrice = $this->scheduleService->calculatePrice($court, $bookingDate, $newStart, $newEndTime);
                 $discount = $booking->discount ?? 0;
                 $updateData['price'] = max(0, $autoPrice - $discount);

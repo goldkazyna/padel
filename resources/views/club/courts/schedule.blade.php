@@ -1661,8 +1661,7 @@
         document.getElementById('isPaidInput').value = '';
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('bookingTypeInput').value = '';
-        document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
+        resetBookingTypeSelection();
         document.getElementById('bookCoachId').value = '';
         document.getElementById('bookCoachPaidGroup').style.display = 'none';
         document.getElementById('bookCoachPaidInput').value = '';
@@ -1743,6 +1742,9 @@
         if (tnSelect) {
             tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
         }
+        // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
+        // требованием выбрать турнир — иначе её вообще не сохранить.
+        window.__editBookingWasTournament = (btVal === 'tournament');
 
         // Paid status — берём строго из брони (true/false), не из дефолта
         const paidVal = data.isPaid ? '1' : '0';
@@ -2120,7 +2122,8 @@
         const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
         // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
-        if (isTournament) {
+        // Кроме легаси-броней, которые уже были турнирными без привязки к турниру.
+        if (isTournament && tournamentRequiredInEdit()) {
             const tnSelect = document.getElementById('editTournamentSelect');
             if (tnSelect && !tnSelect.value) {
                 e.preventDefault();

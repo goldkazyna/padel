@@ -64,6 +64,41 @@
         block.style.display = 'block';
     }
 
+    // Сброс блока «Тип брони» в окне СОЗДАНИЯ. Без него тип, выбранный в прошлый
+    // раз, оставляет форму в чужом виде: поля клиента скрыты и не required, а
+    // submit-обработчик уже требует имя и телефон — форма молча не отправляется.
+    function resetBookingTypeSelection() {
+        const input = document.getElementById('bookingTypeInput');
+        if (input) input.value = '';
+        document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
+        // Свежая бронь — обычная: показываем поля клиента/оплаты, прячем блоки
+        // группы и турнира.
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = '');
+        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = 'none');
+        const groupWrap = document.getElementById('bookGroupSelectWrap');
+        if (groupWrap) groupWrap.style.display = 'none';
+        const groupSelect = document.getElementById('bookGroupSelect');
+        if (groupSelect) groupSelect.value = '';
+        if (typeof renderGroupMembers === 'function') renderGroupMembers('');
+        const tnWrap = document.getElementById('bookTournamentSelectWrap');
+        if (tnWrap) tnWrap.style.display = 'none';
+        const tnSelect = document.getElementById('bookTournamentSelect');
+        if (tnSelect) tnSelect.value = '';
+        renderTournamentInfo('');
+        ['bookClientName', 'bookClientPhone'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.required = true;
+        });
+    }
+
+    // Была ли открытая бронь турнирной ДО правки. У легаси-броней (тип «Турнир»
+    // проставлен, а турнир не привязан — так работала кнопка до этой фичи)
+    // требовать выбор турнира нельзя: иначе бронь не сохранить вообще.
+    window.__editBookingWasTournament = false;
+    function tournamentRequiredInEdit() {
+        return !window.__editBookingWasTournament;
+    }
+
     // Для турнирной брони в окне редактирования прячем поля клиента и оплаты —
     // как в окне создания: цену задаёт турнир, игроки платят взносы отдельно.
     function applyEditTournamentVisibility(isTournament) {

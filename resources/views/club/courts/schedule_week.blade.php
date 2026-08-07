@@ -1793,15 +1793,7 @@
         document.getElementById('isPaidInput').value = '';
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('bookingTypeInput').value = '';
-        document.querySelectorAll('#bookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
-        // Свежая бронь — негрупповая: показываем поля клиента/оплаты, прячем блок группы.
-        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = '');
-        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = 'none');
-        const bgsw = document.getElementById('bookGroupSelectWrap');
-        if (bgsw) bgsw.style.display = 'none';
-        if (typeof renderGroupMembers === 'function') renderGroupMembers('');
-        ['bookClientName', 'bookClientPhone'].forEach(id => { const e = document.getElementById(id); if (e) e.required = true; });
+        resetBookingTypeSelection();
         document.getElementById('bookCoachId').value = '';
         document.getElementById('bookCoachPaidGroup').style.display = 'none';
         document.getElementById('bookCoachPaidInput').value = '';
@@ -1871,6 +1863,9 @@
         if (tnSelect) {
             tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
         }
+        // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
+        // требованием выбрать турнир — иначе её вообще не сохранить.
+        window.__editBookingWasTournament = (btVal === 'tournament');
 
         const paidVal = data.isPaid ? '1' : '0';
         document.getElementById('editIsPaidInput').value = paidVal;
@@ -2191,7 +2186,9 @@
 
     document.getElementById('editBookingForm').addEventListener('submit', function(e) {
         const form = e.target;
-        const isTournament = document.getElementById('editBookingTypeInput').value === 'tournament';
+        const editBookingType = document.getElementById('editBookingTypeInput').value;
+        const isTournament = editBookingType === 'tournament';
+        const isGroup = editBookingType === 'group';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -2200,7 +2197,8 @@
         const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
         // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
-        if (isTournament) {
+        // Кроме легаси-броней, которые уже были турнирными без привязки к турниру.
+        if (isTournament && tournamentRequiredInEdit()) {
             const tnSelect = document.getElementById('editTournamentSelect');
             if (tnSelect && !tnSelect.value) {
                 e.preventDefault();
@@ -2208,8 +2206,9 @@
                 return;
             }
         }
-        // Для турнирной брони поля клиента/оплаты скрыты и не нужны — пропускаем эти проверки.
-        if (!isTournament) {
+        // Для групповой и турнирной брони поля клиента/оплаты скрыты и не нужны —
+        // пропускаем эти проверки (как в дневном расписании).
+        if (!isTournament && !isGroup) {
             const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
             if (!nameIsLocked) {
                 const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
