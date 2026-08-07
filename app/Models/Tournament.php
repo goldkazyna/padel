@@ -748,6 +748,14 @@ class Tournament extends Model
 	}
 
 	/**
+	 * Брони кортов, закреплённые за турниром.
+	 */
+	public function courtBookings()
+	{
+		return $this->hasMany(\App\Models\CourtBooking::class);
+	}
+
+	/**
 	 * Был ли уже сыгран первый раунд турнира.
 	 */
 	public function firstRoundCompleted(): bool

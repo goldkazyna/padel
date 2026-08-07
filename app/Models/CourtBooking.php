@@ -26,6 +26,7 @@ class CourtBooking extends Model
         'is_processed',
         'comment',
         'booking_type',
+        'tournament_id',
         'source',
         'coach_id',
         'coach_paid',
@@ -60,6 +61,14 @@ class CourtBooking extends Model
     public function court()
     {
         return $this->belongsTo(Court::class);
+    }
+
+    /**
+     * Турнир, за которым закреплена бронь (для booking_type = 'tournament').
+     */
+    public function tournament()
+    {
+        return $this->belongsTo(\App\Models\Tournament::class);
     }
 
     public function bookedByUser()
