@@ -151,10 +151,21 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
+        // Турниры для брони типа «Турнир» + живой пересчёт цен за этот день.
+        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
+            ->pickerData($club, [$date]);
+
+        // Карта court_booking_id => tournament_id — чтобы окно редактирования
+        // подставило турнир в селект.
+        $bookingTournamentIds = CourtBooking::whereIn('court_id', $courts->pluck('id'))
+            ->whereNotNull('tournament_id')
+            ->pluck('tournament_id', 'id');
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
-            'unprocessedBookings', 'activeGroups', 'bookingGroupIds'
+            'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
+            'bookingTournaments', 'bookingTournamentIds'
         ));
     }
 
@@ -358,10 +369,19 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
+        // Турниры для брони типа «Турнир» + живой пересчёт цен за неделю.
+        $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
+            ->pickerData($club, collect($weekDays)->pluck('date')->all());
+
+        $bookingTournamentIds = CourtBooking::whereIn('court_id', $courts->pluck('id'))
+            ->whereNotNull('tournament_id')
+            ->pluck('tournament_id', 'id');
+
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
-            'unprocessedBookings', 'activeGroups', 'bookingGroupIds'
+            'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
+            'bookingTournaments', 'bookingTournamentIds'
         ));
     }
 

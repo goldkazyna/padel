@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Club;
 use App\Models\CourtBooking;
 use App\Models\Tournament;
 
@@ -74,5 +75,54 @@ class TournamentBookingPriceService
         if ($tournament) {
             $this->syncForDate($tournament, $booking->date->format('Y-m-d'));
         }
+    }
+
+    /**
+     * Данные о турнирах клуба для выпадающего списка в модалке брони.
+     * Попутно пересчитывает цены броней в видимом диапазоне дат —
+     * это и есть живой пересчёт при открытии расписания.
+     *
+     * @param  array<string> $dates даты видимого диапазона, формат Y-m-d
+     * @return array<int, array<string, mixed>> ключ — id турнира
+     */
+    public function pickerData(Club $club, array $dates): array
+    {
+        $tournaments = Tournament::where('club_id', $club->id)
+            ->whereIn('status', ['open', 'in_progress'])
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        $result = [];
+        foreach ($tournaments as $t) {
+            foreach ($dates as $date) {
+                $this->syncForDate($t, $date);
+            }
+
+            // Сколько турнирных броней уже есть на каждую дату диапазона —
+            // клиент по этому числу показывает предварительное деление.
+            $bookingsByDate = CourtBooking::where('tournament_id', $t->id)
+                ->whereIn('date', $dates)
+                ->where('status', 'confirmed')
+                ->get()
+                ->groupBy(fn ($b) => $b->date->format('Y-m-d'))
+                ->map->count()
+                ->toArray();
+
+            $result[$t->id] = [
+                'id' => $t->id,
+                'name' => $t->name,
+                'date' => $t->start_date?->format('d.m'),
+                'price' => (float) $t->price,
+                'paid_count' => $t->approvedParticipantsCount(),
+                'total' => $this->totalForDate($t),
+                'participants' => $t->participants()
+                    ->wherePivot('status', 'registered')
+                    ->pluck('name')
+                    ->toArray(),
+                'bookings_by_date' => $bookingsByDate,
+            ];
+        }
+
+        return $result;
     }
 }

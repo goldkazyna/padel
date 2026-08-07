@@ -1262,6 +1262,12 @@
                             <script>window.__groupMembers = @json($groupMembersData);</script>
                         @endif
                         <script>window.__coachNames = @json($clubCoaches->mapWithKeys(fn($cc) => [$cc->user_id => ($cc->user->full_name ?? '')])->toArray());</script>
+                        <script>
+                        // Основную дату в недельной вьюхе даёт выбранный слот (см. Task 8),
+                        // __scheduleDate — запасное значение.
+                        window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+                        window.__scheduleDate = @json($date);
+                        </script>
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">

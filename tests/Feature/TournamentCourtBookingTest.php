@@ -241,4 +241,44 @@ class TournamentCourtBookingTest extends TestCase
 
         $this->assertFalse($changed);
     }
+
+    public function test_schedule_page_exposes_tournaments(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Американо')
+            ->assertSee('__tournaments', escape: false);
+    }
+
+    public function test_completed_tournament_is_not_offered(): void
+    {
+        [, $admin, , $tournament] = $this->setupTournament(20000);
+        $tournament->update(['status' => 'completed', 'name' => 'Прошедший турнир']);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertDontSee('Прошедший турнир');
+    }
+
+    public function test_opening_schedule_recalculates_price(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $date = now()->addDay()->toDateString();
+        $booking = $this->makeBooking($court, $tournament, $date, '10:00');
+
+        // Игроки записались уже после того, как корт забронировали.
+        $this->addParticipants($tournament, 5);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk();
+
+        $this->assertSame('100000.00', $booking->fresh()->price);
+    }
 }
