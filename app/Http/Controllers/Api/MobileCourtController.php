@@ -609,6 +609,16 @@ class MobileCourtController extends Controller
             'cancelled_at' => now(),
         ]);
 
+        // Отменённая бронь выходит из деления — остальные корты турнира дорожают.
+        // Как и при отмене в админке, иначе доли остались бы заниженными.
+        if ($booking->tournament_id) {
+            $tournament = \App\Models\Tournament::find($booking->tournament_id);
+            if ($tournament) {
+                app(\App\Services\TournamentBookingPriceService::class)
+                    ->syncForDate($tournament, $booking->date->format('Y-m-d'));
+            }
+        }
+
         // Telegram-уведомление клубу об отмене (обычной или по клубной карте).
         $cancelledBookingId = $booking->id;
         app()->terminating(function () use ($cancelledBookingId) {
