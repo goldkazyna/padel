@@ -647,20 +647,25 @@ class CourtController extends Controller
         if (!$club || $court->club_id !== $club->id) return back()->with('error', 'Нет доступа');
 
         $isGroupBooking = ($request->input('booking_type') === 'group');
+        // Турнирная бронь, как и групповая, не требует клиента и оплаты:
+        // цену задаёт турнир, а игроки платят взносы отдельно.
+        $isTournamentBooking = ($request->input('booking_type') === 'tournament');
+        $isAutoBooking = $isGroupBooking || $isTournamentBooking;
 
         $validated = $request->validate([
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'slots' => 'required|integer|min:1|max:12',
-            // Клиент/оплата не нужны для типа «Групповые» — оплата идёт через пакеты группы.
-            'client_name' => 'required_unless:booking_type,group|nullable|string|max:255',
-            'client_phone' => 'required_unless:booking_type,group|nullable|string|max:50',
+            // Клиент/оплата не нужны для типа «Групповые»/«Турнир» — оплата идёт через пакеты группы/взносы турнира.
+            'client_name' => 'required_unless:booking_type,group,tournament|nullable|string|max:255',
+            'client_phone' => 'required_unless:booking_type,group,tournament|nullable|string|max:50',
             'client_note' => 'nullable|string|max:1000',
-            'payment_method' => 'required_unless:booking_type,group|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
-            'is_paid' => 'required_unless:booking_type,group|nullable|boolean',
+            'payment_method' => 'required_unless:booking_type,group,tournament|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
+            'is_paid' => 'required_unless:booking_type,group,tournament|nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'group_id' => 'nullable|exists:club_groups,id',
+            'tournament_id' => 'nullable|exists:tournaments,id',
             'coach_id' => 'nullable|exists:users,id',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
@@ -683,6 +688,8 @@ class CourtController extends Controller
             'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
         ]);
 
+        $tournamentForBooking = null;
+
         if ($isGroupBooking) {
             // Для групповой брони — автозаполнение, скидка/цена/клиент игнорируются.
             $group = !empty($validated['group_id'])
@@ -698,6 +705,21 @@ class CourtController extends Controller
             $groupSessionPrice = $group
                 ? (float) $group->price_per_session * $group->members()->where('status', 'active')->count()
                 : 0.0;
+            $linkedUser = null;
+        } elseif ($isTournamentBooking) {
+            // Турнирная бронь: клиент и оплата берутся из турнира.
+            $tournamentForBooking = !empty($validated['tournament_id'])
+                ? \App\Models\Tournament::where('club_id', $club->id)
+                    ->find($validated['tournament_id'])
+                : null;
+            $validated['client_name'] = $tournamentForBooking
+                ? ('Турнир: ' . $tournamentForBooking->name)
+                : 'Турнир';
+            $validated['client_phone'] = null;
+            $validated['payment_method'] = null;
+            $validated['is_paid'] = false;
+            $validated['discount'] = 0;
+            $validated['custom_price'] = 0;
             $linkedUser = null;
         } else {
             $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
@@ -870,6 +892,13 @@ class CourtController extends Controller
                 $discount = 0;
             }
 
+            // Турнирная бронь: цену выставит сервис после создания записи,
+            // когда станет известно, сколько кортов делят сумму.
+            if ($isTournamentBooking) {
+                $price = 0;
+                $discount = 0;
+            }
+
             // Карта-счётчик: не даём забронировать больше часов, чем осталось.
             if ($counterCard && $slotHours > $cardAvailable) {
                 $skipped[$date] = 'не хватает часов на карте (осталось ' . $cardAvailable . ' ч)';
@@ -890,6 +919,7 @@ class CourtController extends Controller
                 'is_paid' => $validated['is_paid'] ?? false,
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
+                'tournament_id' => $isTournamentBooking ? ($validated['tournament_id'] ?? null) : null,
                 // Групповая — тренер группы; индивидуальная — основной (первый) тренер.
                 'coach_id' => $isGroupBooking ? ($validated['coach_id'] ?? null) : ($primaryCoach['coach_id'] ?? null),
                 // Групповые занятия: тренер всегда «оплачен» (в форме нет переключателя).
@@ -948,6 +978,11 @@ class CourtController extends Controller
                     \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroupSession', $groupSession->id,
                         "Занятие создано (из расписания): «{$group->name}» — {$court->name}, {$date} {$startTime}–{$endTime}", clubId: $club->id);
                 }
+            }
+
+            // Турнирная бронь: пересчитать сумму по всем кортам турнира на эту дату.
+            if ($isTournamentBooking && $booking->tournament_id) {
+                app(\App\Services\TournamentBookingPriceService::class)->syncForBooking($booking);
             }
 
             \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$date} {$startTime}–{$endTime}");

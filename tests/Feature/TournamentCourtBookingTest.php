@@ -281,4 +281,50 @@ class TournamentCourtBookingTest extends TestCase
 
         $this->assertSame('100000.00', $booking->fresh()->price);
     }
+
+    public function test_store_booking_links_tournament_and_sets_price(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'tournament',
+            'tournament_id' => $tournament->id,
+        ])->assertRedirect();
+
+        $booking = CourtBooking::where('tournament_id', $tournament->id)->first();
+        $this->assertNotNull($booking);
+        $this->assertSame('tournament', $booking->booking_type);
+        $this->assertSame('100000.00', $booking->price);
+        $this->assertSame('Турнир: Американо', $booking->client_name);
+        $this->assertNull($booking->payment_method);
+    }
+
+    public function test_store_booking_with_repeat_calculates_each_date_separately(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'tournament',
+            'tournament_id' => $tournament->id,
+            'repeat' => 'daily',
+            'repeat_until' => 'week',
+        ])->assertRedirect();
+
+        $bookings = CourtBooking::where('tournament_id', $tournament->id)->orderBy('date')->get();
+        // Каждая дата — свой набор броней турнира на эту дату, сумма считается независимо.
+        $this->assertGreaterThan(1, $bookings->count());
+        foreach ($bookings as $booking) {
+            $this->assertSame('100000.00', $booking->price);
+        }
+    }
 }
