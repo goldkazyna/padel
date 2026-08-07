@@ -1261,13 +1261,22 @@
                             @endphp
                             <script>window.__groupMembers = @json($groupMembersData);</script>
                         @endif
+                        @include('club.courts.partials._book_tournament')
                         <script>window.__coachNames = @json($clubCoaches->mapWithKeys(fn($cc) => [$cc->user_id => ($cc->user->full_name ?? '')])->toArray());</script>
                         <script>
-                        // Основную дату в недельной вьюхе даёт выбранный слот (см. Task 8),
-                        // __scheduleDate — запасное значение.
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
+                        window.__bookingTournaments = @json($bookingTournamentIds ?? []);
                         </script>
+                        <script>
+                            // Недельное расписание: дата брони не одна на страницу — её задаёт
+                            // выбранный слот (поле #bookDate заполняется в openBookModal()).
+                            function tournamentBookingDate() {
+                                const el = document.getElementById('bookDate');
+                                return el ? el.value : (window.__scheduleDate || '');
+                            }
+                        </script>
+                        @include('club.courts.partials._tournament_js')
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">
@@ -1485,6 +1494,7 @@
                             <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectEditBookingType(this)"><i class="bi bi-trophy"></i><span>Турнир</span></button>
                         </div>
                         <input type="hidden" name="booking_type" id="editBookingTypeInput">
+                        @include('club.courts.partials._edit_tournament')
 
                         <div class="modal-section-title js-edit-hide-for-group">Способ оплаты *</div>
                         <div class="payment-methods js-edit-hide-for-group" id="editPaymentMethods">
@@ -1854,6 +1864,13 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-value') === btVal);
         });
+        // Подставляем турнир открытой брони, если он есть. Видимость блока
+        // применяем позже, после applyEditGroupVisibility — иначе она (вызванная
+        // ниже с isGroup=false для турнирной брони) снова покажет скрытые поля.
+        const tnSelect = document.getElementById('editTournamentSelect');
+        if (tnSelect) {
+            tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
+        }
 
         const paidVal = data.isPaid ? '1' : '0';
         document.getElementById('editIsPaidInput').value = paidVal;
@@ -1936,7 +1953,17 @@
 
         // Группа: тренер + участники + скрытие полей клиента/оплаты для групповой брони.
         renderEditGroup(data);
-        applyEditGroupVisibility((data.bookingType || '') === 'group');
+        const isGroupBooking = (data.bookingType || '') === 'group';
+        applyEditGroupVisibility(isGroupBooking);
+        // applyEditTournamentVisibility(false) тоже трогает общий класс
+        // js-edit-hide-for-group — при групповой брони её не вызываем, иначе
+        // она вернёт видимость полей, только что скрытых applyEditGroupVisibility.
+        if (isGroupBooking) {
+            const tnBlock = document.getElementById('editTournamentBlock');
+            if (tnBlock) tnBlock.style.display = 'none';
+        } else {
+            applyEditTournamentVisibility(btVal === 'tournament');
+        }
 
         renderEditDurationButtons(data);
 
@@ -2164,6 +2191,7 @@
 
     document.getElementById('editBookingForm').addEventListener('submit', function(e) {
         const form = e.target;
+        const isTournament = document.getElementById('editBookingTypeInput').value === 'tournament';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -2171,34 +2199,46 @@
         const paymentGroup = document.getElementById('editPaymentMethods');
         const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
-        const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
-        if (!nameIsLocked) {
-            const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
-            if (words.length < 2) {
+        // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
+        if (isTournament) {
+            const tnSelect = document.getElementById('editTournamentSelect');
+            if (tnSelect && !tnSelect.value) {
                 e.preventDefault();
-                showEditFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                showEditFormError('Выберите турнир', tnSelect);
                 return;
             }
         }
-        if (!(phoneInput.value || '').trim()) {
-            e.preventDefault();
-            showEditFormError('Укажите номер телефона клиента', phoneInput);
-            return;
-        }
-        if (!paymentInput.value) {
-            e.preventDefault();
-            showEditFormError('Выберите способ оплаты', paymentGroup);
-            return;
-        }
-        if (paymentInput.value === 'club_card' && !(document.getElementById('editCardInput').value || '').trim()) {
-            e.preventDefault();
-            showEditFormError('Выберите клубную карту', document.getElementById('editCardButtons'));
-            return;
-        }
-        if (paidInput.value === '') {
-            e.preventDefault();
-            showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
-            return;
+        // Для турнирной брони поля клиента/оплаты скрыты и не нужны — пропускаем эти проверки.
+        if (!isTournament) {
+            const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
+            if (!nameIsLocked) {
+                const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
+                if (words.length < 2) {
+                    e.preventDefault();
+                    showEditFormError('Укажите имя и фамилию клиента (например: «Денис Дудников»)', nameInput);
+                    return;
+                }
+            }
+            if (!(phoneInput.value || '').trim()) {
+                e.preventDefault();
+                showEditFormError('Укажите номер телефона клиента', phoneInput);
+                return;
+            }
+            if (!paymentInput.value) {
+                e.preventDefault();
+                showEditFormError('Выберите способ оплаты', paymentGroup);
+                return;
+            }
+            if (paymentInput.value === 'club_card' && !(document.getElementById('editCardInput').value || '').trim()) {
+                e.preventDefault();
+                showEditFormError('Выберите клубную карту', document.getElementById('editCardButtons'));
+                return;
+            }
+            if (paidInput.value === '') {
+                e.preventDefault();
+                showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+                return;
+            }
         }
         // Старое одиночное поле оплаты тренера проверяем, только если оно видимо.
         // В мультитренере оплата задаётся чекбоксом в строке (пустой не бывает).
@@ -2312,6 +2352,7 @@
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
 
         const isGroup = input.value === 'group';
+        const isTournament = input.value === 'tournament';
 
         // Селект группы — только при типе «Групповые»
         const groupWrap = document.getElementById('bookGroupSelectWrap');
@@ -2324,16 +2365,28 @@
             }
         }
 
-        // При типе group прячем клиента/оплату/скидку, снимаем required.
-        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = isGroup ? 'none' : '');
+        // Селект турнира — только при типе «Турнир»
+        const tnWrap = document.getElementById('bookTournamentSelectWrap');
+        if (tnWrap) {
+            tnWrap.style.display = isTournament ? 'block' : 'none';
+            if (!isTournament) {
+                const sel = document.getElementById('bookTournamentSelect');
+                if (sel) sel.value = '';
+                renderTournamentInfo('');
+            }
+        }
+
+        // При типе group/tournament прячем клиента/оплату/скидку, снимаем required.
+        const hideClientFields = isGroup || isTournament;
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = hideClientFields ? 'none' : '');
         document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
         ['bookClientName', 'bookClientPhone'].forEach(id => {
             const e = document.getElementById(id);
-            if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
+            if (e) { e.required = !hideClientFields; if (hideClientFields) e.value = ''; }
         });
-        // Блок карты — показываем только если есть карты и не групповая бронь.
+        // Блок карты — показываем только если есть карты и не групповая/турнирная бронь.
         const cardWrap = document.getElementById('bookCardWrap');
-        if (cardWrap) cardWrap.style.display = (!isGroup && (cardCache.book || []).length) ? '' : 'none';
+        if (cardWrap) cardWrap.style.display = (!hideClientFields && (cardCache.book || []).length) ? '' : 'none';
     }
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');
@@ -2341,7 +2394,17 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
-        applyEditGroupVisibility(input.value === 'group');
+        const isGroupType = input.value === 'group';
+        applyEditGroupVisibility(isGroupType);
+        // applyEditTournamentVisibility(false) тоже трогает общий класс
+        // js-edit-hide-for-group — при групповом типе её не вызываем, иначе
+        // она вернёт видимость полей, только что скрытых applyEditGroupVisibility.
+        if (isGroupType) {
+            const tnBlock = document.getElementById('editTournamentBlock');
+            if (tnBlock) tnBlock.style.display = 'none';
+        } else {
+            applyEditTournamentVisibility(input.value === 'tournament');
+        }
     }
 
     // ====== Клубные карты в окне брони (кнопки) — идентично дневному виду ======
@@ -2840,6 +2903,7 @@
         const form = e.target;
         const bookingType = document.getElementById('bookingTypeInput').value;
         const isGroup = bookingType === 'group';
+        const isTournament = bookingType === 'tournament';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -2847,8 +2911,17 @@
         const paymentGroup = document.getElementById('paymentMethods');
         const paidGroup = document.getElementById('isPaidInput').parentElement.querySelector('.paid-toggle');
 
-        // Для групповой брони поля клиента/оплаты не нужны — пропускаем эти проверки.
-        if (!isGroup) {
+        // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
+        if (isTournament) {
+            const tnSelect = document.getElementById('bookTournamentSelect');
+            if (tnSelect && !tnSelect.value) {
+                e.preventDefault();
+                showBookFormError('Выберите турнир', tnSelect);
+                return;
+            }
+        }
+        // Для групповой и турнирной брони поля клиента/оплаты не нужны — пропускаем эти проверки.
+        if (!isGroup && !isTournament) {
             const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
             if (words.length < 2) {
                 e.preventDefault();
@@ -2878,7 +2951,7 @@
         }
         // Статус оплаты тренера обязателен только для разовых броней и только для
         // старого одиночного поля (видимо). В мультитренере оплата — чекбокс в строке.
-        if (!isGroup) {
+        if (!isGroup && !isTournament) {
             const coachId = document.getElementById('bookCoachId').value;
             const coachPaid = document.getElementById('bookCoachPaidInput').value;
             const legacyBookPaid = document.getElementById('bookCoachPaidGroup');
