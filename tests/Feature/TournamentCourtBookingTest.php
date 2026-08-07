@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Certificate;
 use App\Models\Club;
 use App\Models\Court;
 use App\Models\CourtBooking;
@@ -326,5 +327,78 @@ class TournamentCourtBookingTest extends TestCase
         foreach ($bookings as $booking) {
             $this->assertSame('100000.00', $booking->price);
         }
+    }
+
+    /**
+     * Регресс: tournament_id чужого клуба не должен сохраняться в бронь —
+     * иначе последующий пересчёт syncForBooking() задел бы чужие брони.
+     */
+    public function test_foreign_tournament_id_is_not_saved(): void
+    {
+        [, $admin, $court] = $this->setupTournament(20000); // клуб A
+        [, , , $foreignTournament] = $this->setupTournament(30000); // клуб B
+        $date = now()->addDay()->toDateString();
+
+        $response = $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'tournament',
+            'tournament_id' => $foreignTournament->id,
+        ]);
+        $response->assertRedirect();
+
+        $booking = CourtBooking::where('court_id', $court->id)->first();
+        $this->assertNotNull($booking);
+        $this->assertNull($booking->tournament_id);
+        $this->assertSame('Турнир', $booking->client_name);
+        // Пересчёт по чужому турниру не запускался — броней с его id быть не должно.
+        $this->assertSame(0, CourtBooking::where('tournament_id', $foreignTournament->id)->count());
+    }
+
+    /** Регресс: турнирная бронь не должна гасить переданный сертификат — цена всё равно от турнира. */
+    public function test_tournament_booking_does_not_consume_certificate(): void
+    {
+        [$club, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $certificate = Certificate::create([
+            'club_id' => $club->id,
+            'type' => Certificate::TYPE_GENERIC,
+            'number' => 'CERT-001',
+            'value_type' => Certificate::VALUE_AMOUNT,
+            'amount' => 5000,
+        ]);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'tournament',
+            'tournament_id' => $tournament->id,
+            'certificate_id' => $certificate->id,
+        ])->assertRedirect();
+
+        $booking = CourtBooking::where('tournament_id', $tournament->id)->first();
+        $this->assertNotNull($booking);
+        $this->assertNull($booking->certificate_id);
+        $this->assertNull($certificate->fresh()->used_at);
+    }
+
+    /** Регресс: без tournament_id турнирную бронь создать нельзя — иначе цена навсегда останется 0. */
+    public function test_tournament_booking_without_tournament_id_is_rejected(): void
+    {
+        [, $admin, $court] = $this->setupTournament(20000);
+        $date = now()->addDay()->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '10:00',
+            'slots' => 1,
+            'booking_type' => 'tournament',
+        ])->assertSessionHasErrors('tournament_id');
+
+        $this->assertSame(0, CourtBooking::where('court_id', $court->id)->count());
     }
 }

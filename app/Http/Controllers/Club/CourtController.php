@@ -665,7 +665,7 @@ class CourtController extends Controller
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'group_id' => 'nullable|exists:club_groups,id',
-            'tournament_id' => 'nullable|exists:tournaments,id',
+            'tournament_id' => 'required_if:booking_type,tournament|nullable|exists:tournaments,id',
             'coach_id' => 'nullable|exists:users,id',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
@@ -686,6 +686,7 @@ class CourtController extends Controller
             'payment_method.required_unless' => 'Выберите способ оплаты',
             'payment_method.in' => 'Выберите корректный способ оплаты',
             'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
+            'tournament_id.required_if' => 'Выберите турнир',
         ]);
 
         $tournamentForBooking = null;
@@ -764,7 +765,7 @@ class CourtController extends Controller
         // Для скидочной карты скидка считается от цены (источник истины — карта).
         $clubCardId = null;
         $cardDiscountPct = null;
-        if (!$isGroupBooking && !empty($validated['club_card_id'])) {
+        if (!$isGroupBooking && !$isTournamentBooking && !empty($validated['club_card_id'])) {
             $card = \App\Models\ClubCard::where('club_id', $club->id)
                 ->with('type')->find($validated['club_card_id']);
             if ($card && $card->isActual()) {
@@ -867,7 +868,7 @@ class CourtController extends Controller
             // часы → покрываем только часы сертификата (остальное платно, из расчёта
             // средней цены за час брони); турнир — к брони корта не применяется.
             $bookingCertificateId = null;
-            if ($certificate && !$certApplied && !$isGroupBooking) {
+            if ($certificate && !$certApplied && !$isGroupBooking && !$isTournamentBooking) {
                 $before = (int) round($priceBeforeDiscount);
                 if ($certificate->value_type === \App\Models\Certificate::VALUE_AMOUNT) {
                     $discount = min((int) $certificate->amount, $before);
@@ -919,7 +920,9 @@ class CourtController extends Controller
                 'is_paid' => $validated['is_paid'] ?? false,
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
-                'tournament_id' => $isTournamentBooking ? ($validated['tournament_id'] ?? null) : null,
+                // Только проверенный турнир (принадлежит клубу) — не сырое значение из запроса,
+                // иначе можно подставить чужой tournament_id и задеть чужие брони при пересчёте.
+                'tournament_id' => $isTournamentBooking ? $tournamentForBooking?->id : null,
                 // Групповая — тренер группы; индивидуальная — основной (первый) тренер.
                 'coach_id' => $isGroupBooking ? ($validated['coach_id'] ?? null) : ($primaryCoach['coach_id'] ?? null),
                 // Групповые занятия: тренер всегда «оплачен» (в форме нет переключателя).
