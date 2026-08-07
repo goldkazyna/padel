@@ -2502,6 +2502,7 @@
         if (form.dataset.submitting === '1') { e.preventDefault(); return; }
         const bookingType = document.getElementById('bookingTypeInput').value;
         const isGroup = bookingType === 'group';
+        const isTournament = bookingType === 'tournament';
         const nameInput = form.querySelector('input[name="client_name"]');
         const phoneInput = form.querySelector('input[name="client_phone"]');
         const paymentInput = form.querySelector('input[name="payment_method"]');
@@ -2509,8 +2510,17 @@
         const paymentGroup = document.getElementById('paymentMethods');
         const paidGroup = document.getElementById('isPaidInput').parentElement.querySelector('.paid-toggle');
 
-        // Для групповой брони поля клиента/оплаты не нужны — пропускаем эти проверки.
-        if (!isGroup) {
+        // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
+        if (isTournament) {
+            const tnSelect = document.getElementById('bookTournamentSelect');
+            if (tnSelect && !tnSelect.value) {
+                e.preventDefault();
+                showBookFormError('Выберите турнир', tnSelect);
+                return;
+            }
+        }
+        // Для групповой и турнирной брони поля клиента/оплаты не нужны — пропускаем эти проверки.
+        if (!isGroup && !isTournament) {
             const words = (nameInput.value || '').trim().split(/\s+/).filter(Boolean);
             if (words.length < 2) {
                 e.preventDefault();
@@ -2538,9 +2548,9 @@
                 return;
             }
         }
-        // Статус оплаты тренера обязателен только для разовых броней — для group оплата идёт через пакеты.
+        // Статус оплаты тренера обязателен только для разовых броней — для group/tournament тренера в форме нет.
         // Проверяем только старое одиночное поле (видимо); в мультитренере оплата — чекбокс в строке.
-        if (!isGroup) {
+        if (!isGroup && !isTournament) {
             const coachId = document.getElementById('bookCoachId').value;
             const coachPaid = document.getElementById('bookCoachPaidInput').value;
             const legacyBookPaid = document.getElementById('bookCoachPaidGroup');

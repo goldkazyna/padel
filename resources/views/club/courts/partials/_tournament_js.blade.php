@@ -31,7 +31,7 @@
         // Делитель — уже существующие брони турнира на эту дату плюс создаваемая.
         const existing = (data.bookings_by_date && data.bookings_by_date[date]) || 0;
         const divisor = existing + 1;
-        const share = divisor > 0 ? Math.round(data.total / divisor) : 0;
+        const share = Math.round(data.total / divisor);
 
         if (priceEl) {
             if (!data.price) {
