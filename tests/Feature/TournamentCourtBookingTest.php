@@ -583,7 +583,9 @@ class TournamentCourtBookingTest extends TestCase
     {
         [, $admin, $court, $tournament] = $this->setupTournament(20000);
         $this->addParticipants($tournament, 5);
-        $date = now()->addDay()->toDateString();
+        // Среда — детерминированная дата: не зависит от дня прогона и не попадает
+        // на границу недели (с now()->addDay() тест падал по воскресеньям).
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addDays(2)->toDateString();
         $this->makeBooking($court, $tournament, $date, '10:00');
         $tournament->update(['status' => 'completed']);
 
@@ -723,9 +725,14 @@ class TournamentCourtBookingTest extends TestCase
         $this->assertSame('100000.00', $booking->price);
     }
 
-    /** Недельное расписание: список турниров и живой пересчёт работают так же. */
+    /**
+     * Недельное расписание: список турниров и живой пересчёт работают так же.
+     * Время заморожено на субботу, бронь — на воскресенье: это верхняя граница
+     * недели, на которой раньше терялись брони последнего дня.
+     */
     public function test_week_schedule_exposes_tournaments_and_recalculates(): void
     {
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-08 10:00:00'));
         [, $admin, $court, $tournament] = $this->setupTournament(20000);
         $date = now()->addDay()->toDateString();
         $booking = $this->makeBooking($court, $tournament, $date, '10:00');
@@ -798,6 +805,120 @@ class TournamentCourtBookingTest extends TestCase
             'booking_type' => 'tournament',
             'tournament_id' => $tournament->id,
         ])->assertSessionHas('success', fn ($message) => str_contains($message, '100 000'));
+    }
+
+    /**
+     * Регресс: правка брони без tournament_id в запросе (окно открыто из панели
+     * «Необработанные заявки» для брони не с видимой даты) не должна тихо рвать
+     * привязку — иначе доли перераспределяются, а деньги задваиваются.
+     */
+    public function test_missing_tournament_id_keeps_existing_link(): void
+    {
+        [$club, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $kept = $this->makeBooking($court, $tournament, $date, '10:00');
+        $second = Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 2', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $edited = $this->makeBooking($second, $tournament, $date, '10:00');
+        app(TournamentBookingPriceService::class)->syncForDate($tournament->fresh(), $date);
+        $this->assertSame('50000.00', $kept->fresh()->price);
+
+        // Пустой tournament_id — так отправляет форма, когда селект нечем заполнить.
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $edited), [
+            'booking_type' => 'tournament',
+            'tournament_id' => '',
+            'is_processed' => 1,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame($tournament->id, $edited->fresh()->tournament_id, 'привязка сохранилась');
+        $this->assertSame('50000.00', $kept->fresh()->price, 'доли не перераспределились');
+        $this->assertSame('50000.00', $edited->fresh()->price);
+    }
+
+    /** Отвязка турнира делается сменой типа брони — этот путь работать обязан. */
+    public function test_changing_type_away_unlinks_tournament(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+        $booking = $this->makeBooking($court, $tournament, $date, '10:00');
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'individual',
+            'client_name' => 'Иван Иванов',
+            'client_phone' => '77771112233',
+            'payment_method' => 'cash',
+            'is_paid' => 1,
+        ])->assertRedirect();
+
+        $this->assertNull($booking->fresh()->tournament_id);
+        $this->assertSame('individual', $booking->fresh()->booking_type);
+    }
+
+    /** Граница «прошлое/не прошлое» живёт в таймзоне расписания, а не в UTC. */
+    public function test_past_boundary_uses_schedule_timezone(): void
+    {
+        // 01:00 по Алматы = 20:00 предыдущего дня по UTC: «сегодня» должно
+        // остаться алматинским, иначе вчерашний день пересчитается.
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-10 20:00:00', 'UTC'));
+        $almatyToday = now(config('app.schedule_timezone', 'Asia/Almaty'))->toDateString();
+        $this->assertSame('2026-08-11', $almatyToday, 'проверяем именно ночное окно');
+
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        // Вчерашний по Алматы день — уже прошлое.
+        $date = '2026-08-10';
+        $booking = $this->makeBooking($court, $tournament, $date, '10:00');
+        app(TournamentBookingPriceService::class)->syncForDate($tournament->fresh(), $date);
+        $this->assertSame('100000.00', $booking->fresh()->price);
+
+        TournamentParticipant::where('tournament_id', $tournament->id)->first()->delete();
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk();
+
+        $this->assertSame('100000.00', $booking->fresh()->price);
+    }
+
+    /** Легаси-бронь: оплата клубной картой не остаётся без карты. */
+    public function test_legacy_tournament_booking_drops_card_payment_together_with_card(): void
+    {
+        [$club, $admin, $court] = $this->setupTournament(20000);
+        $client = ClubClient::create(['club_id' => $club->id, 'name' => 'Иван Иванов', 'phone' => '77770001122']);
+        $type = ClubCardType::create([
+            'club_id' => $club->id, 'name' => '10 пос.', 'code_prefix' => 'VIS',
+            'kind' => 'visits', 'nominal' => 10,
+        ]);
+        $card = (new ClubCardService())->issue($client, $type);
+
+        $booking = CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'client_name' => 'Турнир выходного дня',
+            'status' => 'confirmed',
+            'price' => 30000,
+            'payment_method' => 'club_card',
+            'club_card_id' => $card->id,
+            'booking_type' => 'tournament',
+            'booked_by' => $this->bookingAdmin->id,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+            'is_processed' => 1,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $booking->refresh();
+        $this->assertNull($booking->club_card_id);
+        $this->assertNull($booking->payment_method, 'оплата картой без карты — противоречие');
+        $this->assertSame('30000.00', $booking->price, 'ручная цена сохранилась');
     }
 
     /** Отмена брони из мобильного приложения тоже пересчитывает доли. */
