@@ -18,6 +18,8 @@
 - Все комментарии в коде и тексты интерфейса — на русском.
 - Прогон тестов только точечный, через `--filter`: в сьюте ~14 давно падающих тестов, не связанных с этой работой.
 - Существующий CSS-класс `.js-hide-for-group` не переименовывается.
+- Разметка и JS турнирной брони живут в partial'ах и подключаются в обе вьюхи через `@include`. Копировать одинаковый код между `schedule.blade.php` и `schedule_week.blade.php` запрещено.
+- Работа идёт в ветке `feature/court-booking-tournament`.
 
 ---
 
@@ -30,9 +32,15 @@
 | `app/Models/Tournament.php` | Изменить: связь `courtBookings()` |
 | `app/Services/TournamentBookingPriceService.php` | Создать: вся арифметика цены и данные для выпадающего списка |
 | `app/Http/Controllers/Club/CourtController.php` | Изменить: передача данных во вьюхи, сохранение связи, вызовы пересчёта |
-| `resources/views/club/courts/schedule.blade.php` | Изменить: блоки турнира в модалках создания и редактирования, JS |
+| `resources/views/club/courts/partials/_book_tournament.blade.php` | Создать: блок выбора турнира для модалки создания |
+| `resources/views/club/courts/partials/_edit_tournament.blade.php` | Создать: блок турнира для модалки редактирования |
+| `resources/views/club/courts/partials/_tournament_js.blade.php` | Создать: общие JS-функции турнирной брони |
+| `resources/views/club/courts/schedule.blade.php` | Изменить: три `@include` + ветки `isTournament` в существующих функциях |
 | `resources/views/club/courts/schedule_week.blade.php` | Изменить: то же для недельного вида |
+
 | `tests/Feature/TournamentCourtBookingTest.php` | Создать: тесты расчёта и сквозные сценарии |
+
+**Про дублирование:** разметка и JS живут в partial'ах и подключаются в обе вьюхи через `@include` — как уже сделано с `_book_repeat.blade.php` (`schedule.blade.php:814`, `schedule_week.blade.php:1306`). Копировать код между вьюхами запрещено. Исключение — ветки `isTournament` внутри `selectBookingType` и `selectEditBookingType`: эти функции в двух вьюхах разные, вынести их нельзя, там несколько строк на файл.
 
 ---
 
@@ -1020,53 +1028,60 @@ git commit -m "feat(courts): редактирование и отмена тур
 
 ---
 
-### Task 6: Выбор турнира в модалке создания
+### Task 6: Блок выбора турнира в модалке создания
 
 **Files:**
-- Modify: `resources/views/club/courts/schedule.blade.php:712-772` (блок после кнопок типа брони)
+- Create: `resources/views/club/courts/partials/_book_tournament.blade.php`
+- Create: `resources/views/club/courts/partials/_tournament_js.blade.php`
+- Modify: `resources/views/club/courts/schedule.blade.php:771` (подключение partial после блока групп)
 - Modify: `resources/views/club/courts/schedule.blade.php:2226-2256` (функция `selectBookingType`)
 
 **Interfaces:**
-- Consumes: `window.__tournaments` из Task 3, поле `tournament_id` из Task 4
-- Produces: `renderTournamentInfo(tournamentId)`; поле формы `tournament_id`
+- Consumes: `window.__tournaments` и `window.__scheduleDate` из Task 3, поле `tournament_id` из Task 4
+- Produces: partial `club.courts.partials._book_tournament`; partial `club.courts.partials._tournament_js` с функциями `renderTournamentInfo(tournamentId)`, `applyEditTournamentVisibility(isTournament)`, `renderEditTournamentPrice()`; поле формы `tournament_id`
 
-- [ ] **Step 1: Добавить блок выбора турнира**
+- [ ] **Step 1: Создать partial с блоком выбора турнира**
 
-В `resources/views/club/courts/schedule.blade.php` сразу после закрывающего `@endif` блока групп (`:771`) и перед строкой `<script>window.__coachNames = ...` (`:772`) вставить:
+`resources/views/club/courts/partials/_book_tournament.blade.php`:
 
 ```blade
-                        <div id="bookTournamentSelectWrap" style="display:none;">
-                            <div class="modal-section-title">Турнир</div>
-                            <div class="form-group">
-                                <select name="tournament_id" id="bookTournamentSelect" class="form-input" onchange="renderTournamentInfo(this.value)">
-                                    <option value="">— выберите турнир —</option>
-                                    @foreach(($bookingTournaments ?? []) as $t)
-                                        <option value="{{ $t['id'] }}">{{ $t['name'] }}{{ $t['date'] ? ' — ' . $t['date'] : '' }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div id="tnPrice" style="display:none;margin:8px 0;color:#a1a1aa;font-size:13px;"></div>
-                            <div id="tournamentInfoBlock" class="group-members-block" style="display:none;">
-                                <div class="gm-header">
-                                    <span class="gm-title">Оплатившие участники</span>
-                                    <span class="gm-count" id="tnCount"></span>
-                                </div>
-                                <ul id="tnList" class="gm-list"></ul>
-                                <div id="tnEmpty" class="gm-empty" style="display:none;">Оплативших пока нет — цена появится после записи игроков</div>
-                                <a id="tnLink" href="#" target="_blank" rel="noopener"
-                                   style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(167,139,250,0.10);border:1px solid rgba(167,139,250,0.35);color:#a78bfa;font-size:13px;font-weight:700;text-decoration:none;">
-                                    <i class="bi bi-trophy"></i> Открыть турнир
-                                </a>
-                            </div>
-                        </div>
+{{-- Выбор турнира для брони типа «Турнир». Подключается в модалку создания
+     дневного и недельного расписания. --}}
+<div id="bookTournamentSelectWrap" style="display:none;">
+    <div class="modal-section-title">Турнир</div>
+    <div class="form-group">
+        <select name="tournament_id" id="bookTournamentSelect" class="form-input" onchange="renderTournamentInfo(this.value)">
+            <option value="">— выберите турнир —</option>
+            @foreach(($bookingTournaments ?? []) as $t)
+                <option value="{{ $t['id'] }}">{{ $t['name'] }}{{ $t['date'] ? ' — ' . $t['date'] : '' }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div id="tnPrice" style="display:none;margin:8px 0;color:#a1a1aa;font-size:13px;"></div>
+    <div id="tournamentInfoBlock" class="group-members-block" style="display:none;">
+        <div class="gm-header">
+            <span class="gm-title">Оплатившие участники</span>
+            <span class="gm-count" id="tnCount"></span>
+        </div>
+        <ul id="tnList" class="gm-list"></ul>
+        <div id="tnEmpty" class="gm-empty" style="display:none;">Оплативших пока нет — цена появится после записи игроков</div>
+        <a id="tnLink" href="#" target="_blank" rel="noopener"
+           style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(167,139,250,0.10);border:1px solid rgba(167,139,250,0.35);color:#a78bfa;font-size:13px;font-weight:700;text-decoration:none;">
+            <i class="bi bi-trophy"></i> Открыть турнир
+        </a>
+    </div>
+</div>
 ```
 
-- [ ] **Step 2: Написать `renderTournamentInfo`**
+- [ ] **Step 2: Создать partial с JS-функциями**
 
-Рядом с `renderGroupMembers` (после её закрывающей скобки) добавить:
+`resources/views/club/courts/partials/_tournament_js.blade.php`. Функции для окна редактирования нужны здесь же, чтобы Task 7 не заводил четвёртый partial:
 
-```javascript
-    // Информация о выбранном турнире: расчёт цены и список оплативших.
+```blade
+{{-- Общий JS турнирной брони: расчёт цены и список участников.
+     Подключается в дневном и недельном расписании. --}}
+<script>
+    // Информация о выбранном турнире в окне создания: расчёт цены и список оплативших.
     function renderTournamentInfo(tournamentId) {
         const block = document.getElementById('tournamentInfoBlock');
         const list = document.getElementById('tnList');
@@ -1088,9 +1103,11 @@ git commit -m "feat(courts): редактирование и отмена тур
         if (!data) { block.style.display = 'none'; return; }
 
         const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
-        // В дневном расписании дата одна на всю страницу — берём её с сервера.
-        // (У скрытого поля name="date" нет id, обращаться к нему нечем.)
-        const date = window.__scheduleDate || '';
+        // Дату даёт вьюха: в дневном виде она одна на страницу, в недельном —
+        // из выбранного слота. Функция tournamentBookingDate() определена во вьюхе.
+        const date = (typeof tournamentBookingDate === 'function')
+            ? tournamentBookingDate()
+            : (window.__scheduleDate || '');
         // Делитель — уже существующие брони турнира на эту дату плюс создаваемая.
         const existing = (data.bookings_by_date && data.bookings_by_date[date]) || 0;
         const divisor = existing + 1;
@@ -1126,107 +1143,7 @@ git commit -m "feat(courts): редактирование и отмена тур
         if (empty) empty.style.display = players.length ? 'none' : 'block';
         block.style.display = 'block';
     }
-```
 
-Класс `gm-item` и способ сборки списка через `createElement` взяты из существующей `renderGroupMembers` (`schedule.blade.php:2300-2306`) — вёрстка совпадает один в один.
-
-- [ ] **Step 3: Подключить ветку в `selectBookingType`**
-
-В функции `selectBookingType` (`:2226`) после строки `const isGroup = input.value === 'group';` добавить:
-
-```javascript
-        const isTournament = input.value === 'tournament';
-```
-
-После блока `if (groupWrap) { ... }` добавить:
-
-```javascript
-        // Селект турнира — только при типе «Турнир»
-        const tnWrap = document.getElementById('bookTournamentSelectWrap');
-        if (tnWrap) {
-            tnWrap.style.display = isTournament ? 'block' : 'none';
-            if (!isTournament) {
-                const sel = document.getElementById('bookTournamentSelect');
-                if (sel) sel.value = '';
-                renderTournamentInfo('');
-            }
-        }
-```
-
-Заменить три строки, скрывающие поля для группы, так, чтобы турнир вёл себя так же:
-
-```javascript
-        const hideClientFields = isGroup || isTournament;
-        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = hideClientFields ? 'none' : '');
-        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
-        ['bookClientName', 'bookClientPhone'].forEach(id => {
-            const e = document.getElementById(id);
-            if (e) { e.required = !hideClientFields; if (hideClientFields) e.value = ''; }
-        });
-        const cardWrap = document.getElementById('bookCardWrap');
-        if (cardWrap) cardWrap.style.display = (!hideClientFields && (cardCache.book || []).length) ? '' : 'none';
-```
-
-- [ ] **Step 4: Проверить вручную**
-
-Запустить `composer dev`, открыть `/club/courts/schedule`, выбрать свободный слот, нажать «Турнир». Убедиться: появился селект, поля клиента и оплаты скрылись, при выборе турнира показался расчёт и список участников. Сохранить бронь и убедиться, что в слоте видна ожидаемая сумма.
-
-- [ ] **Step 5: Прогнать тесты**
-
-Run: `php artisan test --filter=TournamentCourtBookingTest`
-Expected: PASS, 15 тестов — вьюха не должна ничего сломать.
-
-- [ ] **Step 6: Коммит**
-
-```bash
-git add resources/views/club/courts/schedule.blade.php
-git commit -m "feat(courts): выбор турнира в модалке создания брони"
-```
-
----
-
-### Task 7: Турнир в модалке редактирования
-
-**Files:**
-- Modify: `resources/views/club/courts/schedule.blade.php:1010-1012` (кнопки типа брони в окне редактирования)
-- Modify: `resources/views/club/courts/schedule.blade.php:2337-2367` (`selectEditBookingType`, `applyEditGroupVisibility`)
-
-**Interfaces:**
-- Consumes: `window.__tournaments` из Task 3, `$bookingTournamentIds` из Task 3, `renderTournamentInfo` из Task 6
-- Produces: `applyEditTournamentVisibility(isTournament)`; поле формы `tournament_id` в окне редактирования
-
-- [ ] **Step 1: Добавить блок в окно редактирования**
-
-Сразу после `<input type="hidden" name="booking_type" id="editBookingTypeInput">` (`:1012`) вставить:
-
-```blade
-                        <div id="editTournamentBlock" style="display:none;">
-                            <div class="modal-section-title">Турнир</div>
-                            <div class="form-group">
-                                <select name="tournament_id" id="editTournamentSelect" class="form-input">
-                                    <option value="">— выберите турнир —</option>
-                                    @foreach(($bookingTournaments ?? []) as $t)
-                                        <option value="{{ $t['id'] }}">{{ $t['name'] }}{{ $t['date'] ? ' — ' . $t['date'] : '' }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div id="editTnPrice" style="margin:8px 0;color:#a1a1aa;font-size:13px;"></div>
-                        </div>
-```
-
-- [ ] **Step 2: Отдать карту связей в JS**
-
-Рядом со строкой `<script>window.__tournaments = ...</script>` из Task 3 добавить:
-
-```blade
-<script>window.__bookingTournaments = @json($bookingTournamentIds ?? []);</script>
-```
-
-- [ ] **Step 3: Написать `applyEditTournamentVisibility`**
-
-Рядом с `applyEditGroupVisibility` (`:2348`) добавить:
-
-```javascript
     // Для турнирной брони в окне редактирования прячем поля клиента и оплаты —
     // как в окне создания: цену задаёт турнир, игроки платят взносы отдельно.
     function applyEditTournamentVisibility(isTournament) {
@@ -1256,28 +1173,132 @@ git commit -m "feat(courts): выбор турнира в модалке соз�
             ? (data.paid_count + ' оплативших × ' + fmt(data.price) + ' = <b>' + fmt(data.total) + ' ₸</b> на все корты турнира в этот день')
             : 'У турнира не указана цена';
     }
+</script>
 ```
 
-- [ ] **Step 4: Подключить ветку в `selectEditBookingType`**
+- [ ] **Step 3: Подключить partial'ы в дневную вьюху**
 
-Заменить тело `selectEditBookingType` (`:2337`) — последнюю строку:
+В `resources/views/club/courts/schedule.blade.php` сразу после закрывающего `@endif` блока групп (`:771`) и перед строкой `<script>window.__coachNames = ...` (`:772`) вставить:
+
+```blade
+                        @include('club.courts.partials._book_tournament')
+```
+
+Рядом со строкой `window.__tournaments` из Task 3 (после неё) добавить определение даты для дневного вида и подключение JS:
+
+```blade
+<script>
+    // Дневное расписание: дата одна на всю страницу.
+    function tournamentBookingDate() { return window.__scheduleDate || ''; }
+</script>
+@include('club.courts.partials._tournament_js')
+```
+
+- [ ] **Step 4: Подключить ветку в `selectBookingType`**
+
+В функции `selectBookingType` (`:2226`) после строки `const isGroup = input.value === 'group';` добавить:
 
 ```javascript
-        applyEditGroupVisibility(input.value === 'group');
+        const isTournament = input.value === 'tournament';
 ```
 
-на:
+После блока `if (groupWrap) { ... }` добавить:
 
 ```javascript
-        applyEditGroupVisibility(input.value === 'group');
-        applyEditTournamentVisibility(input.value === 'tournament');
+        // Селект турнира — только при типе «Турнир»
+        const tnWrap = document.getElementById('bookTournamentSelectWrap');
+        if (tnWrap) {
+            tnWrap.style.display = isTournament ? 'block' : 'none';
+            if (!isTournament) {
+                const sel = document.getElementById('bookTournamentSelect');
+                if (sel) sel.value = '';
+                renderTournamentInfo('');
+            }
+        }
 ```
 
-Повесить пересчёт на смену турнира — в блоке из Step 1 у селекта добавить атрибут `onchange="renderEditTournamentPrice()"`.
+Заменить строки, скрывающие поля для группы, так, чтобы турнир вёл себя так же:
 
-- [ ] **Step 5: Подставлять турнир при открытии окна**
+```javascript
+        const hideClientFields = isGroup || isTournament;
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = hideClientFields ? 'none' : '');
+        document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
+        ['bookClientName', 'bookClientPhone'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) { e.required = !hideClientFields; if (hideClientFields) e.value = ''; }
+        });
+        const cardWrap = document.getElementById('bookCardWrap');
+        if (cardWrap) cardWrap.style.display = (!hideClientFields && (cardCache.book || []).length) ? '' : 'none';
+```
 
-В функции открытия окна редактирования, сразу после блока «Тип брони» (`schedule.blade.php:1721-1726`, где заполняется `editBookingTypeInput`), добавить:
+- [ ] **Step 5: Проверить вручную**
+
+Запустить `composer dev`, открыть `/club/courts/schedule`, выбрать свободный слот, нажать «Турнир». Убедиться: появился селект, поля клиента и оплаты скрылись, при выборе турнира показался расчёт и список участников. Сохранить бронь и убедиться, что в слоте видна ожидаемая сумма.
+
+- [ ] **Step 6: Прогнать тесты**
+
+Run: `php artisan test --filter=TournamentCourtBookingTest`
+Expected: PASS, 15 тестов — вьюха не должна ничего сломать.
+
+- [ ] **Step 7: Коммит**
+
+```bash
+git add resources/views/club/courts/partials/_book_tournament.blade.php resources/views/club/courts/partials/_tournament_js.blade.php resources/views/club/courts/schedule.blade.php
+git commit -m "feat(courts): выбор турнира в модалке создания брони"
+```
+
+---
+
+### Task 7: Турнир в модалке редактирования
+
+**Files:**
+- Create: `resources/views/club/courts/partials/_edit_tournament.blade.php`
+- Modify: `resources/views/club/courts/schedule.blade.php:1012` (подключение partial)
+- Modify: `resources/views/club/courts/schedule.blade.php:1721-1726` (подстановка турнира при открытии окна)
+- Modify: `resources/views/club/courts/schedule.blade.php:2337-2344` (`selectEditBookingType`)
+
+**Interfaces:**
+- Consumes: `window.__tournaments` и `$bookingTournamentIds` из Task 3; `applyEditTournamentVisibility`, `renderEditTournamentPrice` из partial'а Task 6
+- Produces: partial `club.courts.partials._edit_tournament`; поле формы `tournament_id` в окне редактирования
+
+- [ ] **Step 1: Создать partial для окна редактирования**
+
+`resources/views/club/courts/partials/_edit_tournament.blade.php`:
+
+```blade
+{{-- Турнир в модалке редактирования брони. Подключается в дневном и
+     недельном расписании. Функции определены в _tournament_js. --}}
+<div id="editTournamentBlock" style="display:none;">
+    <div class="modal-section-title">Турнир</div>
+    <div class="form-group">
+        <select name="tournament_id" id="editTournamentSelect" class="form-input" onchange="renderEditTournamentPrice()">
+            <option value="">— выберите турнир —</option>
+            @foreach(($bookingTournaments ?? []) as $t)
+                <option value="{{ $t['id'] }}">{{ $t['name'] }}{{ $t['date'] ? ' — ' . $t['date'] : '' }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div id="editTnPrice" style="margin:8px 0;color:#a1a1aa;font-size:13px;"></div>
+</div>
+```
+
+- [ ] **Step 2: Подключить partial и отдать карту связей**
+
+В `resources/views/club/courts/schedule.blade.php` сразу после `<input type="hidden" name="booking_type" id="editBookingTypeInput">` (`:1012`) вставить:
+
+```blade
+                        @include('club.courts.partials._edit_tournament')
+```
+
+Рядом со строкой `window.__tournaments` из Task 3 добавить:
+
+```blade
+<script>window.__bookingTournaments = @json($bookingTournamentIds ?? []);</script>
+```
+
+- [ ] **Step 3: Подставлять турнир при открытии окна**
+
+В функции открытия окна редактирования, сразу после блока «Тип брони» (`schedule.blade.php:1721-1726`, где заполняется `editBookingTypeInput` и подсвечиваются кнопки), добавить:
 
 ```javascript
         // Подставляем турнир открытой брони, если он есть.
@@ -1290,19 +1311,34 @@ git commit -m "feat(courts): выбор турнира в модалке соз�
 
 `data.id` — id открываемой брони, он же присваивается в `editingBookingId` строкой выше (`:1712`); `btVal` — переменная типа брони из того же блока.
 
-- [ ] **Step 6: Проверить вручную**
+- [ ] **Step 4: Подключить ветку в `selectEditBookingType`**
+
+В `selectEditBookingType` (`:2337`) заменить последнюю строку:
+
+```javascript
+        applyEditGroupVisibility(input.value === 'group');
+```
+
+на:
+
+```javascript
+        applyEditGroupVisibility(input.value === 'group');
+        applyEditTournamentVisibility(input.value === 'tournament');
+```
+
+- [ ] **Step 5: Проверить вручную**
 
 Открыть турнирную бронь на редактирование: турнир подставлен, поля клиента скрыты, расчёт виден. Сменить турнир, сохранить, убедиться, что цена пересчиталась.
 
-- [ ] **Step 7: Прогнать тесты**
+- [ ] **Step 6: Прогнать тесты**
 
 Run: `php artisan test --filter=TournamentCourtBookingTest`
 Expected: PASS, 15 тестов.
 
-- [ ] **Step 8: Коммит**
+- [ ] **Step 7: Коммит**
 
 ```bash
-git add resources/views/club/courts/schedule.blade.php
+git add resources/views/club/courts/partials/_edit_tournament.blade.php resources/views/club/courts/schedule.blade.php
 git commit -m "feat(courts): турнир в окне редактирования брони"
 ```
 
@@ -1314,57 +1350,59 @@ git commit -m "feat(courts): турнир в окне редактировани
 - Modify: `resources/views/club/courts/schedule_week.blade.php`
 
 **Interfaces:**
-- Consumes: всё из Task 6 и Task 7
+- Consumes: три partial'а из Task 6 и Task 7, `$bookingTournaments` и `$bookingTournamentIds` из Task 3
 - Produces: та же функциональность в недельном расписании
 
-- [ ] **Step 1: Найти места вставки**
+Копировать разметку и JS из дневной вьюхи запрещено — подключаются те же partial'ы. Своего здесь только три вещи: три `@include`, функция `tournamentBookingDate()` и ветки `isTournament` в двух функциях выбора типа брони.
 
-Выполнить, чтобы найти якоря — блок групп, функции выбора типа брони и вывод `__groupMembers`:
-
-```bash
-grep -n "bookGroupSelectWrap\|selectBookingType\|applyEditGroupVisibility\|__groupMembers\|editBookingTypeInput" resources/views/club/courts/schedule_week.blade.php
-```
-
-- [ ] **Step 2: Перенести блоки и функции**
-
-Повторить в `schedule_week.blade.php` то же, что сделано в Task 6 и Task 7:
-
-- блок `bookTournamentSelectWrap` — после блока групп в модалке создания;
-- блок `editTournamentBlock` — после `editBookingTypeInput` в модалке редактирования;
-- функции `renderTournamentInfo`, `applyEditTournamentVisibility`, `renderEditTournamentPrice`;
-- ветки `isTournament` в `selectBookingType` и `selectEditBookingType`;
-- подстановку турнира при открытии окна редактирования.
-
-Код берётся из Task 6 и Task 7 без изменений, кроме получения даты. В недельном виде дата не одна на страницу — её задаёт выбранный слот. Найти скрытое поле даты формы брони:
+- [ ] **Step 1: Найти якоря вставки**
 
 ```bash
-grep -n 'name="date"' resources/views/club/courts/schedule_week.blade.php
+grep -n "bookGroupSelectWrap\|editBookingTypeInput\|__groupMembers\|function selectBookingType\|function selectEditBookingType\|name=\"date\"" resources/views/club/courts/schedule_week.blade.php
 ```
 
-Если у поля нет `id`, добавить его (`id="weekBookDate"`) и в недельной версии `renderTournamentInfo` заменить строку получения даты на:
+- [ ] **Step 2: Подключить partial'ы**
 
-```javascript
-        const dateInput = document.getElementById('weekBookDate');
-        const date = dateInput ? dateInput.value : (window.__scheduleDate || '');
+- `@include('club.courts.partials._book_tournament')` — после блока групп в модалке создания;
+- `@include('club.courts.partials._edit_tournament')` — после `editBookingTypeInput` в модалке редактирования;
+- `@include('club.courts.partials._tournament_js')` — рядом со строкой `window.__tournaments` (добавлена в Task 3), после определения `tournamentBookingDate` из следующего шага.
+
+- [ ] **Step 3: Определить дату для недельного вида**
+
+В недельном расписании дата не одна на страницу — её задаёт выбранный слот. Найти скрытое поле даты формы брони (`grep` из Step 1). Если у него нет `id`, добавить `id="weekBookDate"`. Затем перед `@include('club.courts.partials._tournament_js')` вставить:
+
+```blade
+<script>
+    // Недельное расписание: дату брони задаёт выбранный слот.
+    function tournamentBookingDate() {
+        const el = document.getElementById('weekBookDate');
+        return el ? el.value : (window.__scheduleDate || '');
+    }
+    window.__bookingTournaments = @json($bookingTournamentIds ?? []);
+</script>
 ```
 
-Остальной код функции идентичен дневному.
+- [ ] **Step 4: Добавить ветки в функции выбора типа брони**
 
-- [ ] **Step 3: Проверить вручную**
+В `selectBookingType` недельной вьюхи добавить тот же блок, что в Task 6 Step 4 (показ `bookTournamentSelectWrap`, `hideClientFields`). В `selectEditBookingType` — вызов `applyEditTournamentVisibility(input.value === 'tournament')`, как в Task 7 Step 4. Если имена элементов в недельной вьюхе отличаются, использовать фактические — проверить по выводу `grep` из Step 1.
 
-Открыть `/club/courts/schedule/week`, создать турнирную бронь, затем открыть её на редактирование. Убедиться, что поведение совпадает с дневным видом.
+Подстановку турнира при открытии окна редактирования добавить там же, где недельная вьюха заполняет `editBookingTypeInput` — код из Task 7 Step 3.
 
-- [ ] **Step 4: Прогнать тесты**
+- [ ] **Step 5: Проверить вручную**
+
+Открыть `/club/courts/schedule/week`, создать турнирную бронь на любой день недели, затем открыть её на редактирование. Убедиться, что поведение совпадает с дневным видом и что делитель считается по дате выбранного слота.
+
+- [ ] **Step 6: Прогнать тесты**
 
 Run: `php artisan test --filter=TournamentCourtBookingTest`
 Expected: PASS, 15 тестов.
 
-- [ ] **Step 5: Прогнать смежные сьюты, чтобы убедиться, что ничего не сломано**
+- [ ] **Step 7: Прогнать смежные сьюты**
 
-Run: `php artisan test --filter=CourtSchedule` затем `php artisan test --filter=ClubGroupSession` и `php artisan test --filter=ClubCardBooking`
+Run: `php artisan test --filter=CourtSchedule`, затем `php artisan test --filter=ClubGroupSession` и `php artisan test --filter=ClubCardBooking`
 Expected: результат не хуже, чем до работы. Помнить про 2 давно падающих теста `CourtScheduleTest` (`calculate price …` — устаревшая сигнатура, к этой задаче отношения не имеют).
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 8: Коммит**
 
 ```bash
 git add resources/views/club/courts/schedule_week.blade.php
@@ -1372,6 +1410,7 @@ git commit -m "feat(courts): выбор турнира в недельном р�
 ```
 
 ---
+
 
 ## Деплой на прод
 
