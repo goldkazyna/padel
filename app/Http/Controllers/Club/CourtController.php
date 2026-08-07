@@ -1119,16 +1119,22 @@ class CourtController extends Controller
 
         // Для групповой брони поля клиента/оплаты не нужны (как при создании).
         $isGroupBooking = ($request->input('booking_type') === 'group');
+        $isTournamentBooking = ($request->input('booking_type') === 'tournament');
+        // Турнир, за которым бронь была закреплена ДО правки — его набор
+        // тоже нужно пересчитать, иначе оставшиеся брони сохранят старую долю.
+        $previousTournamentId = $booking->tournament_id;
+        $previousDate = $booking->date->format('Y-m-d');
 
         $validated = $request->validate([
-            'client_name' => 'required_unless:booking_type,group|nullable|string|max:255',
-            'client_phone' => 'required_unless:booking_type,group|nullable|string|max:50',
+            'client_name' => 'required_unless:booking_type,group,tournament|nullable|string|max:255',
+            'client_phone' => 'required_unless:booking_type,group,tournament|nullable|string|max:50',
             'client_note' => 'nullable|string|max:1000',
-            'payment_method' => 'required_unless:booking_type,group|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
-            'is_paid' => 'required_unless:booking_type,group|nullable|boolean',
+            'payment_method' => 'required_unless:booking_type,group,tournament|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
+            'is_paid' => 'required_unless:booking_type,group,tournament|nullable|boolean',
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
+            'tournament_id' => 'required_if:booking_type,tournament|nullable|exists:tournaments,id',
             'coach_id' => 'nullable',
             'coach_paid' => 'nullable|boolean',
             'coach_price' => 'nullable|numeric|min:0',
@@ -1141,18 +1147,19 @@ class CourtController extends Controller
             'club_card_id' => 'nullable|integer',
             'slots' => 'nullable|integer|min:1|max:12',
         ], [
-            'client_name.required' => 'Укажите имя клиента',
-            'client_phone.required' => 'Укажите номер телефона',
-            'payment_method.required' => 'Выберите способ оплаты',
+            'client_name.required_unless' => 'Укажите имя клиента',
+            'client_phone.required_unless' => 'Укажите номер телефона',
+            'payment_method.required_unless' => 'Выберите способ оплаты',
             'payment_method.in' => 'Выберите корректный способ оплаты',
-            'is_paid.required' => 'Выберите статус оплаты (оплачено / не оплачено)',
+            'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
+            'tournament_id.required_if' => 'Выберите турнир',
         ]);
 
         $linkedUser = null;
         $clubCardId = null;
         $cardDiscountPct = null;
 
-        if (!$isGroupBooking) {
+        if (!$isGroupBooking && !$isTournamentBooking) {
             $validated['client_phone'] = $this->normalizePhone($validated['client_phone']);
             $linkedUser = $this->findUserByPhone($validated['client_phone']);
 
@@ -1240,8 +1247,13 @@ class CourtController extends Controller
             'coach_price' => $isGroupBooking
                 ? (!empty($validated['coach_id']) ? ($validated['coach_price'] ?? null) : null)
                 : ($primaryCoach['coach_price'] ?? null),
+            // Только проверенный турнир (принадлежит клубу) — не сырое значение из запроса,
+            // иначе можно подставить чужой tournament_id и задеть чужие брони при пересчёте.
+            'tournament_id' => $isTournamentBooking
+                ? (\App\Models\Tournament::where('club_id', $club->id)->find($request->input('tournament_id'))?->id)
+                : null,
         ];
-        if (!$isGroupBooking) {
+        if (!$isGroupBooking && !$isTournamentBooking) {
             $updateData['client_name'] = $validated['client_name'];
             $updateData['client_phone'] = $validated['client_phone'];
             $updateData['payment_method'] = $validated['payment_method'] ?? null;
@@ -1257,6 +1269,20 @@ class CourtController extends Controller
                 $updateData['card_charged_at'] = null;
             }
             $updateData['club_card_id'] = $clubCardId;
+        }
+        if ($isTournamentBooking) {
+            $tournamentForBooking = \App\Models\Tournament::where('club_id', $club->id)
+                ->find($request->input('tournament_id'));
+            $updateData['client_name'] = $tournamentForBooking
+                ? ('Турнир: ' . $tournamentForBooking->name)
+                : 'Турнир';
+            $updateData['client_phone'] = null;
+            $updateData['payment_method'] = null;
+            $updateData['is_paid'] = false;
+            // Скидка/кастомная цена турнирную бронь не касаются — цену считает сервис
+            // по сумме взносов участников, поэтому обнуляем явно (иначе скидка может
+            // пережить пересчёт, если после смены типа брони цена не изменится).
+            $updateData['discount'] = 0;
         }
         // Перепривязка к пользователю приложения если телефон сменился
         if ($linkedUser) {
@@ -1300,7 +1326,9 @@ class CourtController extends Controller
             }
         }
 
-        if (isset($validated['custom_price'])) {
+        // Турнирную бронь кастомная цена/скидка не касаются — цену считает сервис
+        // по сумме взносов участников (иначе скидка пережила бы пересчёт цены).
+        if (!$isTournamentBooking && isset($validated['custom_price'])) {
             $discount = $validated['discount'] ?? 0;
             // Скидочная карта — источник истины для размера скидки.
             if ($cardDiscountPct !== null) {
@@ -1328,6 +1356,17 @@ class CourtController extends Controller
         }
 
         $booking->update($updateData);
+
+        // Пересчитываем и новый набор, и прежний — бронь могла сменить турнир,
+        // дату или вовсе перестать быть турнирной.
+        $priceService = app(\App\Services\TournamentBookingPriceService::class);
+        $priceService->syncForBooking($booking->fresh());
+        if ($previousTournamentId && $previousTournamentId !== $booking->tournament_id) {
+            $previousTournament = \App\Models\Tournament::find($previousTournamentId);
+            if ($previousTournament) {
+                $priceService->syncForDate($previousTournament, $previousDate);
+            }
+        }
 
         // Мультитренер: пересобираем пивот тренеров индивидуальной брони.
         // Групповая бронь пивот не использует (тренер один, в coach_id) — чистим.
@@ -1498,6 +1537,15 @@ class CourtController extends Controller
             'cancelled_at' => now(),
             'cancel_reason' => $reason,
         ]);
+
+        // Отменённая бронь выходит из деления — остальные корты турнира дорожают.
+        if ($booking->tournament_id) {
+            $tournament = \App\Models\Tournament::find($booking->tournament_id);
+            if ($tournament) {
+                app(\App\Services\TournamentBookingPriceService::class)
+                    ->syncForDate($tournament, $booking->date->format('Y-m-d'));
+            }
+        }
 
         // Отмена брони «распогашивает» сертификат — он снова активен.
         if ($booking->certificate_id) {

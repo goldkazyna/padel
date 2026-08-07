@@ -401,4 +401,143 @@ class TournamentCourtBookingTest extends TestCase
 
         $this->assertSame(0, CourtBooking::where('court_id', $court->id)->count());
     }
+
+    public function test_changing_tournament_recalculates_both_sets(): void
+    {
+        [$club, $admin, $court, $first] = $this->setupTournament(20000);
+        $this->addParticipants($first, 5);
+        $second = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Мексикано', 'type' => 'mexicano',
+            'status' => 'open', 'start_date' => now()->addDay()->toDateString(),
+            'max_participants' => 16, 'price' => 10000,
+        ]);
+        $this->addParticipants($second, 4);
+
+        $date = now()->addDay()->toDateString();
+        $booking = $this->makeBooking($court, $first, $date, '10:00');
+        app(TournamentBookingPriceService::class)->syncForDate($first->fresh(), $date);
+        $this->assertSame('100000.00', $booking->fresh()->price);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+            'tournament_id' => $second->id,
+        ])->assertRedirect();
+
+        $this->assertSame($second->id, $booking->fresh()->tournament_id);
+        $this->assertSame('40000.00', $booking->fresh()->price);
+    }
+
+    public function test_cancelling_one_booking_raises_the_others(): void
+    {
+        [$club, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $kept = $this->makeBooking($court, $tournament, $date, '10:00');
+        $second = Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 2', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $dropped = $this->makeBooking($second, $tournament, $date, '10:00');
+        app(TournamentBookingPriceService::class)->syncForDate($tournament->fresh(), $date);
+        $this->assertSame('50000.00', $kept->fresh()->price);
+
+        $this->actingAs($admin)
+            ->post(route('club.courts.cancelBooking', $dropped), ['reason' => 'Отмена для теста'])
+            ->assertRedirect();
+
+        $this->assertSame('100000.00', $kept->fresh()->price);
+    }
+
+    /**
+     * Регресс: tournament_id чужого клуба нельзя привязать при редактировании —
+     * иначе последующий пересчёт затронул бы чужие брони (та же дыра, что была в book()).
+     */
+    public function test_updating_to_foreign_tournament_id_is_not_saved(): void
+    {
+        [, $admin, $court] = $this->setupTournament(20000); // клуб A
+        [, , , $foreignTournament] = $this->setupTournament(30000); // клуб B
+        $date = now()->addDay()->toDateString();
+
+        $booking = CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => $date,
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'client_name' => 'Иван Иванов',
+            'client_phone' => '77771112233',
+            'status' => 'confirmed',
+            'price' => 15000,
+            'booking_type' => 'individual',
+            'booked_by' => $this->bookingAdmin->id,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+            'tournament_id' => $foreignTournament->id,
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertNull($booking->tournament_id);
+        $this->assertSame('Турнир', $booking->client_name);
+        $this->assertSame(0, CourtBooking::where('tournament_id', $foreignTournament->id)->count());
+    }
+
+    /** Регресс: скидка и кастомная цена не должны переживать превращение брони в турнирную. */
+    public function test_converting_to_tournament_clears_discount(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 5);
+        $date = now()->addDay()->toDateString();
+
+        $booking = CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => $date,
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'client_name' => 'Иван Иванов',
+            'client_phone' => '77771112233',
+            'status' => 'confirmed',
+            'price' => 15000,
+            'discount' => 5000,
+            'booking_type' => 'individual',
+            'booked_by' => $this->bookingAdmin->id,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+            'tournament_id' => $tournament->id,
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame('tournament', $booking->booking_type);
+        $this->assertSame('0.00', $booking->discount);
+        $this->assertSame('100000.00', $booking->price);
+    }
+
+    /** Регресс: превратить бронь в турнирную без выбора турнира нельзя — иначе цена навсегда останется 0. */
+    public function test_updating_to_tournament_without_tournament_id_is_rejected(): void
+    {
+        [, $admin, $court, $tournament] = $this->setupTournament(20000);
+        $date = now()->addDay()->toDateString();
+
+        $booking = CourtBooking::create([
+            'court_id' => $court->id,
+            'date' => $date,
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'client_name' => 'Иван Иванов',
+            'client_phone' => '77771112233',
+            'status' => 'confirmed',
+            'price' => 15000,
+            'booking_type' => 'individual',
+            'booked_by' => $this->bookingAdmin->id,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+        ])->assertSessionHasErrors('tournament_id');
+
+        $this->assertSame('individual', $booking->fresh()->booking_type);
+    }
 }
