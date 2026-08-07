@@ -376,9 +376,12 @@ class CourtController extends Controller
 
         // Карта court_booking_id => tournament_id — только по видимой неделе
         // и только подтверждённые брони (иначе карта растёт неограниченно).
+        // Сравнение через whereDate: дата в БД может лежать со временем 00:00:00,
+        // и последний день недели тогда не попадает в whereBetween по строкам.
         $bookingTournamentIds = CourtBooking::whereIn('court_id', $courts->pluck('id'))
             ->whereNotNull('tournament_id')
-            ->whereBetween('date', [$weekStartStr, $weekEndStr])
+            ->whereDate('date', '>=', $weekStartStr)
+            ->whereDate('date', '<=', $weekEndStr)
             ->where('status', 'confirmed')
             ->pluck('tournament_id', 'id');
 
@@ -1278,6 +1281,17 @@ class CourtController extends Controller
         $tournamentForBooking = $isTournamentBooking
             ? \App\Models\Tournament::where('club_id', $club->id)->find($request->input('tournament_id'))
             : null;
+        // Пустой (или вовсе отсутствующий) tournament_id не должен рвать уже
+        // сохранённую привязку: окно редактирования открывается и из панели
+        // «Необработанные заявки» — для броней любых дат, где селект нечем
+        // заполнить. Иначе бронь тихо теряла турнир, а пересчёт задваивал
+        // деньги: отвязанная сохраняла цену, а оставшиеся дорожали.
+        // Отвязка делается сменой типа брони: тогда $isTournamentBooking = false
+        // и tournament_id обнуляется штатно.
+        if ($isTournamentBooking && !$tournamentForBooking && $wasTournamentBooking && $booking->tournament_id) {
+            $tournamentForBooking = \App\Models\Tournament::where('club_id', $club->id)
+                ->find($booking->tournament_id);
+        }
         $updateData['tournament_id'] = $tournamentForBooking?->id;
         if (!$isGroupBooking && !$isTournamentBooking) {
             $updateData['client_name'] = $validated['client_name'];
@@ -1313,12 +1327,18 @@ class CourtController extends Controller
                 // пережить пересчёт, если после смены типа брони цена не изменится).
                 $updateData['discount'] = 0;
             }
-            // Клубная карта турнирной броне не нужна: способ оплаты обнуляется,
-            // а крон cards:charge-due отбирает брони по club_card_id и о типе
-            // брони не знает — иначе у клиента спишутся часы за турнир.
+            // Клубная карта турнирной броне не нужна: крон cards:charge-due
+            // отбирает брони по club_card_id и о типе брони не знает — иначе
+            // у клиента спишутся часы за турнир.
             // Уже списанную (card_charged_at) привязку не рвём — это история.
             if ($booking->card_charged_at === null) {
                 $updateData['club_card_id'] = null;
+                // У легаси-брони способ оплаты сохраняется как есть, но «оплата
+                // клубной картой» без карты — противоречивое состояние, поэтому
+                // такой способ оплаты снимаем вместе с картой.
+                if (($updateData['payment_method'] ?? $booking->payment_method) === 'club_card') {
+                    $updateData['payment_method'] = null;
+                }
             }
         }
         // Перепривязка к пользователю приложения если телефон сменился

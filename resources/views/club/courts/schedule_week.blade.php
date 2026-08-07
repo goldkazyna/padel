@@ -626,6 +626,7 @@
                                     'comment' => $b->comment ?? '',
                                     'bookingType' => $b->booking_type ?? '',
                                     'groupId' => $bookingGroupIds[$b->id] ?? null,
+                                    'tournamentId' => $b->tournament_id,
                                     'coachId' => $b->coach_id,
                                     'coachPaid' => $b->coach_paid === null ? null : (bool) $b->coach_paid,
                                     'coachPrice' => $b->coach_price !== null ? (float) $b->coach_price : null,
@@ -723,6 +724,7 @@
                     'isProcessed' => (bool) $ub->is_processed,
                     'comment' => $ub->comment,
                     'bookingType' => $ub->booking_type,
+                    'tournamentId' => $ub->tournament_id,
                     'coachId' => $ub->coach_id,
                     'coachPaid' => $ub->coach_paid,
                     'coaches' => $ub->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
@@ -1859,9 +1861,14 @@
         // Подставляем турнир открытой брони, если он есть. Видимость блока
         // применяем позже, после applyEditGroupVisibility — иначе она (вызванная
         // ниже с isGroup=false для турнирной брони) снова покажет скрытые поля.
+        // Турнир берём из самой брони, а карта __bookingTournaments — запасной
+        // вариант: панель «Необработанные заявки» открывает брони любых дат, а
+        // карта построена только по видимой неделе.
         const tnSelect = document.getElementById('editTournamentSelect');
         if (tnSelect) {
-            tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
+            tnSelect.value = data.tournamentId
+                || (window.__bookingTournaments && window.__bookingTournaments[data.id])
+                || '';
         }
         // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
         // требованием выбрать турнир — иначе её вообще не сохранить.

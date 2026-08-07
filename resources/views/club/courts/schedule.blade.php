@@ -398,6 +398,7 @@
                                             'comment' => $booking->comment ?? '',
                                             'bookingType' => $booking->booking_type ?? '',
                                             'groupId' => $bookingGroupIds[$booking->id] ?? null,
+                                            'tournamentId' => $booking->tournament_id,
                                             'coachId' => $booking->coach_id,
                                             'coachPaid' => $booking->coach_paid === null ? null : (bool) $booking->coach_paid,
                                             'coachPrice' => $booking->coach_price !== null ? (float) $booking->coach_price : null,
@@ -552,6 +553,7 @@
                                 'isProcessed' => $ub->is_processed,
                                 'comment' => $ub->comment,
                                 'bookingType' => $ub->booking_type,
+                                'tournamentId' => $ub->tournament_id,
                                 'coachId' => $ub->coach_id,
                                 'coachPaid' => $ub->coach_paid,
                                 'coaches' => $ub->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
@@ -1738,9 +1740,14 @@
         // Подставляем турнир открытой брони, если он есть. Видимость блока
         // применяем позже, после applyEditGroupVisibility — иначе она (вызванная
         // ниже с isGroup=false для турнирной брони) снова покажет скрытые поля.
+        // Турнир берём из самой брони, а карта __bookingTournaments — запасной
+        // вариант: панель «Необработанные заявки» открывает брони любых дат, а
+        // карта построена только по видимой дате.
         const tnSelect = document.getElementById('editTournamentSelect');
         if (tnSelect) {
-            tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
+            tnSelect.value = data.tournamentId
+                || (window.__bookingTournaments && window.__bookingTournaments[data.id])
+                || '';
         }
         // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
         // требованием выбрать турнир — иначе её вообще не сохранить.

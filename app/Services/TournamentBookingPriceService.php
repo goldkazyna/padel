@@ -193,7 +193,10 @@ class TournamentBookingPriceService
         // Пересчитываем только сегодня и будущее: прошлые даты — уже закрытая
         // выручка, и её нельзя менять задним числом просто от просмотра
         // старой даты (в недельном виде есть навигация назад).
-        $today = now()->toDateString();
+        // Дату берём в таймзоне расписания (как ChargeDueCards): app.timezone —
+        // UTC, и с 00:00 до 05:00 по Алматы «сегодня» было бы вчерашним днём,
+        // то есть вчера всё ещё пересчитывалось бы.
+        $today = now(config('app.schedule_timezone', 'Asia/Almaty'))->toDateString();
 
         $result = [];
         foreach ($tournaments as $t) {
