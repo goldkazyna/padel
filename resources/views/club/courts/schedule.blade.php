@@ -769,11 +769,17 @@
                             @endphp
                             <script>window.__groupMembers = @json($groupMembersData);</script>
                         @endif
+                        @include('club.courts.partials._book_tournament')
                         <script>window.__coachNames = @json($clubCoaches->mapWithKeys(fn($cc) => [$cc->user_id => ($cc->user->full_name ?? '')])->toArray());</script>
                         <script>
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
                         </script>
+                        <script>
+                            // Дневное расписание: дата одна на всю страницу.
+                            function tournamentBookingDate() { return window.__scheduleDate || ''; }
+                        </script>
+                        @include('club.courts.partials._tournament_js')
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">
@@ -2235,6 +2241,7 @@
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
 
         const isGroup = input.value === 'group';
+        const isTournament = input.value === 'tournament';
 
         // Селект группы — только при типе «Групповые»
         const groupWrap = document.getElementById('bookGroupSelectWrap');
@@ -2247,16 +2254,28 @@
             }
         }
 
-        // При типе group прячем клиента/оплату/скидку, снимаем required.
-        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = isGroup ? 'none' : '');
+        // Селект турнира — только при типе «Турнир»
+        const tnWrap = document.getElementById('bookTournamentSelectWrap');
+        if (tnWrap) {
+            tnWrap.style.display = isTournament ? 'block' : 'none';
+            if (!isTournament) {
+                const sel = document.getElementById('bookTournamentSelect');
+                if (sel) sel.value = '';
+                renderTournamentInfo('');
+            }
+        }
+
+        // При типе group/tournament прячем клиента/оплату/скидку, снимаем required.
+        const hideClientFields = isGroup || isTournament;
+        document.querySelectorAll('.js-hide-for-group').forEach(el => el.style.display = hideClientFields ? 'none' : '');
         document.querySelectorAll('.js-show-for-group').forEach(el => el.style.display = isGroup ? 'block' : 'none');
         ['bookClientName', 'bookClientPhone'].forEach(id => {
             const e = document.getElementById(id);
-            if (e) { e.required = !isGroup; if (isGroup) e.value = ''; }
+            if (e) { e.required = !hideClientFields; if (hideClientFields) e.value = ''; }
         });
-        // Блок карты — показываем только если есть карты и не групповая бронь.
+        // Блок карты — показываем только если есть карты и не групповая/турнирная бронь.
         const cardWrap = document.getElementById('bookCardWrap');
-        if (cardWrap) cardWrap.style.display = (!isGroup && (cardCache.book || []).length) ? '' : 'none';
+        if (cardWrap) cardWrap.style.display = (!hideClientFields && (cardCache.book || []).length) ? '' : 'none';
     }
     function renderGroupMembers(groupId) {
         const block = document.getElementById('groupMembersBlock');

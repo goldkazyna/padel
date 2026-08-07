@@ -253,7 +253,9 @@ class TournamentCourtBookingTest extends TestCase
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
             ->assertSee('Американо')
-            ->assertSee('__tournaments', escape: false);
+            ->assertSee('__tournaments', escape: false)
+            ->assertSee('bookTournamentSelectWrap', escape: false)
+            ->assertSee('name="tournament_id"', escape: false);
     }
 
     public function test_completed_tournament_is_not_offered(): void
