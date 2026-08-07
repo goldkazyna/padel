@@ -774,6 +774,7 @@
                         <script>
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
+                        window.__bookingTournaments = @json($bookingTournamentIds ?? []);
                         </script>
                         <script>
                             // Дневное расписание: дата одна на всю страницу.
@@ -1020,6 +1021,7 @@
                             <button type="button" class="bt-btn bt-tournament" data-value="tournament" onclick="selectEditBookingType(this)"><i class="bi bi-trophy"></i><span>Турнир</span></button>
                         </div>
                         <input type="hidden" name="booking_type" id="editBookingTypeInput">
+                        @include('club.courts.partials._edit_tournament')
 
                         <div class="modal-section-title js-edit-hide-for-group">Способ оплаты *</div>
                         <div class="payment-methods js-edit-hide-for-group" id="editPaymentMethods">
@@ -1734,6 +1736,13 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => {
             b.classList.toggle('active', b.getAttribute('data-value') === btVal);
         });
+        // Подставляем турнир открытой брони, если он есть. Видимость блока
+        // применяем позже, после applyEditGroupVisibility — иначе она (вызванная
+        // ниже с isGroup=false для турнирной брони) снова покажет скрытые поля.
+        const tnSelect = document.getElementById('editTournamentSelect');
+        if (tnSelect) {
+            tnSelect.value = (window.__bookingTournaments && window.__bookingTournaments[data.id]) || '';
+        }
 
         // Paid status — берём строго из брони (true/false), не из дефолта
         const paidVal = data.isPaid ? '1' : '0';
@@ -1835,7 +1844,18 @@
         // Групповая бронь — показываем тренера и участников, прячем поля
         // клиента/оплаты (как при создании).
         renderEditGroup(data);
-        applyEditGroupVisibility((data.bookingType || '') === 'group');
+        const isGroupBooking = (data.bookingType || '') === 'group';
+        applyEditGroupVisibility(isGroupBooking);
+        // applyEditTournamentVisibility(false) тоже трогает общий класс
+        // js-edit-hide-for-group — при групповой брони её не вызываем, иначе
+        // она вернёт видимость полей, только что скрытых applyEditGroupVisibility.
+        // Достаточно скрыть турнирный блок отдельно.
+        if (isGroupBooking) {
+            const tnBlock = document.getElementById('editTournamentBlock');
+            if (tnBlock) tnBlock.style.display = 'none';
+        } else {
+            applyEditTournamentVisibility(btVal === 'tournament');
+        }
 
         new bootstrap.Modal(document.getElementById('viewModal')).show();
     }
@@ -2085,6 +2105,7 @@
         const form = e.target;
         const bookingType = document.getElementById('editBookingTypeInput').value;
         const isGroup = bookingType === 'group';
+        const isTournament = bookingType === 'tournament';
         // Групповая бронь: гарантируем отправку выбранного тренера в coach_id
         // (на случай, если onchange селекта не сработал).
         if (isGroup) {
@@ -2098,9 +2119,18 @@
         const paymentGroup = document.getElementById('editPaymentMethods');
         const paidGroup = document.getElementById('editIsPaidInput').parentElement.querySelector('.paid-toggle');
 
-        // Для групповой брони поля клиента/оплаты скрыты и не нужны — пропускаем
-        // эти проверки (как в форме создания).
-        if (!isGroup) {
+        // Для турнирной брони обязателен выбор турнира — поля клиента при этом скрыты.
+        if (isTournament) {
+            const tnSelect = document.getElementById('editTournamentSelect');
+            if (tnSelect && !tnSelect.value) {
+                e.preventDefault();
+                showEditFormError('Выберите турнир', tnSelect);
+                return;
+            }
+        }
+        // Для групповой и турнирной брони поля клиента/оплаты скрыты и не нужны —
+        // пропускаем эти проверки (как в форме создания).
+        if (!isGroup && !isTournament) {
             // Для существующих клиентов имя может быть однословным — не блокируем
             // (карточка-источник истины уже валидирует это на бэке).
             const nameIsLocked = nameInput && nameInput.hasAttribute('readonly');
@@ -2363,7 +2393,17 @@
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
         else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
-        applyEditGroupVisibility(input.value === 'group');
+        const isGroupType = input.value === 'group';
+        applyEditGroupVisibility(isGroupType);
+        // applyEditTournamentVisibility(false) тоже трогает общий класс
+        // js-edit-hide-for-group — при групповом типе её не вызываем, иначе
+        // она вернёт видимость полей, только что скрытых applyEditGroupVisibility.
+        if (isGroupType) {
+            const tnBlock = document.getElementById('editTournamentBlock');
+            if (tnBlock) tnBlock.style.display = 'none';
+        } else {
+            applyEditTournamentVisibility(input.value === 'tournament');
+        }
     }
 
     // Для групповой брони в окне редактирования прячем поля клиента/оплаты/
