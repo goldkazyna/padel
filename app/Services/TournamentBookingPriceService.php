@@ -15,13 +15,34 @@ use App\Models\Tournament;
 class TournamentBookingPriceService
 {
     /**
+     * Кеш числа оплативших участников на время одного вызова сервиса:
+     * id турнира => count. approvedParticipantsCount() бьёт в БД, а внутри
+     * pickerData() один и тот же турнир проходит через totalForDate()
+     * до 7 раз (по числу видимых дат) плюс отдельно для paid_count — без
+     * кеша это лишние SQL-запросы на заведомо неизменное за один HTTP-запрос
+     * значение.
+     *
+     * @var array<int, int>
+     */
+    private array $approvedCountCache = [];
+
+    /**
+     * Число оплативших участников турнира с кешированием на время вызова.
+     */
+    private function approvedCount(Tournament $tournament): int
+    {
+        return $this->approvedCountCache[$tournament->id]
+            ??= $tournament->approvedParticipantsCount();
+    }
+
+    /**
      * Сколько всего должен стоить турнир на дату (до деления между кортами).
      */
     public function totalForDate(Tournament $tournament): float
     {
-        // approvedParticipantsCount() сам различает личные турниры (статус
-        // 'registered') и командные ('approved'-пары × 2) — свою логику не пишем.
-        return (float) $tournament->price * $tournament->approvedParticipantsCount();
+        // approvedCount() сам различает личные турниры (статус 'registered')
+        // и командные ('approved'-пары × 2) — свою логику не пишем, только кешируем.
+        return (float) $tournament->price * $this->approvedCount($tournament);
     }
 
     /**
@@ -87,6 +108,10 @@ class TournamentBookingPriceService
      */
     public function pickerData(Club $club, array $dates): array
     {
+        // На случай, если сервис переживёт несколько вызовов pickerData() на
+        // одном экземпляре — кеш не должен утекать между ними.
+        $this->approvedCountCache = [];
+
         $tournaments = Tournament::where('club_id', $club->id)
             ->whereIn('status', ['open', 'in_progress'])
             ->orderBy('start_date', 'desc')
@@ -94,6 +119,10 @@ class TournamentBookingPriceService
 
         $result = [];
         foreach ($tournaments as $t) {
+            // Считаем один раз на турнир — дальше totalForDate() внутри
+            // syncForDate() (по каждой дате) и total ниже берут из кеша.
+            $paidCount = $this->approvedCount($t);
+
             foreach ($dates as $date) {
                 $this->syncForDate($t, $date);
             }
@@ -113,8 +142,8 @@ class TournamentBookingPriceService
                 'name' => $t->name,
                 'date' => $t->start_date?->format('d.m'),
                 'price' => (float) $t->price,
-                'paid_count' => $t->approvedParticipantsCount(),
-                'total' => $this->totalForDate($t),
+                'paid_count' => $paidCount,
+                'total' => (float) $t->price * $paidCount,
                 'participants' => $t->participants()
                     ->wherePivot('status', 'registered')
                     ->pluck('name')
