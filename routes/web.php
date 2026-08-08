@@ -300,10 +300,12 @@ Route::middleware('auth')->group(function () {
         });
 
         // Инвентарь клуба
-        Route::get('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'index'])->name('inventory.index');
-        Route::post('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'store'])->name('inventory.store');
-        Route::put('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'update'])->name('inventory.update');
-        Route::delete('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'destroy'])->name('inventory.destroy');
+        Route::middleware('club.feature:inventory')->group(function () {
+            Route::get('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'index'])->name('inventory.index');
+            Route::post('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'store'])->name('inventory.store');
+            Route::put('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'update'])->name('inventory.update');
+            Route::delete('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'destroy'])->name('inventory.destroy');
+        });
 
         // Клубные карты
         Route::get('/cards', [App\Http\Controllers\Club\ClubCardTypeController::class, 'index'])->name('cards.index');

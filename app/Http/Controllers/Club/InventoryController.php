@@ -22,13 +22,39 @@ class InventoryController extends Controller
         return $user->adminClubs()->first();
     }
 
-    /** Клуб с включённым модулем, иначе 403. */
+    /**
+     * Клуб текущего пользователя, иначе 403.
+     * Модуль `inventory` проверяет middleware `club.feature:inventory` на маршрутах —
+     * как во всех остальных разделах клуба (он же пропускает супер-админа).
+     */
     private function requireClub()
     {
         $club = $this->getClub();
-        if (!$club || !$club->hasFeature('inventory')) abort(403);
+        if (!$club) abort(403, 'У вас нет клуба');
 
         return $club;
+    }
+
+    /** Правила общие для добавления и редактирования. Цена — целые тенге, без копеек. */
+    private static function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'price' => 'required|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ];
+    }
+
+    /** Русские тексты ошибок валидации. */
+    private static function messages(): array
+    {
+        return [
+            'name.required' => 'Укажите название позиции',
+            'name.max' => 'Название слишком длинное (максимум :max символов)',
+            'price.required' => 'Укажите цену',
+            'price.integer' => 'Цена должна быть целым числом тенге, без копеек',
+            'price.min' => 'Цена не может быть отрицательной',
+        ];
     }
 
     public function index()
@@ -46,17 +72,7 @@ class InventoryController extends Controller
     {
         $club = $this->requireClub();
 
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0',
-            'is_active' => 'nullable|boolean',
-        ], [
-            'name.required' => 'Укажите название позиции',
-            'name.max' => 'Название слишком длинное (максимум :max символов)',
-            'price.required' => 'Укажите цену',
-            'price.numeric' => 'Цена должна быть числом',
-            'price.min' => 'Цена не может быть отрицательной',
-        ]);
+        $data = $request->validate(self::rules(), self::messages());
 
         $data['club_id'] = $club->id;
         $data['is_active'] = $request->boolean('is_active', true);
@@ -74,19 +90,15 @@ class InventoryController extends Controller
         $club = $this->requireClub();
         if ($item->club_id !== $club->id) abort(403);
 
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0',
-            'is_active' => 'nullable|boolean',
-        ], [
-            'name.required' => 'Укажите название позиции',
-            'name.max' => 'Название слишком длинное (максимум :max символов)',
-            'price.required' => 'Укажите цену',
-            'price.numeric' => 'Цена должна быть числом',
-            'price.min' => 'Цена не может быть отрицательной',
-        ]);
+        $data = $request->validate(self::rules(), self::messages());
 
-        $data['is_active'] = $request->boolean('is_active');
+        // Активность меняем ТОЛЬКО если поле реально пришло в запросе. Иначе частичный
+        // PUT (например, из будущего мобильного API) молча выключил бы позицию.
+        if ($request->has('is_active')) {
+            $data['is_active'] = $request->boolean('is_active');
+        } else {
+            unset($data['is_active']);
+        }
 
         $item->update($data);
 
