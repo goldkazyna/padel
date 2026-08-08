@@ -87,6 +87,18 @@ class CourtBooking extends Model
         return $this->hasMany(CourtBookingCoach::class, 'court_booking_id');
     }
 
+    /** Позиции инвентаря, выданные по этой броне. */
+    public function inventoryItems()
+    {
+        return $this->hasMany(CourtBookingInventoryItem::class, 'court_booking_id');
+    }
+
+    /** Сумма за инвентарь по броне (в цену корта не входит). */
+    public function inventoryTotal(): int
+    {
+        return (int) $this->inventoryItems->sum(fn ($row) => $row->total);
+    }
+
     /**
      * Брони, где данный пользователь — тренер: либо основной (coach_id),
      * либо один из нескольких (пивот court_booking_coaches).
