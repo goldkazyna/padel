@@ -175,4 +175,10 @@ class Club extends Model
 	{
 		return $this->hasMany(Tournament::class);
 	}
+
+    /** Позиции инвентаря клуба (аренда ракеток, мячи и прочее). */
+    public function inventoryItems()
+    {
+        return $this->hasMany(ClubInventoryItem::class);
+    }
 }
