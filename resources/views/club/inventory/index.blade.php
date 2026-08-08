@@ -60,7 +60,7 @@
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <form action="{{ route('club.inventory.destroy', $item) }}" method="POST"
-                                  onsubmit="return confirm('Удалить позицию «{{ $item->name }}»? Если она может понадобиться позже, лучше выключите её.')">
+                                  onsubmit="return confirm(@js('Удалить позицию «'.$item->name.'»? Если она может понадобиться позже, лучше выключите её.'))">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="inv-ic inv-ic-del"><i class="bi bi-trash"></i></button>

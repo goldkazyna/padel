@@ -258,4 +258,37 @@ class ClubInventoryTest extends TestCase
             ->assertSee('Старая ракетка')
             ->assertSee('Выключена');
     }
+
+    /**
+     * Название позиции подставляется в confirm() удаления. Blade экранирует апостроф
+     * в HTML-сущность &#039;, но браузер декодирует её обратно в кавычку ДО того,
+     * как отдать строку JS-парсеру — значит, экранирование должно быть JS-безопасным
+     * (через @js()), а не просто HTML-безопасным.
+     */
+    public function test_item_name_with_quotes_cannot_break_delete_confirm_script(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $malicious = "Мяч'); alert(1); //";
+        ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => $malicious, 'price' => 100, 'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('club.inventory.index'))->assertOk();
+
+        // Достаём именно содержимое атрибута onsubmit (а не всю страницу — в текстовой
+        // ячейке таблицы декодированное имя тоже встретится, но там это безопасно,
+        // это просто текст, а не JS-контекст).
+        preg_match('/onsubmit="([^"]*)"/', $response->getContent(), $matches);
+        $this->assertNotEmpty($matches, 'Не нашли атрибут onsubmit формы удаления на странице.');
+
+        // Имитируем то, что сделает браузер: раскроет HTML-сущности внутри атрибута
+        // onsubmit ПЕРЕД тем, как передать содержимое JS-парсеру.
+        $decodedAsBrowserWould = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+
+        $this->assertStringNotContainsString(
+            $malicious,
+            $decodedAsBrowserWould,
+            'Название позиции не должно попадать в JS-строку как есть — иначе можно оборвать confirm() и выполнить произвольный код.'
+        );
+    }
 }
