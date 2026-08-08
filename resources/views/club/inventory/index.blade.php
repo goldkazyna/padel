@@ -4,17 +4,21 @@
 @section('content')
 <div class="inv-page">
 
-    {{-- Шапка раздела — как на «Клиентах» и «Клубных картах» --}}
-    <div class="inv-head">
-        <i class="bi bi-box-seam inv-hi"></i>
-        <h1 class="inv-title">Инвентарь</h1>
-        <span class="inv-count">{{ $items->count() }}</span>
-        <span class="inv-club">— {{ $club->name }}</span>
-        <span class="inv-spacer"></span>
-        <button type="button" class="inv-btn inv-green" onclick="openInventoryAdd()">
-            <i class="bi bi-plus-lg"></i> Добавить позицию
-        </button>
-    </div>
+    {{-- Шапка раздела. Размеры и отступы — как на странице «Клиенты». --}}
+    <header class="inv-header">
+        <div class="inv-title-block">
+            <i class="bi bi-box-seam"></i>
+            <h1 class="inv-title">Инвентарь</h1>
+            <span class="inv-count">{{ $items->count() }}</span>
+            <span class="inv-club">{{ $club->name }}</span>
+        </div>
+        <div class="inv-header-actions">
+            <button type="button" class="inv-btn-add" onclick="openInventoryAdd()">
+                <i class="bi bi-plus-lg"></i>
+                Добавить позицию
+            </button>
+        </div>
+    </header>
 
     @if(session('success'))<div class="flash-message flash-success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="flash-message flash-error">{{ session('error') }}</div>@endif
@@ -127,19 +131,26 @@
 </div>
 
 <style>
-.inv-page{max-width:1100px}
+/* Отступы контейнера — как у .clients-container */
+.inv-page{width:100%;padding:32px 40px}
 
-/* Шапка */
-.inv-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-.inv-hi{font-size:20px;color:var(--accent)}
-.inv-title{font-size:21px;font-weight:800;margin:0;letter-spacing:-.3px;color:var(--text-primary)}
-.inv-count{background:var(--accent-glow);color:var(--accent);font-size:12px;font-weight:800;padding:3px 9px;border-radius:20px}
+/* Шапка: те же размеры и отступы, что у .clients-header */
+.inv-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap}
+.inv-title-block{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.inv-title-block i{font-size:26px;color:var(--accent)}
+.inv-title{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:0;color:var(--text-primary)}
+.inv-count{background:var(--accent);color:var(--bg-primary);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700}
 .inv-club{color:var(--text-muted);font-weight:500;font-size:15px}
+.inv-header-actions{display:flex;align-items:center;gap:10px}
 .inv-spacer{flex:1}
 
-/* Кнопки */
-.inv-btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;padding:9px 15px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
-.inv-green{background:var(--accent);color:#06210f}
+/* Кнопка добавления — как .btn-add-client */
+.inv-btn-add{display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--bg-primary);border:none;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+.inv-btn-add:hover{background:var(--accent-dark)}
+
+/* Кнопки в модалках */
+.inv-btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;padding:11px 18px;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.inv-green{background:var(--accent);color:var(--bg-primary)}
 .inv-green:hover{background:var(--accent-dark)}
 .inv-ghost{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)}
 .inv-ghost:hover{background:var(--bg-card-hover);color:var(--text-primary)}
@@ -183,6 +194,14 @@
 .inv-input{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text-primary);font-size:14px;width:100%}
 .inv-input:focus{outline:none;border-color:var(--accent)}
 .inv-check{display:flex;align-items:center;gap:8px;color:var(--text-primary);font-size:14px;cursor:pointer;margin-top:12px}
+
+/* Адаптив — та же граница и отступы, что у .clients-container */
+@media (max-width: 900px) {
+    .inv-page{padding:24px 20px}
+    .inv-title, .inv-title-block i{font-size:22px}
+    .inv-header-actions{width:100%}
+    .inv-btn-add{width:100%;justify-content:center}
+}
 </style>
 
 <script>
