@@ -53,10 +53,18 @@ class BookingInventoryService
 
         $frozenIds = [];
         $frozenTotal = 0;
+        // Цена-снимок уже существующих (редактируемых) строк — по item_id.
+        // Пересборка ниже иначе брала бы ТЕКУЩУЮ цену из справочника при
+        // каждом сохранении брони, а это противоречит принципу "цена
+        // фиксируется на момент выдачи": правка телефона клиента не должна
+        // задним числом переписывать стоимость уже выданного инвентаря.
+        $existingPrices = [];
         foreach ($booking->inventoryItems as $row) {
             if ($row->club_inventory_item_id === null || !$activeItems->has($row->club_inventory_item_id)) {
                 $frozenIds[] = $row->id;
                 $frozenTotal += $row->price * $row->quantity;
+            } else {
+                $existingPrices[$row->club_inventory_item_id] = (int) $row->price;
             }
         }
 
@@ -79,7 +87,11 @@ class BookingInventoryService
                 continue; // чужая, выключенная или несуществующая позиция — отбрасываем
             }
             $qty = min($qty, self::MAX_QUANTITY);
-            $price = (int) $item->price;
+            // Позиция уже была в этой брони — сохраняем её прежнюю цену,
+            // сколько бы её ни поднимали в справочнике с тех пор. Позиция,
+            // добавленная в бронь впервые, получает текущую цену справочника
+            // и фиксирует её как свой снимок с этого момента.
+            $price = $existingPrices[$itemId] ?? (int) $item->price;
 
             $insertRows[] = [
                 'court_booking_id' => $booking->id,

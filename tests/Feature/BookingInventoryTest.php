@@ -156,6 +156,67 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(3000, $booking->fresh()->inventoryTotal());
     }
 
+    /**
+     * Регресс: цена — снимок на момент ПЕРВОЙ выдачи позиции, а не текущая
+     * цена справочника при каждом пересохранении. Предыдущий тест выше не
+     * ловил эту проблему, потому что не вызывал sync() повторно — здесь бронь
+     * пересохраняется с тем же составом, и цена строки не должна съехать на
+     * актуальную из справочника.
+     */
+    public function test_resync_with_same_item_keeps_old_snapshot_price(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        $service = app(BookingInventoryService::class);
+
+        $service->sync($booking, $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+
+        $racket->update(['price' => 4000]); // клуб поднял цену в справочнике
+
+        // Тот же состав — просто пересохранили бронь (например, поменяли телефон клиента).
+        $total = $service->sync($booking->fresh(), $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+
+        $row = $booking->fresh()->inventoryItems->first();
+        $this->assertSame(3000, $row->price, 'цена строки должна остаться прежней, а не подтянуть новую из справочника');
+        $this->assertSame(3000, $total);
+        $this->assertSame(3000, $booking->fresh()->inventoryTotal());
+    }
+
+    /**
+     * Обратная сторона предыдущего теста: позиция, добавленная в бронь
+     * впервые уже ПОСЛЕ изменения цены в справочнике, обязана получить
+     * актуальную цену — снимок фиксируется в момент первой выдачи, а не
+     * раньше.
+     */
+    public function test_newly_added_item_after_price_change_gets_current_price(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $balls = $this->makeItem($club, 'Мячи', 2000);
+        $booking = $this->makeBooking($court, $admin);
+        $service = app(BookingInventoryService::class);
+
+        $service->sync($booking, $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+
+        $racket->update(['price' => 4000]); // цена ракетки выросла
+        $balls->update(['price' => 2500]);  // и цена мячей — но мячей в брони ещё не было
+
+        // Добавляем мячи впервые вместе с уже выданной ракеткой.
+        $total = $service->sync($booking->fresh(), $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+            ['item_id' => $balls->id, 'quantity' => 1],
+        ]);
+
+        $rows = $booking->fresh()->inventoryItems;
+        $racketRow = $rows->firstWhere('club_inventory_item_id', $racket->id);
+        $ballsRow = $rows->firstWhere('club_inventory_item_id', $balls->id);
+
+        $this->assertSame(3000, $racketRow->price, 'ракетка уже была в брони — цена не меняется');
+        $this->assertSame(2500, $ballsRow->price, 'мячи добавлены впервые — берём текущую цену справочника');
+        $this->assertSame(3000 + 2500, $total);
+    }
+
     public function test_sync_replaces_previous_rows(): void
     {
         [$club, $admin, $court] = $this->setupClub();
@@ -584,6 +645,42 @@ class BookingInventoryTest extends TestCase
             ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
             ->assertOk()
             ->assertSee('Аренда ракетки');
+    }
+
+    /**
+     * Регресс: путь «обычная → групповая → обратно обычная» в одном открытом
+     * окне редактирования не должен стирать инвентарь. Поведение чисто
+     * клиентское (состояние __invChosen.edit/__invHistorical.edit в JS),
+     * серверного теста для него нет и быть не может — контроллер для
+     * group/tournament и так зовёт sync() с пустым набором сам, независимо
+     * от того, что осталось в скрытых полях формы (см. updateBooking()).
+     * Проверяем через разметку двух вьюх:
+     * 1) сброс инвентаря по клику типа брони убран целиком — ни вызова
+     *    resetEditInventory(), ни самой функции в отдаваемом JS больше нет
+     *    (dead code удалён вместе с вызовом, а не просто раскомментирован
+     *    для другого условия);
+     * 2) видимость блока «Инвентарь» в окне редактирования управляется тем
+     *    же классом js-edit-hide-for-group, что и остальные поля, скрываемые
+     *    для группы/турнира, — то есть блок при возврате к обычному типу
+     *    просто снова показывается вместе с уже накопленным состоянием,
+     *    а не пересобирается с нуля.
+     */
+    public function test_edit_inventory_state_survives_type_change_in_markup(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $day = $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk();
+        $day->assertDontSee('resetEditInventory', false);
+        $day->assertSee('class="inv-pick js-edit-hide-for-group" id="editInventoryPick"', false);
+
+        $week = $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk();
+        $week->assertDontSee('resetEditInventory', false);
+        $week->assertSee('class="inv-pick js-edit-hide-for-group" id="editInventoryPick"', false);
     }
 
     /**
