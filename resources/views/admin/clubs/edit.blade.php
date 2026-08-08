@@ -406,6 +406,13 @@
                                        style="background-color: var(--bg-secondary); border-color: var(--border);">
                                 <span class="form-check-label">Групповые занятия</span>
                             </label>
+                            <label class="form-check">
+                                <input type="hidden" name="features[inventory]" value="0">
+                                <input type="checkbox" name="features[inventory]" value="1" class="form-check-input"
+                                       {{ old('features.inventory', $features['inventory'] ?? true) ? 'checked' : '' }}
+                                       style="background-color: var(--bg-secondary); border-color: var(--border);">
+                                <span class="form-check-label">Инвентарь</span>
+                            </label>
                         </div>
                     </div>
 

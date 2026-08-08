@@ -58,4 +58,31 @@ class ClubInventoryTest extends TestCase
 
         $this->assertSame(['Мячи'], $names);
     }
+
+    public function test_inventory_feature_defaults_to_enabled(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin']);
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+
+        $this->actingAs($superAdmin)->put(route('admin.clubs.update', $club), [
+            'name' => 'C',
+            'address' => 'A',
+        ])->assertRedirect();
+
+        $this->assertTrue($club->fresh()->hasFeature('inventory'));
+    }
+
+    public function test_super_admin_can_disable_inventory_feature(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin']);
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+
+        $this->actingAs($superAdmin)->put(route('admin.clubs.update', $club), [
+            'name' => 'C',
+            'address' => 'A',
+            'features' => ['inventory' => '0'],
+        ])->assertRedirect();
+
+        $this->assertFalse($club->fresh()->hasFeature('inventory'));
+    }
 }
