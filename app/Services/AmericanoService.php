@@ -428,6 +428,11 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
         $this->addPlayerPoints($group, $match->team1_player2_id, $team1Score);
         $this->addPlayerPoints($group, $match->team2_player1_id, $team2Score);
         $this->addPlayerPoints($group, $match->team2_player2_id, $team2Score);
+
+        // Правка счёта тоже закрывает раунд: недоигранный матч часто добивают
+        // именно редактированием (вбивают 0:0). Без этого раунд навсегда оставался
+        // in_progress и кнопка «Завершить турнир» не появлялась.
+        $this->checkRoundCompletion($match->round);
     }
 
     protected function addPlayerPoints(TournamentGroup $group, int $playerId, int $points): void

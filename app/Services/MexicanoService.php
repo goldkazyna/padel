@@ -381,6 +381,9 @@ class MexicanoService
         $this->addPlayerPoints($tournament->id, $match->team1_player2_id, $team1Score);
         $this->addPlayerPoints($tournament->id, $match->team2_player1_id, $team2Score);
         $this->addPlayerPoints($tournament->id, $match->team2_player2_id, $team2Score);
+
+        // Правка счёта тоже закрывает раунд — как и первичный ввод.
+        $this->checkRoundCompletion($match->round);
     }
 
     /**
