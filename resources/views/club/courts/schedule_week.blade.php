@@ -1125,6 +1125,10 @@
                                 <span class="total-sub-label">Цена за тренера</span>
                                 <span class="total-sub-value" id="bookCoachTotal"></span>
                             </div>
+                            <div class="total-row" id="bookInventoryTotalRow" style="display:none;">
+                                <span class="total-sub-label">Инвентарь</span>
+                                <span class="total-sub-value" id="bookInventoryTotal"></span>
+                            </div>
                             <div class="total-row total-row-final">
                                 <span class="total-price-label">Итого</span>
                                 <span class="total-price-value" id="bookTotalPrice"></span>
@@ -1143,6 +1147,8 @@
                         </div>
                         <input type="hidden" name="coach_id" id="bookCoachId" value="">
                         <div id="bookSelectedCoaches" class="sel-coaches js-hide-for-group"></div>
+
+                        @include('club.courts.partials._book_inventory')
 
                         <div class="form-group" id="bookCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
@@ -1270,6 +1276,7 @@
                         window.__scheduleDate = @json($date);
                         window.__bookingTournaments = @json($bookingTournamentIds ?? []);
                         window.__inventory = @json($inventoryItems ?? [], JSON_UNESCAPED_UNICODE);
+                        window.__bookingInventory = @json($bookingInventory ?? [], JSON_UNESCAPED_UNICODE);
                         </script>
                         <script>
                             // Недельное расписание: дата брони не одна на страницу — её задаёт
@@ -1280,6 +1287,7 @@
                             }
                         </script>
                         @include('club.courts.partials._tournament_js')
+                        @include('club.courts.partials._inventory_js')
 
                         <div class="modal-section-title js-hide-for-group">Способ оплаты</div>
                         <div class="payment-methods js-hide-for-group" id="paymentMethods">
@@ -1390,6 +1398,10 @@
                                 <span class="total-sub-label">Цена за тренера</span>
                                 <span class="total-sub-value" id="editCoachTotal"></span>
                             </div>
+                            <div class="total-row" id="editInventoryTotalRow" style="display:none;">
+                                <span class="total-sub-label">Инвентарь</span>
+                                <span class="total-sub-value" id="editInventoryTotal"></span>
+                            </div>
                             <div class="total-row total-row-final">
                                 <span class="total-price-label">Итого</span>
                                 <span class="total-price-value" id="editTotalPrice"></span>
@@ -1417,6 +1429,8 @@
                         </div>
                         <input type="hidden" name="coach_id" id="editCoachId" value="">
                         <div id="editSelectedCoaches" class="sel-coaches"></div>
+
+                        @include('club.courts.partials._edit_inventory')
 
                         <div class="form-group" id="editCoachPriceGroup" style="display:none; margin-top:14px;">
                             <label class="form-label">Цена тренера, ₸</label>
@@ -1693,7 +1707,17 @@
         } else {
             coachRow.style.display = 'none';
         }
-        document.getElementById('bookTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal) + ' &#8376;';
+        const invTotal = (typeof inventoryTotal === 'function') ? inventoryTotal('book') : 0;
+        const invRow = document.getElementById('bookInventoryTotalRow');
+        if (invRow) {
+            if (invTotal > 0) {
+                document.getElementById('bookInventoryTotal').innerHTML = formatPrice(invTotal) + ' &#8376;';
+                invRow.style.display = '';
+            } else {
+                invRow.style.display = 'none';
+            }
+        }
+        document.getElementById('bookTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal + invTotal) + ' &#8376;';
     }
     // Правка цены тренера в строке → пересчёт итога.
     document.getElementById('bookSelectedCoaches')?.addEventListener('input', updateFinalPrice);
@@ -1721,7 +1745,17 @@
         } else {
             coachRow.style.display = 'none';
         }
-        document.getElementById('editTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal) + ' &#8376;';
+        const invTotal = (typeof inventoryTotal === 'function') ? inventoryTotal('edit') : 0;
+        const invRow = document.getElementById('editInventoryTotalRow');
+        if (invRow) {
+            if (invTotal > 0) {
+                document.getElementById('editInventoryTotal').innerHTML = formatPrice(invTotal) + ' &#8376;';
+                invRow.style.display = '';
+            } else {
+                invRow.style.display = 'none';
+            }
+        }
+        document.getElementById('editTotalPrice').innerHTML = formatPrice(courtPrice + coachTotal + invTotal) + ' &#8376;';
     }
     document.getElementById('editSelectedCoaches')?.addEventListener('input', updateEditFinalPrice);
 
@@ -1871,6 +1905,8 @@
                 || (window.__bookingTournaments && window.__bookingTournaments[data.id])
                 || '';
         }
+        // Подставляем инвентарь открытой брони в модалку редактирования.
+        if (typeof applyBookingInventory === 'function') applyBookingInventory(data.id);
         // Дата открытой брони — по ней панель турнира считает деление между кортами.
         window.__editBookingDate = data.date || '';
         // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем

@@ -105,6 +105,7 @@
             const el = document.getElementById(id);
             if (el) el.required = true;
         });
+        if (typeof resetBookInventory === 'function') resetBookInventory();
     }
 
     // Была ли открытая бронь турнирной ДО правки. У легаси-броней (тип «Турнир»
