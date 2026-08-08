@@ -372,9 +372,11 @@ class ClubInventoryTest extends TestCase
 
         $html = $this->actingAs($admin)->get(route('club.inventory.index'))->assertOk()->getContent();
 
-        preg_match('/INVENTORY_UPDATE_URL\s*=\s*("(?:[^"\\\\]|\\\\.)*")/', $html, $m);
+        // Кавычки могут быть любыми: @js даёт одинарные, @json — двойные.
+        // Тест проверяет сам адрес, а не способ его кодирования.
+        preg_match('/INVENTORY_UPDATE_URL\s*=\s*([\'"])(.*?)\1/', $html, $m);
         $this->assertNotEmpty($m, 'Не нашли шаблон адреса сохранения в скрипте страницы.');
-        $template = json_decode($m[1]);
+        $template = str_replace('\\/', '/', $m[2]);
 
         // Подстановка id должна давать ровно тот адрес, который знает роутер.
         $this->assertSame(
