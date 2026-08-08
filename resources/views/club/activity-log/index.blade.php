@@ -187,6 +187,7 @@
                                 'ClubGroup' => ['label' => 'Группа', 'class' => 'client', 'icon' => 'bi-people-fill'],
                                 'ClubGroupMember' => ['label' => 'Участник', 'class' => 'client', 'icon' => 'bi-person'],
                                 'ClubGroupSession' => ['label' => 'Занятие', 'class' => 'booking', 'icon' => 'bi-calendar-check'],
+                                'ClubInventoryItem' => ['label' => 'Инвентарь', 'class' => 'block', 'icon' => 'bi-box-seam'],
                             ];
                             $subj = $subjectLabels[$log->subject_type] ?? ['label' => $log->subject_type, 'class' => '', 'icon' => 'bi-circle'];
                             $initials = '';
