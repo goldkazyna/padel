@@ -129,7 +129,7 @@ class CourtController extends Controller
         $unprocessedBookings = CourtBooking::whereIn('court_id', $courts->pluck('id'))
             ->where('status', 'confirmed')
             ->where('is_processed', false)
-            ->with(['court', 'coaches.coach'])
+            ->with(['court', 'coaches.coach', 'inventoryItems'])
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
@@ -335,7 +335,7 @@ class CourtController extends Controller
         $unprocessedBookings = \App\Models\CourtBooking::whereIn('court_id', $courtIds)
             ->where('status', 'confirmed')
             ->where('is_processed', false)
-            ->with(['court', 'coaches.coach'])
+            ->with(['court', 'coaches.coach', 'inventoryItems'])
             ->orderBy('date')
             ->orderBy('start_time')
             ->get();
@@ -1478,7 +1478,13 @@ class CourtController extends Controller
 
         // Инвентарь заменяем целиком. Для групповой и турнирной брони — очищаем:
         // у них цена считается автоматически.
-        if (!$isGroupBooking && !$isTournamentBooking && $club->hasFeature('inventory')) {
+        // inventory_touched — маркер того, что форма редактирования реально
+        // показывала пикер (ставится статически в самой вьюхе). Без него
+        // ключ inventory просто отсутствует в запросе — например, если пикер
+        // не подхватил инвентарь открытой не со своей даты брони, — и трогать
+        // существующие строки нельзя: иначе любое сохранение стирает уже
+        // выданный инвентарь, даже если админ его не касался.
+        if (!$isGroupBooking && !$isTournamentBooking && $club->hasFeature('inventory') && $request->has('inventory_touched')) {
             app(\App\Services\BookingInventoryService::class)
                 ->sync($booking->fresh(), $club, $request->input('inventory', []));
         } elseif ($isGroupBooking || $isTournamentBooking) {

@@ -38,12 +38,23 @@ class BookingInventoryService
             $wanted[$itemId] = ($wanted[$itemId] ?? 0) + $qty;
         }
 
-        // Прежние строки заменяем целиком — так редактирование не задваивает позиции.
-        $booking->inventoryItems()->delete();
+        // Прежние строки заменяем целиком, КРОМЕ исторических — тех, у кого
+        // club_inventory_item_id пуст (позицию удалили из справочника). Их
+        // через интерфейс не выбрать заново, и они обязаны переживать любое
+        // последующее сохранение брони, иначе правка чего угодно (телефона,
+        // способа оплаты) тихо стирает уже списанные деньги за инвентарь.
+        $booking->inventoryItems()->whereNotNull('club_inventory_item_id')->delete();
+
+        // Сумма по историческим строкам, уцелевшим после удаления выше —
+        // её нужно приплюсовать к итогу вместе с новым набором.
+        $historicalTotal = (int) $booking->inventoryItems()
+            ->whereNull('club_inventory_item_id')
+            ->get()
+            ->sum(fn ($r) => $r->price * $r->quantity);
 
         if (empty($wanted)) {
             $booking->load('inventoryItems');
-            return 0;
+            return $historicalTotal;
         }
 
         // Берём только активные позиции этого клуба — чужие и выключенные отбрасываем.
@@ -55,7 +66,7 @@ class BookingInventoryService
         // Собираем все строки и вставляем одним запросом вместо INSERT на каждую позицию
         // (до 50 позиций за вызов — цикл create() давал бы до 50 отдельных запросов).
         $now = Carbon::now();
-        $total = 0;
+        $total = $historicalTotal;
         $insertRows = [];
         foreach ($items as $item) {
             $qty = min($wanted[$item->id], self::MAX_QUANTITY);

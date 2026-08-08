@@ -3,6 +3,12 @@
 <script>
     // Выбранное по каждой модалке: { 'book': {itemId: {name, price, qty}}, 'edit': {...} }
     window.__invChosen = { book: {}, edit: {} };
+    // Исторические строки — позиция уже удалена из справочника клуба
+    // (club_inventory_item_id пуст). Их нельзя пересобрать через пикер —
+    // выбирать нечего, — поэтому они не участвуют в __invChosen и не уходят
+    // в форму отдельными скрытыми полями: бэкенд сохраняет их сам при любом
+    // сохранении брони. Здесь только для отображения и суммы «Итого».
+    window.__invHistorical = { book: [], edit: [] };
 
     function invFmt(n) { return new Intl.NumberFormat('ru-RU').format(n); }
 
@@ -30,10 +36,12 @@
         renderInventoryPicker(mode);
     }
 
-    // Сумма за инвентарь в выбранной модалке.
+    // Сумма за инвентарь в выбранной модалке — редактируемые строки +
+    // исторические (позиция удалена из справочника, но деньги уже списаны).
     function inventoryTotal(mode) {
         let sum = 0;
         Object.values(window.__invChosen[mode]).forEach(r => { sum += r.price * r.qty; });
+        (window.__invHistorical[mode] || []).forEach(r => { sum += r.price * r.quantity; });
         return sum;
     }
 
@@ -43,6 +51,31 @@
         if (!box) return;
         const store = window.__invChosen[mode];
         box.innerHTML = '';
+
+        // Исторические строки — показываем первыми, без кнопок количества и
+        // удаления: менять их через интерфейс нельзя, они не заводят позицию
+        // повторно, а только объясняют админу, за что уже списаны деньги.
+        (window.__invHistorical[mode] || []).forEach(row => {
+            const el = document.createElement('div');
+            el.className = 'inv-row inv-row-historical';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'inv-row-name';
+            nameEl.textContent = row.name + ' × ' + row.quantity; // textContent — название пришло от пользователя
+            el.appendChild(nameEl);
+
+            const note = document.createElement('span');
+            note.className = 'inv-row-note';
+            note.textContent = 'позиция удалена из справочника';
+            el.appendChild(note);
+
+            const sum = document.createElement('span');
+            sum.className = 'inv-row-sum';
+            sum.textContent = invFmt(row.price * row.quantity) + ' ₸';
+            el.appendChild(sum);
+
+            box.appendChild(el);
+        });
 
         Object.keys(store).forEach((itemId, i) => {
             const row = store[itemId];
@@ -96,11 +129,21 @@
     }
 
     // Подставить инвентарь открытой брони в модалку редактирования.
-    function applyBookingInventory(bookingId) {
+    // rows — инвентарь из данных самой брони (payload data.inventory),
+    // он не зависит от видимой даты/недели и есть у любой открытой брони.
+    // window.__bookingInventory (карта по видимому дню/неделе) — запасной
+    // вариант для мест, где payload ещё не содержит инвентарь.
+    function applyBookingInventory(bookingId, rows) {
         window.__invChosen.edit = {};
-        const rows = (window.__bookingInventory && window.__bookingInventory[bookingId]) || [];
-        rows.forEach(r => {
-            if (!r.item_id) return; // позиция удалена из справочника — не подставляем
+        window.__invHistorical.edit = [];
+        const list = rows || (window.__bookingInventory && window.__bookingInventory[bookingId]) || [];
+        list.forEach(r => {
+            if (!r.item_id) {
+                // Позиция удалена из справочника — строка историческая, её
+                // некуда подставить в редактируемый пикер.
+                window.__invHistorical.edit.push(r);
+                return;
+            }
             window.__invChosen.edit[r.item_id] = { name: r.name, price: r.price, qty: r.quantity };
         });
         renderInventoryPicker('edit');
@@ -109,7 +152,17 @@
     // Сбросить выбор в модалке создания.
     function resetBookInventory() {
         window.__invChosen.book = {};
+        window.__invHistorical.book = [];
         renderInventoryPicker('book');
+    }
+
+    // Сбросить выбор в модалке редактирования — вызывается при смене типа
+    // брони (на группу/турнир): как и resetBookInventory в окне создания,
+    // без сброса скрытые поля прежнего инвентаря остались бы в DOM.
+    function resetEditInventory() {
+        window.__invChosen.edit = {};
+        window.__invHistorical.edit = [];
+        renderInventoryPicker('edit');
     }
 </script>
 
@@ -129,4 +182,6 @@
 .inv-row-sum{min-width:90px;text-align:right;font-weight:700;font-size:13px;color:var(--accent)}
 .inv-row-del{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px}
 .inv-row-del:hover{color:#ef4444}
+.inv-row-historical{opacity:0.6;border-style:dashed}
+.inv-row-note{font-size:11px;color:var(--text-muted);font-style:italic}
 </style>

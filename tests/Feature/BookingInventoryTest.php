@@ -220,6 +220,30 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(99 * 2000, $total);
     }
 
+    public function test_sync_preserves_historical_row_and_includes_its_total(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $balls = $this->makeItem($club, 'Мячи', 2000);
+        $booking = $this->makeBooking($court, $admin);
+        $service = app(BookingInventoryService::class);
+
+        $service->sync($booking, $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+        $racket->delete(); // позиция удалена из справочника — строка ракетки становится исторической
+
+        // Новое сохранение с другим набором не должно затронуть историческую строку.
+        $total = $service->sync($booking->fresh(), $club, [['item_id' => $balls->id, 'quantity' => 2]]);
+
+        $rows = $booking->fresh()->inventoryItems;
+        $this->assertSame(2, $rows->count(), 'историческая строка должна пережить sync() вместе с новой позицией');
+        $this->assertTrue($rows->contains(fn ($r) => $r->club_inventory_item_id === null && $r->name === 'Аренда ракетки'),
+            'историческая строка ракетки осталась');
+        $this->assertTrue($rows->contains(fn ($r) => $r->name === 'Мячи' && $r->quantity === 2),
+            'новая позиция записана');
+        $this->assertSame(3000 + 4000, $total, 'сумма = историческая строка + новый набор');
+        $this->assertSame(3000 + 4000, $booking->fresh()->inventoryTotal());
+    }
+
     public function test_same_item_twice_is_merged(): void
     {
         [$club, $admin, $court] = $this->setupClub();
@@ -307,12 +331,74 @@ class BookingInventoryTest extends TestCase
             'is_paid' => 0,
             'booking_type' => 'individual',
             'inventory' => [['item_id' => $balls->id, 'quantity' => 2]],
+            'inventory_touched' => '1', // маркер из формы: пикер реально участвовал в сохранении
         ])->assertRedirect();
 
         $rows = $booking->fresh()->inventoryItems;
         $this->assertSame(1, $rows->count());
         $this->assertSame('Мячи', $rows->first()->name);
         $this->assertSame(4000, $booking->fresh()->inventoryTotal());
+    }
+
+    /**
+     * Регресс: PUT без поля inventory (например, бронь открыли не со своей
+     * видимой даты — карта __bookingInventory её не содержала, пикер пришёл
+     * пустым) не должен стирать уже записанный инвентарь. Раньше контроллер
+     * читал `$request->input('inventory', [])` и синкал с пустым набором —
+     * любое сохранение без явного участия пикера тихо всё стирало.
+     */
+    public function test_update_without_inventory_field_keeps_existing_rows(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 2],
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            // 'inventory' и 'inventory_touched' намеренно не переданы.
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(6000, $booking->inventoryTotal(), 'инвентарь должен сохраниться, раз поле не передавали');
+        $this->assertSame(1, $booking->inventoryItems->count());
+    }
+
+    /**
+     * Регресс: строка с уже удалённой из справочника позицией обязана
+     * пережить обычное сохранение брони (форма шлёт inventory_touched, но
+     * список редактируемых позиций пуст) и учитываться в сумме «Итого».
+     */
+    public function test_historical_row_survives_booking_save_and_counts_in_total(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 2],
+        ]);
+
+        $racket->delete(); // позиция удалена из справочника — строка становится исторической
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'inventory_touched' => '1', // форма показывала пикер, но выбрать удалённую позицию уже нельзя
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(1, $booking->inventoryItems->count(), 'историческая строка должна выжить');
+        $this->assertNull($booking->inventoryItems->first()->club_inventory_item_id);
+        $this->assertSame(6000, $booking->inventoryTotal(), 'сумма исторической строки учитывается в итоге');
     }
 
     public function test_group_booking_ignores_inventory(): void

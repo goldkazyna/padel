@@ -399,6 +399,7 @@
                                             'bookingType' => $booking->booking_type ?? '',
                                             'groupId' => $bookingGroupIds[$booking->id] ?? null,
                                             'tournamentId' => $booking->tournament_id,
+                                            'inventory' => $bookingInventory[$booking->id] ?? [],
                                             'coachId' => $booking->coach_id,
                                             'coachPaid' => $booking->coach_paid === null ? null : (bool) $booking->coach_paid,
                                             'coachPrice' => $booking->coach_price !== null ? (float) $booking->coach_price : null,
@@ -554,6 +555,12 @@
                                 'comment' => $ub->comment,
                                 'bookingType' => $ub->booking_type,
                                 'tournamentId' => $ub->tournament_id,
+                                'inventory' => $ub->inventoryItems->map(fn($r) => [
+                                    'item_id' => $r->club_inventory_item_id,
+                                    'name' => $r->name,
+                                    'price' => (int) $r->price,
+                                    'quantity' => (int) $r->quantity,
+                                ])->values(),
                                 'coachId' => $ub->coach_id,
                                 'coachPaid' => $ub->coach_paid,
                                 'coaches' => $ub->coaches->map(fn($pc) => ['coachId' => (int) $pc->coach_id, 'price' => $pc->coach_price !== null ? (float) $pc->coach_price : null, 'paid' => (bool) $pc->coach_paid])->values(),
@@ -1785,7 +1792,9 @@
                 || '';
         }
         // Подставляем инвентарь открытой брони в модалку редактирования.
-        if (typeof applyBookingInventory === 'function') applyBookingInventory(data.id);
+        // Берём из данных самой брони — они не зависят от видимой даты, в
+        // отличие от карты __bookingInventory (см. applyBookingInventory).
+        if (typeof applyBookingInventory === 'function') applyBookingInventory(data.id, data.inventory);
         // Дата открытой брони — по ней панель турнира считает деление между кортами.
         window.__editBookingDate = data.date || '';
         // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
@@ -2453,6 +2462,10 @@
         } else {
             applyEditTournamentVisibility(input.value === 'tournament');
         }
+        // Смена типа брони меняет набор видимых полей — как и в окне
+        // создания, сбрасываем выбор инвентаря, иначе скрытые поля прежнего
+        // набора остаются в DOM и уходят в запрос вместе с новым типом.
+        if (typeof resetEditInventory === 'function') resetEditInventory();
     }
 
     // Для групповой брони в окне редактирования прячем поля клиента/оплаты/
