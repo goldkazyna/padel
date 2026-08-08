@@ -166,11 +166,32 @@ class CourtController extends Controller
         $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
             ->pickerData($club, [$date], $bookingTournamentIds->values()->all());
 
+        // Позиции инвентаря для модалки брони + уже выданное по броням этого дня.
+        $inventoryItems = $club->hasFeature('inventory')
+            ? \App\Models\ClubInventoryItem::where('club_id', $club->id)
+                ->where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        $bookingInventory = \App\Models\CourtBookingInventoryItem::whereIn(
+                'court_booking_id',
+                CourtBooking::whereIn('court_id', $courts->pluck('id'))
+                    ->whereDate('date', $date)->pluck('id')
+            )
+            ->get()
+            ->groupBy('court_booking_id')
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'item_id' => $r->club_inventory_item_id,
+                'name' => $r->name,
+                'price' => (int) $r->price,
+                'quantity' => (int) $r->quantity,
+            ])->values());
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
-            'bookingTournaments', 'bookingTournamentIds'
+            'bookingTournaments', 'bookingTournamentIds',
+            'inventoryItems', 'bookingInventory'
         ));
     }
 
@@ -391,11 +412,35 @@ class CourtController extends Controller
         $bookingTournaments = app(\App\Services\TournamentBookingPriceService::class)
             ->pickerData($club, collect($weekDays)->pluck('date')->all(), $bookingTournamentIds->values()->all());
 
+        // Позиции инвентаря для модалки брони + уже выданное по броням этой недели.
+        $inventoryItems = $club->hasFeature('inventory')
+            ? \App\Models\ClubInventoryItem::where('club_id', $club->id)
+                ->where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        $weekDates = collect($weekDays)->pluck('date')->all();
+        $bookingInventory = \App\Models\CourtBookingInventoryItem::whereIn(
+                'court_booking_id',
+                CourtBooking::whereIn('court_id', $courts->pluck('id'))
+                    ->whereDate('date', '>=', min($weekDates))
+                    ->whereDate('date', '<=', max($weekDates))
+                    ->pluck('id')
+            )
+            ->get()
+            ->groupBy('court_booking_id')
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'item_id' => $r->club_inventory_item_id,
+                'name' => $r->name,
+                'price' => (int) $r->price,
+                'quantity' => (int) $r->quantity,
+            ])->values());
+
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
-            'bookingTournaments', 'bookingTournamentIds'
+            'bookingTournaments', 'bookingTournamentIds',
+            'inventoryItems', 'bookingInventory'
         ));
     }
 
@@ -693,6 +738,9 @@ class CourtController extends Controller
             'certificate_id' => 'nullable|integer',
             'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
+            'inventory' => 'nullable|array|max:50',
+            'inventory.*.item_id' => 'required_with:inventory|integer',
+            'inventory.*.quantity' => 'nullable|integer|min:1|max:99',
         ], [
             'client_name.required_unless' => 'Укажите имя клиента',
             'client_phone.required_unless' => 'Укажите номер телефона',
@@ -700,6 +748,7 @@ class CourtController extends Controller
             'payment_method.in' => 'Выберите корректный способ оплаты',
             'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
             'tournament_id.required_if' => 'Выберите турнир',
+            'inventory.*.quantity.max' => 'Слишком большое количество инвентаря (максимум :max)',
         ]);
 
         $tournamentForBooking = null;
@@ -1001,6 +1050,13 @@ class CourtController extends Controller
                 app(\App\Services\TournamentBookingPriceService::class)->syncForBooking($booking);
             }
 
+            // Инвентарь: только для обычных броней и только при включённом модуле.
+            // У групповых и турнирных цена считается сама, добавка сломала бы расчёт.
+            if (!$isGroupBooking && !$isTournamentBooking && $club->hasFeature('inventory')) {
+                app(\App\Services\BookingInventoryService::class)
+                    ->sync($booking, $club, $validated['inventory'] ?? []);
+            }
+
             \App\Models\ActivityLog::log('created', 'CourtBooking', $booking->id, "Бронирование: {$validated['client_name']}, {$court->name}, {$date} {$startTime}–{$endTime}");
         }
 
@@ -1174,6 +1230,9 @@ class CourtController extends Controller
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
             'slots' => 'nullable|integer|min:1|max:12',
+            'inventory' => 'nullable|array|max:50',
+            'inventory.*.item_id' => 'required_with:inventory|integer',
+            'inventory.*.quantity' => 'nullable|integer|min:1|max:99',
         ], [
             'client_name.required_unless' => 'Укажите имя клиента',
             'client_phone.required_unless' => 'Укажите номер телефона',
@@ -1181,6 +1240,7 @@ class CourtController extends Controller
             'payment_method.in' => 'Выберите корректный способ оплаты',
             'is_paid.required_unless' => 'Выберите статус оплаты (оплачено / не оплачено)',
             'tournament_id.required_if' => 'Выберите турнир',
+            'inventory.*.quantity.max' => 'Слишком большое количество инвентаря (максимум :max)',
         ]);
 
         $linkedUser = null;
@@ -1415,6 +1475,15 @@ class CourtController extends Controller
         }
 
         $booking->update($updateData);
+
+        // Инвентарь заменяем целиком. Для групповой и турнирной брони — очищаем:
+        // у них цена считается автоматически.
+        if (!$isGroupBooking && !$isTournamentBooking && $club->hasFeature('inventory')) {
+            app(\App\Services\BookingInventoryService::class)
+                ->sync($booking->fresh(), $club, $request->input('inventory', []));
+        } elseif ($isGroupBooking || $isTournamentBooking) {
+            $booking->inventoryItems()->delete();
+        }
 
         // Пересчитываем и новый набор, и прежний — бронь могла сменить турнир,
         // дату или вовсе перестать быть турнирной.

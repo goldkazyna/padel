@@ -249,4 +249,132 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(0, $total);
         $this->assertSame(0, $booking->fresh()->inventoryItems->count());
     }
+
+    public function test_store_booking_saves_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'slots' => 1,
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 2]],
+        ])->assertRedirect();
+
+        $booking = CourtBooking::where('court_id', $court->id)->firstOrFail();
+        $this->assertSame(6000, $booking->inventoryTotal());
+
+        // Цена корта не должна включать инвентарь — иначе он задвоится при правке.
+        // Сравниваем с ценой такой же брони, оформленной без инвентаря.
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '14:00',
+            'slots' => 1,
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+        ])->assertRedirect();
+
+        $plain = CourtBooking::where('court_id', $court->id)
+            ->where('start_time', '14:00')->firstOrFail();
+        $this->assertSame((int) $plain->price, (int) $booking->price,
+            'инвентарь не попадает в цену корта');
+    }
+
+    public function test_update_booking_replaces_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $balls = $this->makeItem($club, 'Мячи', 2000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'inventory' => [['item_id' => $balls->id, 'quantity' => 2]],
+        ])->assertRedirect();
+
+        $rows = $booking->fresh()->inventoryItems;
+        $this->assertSame(1, $rows->count());
+        $this->assertSame('Мячи', $rows->first()->name);
+        $this->assertSame(4000, $booking->fresh()->inventoryTotal());
+    }
+
+    public function test_group_booking_ignores_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub(['groups' => true]);
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '12:00',
+            'slots' => 1,
+            'booking_type' => 'group',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 1]],
+        ])->assertRedirect();
+
+        $booking = CourtBooking::where('court_id', $court->id)->firstOrFail();
+        $this->assertSame(0, $booking->inventoryTotal());
+    }
+
+    public function test_disabled_module_ignores_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub(['inventory' => false]);
+        $racket = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Аренда ракетки', 'price' => 3000, 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '13:00',
+            'slots' => 1,
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 1]],
+        ])->assertRedirect();
+
+        $booking = CourtBooking::where('court_id', $court->id)->firstOrFail();
+        $this->assertSame(0, $booking->inventoryTotal());
+    }
+
+    public function test_schedule_exposes_active_items(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $this->makeItem($club, 'Аренда ракетки', 3000);
+        $this->makeItem($club, 'Старая ракетка', 1000, active: false);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Аренда ракетки')
+            ->assertDontSee('Старая ракетка');
+    }
+
+    public function test_week_schedule_exposes_active_items(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Аренда ракетки');
+    }
 }

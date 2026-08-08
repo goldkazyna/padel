@@ -1269,6 +1269,7 @@
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
                         window.__bookingTournaments = @json($bookingTournamentIds ?? []);
+                        window.__inventory = @json($inventoryItems ?? [], JSON_UNESCAPED_UNICODE);
                         </script>
                         <script>
                             // Недельное расписание: дата брони не одна на страницу — её задаёт
