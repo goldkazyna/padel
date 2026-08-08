@@ -790,8 +790,13 @@
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
                         window.__bookingTournaments = @json($bookingTournamentIds ?? []);
-                        window.__inventory = @json($inventoryItems ?? [], JSON_UNESCAPED_UNICODE);
-                        window.__bookingInventory = @json($bookingInventory ?? [], JSON_UNESCAPED_UNICODE);
+                        {{-- Названия позиций вводит клуб, это свободные строки внутри <script>.
+                             Второй аргумент @json ЗАМЕНЯЕТ дефолтный набор флагов, а не дополняет
+                             его, поэтому JSON_HEX_* перечисляем явно — иначе название с тегом
+                             закрывает блок: и XSS, и потеря window.__inventory (а следом тихое
+                             стирание всего выданного инвентаря при сохранении брони). --}}
+                        window.__inventory = @json($inventoryItems ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+                        window.__bookingInventory = @json($bookingInventory ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         </script>
                         <script>
                             // Дневное расписание: дата одна на всю страницу.
@@ -2448,9 +2453,15 @@
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');
         const wasActive = btn.classList.contains('active');
+        const nextType = wasActive ? '' : btn.getAttribute('data-value');
+        // Перевод в групповую/турнирную стирает выданный инвентарь на сервере.
+        // Спрашиваем до того, как тронули кнопки: при отказе просто выходим —
+        // прежний тип и подсветка остаются как были (см. _inventory_js).
+        if (typeof confirmInventoryDropOnType === 'function'
+            && !confirmInventoryDropOnType(input.value, nextType)) return;
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
-        else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+        else { btn.classList.add('active'); input.value = nextType; }
         const isGroupType = input.value === 'group';
         applyEditGroupVisibility(isGroupType);
         // applyEditTournamentVisibility(false) тоже трогает общий класс

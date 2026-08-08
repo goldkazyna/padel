@@ -11,13 +11,18 @@
     // сохранении брони. Здесь только для отображения и суммы «Итого».
     window.__invHistorical = { book: [], edit: [] };
 
+    // Тот же предел, что и в валидации на сервере (inventory.*.quantity max:99).
+    // Без ограничения в интерфейсе сотня кликов «+» роняет валидацией
+    // сохранение ВСЕЙ брони и теряет всё введённое в модалке.
+    const INV_MAX_QTY = 99;
+
     function invFmt(n) { return new Intl.NumberFormat('ru-RU').format(n); }
 
     // Добавить позицию или увеличить её количество.
     function addInventory(mode, itemId, name, price) {
         const store = window.__invChosen[mode];
         if (store[itemId]) {
-            store[itemId].qty += 1;
+            store[itemId].qty = Math.min(store[itemId].qty + 1, INV_MAX_QTY);
         } else {
             store[itemId] = { name: name, price: price, qty: 1 };
         }
@@ -27,9 +32,27 @@
     function changeInventoryQty(mode, itemId, delta) {
         const store = window.__invChosen[mode];
         if (!store[itemId]) return;
-        store[itemId].qty += delta;
+        store[itemId].qty = Math.min(store[itemId].qty + delta, INV_MAX_QTY);
         if (store[itemId].qty <= 0) delete store[itemId];
         renderInventoryPicker(mode);
+    }
+
+    // Групповая и турнирная бронь инвентарь не принимают: сервер очищает
+    // выданные позиции при сохранении. Кнопка типа стоит рядом с остальными,
+    // промах стоил бы записи о выданном — поэтому спрашиваем подтверждение.
+    // Возвращает false, если админ отказался: вызывающий обязан оставить
+    // прежний тип, ничего не меняя.
+    function confirmInventoryDropOnType(prevType, nextType) {
+        if (nextType !== 'group' && nextType !== 'tournament') return true;
+        if (prevType === nextType) return true;
+        const chosen = Object.keys(window.__invChosen.edit || {}).length;
+        const historical = (window.__invHistorical.edit || []).length;
+        if (!chosen && !historical) return true;
+        const label = nextType === 'group' ? 'групповую' : 'турнирную';
+        return window.confirm(
+            'У этой брони есть выданный инвентарь. При смене типа на ' + label +
+            ' он будет удалён вместе со своей стоимостью при сохранении. Продолжить?'
+        );
     }
 
     function removeInventory(mode, itemId) {
@@ -90,10 +113,12 @@
 
             const qty = document.createElement('span');
             qty.className = 'inv-qty';
+            // На пределе «+» гасим — иначе кнопка молча ничего не делает.
+            const atMax = row.qty >= INV_MAX_QTY ? ' disabled title="Больше ' + INV_MAX_QTY + ' нельзя"' : '';
             qty.innerHTML =
                 '<button type="button" class="inv-qty-btn" onclick="changeInventoryQty(\'' + mode + '\',' + itemId + ',-1)">−</button>' +
                 '<span class="inv-qty-num">' + row.qty + '</span>' +
-                '<button type="button" class="inv-qty-btn" onclick="changeInventoryQty(\'' + mode + '\',' + itemId + ',1)">+</button>';
+                '<button type="button" class="inv-qty-btn"' + atMax + ' onclick="changeInventoryQty(\'' + mode + '\',' + itemId + ',1)">+</button>';
             el.appendChild(qty);
 
             const sum = document.createElement('span');
@@ -190,6 +215,8 @@
 .inv-qty{display:flex;align-items:center;gap:8px}
 .inv-qty-btn{background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1}
 .inv-qty-btn:hover{color:var(--text-primary)}
+.inv-qty-btn:disabled{opacity:0.4;cursor:not-allowed}
+.inv-hint{font-size:12px;color:var(--text-muted);margin:-4px 0 10px}
 .inv-qty-num{min-width:18px;text-align:center;font-weight:700;font-size:13px}
 .inv-row-sum{min-width:90px;text-align:right;font-weight:700;font-size:13px;color:var(--accent)}
 .inv-row-del{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:13px}

@@ -1123,7 +1123,10 @@
                                 <input type="number" name="discount" id="bookDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateFinalPrice()" oninput="updateFinalPrice()">
                             </div>
                         </div>
-                        <div class="total-price">
+                        {{-- js-hide-for-group — как в дневном виде: у групповой и турнирной
+                             брони цена считается сама, а инвентарь они не принимают, поэтому
+                             блок «Итого» со строкой «Инвентарь» им показывать нельзя. --}}
+                        <div class="total-price js-hide-for-group">
                             <div class="total-row">
                                 <span class="total-sub-label">Цена за корт</span>
                                 <span class="total-sub-value" id="bookCourtPrice"></span>
@@ -1282,8 +1285,13 @@
                         window.__tournaments = @json($bookingTournaments ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         window.__scheduleDate = @json($date);
                         window.__bookingTournaments = @json($bookingTournamentIds ?? []);
-                        window.__inventory = @json($inventoryItems ?? [], JSON_UNESCAPED_UNICODE);
-                        window.__bookingInventory = @json($bookingInventory ?? [], JSON_UNESCAPED_UNICODE);
+                        {{-- Названия позиций вводит клуб, это свободные строки внутри <script>.
+                             Второй аргумент @json ЗАМЕНЯЕТ дефолтный набор флагов, а не дополняет
+                             его, поэтому JSON_HEX_* перечисляем явно — иначе название с тегом
+                             закрывает блок: и XSS, и потеря window.__inventory (а следом тихое
+                             стирание всего выданного инвентаря при сохранении брони). --}}
+                        window.__inventory = @json($inventoryItems ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+                        window.__bookingInventory = @json($bookingInventory ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                         </script>
                         <script>
                             // Недельное расписание: дата брони не одна на страницу — её задаёт
@@ -1396,7 +1404,8 @@
                                 <input type="number" name="discount" id="editDiscount" class="form-input price-input" min="0" step="100" value="0" onchange="updateEditFinalPrice()" oninput="updateEditFinalPrice()">
                             </div>
                         </div>
-                        <div class="total-price">
+                        {{-- js-edit-hide-for-group — как в дневном виде, см. модалку создания. --}}
+                        <div class="total-price js-edit-hide-for-group">
                             <div class="total-row">
                                 <span class="total-sub-label">Цена за корт</span>
                                 <span class="total-sub-value" id="editCourtPrice"></span>
@@ -2445,9 +2454,15 @@
     function selectEditBookingType(btn) {
         const input = document.getElementById('editBookingTypeInput');
         const wasActive = btn.classList.contains('active');
+        const nextType = wasActive ? '' : btn.getAttribute('data-value');
+        // Перевод в групповую/турнирную стирает выданный инвентарь на сервере.
+        // Спрашиваем до того, как тронули кнопки: при отказе просто выходим —
+        // прежний тип и подсветка остаются как были (см. _inventory_js).
+        if (typeof confirmInventoryDropOnType === 'function'
+            && !confirmInventoryDropOnType(input.value, nextType)) return;
         document.querySelectorAll('#editBookingTypeButtons .bt-btn').forEach(b => b.classList.remove('active'));
         if (wasActive) { input.value = ''; }
-        else { btn.classList.add('active'); input.value = btn.getAttribute('data-value'); }
+        else { btn.classList.add('active'); input.value = nextType; }
         const isGroupType = input.value === 'group';
         applyEditGroupVisibility(isGroupType);
         // applyEditTournamentVisibility(false) тоже трогает общий класс

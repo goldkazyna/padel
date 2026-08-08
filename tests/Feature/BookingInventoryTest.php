@@ -217,6 +217,49 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(3000 + 2500, $total);
     }
 
+    /**
+     * Название — такой же снимок, как и цена: переименование позиции в
+     * справочнике не должно задним числом переписывать название во всех
+     * бронях при следующем их сохранении. Раньше пересборка строки брала
+     * name из справочника, хотя докблоки сервиса и модели обещали снимок.
+     */
+    public function test_snapshot_name_does_not_follow_catalog_rename(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        $service = app(BookingInventoryService::class);
+
+        $service->sync($booking, $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+
+        $racket->update(['name' => 'Аренда ракетки PRO']); // клуб переименовал позицию
+
+        // Бронь просто пересохранили с тем же составом.
+        $service->sync($booking->fresh(), $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+
+        $this->assertSame('Аренда ракетки', $booking->fresh()->inventoryItems->first()->name,
+            'название строки должно остаться снимком, а не подтянуть новое из справочника');
+    }
+
+    /**
+     * Обратная сторона: позиция, добавленная в бронь впервые уже ПОСЛЕ
+     * переименования, обязана получить актуальное название.
+     */
+    public function test_newly_added_item_gets_current_catalog_name(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+
+        $racket->update(['name' => 'Аренда ракетки PRO']);
+
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+        ]);
+
+        $this->assertSame('Аренда ракетки PRO', $booking->fresh()->inventoryItems->first()->name);
+    }
+
     public function test_sync_replaces_previous_rows(): void
     {
         [$club, $admin, $court] = $this->setupClub();
@@ -684,6 +727,51 @@ class BookingInventoryTest extends TestCase
     }
 
     /**
+     * Недельный вид обязан прятать блок «Итого» (а вместе с ним строку
+     * «Инвентарь») для групповой и турнирной брони — как это уже делает
+     * дневной. Иначе для таких броней показывается завышенное «Итого»,
+     * которое сервер всё равно игнорирует.
+     */
+    public function test_week_schedule_hides_total_block_for_group_and_tournament(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $week = $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk();
+
+        $week->assertSee('class="total-price js-hide-for-group"', false);
+        $week->assertSee('class="total-price js-edit-hide-for-group"', false);
+    }
+
+    /**
+     * Три подстраховки интерфейса живут в общих partial'ах и обязаны
+     * приезжать в обе вьюхи одинаково:
+     * 1) потолок количества совпадает с валидацией сервера (max:99) — иначе
+     *    сотня кликов «+» роняет сохранение ВСЕЙ брони;
+     * 2) перевод в групповую/турнирную бронь с выданным инвентарём
+     *    спрашивает подтверждение — сервер эти строки удаляет;
+     * 3) в модалке создания есть подсказка про повтор — позиции выдаются
+     *    на каждую дату повтора, а не один раз.
+     */
+    public function test_inventory_ui_guards_present_in_both_schedules(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $this->makeItem($club, 'Аренда ракетки', 3000);
+        $date = now()->addDay()->toDateString();
+
+        foreach (['club.courts.schedule', 'club.courts.scheduleWeek'] as $routeName) {
+            $page = $this->actingAs($admin)->get(route($routeName, ['date' => $date]))->assertOk();
+
+            $page->assertSee('const INV_MAX_QTY = 99;', false);
+            $page->assertSee('function confirmInventoryDropOnType(', false);
+            $page->assertSee('confirmInventoryDropOnType(input.value, nextType)', false);
+            $page->assertSee('При повторе брони выбранные позиции выдаются на каждую дату.', false);
+        }
+    }
+
+    /**
      * Регресс: обычная бронь с инвентарём становится групповой — цена группы
      * считается автоматически, поэтому инвентарь должен полностью очиститься.
      */
@@ -735,6 +823,51 @@ class BookingInventoryTest extends TestCase
         $booking->refresh();
         $this->assertSame(0, $booking->inventoryTotal());
         $this->assertSame(0, $booking->inventoryItems->count());
+    }
+
+    /**
+     * Регресс (безопасность + деньги): название позиции инвентаря вводит клуб,
+     * это свободная строка. Она уходит в разметку расписания сразу двумя
+     * блоками — window.__inventory (справочник) и window.__bookingInventory
+     * (снимки по броням) — и оба живут ВНУТРИ <script>. Если при выводе
+     * потерять JSON_HEX_TAG, название вида «...</script><script>alert(1)...»
+     * закрывает тег и выполняется у каждого, кто открыл расписание.
+     *
+     * Второе следствие тяжелее первого: сломанный блок оставляет
+     * window.__inventory неопределённым, тогда все строки брони считаются
+     * историческими, в форму не попадают, а маркер inventory_touched (он
+     * статический) уходит всегда — и сервер стирает весь выданный инвентарь
+     * при первом же сохранении любой брони.
+     */
+    public function test_item_name_with_script_tag_cannot_break_out_of_script_block(): void
+    {
+        // Понедельник: чтобы бронь заведомо попадала и в дневной, и в недельный вид.
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-10 10:00:00'));
+
+        [$club, $admin, $court] = $this->setupClub();
+        $evil = 'Ракетка</script><script>alert(1)</script>';
+        $item = $this->makeItem($club, $evil, 3000);
+
+        // Снимок названия в самой брони: удаление позиции из справочника
+        // проблему не снимает, поэтому проверяем и этот источник.
+        $booking = $this->makeBooking($court, $admin);
+        CourtBookingInventoryItem::create([
+            'court_booking_id' => $booking->id,
+            'club_inventory_item_id' => $item->id,
+            'name' => $evil, 'price' => 3000, 'quantity' => 1,
+        ]);
+
+        $date = now()->addDay()->toDateString();
+
+        foreach (['club.courts.schedule', 'club.courts.scheduleWeek'] as $routeName) {
+            $html = $this->actingAs($admin)->get(route($routeName, ['date' => $date]))
+                ->assertOk()->getContent();
+
+            $this->assertStringNotContainsString('</script><script>alert(1)', $html,
+                "{$routeName}: название инвентаря не должно давать последовательность, закрывающую <script>");
+            $this->assertStringNotContainsString('<script>alert(1)', $html,
+                "{$routeName}: открывающий тег из названия инвентаря должен быть экранирован");
+        }
     }
 
     /**
