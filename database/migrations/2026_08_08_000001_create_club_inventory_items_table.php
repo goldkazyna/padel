@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('club_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->decimal('price', 10, 2);
+            // Цена в целых тенге, без копеек — как в остальных денежных полях проекта.
+            $table->integer('price');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             // По этой паре строится список раздела.

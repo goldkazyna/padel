@@ -18,7 +18,7 @@ class ClubInventoryItem extends Model
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price' => 'integer',
         'is_active' => 'boolean',
     ];
 
