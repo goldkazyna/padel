@@ -313,6 +313,11 @@ class TournamentCourtBookingTest extends TestCase
 
     public function test_store_booking_with_repeat_calculates_each_date_separately(): void
     {
+        // Повтор «до конца недели» (CourtController::expandRepeatDates) считает даты
+        // до ближайшего воскресенья. Без заморозки времени тест падал бы в субботу
+        // и воскресенье, когда до конца недели остаётся один день и бронь всего одна.
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-10 10:00:00')); // понедельник
+
         [, $admin, $court, $tournament] = $this->setupTournament(20000);
         $this->addParticipants($tournament, 5);
         $date = now()->addDay()->toDateString();
