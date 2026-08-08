@@ -1749,6 +1749,8 @@
                 || (window.__bookingTournaments && window.__bookingTournaments[data.id])
                 || '';
         }
+        // Дата открытой брони — по ней панель турнира считает деление между кортами.
+        window.__editBookingDate = data.date || '';
         // Легаси-бронь (тип «Турнир» без привязанного турнира) не запираем
         // требованием выбрать турнир — иначе её вообще не сохранить.
         window.__editBookingWasTournament = (btVal === 'tournament');

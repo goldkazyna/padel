@@ -1,14 +1,17 @@
 {{-- Общий JS турнирной брони: расчёт цены и список участников.
      Подключается в дневном и недельном расписании. --}}
 <script>
-    // Информация о выбранном турнире в окне создания: расчёт цены и список оплативших.
-    function renderTournamentInfo(tournamentId) {
-        const block = document.getElementById('tournamentInfoBlock');
-        const list = document.getElementById('tnList');
-        const empty = document.getElementById('tnEmpty');
-        const count = document.getElementById('tnCount');
-        const priceEl = document.getElementById('tnPrice');
-        const link = document.getElementById('tnLink');
+    // Единый рендер панели турнира — и для создания, и для редактирования.
+    // Оба окна показывают одно и то же: расчёт цены, список оплативших, ссылку
+    // на турнир. Различаются только id элементов и то, учтена ли уже эта бронь
+    // в делителе (при создании брони ещё нет, при редактировании она есть).
+    function renderTournamentPanel(ids, tournamentId, date, countsSelf) {
+        const block = document.getElementById(ids.block);
+        const list = document.getElementById(ids.list);
+        const empty = document.getElementById(ids.empty);
+        const count = document.getElementById(ids.count);
+        const priceEl = document.getElementById(ids.price);
+        const link = document.getElementById(ids.link);
         if (!block || !list) return;
 
         if (!tournamentId) {
@@ -23,14 +26,9 @@
         if (!data) { block.style.display = 'none'; return; }
 
         const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
-        // Дату даёт вьюха: в дневном виде она одна на страницу, в недельном —
-        // из выбранного слота. Функция tournamentBookingDate() определена во вьюхе.
-        const date = (typeof tournamentBookingDate === 'function')
-            ? tournamentBookingDate()
-            : (window.__scheduleDate || '');
-        // Делитель — уже существующие брони турнира на эту дату плюс создаваемая.
         const existing = (data.bookings_by_date && data.bookings_by_date[date]) || 0;
-        const divisor = existing + 1;
+        // countsSelf = true, когда бронь уже среди существующих (редактирование).
+        const divisor = Math.max(1, countsSelf ? existing : existing + 1);
         const share = Math.round(data.total / divisor);
 
         if (priceEl) {
@@ -62,6 +60,24 @@
         });
         if (empty) empty.style.display = players.length ? 'none' : 'block';
         block.style.display = 'block';
+    }
+
+    // Информация о выбранном турнире в окне СОЗДАНИЯ.
+    function renderTournamentInfo(tournamentId) {
+        // Дату даёт вьюха: в дневном виде она одна на страницу, в недельном —
+        // из выбранного слота. Функция tournamentBookingDate() определена во вьюхе.
+        const date = (typeof tournamentBookingDate === 'function')
+            ? tournamentBookingDate()
+            : (window.__scheduleDate || '');
+
+        renderTournamentPanel({
+            block: 'tournamentInfoBlock',
+            list:  'tnList',
+            empty: 'tnEmpty',
+            count: 'tnCount',
+            price: 'tnPrice',
+            link:  'tnLink',
+        }, tournamentId, date, false);
     }
 
     // Сброс блока «Тип брони» в окне СОЗДАНИЯ. Без него тип, выбранный в прошлый
@@ -116,16 +132,20 @@
         if (isTournament) { renderEditTournamentPrice(); }
     }
 
-    // Расчёт под селектом в окне редактирования.
+    // Панель турнира в окне РЕДАКТИРОВАНИЯ — тот же вид, что и при создании.
     function renderEditTournamentPrice() {
         const sel = document.getElementById('editTournamentSelect');
-        const el = document.getElementById('editTnPrice');
-        if (!sel || !el) return;
-        const data = (window.__tournaments && window.__tournaments[sel.value]) || null;
-        if (!data) { el.innerHTML = ''; return; }
-        const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
-        el.innerHTML = data.price
-            ? (data.paid_count + ' оплативших × ' + fmt(data.price) + ' = <b>' + fmt(data.total) + ' ₸</b> на все корты турнира в этот день')
-            : 'У турнира не указана цена';
+        if (!sel) return;
+
+        // Дата открытой брони — её кладёт openViewModal. Делитель считается по ней,
+        // а не по дате страницы: бронь может быть с другого дня (панель заявок).
+        renderTournamentPanel({
+            block: 'editTournamentInfoBlock',
+            list:  'editTnList',
+            empty: 'editTnEmpty',
+            count: 'editTnCount',
+            price: 'editTnPrice',
+            link:  'editTnLink',
+        }, sel.value, window.__editBookingDate || '', true);
     }
 </script>

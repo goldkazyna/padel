@@ -948,4 +948,29 @@ class TournamentCourtBookingTest extends TestCase
 
         $this->assertSame('100000.00', $kept->fresh()->price);
     }
+
+    public function test_edit_modal_shows_participants_block_in_day_view(): void
+    {
+        [, $admin, , $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 3);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            // Окно редактирования показывает тот же блок участников, что и создание.
+            ->assertSee('editTournamentInfoBlock', escape: false)
+            ->assertSee('editTnList', escape: false);
+    }
+
+    public function test_edit_modal_shows_participants_block_in_week_view(): void
+    {
+        [, $admin, , $tournament] = $this->setupTournament(20000);
+        $this->addParticipants($tournament, 3);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertSee('editTournamentInfoBlock', escape: false)
+            ->assertSee('editTnList', escape: false);
+    }
 }
