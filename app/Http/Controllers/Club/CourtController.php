@@ -1476,8 +1476,8 @@ class CourtController extends Controller
 
         $booking->update($updateData);
 
-        // Инвентарь заменяем целиком. Для групповой и турнирной брони — очищаем:
-        // у них цена считается автоматически.
+        // Инвентарь заменяем целиком. Для групповой и турнирной брони —
+        // очищаем: у них цена считается автоматически.
         // inventory_touched — маркер того, что форма редактирования реально
         // показывала пикер (ставится статически в самой вьюхе). Без него
         // ключ inventory просто отсутствует в запросе — например, если пикер
@@ -1488,7 +1488,11 @@ class CourtController extends Controller
             app(\App\Services\BookingInventoryService::class)
                 ->sync($booking->fresh(), $club, $request->input('inventory', []));
         } elseif ($isGroupBooking || $isTournamentBooking) {
-            $booking->inventoryItems()->delete();
+            // sync() с пустым набором вместо прямого delete(): очищает
+            // редактируемые строки, но сохраняет замороженные (позицию
+            // удалили или выключили после выдачи) — тот же инвариант, что и
+            // при обычном сохранении, здесь его тоже нельзя нарушать.
+            app(\App\Services\BookingInventoryService::class)->sync($booking->fresh(), $club, []);
         }
 
         // Пересчитываем и новый набор, и прежний — бронь могла сменить турнир,

@@ -3,10 +3,11 @@
 <script>
     // Выбранное по каждой модалке: { 'book': {itemId: {name, price, qty}}, 'edit': {...} }
     window.__invChosen = { book: {}, edit: {} };
-    // Исторические строки — позиция уже удалена из справочника клуба
-    // (club_inventory_item_id пуст). Их нельзя пересобрать через пикер —
-    // выбирать нечего, — поэтому они не участвуют в __invChosen и не уходят
-    // в форму отдельными скрытыми полями: бэкенд сохраняет их сам при любом
+    // Исторические строки — позицию либо удалили из справочника клуба
+    // (club_inventory_item_id пуст), либо выключили (id есть, но её больше
+    // нет среди активных). В обоих случаях выбрать её заново через пикер
+    // нельзя, поэтому строки не участвуют в __invChosen и не уходят в форму
+    // отдельными скрытыми полями: бэкенд сохраняет их сам при любом
     // сохранении брони. Здесь только для отображения и суммы «Итого».
     window.__invHistorical = { book: [], edit: [] };
 
@@ -66,7 +67,7 @@
 
             const note = document.createElement('span');
             note.className = 'inv-row-note';
-            note.textContent = 'позиция удалена из справочника';
+            note.textContent = row.__reason === 'inactive' ? 'позиция выключена в справочнике' : 'позиция удалена из справочника';
             el.appendChild(note);
 
             const sum = document.createElement('span');
@@ -137,10 +138,20 @@
         window.__invChosen.edit = {};
         window.__invHistorical.edit = [];
         const list = rows || (window.__bookingInventory && window.__bookingInventory[bookingId]) || [];
+        // Активные позиции справочника — по ним же пикер рисует кнопки
+        // выбора. Строка брони, чей item_id среди них не числится (позицию
+        // выключили, а не только если её удалили совсем), редактировать
+        // нечем — переносим её в исторические, тот же путь, что и для
+        // удалённых.
+        const activeIds = new Set((window.__inventory || []).map(it => it.id));
         list.forEach(r => {
             if (!r.item_id) {
-                // Позиция удалена из справочника — строка историческая, её
-                // некуда подставить в редактируемый пикер.
+                r.__reason = 'deleted';
+                window.__invHistorical.edit.push(r);
+                return;
+            }
+            if (!activeIds.has(r.item_id)) {
+                r.__reason = 'inactive';
                 window.__invHistorical.edit.push(r);
                 return;
             }
@@ -156,9 +167,10 @@
         renderInventoryPicker('book');
     }
 
-    // Сбросить выбор в модалке редактирования — вызывается при смене типа
-    // брони (на группу/турнир): как и resetBookInventory в окне создания,
-    // без сброса скрытые поля прежнего инвентаря остались бы в DOM.
+    // Сбросить выбор в модалке редактирования — вызывается из
+    // selectEditBookingType() (во вьюхе), и только когда бронь переводят в
+    // группу/турнир: контроллер и так чистит инвентарь для этих типов, а без
+    // сброса на клиенте скрытые поля прежнего набора остались бы в DOM.
     function resetEditInventory() {
         window.__invChosen.edit = {};
         window.__invHistorical.edit = [];

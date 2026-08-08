@@ -244,6 +244,35 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(3000 + 4000, $booking->fresh()->inventoryTotal());
     }
 
+    /**
+     * Тот же класс проблемы, что и с удалённой позицией, но другая ветка:
+     * позицию не удалили, а выключили (is_active = false). club_inventory_item_id
+     * у строки остаётся, но выборка активных позиций её больше не находит —
+     * строка обязана пережить sync() точно так же, как историческая.
+     */
+    public function test_sync_preserves_inactive_linked_row_and_includes_its_total(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $balls = $this->makeItem($club, 'Мячи', 2000);
+        $booking = $this->makeBooking($court, $admin);
+        $service = app(BookingInventoryService::class);
+
+        $service->sync($booking, $club, [['item_id' => $racket->id, 'quantity' => 1]]);
+        $racket->update(['is_active' => false]); // выключили, но не удалили — id у строки остаётся
+
+        $total = $service->sync($booking->fresh(), $club, [['item_id' => $balls->id, 'quantity' => 2]]);
+
+        $rows = $booking->fresh()->inventoryItems;
+        $this->assertSame(2, $rows->count(), 'строка выключенной позиции должна пережить sync() вместе с новой позицией');
+        $this->assertTrue($rows->contains(fn ($r) => $r->club_inventory_item_id === $racket->id && $r->name === 'Аренда ракетки'),
+            'строка выключенной ракетки осталась, club_inventory_item_id не обнулился');
+        $this->assertTrue($rows->contains(fn ($r) => $r->name === 'Мячи' && $r->quantity === 2),
+            'новая позиция записана');
+        $this->assertSame(3000 + 4000, $total, 'сумма = выключенная позиция + новый набор');
+        $this->assertSame(3000 + 4000, $booking->fresh()->inventoryTotal());
+    }
+
     public function test_same_item_twice_is_merged(): void
     {
         [$club, $admin, $court] = $this->setupClub();
@@ -399,6 +428,98 @@ class BookingInventoryTest extends TestCase
         $this->assertSame(1, $booking->inventoryItems->count(), 'историческая строка должна выжить');
         $this->assertNull($booking->inventoryItems->first()->club_inventory_item_id);
         $this->assertSame(6000, $booking->inventoryTotal(), 'сумма исторической строки учитывается в итоге');
+    }
+
+    /**
+     * Тот же класс проблемы, что и с удалённой позицией (см. тест выше), но
+     * через реальный PUT: строка с выключенной (не удалённой) позицией
+     * обязана пережить сохранение брони и учитываться в сумме.
+     */
+    public function test_inactive_linked_row_survives_booking_save_and_counts_in_total(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 2],
+        ]);
+
+        $racket->update(['is_active' => false]); // выключили, не удалили
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'inventory_touched' => '1', // выключенную позицию выбрать заново нельзя — ничего не шлём
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(1, $booking->inventoryItems->count(), 'строка с выключенной позицией должна выжить');
+        $this->assertSame($racket->id, $booking->inventoryItems->first()->club_inventory_item_id,
+            'club_inventory_item_id не обнуляется — позицию не удаляли, только выключили');
+        $this->assertSame(6000, $booking->inventoryTotal(), 'сумма выключенной позиции учитывается в итоге');
+    }
+
+    /**
+     * Регресс: смена типа брони на «Мягкая бронь» (soft) — обычный тип, цена
+     * не считается автоматически, поэтому инвентарь не должен стираться.
+     * До фикса JS сбрасывал выбор при ЛЮБОЙ смене типа в окне редактирования,
+     * из-за чего пикер уходил пустым и sync() стирал прежний набор.
+     */
+    public function test_update_to_soft_type_keeps_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 2],
+        ]);
+
+        // Как реально шлёт форма после фикса: тип сменился, но пикер не
+        // сбрасывался — набор переотправляется как есть.
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'soft',
+            'inventory_touched' => '1',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 2]],
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(6000, $booking->inventoryTotal(), 'при переходе в «мягкую» бронь инвентарь должен сохраниться');
+        $this->assertSame(1, $booking->inventoryItems->count());
+    }
+
+    /**
+     * Регресс: перевод брони в группу очищает обычные строки (цену считает
+     * группа), но не должен трогать замороженные — позицию, которую уже
+     * удалили из справочника до этого перевода. Раньше здесь стоял прямой
+     * inventoryItems()->delete() без исключений.
+     */
+    public function test_update_to_group_keeps_historical_row(): void
+    {
+        [$club, $admin, $court] = $this->setupClub(['groups' => true]);
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $balls = $this->makeItem($club, 'Мячи', 2000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+            ['item_id' => $balls->id, 'quantity' => 1],
+        ]);
+        $racket->delete(); // одна из строк становится исторической
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'group',
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(1, $booking->inventoryItems->count(), 'обычная строка (мячи) очищена, историческая (ракетка) — нет');
+        $this->assertNull($booking->inventoryItems->first()->club_inventory_item_id);
+        $this->assertSame(3000, $booking->inventoryTotal());
     }
 
     public function test_group_booking_ignores_inventory(): void

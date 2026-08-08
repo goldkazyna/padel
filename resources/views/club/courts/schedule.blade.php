@@ -2456,16 +2456,22 @@
         // applyEditTournamentVisibility(false) тоже трогает общий класс
         // js-edit-hide-for-group — при групповом типе её не вызываем, иначе
         // она вернёт видимость полей, только что скрытых applyEditGroupVisibility.
+        const isTournamentType = input.value === 'tournament';
         if (isGroupType) {
             const tnBlock = document.getElementById('editTournamentBlock');
             if (tnBlock) tnBlock.style.display = 'none';
         } else {
-            applyEditTournamentVisibility(input.value === 'tournament');
+            applyEditTournamentVisibility(isTournamentType);
         }
-        // Смена типа брони меняет набор видимых полей — как и в окне
-        // создания, сбрасываем выбор инвентаря, иначе скрытые поля прежнего
-        // набора остаются в DOM и уходят в запрос вместе с новым типом.
-        if (typeof resetEditInventory === 'function') resetEditInventory();
+        // Инвентарь валиден для обычных типов (индивидуальная/мягкая/пусто —
+        // сама цена не считается автоматически). Сбрасываем выбор только при
+        // переходе в группу/турнир — там контроллер и так чистит редактируемые
+        // строки при сохранении (цену считает сам). При обычном типе набор
+        // должен остаться как есть, иначе клик по типу (или повторный клик по
+        // уже активной кнопке, сбрасывающий её) стирал бы валидный инвентарь.
+        if ((isGroupType || isTournamentType) && typeof resetEditInventory === 'function') {
+            resetEditInventory();
+        }
     }
 
     // Для групповой брони в окне редактирования прячем поля клиента/оплаты/

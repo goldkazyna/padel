@@ -38,38 +38,47 @@ class BookingInventoryService
             $wanted[$itemId] = ($wanted[$itemId] ?? 0) + $qty;
         }
 
-        // Прежние строки заменяем целиком, КРОМЕ исторических — тех, у кого
-        // club_inventory_item_id пуст (позицию удалили из справочника). Их
-        // через интерфейс не выбрать заново, и они обязаны переживать любое
-        // последующее сохранение брони, иначе правка чего угодно (телефона,
-        // способа оплаты) тихо стирает уже списанные деньги за инвентарь.
-        $booking->inventoryItems()->whereNotNull('club_inventory_item_id')->delete();
-
-        // Сумма по историческим строкам, уцелевшим после удаления выше —
-        // её нужно приплюсовать к итогу вместе с новым набором.
-        $historicalTotal = (int) $booking->inventoryItems()
-            ->whereNull('club_inventory_item_id')
+        // Активные позиции этого клуба — нужны и чтобы отобрать новый набор,
+        // и чтобы понять, какие из уже существующих строк брони теперь
+        // «замороженные»: club_inventory_item_id пуст (позицию удалили из
+        // справочника) либо ссылается на позицию, которой больше нет среди
+        // активных (выключили). Через пикер такую строку не выбрать заново —
+        // она обязана пережить сохранение независимо от присланного набора,
+        // иначе правка чего угодно (телефона, способа оплаты) тихо стирает
+        // уже списанные за инвентарь деньги.
+        $activeItems = ClubInventoryItem::where('club_id', $club->id)
+            ->where('is_active', true)
             ->get()
-            ->sum(fn ($r) => $r->price * $r->quantity);
+            ->keyBy('id');
+
+        $frozenIds = [];
+        $frozenTotal = 0;
+        foreach ($booking->inventoryItems as $row) {
+            if ($row->club_inventory_item_id === null || !$activeItems->has($row->club_inventory_item_id)) {
+                $frozenIds[] = $row->id;
+                $frozenTotal += $row->price * $row->quantity;
+            }
+        }
+
+        // Остальные строки заменяем целиком — так редактирование не задваивает позиции.
+        $booking->inventoryItems()->whereNotIn('id', $frozenIds ?: [0])->delete();
 
         if (empty($wanted)) {
             $booking->load('inventoryItems');
-            return $historicalTotal;
+            return $frozenTotal;
         }
-
-        // Берём только активные позиции этого клуба — чужие и выключенные отбрасываем.
-        $items = ClubInventoryItem::where('club_id', $club->id)
-            ->whereIn('id', array_keys($wanted))
-            ->where('is_active', true)
-            ->get();
 
         // Собираем все строки и вставляем одним запросом вместо INSERT на каждую позицию
         // (до 50 позиций за вызов — цикл create() давал бы до 50 отдельных запросов).
         $now = Carbon::now();
-        $total = $historicalTotal;
+        $total = $frozenTotal;
         $insertRows = [];
-        foreach ($items as $item) {
-            $qty = min($wanted[$item->id], self::MAX_QUANTITY);
+        foreach ($wanted as $itemId => $qty) {
+            $item = $activeItems->get($itemId);
+            if (!$item) {
+                continue; // чужая, выключенная или несуществующая позиция — отбрасываем
+            }
+            $qty = min($qty, self::MAX_QUANTITY);
             $price = (int) $item->price;
 
             $insertRows[] = [
