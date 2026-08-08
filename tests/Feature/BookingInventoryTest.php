@@ -7,6 +7,7 @@ use App\Models\ClubInventoryItem;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\CourtBookingInventoryItem;
+use App\Models\Tournament;
 use App\Models\User;
 use App\Services\BookingInventoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -376,5 +377,93 @@ class BookingInventoryTest extends TestCase
             ->get(route('club.courts.scheduleWeek', ['date' => now()->addDay()->toDateString()]))
             ->assertOk()
             ->assertSee('Аренда ракетки');
+    }
+
+    /**
+     * Регресс: обычная бронь с инвентарём становится групповой — цена группы
+     * считается автоматически, поэтому инвентарь должен полностью очиститься.
+     */
+    public function test_update_to_group_clears_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'group',
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(0, $booking->inventoryTotal());
+        $this->assertSame(0, $booking->inventoryItems->count());
+    }
+
+    /**
+     * Регресс: то же самое при смене типа на «Турнир» — цену считает
+     * TournamentBookingPriceService по взносам участников.
+     */
+    public function test_update_to_tournament_clears_inventory(): void
+    {
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+        $booking = $this->makeBooking($court, $admin);
+        app(BookingInventoryService::class)->sync($booking, $club, [
+            ['item_id' => $racket->id, 'quantity' => 1],
+        ]);
+        $tournament = Tournament::create([
+            'club_id' => $club->id,
+            'name' => 'Американо',
+            'type' => 'americano',
+            'status' => 'open',
+            'start_date' => now()->addDay()->toDateString(),
+            'max_participants' => 16,
+            'price' => 20000,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.courts.updateBooking', $booking), [
+            'booking_type' => 'tournament',
+            'tournament_id' => $tournament->id,
+        ])->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame(0, $booking->inventoryTotal());
+        $this->assertSame(0, $booking->inventoryItems->count());
+    }
+
+    /**
+     * Повтор брони (repeat/repeat_until) создаёт несколько отдельных броней —
+     * у каждой должен быть СВОЙ набор строк инвентаря, а не один общий.
+     * Заморозка времени на понедельник: иначе в сб/вс «до конца недели»
+     * даёт всего одну дату и тест теряет смысл (см. TournamentCourtBookingTest).
+     */
+    public function test_repeat_booking_creates_own_inventory_per_date(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-08-10 10:00:00')); // понедельник
+
+        [$club, $admin, $court] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки', 3000);
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'slots' => 1,
+            'client_name' => 'Денис Дудников',
+            'client_phone' => '77770000000',
+            'payment_method' => 'cash',
+            'is_paid' => 0,
+            'booking_type' => 'individual',
+            'repeat' => 'daily',
+            'repeat_until' => 'week',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 1]],
+        ])->assertRedirect();
+
+        $bookings = CourtBooking::where('court_id', $court->id)->orderBy('date')->get();
+        $this->assertGreaterThan(1, $bookings->count(), 'повтор должен создать больше одной брони');
+        foreach ($bookings as $booking) {
+            $this->assertSame(3000, $booking->inventoryTotal(), "у брони на {$booking->date} должен быть свой инвентарь");
+        }
     }
 }
