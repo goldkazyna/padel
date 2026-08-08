@@ -174,11 +174,20 @@ class ClubInventoryTest extends TestCase
 
     public function test_disabled_module_forbids_section(): void
     {
-        [, $admin] = $this->setupClub(['inventory' => false]);
+        [$club, $admin] = $this->setupClub(['inventory' => false]);
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
 
         $this->actingAs($admin)->get(route('club.inventory.index'))->assertForbidden();
         $this->actingAs($admin)
             ->post(route('club.inventory.store'), ['name' => 'Мячи', 'price' => 2000])
+            ->assertForbidden();
+        $this->actingAs($admin)
+            ->put(route('club.inventory.update', $item), ['name' => 'Мячи 2', 'price' => 2000])
+            ->assertForbidden();
+        $this->actingAs($admin)
+            ->delete(route('club.inventory.destroy', $item))
             ->assertForbidden();
     }
 

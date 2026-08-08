@@ -52,6 +52,7 @@ class InventoryController extends Controller
             'is_active' => 'nullable|boolean',
         ], [
             'name.required' => 'Укажите название позиции',
+            'name.max' => 'Название слишком длинное (максимум :max символов)',
             'price.required' => 'Укажите цену',
             'price.numeric' => 'Цена должна быть числом',
             'price.min' => 'Цена не может быть отрицательной',
@@ -79,6 +80,7 @@ class InventoryController extends Controller
             'is_active' => 'nullable|boolean',
         ], [
             'name.required' => 'Укажите название позиции',
+            'name.max' => 'Название слишком длинное (максимум :max символов)',
             'price.required' => 'Укажите цену',
             'price.numeric' => 'Цена должна быть числом',
             'price.min' => 'Цена не может быть отрицательной',
