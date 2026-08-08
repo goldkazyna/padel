@@ -85,4 +85,16 @@ class ClubInventoryTest extends TestCase
 
         $this->assertFalse($club->fresh()->hasFeature('inventory'));
     }
+
+    public function test_club_without_inventory_key_has_module_enabled(): void
+    {
+        // Клуб, созданный до появления модуля: ключа inventory в features нет вовсе.
+        $club = Club::create([
+            'name' => 'Старый клуб',
+            'address' => 'A',
+            'features' => ['tournaments' => true],
+        ]);
+
+        $this->assertTrue($club->hasFeature('inventory'));
+    }
 }
