@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubInventoryItem;
 use App\Models\CourtBooking;
 use App\Models\CourtBookingInventoryItem;
+use Illuminate\Support\Carbon;
 
 /**
  * Запись позиций инвентаря в бронь корта.
@@ -51,20 +52,31 @@ class BookingInventoryService
             ->where('is_active', true)
             ->get();
 
+        // Собираем все строки и вставляем одним запросом вместо INSERT на каждую позицию
+        // (до 50 позиций за вызов — цикл create() давал бы до 50 отдельных запросов).
+        $now = Carbon::now();
         $total = 0;
+        $insertRows = [];
         foreach ($items as $item) {
             $qty = min($wanted[$item->id], self::MAX_QUANTITY);
             $price = (int) $item->price;
 
-            CourtBookingInventoryItem::create([
+            $insertRows[] = [
                 'court_booking_id' => $booking->id,
                 'club_inventory_item_id' => $item->id,
                 'name' => $item->name,
                 'price' => $price,
                 'quantity' => $qty,
-            ]);
+                // insert() — это массовая вставка, Eloquent не проставляет таймстемпы сам.
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
 
             $total += $price * $qty;
+        }
+
+        if (!empty($insertRows)) {
+            CourtBookingInventoryItem::query()->insert($insertRows);
         }
 
         $booking->load('inventoryItems');
