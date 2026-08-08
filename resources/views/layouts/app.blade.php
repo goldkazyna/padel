@@ -998,6 +998,14 @@
 						</a>
 					</li>
 					@endif
+					@if(!$modClub || $modClub->hasFeature('inventory'))
+					<li class="nav-item">
+						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}">
+							<i class="bi bi-box-seam"></i>
+							<span>Инвентарь</span>
+						</a>
+					</li>
+					@endif
 					<li class="nav-item">
 						@php($cardsPendingMod = ($__cc = $modClub) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
 						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
@@ -1083,6 +1091,14 @@
 						<a href="{{ route('club.users.index') }}" class="nav-link {{ request()->routeIs('club.users.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Пользователи</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('inventory'))
+					<li class="nav-item">
+						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}">
+							<i class="bi bi-box-seam"></i>
+							<span>Инвентарь</span>
 						</a>
 					</li>
 					@endif

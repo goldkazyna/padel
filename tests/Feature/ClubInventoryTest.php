@@ -235,4 +235,27 @@ class ClubInventoryTest extends TestCase
 
         $this->assertSame(0, ClubInventoryItem::where('club_id', $club->id)->count());
     }
+
+    public function test_menu_shows_inventory_link_when_module_enabled(): void
+    {
+        [, $admin] = $this->setupClub();
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertSee(route('club.inventory.index'), escape: false)
+            ->assertSee('Инвентарь');
+    }
+
+    public function test_inactive_item_is_marked_in_list(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Старая ракетка', 'price' => 1000, 'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertSee('Старая ракетка')
+            ->assertSee('Выключена');
+    }
 }
