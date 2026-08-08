@@ -39,7 +39,8 @@ class ClubInventoryTest extends TestCase
 
         $this->assertSame($club->id, $item->fresh()->club->id);
         $this->assertTrue($club->inventoryItems->contains($item));
-        $this->assertSame('3000.00', $item->fresh()->price);
+        // Цена — целые тенге, без копеек.
+        $this->assertSame(3000, $item->fresh()->price);
         $this->assertTrue($item->fresh()->is_active);
     }
 
@@ -119,7 +120,7 @@ class ClubInventoryTest extends TestCase
         $item = ClubInventoryItem::where('club_id', $club->id)->first();
         $this->assertNotNull($item);
         $this->assertSame('Аренда ракетки', $item->name);
-        $this->assertSame('3000.00', $item->price);
+        $this->assertSame(3000, $item->price);
         $this->assertTrue($item->is_active);
     }
 
@@ -191,6 +192,217 @@ class ClubInventoryTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_super_admin_keeps_access_when_module_disabled_for_club(): void
+    {
+        // Супер-админ администрирует все клубы, поэтому флаг модуля конкретного клуба
+        // не должен его отсекать — иначе он не сможет управлять инвентарём вообще нигде.
+        Club::create(['name' => 'C', 'address' => 'A', 'features' => ['inventory' => false]]);
+        $superAdmin = User::factory()->create(['role' => 'super_admin']);
+
+        $this->actingAs($superAdmin)->get(route('club.inventory.index'))->assertOk();
+        $this->actingAs($superAdmin)
+            ->post(route('club.inventory.store'), ['name' => 'Мячи', 'price' => 2000])
+            ->assertRedirect();
+        $this->assertSame(1, ClubInventoryItem::count());
+    }
+
+    public function test_disabled_module_answers_with_russian_message(): void
+    {
+        [, $admin] = $this->setupClub(['inventory' => false]);
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertForbidden()
+            ->assertSee('Этот раздел отключён для вашего клуба');
+    }
+
+    public function test_menu_hides_inventory_link_when_module_disabled(): void
+    {
+        // Смотрим меню на странице, которая доступна при выключенном модуле,
+        // — сама страница инвентаря в этом случае отдаёт 403.
+        [, $admin] = $this->setupClub(['inventory' => false]);
+
+        $this->actingAs($admin)->get(route('club.help.index'))
+            ->assertOk()
+            // Меню на этой странице действительно рисуется — соседний пункт на месте.
+            ->assertSee(route('club.clients.index'), escape: false)
+            ->assertDontSee(route('club.inventory.index'), escape: false);
+    }
+
+    public function test_menu_shows_inventory_link_on_other_pages_when_module_enabled(): void
+    {
+        [, $admin] = $this->setupClub();
+
+        $this->actingAs($admin)->get(route('club.help.index'))
+            ->assertOk()
+            ->assertSee(route('club.inventory.index'), escape: false);
+    }
+
+    public function test_moderator_menu_hides_inventory_link_when_module_disabled(): void
+    {
+        [$club] = $this->setupClub(['inventory' => false]);
+        $moderator = $this->makeModerator($club);
+
+        $this->actingAs($moderator)->get(route('club.help.index'))
+            ->assertOk()
+            ->assertSee(route('club.clients.index'), escape: false)
+            ->assertDontSee(route('club.inventory.index'), escape: false);
+    }
+
+    public function test_player_cannot_access_inventory(): void
+    {
+        [$club] = $this->setupClub();
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
+        $player = User::factory()->create(['role' => 'player']);
+
+        $this->actingAs($player)->get(route('club.inventory.index'))->assertForbidden();
+        $this->actingAs($player)
+            ->post(route('club.inventory.store'), ['name' => 'Взлом', 'price' => 1])
+            ->assertForbidden();
+        $this->actingAs($player)
+            ->put(route('club.inventory.update', $item), ['name' => 'Взлом', 'price' => 1])
+            ->assertForbidden();
+        $this->actingAs($player)
+            ->delete(route('club.inventory.destroy', $item))
+            ->assertForbidden();
+
+        $this->assertSame('Мячи', $item->fresh()->name);
+        $this->assertSame(1, ClubInventoryItem::count());
+    }
+
+    public function test_price_must_be_whole_tenge(): void
+    {
+        [$club, $admin] = $this->setupClub();
+
+        $this->actingAs($admin)
+            ->post(route('club.inventory.store'), ['name' => 'Мячи', 'price' => 2500.50])
+            ->assertSessionHasErrors('price');
+        $this->assertSame(0, ClubInventoryItem::count());
+
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
+        $this->actingAs($admin)
+            ->put(route('club.inventory.update', $item), ['name' => 'Мячи', 'price' => 2500.50])
+            ->assertSessionHasErrors('price');
+        $this->assertSame(2000, $item->fresh()->price);
+    }
+
+    public function test_price_is_shown_without_kopecks(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Аренда ракетки', 'price' => 3000, 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertSee('3 000 ₸')
+            ->assertDontSee('3000.00');
+    }
+
+    public function test_update_without_is_active_keeps_current_state(): void
+    {
+        // Частичное обновление (без ключа is_active) не должно молча выключать позицию.
+        [$club, $admin] = $this->setupClub();
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->put(route('club.inventory.update', $item), [
+            'name' => 'Мячи (набор)',
+            'price' => 2500,
+        ])->assertRedirect();
+
+        $item->refresh();
+        $this->assertSame('Мячи (набор)', $item->name);
+        $this->assertTrue($item->is_active, 'Позиция не должна выключаться, если поле активности не пришло.');
+
+        // И наоборот: выключенная позиция остаётся выключенной.
+        $item->update(['is_active' => false]);
+        $this->actingAs($admin)->put(route('club.inventory.update', $item), [
+            'name' => 'Мячи (набор)',
+            'price' => 2500,
+        ])->assertRedirect();
+
+        $this->assertFalse($item->fresh()->is_active);
+    }
+
+    public function test_edit_validation_error_does_not_leak_into_add_form(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
+
+        // Провалившееся редактирование: имя улетает в old(), модалка при этом закрыта.
+        $this->actingAs($admin)
+            ->from(route('club.inventory.index'))
+            ->put(route('club.inventory.update', $item), ['name' => 'Имя из модалки', 'price' => -5])
+            ->assertSessionHasErrors('price');
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertDontSee('value="Имя из модалки"', escape: false);
+    }
+
+    public function test_failed_add_keeps_entered_values_in_add_form(): void
+    {
+        [, $admin] = $this->setupClub();
+
+        $this->actingAs($admin)
+            ->from(route('club.inventory.index'))
+            ->post(route('club.inventory.store'), ['inv_form' => 'create', 'name' => 'Аренда ракетки', 'price' => -5])
+            ->assertSessionHasErrors('price');
+
+        $this->actingAs($admin)->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertSee('value="Аренда ракетки"', escape: false);
+    }
+
+    public function test_edit_form_action_matches_named_route(): void
+    {
+        // Адрес сохранения в модалке должен собираться из route(), а не из захардкоженного
+        // префикса — иначе переименование префикса уведёт сохранение в 404.
+        [$club, $admin] = $this->setupClub();
+        $item = ClubInventoryItem::create([
+            'club_id' => $club->id, 'name' => 'Мячи', 'price' => 2000, 'is_active' => true,
+        ]);
+
+        $html = $this->actingAs($admin)->get(route('club.inventory.index'))->assertOk()->getContent();
+
+        preg_match('/INVENTORY_UPDATE_URL\s*=\s*("(?:[^"\\\\]|\\\\.)*")/', $html, $m);
+        $this->assertNotEmpty($m, 'Не нашли шаблон адреса сохранения в скрипте страницы.');
+        $template = json_decode($m[1]);
+
+        // Подстановка id должна давать ровно тот адрес, который знает роутер.
+        $this->assertSame(
+            route('club.inventory.update', $item),
+            str_replace('__ID__', (string) $item->id, $template)
+        );
+    }
+
+    public function test_activity_log_shows_russian_subject_and_whole_price(): void
+    {
+        [$club, $admin] = $this->setupClub(['activity_log' => true]);
+
+        $this->actingAs($admin)->post(route('club.inventory.store'), [
+            'name' => 'Аренда ракетки',
+            'price' => 3000,
+        ])->assertRedirect();
+
+        $log = \App\Models\ActivityLog::where('club_id', $club->id)
+            ->where('subject_type', 'ClubInventoryItem')->firstOrFail();
+        $this->assertStringContainsString('3000 ₸', $log->description);
+        $this->assertStringNotContainsString('3000.00', $log->description);
+
+        $this->actingAs($admin)->get(route('club.activityLog'))
+            ->assertOk()
+            ->assertSee('Инвентарь')
+            ->assertDontSee('ClubInventoryItem');
+    }
+
     public function test_validation_rejects_empty_name_and_negative_price(): void
     {
         [, $admin] = $this->setupClub();
@@ -220,7 +432,7 @@ class ClubInventoryTest extends TestCase
 
         $item->refresh();
         $this->assertSame('Мячи (набор)', $item->name);
-        $this->assertSame('2500.00', $item->price);
+        $this->assertSame(2500, $item->price);
         $this->assertFalse($item->is_active);
     }
 
