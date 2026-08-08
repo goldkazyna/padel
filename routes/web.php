@@ -299,6 +299,12 @@ Route::middleware('auth')->group(function () {
             Route::delete('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'destroy'])->name('clients.destroy');
         });
 
+        // Инвентарь клуба
+        Route::get('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'index'])->name('inventory.index');
+        Route::post('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'store'])->name('inventory.store');
+        Route::put('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'update'])->name('inventory.update');
+        Route::delete('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'destroy'])->name('inventory.destroy');
+
         // Клубные карты
         Route::get('/cards', [App\Http\Controllers\Club\ClubCardTypeController::class, 'index'])->name('cards.index');
         Route::post('/card-types', [App\Http\Controllers\Club\ClubCardTypeController::class, 'store'])->name('cardTypes.store');
