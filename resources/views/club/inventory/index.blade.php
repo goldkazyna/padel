@@ -16,12 +16,18 @@
     @endif
 
     {{-- Добавление позиции --}}
+    @php
+        // Старые значения подставляем только если сорвалось именно ДОБАВЛЕНИЕ.
+        // Иначе ошибка из модалки редактирования протекла бы в форму добавления.
+        $wasCreating = old('inv_form') === 'create';
+    @endphp
     <form action="{{ route('club.inventory.store') }}" method="POST" class="inv-add">
         @csrf
+        <input type="hidden" name="inv_form" value="create">
         <input type="text" name="name" class="inv-input" placeholder="Аренда ракетки"
-               value="{{ old('name') }}" required maxlength="255">
+               value="{{ $wasCreating ? old('name') : '' }}" required maxlength="255">
         <input type="number" name="price" class="inv-input inv-input-price" placeholder="3000"
-               value="{{ old('price') }}" required min="0" step="1">
+               value="{{ $wasCreating ? old('price') : '' }}" required min="0" step="1">
         <button type="submit" class="inv-btn inv-green">
             <i class="bi bi-plus-lg"></i> Добавить
         </button>
@@ -33,6 +39,8 @@
             Позиций пока нет. Добавьте первую — например, «Аренда ракетки» за 3000 ₸.
         </div>
     @else
+        {{-- Обёртка с горизонтальной прокруткой: длинное название не должно распирать страницу --}}
+        <div class="inv-table-wrap">
         <table class="inv-table">
             <thead>
                 <tr>
@@ -46,7 +54,7 @@
                 @foreach($items as $item)
                     <tr>
                         <td>{{ $item->name }}</td>
-                        <td>{{ number_format((float) $item->price, 0, ',', ' ') }} ₸</td>
+                        <td class="inv-nowrap">{{ number_format($item->price, 0, ',', ' ') }} ₸</td>
                         <td>
                             @if($item->is_active)
                                 <span class="inv-badge inv-on">Активна</span>
@@ -56,7 +64,7 @@
                         </td>
                         <td class="inv-actions">
                             <button type="button" class="inv-ic"
-                                    onclick="openInventoryModal({{ $item->id }}, @js($item->name), {{ (float) $item->price }}, {{ $item->is_active ? 'true' : 'false' }})">
+                                    onclick="openInventoryModal({{ $item->id }}, @js($item->name), {{ $item->price }}, {{ $item->is_active ? 'true' : 'false' }})">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <form action="{{ route('club.inventory.destroy', $item) }}" method="POST"
@@ -70,6 +78,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @endif
 </div>
 
@@ -117,7 +126,9 @@
 .inv-add{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .inv-input{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text-primary);font-size:14px;flex:1 1 260px}
 .inv-input-price{flex:0 1 160px}
-.inv-table{width:100%;border-collapse:collapse;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.inv-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
+.inv-table{width:100%;min-width:520px;border-collapse:collapse;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.inv-nowrap{white-space:nowrap}
 .inv-table th{text-align:left;padding:11px 14px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:700}
 .inv-table td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text-primary);font-size:14px}
 .inv-table tr:last-child td{border-bottom:none}
@@ -143,9 +154,14 @@
 </style>
 
 <script>
+    // Шаблон адреса берём из route() — при переименовании префикса ссылка не сломается.
+    // Директива json, а не js: вторая кодирует кавычки в HTML-сущности (это верно для
+    // атрибута onclick, но внутри <script> сущности не раскрываются и ломают JS).
+    const INVENTORY_UPDATE_URL = @json(route('club.inventory.update', ['item' => '__ID__']));
+
     function openInventoryModal(id, name, price, isActive) {
         const form = document.getElementById('inventoryEditForm');
-        form.action = '{{ url('club/inventory') }}/' + id;
+        form.action = INVENTORY_UPDATE_URL.replace('__ID__', id);
         document.getElementById('inventoryName').value = name;
         document.getElementById('inventoryPrice').value = price;
         document.getElementById('inventoryActive').checked = isActive;
