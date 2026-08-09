@@ -37,7 +37,14 @@ class AdminLeaderboardAllFormatsTest extends TestCase
 
         $users = [];
         for ($i = 1; $i <= $players; $i++) {
-            $user = User::factory()->create(['name' => "P{$i}", 'rating' => 2000 - $i * 50]);
+            $user = User::factory()->create([
+                'name' => "P{$i}",
+                'rating' => 2000 - $i * 50,
+                // Каждый второй с подтверждённым уровнем: проверяем, что
+                // галочка доезжает до таблицы, а не гасится по дороге.
+                'level_verified' => $i % 2 === 0,
+                'avatar' => "https://cdn.example.com/p{$i}.jpg",
+            ]);
             TournamentParticipant::create([
                 'tournament_id' => $tournament->id,
                 'user_id' => $user->id,
@@ -64,6 +71,20 @@ class AdminLeaderboardAllFormatsTest extends TestCase
         $this->assertArrayHasKey('position', $rows[0]);
         $this->assertNotEmpty($rows[0]['name'], "{$format}: у строки нет имени");
         $this->assertArrayHasKey('total_points', $rows[0]);
+
+        // Правило для всех форматов: строка несёт аватар и синюю галочку.
+        // Приложение читает ровно эти ключи — расхождение имён молча
+        // оставляет таблицу без аватарок.
+        foreach ($rows as $i => $row) {
+            $this->assertArrayHasKey('avatar', $row, "{$format}: строка {$i} без ключа avatar");
+            $this->assertArrayHasKey('verified', $row, "{$format}: строка {$i} без ключа verified");
+
+            // Парные форматы дают ещё и обоих игроков — у них те же ключи.
+            foreach ($row['players'] ?? [] as $j => $player) {
+                $this->assertArrayHasKey('avatar', $player, "{$format}: игрок {$j} пары без avatar");
+                $this->assertArrayHasKey('verified', $player, "{$format}: игрок {$j} пары без verified");
+            }
+        }
     }
 
     public function test_king_of_court_has_leaderboard(): void
@@ -137,6 +158,23 @@ class AdminLeaderboardAllFormatsTest extends TestCase
         app(\App\Services\EscaleraService::class)->startTournament($t);
 
         $this->assertLeaderboardPresent($t->fresh(), $admin, 'Эскалера');
+    }
+
+    public function test_verified_flag_reaches_leaderboard(): void
+    {
+        [$t, $admin, $users] = $this->makeTournament('king_of_court', 8);
+        app(\App\Services\KingOfCourtService::class)->startTournament($t);
+
+        Sanctum::actingAs($admin);
+        $rows = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->json('groups.0.leaderboard');
+
+        $verified = array_filter($rows, fn ($r) => $r['verified'] === true);
+        $this->assertNotEmpty($verified, 'галочка не доезжает до таблицы');
+
+        $withAvatar = array_filter($rows, fn ($r) => !empty($r['avatar']));
+        $this->assertNotEmpty($withAvatar, 'аватар не доезжает до таблицы');
     }
 
     public function test_team_has_leaderboard(): void

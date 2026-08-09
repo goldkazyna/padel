@@ -1429,6 +1429,23 @@ class MobileAdminTournamentDetailController extends Controller
         return true;
     }
 
+    /**
+     * Игрок в строке таблицы лидеров.
+     *
+     * Ключи именно такие: приложение читает `avatar` и `verified`. У
+     * formatUser() они называются иначе (avatar_url, level_verified), и
+     * из-за этого расхождения парные форматы оставались без аватарок.
+     */
+    private function formatLeaderboardPlayer(User $u): array
+    {
+        return [
+            'id' => $u->id,
+            'name' => $u->name,
+            'avatar' => $u->avatar,
+            'verified' => (bool) $u->level_verified,
+        ];
+    }
+
     private function formatUser(User $u): array
     {
         return [
@@ -3032,6 +3049,12 @@ class MobileAdminTournamentDetailController extends Controller
                 'name' => trim(($p1->name ?? '?') . ' / ' . ($p2->name ?? '?')),
                 'player1' => $p1 ? $this->formatUser($p1) : null,
                 'player2' => $p2 ? $this->formatUser($p2) : null,
+                'avatar' => $p1?->avatar,
+                'verified' => (bool) ($p1?->level_verified || $p2?->level_verified),
+                'players' => array_values(array_filter([
+                    $p1 ? $this->formatLeaderboardPlayer($p1) : null,
+                    $p2 ? $this->formatLeaderboardPlayer($p2) : null,
+                ])),
                 'rating' => (int) round((($p1->rating ?? 0) + ($p2->rating ?? 0)) / 2),
                 'wins' => $row['wins'],
                 'losses' => $row['losses'],
@@ -3213,6 +3236,12 @@ class MobileAdminTournamentDetailController extends Controller
                 'name' => trim(($p1->name ?? '?') . ' / ' . ($p2->name ?? '?')),
                 'player1' => $p1 ? $this->formatUser($p1) : null,
                 'player2' => $p2 ? $this->formatUser($p2) : null,
+                'avatar' => $p1?->avatar,
+                'verified' => (bool) ($p1?->level_verified || $p2?->level_verified),
+                'players' => array_values(array_filter([
+                    $p1 ? $this->formatLeaderboardPlayer($p1) : null,
+                    $p2 ? $this->formatLeaderboardPlayer($p2) : null,
+                ])),
                 'rating' => (int) round((($p1->rating ?? 0) + ($p2->rating ?? 0)) / 2),
                 'wins' => $row['wins'],
                 'losses' => $row['losses'],
@@ -3872,6 +3901,13 @@ class MobileAdminTournamentDetailController extends Controller
                 'id' => $p->id, // pair id (отрицательным не делаем — UI не будет открывать профиль пары)
                 'name' => "{$name1} / {$name2}",
                 'avatar' => $p1?->avatar,
+                'verified' => (bool) ($p1?->level_verified || $p2?->level_verified),
+                // Оба игрока пары — приложение рисует их в две строки
+                // с аватаром и галочкой у каждого.
+                'players' => array_values(array_filter([
+                    $p1 ? $this->formatLeaderboardPlayer($p1) : null,
+                    $p2 ? $this->formatLeaderboardPlayer($p2) : null,
+                ])),
                 'rating' => 0,
                 'wins' => (int) $p->wins,
                 'losses' => (int) $p->losses,
@@ -4082,6 +4118,12 @@ class MobileAdminTournamentDetailController extends Controller
                     'id' => $team->id,
                     'name' => "{$name1} / {$name2}",
                     'avatar' => $team->player1?->avatar,
+                    'verified' => (bool) ($team->player1?->level_verified
+                        || $team->player2?->level_verified),
+                    'players' => array_values(array_filter([
+                        $team->player1 ? $this->formatLeaderboardPlayer($team->player1) : null,
+                        $team->player2 ? $this->formatLeaderboardPlayer($team->player2) : null,
+                    ])),
                     'rating' => 0,
                     'wins' => (int) $row['won'],
                     'losses' => (int) $row['lost'],
