@@ -728,6 +728,33 @@ class Tournament extends Model
 	}
 
 	/**
+	 * Привести названия кортов к их количеству.
+	 *
+	 * Клиенты присылают courts_count отдельно от названий (мобильное
+	 * приложение названия вообще не шлёт), поэтому массив легко расходится
+	 * со счётчиком: уменьшили корты — остались лишние названия, увеличили —
+	 * не хватает. Приводим здесь, после каждого сохранения турнира.
+	 */
+	public function syncCourtNames(): void
+	{
+		$count = (int) $this->courts_count;
+		if ($count <= 0) {
+			return; // количество не задано — названия не трогаем
+		}
+
+		$courts = is_array($this->courts) ? $this->courts : [];
+		// Лишние отбрасываем, недостающие добиваем пустыми — подпись
+		// таких кортов сгенерирует getCourtName().
+		$courts = array_slice($courts, 0, $count);
+		$courts = array_pad($courts, $count, null);
+		$courts = array_map(fn ($name) => $name !== null && $name !== '' ? $name : null, $courts);
+
+		$this->update([
+			'courts' => empty(array_filter($courts)) ? null : $courts,
+		]);
+	}
+
+	/**
 	 * Название корта по номеру
 	 */
 	public function getCourtName(int $courtNumber): string

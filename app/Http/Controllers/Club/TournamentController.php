@@ -185,6 +185,7 @@ class TournamentController extends Controller
 		}
 
         $tournament = Tournament::create($validated);
+        $tournament->syncCourtNames();
 		// Убираем пустые названия кортов
 		if (isset($validated['courts'])) {
 			$validated['courts'] = array_map(function($court) {
@@ -392,6 +393,7 @@ class TournamentController extends Controller
 		}
 
 		$tournament->update($validated);
+		$tournament->syncCourtNames();
 		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
 	}
 

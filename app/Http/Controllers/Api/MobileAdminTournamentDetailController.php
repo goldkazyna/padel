@@ -231,6 +231,9 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $tournament->update($validated);
+        // Названия кортов приводим к их количеству: приложение названия не шлёт,
+        // поэтому без этого массив расходится со счётчиком.
+        $tournament->syncCourtNames();
         $tournament->refresh()->loadMissing('club');
 
         return response()->json([
