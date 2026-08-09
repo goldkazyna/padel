@@ -59,6 +59,8 @@ class ClubController extends Controller
             'telegram_channel_id' => 'nullable|string|max:255',
             'telegram_bot_token' => 'nullable|string|max:255',
             'is_active' => 'boolean',
+            // Ручной порядок клуба в списках приложения. Пусто — по дате.
+            'sort_order' => 'nullable|integer|min:0|max:9999',
             'features' => 'nullable|array',
             'features.*' => 'boolean',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
@@ -93,6 +95,10 @@ class ClubController extends Controller
         }
         $validated['coming_soon'] = $request->boolean('coming_soon');
         $validated['is_community'] = $request->boolean('is_community');
+        // Пустое поле снимает ручной порядок — клуб уходит к остальным.
+        $validated['sort_order'] = $request->filled('sort_order')
+            ? (int) $request->input('sort_order')
+            : null;
 
         $features = $request->input('features', []);
         $validated['features'] = [

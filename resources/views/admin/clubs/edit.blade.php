@@ -278,6 +278,18 @@
                     </div>
 
                     <div class="mb-4">
+                        <label class="form-label">Порядок в списках приложения</label>
+                        <input type="number" name="sort_order" class="form-control"
+                               min="0" max="9999"
+                               value="{{ old('sort_order', $club->sort_order) }}"
+                               placeholder="Пусто — по дате добавления">
+                        <div class="text-secondary small mt-1">
+                            Чем меньше число, тем выше клуб в бронировании и списке клубов.
+                            Пустое поле — клуб идёт после пронумерованных, по дате добавления.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
                         <label class="form-check">
                             <input type="hidden" name="coming_soon" value="0">
                             <input type="checkbox" name="coming_soon" value="1" class="form-check-input"

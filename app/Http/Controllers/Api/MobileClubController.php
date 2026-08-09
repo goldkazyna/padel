@@ -76,6 +76,9 @@ class MobileClubController extends Controller
         $sortByCreated = $request->get('sort') === 'created';
 
         $clubs = $query
+            // Ручной порядок супер-админа старше любой автоматики.
+            ->orderByRaw('sort_order IS NULL')
+            ->orderBy('sort_order')
             ->when($sortByCreated, function ($q) {
                 // «Скоро открытие» держим внизу и здесь: записываться туда
                 // всё равно нельзя.
