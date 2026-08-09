@@ -1,34 +1,38 @@
 {{-- resources/views/club/tournaments/escalera/partials/_courts.blade.php --}}
+{{-- Вёрстка повторяет «Короля корта» (kingofcourt/partials/_rounds): те же
+     карточки раундов, бейджи кортов и модалки ввода счёта. Отличие формата —
+     на корте не один матч, а три, поэтому матчи сгруппированы под бейджем корта. --}}
 @php
     $courtsTotal = (int) $tournament->courts_count;
     $lastRoundId = $tournament->escaleraRounds->last()?->id;
     $scoresLocked = $tournament->status === 'completed';
 @endphp
 
-<div class="esc-rounds mb-4">
+<div class="rounds-grid">
     @foreach($tournament->escaleraRounds as $round)
         @php
-            $isOpen = $round->id === $lastRoundId;
             $roundDone = $round->isCompleted();
+            $isOpen = $round->id === $lastRoundId;
+            $statusClass = $roundDone ? 'completed' : 'active';
         @endphp
-        <div class="esc-round {{ $roundDone ? 'done' : 'live' }}">
-            <div class="esc-round-header" onclick="toggleEscRound('esc-round-{{ $round->id }}')">
-                <div class="esc-round-title">
+        <div class="round-card {{ $statusClass }}">
+            <div class="round-header" onclick="toggleEscRound('esc-round-{{ $round->id }}')" style="cursor: pointer;">
+                <div class="round-title">
                     @if($roundDone)
-                        <i class="bi bi-check-circle-fill"></i>
+                        <i class="bi bi-check-circle-fill text-success"></i>
                     @else
-                        <i class="bi bi-play-circle-fill"></i>
+                        <i class="bi bi-play-circle-fill text-primary"></i>
                     @endif
                     Раунд {{ $round->round_number }}
                 </div>
-                <div class="esc-round-right">
-                    <span class="esc-round-status">{{ $roundDone ? 'Закрыт' : 'Идёт' }}</span>
-                    <i class="bi bi-chevron-down esc-collapse-icon {{ $isOpen ? '' : 'collapsed' }}"
+                <div class="round-header-right">
+                    <span class="round-status {{ $statusClass }}">{{ $roundDone ? 'Закрыт' : 'Идёт' }}</span>
+                    <i class="bi bi-chevron-down collapse-icon {{ $isOpen ? '' : 'collapsed' }}"
                        id="icon-esc-round-{{ $round->id }}"></i>
                 </div>
             </div>
 
-            <div class="esc-round-body {{ $isOpen ? '' : 'collapsed' }}" id="esc-round-{{ $round->id }}">
+            <div class="round-matches collapsible-content {{ $isOpen ? '' : 'collapsed' }}" id="esc-round-{{ $round->id }}">
                 @if($roundDone && !$scoresLocked)
                     <div class="esc-round-hint">
                         <i class="bi bi-exclamation-triangle me-1"></i>
@@ -39,24 +43,31 @@
 
                 @foreach($round->courts as $court)
                     @php
-                        $filled = $court->matches->filter(fn ($m) => $m->isCompleted())->count();
-                        $state = $filled === 0 ? 'empty' : ($filled < 3 ? 'partial' : 'done');
                         $courtNumber = (int) $court->court_number;
+                        $filled = $court->matches->filter(fn ($m) => $m->isCompleted())->count();
                         $seating = $court->playerIds();
+
+                        if ($courtNumber === 1) {
+                            $courtBadgeClass = 'court-top';
+                            $courtNote = 'верхний';
+                        } elseif ($courtNumber === $courtsTotal) {
+                            $courtBadgeClass = 'court-bottom';
+                            $courtNote = 'нижний';
+                        } else {
+                            $courtBadgeClass = 'court-middle';
+                            $courtNote = null;
+                        }
                     @endphp
-                    <div class="esc-court {{ $state }}">
-                        <div class="esc-court-header">
-                            <span class="esc-court-name">
-                                Корт {{ $courtNumber }}
-                                @if($courtNumber === 1)
-                                    <span class="esc-court-note">верхний</span>
-                                @elseif($courtNumber === $courtsTotal)
-                                    <span class="esc-court-note">нижний</span>
-                                @endif
-                            </span>
-                            <span class="esc-court-progress">{{ $filled }}/3 матчей</span>
+                    <div class="esc-court-block">
+                        <div class="match-court-header {{ $courtBadgeClass }}">
+                            <i class="bi bi-geo-alt"></i> Корт {{ $courtNumber }}
+                            @if($courtNote)
+                                <span class="esc-court-note">{{ $courtNote }}</span>
+                            @endif
+                            <span class="esc-court-progress">{{ $filled }}/3</span>
                         </div>
 
+                        {{-- Посадка: номер места определяет пары в трёх матчах --}}
                         <div class="esc-court-seating">
                             @foreach($seating as $i => $playerId)
                                 <div class="esc-seat">
@@ -66,47 +77,110 @@
                             @endforeach
                         </div>
 
-                        <div class="esc-matches">
-                            @foreach($court->matches as $match)
-                                @php
-                                    $t1 = optional($users->get($match->team1_player1_id))->name ?? '—';
-                                    $t2 = optional($users->get($match->team1_player2_id))->name ?? '—';
-                                    $t3 = optional($users->get($match->team2_player1_id))->name ?? '—';
-                                    $t4 = optional($users->get($match->team2_player2_id))->name ?? '—';
-                                @endphp
-                                <div class="esc-match {{ $match->isCompleted() ? 'filled' : '' }}">
-                                    <div class="esc-match-num">Матч {{ $match->match_number }}</div>
-                                    <div class="esc-match-team">{{ $t1 }} / {{ $t2 }}</div>
+                        @foreach($court->matches as $match)
+                            @php
+                                $p1 = $users->get($match->team1_player1_id);
+                                $p2 = $users->get($match->team1_player2_id);
+                                $p3 = $users->get($match->team2_player1_id);
+                                $p4 = $users->get($match->team2_player2_id);
 
-                                    @if($scoresLocked)
-                                        <div class="esc-match-score-static">
-                                            {{ $match->team1_score ?? '—' }} : {{ $match->team2_score ?? '—' }}
+                                $done = $match->isCompleted();
+                                $winner = null;
+                                if ($done) {
+                                    $winner = $match->team1_score > $match->team2_score
+                                        ? 1
+                                        : ($match->team2_score > $match->team1_score ? 2 : null);
+                                }
+
+                                $team1Names = (optional($p1)->name ?? '—') . ' / ' . (optional($p2)->name ?? '—');
+                                $team2Names = (optional($p3)->name ?? '—') . ' / ' . (optional($p4)->name ?? '—');
+                            @endphp
+                            <div class="match-card" data-match-id="{{ $match->id }}">
+                                <div class="esc-match-num">Матч {{ $match->match_number }}</div>
+                                <div class="match-teams">
+                                    <div class="match-team {{ $winner === 1 ? 'winner' : '' }}">
+                                        <div class="team-players">
+                                            <div class="player-line">{{ optional($p1)->name ?? '—' }} <span class="player-level">{{ optional($p1)->level }}</span></div>
+                                            <div class="player-line">{{ optional($p2)->name ?? '—' }} <span class="player-level">{{ optional($p2)->level }}</span></div>
                                         </div>
-                                    @else
-                                        <form action="{{ route('club.escalera.saveScore', $match) }}" method="POST"
-                                              class="esc-match-form">
-                                            @csrf
-                                            <input type="number" name="team1_score" class="form-control esc-score-input"
-                                                   min="0" max="99" required
-                                                   value="{{ $match->team1_score }}">
-                                            <span class="esc-match-colon">:</span>
-                                            <input type="number" name="team2_score" class="form-control esc-score-input"
-                                                   min="0" max="99" required
-                                                   value="{{ $match->team2_score }}">
-                                            <button type="submit" class="btn-primary-custom esc-score-btn">
-                                                <i class="bi bi-check-lg"></i>
+                                        @if($done)
+                                            <div class="team-score">{{ $match->team1_score }}</div>
+                                        @endif
+                                    </div>
+
+                                    <div class="match-vs">
+                                        @if($scoresLocked)
+                                            <span class="vs-pending">VS</span>
+                                        @elseif($done)
+                                            <button class="btn-score-edit"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#escScoreModal{{ $match->id }}"
+                                                    title="Редактировать счёт">
+                                                <i class="bi bi-pencil"></i>
                                             </button>
-                                        </form>
-                                    @endif
+                                        @else
+                                            <button class="btn-score"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#escScoreModal{{ $match->id }}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                        @endif
+                                    </div>
 
-                                    <div class="esc-match-team text-end">{{ $t3 }} / {{ $t4 }}</div>
+                                    <div class="match-team {{ $winner === 2 ? 'winner' : '' }}">
+                                        @if($done)
+                                            <div class="team-score">{{ $match->team2_score }}</div>
+                                        @endif
+                                        <div class="team-players">
+                                            <div class="player-line">{{ optional($p3)->name ?? '—' }} <span class="player-level">{{ optional($p3)->level }}</span></div>
+                                            <div class="player-line">{{ optional($p4)->name ?? '—' }} <span class="player-level">{{ optional($p4)->level }}</span></div>
+                                        </div>
+                                    </div>
                                 </div>
-                            @endforeach
-                        </div>
+                            </div>
 
-                        @if(!$scoresLocked)
-                            <div class="esc-court-hint">Счёт любой — формат матча организатор определяет сам</div>
-                        @endif
+                            @if(!$scoresLocked)
+                                <div class="modal fade" id="escScoreModal{{ $match->id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content modal-dark">
+                                            <div class="modal-header border-0">
+                                                <h5 class="modal-title">
+                                                    {{ $done ? 'Редактировать' : 'Ввести счёт' }} · Корт {{ $courtNumber }}, матч {{ $match->match_number }}
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ route('club.escalera.saveScore', $match) }}" method="POST">
+                                                @csrf
+                                                <div class="modal-body">
+                                                    <div class="score-input-grid">
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $team1Names }}</div>
+                                                            <input type="number" name="team1_score" class="form-control form-control-lg text-center"
+                                                                   min="0" max="99" required value="{{ $match->team1_score }}">
+                                                        </div>
+                                                        <div class="score-separator">:</div>
+                                                        <div class="score-team">
+                                                            <div class="score-team-names">{{ $team2Names }}</div>
+                                                            <input type="number" name="team2_score" class="form-control form-control-lg text-center"
+                                                                   min="0" max="99" required value="{{ $match->team2_score }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="esc-modal-hint">
+                                                        Счёт любой — формат матча организатор определяет сам.
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
+                                                    <button type="submit" class="btn-primary-custom">
+                                                        <i class="bi bi-check-lg"></i> {{ $done ? 'Обновить' : 'Сохранить' }}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
                     </div>
                 @endforeach
             </div>
@@ -116,122 +190,73 @@
 
 <script>
 function toggleEscRound(id) {
-    const body = document.getElementById(id);
+    const content = document.getElementById(id);
     const icon = document.getElementById('icon-' + id);
-    if (body && icon) {
-        body.classList.toggle('collapsed');
+
+    if (content && icon) {
+        content.classList.toggle('collapsed');
         icon.classList.toggle('collapsed');
     }
 }
 </script>
 
+@include('club.tournaments.partials._round_cards_style')
+
 <style>
-.esc-rounds { display: flex; flex-direction: column; gap: 16px; }
-.esc-round {
-    background: var(--bg-card);
+/* Только отличия эскалеры от «Короля корта»: на корте три матча, а не один. */
+/* Раунд из 3-5 кортов по три матча выше, чем у КОС, — потолок сворачивания больше. */
+.collapsible-content { max-height: 8000px; }
+.match-court-header { display: block; }
+
+/* Своё для эскалеры: корт — группа из трёх матчей, плюс посадка над ними. */
+.esc-court-block {
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
-}
-.esc-round.live { border-color: var(--accent); }
-.esc-round-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--bg-secondary);
-    cursor: pointer;
-    user-select: none;
-}
-.esc-round-title { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
-.esc-round.live .esc-round-title { color: var(--accent); }
-.esc-round-right { display: flex; align-items: center; gap: 12px; }
-.esc-round-status { color: var(--text-secondary); font-size: 0.9rem; }
-.esc-collapse-icon { transition: transform 0.3s; color: var(--text-secondary); }
-.esc-collapse-icon.collapsed { transform: rotate(-90deg); }
-.esc-round-body {
-    padding: 14px;
+    padding: 12px;
+    margin-bottom: 16px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    overflow: hidden;
-}
-.esc-round-body.collapsed { display: none; }
-.esc-round-hint { color: var(--esc-warn); font-size: 0.9rem; }
-
-.esc-court {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    background: var(--bg-secondary);
-}
-.esc-court.empty { border-color: var(--border); }
-.esc-court.partial { border-color: var(--esc-warn); background: var(--esc-warn-bg); }
-.esc-court.done { border-color: var(--accent); background: var(--accent-glow); }
-
-.esc-court-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-.esc-court-name { font-weight: 600; color: var(--text-primary); }
-.esc-court-note { color: var(--text-secondary); font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
-.esc-court-progress { color: var(--text-secondary); font-size: 0.9rem; }
-
-.esc-court-seating {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
-    margin-bottom: 12px;
 }
+.esc-court-note { font-size: 16px; font-weight: 400; opacity: 0.75; margin-left: 6px; }
+.esc-court-progress { float: right; font-size: 16px; font-weight: 400; opacity: 0.75; }
+
+.esc-court-seating { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
 .esc-seat {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: var(--bg-card);
+    background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
 }
 .esc-seat-num {
-    min-width: 22px;
-    height: 22px;
+    min-width: 24px;
+    height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-}
-.esc-seat-name { color: var(--text-primary); }
-
-.esc-matches { display: flex; flex-direction: column; gap: 8px; }
-.esc-match {
-    display: grid;
-    grid-template-columns: 90px 1fr auto 1fr;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
 }
-.esc-match.filled { border-color: var(--accent); }
-.esc-match-num { color: var(--text-secondary); font-size: 0.85rem; }
-.esc-match-team { color: var(--text-primary); }
-.esc-match-form { display: flex; align-items: center; gap: 6px; margin: 0; }
-.esc-match-colon { color: var(--text-secondary); }
-.esc-score-input { width: 64px; text-align: center; }
-.esc-score-btn { padding: 6px 10px; }
-.esc-match-score-static { font-weight: 600; color: var(--text-primary); min-width: 70px; text-align: center; }
-.esc-court-hint { margin-top: 10px; color: var(--text-secondary); font-size: 0.85rem; }
+.esc-seat-name { color: var(--text-primary); font-size: 18px; }
+
+.esc-match-num { align-self: flex-start; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px; }
+
+/* Раскладка модалки счёта: два поля и двоеточие между ними. */
+.score-input-grid { display: flex; align-items: flex-end; gap: 16px; }
+.score-input-grid .score-team { flex: 1; text-align: center; }
+.score-input-grid .score-separator { padding-bottom: 6px; }
+.esc-round-hint { color: var(--esc-warn); font-size: 0.9rem; margin-bottom: 12px; }
+.esc-modal-hint { margin-top: 14px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
 
 @media (max-width: 800px) {
     .esc-court-seating { grid-template-columns: repeat(2, 1fr); }
-    .esc-match { grid-template-columns: 1fr; text-align: center; }
-    .esc-match-team.text-end { text-align: center !important; }
-    .esc-match-form { justify-content: center; }
+    .player-line { font-size: 20px; }
+    .team-score { font-size: 28px; }
+    .match-court-header { font-size: 18px; }
 }
 </style>

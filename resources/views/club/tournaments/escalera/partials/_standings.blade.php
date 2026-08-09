@@ -15,17 +15,17 @@
         <table class="leaderboard-table">
             <thead>
                 <tr>
-                    <th class="col-rank">#</th>
-                    <th class="col-player">Игрок</th>
-                    <th class="col-points {{ $isRawMode ? '' : 'esc-main-col' }}">
+                    <th class="col-rank ttt">#</th>
+                    <th class="col-player ttt">Игрок</th>
+                    <th class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}">
                         Баллы@if(!$isRawMode) <small>(зачёт)</small>@endif
                     </th>
-                    <th class="col-stat {{ $isRawMode ? 'esc-main-col' : '' }}">
+                    <th class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}">
                         Очки@if($isRawMode) <small>(зачёт)</small>@endif
                     </th>
-                    <th class="col-stat">В</th>
-                    <th class="col-stat">{{ $isCompleted ? 'Корт' : 'Корт (след.)' }}</th>
-                    <th class="col-stat">Δ</th>
+                    <th class="col-stat ttt">В</th>
+                    <th class="col-stat ttt">{{ $isCompleted ? 'Корт' : 'Корт (след.)' }}</th>
+                    <th class="col-stat ttt">Δ</th>
                 </tr>
             </thead>
             <tbody>
@@ -39,8 +39,8 @@
                         $change = $row['change'];
                     @endphp
                     <tr class="{{ $rankClass }}">
-                        <td class="col-rank"><span class="rank-badge {{ $rankClass }}">{{ $rank }}</span></td>
-                        <td class="col-player">
+                        <td class="col-rank ttt"><span class="rank-badge {{ $rankClass }}">{{ $rank }}</span></td>
+                        <td class="col-player ttt">
                             <div class="player-info">
                                 <div class="player-avatar">
                                     {{ mb_strtoupper(mb_substr($row['user']->name ?? '?', 0, 1)) }}
@@ -51,11 +51,11 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="col-points {{ $isRawMode ? '' : 'esc-main-col' }}">{{ $row['points'] }}</td>
-                        <td class="col-stat {{ $isRawMode ? 'esc-main-col' : '' }}">{{ $row['raw_points'] }}</td>
-                        <td class="col-stat">{{ $row['wins'] }}</td>
-                        <td class="col-stat">{{ $court }}</td>
-                        <td class="col-stat">
+                        <td class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}">{{ $row['points'] }}</td>
+                        <td class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}">{{ $row['raw_points'] }}</td>
+                        <td class="col-stat ttt">{{ $row['wins'] }}</td>
+                        <td class="col-stat ttt">{{ $court }}</td>
+                        <td class="col-stat ttt">
                             @if($change === null)
                                 <span class="esc-change-none">—</span>
                             @elseif($change > 0)
@@ -81,6 +81,9 @@
 @endif
 
 <style>
+/* Размеры как в таблице «Короля корта» (kingofcourt/partials/_leaderboard). */
+.player-name { font-weight: 500; font-size: 24px; }
+.ttt { font-size: 24px; }
 .esc-main-col { color: var(--accent) !important; }
 .esc-change-up { color: var(--accent); }
 .esc-change-down { color: var(--esc-warn); }

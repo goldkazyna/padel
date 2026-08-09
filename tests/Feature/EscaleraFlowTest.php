@@ -952,6 +952,7 @@ class EscaleraFlowTest extends TestCase
         $this->service()->startTournament($tournament);
 
         // Раунд только создан: карточки кортов есть, закрывать нечего.
+        $firstMatch = $this->lastRound($tournament)->courts()->first()->matches()->first();
         $this->actingAs($admin)
             ->get(route('club.tournaments.show', $tournament))
             ->assertOk()
@@ -959,6 +960,9 @@ class EscaleraFlowTest extends TestCase
             ->assertSee('Корт 3')
             ->assertSee('A1')
             ->assertSee('C4')
+            // Счёт вводится в модалке, как в «Короле корта».
+            ->assertSee('escScoreModal' . $firstMatch->id)
+            ->assertSee('Ввести счёт')
             ->assertDontSee('Закрыть раунд');
 
         // Все счета внесены: показано превью перемещений и кнопка закрытия.
