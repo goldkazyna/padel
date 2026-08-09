@@ -503,16 +503,18 @@
 							<div class="form-check">
 								<input type="radio" class="form-check-input" name="escalera_standings_mode"
 									   id="escaleraModePoints" value="points"
-									   {{ old('escalera_standings_mode', 'points') === 'raw_points' ? '' : 'checked' }}>
+									   {{ old('escalera_standings_mode', 'raw_points') === 'points' ? 'checked' : '' }}>
 								<label class="form-check-label" for="escaleraModePoints">
-									По баллам за позиции <small class="text-muted">(по умолчанию)</small>
+									По баллам за позиции
 								</label>
 							</div>
 							<div class="form-check">
 								<input type="radio" class="form-check-input" name="escalera_standings_mode"
 									   id="escaleraModeRaw" value="raw_points"
-									   {{ old('escalera_standings_mode') === 'raw_points' ? 'checked' : '' }}>
-								<label class="form-check-label" for="escaleraModeRaw">По сумме очков за матчи</label>
+									   {{ old('escalera_standings_mode', 'raw_points') === 'points' ? '' : 'checked' }}>
+								<label class="form-check-label" for="escaleraModeRaw">
+									По сумме очков за матчи <small class="text-muted">(по умолчанию)</small>
+								</label>
 							</div>
 							<small class="text-secondary mt-2 d-block">
 								По баллам считается родной зачёт формата: номер корта встроен в позицию, поэтому

@@ -361,7 +361,7 @@ class MobileAdminTournamentController extends Controller
                 ]);
             }
             $validated['max_participants'] = $courts * 4;
-            $validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'points';
+            $validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'raw_points';
         } else {
             unset($validated['escalera_standings_mode']);
         }

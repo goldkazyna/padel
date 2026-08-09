@@ -2931,7 +2931,7 @@ class MobileAdminTournamentDetailController extends Controller
         return [
             'success' => true,
             'type' => 'escalera',
-            'standings_mode' => $tournament->escalera_standings_mode ?? 'points',
+            'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
             'groups' => [[
                 'id' => 0,
                 'name' => '',

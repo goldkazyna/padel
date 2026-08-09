@@ -156,7 +156,7 @@
                                 @endif
                             </small>
                         </div>
-                        @php $escMode = old('escalera_standings_mode', $tournament->escalera_standings_mode ?? 'points'); @endphp
+                        @php $escMode = old('escalera_standings_mode', $tournament->escalera_standings_mode ?? 'raw_points'); @endphp
                         <div class="col-md-12 mb-4">
                             <label class="form-label">Итоговая таблица</label>
                             <div class="form-check">

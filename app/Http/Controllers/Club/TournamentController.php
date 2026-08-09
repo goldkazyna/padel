@@ -131,7 +131,7 @@ class TournamentController extends Controller
 			$escaleraCourts = (int) ($validated['escalera_courts_count'] ?? 4);
 			$validated['courts_count'] = $escaleraCourts;
 			$validated['max_participants'] = $escaleraCourts * 4;
-			$validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'points';
+			$validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'raw_points';
 		} else {
 			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
 			unset($validated['escalera_standings_mode']);
@@ -361,7 +361,7 @@ class TournamentController extends Controller
 
 			if ($notStarted) {
 				$validated['escalera_standings_mode'] = $validated['escalera_standings_mode']
-					?? ($tournament->escalera_standings_mode ?? 'points');
+					?? ($tournament->escalera_standings_mode ?? 'raw_points');
 			} else {
 				unset($validated['escalera_standings_mode']);
 			}

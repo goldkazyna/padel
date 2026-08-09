@@ -146,6 +146,15 @@ class Tournament extends Model
 		'escalera_standings_mode',
     ];
 
+    /**
+     * Зачёт эскалеры по умолчанию — по сумме забитых очков.
+     * Дефолт задан здесь, а не в миграции: колонка enum, и менять её
+     * значение по умолчанию отдельной миграцией дороже, чем оно того стоит.
+     */
+    protected $attributes = [
+        'escalera_standings_mode' => 'raw_points',
+    ];
+
     protected $casts = [
         'start_date' => 'datetime',
         'registration_deadline' => 'datetime',

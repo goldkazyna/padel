@@ -862,6 +862,30 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame('raw_points', $tournament->escalera_standings_mode);
     }
 
+    public function test_web_create_defaults_standings_mode_to_raw_points(): void
+    {
+        $club = Club::create(['name' => 'Клуб', 'address' => 'Адрес']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.store'), [
+                'club_id' => $club->id,
+                'name' => 'Эскалера без режима',
+                'start_date' => now()->addDay()->format('Y-m-d\TH:i'),
+                'min_level' => '1.00',
+                'max_level' => '5.75',
+                'max_participants' => 12,
+                'status' => 'open',
+                'type' => 'escalera',
+                'escalera_courts_count' => 3,
+            ])
+            ->assertRedirect(route('club.tournaments.index'));
+
+        $tournament = Tournament::where('name', 'Эскалера без режима')->firstOrFail();
+        $this->assertSame('raw_points', $tournament->escalera_standings_mode, 'по умолчанию зачёт по очкам');
+    }
+
     public function test_seeding_page_shows_players_by_courts(): void
     {
         $tournament = $this->makeTournament(courts: 3);
@@ -1228,6 +1252,8 @@ class EscaleraFlowTest extends TestCase
         $tournament->refresh();
         $this->assertSame(3, (int) $tournament->courts_count, 'корты после старта не меняются');
         $this->assertSame(12, (int) $tournament->max_participants, 'участники после старта не меняются');
+        // Турнир создан с зачётом по баллам — после старта режим заморожен,
+        // присланный raw_points игнорируется.
         $this->assertSame('points', $tournament->escalera_standings_mode);
     }
 

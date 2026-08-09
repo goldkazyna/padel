@@ -52,7 +52,7 @@ class MobileAdminEscaleraTest extends TestCase
         $this->assertSame('raw_points', $t->escalera_standings_mode);
     }
 
-    public function test_create_defaults_standings_mode_to_points(): void
+    public function test_create_defaults_standings_mode_to_raw_points(): void
     {
         [$club, $admin] = $this->makeClubAdmin();
         Sanctum::actingAs($admin);
@@ -69,7 +69,7 @@ class MobileAdminEscaleraTest extends TestCase
         ])->assertOk();
 
         $t = Tournament::where('name', 'Эскалера без режима')->firstOrFail();
-        $this->assertSame('points', $t->escalera_standings_mode);
+        $this->assertSame('raw_points', $t->escalera_standings_mode, 'по умолчанию зачёт по очкам');
         $this->assertSame(12, (int) $t->max_participants);
     }
 

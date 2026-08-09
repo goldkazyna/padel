@@ -4518,7 +4518,7 @@ class MobileTournamentController extends Controller
                 'is_paired' => false,
                 'has_playoff' => false,
                 'courts_count' => $courtsTotal,
-                'standings_mode' => $tournament->escalera_standings_mode ?? 'points',
+                'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
             ],
             'leaderboard' => $leaderboard,
             'rounds' => $roundsOut,
