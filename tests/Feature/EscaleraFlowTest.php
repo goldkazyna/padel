@@ -1291,4 +1291,35 @@ class EscaleraFlowTest extends TestCase
         $after = collect($this->service()->standings($tournament))->pluck('user_id')->all();
         $this->assertSame($before, $after, 'таблица не переупорядочивается от начисленного рейтинга');
     }
+
+    public function test_standings_table_hides_position_points_in_raw_mode(): void
+    {
+        // Зачёт по забитым очкам: колонка баллов за позиции лишняя, место
+        // считается не по ней.
+        $tournament = $this->makeTournament(courts: 3, mode: 'raw_points');
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Забито очков')
+            ->assertDontSee('Баллы за позиции в общем строю');
+
+        // Зачёт по баллам: колонка на месте.
+        $byPoints = $this->makeTournament(courts: 3, mode: 'points');
+        $this->registerTwelve($byPoints);
+        $admin2 = $this->clubAdmin($byPoints);
+        $this->service()->startTournament($byPoints);
+        $this->playRound($byPoints);
+        $this->service()->closeRound($byPoints);
+
+        $this->actingAs($admin2)
+            ->get(route('club.tournaments.show', $byPoints))
+            ->assertOk()
+            ->assertSee('Баллы за позиции в общем строю');
+    }
 }

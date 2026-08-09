@@ -21,7 +21,12 @@
                     <th class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}" title="Забито очков{{ $isRawMode ? ' — по ним зачёт' : '' }}">З</th>
                     <th class="col-stat ttt" title="Пропущено очков">Пр</th>
                     <th class="col-stat ttt" title="Доля выигранных очков">%</th>
-                    <th class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}" title="Баллы за позиции в общем строю{{ $isRawMode ? '' : ' — по ним зачёт' }}">Баллы</th>
+                    {{-- Баллы за позиции показываем только когда по ним идёт
+                         зачёт: в режиме «по очкам» это чужая метрика, и она
+                         сбивает — место считается не по ней. --}}
+                    @if(!$isRawMode)
+                        <th class="col-points ttt esc-main-col" title="Баллы за позиции в общем строю — по ним зачёт">Баллы</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -51,7 +56,9 @@
                         <td class="col-stat points-for ttt {{ $isRawMode ? 'esc-main-col' : '' }}">{{ $row['raw_points'] }}</td>
                         <td class="col-stat points-against ttt">{{ $row['points_against'] }}</td>
                         <td class="col-stat percentage ttt">{{ $percentage }}%</td>
-                        <td class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}">{{ $row['points'] }}</td>
+                        @if(!$isRawMode)
+                            <td class="col-points ttt esc-main-col">{{ $row['points'] }}</td>
+                        @endif
                     </tr>
                 @endforeach
             </tbody>
@@ -64,7 +71,8 @@
         При равенстве выше тот, кто выиграл больше коротких матчей, затем — личная встреча, затем — рейтинг.
         <br>
         <strong>В</strong> — победы, <strong>П</strong> — поражения, <strong>З</strong> — забито очков,
-        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков.
+        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков@if(!$isRawMode),
+        <strong>Баллы</strong> — за позицию в общем строю: чем выше корт, тем больше@endif.
     </div>
 @endif
 
