@@ -1592,6 +1592,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildMexicanoMatches($tournament));
         }
 
+        if ($tournament->isEscalera()) {
+            return response()->json($this->buildEscaleraMatches($tournament));
+        }
+
         return response()->json([
             'success' => true,
             'type' => $tournament->type,
@@ -2748,6 +2752,136 @@ class MobileAdminTournamentDetailController extends Controller
         if ($m->team1_score === null || $m->team2_score === null) return null;
         if ($m->team1_score === $m->team2_score) return null;
         return $m->team1_score > $m->team2_score ? 1 : 2;
+    }
+
+    /**
+     * Ответ мобильной админки для «Эскалеры».
+     *
+     * Матчи всех кортов раунда идут одним списком: приложение группирует их
+     * по court_number, как это делает веб-версия. Обёртка в одну виртуальную
+     * «группу» — тот же приём, что у «Короля корта»: фронт переиспользует
+     * готовый рендер «группа → раунды → таблица».
+     */
+    private function buildEscaleraMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'escaleraRounds.courts.matches.team1Player1',
+            'escaleraRounds.courts.matches.team1Player2',
+            'escaleraRounds.courts.matches.team2Player1',
+            'escaleraRounds.courts.matches.team2Player2',
+            'escaleraPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->escaleraRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = [];
+                foreach ($round->courts->sortBy('court_number') as $court) {
+                    foreach ($court->matches->sortBy('match_number') as $match) {
+                        $matchesTotal++;
+                        if ($match->isCompleted()) {
+                            $matchesPlayed++;
+                        }
+                        $matches[] = $this->formatEscaleraMatch($match, (int) $court->court_number);
+                    }
+                }
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $service = app(\App\Services\EscaleraService::class);
+
+        // Набор ключей — тот же, что у buildKingOfCourtLeaderboard в этом же
+        // файле: приложение разбирает обе таблицы одной моделью.
+        $leaderboard = [];
+        foreach ($service->standings($tournament) as $row) {
+            $user = $row['user'];
+            if (!$user) {
+                continue;
+            }
+            $scored = (int) $row['raw_points'];
+            $conceded = (int) $row['points_against'];
+            $balls = $scored + $conceded;
+            $games = (int) $row['wins'] + (int) $row['losses'];
+
+            $leaderboard[] = [
+                'position' => (int) $row['position'],
+                'id' => $user->id,
+                'name' => $user->full_name ?? $user->name,
+                'avatar' => $user->avatar,
+                'verified' => (bool) $user->level_verified,
+                'rating' => (int) ($user->rating ?? 0),
+                'wins' => (int) $row['wins'],
+                'losses' => (int) $row['losses'],
+                'draws' => 0,
+                'points_for' => $scored,
+                'points_against' => $conceded,
+                'total_points' => (int) $row['points'],
+                'games_played' => $games,
+                'point_diff' => $scored - $conceded,
+                'win_percent' => $games > 0 ? (int) round((int) $row['wins'] / $games * 100) : 0,
+                'ball_percent' => $balls > 0 ? (int) round($scored / $balls * 100) : 0,
+            ];
+        }
+
+        $isLive = $tournament->status === 'in_progress';
+        // Завершить можно и не закрывая раунд: finish закроет его сам,
+        // если все счета внесены.
+        $canClose = $isLive && $service->canCloseRound($tournament);
+
+        return [
+            'success' => true,
+            'type' => 'escalera',
+            'standings_mode' => $tournament->escalera_standings_mode ?? 'points',
+            'groups' => [[
+                'id' => 0,
+                'name' => '',
+                'rounds' => $rounds,
+                'leaderboard' => $leaderboard,
+            ]],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $canClose || ($isLive && $service->canFinishTournament($tournament)),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $canClose,
+            ],
+        ];
+    }
+
+    private function formatEscaleraMatch(\App\Models\EscaleraMatch $match, int $courtNumber): array
+    {
+        return [
+            'id' => $match->id,
+            'court_number' => $courtNumber,
+            'match_number' => (int) $match->match_number,
+            'status' => $match->status,
+            'team1' => [
+                'players' => array_values(array_filter([
+                    $this->formatMatchPlayer($match->team1Player1),
+                    $this->formatMatchPlayer($match->team1Player2),
+                ])),
+                'score' => $match->team1_score,
+            ],
+            'team2' => [
+                'players' => array_values(array_filter([
+                    $this->formatMatchPlayer($match->team2Player1),
+                    $this->formatMatchPlayer($match->team2Player2),
+                ])),
+                'score' => $match->team2_score,
+            ],
+        ];
     }
 
     private function buildKingOfCourtLeaderboard(Tournament $tournament): array

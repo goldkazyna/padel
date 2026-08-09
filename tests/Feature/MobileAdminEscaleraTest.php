@@ -172,4 +172,87 @@ class MobileAdminEscaleraTest extends TestCase
         $this->assertSame(5, (int) $t->courts_count);
         $this->assertSame(20, (int) $t->max_participants);
     }
+
+    public function test_matches_returns_rounds_courts_and_leaderboard(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        Sanctum::actingAs($admin);
+
+        $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('type', 'escalera')
+            ->assertJsonPath('playoff', null)
+            ->assertJsonPath('summary.matches_total', 9)
+            ->assertJsonPath('summary.matches_played', 0)
+            ->assertJsonPath('summary.can_generate_next_round', false)
+            ->assertJsonPath('summary.can_finish', false);
+
+        $rounds = $res->json('groups.0.rounds');
+        $this->assertCount(1, $rounds);
+        $this->assertSame(1, $rounds[0]['round_number']);
+        $this->assertCount(9, $rounds[0]['matches'], 'три корта по три матча');
+
+        // Матчи несут номер корта — по нему приложение группирует карточки.
+        $courts = array_unique(array_column($rounds[0]['matches'], 'court_number'));
+        sort($courts);
+        $this->assertSame([1, 2, 3], $courts);
+
+        // В матче обе пары по два игрока с именами.
+        $first = $rounds[0]['matches'][0];
+        $this->assertCount(2, $first['team1']['players']);
+        $this->assertCount(2, $first['team2']['players']);
+        $this->assertNotEmpty($first['team1']['players'][0]['name']);
+
+        $leaderboard = $res->json('groups.0.leaderboard');
+        $this->assertCount(12, $leaderboard);
+    }
+
+    public function test_matches_leaderboard_carries_scored_and_conceded(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        $service = app(\App\Services\EscaleraService::class);
+        $service->startTournament($t);
+
+        // Первый корт: 12:0, 11:1, 10:2 — у первой посадки 33 забитых и 3 пропущенных.
+        $court = $t->fresh()->escaleraRounds()->first()->courts()->orderBy('court_number')->first();
+        $scores = [[12, 0], [11, 1], [10, 2]];
+        foreach ($court->matches()->orderBy('match_number')->get() as $i => $match) {
+            $service->saveMatchResult($match, $scores[$i][0], $scores[$i][1]);
+        }
+        $seatingFirst = $court->playerIds()[0];
+
+        Sanctum::actingAs($admin);
+        $res = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")->assertOk();
+
+        $row = collect($res->json('groups.0.leaderboard'))->firstWhere('id', $seatingFirst);
+
+        $this->assertSame(33, $row['points_for'], 'забито');
+        $this->assertSame(3, $row['points_against'], 'пропущено');
+        $this->assertSame(3, $row['wins']);
+        $this->assertSame(0, $row['losses']);
+        $this->assertSame(92, $row['ball_percent'], '33 из 36');
+    }
+
+    public function test_matches_flags_ready_round(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        $service = app(\App\Services\EscaleraService::class);
+        $service->startTournament($t);
+
+        // Все счета внесены — можно и генерировать следующий раунд, и завершать.
+        foreach ($t->fresh()->escaleraRounds()->first()->courts as $court) {
+            foreach ($court->matches()->orderBy('match_number')->get() as $match) {
+                $service->saveMatchResult($match, 7, 5);
+            }
+        }
+
+        Sanctum::actingAs($admin);
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->assertJsonPath('summary.matches_played', 9)
+            ->assertJsonPath('summary.can_generate_next_round', true)
+            ->assertJsonPath('summary.can_finish', true);
+    }
 }
