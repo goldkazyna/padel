@@ -49,6 +49,7 @@
 							<option value="round_robin" {{ old('type') === 'round_robin' ? 'selected' : '' }}>Round Robin (индивидуальный)</option>
 							<option value="bali_koc" {{ old('type') === 'bali_koc' ? 'selected' : '' }}>Король Корта (Bali Format)</option>
 							<option value="just_padel_it" {{ old('type') === 'just_padel_it' ? 'selected' : '' }}>Just Padel It</option>
+							<option value="escalera" {{ old('type') === 'escalera' ? 'selected' : '' }}>Эскалера</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -475,6 +476,63 @@
 						</div>
 					</div>
 
+					<div id="escaleraFields" style="display: none;">
+						<div class="alert-info-custom mb-4">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Эскалера:</strong> лестница из кортов, на каждом четверо. За раунд внутри корта
+							играются три коротких матча — каждый с каждым в паре. Первый на корте поднимается выше,
+							четвёртый опускается ниже, двое средних остаются. В таблицу идут не очки, а позиция игрока
+							в общем строю: подняться на корт выше — единственный способ улучшить результат.
+						</div>
+						<div class="row">
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Количество кортов *</label>
+								<select name="escalera_courts_count" id="escaleraCourtsCount" class="form-select"
+										onchange="updateEscaleraParticipants()">
+									@for($c = 2; $c <= 10; $c++)
+										<option value="{{ $c }}" {{ (int) old('escalera_courts_count', 4) === $c ? 'selected' : '' }}>
+											{{ $c }} {{ $c === 2 ? 'корта' : ($c <= 4 ? 'корта' : 'кортов') }} — {{ $c * 4 }} игроков
+										</option>
+									@endfor
+								</select>
+								<small class="text-secondary">Число участников проставляется автоматически: корты × 4.</small>
+							</div>
+							<div class="col-md-6 mb-4">
+								<label class="form-label">Очков в коротком матче *</label>
+								<select name="escalera_match_points" id="escaleraMatchPoints" class="form-select">
+									@foreach([8, 10, 12, 16] as $p)
+										<option value="{{ $p }}" {{ (int) old('escalera_match_points', 12) === $p ? 'selected' : '' }}>
+											{{ $p }} очков{{ $p === 12 ? ' (по умолчанию)' : '' }}
+										</option>
+									@endforeach
+								</select>
+								<small class="text-secondary">Сумма очков двух команд в матче всегда равна этому числу.</small>
+							</div>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Итоговая таблица</label>
+							<div class="form-check">
+								<input type="radio" class="form-check-input" name="escalera_standings_mode"
+									   id="escaleraModePoints" value="points"
+									   {{ old('escalera_standings_mode', 'points') === 'raw_points' ? '' : 'checked' }}>
+								<label class="form-check-label" for="escaleraModePoints">
+									По баллам за позиции <small class="text-muted">(по умолчанию)</small>
+								</label>
+							</div>
+							<div class="form-check">
+								<input type="radio" class="form-check-input" name="escalera_standings_mode"
+									   id="escaleraModeRaw" value="raw_points"
+									   {{ old('escalera_standings_mode') === 'raw_points' ? 'checked' : '' }}>
+								<label class="form-check-label" for="escaleraModeRaw">По сумме очков за матчи</label>
+							</div>
+							<small class="text-secondary mt-2 d-block">
+								По баллам считается родной зачёт формата: номер корта встроен в позицию, поэтому
+								игроку выгодно подниматься на корт выше. По сумме очков в зачёт идут все набранные
+								очки — тогда игроку становится выгоднее оставаться внизу и обыгрывать более слабых.
+							</small>
+						</div>
+					</div>
+
 					<div id="roundRobinFields" style="display: none;">
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
@@ -569,6 +627,7 @@ function toggleTypeFields() {
     const baliKocFields = document.getElementById('baliKocFields');
     const americanoFlexFields = document.getElementById('americanoFlexFields');
     const justPadelItFields = document.getElementById('justPadelItFields');
+    const escaleraFields = document.getElementById('escaleraFields');
 
     // Подсказка "(укажите кол-во пар)" для team турниров
     var reserveHint = document.getElementById('reserveHintPairs');
@@ -585,6 +644,7 @@ function toggleTypeFields() {
     if (baliKocFields) baliKocFields.style.display = 'none';
     if (americanoFlexFields) americanoFlexFields.style.display = 'none';
     if (justPadelItFields) justPadelItFields.style.display = 'none';
+    if (escaleraFields) escaleraFields.style.display = 'none';
 
     // Team-галка «С плей-офф» по умолчанию отмечена и лежит в скрытом блоке —
     // отключаем её для не-team, чтобы она не уходила в submit (has_playoff).
@@ -655,7 +715,31 @@ function toggleTypeFields() {
     } else if (type === 'just_padel_it' && justPadelItFields) {
         justPadelItFields.style.display = 'block';
         generateCourtsInputs();
+    } else if (type === 'escalera' && escaleraFields) {
+        escaleraFields.style.display = 'block';
     }
+
+    // Эскалера жёстко связывает число участников с числом кортов; для других
+    // типов вызов снимает блокировку поля участников.
+    updateEscaleraParticipants();
+}
+
+// Эскалера: участников всегда кортов × 4, руками поле не правится —
+// иначе расстановка по кортам разъедется.
+function updateEscaleraParticipants() {
+    const type = document.getElementById('tournamentType')?.value;
+    const maxInput = document.querySelector('input[name="max_participants"]');
+    if (!maxInput) return;
+
+    if (type !== 'escalera') {
+        maxInput.readOnly = false;
+        return;
+    }
+
+    const courts = parseInt(document.getElementById('escaleraCourtsCount')?.value) || 2;
+    maxInput.value = courts * 4;
+    maxInput.readOnly = true;
+    generateCourtsInputs();
 }
 
 function toggleTeamPlayoffOptions() {

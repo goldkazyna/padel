@@ -757,4 +757,249 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame('in_progress', $tournament->fresh()->status);
         $this->assertSame(0, RatingHistory::where('tournament_id', $tournament->id)->count());
     }
+
+    // ===== Веб-интерфейс =====
+
+    /** Админ клуба, которому принадлежит турнир. */
+    private function clubAdmin(Tournament $tournament): User
+    {
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($tournament->club_id);
+
+        return $admin;
+    }
+
+    public function test_club_admin_creates_escalera_tournament_with_format_fields(): void
+    {
+        $club = Club::create(['name' => 'Клуб', 'address' => 'Адрес']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.store'), [
+                'club_id' => $club->id,
+                'name' => 'Эскалера вечер',
+                'start_date' => now()->addDay()->format('Y-m-d\TH:i'),
+                'min_level' => '1.00',
+                'max_level' => '5.75',
+                // Намеренно неверное число: для эскалеры оно пересчитывается из кортов.
+                'max_participants' => 16,
+                'status' => 'open',
+                'type' => 'escalera',
+                'escalera_courts_count' => 5,
+                'escalera_match_points' => 16,
+                'escalera_standings_mode' => 'raw_points',
+            ])
+            ->assertRedirect(route('club.tournaments.index'));
+
+        $tournament = Tournament::where('name', 'Эскалера вечер')->firstOrFail();
+        $this->assertSame('escalera', $tournament->type);
+        $this->assertSame(5, (int) $tournament->courts_count);
+        $this->assertSame(20, (int) $tournament->max_participants, 'участников ровно кортов × 4');
+        $this->assertSame(16, (int) $tournament->escalera_match_points);
+        $this->assertSame('raw_points', $tournament->escalera_standings_mode);
+    }
+
+    public function test_seeding_page_shows_players_by_courts(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+
+        $this->actingAs($admin)
+            ->get(route('club.escalera.seeding', $tournament))
+            ->assertOk()
+            ->assertSee('Корт 1')
+            ->assertSee('Корт 3')
+            ->assertSee('A1')
+            ->assertSee('C4')
+            ->assertSee('Начать турнир');
+    }
+
+    public function test_seeding_page_blocks_start_when_participants_do_not_match_courts(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        // Одиннадцать игроков при трёх кортах — не хватает одного.
+        $ratings = [];
+        for ($i = 1; $i <= 11; $i++) {
+            $ratings['P' . $i] = 2000 - $i * 10;
+        }
+        $this->register($tournament, $ratings);
+        $admin = $this->clubAdmin($tournament);
+
+        $this->actingAs($admin)
+            ->get(route('club.escalera.seeding', $tournament))
+            ->assertOk()
+            ->assertSee('не хватает')
+            ->assertDontSee('Начать турнир');
+    }
+
+    public function test_save_seeding_keeps_arrangement_without_starting(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+
+        $order = collect(['C4', 'C3', 'C2', 'C1', 'B4', 'B3', 'B2', 'B1', 'A4', 'A3', 'A2', 'A1'])
+            ->map(fn ($name) => $u[$name]->id)
+            ->all();
+
+        $this->actingAs($admin)
+            ->post(route('club.escalera.saveSeeding', $tournament), ['order' => $order])
+            ->assertRedirect(route('club.escalera.seeding', $tournament))
+            ->assertSessionHas('escalera_seeding.' . $tournament->id, $order);
+
+        // Турнир не начат: расстановка просто запомнена.
+        $this->assertSame('open', $tournament->fresh()->status);
+        $this->assertSame(0, $tournament->fresh()->escaleraRounds()->count());
+
+        $this->actingAs($admin)
+            ->get(route('club.escalera.seeding', $tournament))
+            ->assertOk()
+            ->assertSee('Начать турнир');
+    }
+
+    public function test_start_route_creates_round_and_redirects(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+
+        // Ручная расстановка: порядок обратный рейтингу.
+        $order = collect(['C4', 'C3', 'C2', 'C1', 'B4', 'B3', 'B2', 'B1', 'A4', 'A3', 'A2', 'A1'])
+            ->map(fn ($name) => $u[$name]->id)
+            ->all();
+
+        $this->actingAs($admin)
+            ->post(route('club.escalera.start', $tournament), ['order' => $order])
+            ->assertRedirect(route('club.tournaments.show', $tournament));
+
+        $tournament->refresh();
+        $this->assertSame('in_progress', $tournament->status);
+        $this->assertSame(1, $tournament->escaleraRounds()->count());
+        $this->assertSame(3, $this->lastRound($tournament)->courts()->count());
+
+        // Ручная расстановка учтена, а не пересобрана по рейтингу.
+        $this->assertSame(['C4', 'C3', 'C2', 'C1'], $this->seatingNames($tournament, 1));
+        $this->assertSame(['A4', 'A3', 'A2', 'A1'], $this->seatingNames($tournament, 3));
+    }
+
+    public function test_save_score_route_validates_points_sum(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        $match = $this->lastRound($tournament)->courts()->first()->matches()->first();
+
+        // Сумма 22 при заданных 12 — счёт не сохраняется.
+        $this->actingAs($admin)
+            ->post(route('club.escalera.saveScore', $match), ['team1_score' => 12, 'team2_score' => 10])
+            ->assertSessionHasErrors();
+
+        $this->assertNull($match->fresh()->team1_score);
+        $this->assertSame('pending', $match->fresh()->status);
+
+        // Верная сумма — счёт сохраняется.
+        $this->actingAs($admin)
+            ->post(route('club.escalera.saveScore', $match), ['team1_score' => 7, 'team2_score' => 5])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(7, (int) $match->fresh()->team1_score);
+        $this->assertSame('completed', $match->fresh()->status);
+    }
+
+    public function test_close_round_route_blocked_until_all_scores_entered(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        $this->actingAs($admin)
+            ->post(route('club.escalera.closeRound', $tournament))
+            ->assertSessionHas('error');
+
+        $this->assertFalse($this->lastRound($tournament)->fresh()->isCompleted());
+
+        // Все счета внесены — раунд закрывается.
+        $this->playRound($tournament);
+        $this->actingAs($admin)
+            ->post(route('club.escalera.closeRound', $tournament))
+            ->assertSessionHas('success');
+
+        $this->assertTrue($this->lastRound($tournament)->fresh()->isCompleted());
+
+        // И следующий раунд создаётся своим маршрутом.
+        $this->actingAs($admin)
+            ->post(route('club.escalera.nextRound', $tournament))
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, $tournament->fresh()->escaleraRounds()->count());
+    }
+
+    public function test_tournament_page_shows_courts_and_standings(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Раунд только создан: карточки кортов есть, закрывать нечего.
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Корт 1')
+            ->assertSee('Корт 3')
+            ->assertSee('A1')
+            ->assertSee('C4')
+            ->assertDontSee('Закрыть раунд');
+
+        // Все счета внесены: показано превью перемещений и кнопка закрытия.
+        $this->playRound($tournament);
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Закрыть раунд')
+            ->assertSee('вверх')
+            ->assertSee('вниз');
+
+        // Раунд закрыт: таблица заполнена, предлагается следующий раунд.
+        $this->service()->closeRound($tournament);
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Таблица')
+            ->assertSee('Следующий раунд')
+            ->assertSee('A1');
+    }
+
+    public function test_finish_route_completes_tournament_and_page_shows_awards(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+        $this->service()->generateNextRound($tournament);
+        // Второй раунд: на первом корте выигрывает поднявшийся снизу B1.
+        $this->playRound($tournament, [1 => [[11, 1], [2, 10], [5, 7]]]);
+        $this->service()->closeRound($tournament);
+
+        $this->actingAs($admin)
+            ->post(route('club.escalera.finish', $tournament))
+            ->assertRedirect(route('club.tournaments.show', $tournament));
+
+        $this->assertSame('completed', $tournament->fresh()->status);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Чемпион')
+            ->assertSee('Восхождение')
+            ->assertSee('Король корта');
+    }
 }

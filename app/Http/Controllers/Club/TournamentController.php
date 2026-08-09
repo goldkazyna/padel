@@ -98,7 +98,7 @@ class TournamentController extends Controller
 			'max_participants' => 'required|integer|min:2|max:128',
 			'price' => 'nullable|numeric|min:0',
 			'status' => 'required|in:draft,open',
-			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex,round_robin,just_padel_it',
+			'type' => 'required|in:americano,mexicano,team,king_of_court,bali_koc,americano_flex,round_robin,just_padel_it,escalera',
 			'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:3|max:30',
@@ -121,7 +121,24 @@ class TournamentController extends Controller
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
 			'pairing_mode' => 'nullable|in:self,admin',
 			'is_paired' => 'nullable|boolean',
+			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
+			'escalera_match_points' => 'nullable|integer|in:8,10,12,16',
+			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
+
+		// Эскалера: число кортов задаётся своим полем, а участников всегда
+		// ровно кортов × 4 — иначе четвёрки по кортам не разложить.
+		if (($validated['type'] ?? null) === 'escalera') {
+			$escaleraCourts = (int) ($validated['escalera_courts_count'] ?? 4);
+			$validated['courts_count'] = $escaleraCourts;
+			$validated['max_participants'] = $escaleraCourts * 4;
+			$validated['escalera_match_points'] = (int) ($validated['escalera_match_points'] ?? 12);
+			$validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'points';
+		} else {
+			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
+			unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+		}
+		unset($validated['escalera_courts_count']);
 
 		// Americano Flex: количество кортов задаётся вручную отдельным полем,
 		// перекладываем его в courts_count (а не авто ceil(игроки/4)).
@@ -251,6 +268,11 @@ class TournamentController extends Controller
 		// Round Robin — отдельный контроллер
 		if ($tournament->isRoundRobin()) {
 			return app(\App\Http\Controllers\Club\RoundRobinController::class)->show($tournament);
+		}
+
+		// Эскалера — отдельный контроллер
+		if ($tournament->isEscalera()) {
+			return app(\App\Http\Controllers\Club\EscaleraController::class)->show($tournament);
 		}
 
 		$tournament->load(['club', 'participants']);
@@ -493,6 +515,10 @@ class TournamentController extends Controller
 					->with('error', 'Сначала создайте пары');
 			}
 			return redirect()->route('club.justpadelit.seeding', $tournament);
+		} elseif ($tournament->isEscalera()) {
+			// Эскалера стартует со страницы посева: там видна раскладка по кортам
+			// и её можно поправить руками до старта.
+			return redirect()->route('club.escalera.seeding', $tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}
@@ -665,6 +691,12 @@ class TournamentController extends Controller
 				return back()->with('error', 'Доиграйте текущий раунд');
 			}
 			$result = $justPadelItService->finishTournament($tournament);
+		} elseif ($tournament->isEscalera()) {
+			$escaleraService = app(\App\Services\EscaleraService::class);
+			if (!$escaleraService->canFinishTournament($tournament)) {
+				return back()->with('error', 'Сначала закройте текущий раунд');
+			}
+			$result = $escaleraService->finishTournament($tournament);
 		} else {
 			return back()->with('error', 'Неизвестный тип турнира');
 		}

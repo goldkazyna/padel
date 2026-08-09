@@ -506,6 +506,22 @@ Route::middleware('auth')->group(function () {
             Route::post('/justpadelit/tournament/{tournament}/next-round', [JustPadelItController::class, 'generateNextRound'])
                 ->name('justpadelit.nextRound');
 
+            // Эскалера
+            Route::get('/escalera/{tournament}/seeding', [App\Http\Controllers\Club\EscaleraController::class, 'seeding'])
+                ->name('escalera.seeding');
+            Route::post('/escalera/{tournament}/seeding', [App\Http\Controllers\Club\EscaleraController::class, 'saveSeeding'])
+                ->name('escalera.saveSeeding');
+            Route::post('/escalera/{tournament}/start', [App\Http\Controllers\Club\EscaleraController::class, 'start'])
+                ->name('escalera.start');
+            Route::post('/escalera/match/{match}/score', [App\Http\Controllers\Club\EscaleraController::class, 'saveScore'])
+                ->name('escalera.saveScore');
+            Route::post('/escalera/{tournament}/close-round', [App\Http\Controllers\Club\EscaleraController::class, 'closeRound'])
+                ->name('escalera.closeRound');
+            Route::post('/escalera/{tournament}/next-round', [App\Http\Controllers\Club\EscaleraController::class, 'nextRound'])
+                ->name('escalera.nextRound');
+            Route::post('/escalera/{tournament}/finish', [App\Http\Controllers\Club\EscaleraController::class, 'finish'])
+                ->name('escalera.finish');
+
             // Round Robin
             Route::post('/round-robin/match/{match}/score', [App\Http\Controllers\Club\RoundRobinController::class, 'saveScore'])
                 ->name('roundRobin.saveScore');
