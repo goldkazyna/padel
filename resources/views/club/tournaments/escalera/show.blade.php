@@ -30,9 +30,11 @@
             </a>
         @endif
 
-        @if($tournament->status === 'in_progress' && $canFinish)
+        {{-- Завершить можно и не закрывая раунд вручную: finish закроет сам, --}}
+        {{-- если все счета внесены. --}}
+        @if($tournament->status === 'in_progress' && ($canFinish || $canCloseRound))
             <form action="{{ route('club.escalera.finish', $tournament) }}" method="POST"
-                  onsubmit="return confirm('Завершить турнир? Рейтинг будет начислен по каждому короткому матчу, счета станет нельзя менять.')">
+                  onsubmit="return confirm('Завершить турнир? Текущий раунд будет закрыт, рейтинг начислен по каждому короткому матчу, счета станет нельзя менять.')">
                 @csrf
                 <button type="submit" class="btn-primary-custom">
                     <i class="bi bi-trophy-fill"></i> Завершить турнир
@@ -100,7 +102,7 @@
 
     {{-- Превью закрытия раунда --}}
     @if($canCloseRound && !empty($preview))
-        <div class="section-subheader">
+        <div class="section-subheader mt-5">
             <i class="bi bi-arrow-down-up"></i> Итоги раунда {{ $currentRound?->round_number }}
         </div>
         <div class="esc-preview">
@@ -127,12 +129,20 @@
             @endforeach
         </div>
 
+        @php $nextRoundNumber = ($currentRound?->round_number ?? 0) + 1; @endphp
         <div class="d-flex gap-3 mt-3 mb-4 flex-wrap">
             <form action="{{ route('club.escalera.closeRound', $tournament) }}" method="POST"
-                  onsubmit="return confirm('Закрыть раунд? Места и баллы будут записаны, игроки разъедутся по кортам.')">
+                  onsubmit="return confirm('Сгенерировать раунд {{ $nextRoundNumber }}? Места и баллы текущего раунда будут записаны, игроки разъедутся по кортам.')">
                 @csrf
                 <button type="submit" class="btn-primary-custom">
-                    <i class="bi bi-check2-circle"></i> Закрыть раунд
+                    <i class="bi bi-plus-circle"></i> Сгенерировать раунд {{ $nextRoundNumber }}
+                </button>
+            </form>
+            <form action="{{ route('club.escalera.finish', $tournament) }}" method="POST"
+                  onsubmit="return confirm('Завершить турнир? Текущий раунд будет закрыт, рейтинг начислен по каждому короткому матчу, счета станет нельзя менять.')">
+                @csrf
+                <button type="submit" class="btn-outline-custom">
+                    <i class="bi bi-trophy"></i> Завершить турнир
                 </button>
             </form>
         </div>

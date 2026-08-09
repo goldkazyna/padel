@@ -214,7 +214,11 @@ class EscaleraController extends Controller
     }
 
     /**
-     * Закрыть раунд: места, баллы и перемещения по кортам.
+     * Закрыть раунд и сразу создать следующий.
+     *
+     * Для админа это одно действие «Сгенерировать раунд»: закрытие без
+     * генерации оставляло турнир в промежуточном состоянии, из которого
+     * нужно было нажать ещё одну кнопку.
      */
     public function closeRound(Tournament $tournament, EscaleraService $service)
     {
@@ -226,26 +230,29 @@ class EscaleraController extends Controller
 
         try {
             $ok = $service->closeRound($tournament);
+            if ($ok) {
+                $service->generateNextRound($tournament);
+            }
         } catch (QueryException $e) {
             // Ловим раньше RuntimeException (QueryException — его наследник),
             // чтобы при двойном клике не показать админу текст SQL-ошибки.
             report($e);
 
-            return back()->with('error', 'Не удалось закрыть раунд. Обновите страницу и попробуйте ещё раз.');
+            return back()->with('error', 'Не удалось создать раунд. Обновите страницу и попробуйте ещё раз.');
         } catch (RuntimeException $e) {
             // Например, после перемещений на корте оказалось не четверо.
             return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'Не удалось закрыть раунд. Обновите страницу и попробуйте ещё раз.');
+            return back()->with('error', 'Не удалось создать раунд. Обновите страницу и попробуйте ещё раз.');
         }
 
         if (!$ok) {
             return back()->with('error', 'Не удалось закрыть раунд');
         }
 
-        return back()->with('success', 'Раунд закрыт: места и баллы записаны, игроки разъехались по кортам');
+        return back()->with('success', 'Раунд закрыт, игроки разъехались по кортам — следующий раунд готов');
     }
 
     /**
@@ -287,8 +294,21 @@ class EscaleraController extends Controller
     {
         $this->authorizeTournament($tournament);
 
+        // Раунд с внесёнными счетами закрываем прямо здесь: иначе админу
+        // пришлось бы сначала сгенерировать лишний раунд, чтобы добраться
+        // до кнопки завершения.
+        if (!$service->canFinishTournament($tournament) && $service->canCloseRound($tournament)) {
+            try {
+                $service->closeRound($tournament);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return back()->with('error', 'Не удалось закрыть раунд. Обновите страницу и попробуйте ещё раз.');
+            }
+        }
+
         if (!$service->canFinishTournament($tournament)) {
-            return back()->with('error', 'Сначала закройте текущий раунд');
+            return back()->with('error', 'Сначала внесите счета всех матчей на всех кортах');
         }
 
         if (!$service->finishTournament($tournament)) {

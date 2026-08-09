@@ -994,20 +994,60 @@ class EscaleraFlowTest extends TestCase
 
         $this->assertFalse($this->lastRound($tournament)->fresh()->isCompleted());
 
-        // Все счета внесены — раунд закрывается.
+        // Все счета внесены — одно нажатие закрывает раунд и сразу создаёт
+        // следующий: отдельного шага «сгенерировать» у админа больше нет.
         $this->playRound($tournament);
         $this->actingAs($admin)
             ->post(route('club.escalera.closeRound', $tournament))
             ->assertSessionHas('success');
 
-        $this->assertTrue($this->lastRound($tournament)->fresh()->isCompleted());
+        $tournament->refresh();
+        $this->assertSame(2, $tournament->escaleraRounds()->count(), 'следующий раунд создан тем же нажатием');
 
-        // И следующий раунд создаётся своим маршрутом.
+        $first = $tournament->escaleraRounds()->where('round_number', 1)->first();
+        $this->assertTrue($first->fresh()->isCompleted(), 'первый раунд закрыт');
+        $this->assertFalse($this->lastRound($tournament)->fresh()->isCompleted(), 'второй раунд открыт');
+    }
+
+    public function test_finish_route_closes_open_round_before_finishing(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Счета внесены, но раунд ещё не закрыт: «Завершить турнир» должен
+        // сработать сразу, без отдельного нажатия «Сгенерировать раунд».
+        $this->playRound($tournament);
+
         $this->actingAs($admin)
-            ->post(route('club.escalera.nextRound', $tournament))
+            ->post(route('club.escalera.finish', $tournament))
             ->assertSessionHas('success');
 
-        $this->assertSame(2, $tournament->fresh()->escaleraRounds()->count());
+        $tournament->refresh();
+        $this->assertSame('completed', $tournament->status);
+        $this->assertSame(1, $tournament->escaleraRounds()->count(), 'лишний раунд не создан');
+        $this->assertTrue($this->lastRound($tournament)->fresh()->isCompleted(), 'раунд закрыт при завершении');
+
+        // Результаты последнего раунда записаны — иначе таблица потеряла бы баллы.
+        $this->assertSame(12, EscaleraRoundResult::whereIn(
+            'escalera_round_id',
+            $tournament->escaleraRounds()->pluck('id')
+        )->count());
+    }
+
+    public function test_finish_route_blocked_while_scores_missing(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        $this->actingAs($admin)
+            ->post(route('club.escalera.finish', $tournament))
+            ->assertSessionHas('error');
+
+        $this->assertSame('in_progress', $tournament->fresh()->status);
     }
 
     public function test_tournament_page_shows_courts_and_standings(): void
@@ -1029,14 +1069,16 @@ class EscaleraFlowTest extends TestCase
             // Счёт вводится в общей модалке (partials._modal_score).
             ->assertSee('escScoreModal' . $firstMatch->id)
             ->assertSee('Ввод счёта')
-            ->assertDontSee('Закрыть раунд');
+            ->assertDontSee('Сгенерировать раунд');
 
-        // Все счета внесены: показано превью перемещений и кнопка закрытия.
+        // Все счета внесены: показано превью перемещений, кнопка генерации
+        // следующего раунда и завершение турнира.
         $this->playRound($tournament);
         $this->actingAs($admin)
             ->get(route('club.tournaments.show', $tournament))
             ->assertOk()
-            ->assertSee('Закрыть раунд')
+            ->assertSee('Сгенерировать раунд 2')
+            ->assertSee('Завершить турнир')
             ->assertSee('вверх')
             ->assertSee('вниз');
 
