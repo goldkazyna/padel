@@ -131,4 +131,26 @@ class TournamentCourtsCountTest extends TestCase
 
         $this->assertCount(3, $t->fresh()->courts);
     }
+
+    public function test_mobile_create_syncs_mismatched_courts(): void
+    {
+        [$club, $admin] = $this->setupClub();
+
+        Sanctum::actingAs($admin);
+        $response = $this->postJson("/api/mobile/admin/clubs/{$club->id}/tournaments", [
+            'type' => 'king_of_court',
+            'name' => 'Турнир',
+            'status' => 'open',
+            'start_date' => now()->addDay()->toDateString(),
+            'min_level' => 1,
+            'max_level' => 5,
+            'max_participants' => 16,
+            // Расхождение как из реального приложения: названий больше, чем кортов.
+            'courts_count' => 3,
+            'courts' => ['Корт 1', 'Корт 2', 'Корт 3', 'Корт 4'],
+        ])->assertOk();
+
+        $tournament = Tournament::find($response->json('tournament_id'));
+        $this->assertCount(3, $tournament->courts);
+    }
 }

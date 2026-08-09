@@ -350,6 +350,9 @@ class MobileAdminTournamentController extends Controller
         }
 
         $tournament = Tournament::create($validated);
+        // Названия кортов приводим к их количеству: те же расхождения, что и при
+        // редактировании (счётчик и массив названий валидируются независимо).
+        $tournament->syncCourtNames();
 
         // Резервные игроки/пары
         $reserveCount = (int) ($validated['reserve_count'] ?? 0);
