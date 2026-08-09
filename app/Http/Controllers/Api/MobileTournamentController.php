@@ -1189,6 +1189,31 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Матчи игрока для разбора выступления — по одному источнику на семейство
+     * форматов. Держим выбор в одном месте: раньше он был продублирован в
+     * контексте для AI и в поматчевой разбивке, и списки типов разъезжались —
+     * у части форматов разбор молча оставался пустым.
+     */
+    private function getMatchesForAnalysis(Tournament $tournament, int $userId): array
+    {
+        if ($tournament->type === 'team') {
+            return $this->getTeamBasedMatches($tournament, $userId);
+        }
+
+        if ($tournament->isEscalera()) {
+            return $this->getEscaleraBasedMatches($tournament, $userId);
+        }
+
+        if ($tournament->type === 'bali_koc') {
+            return $this->getBaliKocBasedMatches($tournament, $userId);
+        }
+
+        // americano, mexicano, americano_flex, king_of_court, just_padel_it,
+        // round_robin — все player-based, обходятся одним сборщиком.
+        return $this->getPlayerBasedMatches($tournament, $userId);
+    }
+
+    /**
      * Собрать данные выступления игрока для AI (те же источники, что и results()).
      * Возвращает null, если игрок не участвовал / нет матчей.
      */
@@ -1196,16 +1221,7 @@ class MobileTournamentController extends Controller
     {
         $tournament->loadMissing(['club', 'venueClub']);
 
-        $userMatches = [];
-        if (in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
-            $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
-        } elseif ($tournament->type === 'team') {
-            $userMatches = $this->getTeamBasedMatches($tournament, $userId);
-        } elseif ($tournament->type === 'king_of_court') {
-            $userMatches = $this->getKingOfCourtBasedMatches($tournament, $userId);
-        } elseif ($tournament->isEscalera()) {
-            $userMatches = $this->getEscaleraBasedMatches($tournament, $userId);
-        }
+        $userMatches = $this->getMatchesForAnalysis($tournament, $userId);
 
         $ratingHistory = RatingHistory::where('user_id', $userId)
             ->where('tournament_id', $tournament->id)
@@ -1268,14 +1284,7 @@ class MobileTournamentController extends Controller
      */
     private function buildMatchBreakdown(Tournament $tournament, int $userId): array
     {
-        $userMatches = [];
-        if (in_array($tournament->type, ['americano', 'mexicano', 'americano_flex'])) {
-            $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
-        } elseif ($tournament->type === 'team') {
-            $userMatches = $this->getTeamBasedMatches($tournament, $userId);
-        } elseif ($tournament->isEscalera()) {
-            $userMatches = $this->getEscaleraBasedMatches($tournament, $userId);
-        }
+        $userMatches = $this->getMatchesForAnalysis($tournament, $userId);
 
         // my_avg/opp_avg/win_prob уже посчитаны в форматтерах по рейтингам НА
         // МОМЕНТ матча (эволюционируют по ходу турнира) — согласованы с дельтой.
@@ -1802,6 +1811,33 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Раунды «Короля корта», Just Padel It и Round Robin.
+        //
+        // Матчи у них player-based, как у американо, поэтому дельты считает тот
+        // же processPlayerMatch: рейтинги эволюционируют по ходу турнира, и
+        // разбор объясняет начисление теми же числами, что видит игрок.
+        $roundSource = match ($tournament->type) {
+            'king_of_court' => $tournament->kingOfCourtRounds(),
+            'just_padel_it' => $tournament->justPadelItRounds(),
+            'round_robin' => $tournament->roundRobinRounds(),
+            default => null,
+        };
+
+        if ($roundSource !== null) {
+            foreach ($roundSource->orderBy('round_number')->with('matches')->get() as $round) {
+                $roundCounter++;
+                foreach ($round->matches as $match) {
+                    if ($match->status !== 'completed') continue;
+                    // Несыгранный матч 0:0 в рейтинге не участвует.
+                    if ((int) $match->team1_score === 0 && (int) $match->team2_score === 0) continue;
+                    $change = $this->processPlayerMatch($match, $ratings);
+                    if ($this->isPlayerInMatch($match, $userId)) {
+                        $userMatches[] = $this->formatResultMatch($match, $userId, $roundCounter, $change, false);
+                    }
+                }
+            }
+        }
+
         // Плей-офф (player-based)
         $playoffMatches = $tournament->playoffMatches()
             ->where('status', 'completed')
@@ -1914,6 +1950,21 @@ class MobileTournamentController extends Controller
                 $rb = (int) $fp->rating_before;
                 $ratings[$fp->user_id] = $rb > 0 ? $rb : (int) ($fp->user->rating ?? 1000);
             }
+        } elseif ($tournament->type === 'king_of_court') {
+            foreach ($tournament->kingOfCourtPlayers()->with('user')->get() as $kp) {
+                $rb = (int) $kp->rating_before;
+                $ratings[$kp->user_id] = $rb > 0 ? $rb : (int) ($kp->user->rating ?? 1000);
+            }
+        } elseif ($tournament->type === 'just_padel_it') {
+            foreach ($tournament->justPadelItPlayers()->with('user')->get() as $jp) {
+                $rb = (int) $jp->rating_before;
+                $ratings[$jp->user_id] = $rb > 0 ? $rb : (int) ($jp->user->rating ?? 1000);
+            }
+        } elseif ($tournament->type === 'round_robin') {
+            foreach ($tournament->roundRobinPlayers()->with('user')->get() as $rp) {
+                $rb = (int) $rp->rating_before;
+                $ratings[$rp->user_id] = $rb > 0 ? $rb : (int) ($rp->user->rating ?? 1000);
+            }
         }
 
         return $ratings;
@@ -2025,61 +2076,6 @@ class MobileTournamentController extends Controller
     /**
      * Форматировать матч (player-based) для результатов
      */
-    /**
-     * Матчи игрока в «Короле корта» для AI-разбора. Per-match Elo для КК не
-     * считается (рейтинг применяется суммарно), поэтому rating_change = 0, а
-     * средние/шанс — null; главное — счёт, результат, партнёр и соперники,
-     * чтобы AI видел реальные победы/поражения (а не «матчей не было»).
-     */
-    private function getKingOfCourtBasedMatches(Tournament $tournament, int $userId): array
-    {
-        $me = \App\Models\User::find($userId);
-        $out = [];
-        $rounds = $tournament->kingOfCourtRounds()
-            ->with(['matches.team1Player1', 'matches.team1Player2',
-                    'matches.team2Player1', 'matches.team2Player2'])
-            ->orderBy('round_number')->get();
-
-        foreach ($rounds as $round) {
-            foreach ($round->matches as $m) {
-                if ($m->status !== 'completed') continue;
-                if ((int) $m->team1_score === 0 && (int) $m->team2_score === 0) continue;
-                $isT1 = in_array($userId, [$m->team1_player1_id, $m->team1_player2_id], true);
-                $isT2 = in_array($userId, [$m->team2_player1_id, $m->team2_player2_id], true);
-                if (!$isT1 && !$isT2) continue;
-
-                $myScore = $isT1 ? (int) $m->team1_score : (int) $m->team2_score;
-                $oppScore = $isT1 ? (int) $m->team2_score : (int) $m->team1_score;
-                $partner = $isT1
-                    ? ($m->team1_player1_id == $userId ? $m->team1Player2 : $m->team1Player1)
-                    : ($m->team2_player1_id == $userId ? $m->team2Player2 : $m->team2Player1);
-                $opponents = $isT1
-                    ? [$m->team2Player1, $m->team2Player2]
-                    : [$m->team1Player1, $m->team1Player2];
-
-                $out[] = [
-                    'round_name' => 'РАУНД ' . $round->round_number,
-                    'is_final' => false,
-                    'score_my' => $myScore,
-                    'score_opponent' => $oppScore,
-                    'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
-                    'rating_change' => 0,
-                    'my_avg' => null,
-                    'opp_avg' => null,
-                    'win_prob' => null,
-                    'my_team' => array_values(array_filter([
-                        $me ? $this->formatPlayerShort($me) : null,
-                        $partner ? $this->formatPlayerShort($partner) : null,
-                    ])),
-                    'opponent_team' => array_values(array_filter(array_map(
-                        fn($p) => $p ? $this->formatPlayerShort($p) : null,
-                        $opponents
-                    ))),
-                ];
-            }
-        }
-        return $out;
-    }
 
     /**
      * Матчи игрока в «Эскалере» для разбора выступления.
@@ -2088,6 +2084,98 @@ class MobileTournamentController extends Controller
      * матчи в том же порядке, что finishTournament, поэтому средние рейтинги
      * пар — на момент матча, а не текущие. AI объясняет ими начисление.
      */
+    /**
+     * Матчи игрока в «Короле корта (Bali)» для разбора выступления.
+     *
+     * Матчи здесь между парами, а не между четвёрками игроков, поэтому общий
+     * player-based обход не подходит: пару приходится разворачивать в двух
+     * игроков. Счёт ведётся в геймах.
+     */
+    private function getBaliKocBasedMatches(Tournament $tournament, int $userId): array
+    {
+        $me = \App\Models\User::find($userId);
+        $pairs = $tournament->baliKocPairs()->with(['player1', 'player2'])->get();
+
+        // Стартовые рейтинги Bali хранит прямо на паре — по одному на игрока.
+        $ratings = [];
+        foreach ($pairs as $pair) {
+            $ratings[(int) $pair->player1_id] = (int) ($pair->player1_rating_before
+                ?: ($pair->player1->rating ?? 1000));
+            $ratings[(int) $pair->player2_id] = (int) ($pair->player2_rating_before
+                ?: ($pair->player2->rating ?? 1000));
+        }
+
+        $out = [];
+        $roundCounter = 0;
+
+        foreach ($tournament->baliKocRounds()->orderBy('round_number')->with('matches')->get() as $round) {
+            $roundCounter++;
+
+            foreach ($round->matches as $m) {
+                if ($m->status !== 'completed') {
+                    continue;
+                }
+
+                $p1 = $pairs->firstWhere('id', $m->pair1_id);
+                $p2 = $pairs->firstWhere('id', $m->pair2_id);
+                if (!$p1 || !$p2) {
+                    continue;
+                }
+
+                $inFirst = in_array($userId, [(int) $p1->player1_id, (int) $p1->player2_id], true);
+                $inSecond = in_array($userId, [(int) $p2->player1_id, (int) $p2->player2_id], true);
+
+                // Пары разворачиваем в игроков — дальше считает общий Elo.
+                $pseudo = (object) [
+                    'team1_player1_id' => $p1->player1_id,
+                    'team1_player2_id' => $p1->player2_id,
+                    'team2_player1_id' => $p2->player1_id,
+                    'team2_player2_id' => $p2->player2_id,
+                    'team1_score' => (int) $m->pair1_games,
+                    'team2_score' => (int) $m->pair2_games,
+                ];
+                $change = $this->processPlayerMatch($pseudo, $ratings);
+
+                if (!$inFirst && !$inSecond) {
+                    continue;
+                }
+
+                $myScore = $inFirst ? (int) $m->pair1_games : (int) $m->pair2_games;
+                $oppScore = $inFirst ? (int) $m->pair2_games : (int) $m->pair1_games;
+                $myPair = $inFirst ? $p1 : $p2;
+                $oppPair = $inFirst ? $p2 : $p1;
+                $partner = (int) $myPair->player1_id === $userId ? $myPair->player2 : $myPair->player1;
+
+                [$myAvg, $oppAvg, $winProb] = $this->matchRatingMeta($change, $inFirst);
+
+                $out[] = [
+                    'round_name' => 'РАУНД ' . $round->round_number
+                        . ($m->court_number ? ', КОРТ ' . (int) $m->court_number : ''),
+                    'is_final' => false,
+                    'score_my' => $myScore,
+                    'score_opponent' => $oppScore,
+                    'result' => $myScore > $oppScore
+                        ? 'win'
+                        : ($myScore < $oppScore ? 'loss' : 'draw'),
+                    'rating_change' => $inFirst ? $change['change1'] : $change['change2'],
+                    'my_avg' => $myAvg,
+                    'opp_avg' => $oppAvg,
+                    'win_prob' => $winProb,
+                    'my_team' => array_values(array_filter([
+                        $me ? $this->formatPlayerShort($me) : null,
+                        $partner ? $this->formatPlayerShort($partner) : null,
+                    ])),
+                    'opponent_team' => array_values(array_filter(array_map(
+                        fn($player) => $player ? $this->formatPlayerShort($player) : null,
+                        [$oppPair->player1, $oppPair->player2]
+                    ))),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
     private function getEscaleraBasedMatches(Tournament $tournament, int $userId): array
     {
         $me = \App\Models\User::find($userId);

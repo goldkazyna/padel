@@ -51,8 +51,10 @@ class TournamentAiKocMatchesTest extends TestCase
             'team1_score' => 0, 'team2_score' => 0, 'status' => 'completed',
         ]);
 
+        // «Король корта» собирается общим player-based сборщиком — тем же,
+        // что американо и мексикано, поэтому дельты рейтинга считаются.
         $ctrl = new MobileTournamentController();
-        $method = new \ReflectionMethod($ctrl, 'getKingOfCourtBasedMatches');
+        $method = new \ReflectionMethod($ctrl, 'getMatchesForAnalysis');
         $method->setAccessible(true);
         $matches = $method->invoke($ctrl, $t->fresh(), $me->id);
 
@@ -61,6 +63,8 @@ class TournamentAiKocMatchesTest extends TestCase
         $this->assertSame('win', $m['result']);
         $this->assertSame(6, $m['score_my']);
         $this->assertSame(2, $m['score_opponent']);
+        $this->assertNotSame(0, $m['rating_change'], 'дельта рейтинга посчитана');
+        $this->assertNotNull($m['my_avg'], 'средний рейтинг своей пары');
 
         $partners = array_map(fn ($p) => $p['name'], $m['my_team']);
         $opps = array_map(fn ($p) => $p['name'], $m['opponent_team']);
