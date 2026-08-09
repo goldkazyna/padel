@@ -414,4 +414,36 @@ class MobileAdminEscaleraTest extends TestCase
 
         $this->assertSame('in_progress', $t->fresh()->status);
     }
+
+    public function test_matches_total_points_follows_standings_mode(): void
+    {
+        // Зачёт по забитым очкам: колонка очков в таблице должна показывать
+        // именно ту метрику, по которой таблица отсортирована.
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        $t->update(['escalera_standings_mode' => 'raw_points']);
+
+        $service = app(\App\Services\EscaleraService::class);
+        $service->startTournament($t);
+        $this->playCurrentRound($t);
+        $service->closeRound($t->fresh());
+
+        Sanctum::actingAs($admin);
+        $rows = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->json('groups.0.leaderboard');
+
+        // Первая строка не может иметь меньше очков, чем вторая.
+        $this->assertGreaterThanOrEqual(
+            (int) $rows[1]['total_points'],
+            (int) $rows[0]['total_points'],
+            'колонка очков должна убывать вместе с местом'
+        );
+
+        // Лидер режима raw_points — тот, кто больше всех забил.
+        $this->assertSame(
+            (int) $rows[0]['points_for'],
+            (int) $rows[0]['total_points'],
+            'в зачёте по очкам колонка очков это забитые'
+        );
+    }
 }

@@ -2889,6 +2889,7 @@ class MobileAdminTournamentDetailController extends Controller
             });
 
         $service = app(\App\Services\EscaleraService::class);
+        $isRawMode = $tournament->escalera_standings_mode === 'raw_points';
 
         // Набор ключей — тот же, что у buildKingOfCourtLeaderboard в этом же
         // файле: приложение разбирает обе таблицы одной моделью.
@@ -2915,7 +2916,11 @@ class MobileAdminTournamentDetailController extends Controller
                 'draws' => 0,
                 'points_for' => $scored,
                 'points_against' => $conceded,
-                'total_points' => (int) $row['points'],
+                // В колонку очков идёт та метрика, по которой таблица и
+                // отсортирована, — иначе первое место показывает меньше
+                // очков, чем второе.
+                'total_points' => $isRawMode ? $scored : (int) $row['points'],
+                'escalera_points' => (int) $row['points'],
                 'games_played' => $games,
                 'point_diff' => $scored - $conceded,
                 'win_percent' => $games > 0 ? (int) round((int) $row['wins'] / $games * 100) : 0,
