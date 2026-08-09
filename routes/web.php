@@ -515,6 +515,11 @@ Route::middleware('auth')->group(function () {
                 ->name('escalera.start');
             Route::post('/escalera/match/{match}/score', [App\Http\Controllers\Club\EscaleraController::class, 'saveScore'])
                 ->name('escalera.saveScore');
+            // Правка счёта идёт тем же методом: у эскалеры сохранение и
+            // обновление — одна операция. Отдельный PUT нужен общему партиалу
+            // club.tournaments.partials._modal_edit_score.
+            Route::put('/escalera/match/{match}/score', [App\Http\Controllers\Club\EscaleraController::class, 'saveScore'])
+                ->name('escalera.updateScore');
             Route::post('/escalera/{tournament}/close-round', [App\Http\Controllers\Club\EscaleraController::class, 'closeRound'])
                 ->name('escalera.closeRound');
             Route::post('/escalera/{tournament}/next-round', [App\Http\Controllers\Club\EscaleraController::class, 'nextRound'])

@@ -66,7 +66,10 @@ class EscaleraController extends Controller
             'club',
             'participants',
             'escaleraPlayers.user',
-            'escaleraRounds.courts.matches',
+            'escaleraRounds.courts.matches.team1Player1',
+            'escaleraRounds.courts.matches.team1Player2',
+            'escaleraRounds.courts.matches.team2Player1',
+            'escaleraRounds.courts.matches.team2Player2',
         ]);
 
         $service = app(EscaleraService::class);

@@ -970,6 +970,15 @@ class EscaleraFlowTest extends TestCase
 
         $this->assertSame(12, (int) $match->fresh()->team1_score);
         $this->assertSame('completed', $match->fresh()->status);
+
+        // Правка идёт через PUT — этого маршрута ждёт общая модалка
+        // club.tournaments.partials._modal_edit_score.
+        $this->actingAs($admin)
+            ->put(route('club.escalera.updateScore', $match), ['team1_score' => 6, 'team2_score' => 4])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(6, (int) $match->fresh()->team1_score);
+        $this->assertSame(4, (int) $match->fresh()->team2_score);
     }
 
     public function test_close_round_route_blocked_until_all_scores_entered(): void
@@ -1017,9 +1026,9 @@ class EscaleraFlowTest extends TestCase
             ->assertSee('Корт 3')
             ->assertSee('A1')
             ->assertSee('C4')
-            // Счёт вводится в модалке, как в «Короле корта».
+            // Счёт вводится в общей модалке (partials._modal_score).
             ->assertSee('escScoreModal' . $firstMatch->id)
-            ->assertSee('Ввести счёт')
+            ->assertSee('Ввод счёта')
             ->assertDontSee('Закрыть раунд');
 
         // Все счета внесены: показано превью перемещений и кнопка закрытия.

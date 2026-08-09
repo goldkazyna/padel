@@ -80,9 +80,6 @@
                                         ? 1
                                         : ($match->team2_score > $match->team1_score ? 2 : null);
                                 }
-
-                                $team1Names = (optional($p1)->name ?? '—') . ' / ' . (optional($p2)->name ?? '—');
-                                $team2Names = (optional($p3)->name ?? '—') . ' / ' . (optional($p4)->name ?? '—');
                             @endphp
                             <div class="match-card" data-match-id="{{ $match->id }}">
                                 <div class="esc-match-num">Матч {{ $match->match_number }}</div>
@@ -128,46 +125,22 @@
                                 </div>
                             </div>
 
+                            {{-- Модалка счёта — общая для всех форматов --}}
                             @if(!$scoresLocked)
-                                <div class="modal fade" id="escScoreModal{{ $match->id }}" tabindex="-1">
-                                    <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content modal-dark">
-                                            <div class="modal-header border-0">
-                                                <h5 class="modal-title">
-                                                    {{ $done ? 'Редактировать' : 'Ввести счёт' }} · Корт {{ $courtNumber }}, матч {{ $match->match_number }}
-                                                </h5>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <form action="{{ route('club.escalera.saveScore', $match) }}" method="POST">
-                                                @csrf
-                                                <div class="modal-body">
-                                                    <div class="score-input-grid">
-                                                        <div class="score-team">
-                                                            <div class="score-team-names">{{ $team1Names }}</div>
-                                                            <input type="number" name="team1_score" class="form-control form-control-lg text-center"
-                                                                   min="0" max="99" required value="{{ $match->team1_score }}">
-                                                        </div>
-                                                        <div class="score-separator">:</div>
-                                                        <div class="score-team">
-                                                            <div class="score-team-names">{{ $team2Names }}</div>
-                                                            <input type="number" name="team2_score" class="form-control form-control-lg text-center"
-                                                                   min="0" max="99" required value="{{ $match->team2_score }}">
-                                                        </div>
-                                                    </div>
-                                                    <div class="esc-modal-hint">
-                                                        Счёт любой — формат матча организатор определяет сам.
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer border-0">
-                                                    <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">Отмена</button>
-                                                    <button type="submit" class="btn-primary-custom">
-                                                        <i class="bi bi-check-lg"></i> {{ $done ? 'Обновить' : 'Сохранить' }}
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
+                                @if($done)
+                                    @include('club.tournaments.partials._modal_edit_score', [
+                                        'modalId' => 'escScoreModal' . $match->id,
+                                        'route' => 'club.escalera.updateScore',
+                                        'match' => $match,
+                                    ])
+                                @else
+                                    @include('club.tournaments.partials._modal_score', [
+                                        'modalId' => 'escScoreModal' . $match->id,
+                                        'route' => 'club.escalera.saveScore',
+                                        'match' => $match,
+                                        'ajax' => false,
+                                    ])
+                                @endif
                             @endif
                         @endforeach
                     </div>
@@ -212,12 +185,7 @@ function toggleEscRound(id) {
 
 .esc-match-num { align-self: flex-start; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px; }
 
-/* Раскладка модалки счёта: два поля и двоеточие между ними. */
-.score-input-grid { display: flex; align-items: flex-end; gap: 16px; }
-.score-input-grid .score-team { flex: 1; text-align: center; }
-.score-input-grid .score-separator { padding-bottom: 6px; }
 .esc-round-hint { color: var(--esc-warn); font-size: 0.9rem; margin-bottom: 12px; }
-.esc-modal-hint { margin-top: 14px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
 
 @media (max-width: 800px) {
     .player-line { font-size: 20px; }
