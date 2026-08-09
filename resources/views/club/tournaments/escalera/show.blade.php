@@ -89,6 +89,9 @@
         @include('club.tournaments.escalera.partials._awards')
     @endif
 
+    {{-- Итоговая таблица --}}
+    @include('club.tournaments.escalera.partials._standings')
+
     {{-- Корты по раундам --}}
     <div class="section-subheader">
         <i class="bi bi-grid-3x3-gap"></i> Корты
@@ -154,8 +157,6 @@
         </div>
     @endif
 
-    {{-- Итоговая таблица --}}
-    @include('club.tournaments.escalera.partials._standings')
 @endif
 
 </div>
