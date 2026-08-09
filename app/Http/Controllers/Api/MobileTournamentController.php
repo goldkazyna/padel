@@ -1203,6 +1203,8 @@ class MobileTournamentController extends Controller
             $userMatches = $this->getTeamBasedMatches($tournament, $userId);
         } elseif ($tournament->type === 'king_of_court') {
             $userMatches = $this->getKingOfCourtBasedMatches($tournament, $userId);
+        } elseif ($tournament->isEscalera()) {
+            $userMatches = $this->getEscaleraBasedMatches($tournament, $userId);
         }
 
         $ratingHistory = RatingHistory::where('user_id', $userId)
@@ -1271,6 +1273,8 @@ class MobileTournamentController extends Controller
             $userMatches = $this->getPlayerBasedMatches($tournament, $userId);
         } elseif ($tournament->type === 'team') {
             $userMatches = $this->getTeamBasedMatches($tournament, $userId);
+        } elseif ($tournament->isEscalera()) {
+            $userMatches = $this->getEscaleraBasedMatches($tournament, $userId);
         }
 
         // my_avg/opp_avg/win_prob уже посчитаны в форматтерах по рейтингам НА
@@ -2074,6 +2078,118 @@ class MobileTournamentController extends Controller
                 ];
             }
         }
+        return $out;
+    }
+
+    /**
+     * Матчи игрока в «Эскалере» для разбора выступления.
+     *
+     * В отличие от «Короля корта», здесь считаются и дельты рейтинга: прогоняем
+     * матчи в том же порядке, что finishTournament, поэтому средние рейтинги
+     * пар — на момент матча, а не текущие. AI объясняет ими начисление.
+     */
+    private function getEscaleraBasedMatches(Tournament $tournament, int $userId): array
+    {
+        $me = \App\Models\User::find($userId);
+        $service = app(\App\Services\EscaleraService::class);
+
+        $tournament->loadMissing([
+            'escaleraRounds.courts.matches.team1Player1',
+            'escaleraRounds.courts.matches.team1Player2',
+            'escaleraRounds.courts.matches.team2Player1',
+            'escaleraRounds.courts.matches.team2Player2',
+            'escaleraPlayers.user',
+        ]);
+
+        // Стартовые рейтинги: от них эволюционируют все остальные.
+        $ratings = [];
+        foreach ($tournament->escaleraPlayers as $player) {
+            if (!$player->user) {
+                continue;
+            }
+            $ratings[$player->user_id] = [
+                'current_rating' => (int) ($player->rating_before ?? $player->user->rating ?? 0),
+            ];
+        }
+
+        $out = [];
+
+        foreach ($tournament->escaleraRounds->sortBy('round_number') as $round) {
+            foreach ($round->courts->sortBy('court_number') as $court) {
+                foreach ($court->matches->sortBy('match_number') as $m) {
+                    if (!$m->isCompleted()) {
+                        continue;
+                    }
+
+                    $isT1 = in_array($userId, [$m->team1_player1_id, $m->team1_player2_id], true);
+                    $isT2 = in_array($userId, [$m->team2_player1_id, $m->team2_player2_id], true);
+
+                    // Рейтинги пар ДО матча — нужны и для дельты, и для разбора.
+                    $before = $ratings[$userId]['current_rating'] ?? null;
+                    $myAvg = null;
+                    $oppAvg = null;
+                    $winProb = null;
+
+                    if (($isT1 || $isT2)
+                        && isset($ratings[$m->team1_player1_id], $ratings[$m->team1_player2_id],
+                                 $ratings[$m->team2_player1_id], $ratings[$m->team2_player2_id])) {
+                        $t1 = ($ratings[$m->team1_player1_id]['current_rating']
+                            + $ratings[$m->team1_player2_id]['current_rating']) / 2;
+                        $t2 = ($ratings[$m->team2_player1_id]['current_rating']
+                            + $ratings[$m->team2_player2_id]['current_rating']) / 2;
+                        $myAvg = (int) round($isT1 ? $t1 : $t2);
+                        $oppAvg = (int) round($isT1 ? $t2 : $t1);
+                        $winProb = (int) round($this->expectedScore(
+                            $isT1 ? $t1 : $t2,
+                            $isT1 ? $t2 : $t1
+                        ) * 100);
+                    }
+
+                    $service->calculateEloForMatch($m, $ratings);
+
+                    if (!$isT1 && !$isT2) {
+                        continue;
+                    }
+
+                    $after = $ratings[$userId]['current_rating'] ?? null;
+                    $delta = ($before !== null && $after !== null) ? $after - $before : 0;
+
+                    $myScore = $isT1 ? (int) $m->team1_score : (int) $m->team2_score;
+                    $oppScore = $isT1 ? (int) $m->team2_score : (int) $m->team1_score;
+
+                    $partner = $isT1
+                        ? ($m->team1_player1_id == $userId ? $m->team1Player2 : $m->team1Player1)
+                        : ($m->team2_player1_id == $userId ? $m->team2Player2 : $m->team2Player1);
+                    $opponents = $isT1
+                        ? [$m->team2Player1, $m->team2Player2]
+                        : [$m->team1Player1, $m->team1Player2];
+
+                    $out[] = [
+                        'round_name' => 'РАУНД ' . $round->round_number
+                            . ', КОРТ ' . (int) $court->court_number,
+                        'is_final' => false,
+                        'score_my' => $myScore,
+                        'score_opponent' => $oppScore,
+                        'result' => $myScore > $oppScore
+                            ? 'win'
+                            : ($myScore < $oppScore ? 'loss' : 'draw'),
+                        'rating_change' => $delta,
+                        'my_avg' => $myAvg,
+                        'opp_avg' => $oppAvg,
+                        'win_prob' => $winProb,
+                        'my_team' => array_values(array_filter([
+                            $me ? $this->formatPlayerShort($me) : null,
+                            $partner ? $this->formatPlayerShort($partner) : null,
+                        ])),
+                        'opponent_team' => array_values(array_filter(array_map(
+                            fn($p) => $p ? $this->formatPlayerShort($p) : null,
+                            $opponents
+                        ))),
+                    ];
+                }
+            }
+        }
+
         return $out;
     }
 

@@ -300,4 +300,58 @@ class EscaleraPlayerScreensTest extends TestCase
         $this->assertSame(0, $stats['won']);
         $this->assertSame(0, $stats['lost']);
     }
+
+    // ===== AI-разбор =====
+
+    public function test_ai_analysis_collects_escalera_matches(): void
+    {
+        [$t, $users] = $this->startedTournament(3);
+        $this->playCurrentRound($t);
+        $this->service()->closeRound($t);
+        $this->service()->finishTournament($t->fresh());
+
+        Sanctum::actingAs($users['P1']);
+
+        // Текст разбора пишет Claude, ключа в тестах нет — подменяем сервис.
+        // Проверяем не текст, а данные, которые мы ему собираем.
+        $captured = null;
+        $this->mock(
+            \App\Services\TournamentAiAnalysisService::class,
+            function ($mock) use (&$captured) {
+                $mock->shouldReceive('generate')
+                    ->once()
+                    ->andReturnUsing(function ($context) use (&$captured) {
+                        $captured = $context;
+
+                        return ['model' => 'test', 'analysis' => ['summary' => 'ок']];
+                    });
+            }
+        );
+
+        $res = $this->getJson("/api/mobile/tournaments/{$t->id}/ai-analysis")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        // В контекст для AI попали матчи игрока с соперниками и дельтами.
+        $this->assertNotNull($captured, 'сервис вызван');
+        $this->assertCount(3, $captured['matches'], 'три коротких матча своего корта');
+        $this->assertSame(1, $captured['player']['place'], 'место в турнире');
+        $this->assertNotEmpty($captured['matches'][0]['opponents']);
+        $this->assertNotEmpty($captured['matches'][0]['partners']);
+
+        $matches = $res->json('matches');
+        $this->assertIsArray($matches, 'разбивка по матчам собрана');
+        $this->assertCount(3, $matches, 'три коротких матча своего корта');
+
+        // P1 выиграл все три: 12:0, 11:1, 10:2.
+        $this->assertSame(12, $matches[0]['score_my']);
+        $this->assertSame(0, $matches[0]['score_opponent']);
+        $this->assertSame('win', $matches[0]['result']);
+
+        // Рейтинговые данные посчитаны, а не проставлены нулями.
+        $this->assertNotNull($matches[0]['my_avg'], 'средний рейтинг своей пары');
+        $this->assertNotNull($matches[0]['opp_avg'], 'средний рейтинг соперников');
+        $this->assertNotNull($matches[0]['win_prob'], 'шанс на победу');
+        $this->assertNotSame(0, $matches[0]['delta'], 'дельта рейтинга за матч');
+    }
 }
