@@ -3,11 +3,13 @@
 namespace Tests\Unit\Services;
 
 use App\Models\Club;
+use App\Models\EscaleraMatch;
 use App\Models\EscaleraPlayer;
 use App\Models\EscaleraRound;
 use App\Models\EscaleraRoundCourt;
 use App\Models\Tournament;
 use App\Models\User;
+use App\Services\EscaleraService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -75,5 +77,196 @@ class EscaleraServiceTest extends TestCase
         $this->assertSame($round->id, $court->fresh()->round->id);
         $this->assertSame($players[0]->id, $court->fresh()->player1_id);
         $this->assertSame(1, $t->fresh()->escaleraRounds->count());
+    }
+
+    /**
+     * Корт с четырьмя игроками и тремя матчами.
+     * $scores — три пары [очки команды 1, очки команды 2] по порядку матчей.
+     *
+     * @param  array<int, array{0:int,1:int}> $scores
+     * @return array{0: EscaleraRoundCourt, 1: array<int, User>}
+     */
+    private function makeCourtWithScores(Tournament $t, array $scores, array $ratings = [1600, 1500, 1400, 1300]): array
+    {
+        $round = EscaleraRound::create([
+            'tournament_id' => $t->id, 'round_number' => 1, 'status' => 'in_progress',
+        ]);
+
+        $players = [];
+        foreach ($ratings as $rating) {
+            $players[] = User::factory()->create(['rating' => $rating]);
+        }
+
+        $court = EscaleraRoundCourt::create([
+            'escalera_round_id' => $round->id,
+            'court_number' => 1,
+            'player1_id' => $players[0]->id,
+            'player2_id' => $players[1]->id,
+            'player3_id' => $players[2]->id,
+            'player4_id' => $players[3]->id,
+        ]);
+
+        // Пары по порядку матчей: 1+4 vs 2+3, 1+3 vs 2+4, 1+2 vs 3+4.
+        $lineup = [
+            [[0, 3], [1, 2]],
+            [[0, 2], [1, 3]],
+            [[0, 1], [2, 3]],
+        ];
+
+        foreach ($lineup as $i => [$teamA, $teamB]) {
+            EscaleraMatch::create([
+                'escalera_round_court_id' => $court->id,
+                'match_number' => $i + 1,
+                'team1_player1_id' => $players[$teamA[0]]->id,
+                'team1_player2_id' => $players[$teamA[1]]->id,
+                'team2_player1_id' => $players[$teamB[0]]->id,
+                'team2_player2_id' => $players[$teamB[1]]->id,
+                'team1_score' => $scores[$i][0],
+                'team2_score' => $scores[$i][1],
+                'status' => 'completed',
+            ]);
+        }
+
+        return [$court->fresh(), $players];
+    }
+
+    public function test_position_formula(): void
+    {
+        $service = app(EscaleraService::class);
+
+        // Первый на первом корте — первый в общем строю.
+        $this->assertSame(1, $service->positionFor(1, 1));
+        // Четвёртый на первом корте — четвёртый.
+        $this->assertSame(4, $service->positionFor(1, 4));
+        // Первый на втором корте — пятый.
+        $this->assertSame(5, $service->positionFor(2, 1));
+        // Третий на третьем корте — одиннадцатый.
+        $this->assertSame(11, $service->positionFor(3, 3));
+    }
+
+    public function test_points_formula(): void
+    {
+        $service = app(EscaleraService::class);
+
+        // При 12 игроках первая позиция стоит 12 баллов, последняя — 1.
+        $this->assertSame(12, $service->pointsFor(1, 12));
+        $this->assertSame(1, $service->pointsFor(12, 12));
+        $this->assertSame(8, $service->pointsFor(5, 12));
+        // При 16 игроках шкала другая.
+        $this->assertSame(16, $service->pointsFor(1, 16));
+    }
+
+    public function test_rank_court_by_points(): void
+    {
+        $t = $this->makeTournament(mode: 'points');
+        // Матч 1: (P1+P4) 7:5 (P2+P3); матч 2: (P1+P3) 8:4 (P2+P4); матч 3: (P1+P2) 6:6 (P3+P4).
+        // Сумма очков: P1 = 7+8+6 = 21; P2 = 5+4+6 = 15; P3 = 5+8+6 = 19; P4 = 7+4+6 = 17.
+        [$court, $players] = $this->makeCourtWithScores($t, [[7, 5], [8, 4], [6, 6]]);
+
+        $order = app(EscaleraService::class)->rankCourt($court, 'points');
+
+        $this->assertSame(
+            [$players[0]->id, $players[2]->id, $players[3]->id, $players[1]->id],
+            $order,
+            'порядок по сумме очков: P1, P3, P4, P2'
+        );
+    }
+
+    public function test_rank_court_by_wins_with_points_tiebreak(): void
+    {
+        $t = $this->makeTournament(mode: 'wins');
+        // Матч 1: (P1+P4) 7:5 (P2+P3) — победа P1, P4
+        // Матч 2: (P1+P3) 8:4 (P2+P4) — победа P1, P3
+        // Матч 3: (P1+P2) 9:3 (P3+P4) — победа P1, P2
+        // Победы: P1 = 3; P2 = 1; P3 = 1; P4 = 1.
+        // Тай-брейк по очкам: P2 = 5+4+9 = 18; P3 = 5+8+3 = 16; P4 = 7+4+3 = 14.
+        [$court, $players] = $this->makeCourtWithScores($t, [[7, 5], [8, 4], [9, 3]]);
+
+        $order = app(EscaleraService::class)->rankCourt($court, 'wins');
+
+        $this->assertSame(
+            [$players[0]->id, $players[1]->id, $players[2]->id, $players[3]->id],
+            $order,
+            'P1 по победам, дальше по сумме очков'
+        );
+    }
+
+    public function test_full_tie_resolved_by_rating(): void
+    {
+        $t = $this->makeTournament(mode: 'points');
+        // Все три матча вничью — суммы очков у всех равны.
+        // Порядок должен определиться рейтингом: 1600, 1500, 1400, 1300.
+        [$court, $players] = $this->makeCourtWithScores($t, [[6, 6], [6, 6], [6, 6]]);
+
+        $order = app(EscaleraService::class)->rankCourt($court, 'points');
+
+        $this->assertSame(
+            [$players[0]->id, $players[1]->id, $players[2]->id, $players[3]->id],
+            $order,
+            'при полном равенстве выше игрок с большим рейтингом'
+        );
+    }
+
+    public function test_match_lineup_pairs_everyone_once(): void
+    {
+        $seating = [10, 20, 30, 40]; // id игроков в порядке посадки
+
+        $lineup = app(EscaleraService::class)->matchLineup($seating);
+
+        $this->assertSame([[10, 40], [20, 30]], $lineup[0], 'матч 1: 1+4 против 2+3');
+        $this->assertSame([[10, 30], [20, 40]], $lineup[1], 'матч 2: 1+3 против 2+4');
+        $this->assertSame([[10, 20], [30, 40]], $lineup[2], 'матч 3: 1+2 против 3+4');
+    }
+
+    public function test_movements_middle_court(): void
+    {
+        // Три корта, на каждом четвёрка в порядке мест с первого по четвёртое.
+        $rankings = [
+            1 => [101, 102, 103, 104],
+            2 => [201, 202, 203, 204],
+            3 => [301, 302, 303, 304],
+        ];
+
+        $next = app(EscaleraService::class)->planMovements($rankings);
+
+        // Верхний корт: первые трое остаются, четвёртый вниз; снизу приходит первый со второго.
+        $this->assertEqualsCanonicalizing([101, 102, 103, 201], $next[1]);
+        // Средний: пришёл 104 сверху и 301 снизу, остались 202 и 203.
+        $this->assertEqualsCanonicalizing([104, 202, 203, 301], $next[2]);
+        // Нижний: пришёл 204 сверху, остались 302, 303, 304.
+        $this->assertEqualsCanonicalizing([204, 302, 303, 304], $next[3]);
+    }
+
+    public function test_movements_two_courts(): void
+    {
+        // Минимально допустимая конфигурация: только верхний и нижний корт.
+        $rankings = [
+            1 => [101, 102, 103, 104],
+            2 => [201, 202, 203, 204],
+        ];
+
+        $next = app(EscaleraService::class)->planMovements($rankings);
+
+        $this->assertEqualsCanonicalizing([101, 102, 103, 201], $next[1]);
+        $this->assertEqualsCanonicalizing([104, 202, 203, 204], $next[2]);
+    }
+
+    public function test_every_court_keeps_four_players(): void
+    {
+        $rankings = [
+            1 => [101, 102, 103, 104],
+            2 => [201, 202, 203, 204],
+            3 => [301, 302, 303, 304],
+            4 => [401, 402, 403, 404],
+        ];
+
+        $next = app(EscaleraService::class)->planMovements($rankings);
+
+        foreach ($next as $courtNumber => $players) {
+            $this->assertCount(4, $players, "на корте {$courtNumber} должно быть четверо");
+        }
+        // Никто не потерялся и не задвоился.
+        $all = array_merge(...array_values($next));
+        $this->assertCount(16, array_unique($all));
     }
 }
