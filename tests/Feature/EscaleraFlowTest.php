@@ -535,7 +535,7 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame('B1', $awards['ascent']['user']->name);
         $this->assertSame(1, $awards['ascent']['climb']);
         $this->assertSame(2, $awards['ascent']['start_court']);
-        $this->assertSame(1, $awards['ascent']['current_court']);
+        $this->assertSame(1, $awards['ascent']['final_court']);
         // «Король корта» — победитель последнего раунда на первом корте.
         $this->assertSame('B1', $awards['king_of_court']['user']->name);
         $this->assertSame(2, $awards['king_of_court']['round_number']);
@@ -549,6 +549,198 @@ class EscaleraFlowTest extends TestCase
             $ratingsAfter->all(),
             User::whereIn('id', collect($u)->pluck('id'))->pluck('rating', 'id')->all(),
             'повторный вызов не должен двигать рейтинг'
+        );
+    }
+
+    public function test_start_is_blocked_for_already_started_tournament(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+
+        $this->assertTrue($this->service()->startTournament($tournament));
+
+        // Повторный старт не должен ни пересобирать посадку, ни плодить раунды.
+        $this->assertFalse($this->service()->startTournament($tournament));
+        $this->assertSame(1, $tournament->fresh()->escaleraRounds()->count());
+        $this->assertSame(12, $tournament->fresh()->escaleraPlayers()->count());
+    }
+
+    public function test_next_round_blocked_until_current_one_is_closed(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Первый раунд ещё не начат — следующего быть не может.
+        $this->assertFalse($this->service()->generateNextRound($tournament));
+        $this->assertSame(1, $tournament->fresh()->escaleraRounds()->count());
+
+        // Все счета внесены, но раунд не закрыт — по-прежнему нельзя.
+        $this->playRound($tournament);
+        $this->assertFalse($this->service()->generateNextRound($tournament));
+        $this->assertSame(1, $tournament->fresh()->escaleraRounds()->count());
+
+        // И только после закрытия появляется второй раунд.
+        $this->service()->closeRound($tournament);
+        $this->assertTrue($this->service()->generateNextRound($tournament));
+        $this->assertSame(2, $tournament->fresh()->escaleraRounds()->count());
+    }
+
+    public function test_standings_tie_break_by_wins(): void
+    {
+        // Режим «по сумме очков» — в нём легко получить равные числа у игроков
+        // с разных кортов.
+        $tournament = $this->makeTournament(courts: 2, mode: 'raw_points');
+        $u = $this->register($tournament, [
+            'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
+            'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
+        ]);
+        $this->service()->startTournament($tournament);
+
+        // A4 набирает 15 очков одной победой, B1 — те же 15 двумя победами.
+        // Рейтинг у A4 выше, поэтому без тай-брейка по победам он оказался бы
+        // впереди — а по правилам выше должен быть B1.
+        $this->playRound($tournament, [
+            1 => self::DOMINANT,
+            2 => [[7, 5], [7, 5], [1, 11]],
+        ]);
+        $this->service()->closeRound($tournament);
+
+        $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
+
+        $this->assertSame(15, $rows[$u['A4']->id]['raw_points']);
+        $this->assertSame(15, $rows[$u['B1']->id]['raw_points']);
+        $this->assertSame(1, $rows[$u['A4']->id]['wins']);
+        $this->assertSame(2, $rows[$u['B1']->id]['wins']);
+        $this->assertTrue(
+            $rows[$u['B1']->id]['position'] < $rows[$u['A4']->id]['position'],
+            'при равной сумме очков выше тот, кто выиграл больше коротких матчей'
+        );
+    }
+
+    public function test_standings_tie_break_by_head_to_head(): void
+    {
+        // Конструкция: A2 и A3 играли вместе на первом корте в первом раунде,
+        // где A3 набрал против A2 13 очков, а A2 против A3 — 11. Во втором
+        // раунде они оказались на разных кортах и добрали ровно столько, чтобы
+        // сравняться и по сумме очков (42), и по числу побед (4).
+        // Рейтинг у A2 выше, поэтому без тай-брейка по личной встрече впереди
+        // оказался бы он — а должен быть A3.
+        $tournament = $this->makeTournament(courts: 2, mode: 'raw_points');
+        $u = $this->register($tournament, [
+            'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
+            'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
+        ]);
+        $this->service()->startTournament($tournament);
+
+        $this->playRound($tournament, [
+            1 => self::DOMINANT,
+            2 => [[7, 5], [7, 5], [7, 5]],
+        ]);
+        $this->service()->closeRound($tournament);
+        $this->service()->generateNextRound($tournament);
+
+        // Во втором раунде A3 сидит четвёртым на первом корте, A2 — четвёртым на втором.
+        $this->assertSame(['A1', 'B1', 'A4', 'A3'], $this->seatingNames($tournament, 1));
+        $this->assertSame(['B2', 'B3', 'B4', 'A2'], $this->seatingNames($tournament, 2));
+
+        $this->playRound($tournament, [
+            1 => [[11, 1], [2, 10], [4, 8]],
+            2 => [[12, 0], [3, 9], [2, 10]],
+        ]);
+        $this->service()->closeRound($tournament);
+
+        $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
+
+        $this->assertSame(42, $rows[$u['A2']->id]['raw_points']);
+        $this->assertSame(42, $rows[$u['A3']->id]['raw_points']);
+        $this->assertSame(4, $rows[$u['A2']->id]['wins']);
+        $this->assertSame(4, $rows[$u['A3']->id]['wins']);
+        $this->assertTrue(
+            $rows[$u['A3']->id]['position'] < $rows[$u['A2']->id]['position'],
+            'при равных очках и победах решает личная встреча, а не рейтинг'
+        );
+    }
+
+    // ===== Награды =====
+
+    public function test_no_ascent_award_when_nobody_climbed(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+
+        // Сыгран один раунд: все играли на своих стартовых кортах, подняться
+        // никто ещё не успел.
+        $awards = $this->service()->awards($tournament);
+
+        $this->assertNull($awards['ascent'], 'награждать за подъём некого');
+        $this->assertSame('A1', $awards['champion']['user']->name);
+        $this->assertSame('A1', $awards['king_of_court']['user']->name);
+    }
+
+    public function test_ascent_counts_court_where_player_actually_played(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+        $this->service()->generateNextRound($tournament);
+
+        // Второй (последний) раунд: на втором корте выигрывает поднявшийся снизу
+        // C1 — закрытие раунда переставит его на первый корт, хотя играл он на
+        // втором. B1 играл второй раунд на первом корте и остался там же.
+        $this->playRound($tournament, [2 => [[11, 1], [2, 10], [5, 7]]]);
+        $this->service()->closeRound($tournament);
+        $this->service()->finishTournament($tournament);
+
+        $c1 = EscaleraPlayer::where('tournament_id', $tournament->id)
+            ->where('user_id', $u['C1']->id)->first();
+        $this->assertSame(1, (int) $c1->current_court, 'в БД остался корт, куда игрок поехал бы дальше');
+
+        $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
+        $this->assertSame(2, $rows[$u['C1']->id]['current_court'], 'в таблице завершённого турнира — сыгранный корт');
+        $this->assertSame(2, $rows[$u['C1']->id]['final_court']);
+        $this->assertSame(1, $rows[$u['B1']->id]['final_court']);
+
+        // C1 поднялся с третьего корта на второй, B1 — со второго на первый.
+        // Подъём одинаковый, поэтому награду забирает тот, кто закончил выше.
+        $awards = $this->service()->awards($tournament);
+        $this->assertSame('B1', $awards['ascent']['user']->name);
+        $this->assertSame(1, $awards['ascent']['climb']);
+        $this->assertSame(1, $awards['ascent']['final_court']);
+    }
+
+    public function test_score_cannot_be_edited_after_tournament_is_finished(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+        $this->service()->finishTournament($tournament);
+
+        $match = $this->lastRound($tournament)->courts()->where('court_number', 3)->first()
+            ->matches->values()[0];
+        $pointsBefore = (int) EscaleraPlayer::where('tournament_id', $tournament->id)
+            ->where('user_id', $u['C1']->id)->first()->total_points;
+
+        try {
+            $this->service()->saveMatchResult($match, 0, 12);
+            $this->fail('в завершённом турнире счёт менять нельзя');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('завершён', $e->getMessage());
+        }
+
+        // Ни счёт, ни таблица не изменились — иначе таблица разошлась бы с рейтингом.
+        $this->assertSame(12, (int) $match->fresh()->team1_score);
+        $this->assertSame(
+            $pointsBefore,
+            (int) EscaleraPlayer::where('tournament_id', $tournament->id)
+                ->where('user_id', $u['C1']->id)->first()->total_points
         );
     }
 

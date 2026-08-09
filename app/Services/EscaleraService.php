@@ -245,12 +245,21 @@ class EscaleraService
      *
      * Если раунд уже закрыт, правка счёта пересчитывает места, баллы и таблицу,
      * но игроков по кортам не двигает — перемещения уже произошли.
+     *
+     * В завершённом турнире правка запрещена: рейтинг уже начислен по старым
+     * счетам, и таблица разошлась бы с ним.
      */
     public function saveMatchResult(EscaleraMatch $match, int $team1Score, int $team2Score): void
     {
         $court = $match->court;
         $round = $court->round;
         $tournament = $round->tournament;
+
+        if ($tournament->status === 'completed') {
+            throw new RuntimeException(
+                'Турнир уже завершён: рейтинг начислен по этим счетам, менять их нельзя'
+            );
+        }
 
         if ($team1Score < 0 || $team2Score < 0) {
             throw new InvalidArgumentException('Очки не могут быть отрицательными');
@@ -446,6 +455,7 @@ class EscaleraService
         $mode = $tournament->escalera_standings_mode === 'raw_points' ? 'raw_points' : 'points';
         $headToHead = $this->headToHead($tournament);
         $ordered = $this->sortPlayers(array_keys($stats), $stats, $mode, $headToHead);
+        $playedCourts = $this->playedCourts($tournament);
 
         // Изменение позиции считаем относительно таблицы на конец прошлого
         // закрытого раунда. После первого раунда сравнивать не с чем.
@@ -471,6 +481,9 @@ class EscaleraService
         foreach ($ordered as $i => $userId) {
             $position = $i + 1;
             $stat = $stats[$userId];
+            $currentCourt = (int) $stat['player']->current_court;
+            // Корт, где игрок реально доигрывал последний закрытый раунд.
+            $finalCourt = $playedCourts[$userId] ?? $currentCourt;
 
             $rows[] = [
                 'position' => $position,
@@ -481,7 +494,11 @@ class EscaleraService
                 'raw_points' => $stat['raw_points'],
                 'wins' => $stat['wins'],
                 'start_court' => (int) $stat['player']->start_court,
-                'current_court' => (int) $stat['player']->current_court,
+                // Пока турнир идёт, «текущий корт» — это корт следующего раунда.
+                // После завершения следующего раунда не будет, поэтому
+                // показываем корт, на котором игрок действительно доиграл.
+                'current_court' => $tournament->status === 'completed' ? $finalCourt : $currentCourt,
+                'final_court' => $finalCourt,
                 'change' => isset($previousPositions[$userId])
                     ? $previousPositions[$userId] - $position
                     : null,
@@ -498,6 +515,12 @@ class EscaleraService
      * сумма баллов). «Восхождение» — наибольшая разница между стартовым и
      * финальным кортом, при равенстве выше тот, чей финальный корт выше.
      * «Король корта» — победитель последнего закрытого раунда на первом корте.
+     *
+     * Финальный корт — тот, где игрок реально играл последний закрытый раунд,
+     * а не `current_court`: закрытие раунда применяет перемещения и в последнем
+     * раунде тоже, поэтому `current_court` в конце турнира — это корт, куда
+     * игрок ПОЕХАЛ БЫ дальше. Иначе награду за подъём получал бы тот, кто на
+     * верхнем корте не сыграл ни одного матча.
      *
      * @return array{champion: ?array, ascent: ?array, king_of_court: ?array}
      */
@@ -519,7 +542,8 @@ class EscaleraService
         // «Восхождение»: считаем по кортам, а не по баллам — награда именно за подъём.
         $ascent = null;
         foreach ($standings as $row) {
-            $climb = $row['start_court'] - $row['current_court'];
+            $climb = $row['start_court'] - $row['final_court'];
+            // Не поднялся — награждать не за что.
             if ($climb <= 0) {
                 continue;
             }
@@ -527,7 +551,7 @@ class EscaleraService
             $better = $ascent === null
                 || $climb > $ascent['climb']
                 // При равном подъёме выше тот, чей финальный корт выше.
-                || ($climb === $ascent['climb'] && $row['current_court'] < $ascent['current_court']);
+                || ($climb === $ascent['climb'] && $row['final_court'] < $ascent['final_court']);
 
             if ($better) {
                 $ascent = [
@@ -535,7 +559,7 @@ class EscaleraService
                     'user_id' => $row['user_id'],
                     'climb' => $climb,
                     'start_court' => $row['start_court'],
-                    'current_court' => $row['current_court'],
+                    'final_court' => $row['final_court'],
                 ];
             }
         }
@@ -680,6 +704,33 @@ class EscaleraService
         $ratingChanges[$p12]['current_rating'] = $this->applyRatingChange($ratingChanges[$p12]['current_rating'], $result['change1']);
         $ratingChanges[$p21]['current_rating'] = $this->applyRatingChange($ratingChanges[$p21]['current_rating'], $result['change2']);
         $ratingChanges[$p22]['current_rating'] = $this->applyRatingChange($ratingChanges[$p22]['current_rating'], $result['change2']);
+    }
+
+    /**
+     * Корт, на котором каждый игрок реально играл в последнем закрытом раунде.
+     *
+     * `closeRound` применяет перемещения и к последнему раунду тоже, поэтому
+     * `escalera_players.current_court` после конца турнира — это корт, куда
+     * игрок поехал бы в следующем раунде, а не тот, где он доиграл. Для наград
+     * и для итоговой таблицы нужен именно сыгранный корт.
+     *
+     * @return array<int, int> id игрока => номер корта
+     */
+    public function playedCourts(Tournament $tournament): array
+    {
+        $lastRound = $tournament->escaleraRounds()
+            ->where('status', 'completed')
+            ->reorder('round_number', 'desc')
+            ->first();
+
+        if (!$lastRound) {
+            return [];
+        }
+
+        return EscaleraRoundResult::where('escalera_round_id', $lastRound->id)
+            ->pluck('court_number', 'user_id')
+            ->map(fn ($number) => (int) $number)
+            ->all();
     }
 
     /** Текущий раунд — последний незакрытый. */
