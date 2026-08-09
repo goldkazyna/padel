@@ -275,7 +275,8 @@ class MobileAdminTournamentDetailController extends Controller
         BaliKocService $bali,
         AmericanoFlexService $flex,
         RoundRobinService $roundRobin,
-        \App\Services\JustPadelItService $jpi
+        \App\Services\JustPadelItService $jpi,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -328,11 +329,17 @@ class MobileAdminTournamentDetailController extends Controller
             $order = is_array($order) ? array_map('intval', $order) : null;
             $ok = $jpi->startTournament($tournament, $order ?: null);
         } elseif ($tournament->isEscalera()) {
-            // Экранов эскалеры в приложении пока нет: посев и проведение — только в вебе.
-            return response()->json([
-                'success' => false,
-                'message' => 'Эскалеру запускают из веб-админки клуба: там задаётся стартовая расстановка по кортам',
-            ], 422);
+            // Посев по рейтингу. Ручная расстановка по кортам осталась только
+            // в вебе — в приложении старт это одна кнопка.
+            $registered = $tournament->participants()->wherePivot('status', 'registered')->count();
+            $need = (int) $tournament->courts_count * 4;
+            if ($registered !== $need) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "В эскалере играют ровно {$need} игроков (кортов × 4), сейчас записано {$registered}",
+                ], 422);
+            }
+            $ok = $escalera->startTournament($tournament);
         } else {
             return response()->json([
                 'success' => false,
@@ -600,10 +607,10 @@ class MobileAdminTournamentDetailController extends Controller
         if ($t->type === 'just_padel_it' && ! $t->is_paired) {
             $canStart = $t->status === 'open' && $t->jpiSeedingReady();
         }
-        // Эскалера: экранов формата в приложении пока нет, а start() её не умеет —
-        // честнее не показывать кнопку, чем давать нерабочую. Турнир проводится в вебе.
+        // Эскалера: играют строго кортов × 4, поэтому кнопка старта появляется
+        // только когда набралось ровно столько игроков.
         if ($t->isEscalera()) {
-            $canStart = false;
+            $canStart = $t->status === 'open' && $taken === (int) $t->courts_count * 4;
         }
         // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
         $baliPairsCreated = $t->isBaliKoc()

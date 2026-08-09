@@ -89,4 +89,87 @@ class MobileAdminEscaleraTest extends TestCase
             'courts_count' => 1,
         ])->assertStatus(422);
     }
+
+    /**
+     * Готовый к старту турнир: кортов × 4 зарегистрированных игрока.
+     *
+     * @return array{0:Club,1:User,2:Tournament}
+     */
+    private function makeReadyTournament(int $courts = 3): array
+    {
+        [$club, $admin] = $this->makeClubAdmin();
+
+        $t = Tournament::factory()->create([
+            'club_id' => $club->id,
+            'type' => 'escalera',
+            'status' => 'open',
+            'courts_count' => $courts,
+            'max_participants' => $courts * 4,
+            'escalera_standings_mode' => 'points',
+            'start_date' => now()->addDay(),
+        ]);
+
+        for ($i = 1; $i <= $courts * 4; $i++) {
+            $user = User::factory()->create(['rating' => 1000 + $i * 50]);
+            TournamentParticipant::create([
+                'tournament_id' => $t->id,
+                'user_id' => $user->id,
+                'status' => 'registered',
+            ]);
+        }
+
+        return [$club, $admin, $t];
+    }
+
+    public function test_start_creates_first_round(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $t->refresh();
+        $this->assertSame('in_progress', $t->status);
+        $this->assertSame(1, $t->escaleraRounds()->count());
+        $this->assertSame(3, $t->escaleraRounds()->first()->courts()->count());
+        $this->assertSame(12, $t->escaleraPlayers()->count());
+    }
+
+    public function test_start_blocked_when_participants_do_not_match_courts(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        // Убираем одного игрока — двенадцати уже нет.
+        TournamentParticipant::where('tournament_id', $t->id)->first()->delete();
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
+    public function test_update_recalculates_participants_before_start(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        Sanctum::actingAs($admin);
+
+        // Дату не меняем: её правка рассылает участникам пуши, а нас здесь
+        // интересует только пересчёт участников из кортов.
+        $this->putJson("/api/mobile/admin/tournaments/{$t->id}", [
+            'name' => $t->name,
+            'start_date' => $t->start_date->toIso8601String(),
+            'min_level' => 1,
+            'max_level' => 5.75,
+            'max_participants' => 99,
+            'status' => 'open',
+            'courts_count' => 5,
+        ])->assertOk();
+
+        $t->refresh();
+        $this->assertSame(5, (int) $t->courts_count);
+        $this->assertSame(20, (int) $t->max_participants);
+    }
 }
