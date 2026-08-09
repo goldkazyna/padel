@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\MobileRatingController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileTournamentChatController;
 use App\Http\Controllers\Api\MobileCoachController;
+use App\Http\Controllers\Api\MobileCoachTrainingController;
+use App\Http\Controllers\Api\MobileTrainingController;
 use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileMatchController;
@@ -277,6 +279,24 @@ Route::prefix('mobile')->group(function () {
         Route::post('/devices/register', [MobileDeviceController::class, 'register']);
 
         // Настройки уведомлений
+        // Тренировки: кабинет тренера
+        Route::get('/coach/trainings', [MobileCoachTrainingController::class, 'index']);
+        Route::post('/coach/trainings', [MobileCoachTrainingController::class, 'store']);
+        Route::get('/coach/clubs', [MobileCoachTrainingController::class, 'clubs']);
+        Route::get('/coach/trainings/{training}', [MobileCoachTrainingController::class, 'show']);
+        Route::put('/coach/trainings/{training}', [MobileCoachTrainingController::class, 'update']);
+        Route::post('/coach/trainings/{training}/complete', [MobileCoachTrainingController::class, 'complete']);
+        Route::post('/coach/trainings/{training}/cancel', [MobileCoachTrainingController::class, 'cancel']);
+        Route::delete('/coach/trainings/{training}/participants/{user}', [MobileCoachTrainingController::class, 'removeParticipant']);
+
+        // Тренировки: экраны игрока
+        Route::get('/trainings', [MobileTrainingController::class, 'index']);
+        Route::get('/trainings/my', [MobileTrainingController::class, 'my']);
+        Route::get('/trainings/count', [MobileTrainingController::class, 'count']);
+        Route::get('/trainings/{training}', [MobileTrainingController::class, 'show']);
+        Route::post('/trainings/{training}/join', [MobileTrainingController::class, 'join']);
+        Route::post('/trainings/{training}/leave', [MobileTrainingController::class, 'leave']);
+
         // Расписание тренера (роль coach)
         Route::get('/coach/schedule', [MobileCoachController::class, 'schedule']);
         Route::get('/coach/hours-range', [MobileCoachController::class, 'hoursRange']);
