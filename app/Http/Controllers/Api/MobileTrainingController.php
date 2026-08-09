@@ -24,7 +24,7 @@ class MobileTrainingController extends Controller
         $userId = (int) $request->user()->id;
 
         $trainings = Training::upcoming()
-            ->with(['club', 'coach'])
+            ->with(['club', 'coach', 'participants.user'])
             ->withCount('participants')
             ->orderBy('starts_at')
             ->get()
@@ -38,7 +38,8 @@ class MobileTrainingController extends Controller
 
     public function show(Request $request, Training $training): JsonResponse
     {
-        $training->loadMissing(['club', 'coach'])->loadCount('participants');
+        $training->loadMissing(['club', 'coach', 'participants.user'])
+            ->loadCount('participants');
 
         return response()->json([
             'success' => true,
@@ -70,7 +71,7 @@ class MobileTrainingController extends Controller
         $userId = (int) $request->user()->id;
 
         $trainings = Training::whereHas('participants', fn ($q) => $q->where('user_id', $userId))
-            ->with(['club', 'coach'])
+            ->with(['club', 'coach', 'participants.user'])
             ->withCount('participants')
             ->orderBy('starts_at')
             ->get();
@@ -140,6 +141,14 @@ class MobileTrainingController extends Controller
             'status' => $training->status,
             'is_joined' => $isJoined,
             'can_join' => !$isJoined && $training->isOpenForJoin(),
+            // Занятые места для кружков-слотов. Телефонов здесь нет — их
+            // видит только тренер в своём кабинете.
+            'participants' => $training->participants->map(fn ($p) => [
+                'id' => $p->user?->id,
+                'name' => $p->user?->name,
+                'avatar' => $p->user?->avatar,
+                'is_me' => (int) ($p->user?->id ?? 0) === $userId,
+            ])->filter(fn ($row) => $row['id'] !== null)->values(),
         ];
     }
 }

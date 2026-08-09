@@ -451,4 +451,51 @@ class TrainingsTest extends TestCase
             'type' => 'training_left',
         ]);
     }
+
+    public function test_player_sees_participants_without_phones(): void
+    {
+        $training = $this->makeTraining(['capacity' => 4]);
+        $first = User::factory()->create(['name' => 'Дана Сеитова', 'phone' => '77771234567']);
+        $second = User::factory()->create(['name' => 'Арман Касымов', 'phone' => '77015552211']);
+        $this->service()->join($training, $first);
+        $this->service()->join($training->fresh(), $second);
+
+        $viewer = User::factory()->create();
+        Sanctum::actingAs($viewer);
+
+        $res = $this->getJson("/api/mobile/trainings/{$training->id}")->assertOk();
+        $participants = $res->json('training.participants');
+
+        $this->assertCount(2, $participants, 'слоты рисуются по этому списку');
+        $this->assertSame('Дана Сеитова', $participants[0]['name']);
+        $this->assertArrayNotHasKey('phone', $participants[0], 'телефон видит только тренер');
+        $this->assertArrayHasKey('avatar', $participants[0]);
+        $this->assertFalse($participants[0]['is_me']);
+    }
+
+    public function test_player_sees_own_slot_marked(): void
+    {
+        $training = $this->makeTraining(['capacity' => 4]);
+        $me = User::factory()->create(['name' => 'Денис']);
+        $this->service()->join($training, $me);
+
+        Sanctum::actingAs($me);
+        $participants = $this->getJson("/api/mobile/trainings/{$training->id}")
+            ->assertOk()
+            ->json('training.participants');
+
+        $this->assertTrue($participants[0]['is_me'], 'своё место подсвечивается в приложении');
+    }
+
+    public function test_participants_come_with_list_too(): void
+    {
+        // Слоты нужны и в списке: карточка показывает занятые места.
+        $training = $this->makeTraining(['capacity' => 4]);
+        $this->service()->join($training, User::factory()->create());
+
+        Sanctum::actingAs(User::factory()->create());
+        $list = $this->getJson('/api/mobile/trainings')->assertOk()->json('trainings');
+
+        $this->assertCount(1, $list[0]['participants']);
+    }
 }
