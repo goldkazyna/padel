@@ -400,4 +400,55 @@ class TrainingsTest extends TestCase
         $all = $this->getJson('/api/mobile/coach/clubs?search=')->assertOk()->json('clubs');
         $this->assertCount(3, $all);
     }
+
+    public function test_coach_is_notified_when_player_joins(): void
+    {
+        $coach = $this->makeCoach();
+        $training = $this->makeTraining(['coach_id' => $coach->id]);
+        $player = User::factory()->create(['name' => 'Арман Касымов']);
+
+        $this->service()->join($training, $player);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $coach->id,
+            'type' => 'training_joined',
+        ]);
+
+        $notification = \App\Models\Notification::where('user_id', $coach->id)
+            ->where('type', 'training_joined')
+            ->first();
+        $this->assertStringContainsString('Арман Касымов', $notification->body);
+    }
+
+    public function test_coach_is_notified_when_player_leaves(): void
+    {
+        $coach = $this->makeCoach();
+        $training = $this->makeTraining(['coach_id' => $coach->id]);
+        $player = User::factory()->create(['name' => 'Дана Сеитова']);
+        $this->service()->join($training, $player);
+
+        $this->service()->leave($training->fresh(), $player);
+
+        // Тренеру важно знать и об отписке: место освободилось.
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $coach->id,
+            'type' => 'training_left',
+        ]);
+    }
+
+    public function test_removed_player_does_not_notify_coach(): void
+    {
+        $coach = $this->makeCoach();
+        $training = $this->makeTraining(['coach_id' => $coach->id]);
+        $player = User::factory()->create();
+        $this->service()->join($training, $player);
+
+        $this->service()->removeParticipant($training->fresh(), $player);
+
+        // Тренер сам снял игрока — уведомлять его об этом незачем.
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $coach->id,
+            'type' => 'training_left',
+        ]);
+    }
 }

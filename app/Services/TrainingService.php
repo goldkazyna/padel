@@ -51,12 +51,45 @@ class TrainingService
             'training_id' => $training->id,
             'user_id' => $player->id,
         ]);
+
+        $this->notifyCoach(
+            $training,
+            'Запись на тренировку',
+            $player->name . ' записался: ' . $this->trainingLabel($training),
+            'training_joined'
+        );
     }
 
     /** Отписаться от тренировки. */
     public function leave(Training $training, User $player): void
     {
-        $training->participants()->where('user_id', $player->id)->delete();
+        $removed = $training->participants()->where('user_id', $player->id)->delete();
+        if (!$removed) {
+            return;
+        }
+
+        // Тренеру важно знать: место освободилось, можно позвать другого.
+        $this->notifyCoach(
+            $training,
+            'Отписался от тренировки',
+            $player->name . ' отписался: ' . $this->trainingLabel($training),
+            'training_left'
+        );
+    }
+
+    /**
+     * Уведомить тренера о движении в записи.
+     * Себе самому уведомление не шлём: тренер может записаться на своё занятие.
+     */
+    private function notifyCoach(Training $training, string $title, string $body, string $type): void
+    {
+        $training->loadMissing('coach');
+        $coach = $training->coach;
+        if (!$coach) {
+            return;
+        }
+
+        $this->notify($coach, $title, $body, $type, $training);
     }
 
     /**
