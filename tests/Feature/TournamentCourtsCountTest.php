@@ -132,6 +132,56 @@ class TournamentCourtsCountTest extends TestCase
         $this->assertCount(3, $t->fresh()->courts);
     }
 
+    /**
+     * Solo Just Padel It без courts_count стартует при любом кратном четырём
+     * числе зарегистрированных: 12 игроков — это 3 корта, всё раскладывается.
+     */
+    public function test_jpi_solo_without_courts_count_is_ready_with_12_players(): void
+    {
+        [$club] = $this->setupClub();
+        $t = $this->makeJpiSolo($club, null, 12);
+
+        $this->assertTrue($t->jpiSeedingReady());
+    }
+
+    /**
+     * А с сохранённым courts_count = 4 те же 12 игроков посев блокируют:
+     * сетка строится ровно на кортов × 4 = 16 мест. Поэтому подставлять
+     * число кортов «на всякий случай» нельзя — оно ломает старт турнира.
+     */
+    public function test_jpi_solo_with_courts_count_4_is_not_ready_with_12_players(): void
+    {
+        [$club] = $this->setupClub();
+        $t = $this->makeJpiSolo($club, 4, 12);
+
+        $this->assertFalse($t->jpiSeedingReady());
+    }
+
+    /** Solo Just Padel It с заданным числом кортов и зарегистрированными игроками. */
+    private function makeJpiSolo(Club $club, ?int $courtsCount, int $registered): Tournament
+    {
+        $t = Tournament::create([
+            'club_id' => $club->id,
+            'name' => 'JPI',
+            'type' => 'just_padel_it',
+            'status' => 'open',
+            'start_date' => now()->addDay()->toDateString(),
+            'max_participants' => 16,
+            'courts_count' => $courtsCount,
+            'is_paired' => false,
+        ]);
+
+        for ($i = 0; $i < $registered; $i++) {
+            \App\Models\TournamentParticipant::create([
+                'tournament_id' => $t->id,
+                'user_id' => User::factory()->create()->id,
+                'status' => 'registered',
+            ]);
+        }
+
+        return $t;
+    }
+
     public function test_mobile_create_syncs_mismatched_courts(): void
     {
         [$club, $admin] = $this->setupClub();

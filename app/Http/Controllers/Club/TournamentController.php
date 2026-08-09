@@ -185,18 +185,9 @@ class TournamentController extends Controller
 		}
 
         $tournament = Tournament::create($validated);
+        // Названия кортов приводим к их количеству (пустые слоты → null,
+        // всё пусто → null) — этим занимается syncCourtNames().
         $tournament->syncCourtNames();
-		// Убираем пустые названия кортов
-		if (isset($validated['courts'])) {
-			$validated['courts'] = array_map(function($court) {
-				return $court ?: null;
-			}, $validated['courts']);
-			
-			// Если все пустые - убираем совсем
-			if (empty(array_filter($validated['courts']))) {
-				$validated['courts'] = null;
-			}
-		}
 		// Добавляем резервных игроков
 		$reserveCount = $validated['reserve_count'] ?? 0;
 		if ($reserveCount > 0) {
