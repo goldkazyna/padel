@@ -1,7 +1,6 @@
 {{-- resources/views/club/tournaments/escalera/partials/_standings.blade.php --}}
 @php
     $isRawMode = $tournament->escalera_standings_mode === 'raw_points';
-    $isCompleted = $tournament->status === 'completed';
 @endphp
 
 <div class="section-subheader">
@@ -19,16 +18,10 @@
                     <th class="col-player ttt">Игрок</th>
                     <th class="col-stat ttt" title="Побед">В</th>
                     <th class="col-stat ttt" title="Поражений">П</th>
-                    <th class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}" title="Забито очков{{ $isRawMode ? ' — по ним зачёт' : '' }}">
-                        З@if($isRawMode) <small>(зачёт)</small>@endif
-                    </th>
+                    <th class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}" title="Забито очков{{ $isRawMode ? ' — по ним зачёт' : '' }}">З</th>
                     <th class="col-stat ttt" title="Пропущено очков">Пр</th>
                     <th class="col-stat ttt" title="Доля выигранных очков">%</th>
-                    <th class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}" title="Баллы за позиции в общем строю{{ $isRawMode ? '' : ' — по ним зачёт' }}">
-                        Баллы@if(!$isRawMode) <small>(зачёт)</small>@endif
-                    </th>
-                    <th class="col-stat ttt">{{ $isCompleted ? 'Корт' : 'Корт (след.)' }}</th>
-                    <th class="col-stat ttt" title="Изменение места с прошлого раунда">Место&nbsp;±</th>
+                    <th class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}" title="Баллы за позиции в общем строю{{ $isRawMode ? '' : ' — по ним зачёт' }}">Баллы</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,10 +29,6 @@
                     @php
                         $rank = $row['position'];
                         $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
-                        // Во время турнира current_court — это корт следующего раунда,
-                        // после завершения показываем корт, на котором игрок доиграл.
-                        $court = $isCompleted ? $row['final_court'] : $row['current_court'];
-                        $change = $row['change'];
                         // Доля выигранных очков — та же формула, что в «Короле корта».
                         $totalBalls = $row['raw_points'] + $row['points_against'];
                         $percentage = $totalBalls > 0 ? round(($row['raw_points'] / $totalBalls) * 100) : 0;
@@ -63,18 +52,6 @@
                         <td class="col-stat points-against ttt">{{ $row['points_against'] }}</td>
                         <td class="col-stat percentage ttt">{{ $percentage }}%</td>
                         <td class="col-points ttt {{ $isRawMode ? '' : 'esc-main-col' }}">{{ $row['points'] }}</td>
-                        <td class="col-stat ttt">{{ $court }}</td>
-                        <td class="col-stat ttt">
-                            @if($change === null)
-                                <span class="esc-change-none">—</span>
-                            @elseif($change > 0)
-                                <span class="esc-change-up"><i class="bi bi-arrow-up"></i> {{ $change }}</span>
-                            @elseif($change < 0)
-                                <span class="esc-change-down"><i class="bi bi-arrow-down"></i> {{ abs($change) }}</span>
-                            @else
-                                <span class="esc-change-none">0</span>
-                            @endif
-                        </td>
                     </tr>
                 @endforeach
             </tbody>
@@ -87,8 +64,7 @@
         При равенстве выше тот, кто выиграл больше коротких матчей, затем — личная встреча, затем — рейтинг.
         <br>
         <strong>В</strong> — победы, <strong>П</strong> — поражения, <strong>З</strong> — забито очков,
-        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков,
-        <strong>Место&nbsp;±</strong> — на сколько мест игрок поднялся или опустился с прошлого раунда.
+        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков.
     </div>
 @endif
 
@@ -97,7 +73,4 @@
 .player-name { font-weight: 500; font-size: 24px; }
 .ttt { font-size: 24px; }
 .esc-main-col { color: var(--accent) !important; }
-.esc-change-up { color: var(--accent); }
-.esc-change-down { color: var(--esc-warn); }
-.esc-change-none { color: var(--text-secondary); }
 </style>
