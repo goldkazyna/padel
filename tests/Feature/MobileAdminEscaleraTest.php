@@ -255,4 +255,80 @@ class MobileAdminEscaleraTest extends TestCase
             ->assertJsonPath('summary.can_generate_next_round', true)
             ->assertJsonPath('summary.can_finish', true);
     }
+
+    public function test_save_score_accepts_any_sum_and_draw(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        $match = $t->fresh()->escaleraRounds()->first()->courts()->first()->matches()->first();
+        Sanctum::actingAs($admin);
+
+        // Свободный счёт: сумма ничем не ограничена.
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/escalera/matches/{$match->id}/score", [
+            'team1_score' => 12,
+            'team2_score' => 10,
+        ])->assertOk()->assertJsonPath('success', true);
+
+        $match->refresh();
+        $this->assertSame(12, (int) $match->team1_score);
+        $this->assertSame('completed', $match->status);
+
+        // Ничья допустима — в эскалере она не победа и не поражение.
+        $this->putJson("/api/mobile/admin/tournaments/{$t->id}/escalera/matches/{$match->id}/score", [
+            'team1_score' => 6,
+            'team2_score' => 6,
+        ])->assertOk();
+
+        $this->assertSame(6, (int) $match->fresh()->team2_score);
+    }
+
+    public function test_save_score_rejects_negative(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        $match = $t->fresh()->escaleraRounds()->first()->courts()->first()->matches()->first();
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/escalera/matches/{$match->id}/score", [
+            'team1_score' => -1,
+            'team2_score' => 5,
+        ])->assertStatus(422);
+
+        $this->assertNull($match->fresh()->team1_score);
+    }
+
+    public function test_save_score_rejects_match_from_other_tournament(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+
+        [$otherClub, $otherAdmin, $other] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($other);
+        $foreign = $other->fresh()->escaleraRounds()->first()->courts()->first()->matches()->first();
+
+        Sanctum::actingAs($admin);
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/escalera/matches/{$foreign->id}/score", [
+            'team1_score' => 7,
+            'team2_score' => 5,
+        ])->assertStatus(404);
+
+        $this->assertNull($foreign->fresh()->team1_score);
+    }
+
+    public function test_save_score_forbidden_for_foreign_admin(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        $match = $t->fresh()->escaleraRounds()->first()->courts()->first()->matches()->first();
+
+        $stranger = User::factory()->create(['role' => 'club_admin']);
+        Sanctum::actingAs($stranger);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/escalera/matches/{$match->id}/score", [
+            'team1_score' => 7,
+            'team2_score' => 5,
+        ])->assertStatus(403);
+
+        $this->assertNull($match->fresh()->team1_score);
+    }
 }

@@ -2430,6 +2430,59 @@ class MobileAdminTournamentDetailController extends Controller
      * KingOfCourtService::saveMatchResult сам откатит старые stat если матч
      * уже completed.
      */
+    /**
+     * POST|PUT /api/mobile/admin/tournaments/{tournament}/escalera/matches/{match}/score
+     *
+     * Счёт свободный: сумма ничем не ограничена, ничья допустима — формат
+     * короткого матча организаторы согласовывают на площадке.
+     */
+    public function saveEscaleraScore(
+        Request $request,
+        Tournament $tournament,
+        \App\Models\EscaleraMatch $match,
+        \App\Services\EscaleraService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('court.round');
+        if (!$match->court || !$match->court->round
+            || (int) $match->court->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        try {
+            $service->saveMatchResult(
+                $match,
+                (int) $request->input('team1_score'),
+                (int) $request->input('team2_score'),
+            );
+        } catch (\InvalidArgumentException | \RuntimeException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        $match->refresh();
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+            ],
+        ]);
+    }
+
     public function saveKingOfCourtScore(
         Request $request,
         Tournament $tournament,
