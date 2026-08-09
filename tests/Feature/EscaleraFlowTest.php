@@ -1292,10 +1292,10 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame($before, $after, 'таблица не переупорядочивается от начисленного рейтинга');
     }
 
-    public function test_standings_table_hides_position_points_in_raw_mode(): void
+    public function test_standings_table_last_column_follows_standings_mode(): void
     {
-        // Зачёт по забитым очкам: колонка баллов за позиции лишняя, место
-        // считается не по ней.
+        // Зачёт по забитым очкам: последняя колонка называется «Очки»,
+        // баллы за позиции не показываются — место считается не по ним.
         $tournament = $this->makeTournament(courts: 3, mode: 'raw_points');
         $this->registerTwelve($tournament);
         $admin = $this->clubAdmin($tournament);
@@ -1306,10 +1306,10 @@ class EscaleraFlowTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.tournaments.show', $tournament))
             ->assertOk()
-            ->assertSee('Забито очков')
+            ->assertSee('Сумма забитых очков — по ней зачёт')
             ->assertDontSee('Баллы за позиции в общем строю');
 
-        // Зачёт по баллам: колонка на месте.
+        // Зачёт по баллам: последняя колонка называется «Баллы».
         $byPoints = $this->makeTournament(courts: 3, mode: 'points');
         $this->registerTwelve($byPoints);
         $admin2 = $this->clubAdmin($byPoints);
@@ -1320,6 +1320,7 @@ class EscaleraFlowTest extends TestCase
         $this->actingAs($admin2)
             ->get(route('club.tournaments.show', $byPoints))
             ->assertOk()
-            ->assertSee('Баллы за позиции в общем строю');
+            ->assertSee('Баллы за позиции в общем строю')
+            ->assertDontSee('Сумма забитых очков — по ней зачёт');
     }
 }

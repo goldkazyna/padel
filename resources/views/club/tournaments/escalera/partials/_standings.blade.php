@@ -18,15 +18,16 @@
                     <th class="col-player ttt">Игрок</th>
                     <th class="col-stat ttt" title="Побед">В</th>
                     <th class="col-stat ttt" title="Поражений">П</th>
-                    <th class="col-stat ttt {{ $isRawMode ? 'esc-main-col' : '' }}" title="Забито очков{{ $isRawMode ? ' — по ним зачёт' : '' }}">З</th>
+                    <th class="col-stat ttt" title="Забито очков">З</th>
                     <th class="col-stat ttt" title="Пропущено очков">Пр</th>
                     <th class="col-stat ttt" title="Доля выигранных очков">%</th>
-                    {{-- Баллы за позиции показываем только когда по ним идёт
-                         зачёт: в режиме «по очкам» это чужая метрика, и она
-                         сбивает — место считается не по ней. --}}
-                    @if(!$isRawMode)
-                        <th class="col-points ttt esc-main-col" title="Баллы за позиции в общем строю — по ним зачёт">Баллы</th>
-                    @endif
+                    {{-- Последняя колонка — то, по чему считается место.
+                         Как в приложении: «Очки» при зачёте по забитым,
+                         «Баллы» при зачёте по позициям. --}}
+                    <th class="col-points ttt esc-main-col"
+                        title="{{ $isRawMode ? 'Сумма забитых очков — по ней зачёт' : 'Баллы за позиции в общем строю — по ним зачёт' }}">
+                        {{ $isRawMode ? 'Очки' : 'Баллы' }}
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -53,12 +54,12 @@
                         </td>
                         <td class="col-stat wins ttt">{{ $row['wins'] }}</td>
                         <td class="col-stat losses ttt">{{ $row['losses'] }}</td>
-                        <td class="col-stat points-for ttt {{ $isRawMode ? 'esc-main-col' : '' }}">{{ $row['raw_points'] }}</td>
+                        <td class="col-stat points-for ttt">{{ $row['raw_points'] }}</td>
                         <td class="col-stat points-against ttt">{{ $row['points_against'] }}</td>
                         <td class="col-stat percentage ttt">{{ $percentage }}%</td>
-                        @if(!$isRawMode)
-                            <td class="col-points ttt esc-main-col">{{ $row['points'] }}</td>
-                        @endif
+                        <td class="col-points ttt esc-main-col">
+                            {{ $isRawMode ? $row['raw_points'] : $row['points'] }}
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
@@ -71,8 +72,12 @@
         При равенстве выше тот, кто выиграл больше коротких матчей, затем — личная встреча, затем — рейтинг.
         <br>
         <strong>В</strong> — победы, <strong>П</strong> — поражения, <strong>З</strong> — забито очков,
-        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков@if(!$isRawMode),
-        <strong>Баллы</strong> — за позицию в общем строю: чем выше корт, тем больше@endif.
+        <strong>Пр</strong> — пропущено, <strong>%</strong> — доля выигранных очков,
+        @if($isRawMode)
+            <strong>Очки</strong> — сумма забитых за все матчи: по ней и считается место.
+        @else
+            <strong>Баллы</strong> — за позицию в общем строю: чем выше корт, тем больше.
+        @endif
     </div>
 @endif
 
