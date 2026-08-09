@@ -45,7 +45,6 @@
                     @php
                         $courtNumber = (int) $court->court_number;
                         $filled = $court->matches->filter(fn ($m) => $m->isCompleted())->count();
-                        $seating = $court->playerIds();
 
                         if ($courtNumber === 1) {
                             $courtBadgeClass = 'court-top';
@@ -65,16 +64,6 @@
                                 <span class="esc-court-note">{{ $courtNote }}</span>
                             @endif
                             <span class="esc-court-progress">{{ $filled }}/3</span>
-                        </div>
-
-                        {{-- Посадка: номер места определяет пары в трёх матчах --}}
-                        <div class="esc-court-seating">
-                            @foreach($seating as $i => $playerId)
-                                <div class="esc-seat">
-                                    <span class="esc-seat-num">{{ $i + 1 }}</span>
-                                    <span class="esc-seat-name">{{ optional($users->get($playerId))->name ?? '—' }}</span>
-                                </div>
-                            @endforeach
                         </div>
 
                         @foreach($court->matches as $match)
@@ -221,29 +210,6 @@ function toggleEscRound(id) {
 .esc-court-note { font-size: 16px; font-weight: 400; opacity: 0.75; margin-left: 6px; }
 .esc-court-progress { float: right; font-size: 16px; font-weight: 400; opacity: 0.75; }
 
-.esc-court-seating { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
-.esc-seat {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-}
-.esc-seat-num {
-    min-width: 24px;
-    height: 24px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-.esc-seat-name { color: var(--text-primary); font-size: 18px; }
-
 .esc-match-num { align-self: flex-start; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px; }
 
 /* Раскладка модалки счёта: два поля и двоеточие между ними. */
@@ -254,7 +220,6 @@ function toggleEscRound(id) {
 .esc-modal-hint { margin-top: 14px; color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
 
 @media (max-width: 800px) {
-    .esc-court-seating { grid-template-columns: repeat(2, 1fr); }
     .player-line { font-size: 20px; }
     .team-score { font-size: 28px; }
     .match-court-header { font-size: 18px; }
