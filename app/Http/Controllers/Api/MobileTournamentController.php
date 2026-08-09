@@ -2322,6 +2322,18 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Эскалера — место по итоговой таблице формата (её порядок зависит
+        // от режима зачёта, поэтому считаем сервисом, а не сортировкой здесь).
+        if ($tournament->isEscalera()) {
+            foreach (app(\App\Services\EscaleraService::class)->standings($tournament) as $row) {
+                if ((int) $row['user_id'] === $userId) {
+                    return (int) $row['position'];
+                }
+            }
+
+            return null;
+        }
+
         // Round Robin — место по стандингам (победы → разница → личные встречи)
         if ($tournament->type === 'round_robin') {
             $standings = app(\App\Services\RoundRobinService::class)->standings($tournament);

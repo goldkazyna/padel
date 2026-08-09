@@ -220,4 +220,84 @@ class EscaleraPlayerScreensTest extends TestCase
         $rounds = $this->getJson("/api/mobile/tournaments/{$t->id}/live")->json('rounds');
         $this->assertNull($rounds[0]['my_rating_change']);
     }
+
+    // ===== Место в истории и профиле =====
+
+    public function test_archive_shows_place_matching_standings(): void
+    {
+        [$t, $users] = $this->startedTournament(3);
+        $this->playCurrentRound($t);
+        $this->service()->closeRound($t);
+        $this->service()->finishTournament($t->fresh());
+
+        $standings = $this->service()->standings($t->fresh());
+        $leader = $standings[0];
+        $last = $standings[count($standings) - 1];
+
+        // Лидер таблицы видит первое место в своём архиве.
+        Sanctum::actingAs(User::find($leader['user_id']));
+        $rows = $this->getJson('/api/mobile/tournaments/archive')->assertOk()->json('tournaments');
+        $row = collect($rows)->firstWhere('id', $t->id);
+        $this->assertNotNull($row, 'турнир виден в архиве');
+        $this->assertSame(1, $row['my_result']['place']);
+
+        // Последний в таблице — последнее место, а не пустое значение.
+        Sanctum::actingAs(User::find($last['user_id']));
+        $rows = $this->getJson('/api/mobile/tournaments/archive')->assertOk()->json('tournaments');
+        $row = collect($rows)->firstWhere('id', $t->id);
+        $this->assertSame(count($standings), $row['my_result']['place']);
+    }
+
+    // ===== Матчи и статистика профиля =====
+
+    public function test_history_includes_escalera_matches(): void
+    {
+        [$t, $users] = $this->startedTournament(3);
+        $this->playCurrentRound($t);
+        Sanctum::actingAs($users['P1']);
+
+        $matches = $this->getJson('/api/mobile/matches/history')->assertOk()->json('matches');
+
+        $mine = array_values(array_filter($matches, fn ($m) => $m['format'] === 'escalera'));
+        $this->assertCount(3, $mine, 'три коротких матча своего корта');
+
+        // P1 выиграл все три: 12:0, 11:1, 10:2.
+        foreach ($mine as $m) {
+            $this->assertSame('win', $m['result']);
+            $this->assertSame($t->name, $m['tournament_name']);
+        }
+    }
+
+    public function test_profile_stats_count_escalera(): void
+    {
+        [$t, $users] = $this->startedTournament(3);
+        $this->playCurrentRound($t);
+        $this->service()->closeRound($t);
+        $this->service()->finishTournament($t->fresh());
+
+        $player = $users['P1']->fresh();
+
+        $matchStats = $player->getAllMatchesStats();
+        $this->assertSame(3, $matchStats['total'], 'три коротких матча');
+        $this->assertSame(3, $matchStats['won']);
+        $this->assertSame(0, $matchStats['lost']);
+
+        $tournamentStats = $player->getTournamentStats();
+        $this->assertSame(1, $tournamentStats['by_type']['escalera'] ?? 0);
+    }
+
+    public function test_profile_stats_count_draw_in_escalera(): void
+    {
+        [$t, $users] = $this->startedTournament(3);
+        // Первый матч первого корта — ничья: счёт в формате свободный.
+        $court = $t->escaleraRounds()->first()->courts()->orderBy('court_number')->first();
+        $first = $court->matches()->orderBy('match_number')->first();
+        $this->service()->saveMatchResult($first, 5, 5);
+
+        $stats = $users['P1']->fresh()->getAllMatchesStats();
+        $this->assertSame(1, $stats['total']);
+        $this->assertSame(1, $stats['draw'], 'ничья не победа и не поражение');
+        $this->assertSame(0, $stats['won']);
+        $this->assertSame(0, $stats['lost']);
+    }
 }
