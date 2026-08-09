@@ -1,6 +1,6 @@
 {{-- resources/views/club/tournaments/escalera/partials/_courts.blade.php --}}
 @php
-    $matchPoints = (int) $tournament->escalera_match_points;
+    $matchPoints = $tournament->escaleraMatchPoints();
     $courtsTotal = (int) $tournament->courts_count;
     $lastRoundId = $tournament->escaleraRounds->last()?->id;
     $scoresLocked = $tournament->status === 'completed';

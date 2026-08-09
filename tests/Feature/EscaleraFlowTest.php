@@ -10,6 +10,7 @@ use App\Models\RatingHistory;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Services\EscaleraService;
+use App\Services\TournamentResetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -1001,5 +1002,156 @@ class EscaleraFlowTest extends TestCase
             ->assertSee('Чемпион')
             ->assertSee('Восхождение')
             ->assertSee('Король корта');
+    }
+
+    // ===== Перезапуск турнира =====
+
+    public function test_reset_clears_escalera_tables_and_allows_second_start(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+
+        app(TournamentResetService::class)->reset($tournament);
+
+        $tournament->refresh();
+        $this->assertSame('open', $tournament->status);
+        $this->assertSame(0, $tournament->escaleraRounds()->count(), 'раунды удалены');
+        $this->assertSame(0, $tournament->escaleraPlayers()->count(), 'участники формата удалены');
+        $this->assertDatabaseCount('escalera_round_courts', 0);
+        $this->assertDatabaseCount('escalera_matches', 0);
+        $this->assertDatabaseCount('escalera_round_results', 0);
+
+        // Повторный старт не должен упираться в уникальность (турнир + номер раунда).
+        $this->assertTrue($this->service()->startTournament($tournament), 'турнир стартует заново');
+        $this->assertSame(1, $tournament->fresh()->escaleraRounds()->count());
+        $this->assertSame('in_progress', $tournament->fresh()->status);
+    }
+
+    public function test_can_restart_closes_after_first_round_is_closed(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+
+        $this->assertTrue($tournament->fresh()->canRestart(), 'первый раунд ещё идёт — перезапуск доступен');
+
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+
+        $this->assertFalse(
+            $tournament->fresh()->canRestart(),
+            'первый раунд закрыт — перезапуск больше не предлагаем'
+        );
+    }
+
+    // ===== Редактирование параметров формата =====
+
+    public function test_editing_courts_count_recalculates_participants(): void
+    {
+        $tournament = $this->makeTournament(courts: 4, mode: 'points', matchPoints: 12);
+        $admin = $this->clubAdmin($tournament);
+
+        // Форма редактирования показывает параметры формата.
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.edit', $tournament))
+            ->assertOk()
+            ->assertSee('Количество кортов')
+            ->assertSee('Очков в коротком матче')
+            ->assertSee('Итоговая таблица');
+
+        $this->actingAs($admin)
+            ->put(route('club.tournaments.update', $tournament), [
+                'name' => 'Эскалера',
+                'start_date' => now()->addDay()->format('Y-m-d\TH:i'),
+                'min_level' => '1.00',
+                'max_level' => '5.75',
+                // Из формы приходит старое значение — оно должно быть пересчитано.
+                'max_participants' => 16,
+                'status' => 'open',
+                'escalera_courts_count' => 3,
+                'escalera_match_points' => 16,
+                'escalera_standings_mode' => 'raw_points',
+            ])
+            ->assertRedirect();
+
+        $tournament->refresh();
+        $this->assertSame(3, (int) $tournament->courts_count);
+        $this->assertSame(12, (int) $tournament->max_participants, 'участников ровно кортов × 4');
+        $this->assertSame(16, (int) $tournament->escalera_match_points);
+        $this->assertSame('raw_points', $tournament->escalera_standings_mode);
+    }
+
+    public function test_format_settings_are_locked_after_start(): void
+    {
+        $tournament = $this->makeTournament(courts: 3, mode: 'points', matchPoints: 12);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Поля формата на форме неактивны — менять после старта нечего.
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.edit', $tournament))
+            ->assertOk()
+            ->assertSee('Турнир уже начат — количество кортов менять нельзя');
+
+        $this->actingAs($admin)
+            ->put(route('club.tournaments.update', $tournament), [
+                'name' => 'Эскалера',
+                // Дату не меняем: её правка рассылает участникам пуши, а нас
+                // здесь интересуют только параметры формата.
+                'start_date' => $tournament->start_date->format('Y-m-d\TH:i'),
+                'min_level' => '1.00',
+                'max_level' => '5.75',
+                'max_participants' => 40,
+                'status' => 'in_progress',
+                'escalera_courts_count' => 10,
+                'escalera_match_points' => 8,
+                'escalera_standings_mode' => 'raw_points',
+            ])
+            ->assertRedirect();
+
+        $tournament->refresh();
+        $this->assertSame(3, (int) $tournament->courts_count, 'корты после старта не меняются');
+        $this->assertSame(12, (int) $tournament->max_participants, 'участники после старта не меняются');
+        $this->assertSame(12, (int) $tournament->escalera_match_points);
+        $this->assertSame('points', $tournament->escalera_standings_mode);
+    }
+
+    // ===== Устойчивость таблицы =====
+
+    public function test_standings_tie_break_ignores_rating_earned_in_tournament(): void
+    {
+        // Все матчи вничью 6:6 — у всех восьмерых поровну очков, побед и личных
+        // встреч, поэтому решает последний тай-брейк, рейтинг.
+        $tournament = $this->makeTournament(courts: 2, mode: 'raw_points');
+        $u = $this->register($tournament, [
+            'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
+            'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
+        ]);
+        $this->service()->startTournament($tournament);
+
+        $draws = [[6, 6], [6, 6], [6, 6]];
+        $this->playRound($tournament, [1 => $draws, 2 => $draws]);
+        $this->service()->closeRound($tournament);
+
+        $before = collect($this->service()->standings($tournament))->pluck('user_id')->all();
+        $this->assertSame(
+            collect(['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4'])->map(fn ($n) => $u[$n]->id)->all(),
+            $before,
+            'при полном равенстве порядок задаёт рейтинг на старте'
+        );
+
+        // Имитируем начисление рейтинга: живой рейтинг переворачивается.
+        $inverted = ['A1' => 1300, 'A2' => 1400, 'A3' => 1500, 'A4' => 1600,
+            'B1' => 1700, 'B2' => 1800, 'B3' => 1900, 'B4' => 2000];
+        foreach ($inverted as $name => $rating) {
+            $u[$name]->update(['rating' => $rating]);
+        }
+
+        $after = collect($this->service()->standings($tournament))->pluck('user_id')->all();
+        $this->assertSame($before, $after, 'таблица не переупорядочивается от начисленного рейтинга');
     }
 }

@@ -25,7 +25,9 @@
     <div class="esc-warn mb-4">
         <i class="bi bi-exclamation-triangle me-2"></i>
         @if($courtsCount < 2)
-            У турнира указано меньше двух кортов — эскалера начинается с двух. Поправьте количество кортов в настройках турнира.
+            У турнира указано меньше двух кортов — эскалера начинается с двух.
+            Поправьте количество кортов в
+            <a href="{{ route('club.tournaments.edit', $tournament) }}">настройках турнира</a>.
         @else
             Кортов {{ $courtsCount }}, значит игроков должно быть ровно {{ $needed }}.
             Сейчас зарегистрировано {{ $participants->count() }} —
@@ -34,7 +36,10 @@
             @else
                 лишних {{ $participants->count() - $needed }}.
             @endif
-            Расстановка станет доступна, когда число сойдётся.
+            Расстановка станет доступна, когда число сойдётся: добавьте или снимите игроков либо
+            измените количество кортов в
+            <a href="{{ route('club.tournaments.edit', $tournament) }}">настройках турнира</a>
+            (участников пересчитает автоматически).
         @endif
     </div>
 @endif
@@ -78,11 +83,15 @@
                         <i class="bi bi-play-fill"></i> Начать турнир
                     </button>
                     <button type="submit" class="btn-outline-custom"
-                            formaction="{{ route('club.escalera.saveSeeding', $tournament) }}">
-                        <i class="bi bi-save"></i> Сохранить расстановку
+                            formaction="{{ route('club.escalera.saveSeeding', $tournament) }}"
+                            title="Расстановка запомнится только в этом браузере и только до старта">
+                        <i class="bi bi-save"></i> Запомнить расстановку
                     </button>
                     <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom">Отмена</a>
                 </div>
+                <small class="text-secondary d-block mt-2">
+                    «Запомнить расстановку» сохраняет порядок только в этом браузере и только до старта турнира.
+                </small>
             </form>
         @else
             <div class="esc-seed-preview">

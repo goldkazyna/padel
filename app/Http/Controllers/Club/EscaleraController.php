@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EscaleraMatch;
 use App\Models\Tournament;
 use App\Services\EscaleraService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use RuntimeException;
@@ -44,7 +45,11 @@ class EscaleraController extends Controller
         }
     }
 
-    /** Ключ, под которым в сессии лежит сохранённая расстановка до старта. */
+    /**
+     * Ключ, под которым в сессии лежит сохранённая расстановка до старта.
+     * Именно в сессии, а не в базе: расстановка живёт только в текущем браузере
+     * администратора и только до старта турнира.
+     */
     private function seedingSessionKey(Tournament $tournament): string
     {
         return 'escalera_seeding.' . $tournament->id;
@@ -134,8 +139,8 @@ class EscaleraController extends Controller
     }
 
     /**
-     * Сохранить расстановку, не стартуя турнир: администратор может разложить
-     * игроков заранее и вернуться к экрану позже.
+     * Запомнить расстановку, не стартуя турнир: администратор может разложить
+     * игроков заранее и вернуться к экрану позже — в этом же браузере.
      */
     public function saveSeeding(Request $request, Tournament $tournament)
     {
@@ -149,7 +154,7 @@ class EscaleraController extends Controller
         session([$this->seedingSessionKey($tournament) => $order]);
 
         return redirect()->route('club.escalera.seeding', $tournament)
-            ->with('success', 'Расстановка сохранена. Турнир пока не начат.');
+            ->with('success', 'Расстановка запомнена в этом браузере до старта турнира. Турнир пока не начат.');
     }
 
     /**
@@ -188,8 +193,18 @@ class EscaleraController extends Controller
 
         try {
             $service->saveMatchResult($match, (int) $validated['team1_score'], (int) $validated['team2_score']);
+        } catch (QueryException $e) {
+            // QueryException наследует RuntimeException, поэтому ловим его раньше
+            // своих исключений — иначе админ увидел бы сырой текст SQL-ошибки.
+            report($e);
+
+            return back()->withInput()->with('error', 'Не удалось сохранить счёт. Попробуйте ещё раз.');
         } catch (InvalidArgumentException|RuntimeException $e) {
             return back()->withInput()->withErrors(['team1_score' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->with('error', 'Не удалось сохранить счёт. Попробуйте ещё раз.');
         }
 
         return back()->with('success', 'Счёт сохранён');
@@ -208,9 +223,19 @@ class EscaleraController extends Controller
 
         try {
             $ok = $service->closeRound($tournament);
+        } catch (QueryException $e) {
+            // Ловим раньше RuntimeException (QueryException — его наследник),
+            // чтобы при двойном клике не показать админу текст SQL-ошибки.
+            report($e);
+
+            return back()->with('error', 'Не удалось закрыть раунд. Обновите страницу и попробуйте ещё раз.');
         } catch (RuntimeException $e) {
             // Например, после перемещений на корте оказалось не четверо.
             return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Не удалось закрыть раунд. Обновите страницу и попробуйте ещё раз.');
         }
 
         if (!$ok) {
@@ -229,8 +254,18 @@ class EscaleraController extends Controller
 
         try {
             $ok = $service->generateNextRound($tournament);
+        } catch (QueryException $e) {
+            // Двойной клик по «Следующий раунд» упирается в уникальный ключ
+            // (турнир + номер раунда) — показываем понятный текст, а не SQL.
+            report($e);
+
+            return back()->with('error', 'Не удалось создать раунд. Обновите страницу: возможно, он уже создан.');
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Не удалось создать раунд. Обновите страницу и попробуйте ещё раз.');
         }
 
         if (!$ok) {

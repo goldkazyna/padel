@@ -115,17 +115,88 @@
                         </div>
                     </div>
 
+                    @php
+                        // Эскалера: параметры формата меняем только до старта —
+                        // после старта сетка уже разложена по кортам.
+                        $isEscalera = $tournament->isEscalera();
+                        $escaleraEditable = $isEscalera && in_array($tournament->status, ['draft', 'open'], true);
+                    @endphp
                     <div class="row">
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Макс. участников *</label>
                             <input type="number" name="max_participants" class="form-control"
-                                   value="{{ old('max_participants', $tournament->max_participants) }}" min="2" max="128" required>
+                                   value="{{ old('max_participants', $tournament->max_participants) }}" min="2" max="128" required
+                                   {{ $isEscalera ? 'readonly' : '' }}>
+                            @if($isEscalera)
+                                <small class="text-secondary">Считается автоматически: кортов × 4.</small>
+                            @endif
                         </div>
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Стоимость (₸)</label>
                             <input type="number" name="price" class="form-control"
                                    value="{{ old('price', $tournament->price) }}" min="0">
                         </div>
+                        @if($isEscalera)
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Количество кортов *</label>
+                            <select name="escalera_courts_count" id="escaleraCourtsCount" class="form-select"
+                                    onchange="updateEscaleraParticipants()"
+                                    {{ $escaleraEditable ? '' : 'disabled' }}>
+                                @for($c = 2; $c <= 10; $c++)
+                                    <option value="{{ $c }}" {{ (int) old('escalera_courts_count', $tournament->courts_count ?: 4) === $c ? 'selected' : '' }}>
+                                        {{ $c }} {{ $c <= 4 ? 'корта' : 'кортов' }} — {{ $c * 4 }} игроков
+                                    </option>
+                                @endfor
+                            </select>
+                            <small class="text-secondary">
+                                @if($escaleraEditable)
+                                    Число участников пересчитается само: корты × 4.
+                                @else
+                                    Турнир уже начат — количество кортов менять нельзя.
+                                @endif
+                            </small>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Очков в коротком матче *</label>
+                            <select name="escalera_match_points" class="form-select" {{ $escaleraEditable ? '' : 'disabled' }}>
+                                @foreach([8, 10, 12, 16] as $p)
+                                    <option value="{{ $p }}" {{ (int) old('escalera_match_points', $tournament->escaleraMatchPoints()) === $p ? 'selected' : '' }}>
+                                        {{ $p }} очков{{ $p === 12 ? ' (по умолчанию)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="text-secondary">
+                                @if($escaleraEditable)
+                                    Сумма очков двух команд в матче должна быть ровно такой.
+                                @else
+                                    Турнир уже начат — счета внесены по этому значению, менять нельзя.
+                                @endif
+                            </small>
+                        </div>
+                        @php $escMode = old('escalera_standings_mode', $tournament->escalera_standings_mode ?? 'points'); @endphp
+                        <div class="col-md-12 mb-4">
+                            <label class="form-label">Итоговая таблица</label>
+                            <div class="form-check">
+                                <input type="radio" class="form-check-input" name="escalera_standings_mode"
+                                       id="escaleraModePoints" value="points"
+                                       {{ $escMode === 'raw_points' ? '' : 'checked' }}
+                                       {{ $escaleraEditable ? '' : 'disabled' }}>
+                                <label class="form-check-label" for="escaleraModePoints">
+                                    По баллам за позиции <small class="text-secondary">(по умолчанию)</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" class="form-check-input" name="escalera_standings_mode"
+                                       id="escaleraModeRaw" value="raw_points"
+                                       {{ $escMode === 'raw_points' ? 'checked' : '' }}
+                                       {{ $escaleraEditable ? '' : 'disabled' }}>
+                                <label class="form-check-label" for="escaleraModeRaw">По сумме очков за матчи</label>
+                            </div>
+                            @unless($escaleraEditable)
+                                <small class="text-secondary">Турнир уже начат — режим таблицы менять нельзя.</small>
+                            @endunless
+                        </div>
+                        @endif
                         @if($tournament->type === 'americano_flex')
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Количество кортов (Americano Flex)</label>
@@ -498,6 +569,18 @@ function togglePrizes() {
     var on = document.getElementById('hasPrizes').checked;
     document.getElementById('prizesWrap').style.display = on ? 'block' : 'none';
 }
+
+// Эскалера: участников всегда кортов × 4 — поле участников только для чтения
+// и пересчитывается при смене количества кортов.
+function updateEscaleraParticipants() {
+    var courtsSelect = document.getElementById('escaleraCourtsCount');
+    var maxInput = document.querySelector('input[name="max_participants"]');
+    if (!courtsSelect || !maxInput) return;
+
+    var courts = parseInt(courtsSelect.value) || 2;
+    maxInput.value = courts * 4;
+}
+document.addEventListener('DOMContentLoaded', updateEscaleraParticipants);
 function toggleTeamPlayoffOptions() {
     const cb = document.getElementById('teamHasPlayoff');
     const opts = document.getElementById('teamPlayoffOptions');

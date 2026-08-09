@@ -342,7 +342,38 @@ class TournamentController extends Controller
 			'pairing_mode' => 'nullable|in:self,admin',
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:1|max:30',
+			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
+			'escalera_match_points' => 'nullable|integer|in:8,10,12,16',
+			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
+
+		// Эскалера: параметры формата и число кортов правятся только ДО старта.
+		// Участников всегда пересчитываем из кортов (кортов × 4), как при
+		// создании, — иначе инвариант ломается и турнир не стартует.
+		if ($tournament->isEscalera()) {
+			$notStarted = in_array($tournament->status, ['draft', 'open'], true);
+
+			if ($notStarted && $request->filled('escalera_courts_count')) {
+				$escaleraCourts = (int) $request->input('escalera_courts_count');
+				$validated['courts_count'] = $escaleraCourts;
+				$validated['max_participants'] = $escaleraCourts * 4;
+			} else {
+				// После старта корты и участников не трогаем.
+				unset($validated['courts_count'], $validated['max_participants']);
+			}
+
+			if ($notStarted) {
+				$validated['escalera_match_points'] = (int) ($validated['escalera_match_points'] ?? $tournament->escaleraMatchPoints());
+				$validated['escalera_standings_mode'] = $validated['escalera_standings_mode']
+					?? ($tournament->escalera_standings_mode ?? 'points');
+			} else {
+				unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+			}
+		} else {
+			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
+			unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+		}
+		unset($validated['escalera_courts_count']);
 
 		// Кол-во групп/раундов (Американо) — менять можно только ДО старта.
 		// Группы — пока они ещё не сформированы (иначе рассинхрон с редактором).

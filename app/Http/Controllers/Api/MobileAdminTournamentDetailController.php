@@ -171,6 +171,26 @@ class MobileAdminTournamentDetailController extends Controller
             unset($validated['courts_count']);
         }
 
+        // Эскалера: участников всегда ровно кортов × 4, как и при создании в вебе.
+        // Присланный приложением max_participants игнорируем — иначе инвариант
+        // формата молча ломается и турнир перестаёт стартовать.
+        if ($tournament->isEscalera()) {
+            $escaleraCourts = $request->filled('courts_count')
+                ? (int) $request->input('courts_count')
+                : (int) $tournament->courts_count;
+
+            if ($request->filled('courts_count') && ($escaleraCourts < 2 || $escaleraCourts > 10)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'В эскалере от 2 до 10 кортов',
+                ], 422);
+            }
+
+            $escaleraCourts = max(2, min(10, $escaleraCourts));
+            $validated['courts_count'] = $escaleraCourts;
+            $validated['max_participants'] = $escaleraCourts * 4;
+        }
+
         // venue_club_id — меняем только если прислан (в т.ч. null для очистки).
         if (!$request->has('venue_club_id')) {
             unset($validated['venue_club_id']);
@@ -307,6 +327,12 @@ class MobileAdminTournamentDetailController extends Controller
             $order = $request->input('order');
             $order = is_array($order) ? array_map('intval', $order) : null;
             $ok = $jpi->startTournament($tournament, $order ?: null);
+        } elseif ($tournament->isEscalera()) {
+            // Экранов эскалеры в приложении пока нет: посев и проведение — только в вебе.
+            return response()->json([
+                'success' => false,
+                'message' => 'Эскалеру запускают из веб-админки клуба: там задаётся стартовая расстановка по кортам',
+            ], 422);
         } else {
             return response()->json([
                 'success' => false,
@@ -573,6 +599,11 @@ class MobileAdminTournamentDetailController extends Controller
         // Solo Just Padel It — посев только когда игроков ровно кортов × 4.
         if ($t->type === 'just_padel_it' && ! $t->is_paired) {
             $canStart = $t->status === 'open' && $t->jpiSeedingReady();
+        }
+        // Эскалера: экранов формата в приложении пока нет, а start() её не умеет —
+        // честнее не показывать кнопку, чем давать нерабочую. Турнир проводится в вебе.
+        if ($t->isEscalera()) {
+            $canStart = false;
         }
         // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
         $baliPairsCreated = $t->isBaliKoc()

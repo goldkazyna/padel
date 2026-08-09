@@ -479,6 +479,18 @@ class Tournament extends Model
 		return $this->type === 'escalera';
 	}
 
+	/**
+	 * Очков в коротком матче эскалеры. Если поле пустое (турнир создан не через
+	 * форму или до появления поля) — берём значение по умолчанию, чтобы проверка
+	 * суммы очков не отключалась молча.
+	 */
+	public function escaleraMatchPoints(): int
+	{
+		$points = (int) $this->escalera_match_points;
+
+		return $points > 0 ? $points : \App\Services\EscaleraService::DEFAULT_MATCH_POINTS;
+	}
+
 	public function isPairedJustPadelIt(): bool
 	{
 		return $this->isJustPadelIt() && (bool) $this->is_paired;
@@ -819,6 +831,8 @@ class Tournament extends Model
 			'bali_koc' => $this->baliKocRounds()
 				->where('round_number', 1)->where('status', 'completed')->exists(),
 			'americano_flex' => $this->americanoFlexRounds()
+				->where('round_number', 1)->where('status', 'completed')->exists(),
+			'escalera' => $this->escaleraRounds()
 				->where('round_number', 1)->where('status', 'completed')->exists(),
 			'team' => \App\Models\TournamentGroupMatch::query()
 				->whereIn('group_id', $this->teamGroups()->pluck('id'))

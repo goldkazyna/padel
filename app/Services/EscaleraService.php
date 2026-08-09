@@ -27,6 +27,9 @@ class EscaleraService
 {
     use \App\Traits\RatingCalculator;
 
+    /** Очков в коротком матче, если у турнира поле не заполнено. */
+    public const DEFAULT_MATCH_POINTS = 12;
+
     /** Позиция в общем строю: корты упорядочены по силе, на каждом четверо. */
     public function positionFor(int $courtNumber, int $place): int
     {
@@ -265,8 +268,10 @@ class EscaleraService
             throw new InvalidArgumentException('Очки не могут быть отрицательными');
         }
 
-        $target = (int) $tournament->escalera_match_points;
-        if ($target > 0 && ($team1Score + $team2Score) !== $target) {
+        // Если у турнира очки не заданы, берём значение по умолчанию, а не
+        // отключаем проверку целиком — иначе счета уезжают куда угодно.
+        $target = $tournament->escaleraMatchPoints();
+        if (($team1Score + $team2Score) !== $target) {
             throw new InvalidArgumentException(
                 "Сумма очков двух команд должна быть равна {$target}, а получилось "
                 . ($team1Score + $team2Score) . " ({$team1Score}:{$team2Score})"
@@ -922,7 +927,10 @@ class EscaleraService
                 'points' => 0,
                 'raw_points' => 0,
                 'wins' => 0,
-                'rating' => (int) ($player->user->rating ?? $player->rating_before ?? 0),
+                // Последний тай-брейк таблицы — рейтинг НА СТАРТЕ турнира.
+                // Живой рейтинг брать нельзя: завершение турнира его переписывает,
+                // и таблица (а с ней и чемпион) переупорядочилась бы задним числом.
+                'rating' => (int) ($player->rating_before ?? $player->user->rating ?? 0),
             ];
         }
 

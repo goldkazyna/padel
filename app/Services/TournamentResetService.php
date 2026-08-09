@@ -69,6 +69,20 @@ class TournamentResetService
                     DB::table('americano_flex_players')->where('tournament_id', $tournament->id)->delete();
                     break;
 
+                case 'escalera':
+                    // Порядок важен: сначала то, что ссылается на корты и раунды,
+                    // потом сами раунды и участники формата. Иначе внешние ключи
+                    // не дадут удалить раунды, а остатки сломают повторный старт
+                    // (уникальность пары tournament_id + round_number).
+                    $roundIds = DB::table('escalera_rounds')->where('tournament_id', $tournament->id)->pluck('id');
+                    $courtIds = DB::table('escalera_round_courts')->whereIn('escalera_round_id', $roundIds)->pluck('id');
+                    DB::table('escalera_matches')->whereIn('escalera_round_court_id', $courtIds)->delete();
+                    DB::table('escalera_round_results')->whereIn('escalera_round_id', $roundIds)->delete();
+                    DB::table('escalera_round_courts')->whereIn('escalera_round_id', $roundIds)->delete();
+                    DB::table('escalera_rounds')->where('tournament_id', $tournament->id)->delete();
+                    DB::table('escalera_players')->where('tournament_id', $tournament->id)->delete();
+                    break;
+
                 default: // classic / legacy
                     DB::table('tournament_playoff_matches')->where('tournament_id', $tournament->id)->delete();
                     break;
