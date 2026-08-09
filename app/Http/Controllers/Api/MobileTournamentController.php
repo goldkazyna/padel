@@ -2322,6 +2322,18 @@ class MobileTournamentController extends Controller
             }
         }
 
+        // Эскалера — место по итоговой таблице формата (её порядок зависит
+        // от режима зачёта, поэтому считаем сервисом, а не сортировкой здесь).
+        if ($tournament->isEscalera()) {
+            foreach (app(\App\Services\EscaleraService::class)->standings($tournament) as $row) {
+                if ((int) $row['user_id'] === $userId) {
+                    return (int) $row['position'];
+                }
+            }
+
+            return null;
+        }
+
         // Round Robin — место по стандингам (победы → разница → личные встречи)
         if ($tournament->type === 'round_robin') {
             $standings = app(\App\Services\RoundRobinService::class)->standings($tournament);
@@ -2723,6 +2735,9 @@ class MobileTournamentController extends Controller
         }
         if ($tournament->type === 'americano_flex') {
             return $this->liveAmericanoFlex($tournament, $user);
+        }
+        if ($tournament->isEscalera()) {
+            return $this->liveEscalera($tournament, $user);
         }
         if ($tournament->type !== 'americano') {
             return response()->json([
@@ -4319,6 +4334,198 @@ class MobileTournamentController extends Controller
     /**
      * Хелпер: данные игрока для live-матча
      */
+    /**
+     * Live «Эскалеры» для игрока.
+     *
+     * Форма ответа совпадает с «Королём корта»: приложение открывает для
+     * обоих форматов один и тот же экран (см. tournament_navigation.dart).
+     * Отличие формата — на корте не один матч, а три, и номер корта несёт
+     * смысл: наверху сильнейшие, вниз падают проигравшие.
+     */
+    private function liveEscalera(Tournament $tournament, $user)
+    {
+        $userId = $user ? (int) $user->id : null;
+        $service = app(\App\Services\EscaleraService::class);
+
+        $tournament->load([
+            'escaleraRounds.courts.matches',
+            'escaleraPlayers.user',
+        ]);
+
+        // Рейтинги на старте турнира — от них считаются дельты по раундам.
+        $ratingEvolve = [];
+        foreach ($tournament->escaleraPlayers as $player) {
+            if (!$player->user) {
+                continue;
+            }
+            $ratingEvolve[$player->user_id] = [
+                'current_rating' => (int) ($player->rating_before ?? $player->user->rating ?? 0),
+            ];
+        }
+
+        // Дельта рейтинга целевого игрока за каждый раунд: прогоняем матчи в
+        // том же порядке, что finishTournament, и запоминаем «до» и «после».
+        $roundDeltas = [];
+        if ($tournament->is_rated && $userId !== null) {
+            foreach ($tournament->escaleraRounds->sortBy('round_number') as $round) {
+                $before = $ratingEvolve[$userId]['current_rating'] ?? null;
+                foreach ($round->courts->sortBy('court_number') as $court) {
+                    foreach ($court->matches->sortBy('match_number') as $match) {
+                        if (!$match->isCompleted()) {
+                            continue;
+                        }
+                        $service->calculateEloForMatch($match, $ratingEvolve);
+                    }
+                }
+                $after = $ratingEvolve[$userId]['current_rating'] ?? null;
+                $roundDeltas[$round->id] = ($before !== null && $after !== null)
+                    ? $after - $before
+                    : null;
+            }
+        }
+
+        $standings = $service->standings($tournament);
+        $isRawMode = $tournament->escalera_standings_mode === 'raw_points';
+
+        // Данные игроков для карточек матчей.
+        $playerStats = [];
+        foreach ($standings as $row) {
+            $u = $row['user'];
+            if (!$u) {
+                continue;
+            }
+            $playerStats[$u->id] = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+            ];
+        }
+
+        $courtsTotal = (int) $tournament->courts_count;
+        $roundsOut = [];
+
+        foreach ($tournament->escaleraRounds->sortBy('round_number') as $round) {
+            $matchesOut = [];
+
+            foreach ($round->courts->sortBy('court_number') as $court) {
+                $courtNumber = (int) $court->court_number;
+
+                if ($courtNumber === 1) {
+                    $courtTier = 'top';
+                    $courtLabel = "Корт {$courtNumber} · верхний";
+                } elseif ($courtNumber === $courtsTotal) {
+                    $courtTier = 'bottom';
+                    $courtLabel = "Корт {$courtNumber} · нижний";
+                } else {
+                    $courtTier = 'middle';
+                    $courtLabel = "Корт {$courtNumber}";
+                }
+
+                foreach ($court->matches->sortBy('match_number') as $match) {
+                    $t1HasMe = $userId !== null && in_array($userId, [
+                        (int) $match->team1_player1_id,
+                        (int) $match->team1_player2_id,
+                    ], true);
+                    $t2HasMe = $userId !== null && in_array($userId, [
+                        (int) $match->team2_player1_id,
+                        (int) $match->team2_player2_id,
+                    ], true);
+
+                    $matchesOut[] = [
+                        'id' => $match->id,
+                        'court_number' => $courtNumber,
+                        'court_tier' => $courtTier,
+                        'court_label' => $courtLabel,
+                        'match_number' => (int) $match->match_number,
+                        'status' => $match->status,
+                        'team1' => [
+                            'player1' => $this->formatPlayerForLive($match->team1_player1_id, $playerStats, $tournament),
+                            'player2' => $this->formatPlayerForLive($match->team1_player2_id, $playerStats, $tournament),
+                            'score' => $match->isCompleted() ? (int) $match->team1_score : null,
+                            'has_me' => $t1HasMe,
+                        ],
+                        'team2' => [
+                            'player1' => $this->formatPlayerForLive($match->team2_player1_id, $playerStats, $tournament),
+                            'player2' => $this->formatPlayerForLive($match->team2_player2_id, $playerStats, $tournament),
+                            'score' => $match->isCompleted() ? (int) $match->team2_score : null,
+                            'has_me' => $t2HasMe,
+                        ],
+                        'has_me' => $t1HasMe || $t2HasMe,
+                    ];
+                }
+            }
+
+            $roundsOut[] = [
+                'id' => $round->id,
+                'round_number' => (int) $round->round_number,
+                'status' => $round->status,
+                'matches' => $matchesOut,
+                'my_rating_change' => $roundDeltas[$round->id] ?? null,
+            ];
+        }
+
+        $leaderboard = [];
+        foreach ($standings as $row) {
+            $u = $row['user'];
+            if (!$u) {
+                continue;
+            }
+            $scored = (int) $row['raw_points'];
+            $conceded = (int) $row['points_against'];
+            $balls = $scored + $conceded;
+            $games = (int) $row['wins'] + (int) $row['losses'];
+
+            $leaderboard[] = [
+                'position' => (int) $row['position'],
+                'id' => $u->id,
+                'name' => $u->name,
+                'avatar' => $u->avatar,
+                'rating' => $u->rating,
+                'level' => $u->level,
+                'wins' => (int) $row['wins'],
+                'losses' => (int) $row['losses'],
+                'draws' => 0,
+                'points_for' => $scored,
+                'points_against' => $conceded,
+                // В колонку очков идёт то, по чему считается место в этом
+                // турнире: баллы за позиции либо сумма забитых.
+                'total_points' => $isRawMode ? $scored : (int) $row['points'],
+                'points' => $isRawMode ? $scored : (int) $row['points'],
+                'escalera_points' => (int) $row['points'],
+                'games_played' => $games,
+                'point_diff' => $scored - $conceded,
+                'win_percent' => $games > 0 ? (int) round((int) $row['wins'] / $games * 100) : 0,
+                'ball_percent' => $balls > 0 ? (int) round($scored / $balls * 100) : 0,
+                'current_court' => (int) $row['current_court'],
+                'is_me' => $userId !== null && (int) $u->id === $userId,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'tournament' => [
+                'id' => $tournament->id,
+                'name' => $tournament->name,
+                'date' => $tournament->start_date->translatedFormat('j F'),
+                'time' => $tournament->start_date->format('H:i'),
+                'club_name' => $tournament->club?->name ?? 'Клуб',
+                'format' => $tournament->type,
+                'format_name' => $tournament->type_name,
+                'is_rated' => (bool) $tournament->is_rated,
+                'status' => $tournament->status,
+                'is_paired' => false,
+                'has_playoff' => false,
+                'courts_count' => $courtsTotal,
+                'standings_mode' => $tournament->escalera_standings_mode ?? 'points',
+            ],
+            'leaderboard' => $leaderboard,
+            'rounds' => $roundsOut,
+            'playoff' => [],
+        ]);
+    }
+
     private function formatPlayerForLive(?int $playerId, array $playerStats, Tournament $tournament): ?array
     {
         if (!$playerId) return null;

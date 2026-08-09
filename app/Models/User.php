@@ -427,6 +427,29 @@ class User extends Authenticatable
 			}
 		}
 
+		// Эскалера — три коротких матча на корт за раунд. Счёт свободный,
+		// поэтому ничья возможна и учитывается отдельно.
+		$escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
+			->where(function($q) {
+				$q->where('team1_player1_id', $this->id)
+				  ->orWhere('team1_player2_id', $this->id)
+				  ->orWhere('team2_player1_id', $this->id)
+				  ->orWhere('team2_player2_id', $this->id);
+			})->get();
+
+		foreach ($escaleraMatches as $match) {
+			$stats['total']++;
+			$isTeam1 = $match->team1_player1_id == $this->id || $match->team1_player2_id == $this->id;
+
+			if ($match->team1_score == $match->team2_score) {
+				$stats['draw']++;
+			} elseif ($match->team1_score > $match->team2_score) {
+				$isTeam1 ? $stats['won']++ : $stats['lost']++;
+			} else {
+				$isTeam1 ? $stats['lost']++ : $stats['won']++;
+			}
+		}
+
 		// Just Padel It (player-based, как King of Court)
 		$jpiMatches = \App\Models\JustPadelItMatch::where('status', 'completed')
 			->where(function($q) {
@@ -1020,6 +1043,26 @@ class User extends Authenticatable
 				->orderBy('total_points', 'desc')
 				->first();
 			if ($winner && $winner->user_id === $this->id) {
+				$stats['wins']++;
+			}
+		}
+
+		// Эскалера
+		$escaleraTournaments = \App\Models\Tournament::where('type', 'escalera')
+			->where('is_rated', true)
+			->where('status', 'completed')
+			->whereHas('escaleraPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($escaleraTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['escalera'] = ($stats['by_type']['escalera'] ?? 0) + 1;
+
+			// Победитель — первая строка итоговой таблицы формата: её порядок
+			// зависит от режима зачёта, поэтому спрашиваем сервис.
+			$standings = app(\App\Services\EscaleraService::class)->standings($tournament);
+			if (!empty($standings) && (int) $standings[0]['user_id'] === (int) $this->id) {
 				$stats['wins']++;
 			}
 		}

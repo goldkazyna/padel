@@ -142,6 +142,25 @@ class MobileMatchController extends Controller
             $matches[] = $this->formatPlayerMatch($match, $userId, 'king_of_court', $tournament);
         }
 
+        // Эскалера: путь до турнира длиннее — матч висит на корте раунда.
+        $escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
+            ->where(function ($q) use ($userId) {
+                $q->where('team1_player1_id', $userId)
+                  ->orWhere('team1_player2_id', $userId)
+                  ->orWhere('team2_player1_id', $userId)
+                  ->orWhere('team2_player2_id', $userId);
+            })
+            ->with([
+                'team1Player1', 'team1Player2', 'team2Player1', 'team2Player2',
+                'court.round.tournament',
+            ])
+            ->get();
+
+        foreach ($escaleraMatches as $match) {
+            $tournament = $match->court?->round?->tournament;
+            $matches[] = $this->formatPlayerMatch($match, $userId, 'escalera', $tournament);
+        }
+
         // Just Padel It (player-based, как King of Court)
         $jpiMatches = JustPadelItMatch::where('status', 'completed')
             ->where(function ($q) use ($userId) {
