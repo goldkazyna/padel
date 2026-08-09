@@ -484,7 +484,9 @@ class EscaleraService
                 'player' => $stat['player'],
                 'points' => $stat['points'],
                 'raw_points' => $stat['raw_points'],
+                'points_against' => $stat['points_against'],
                 'wins' => $stat['wins'],
+                'losses' => $stat['losses'],
                 'start_court' => (int) $stat['player']->start_court,
                 // Пока турнир идёт, «текущий корт» — это корт следующего раунда.
                 // После завершения следующего раунда не будет, поэтому
@@ -913,7 +915,9 @@ class EscaleraService
                 'user' => $player->user,
                 'points' => 0,
                 'raw_points' => 0,
+                'points_against' => 0,
                 'wins' => 0,
+                'losses' => 0,
                 // Последний тай-брейк таблицы — рейтинг НА СТАРТЕ турнира.
                 // Живой рейтинг брать нельзя: завершение турнира его переписывает,
                 // и таблица (а с ней и чемпион) переупорядочилась бы задним числом.
@@ -946,13 +950,18 @@ class EscaleraService
                     $team1 = [$match->team1_player1_id, $match->team1_player2_id];
                     $team2 = [$match->team2_player1_id, $match->team2_player2_id];
 
+                    // Счёт свободный, поэтому возможна ничья: она не победа и
+                    // не поражение — на месте в таблице сказывается только очками.
                     foreach ($team1 as $id) {
                         if (!isset($stats[$id])) {
                             continue;
                         }
                         $stats[$id]['raw_points'] += $score1;
+                        $stats[$id]['points_against'] += $score2;
                         if ($score1 > $score2) {
                             $stats[$id]['wins']++;
+                        } elseif ($score2 > $score1) {
+                            $stats[$id]['losses']++;
                         }
                     }
                     foreach ($team2 as $id) {
@@ -960,8 +969,11 @@ class EscaleraService
                             continue;
                         }
                         $stats[$id]['raw_points'] += $score2;
+                        $stats[$id]['points_against'] += $score1;
                         if ($score2 > $score1) {
                             $stats[$id]['wins']++;
+                        } elseif ($score1 > $score2) {
+                            $stats[$id]['losses']++;
                         }
                     }
                 }

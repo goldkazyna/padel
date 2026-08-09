@@ -593,6 +593,63 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame(2, $tournament->fresh()->escaleraRounds()->count());
     }
 
+    public function test_standings_count_points_scored_and_conceded(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Корт 1 (A1..A4) играет DOMINANT: 12:0, 11:1, 10:2.
+        // Пары по посадке: (1,4)-(2,3), затем (1,3)-(2,4), затем (1,2)-(3,4).
+        $this->playRound($tournament);
+        $this->service()->closeRound($tournament);
+
+        $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
+
+        // A1 выиграл все три матча: забил 12+11+10, пропустил 0+1+2.
+        $a1 = $rows[$u['A1']->id];
+        $this->assertSame(33, $a1['raw_points'], 'забитые');
+        $this->assertSame(3, $a1['points_against'], 'пропущенные');
+        $this->assertSame(3, $a1['wins']);
+        $this->assertSame(0, $a1['losses']);
+
+        // A2 выиграл только третий матч: забил 0+1+10, пропустил 12+11+2.
+        $a2 = $rows[$u['A2']->id];
+        $this->assertSame(11, $a2['raw_points']);
+        $this->assertSame(25, $a2['points_against']);
+        $this->assertSame(1, $a2['wins']);
+        $this->assertSame(2, $a2['losses']);
+
+        // Забитые и пропущенные на корте сходятся: каждый мяч кому-то забит
+        // и кем-то пропущен.
+        $courtIds = collect(['A1', 'A2', 'A3', 'A4'])->map(fn ($n) => $u[$n]->id);
+        $this->assertSame(
+            $courtIds->sum(fn ($id) => $rows[$id]['raw_points']),
+            $courtIds->sum(fn ($id) => $rows[$id]['points_against']),
+            'сумма забитых на корте равна сумме пропущенных'
+        );
+    }
+
+    public function test_draw_counts_as_neither_win_nor_loss(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $u = $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+
+        // Счёт свободный, поэтому ничья возможна: первый матч корта 1 — 5:5.
+        $this->playRound($tournament, [
+            1 => [[5, 5], [11, 1], [10, 2]],
+        ]);
+
+        $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
+
+        // A1: ничья + две победы. A4: ничья, победа в третьем нет — только поражения.
+        $this->assertSame(2, $rows[$u['A1']->id]['wins']);
+        $this->assertSame(0, $rows[$u['A1']->id]['losses'], 'ничья не поражение');
+        $this->assertSame(0, $rows[$u['A4']->id]['wins'], 'ничья не победа');
+        $this->assertSame(2, $rows[$u['A4']->id]['losses']);
+    }
+
     public function test_standings_tie_break_by_wins(): void
     {
         // Режим «по сумме очков» — в нём легко получить равные числа у игроков
