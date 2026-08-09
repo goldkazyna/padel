@@ -143,7 +143,6 @@ class Tournament extends Model
 		'telegram_registration_url',
 		'chat_enabled',
 		'chat_write_mode',
-		'escalera_match_points',
 		'escalera_standings_mode',
     ];
 
@@ -477,18 +476,6 @@ class Tournament extends Model
 	public function isEscalera(): bool
 	{
 		return $this->type === 'escalera';
-	}
-
-	/**
-	 * Очков в коротком матче эскалеры. Если поле пустое (турнир создан не через
-	 * форму или до появления поля) — берём значение по умолчанию, чтобы проверка
-	 * суммы очков не отключалась молча.
-	 */
-	public function escaleraMatchPoints(): int
-	{
-		$points = (int) $this->escalera_match_points;
-
-		return $points > 0 ? $points : \App\Services\EscaleraService::DEFAULT_MATCH_POINTS;
 	}
 
 	public function isPairedJustPadelIt(): bool

@@ -37,7 +37,7 @@ class EscaleraFlowTest extends TestCase
         return app(EscaleraService::class);
     }
 
-    private function makeTournament(int $courts = 3, string $mode = 'points', int $matchPoints = 12): Tournament
+    private function makeTournament(int $courts = 3, string $mode = 'points'): Tournament
     {
         $club = Club::create(['name' => 'Клуб', 'address' => 'Адрес']);
 
@@ -49,7 +49,6 @@ class EscaleraFlowTest extends TestCase
             'start_date' => now()->addDay()->toDateString(),
             'courts_count' => $courts,
             'max_participants' => $courts * 4,
-            'escalera_match_points' => $matchPoints,
             'escalera_standings_mode' => $mode,
         ]);
     }
@@ -189,7 +188,7 @@ class EscaleraFlowTest extends TestCase
 
     // ===== Ввод счёта =====
 
-    public function test_match_score_sum_is_validated(): void
+    public function test_any_score_is_accepted(): void
     {
         $tournament = $this->makeTournament(courts: 3);
         $this->registerTwelve($tournament);
@@ -197,21 +196,28 @@ class EscaleraFlowTest extends TestCase
 
         $match = $this->lastRound($tournament)->courts()->first()->matches()->first();
 
-        try {
-            $this->service()->saveMatchResult($match, 12, 10);
-            $this->fail('счёт с неверной суммой должен отклоняться');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('12', $e->getMessage());
-        }
-
-        $this->assertNull($match->fresh()->team1_score, 'неверный счёт не сохраняется');
-        $this->assertSame('pending', $match->fresh()->status);
-
-        // Сумма равна заданной — счёт сохраняется.
-        $this->service()->saveMatchResult($match, 7, 5);
-        $this->assertSame(7, (int) $match->fresh()->team1_score);
-        $this->assertSame(5, (int) $match->fresh()->team2_score);
+        // Формат матча организатор задаёт сам, сумма ничем не ограничена.
+        $this->service()->saveMatchResult($match, 12, 10);
+        $this->assertSame(12, (int) $match->fresh()->team1_score);
+        $this->assertSame(10, (int) $match->fresh()->team2_score);
         $this->assertSame('completed', $match->fresh()->status);
+
+        // Правка на совсем другой формат тоже проходит.
+        $this->service()->saveMatchResult($match->fresh(), 3, 1);
+        $this->assertSame(3, (int) $match->fresh()->team1_score);
+        $this->assertSame(1, (int) $match->fresh()->team2_score);
+    }
+
+    public function test_negative_score_is_rejected(): void
+    {
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $this->service()->startTournament($tournament);
+
+        $match = $this->lastRound($tournament)->courts()->first()->matches()->first();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->service()->saveMatchResult($match, -1, 5);
     }
 
     public function test_can_close_round_only_when_all_scores_entered(): void
@@ -788,7 +794,6 @@ class EscaleraFlowTest extends TestCase
                 'status' => 'open',
                 'type' => 'escalera',
                 'escalera_courts_count' => 5,
-                'escalera_match_points' => 16,
                 'escalera_standings_mode' => 'raw_points',
             ])
             ->assertRedirect(route('club.tournaments.index'));
@@ -797,7 +802,6 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame('escalera', $tournament->type);
         $this->assertSame(5, (int) $tournament->courts_count);
         $this->assertSame(20, (int) $tournament->max_participants, 'участников ровно кортов × 4');
-        $this->assertSame(16, (int) $tournament->escalera_match_points);
         $this->assertSame('raw_points', $tournament->escalera_standings_mode);
     }
 
@@ -885,7 +889,7 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame(['A4', 'A3', 'A2', 'A1'], $this->seatingNames($tournament, 3));
     }
 
-    public function test_save_score_route_validates_points_sum(): void
+    public function test_save_score_route_rejects_negative_and_accepts_any_sum(): void
     {
         $tournament = $this->makeTournament(courts: 3);
         $this->registerTwelve($tournament);
@@ -894,20 +898,20 @@ class EscaleraFlowTest extends TestCase
 
         $match = $this->lastRound($tournament)->courts()->first()->matches()->first();
 
-        // Сумма 22 при заданных 12 — счёт не сохраняется.
+        // Отрицательный счёт отклоняется валидацией формы.
         $this->actingAs($admin)
-            ->post(route('club.escalera.saveScore', $match), ['team1_score' => 12, 'team2_score' => 10])
+            ->post(route('club.escalera.saveScore', $match), ['team1_score' => -1, 'team2_score' => 5])
             ->assertSessionHasErrors();
 
         $this->assertNull($match->fresh()->team1_score);
         $this->assertSame('pending', $match->fresh()->status);
 
-        // Верная сумма — счёт сохраняется.
+        // Любая сумма — счёт сохраняется, формат матча на совести организатора.
         $this->actingAs($admin)
-            ->post(route('club.escalera.saveScore', $match), ['team1_score' => 7, 'team2_score' => 5])
+            ->post(route('club.escalera.saveScore', $match), ['team1_score' => 12, 'team2_score' => 10])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(7, (int) $match->fresh()->team1_score);
+        $this->assertSame(12, (int) $match->fresh()->team1_score);
         $this->assertSame('completed', $match->fresh()->status);
     }
 
@@ -1051,7 +1055,7 @@ class EscaleraFlowTest extends TestCase
 
     public function test_editing_courts_count_recalculates_participants(): void
     {
-        $tournament = $this->makeTournament(courts: 4, mode: 'points', matchPoints: 12);
+        $tournament = $this->makeTournament(courts: 4, mode: 'points');
         $admin = $this->clubAdmin($tournament);
 
         // Форма редактирования показывает параметры формата.
@@ -1059,7 +1063,6 @@ class EscaleraFlowTest extends TestCase
             ->get(route('club.tournaments.edit', $tournament))
             ->assertOk()
             ->assertSee('Количество кортов')
-            ->assertSee('Очков в коротком матче')
             ->assertSee('Итоговая таблица');
 
         $this->actingAs($admin)
@@ -1072,7 +1075,6 @@ class EscaleraFlowTest extends TestCase
                 'max_participants' => 16,
                 'status' => 'open',
                 'escalera_courts_count' => 3,
-                'escalera_match_points' => 16,
                 'escalera_standings_mode' => 'raw_points',
             ])
             ->assertRedirect();
@@ -1080,13 +1082,12 @@ class EscaleraFlowTest extends TestCase
         $tournament->refresh();
         $this->assertSame(3, (int) $tournament->courts_count);
         $this->assertSame(12, (int) $tournament->max_participants, 'участников ровно кортов × 4');
-        $this->assertSame(16, (int) $tournament->escalera_match_points);
         $this->assertSame('raw_points', $tournament->escalera_standings_mode);
     }
 
     public function test_format_settings_are_locked_after_start(): void
     {
-        $tournament = $this->makeTournament(courts: 3, mode: 'points', matchPoints: 12);
+        $tournament = $this->makeTournament(courts: 3, mode: 'points');
         $this->registerTwelve($tournament);
         $admin = $this->clubAdmin($tournament);
         $this->service()->startTournament($tournament);
@@ -1108,7 +1109,6 @@ class EscaleraFlowTest extends TestCase
                 'max_participants' => 40,
                 'status' => 'in_progress',
                 'escalera_courts_count' => 10,
-                'escalera_match_points' => 8,
                 'escalera_standings_mode' => 'raw_points',
             ])
             ->assertRedirect();
@@ -1116,7 +1116,6 @@ class EscaleraFlowTest extends TestCase
         $tournament->refresh();
         $this->assertSame(3, (int) $tournament->courts_count, 'корты после старта не меняются');
         $this->assertSame(12, (int) $tournament->max_participants, 'участники после старта не меняются');
-        $this->assertSame(12, (int) $tournament->escalera_match_points);
         $this->assertSame('points', $tournament->escalera_standings_mode);
     }
 

@@ -81,8 +81,6 @@
         &nbsp;|&nbsp;
         <strong>Игроков:</strong> {{ $tournament->escaleraPlayers->count() }}
         &nbsp;|&nbsp;
-        <strong>Очков в матче:</strong> {{ $tournament->escaleraMatchPoints() }}
-        &nbsp;|&nbsp;
         <strong>Зачёт:</strong> {{ $modeLabel }}
     </div>
 

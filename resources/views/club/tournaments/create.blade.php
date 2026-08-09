@@ -497,17 +497,6 @@
 								</select>
 								<small class="text-secondary">Число участников проставляется автоматически: корты × 4.</small>
 							</div>
-							<div class="col-md-6 mb-4">
-								<label class="form-label">Очков в коротком матче *</label>
-								<select name="escalera_match_points" id="escaleraMatchPoints" class="form-select">
-									@foreach([8, 10, 12, 16] as $p)
-										<option value="{{ $p }}" {{ (int) old('escalera_match_points', 12) === $p ? 'selected' : '' }}>
-											{{ $p }} очков{{ $p === 12 ? ' (по умолчанию)' : '' }}
-										</option>
-									@endforeach
-								</select>
-								<small class="text-secondary">Сумма очков двух команд в матче всегда равна этому числу.</small>
-							</div>
 						</div>
 						<div class="mb-3">
 							<label class="form-label">Итоговая таблица</label>

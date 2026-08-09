@@ -1,6 +1,5 @@
 {{-- resources/views/club/tournaments/escalera/partials/_courts.blade.php --}}
 @php
-    $matchPoints = $tournament->escaleraMatchPoints();
     $courtsTotal = (int) $tournament->courts_count;
     $lastRoundId = $tournament->escaleraRounds->last()?->id;
     $scoresLocked = $tournament->status === 'completed';
@@ -106,7 +105,7 @@
                         </div>
 
                         @if(!$scoresLocked)
-                            <div class="esc-court-hint">Сумма очков двух команд в матче должна быть равна {{ $matchPoints }}</div>
+                            <div class="esc-court-hint">Счёт любой — формат матча организатор определяет сам</div>
                         @endif
                     </div>
                 @endforeach

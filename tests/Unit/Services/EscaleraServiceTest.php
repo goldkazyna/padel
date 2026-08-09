@@ -18,7 +18,7 @@ class EscaleraServiceTest extends TestCase
     use RefreshDatabase;
 
     /** Турнир-эскалера на заданное число кортов (игроков = корты × 4). */
-    private function makeTournament(int $courts = 3, string $standingsMode = 'points', int $matchPoints = 12): Tournament
+    private function makeTournament(int $courts = 3, string $standingsMode = 'points'): Tournament
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
 
@@ -30,7 +30,6 @@ class EscaleraServiceTest extends TestCase
             'start_date' => now()->addDay()->toDateString(),
             'courts_count' => $courts,
             'max_participants' => $courts * 4,
-            'escalera_match_points' => $matchPoints,
             'escalera_standings_mode' => $standingsMode,
         ]);
     }
@@ -40,7 +39,6 @@ class EscaleraServiceTest extends TestCase
         $t = $this->makeTournament();
 
         $this->assertTrue($t->isEscalera());
-        $this->assertSame(12, $t->escalera_match_points);
         $this->assertSame('points', $t->escalera_standings_mode);
 
         $user = User::factory()->create(['rating' => 1500]);

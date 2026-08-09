@@ -27,9 +27,6 @@ class EscaleraService
 {
     use \App\Traits\RatingCalculator;
 
-    /** Очков в коротком матче, если у турнира поле не заполнено. */
-    public const DEFAULT_MATCH_POINTS = 12;
-
     /** Позиция в общем строю: корты упорядочены по силе, на каждом четверо. */
     public function positionFor(int $courtNumber, int $place): int
     {
@@ -243,8 +240,8 @@ class EscaleraService
     /**
      * Сохранить счёт короткого матча.
      *
-     * Сумма очков двух команд должна быть равна `escalera_match_points`:
-     * при двенадцати очках 7:5 допустимо, 12:10 — нет.
+     * Формат матча организатор задаёт сам на площадке, поэтому счёт принимается
+     * любой — проверяем только неотрицательность.
      *
      * Если раунд уже закрыт, правка счёта пересчитывает места, баллы и таблицу,
      * но игроков по кортам не двигает — перемещения уже произошли.
@@ -266,16 +263,6 @@ class EscaleraService
 
         if ($team1Score < 0 || $team2Score < 0) {
             throw new InvalidArgumentException('Очки не могут быть отрицательными');
-        }
-
-        // Если у турнира очки не заданы, берём значение по умолчанию, а не
-        // отключаем проверку целиком — иначе счета уезжают куда угодно.
-        $target = $tournament->escaleraMatchPoints();
-        if (($team1Score + $team2Score) !== $target) {
-            throw new InvalidArgumentException(
-                "Сумма очков двух команд должна быть равна {$target}, а получилось "
-                . ($team1Score + $team2Score) . " ({$team1Score}:{$team2Score})"
-            );
         }
 
         $match->update([

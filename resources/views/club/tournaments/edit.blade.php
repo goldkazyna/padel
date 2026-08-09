@@ -156,23 +156,6 @@
                                 @endif
                             </small>
                         </div>
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label">Очков в коротком матче *</label>
-                            <select name="escalera_match_points" class="form-select" {{ $escaleraEditable ? '' : 'disabled' }}>
-                                @foreach([8, 10, 12, 16] as $p)
-                                    <option value="{{ $p }}" {{ (int) old('escalera_match_points', $tournament->escaleraMatchPoints()) === $p ? 'selected' : '' }}>
-                                        {{ $p }} очков{{ $p === 12 ? ' (по умолчанию)' : '' }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <small class="text-secondary">
-                                @if($escaleraEditable)
-                                    Сумма очков двух команд в матче должна быть ровно такой.
-                                @else
-                                    Турнир уже начат — счета внесены по этому значению, менять нельзя.
-                                @endif
-                            </small>
-                        </div>
                         @php $escMode = old('escalera_standings_mode', $tournament->escalera_standings_mode ?? 'points'); @endphp
                         <div class="col-md-12 mb-4">
                             <label class="form-label">Итоговая таблица</label>

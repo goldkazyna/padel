@@ -122,7 +122,6 @@ class TournamentController extends Controller
 			'pairing_mode' => 'nullable|in:self,admin',
 			'is_paired' => 'nullable|boolean',
 			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
-			'escalera_match_points' => 'nullable|integer|in:8,10,12,16',
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
 
@@ -132,11 +131,10 @@ class TournamentController extends Controller
 			$escaleraCourts = (int) ($validated['escalera_courts_count'] ?? 4);
 			$validated['courts_count'] = $escaleraCourts;
 			$validated['max_participants'] = $escaleraCourts * 4;
-			$validated['escalera_match_points'] = (int) ($validated['escalera_match_points'] ?? 12);
 			$validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'points';
 		} else {
 			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
-			unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+			unset($validated['escalera_standings_mode']);
 		}
 		unset($validated['escalera_courts_count']);
 
@@ -343,7 +341,6 @@ class TournamentController extends Controller
 			'groups_count' => 'nullable|integer|in:1,2,3,4',
 			'rounds_count' => 'nullable|integer|min:1|max:30',
 			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
-			'escalera_match_points' => 'nullable|integer|in:8,10,12,16',
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
 
@@ -363,15 +360,14 @@ class TournamentController extends Controller
 			}
 
 			if ($notStarted) {
-				$validated['escalera_match_points'] = (int) ($validated['escalera_match_points'] ?? $tournament->escaleraMatchPoints());
 				$validated['escalera_standings_mode'] = $validated['escalera_standings_mode']
 					?? ($tournament->escalera_standings_mode ?? 'points');
 			} else {
-				unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+				unset($validated['escalera_standings_mode']);
 			}
 		} else {
 			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
-			unset($validated['escalera_match_points'], $validated['escalera_standings_mode']);
+			unset($validated['escalera_standings_mode']);
 		}
 		unset($validated['escalera_courts_count']);
 
