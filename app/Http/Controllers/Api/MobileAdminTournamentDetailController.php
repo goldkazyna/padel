@@ -275,7 +275,8 @@ class MobileAdminTournamentDetailController extends Controller
         BaliKocService $bali,
         AmericanoFlexService $flex,
         RoundRobinService $roundRobin,
-        \App\Services\JustPadelItService $jpi
+        \App\Services\JustPadelItService $jpi,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -328,11 +329,17 @@ class MobileAdminTournamentDetailController extends Controller
             $order = is_array($order) ? array_map('intval', $order) : null;
             $ok = $jpi->startTournament($tournament, $order ?: null);
         } elseif ($tournament->isEscalera()) {
-            // Экранов эскалеры в приложении пока нет: посев и проведение — только в вебе.
-            return response()->json([
-                'success' => false,
-                'message' => 'Эскалеру запускают из веб-админки клуба: там задаётся стартовая расстановка по кортам',
-            ], 422);
+            // Посев по рейтингу. Ручная расстановка по кортам осталась только
+            // в вебе — в приложении старт это одна кнопка.
+            $registered = $tournament->participants()->wherePivot('status', 'registered')->count();
+            $need = (int) $tournament->courts_count * 4;
+            if ($registered !== $need) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "В эскалере играют ровно {$need} игроков (кортов × 4), сейчас записано {$registered}",
+                ], 422);
+            }
+            $ok = $escalera->startTournament($tournament);
         } else {
             return response()->json([
                 'success' => false,
@@ -600,10 +607,10 @@ class MobileAdminTournamentDetailController extends Controller
         if ($t->type === 'just_padel_it' && ! $t->is_paired) {
             $canStart = $t->status === 'open' && $t->jpiSeedingReady();
         }
-        // Эскалера: экранов формата в приложении пока нет, а start() её не умеет —
-        // честнее не показывать кнопку, чем давать нерабочую. Турнир проводится в вебе.
+        // Эскалера: играют строго кортов × 4, поэтому кнопка старта появляется
+        // только когда набралось ровно столько игроков.
         if ($t->isEscalera()) {
-            $canStart = false;
+            $canStart = $t->status === 'open' && $taken === (int) $t->courts_count * 4;
         }
         // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
         $baliPairsCreated = $t->isBaliKoc()
@@ -1585,6 +1592,10 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json($this->buildMexicanoMatches($tournament));
         }
 
+        if ($tournament->isEscalera()) {
+            return response()->json($this->buildEscaleraMatches($tournament));
+        }
+
         return response()->json([
             'success' => true,
             'type' => $tournament->type,
@@ -2334,7 +2345,8 @@ class MobileAdminTournamentDetailController extends Controller
         JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
-        RoundRobinService $roundRobin
+        RoundRobinService $roundRobin,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -2381,6 +2393,20 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $bali->finishTournament($tournament);
+        } elseif ($tournament->isEscalera()) {
+            // Раунд с внесёнными счетами закрываем здесь же: иначе админу
+            // пришлось бы сгенерировать лишний раунд ради кнопки завершения.
+            if (!$escalera->canFinishTournament($tournament) && $escalera->canCloseRound($tournament)) {
+                try {
+                    $escalera->closeRound($tournament);
+                } catch (\RuntimeException $e) {
+                    return $this->error($e->getMessage());
+                }
+            }
+            if (!$escalera->canFinishTournament($tournament)) {
+                return $this->error('Сначала внесите счета всех матчей на всех кортах');
+            }
+            $ok = $escalera->finishTournament($tournament);
         } elseif ($tournament->isTeamBased()) {
             if (!$team->canFinishTournament($tournament)) {
                 return $this->error('Финал ещё не сыгран');
@@ -2419,6 +2445,59 @@ class MobileAdminTournamentDetailController extends Controller
      * KingOfCourtService::saveMatchResult сам откатит старые stat если матч
      * уже completed.
      */
+    /**
+     * POST|PUT /api/mobile/admin/tournaments/{tournament}/escalera/matches/{match}/score
+     *
+     * Счёт свободный: сумма ничем не ограничена, ничья допустима — формат
+     * короткого матча организаторы согласовывают на площадке.
+     */
+    public function saveEscaleraScore(
+        Request $request,
+        Tournament $tournament,
+        \App\Models\EscaleraMatch $match,
+        \App\Services\EscaleraService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $match->loadMissing('court.round');
+        if (!$match->court || !$match->court->round
+            || (int) $match->court->round->tournament_id !== (int) $tournament->id) {
+            return $this->error('Матч не принадлежит этому турниру', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'team1_score' => 'required|integer|min:0|max:99',
+            'team2_score' => 'required|integer|min:0|max:99',
+        ]);
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first());
+        }
+
+        try {
+            $service->saveMatchResult(
+                $match,
+                (int) $request->input('team1_score'),
+                (int) $request->input('team2_score'),
+            );
+        } catch (\InvalidArgumentException | \RuntimeException $e) {
+            return $this->error($e->getMessage());
+        }
+
+        $match->refresh();
+
+        return response()->json([
+            'success' => true,
+            'match' => [
+                'id' => $match->id,
+                'team1_score' => $match->team1_score,
+                'team2_score' => $match->team2_score,
+                'status' => $match->status,
+            ],
+        ]);
+    }
+
     public function saveKingOfCourtScore(
         Request $request,
         Tournament $tournament,
@@ -2526,7 +2605,8 @@ class MobileAdminTournamentDetailController extends Controller
         JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
-        RoundRobinService $roundRobin
+        RoundRobinService $roundRobin,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -2565,6 +2645,27 @@ class MobileAdminTournamentDetailController extends Controller
 
             $tournament->refresh();
             return response()->json($this->buildRoundRobinMatches($tournament));
+        }
+
+        if ($tournament->isEscalera()) {
+            if (!$escalera->canCloseRound($tournament)) {
+                return $this->error('Сначала внесите счета всех матчей на всех кортах');
+            }
+
+            // Для админа это одно действие: закрыть раунд и сразу получить
+            // следующий — так же, как кнопка «Сгенерировать раунд» в вебе.
+            try {
+                if (!$escalera->closeRound($tournament)) {
+                    return $this->error('Не удалось закрыть раунд');
+                }
+                $escalera->generateNextRound($tournament);
+            } catch (\RuntimeException $e) {
+                return $this->error($e->getMessage());
+            }
+
+            $tournament->refresh();
+
+            return response()->json($this->buildEscaleraMatches($tournament));
         }
 
         if ($tournament->isAmericanoFlex()) {
@@ -2741,6 +2842,136 @@ class MobileAdminTournamentDetailController extends Controller
         if ($m->team1_score === null || $m->team2_score === null) return null;
         if ($m->team1_score === $m->team2_score) return null;
         return $m->team1_score > $m->team2_score ? 1 : 2;
+    }
+
+    /**
+     * Ответ мобильной админки для «Эскалеры».
+     *
+     * Матчи всех кортов раунда идут одним списком: приложение группирует их
+     * по court_number, как это делает веб-версия. Обёртка в одну виртуальную
+     * «группу» — тот же приём, что у «Короля корта»: фронт переиспользует
+     * готовый рендер «группа → раунды → таблица».
+     */
+    private function buildEscaleraMatches(Tournament $tournament): array
+    {
+        $tournament->load([
+            'escaleraRounds.courts.matches.team1Player1',
+            'escaleraRounds.courts.matches.team1Player2',
+            'escaleraRounds.courts.matches.team2Player1',
+            'escaleraRounds.courts.matches.team2Player2',
+            'escaleraPlayers.user',
+        ]);
+
+        $matchesTotal = 0;
+        $matchesPlayed = 0;
+
+        $rounds = $tournament->escaleraRounds
+            ->sortBy('round_number')
+            ->values()
+            ->map(function ($round) use (&$matchesTotal, &$matchesPlayed) {
+                $matches = [];
+                foreach ($round->courts->sortBy('court_number') as $court) {
+                    foreach ($court->matches->sortBy('match_number') as $match) {
+                        $matchesTotal++;
+                        if ($match->isCompleted()) {
+                            $matchesPlayed++;
+                        }
+                        $matches[] = $this->formatEscaleraMatch($match, (int) $court->court_number);
+                    }
+                }
+
+                return [
+                    'id' => $round->id,
+                    'round_number' => (int) $round->round_number,
+                    'status' => $round->status,
+                    'matches' => $matches,
+                ];
+            });
+
+        $service = app(\App\Services\EscaleraService::class);
+
+        // Набор ключей — тот же, что у buildKingOfCourtLeaderboard в этом же
+        // файле: приложение разбирает обе таблицы одной моделью.
+        $leaderboard = [];
+        foreach ($service->standings($tournament) as $row) {
+            $user = $row['user'];
+            if (!$user) {
+                continue;
+            }
+            $scored = (int) $row['raw_points'];
+            $conceded = (int) $row['points_against'];
+            $balls = $scored + $conceded;
+            $games = (int) $row['wins'] + (int) $row['losses'];
+
+            $leaderboard[] = [
+                'position' => (int) $row['position'],
+                'id' => $user->id,
+                'name' => $user->full_name ?? $user->name,
+                'avatar' => $user->avatar,
+                'verified' => (bool) $user->level_verified,
+                'rating' => (int) ($user->rating ?? 0),
+                'wins' => (int) $row['wins'],
+                'losses' => (int) $row['losses'],
+                'draws' => 0,
+                'points_for' => $scored,
+                'points_against' => $conceded,
+                'total_points' => (int) $row['points'],
+                'games_played' => $games,
+                'point_diff' => $scored - $conceded,
+                'win_percent' => $games > 0 ? (int) round((int) $row['wins'] / $games * 100) : 0,
+                'ball_percent' => $balls > 0 ? (int) round($scored / $balls * 100) : 0,
+            ];
+        }
+
+        $isLive = $tournament->status === 'in_progress';
+        // Завершить можно и не закрывая раунд: finish закроет его сам,
+        // если все счета внесены.
+        $canClose = $isLive && $service->canCloseRound($tournament);
+
+        return [
+            'success' => true,
+            'type' => 'escalera',
+            'standings_mode' => $tournament->escalera_standings_mode ?? 'points',
+            'groups' => [[
+                'id' => 0,
+                'name' => '',
+                'rounds' => $rounds,
+                'leaderboard' => $leaderboard,
+            ]],
+            'playoff' => null,
+            'summary' => [
+                'matches_total' => $matchesTotal,
+                'matches_played' => $matchesPlayed,
+                'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_finish' => $canClose || ($isLive && $service->canFinishTournament($tournament)),
+                'can_generate_playoff' => false,
+                'can_generate_next_round' => $canClose,
+            ],
+        ];
+    }
+
+    private function formatEscaleraMatch(\App\Models\EscaleraMatch $match, int $courtNumber): array
+    {
+        return [
+            'id' => $match->id,
+            'court_number' => $courtNumber,
+            'match_number' => (int) $match->match_number,
+            'status' => $match->status,
+            'team1' => [
+                'players' => array_values(array_filter([
+                    $this->formatMatchPlayer($match->team1Player1),
+                    $this->formatMatchPlayer($match->team1Player2),
+                ])),
+                'score' => $match->team1_score,
+            ],
+            'team2' => [
+                'players' => array_values(array_filter([
+                    $this->formatMatchPlayer($match->team2Player1),
+                    $this->formatMatchPlayer($match->team2Player2),
+                ])),
+                'score' => $match->team2_score,
+            ],
+        ];
     }
 
     private function buildKingOfCourtLeaderboard(Tournament $tournament): array

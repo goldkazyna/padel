@@ -243,7 +243,7 @@ class MobileAdminTournamentController extends Controller
     private function tournamentValidationRules(): array
     {
         return [
-            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it,mexicano',
+            'type' => 'required|in:king_of_court,americano,americano_flex,bali_koc,team,round_robin,just_padel_it,mexicano,escalera',
             'venue_club_id' => 'nullable|exists:clubs,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -277,6 +277,7 @@ class MobileAdminTournamentController extends Controller
             'verified_only' => 'nullable|boolean',
             'pairing_mode' => 'nullable|in:self,admin',
             'is_paired' => 'nullable|boolean',
+            'escalera_standings_mode' => 'nullable|in:points,raw_points',
         ];
     }
 
@@ -347,6 +348,22 @@ class MobileAdminTournamentController extends Controller
             $validated['is_paired'] = true;
         } else {
             $validated['is_paired'] = false;
+        }
+
+        // Эскалера: играют строго кортов × 4, поэтому число участников считает
+        // сервер, а не форма. Кортов минимум два — иначе лестницы не получится,
+        // подниматься некуда.
+        if ($type === 'escalera') {
+            $courts = (int) ($validated['courts_count'] ?? 0);
+            if ($courts < 2 || $courts > 10) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'courts_count' => 'В эскалере от 2 до 10 кортов',
+                ]);
+            }
+            $validated['max_participants'] = $courts * 4;
+            $validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'points';
+        } else {
+            unset($validated['escalera_standings_mode']);
         }
 
         $tournament = Tournament::create($validated);
