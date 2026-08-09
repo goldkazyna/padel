@@ -143,6 +143,8 @@ class Tournament extends Model
 		'telegram_registration_url',
 		'chat_enabled',
 		'chat_write_mode',
+		'escalera_match_points',
+		'escalera_rank_mode',
     ];
 
     protected $casts = [
@@ -432,6 +434,7 @@ class Tournament extends Model
 			'americano_flex' => 'Americano Flex',
 			'round_robin' => 'Round Robin',
 			'just_padel_it' => 'Just Padel It',
+			'escalera' => 'Эскалера',
 			default => $this->type,
 		};
 	}
@@ -471,6 +474,11 @@ class Tournament extends Model
 		return $this->type === 'just_padel_it';
 	}
 
+	public function isEscalera(): bool
+	{
+		return $this->type === 'escalera';
+	}
+
 	public function isPairedJustPadelIt(): bool
 	{
 		return $this->isJustPadelIt() && (bool) $this->is_paired;
@@ -507,6 +515,16 @@ class Tournament extends Model
 	public function justPadelItPairs()
 	{
 		return $this->hasMany(\App\Models\JustPadelItPair::class);
+	}
+
+	public function escaleraPlayers()
+	{
+		return $this->hasMany(\App\Models\EscaleraPlayer::class);
+	}
+
+	public function escaleraRounds()
+	{
+		return $this->hasMany(\App\Models\EscaleraRound::class)->orderBy('round_number');
 	}
 
 	public function isRoundRobin(): bool
