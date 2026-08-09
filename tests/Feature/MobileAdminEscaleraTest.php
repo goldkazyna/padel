@@ -331,4 +331,87 @@ class MobileAdminEscaleraTest extends TestCase
 
         $this->assertNull($match->fresh()->team1_score);
     }
+
+    /** Внести счёт во все матчи текущего раунда. */
+    private function playCurrentRound(Tournament $tournament): void
+    {
+        $service = app(\App\Services\EscaleraService::class);
+        $round = $tournament->fresh()->escaleraRounds()->reorder('round_number', 'desc')->first();
+
+        foreach ($round->courts as $court) {
+            $scores = [[12, 0], [11, 1], [10, 2]];
+            foreach ($court->matches()->orderBy('match_number')->get() as $i => $match) {
+                $service->saveMatchResult($match, $scores[$i][0], $scores[$i][1]);
+            }
+        }
+    }
+
+    public function test_next_round_closes_current_and_creates_next(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        $this->playCurrentRound($t);
+        Sanctum::actingAs($admin);
+
+        $res = $this->postJson("/api/mobile/admin/tournaments/{$t->id}/next-round")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('type', 'escalera');
+
+        $t->refresh();
+        $this->assertSame(2, $t->escaleraRounds()->count(), 'следующий раунд создан');
+        $this->assertTrue(
+            $t->escaleraRounds()->where('round_number', 1)->first()->isCompleted(),
+            'первый раунд закрыт'
+        );
+
+        // Ответ уже содержит оба раунда — приложение не делает второй запрос.
+        $this->assertCount(2, $res->json('groups.0.rounds'));
+    }
+
+    public function test_next_round_blocked_until_scores_entered(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/next-round")
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertSame(1, $t->fresh()->escaleraRounds()->count());
+    }
+
+    public function test_finish_closes_open_round_and_awards_rating(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        $this->playCurrentRound($t);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/finish")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $t->refresh();
+        $this->assertSame('completed', $t->status);
+        $this->assertSame(1, $t->escaleraRounds()->count(), 'лишний раунд не создан');
+        $this->assertTrue($t->escaleraRounds()->first()->isCompleted());
+
+        // Рейтинг начислен: у каждого игрока проставлен rating_after.
+        $this->assertSame(0, $t->escaleraPlayers()->whereNull('rating_after')->count());
+    }
+
+    public function test_finish_blocked_while_scores_missing(): void
+    {
+        [$club, $admin, $t] = $this->makeReadyTournament(3);
+        app(\App\Services\EscaleraService::class)->startTournament($t);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/finish")
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertSame('in_progress', $t->fresh()->status);
+    }
 }

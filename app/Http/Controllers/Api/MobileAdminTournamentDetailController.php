@@ -2345,7 +2345,8 @@ class MobileAdminTournamentDetailController extends Controller
         JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
-        RoundRobinService $roundRobin
+        RoundRobinService $roundRobin,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -2392,6 +2393,20 @@ class MobileAdminTournamentDetailController extends Controller
                 return $this->error('Доиграйте текущий раунд');
             }
             $ok = $bali->finishTournament($tournament);
+        } elseif ($tournament->isEscalera()) {
+            // Раунд с внесёнными счетами закрываем здесь же: иначе админу
+            // пришлось бы сгенерировать лишний раунд ради кнопки завершения.
+            if (!$escalera->canFinishTournament($tournament) && $escalera->canCloseRound($tournament)) {
+                try {
+                    $escalera->closeRound($tournament);
+                } catch (\RuntimeException $e) {
+                    return $this->error($e->getMessage());
+                }
+            }
+            if (!$escalera->canFinishTournament($tournament)) {
+                return $this->error('Сначала внесите счета всех матчей на всех кортах');
+            }
+            $ok = $escalera->finishTournament($tournament);
         } elseif ($tournament->isTeamBased()) {
             if (!$team->canFinishTournament($tournament)) {
                 return $this->error('Финал ещё не сыгран');
@@ -2590,7 +2605,8 @@ class MobileAdminTournamentDetailController extends Controller
         JustPadelItService $jpi,
         BaliKocService $bali,
         AmericanoFlexService $flex,
-        RoundRobinService $roundRobin
+        RoundRobinService $roundRobin,
+        \App\Services\EscaleraService $escalera
     ): JsonResponse {
         if (!$this->canManageTournament($request->user(), $tournament)) {
             return $this->forbidden();
@@ -2629,6 +2645,27 @@ class MobileAdminTournamentDetailController extends Controller
 
             $tournament->refresh();
             return response()->json($this->buildRoundRobinMatches($tournament));
+        }
+
+        if ($tournament->isEscalera()) {
+            if (!$escalera->canCloseRound($tournament)) {
+                return $this->error('Сначала внесите счета всех матчей на всех кортах');
+            }
+
+            // Для админа это одно действие: закрыть раунд и сразу получить
+            // следующий — так же, как кнопка «Сгенерировать раунд» в вебе.
+            try {
+                if (!$escalera->closeRound($tournament)) {
+                    return $this->error('Не удалось закрыть раунд');
+                }
+                $escalera->generateNextRound($tournament);
+            } catch (\RuntimeException $e) {
+                return $this->error($e->getMessage());
+            }
+
+            $tournament->refresh();
+
+            return response()->json($this->buildEscaleraMatches($tournament));
         }
 
         if ($tournament->isAmericanoFlex()) {
