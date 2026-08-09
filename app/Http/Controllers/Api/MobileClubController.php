@@ -66,13 +66,26 @@ class MobileClubController extends Controller
             },
         ]);
 
-        // Сортировка: 1) по числу проведённых турниров; 2) у кого есть открытые
-        // турниры — выше; 3) «скоро открытие» (coming_soon) — в самый конец.
+        // Сортировка. По умолчанию — по активности: 1) число проведённых
+        // турниров; 2) у кого есть открытые — выше; 3) «скоро открытие»
+        // (coming_soon) — в самый конец.
+        //
+        // sort=created — по дате добавления. Нужен там, где важен
+        // предсказуемый порядок (выбор клуба в бронировании): по активности
+        // список перетасовывается сам собой после каждого турнира.
+        $sortByCreated = $request->get('sort') === 'created';
+
         $clubs = $query
-            ->orderByDesc('tournaments_count')
-            ->orderByDesc('open_tournaments_count')
-            ->orderBy('coming_soon')
-            ->orderBy('id')
+            ->when($sortByCreated, function ($q) {
+                // «Скоро открытие» держим внизу и здесь: записываться туда
+                // всё равно нельзя.
+                $q->orderBy('coming_soon')->orderBy('created_at')->orderBy('id');
+            }, function ($q) {
+                $q->orderByDesc('tournaments_count')
+                    ->orderByDesc('open_tournaments_count')
+                    ->orderBy('coming_soon')
+                    ->orderBy('id');
+            })
             ->get();
 
         $result = $clubs->map(fn($club) => [

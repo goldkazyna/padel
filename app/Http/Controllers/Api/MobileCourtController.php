@@ -46,7 +46,11 @@ class MobileCourtController extends Controller
             });
         }
 
+        // Порядок по дате добавления: без сортировки база отдавала строки
+        // как придётся, и список клубов «прыгал» между открытиями экрана.
         $clubs = $query->withCount(['courts' => fn($q) => $q->where('is_active', true)])
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         // Получаем минимальные цены для всех клубов
