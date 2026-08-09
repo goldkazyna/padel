@@ -527,10 +527,25 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->noPermission('Нет прав на удаление турниров');
         }
 
-        if ($tournament->status !== 'draft') {
+        // Удаление сносит каскадом матчи, группы, участников, чат и
+        // приглашения, поэтому разрешаем только там, где терять нечего:
+        // черновик и отменённый турнир (по отменённому рейтинг не начислялся —
+        // отменить можно лишь то, что ещё не завершено).
+        if (!in_array($tournament->status, ['draft', 'cancelled'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Можно удалить только черновик',
+                'message' => 'Удалить можно только черновик или отменённый турнир',
+            ], 422);
+        }
+
+        // Страховка на случай неожиданного состояния данных: если по турниру
+        // всё же начислялся рейтинг, в истории игроков остались бы точки без
+        // турнира, а матчи исчезли бы из «Моих матчей».
+        $hasRating = \App\Models\RatingHistory::where('tournament_id', $tournament->id)->exists();
+        if ($hasRating) {
+            return response()->json([
+                'success' => false,
+                'message' => 'По турниру начислялся рейтинг — удалить нельзя',
             ], 422);
         }
 
