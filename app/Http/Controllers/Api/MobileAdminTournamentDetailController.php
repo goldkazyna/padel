@@ -110,6 +110,10 @@ class MobileAdminTournamentDetailController extends Controller
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
             'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
             'telegram_registration_url' => 'nullable|url|max:500',
+            // Призовой турнир — настройка задаётся при создании, менять её
+            // в редактировании до старта безопасно.
+            'has_prizes' => 'nullable|boolean',
+            'prizes' => 'nullable|string|max:2000',
             'chat_enabled' => 'nullable|boolean',
             'chat_write_mode' => 'nullable|in:admin,participants,everyone',
             'is_paired' => 'nullable|boolean',
@@ -202,6 +206,16 @@ class MobileAdminTournamentDetailController extends Controller
         }
         if ($request->has('chat_enabled')) {
             $validated['chat_enabled'] = $request->boolean('chat_enabled');
+        }
+
+        // Призы: выключили — стираем и текст, иначе он всплывёт при повторном
+        // включении и покажет неактуальное. Поле не прислали (старая сборка
+        // приложения) — настройку не трогаем.
+        if ($request->has('has_prizes')) {
+            $validated['has_prizes'] = $request->boolean('has_prizes');
+            if (!$validated['has_prizes']) {
+                $validated['prizes'] = null;
+            }
         }
 
         // Названия кортов — нормализуем как при создании (пустые слоты → null; всё пусто → null).
@@ -648,6 +662,8 @@ class MobileAdminTournamentDetailController extends Controller
             'id' => $t->id,
             'name' => $t->name,
             'description' => $t->description,
+            'has_prizes' => (bool) $t->has_prizes,
+            'prizes' => $t->prizes,
             'type' => $t->type,
             'type_name' => $t->type_name,
             'status' => $t->status,
