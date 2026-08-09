@@ -373,4 +373,31 @@ class TrainingsTest extends TestCase
         $this->assertSame($upcoming->id, $res->json('upcoming.0.id'));
         $this->assertSame($past->id, $res->json('past.0.id'));
     }
+
+    public function test_coach_club_list_supports_search(): void
+    {
+        Club::create(['name' => 'Padel Arena', 'address' => 'А', 'city' => 'Алматы']);
+        Club::create(['name' => 'Astana Padel', 'address' => 'Б', 'city' => 'Астана']);
+        Club::create(['name' => 'Теннис Центр', 'address' => 'В', 'city' => 'Алматы']);
+
+        Sanctum::actingAs($this->makeCoach());
+
+        // По названию.
+        $names = array_column(
+            $this->getJson('/api/mobile/coach/clubs?search=arena')->assertOk()->json('clubs'),
+            'name'
+        );
+        $this->assertSame(['Padel Arena'], $names);
+
+        // По городу — тренер ищет и так тоже.
+        $names = array_column(
+            $this->getJson('/api/mobile/coach/clubs?search=Астана')->assertOk()->json('clubs'),
+            'name'
+        );
+        $this->assertSame(['Astana Padel'], $names);
+
+        // Пустой запрос отдаёт всё.
+        $all = $this->getJson('/api/mobile/coach/clubs?search=')->assertOk()->json('clubs');
+        $this->assertCount(3, $all);
+    }
 }

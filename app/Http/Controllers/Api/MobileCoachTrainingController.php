@@ -38,13 +38,24 @@ class MobileCoachTrainingController extends Controller
         ]);
     }
 
-    /** Клубы для выпадающего списка. Комьюнити тренировки не проводят. */
+    /**
+     * Клубы для выбора при создании. Комьюнити тренировки не проводят.
+     * `search` ищет и по названию, и по городу — тренер набирает то, что помнит.
+     */
     public function clubs(Request $request): JsonResponse
     {
         $this->coach($request);
 
+        $search = trim((string) $request->query('search', ''));
+
         $clubs = Club::where(function ($q) {
                 $q->where('is_community', false)->orWhereNull('is_community');
+            })
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('city', 'like', "%{$search}%");
+                });
             })
             ->orderBy('name')
             ->get(['id', 'name', 'city'])
