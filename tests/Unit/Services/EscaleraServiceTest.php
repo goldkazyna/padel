@@ -18,7 +18,7 @@ class EscaleraServiceTest extends TestCase
     use RefreshDatabase;
 
     /** Турнир-эскалера на заданное число кортов (игроков = корты × 4). */
-    private function makeTournament(int $courts = 3, string $mode = 'points', int $matchPoints = 12): Tournament
+    private function makeTournament(int $courts = 3, string $standingsMode = 'points', int $matchPoints = 12): Tournament
     {
         $club = Club::create(['name' => 'C', 'address' => 'A']);
 
@@ -31,7 +31,7 @@ class EscaleraServiceTest extends TestCase
             'courts_count' => $courts,
             'max_participants' => $courts * 4,
             'escalera_match_points' => $matchPoints,
-            'escalera_rank_mode' => $mode,
+            'escalera_standings_mode' => $standingsMode,
         ]);
     }
 
@@ -41,7 +41,7 @@ class EscaleraServiceTest extends TestCase
 
         $this->assertTrue($t->isEscalera());
         $this->assertSame(12, $t->escalera_match_points);
-        $this->assertSame('points', $t->escalera_rank_mode);
+        $this->assertSame('points', $t->escalera_standings_mode);
 
         $user = User::factory()->create(['rating' => 1500]);
         EscaleraPlayer::create([
@@ -158,12 +158,15 @@ class EscaleraServiceTest extends TestCase
 
     public function test_rank_court_by_points(): void
     {
-        $t = $this->makeTournament(mode: 'points');
+        $t = $this->makeTournament(standingsMode: 'points');
         // Матч 1: (P1+P4) 7:5 (P2+P3); матч 2: (P1+P3) 8:4 (P2+P4); матч 3: (P1+P2) 6:6 (P3+P4).
         // Сумма очков: P1 = 7+8+6 = 21; P2 = 5+4+6 = 15; P3 = 5+8+6 = 19; P4 = 7+4+6 = 17.
+        // Порядок P1, P3, P4, P2 намеренно расходится с порядком рейтингов
+        // (P1, P2, P3, P4) — так тест ловит подмену сортировки на сортировку
+        // только по рейтингу.
         [$court, $players] = $this->makeCourtWithScores($t, [[7, 5], [8, 4], [6, 6]]);
 
-        $order = app(EscaleraService::class)->rankCourt($court, 'points');
+        $order = app(EscaleraService::class)->rankCourt($court);
 
         $this->assertSame(
             [$players[0]->id, $players[2]->id, $players[3]->id, $players[1]->id],
@@ -172,33 +175,14 @@ class EscaleraServiceTest extends TestCase
         );
     }
 
-    public function test_rank_court_by_wins_with_points_tiebreak(): void
-    {
-        $t = $this->makeTournament(mode: 'wins');
-        // Матч 1: (P1+P4) 7:5 (P2+P3) — победа P1, P4
-        // Матч 2: (P1+P3) 8:4 (P2+P4) — победа P1, P3
-        // Матч 3: (P1+P2) 9:3 (P3+P4) — победа P1, P2
-        // Победы: P1 = 3; P2 = 1; P3 = 1; P4 = 1.
-        // Тай-брейк по очкам: P2 = 5+4+9 = 18; P3 = 5+8+3 = 16; P4 = 7+4+3 = 14.
-        [$court, $players] = $this->makeCourtWithScores($t, [[7, 5], [8, 4], [9, 3]]);
-
-        $order = app(EscaleraService::class)->rankCourt($court, 'wins');
-
-        $this->assertSame(
-            [$players[0]->id, $players[1]->id, $players[2]->id, $players[3]->id],
-            $order,
-            'P1 по победам, дальше по сумме очков'
-        );
-    }
-
     public function test_full_tie_resolved_by_rating(): void
     {
-        $t = $this->makeTournament(mode: 'points');
+        $t = $this->makeTournament(standingsMode: 'points');
         // Все три матча вничью — суммы очков у всех равны.
         // Порядок должен определиться рейтингом: 1600, 1500, 1400, 1300.
         [$court, $players] = $this->makeCourtWithScores($t, [[6, 6], [6, 6], [6, 6]]);
 
-        $order = app(EscaleraService::class)->rankCourt($court, 'points');
+        $order = app(EscaleraService::class)->rankCourt($court);
 
         $this->assertSame(
             [$players[0]->id, $players[1]->id, $players[2]->id, $players[3]->id],
@@ -229,12 +213,15 @@ class EscaleraServiceTest extends TestCase
 
         $next = app(EscaleraService::class)->planMovements($rankings);
 
+        // Порядок важен, не только состав: он напрямую идёт в matchLineup() и
+        // определяет, кто с кем играет первый матч следующего раунда.
+        // Ожидаемый порядок — по возрастанию общей позиции прошлого раунда.
         // Верхний корт: первые трое остаются, четвёртый вниз; снизу приходит первый со второго.
-        $this->assertEqualsCanonicalizing([101, 102, 103, 201], $next[1]);
+        $this->assertSame([101, 102, 103, 201], $next[1]);
         // Средний: пришёл 104 сверху и 301 снизу, остались 202 и 203.
-        $this->assertEqualsCanonicalizing([104, 202, 203, 301], $next[2]);
+        $this->assertSame([104, 202, 203, 301], $next[2]);
         // Нижний: пришёл 204 сверху, остались 302, 303, 304.
-        $this->assertEqualsCanonicalizing([204, 302, 303, 304], $next[3]);
+        $this->assertSame([204, 302, 303, 304], $next[3]);
     }
 
     public function test_movements_two_courts(): void
@@ -247,8 +234,9 @@ class EscaleraServiceTest extends TestCase
 
         $next = app(EscaleraService::class)->planMovements($rankings);
 
-        $this->assertEqualsCanonicalizing([101, 102, 103, 201], $next[1]);
-        $this->assertEqualsCanonicalizing([104, 202, 203, 204], $next[2]);
+        // Порядок — по возрастанию общей позиции прошлого раунда (см. пояснение выше).
+        $this->assertSame([101, 102, 103, 201], $next[1]);
+        $this->assertSame([104, 202, 203, 204], $next[2]);
     }
 
     public function test_every_court_keeps_four_players(): void

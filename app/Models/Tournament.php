@@ -144,7 +144,7 @@ class Tournament extends Model
 		'chat_enabled',
 		'chat_write_mode',
 		'escalera_match_points',
-		'escalera_rank_mode',
+		'escalera_standings_mode',
     ];
 
     protected $casts = [

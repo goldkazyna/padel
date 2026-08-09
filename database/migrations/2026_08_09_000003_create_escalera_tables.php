@@ -15,6 +15,9 @@ return new class extends Migration
             $table->foreignId('tournament_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->integer('total_points')->default(0);
+            // Сумма очков за все короткие матчи турнира — нужна для режима
+            // итоговой таблицы escalera_standings_mode = 'raw_points'.
+            $table->integer('total_raw_points')->default(0);
             $table->unsignedSmallInteger('start_court')->nullable();
             $table->unsignedSmallInteger('current_court')->nullable();
             $table->integer('wins')->default(0);

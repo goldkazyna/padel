@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\EscaleraRoundCourt;
+use App\Models\User;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Логика формата «Эскалера».
@@ -35,7 +38,13 @@ class EscaleraService
      */
     public function matchLineup(array $seating): array
     {
-        [$p1, $p2, $p3, $p4] = $seating;
+        if (count($seating) !== 4) {
+            throw new InvalidArgumentException(
+                'Посадка должна содержать ровно четыре id игроков, получено: ' . count($seating)
+            );
+        }
+
+        [$p1, $p2, $p3, $p4] = array_values($seating);
 
         return [
             [[$p1, $p4], [$p2, $p3]],
@@ -48,22 +57,24 @@ class EscaleraService
      * Ранжировать четвёрку на корте. Возвращает id игроков в порядке мест
      * с первого по четвёртое.
      *
-     * Режим 'points' — по сумме очков за три матча.
-     * Режим 'wins' — по числу побед, затем по очкам, затем по личной встрече.
-     * Полное равенство решается рейтингом.
+     * Ранжирование всегда по сумме очков за три матча — второй режим (по
+     * числу побед) убран: математически он тождественен первому, потому что
+     * внутри четвёрки любые двое ровно в одном матче партнёры (одинаковый
+     * счёт) и ровно в двух — соперники, а значит больше побед всегда
+     * означает больше очков. Полное равенство решается рейтингом.
      *
      * @return array<int, int>
      */
-    public function rankCourt(EscaleraRoundCourt $court, string $mode): array
+    public function rankCourt(EscaleraRoundCourt $court): array
     {
         $ids = $court->playerIds();
         $stats = [];
         foreach ($ids as $id) {
-            $stats[$id] = ['points' => 0, 'wins' => 0, 'rating' => 0];
+            $stats[$id] = ['points' => 0, 'rating' => 0];
         }
 
         // Рейтинги нужны как последний разделитель при полном равенстве.
-        $ratings = \App\Models\User::whereIn('id', $ids)->pluck('rating', 'id');
+        $ratings = User::whereIn('id', $ids)->pluck('rating', 'id');
         foreach ($ids as $id) {
             $stats[$id]['rating'] = (int) ($ratings[$id] ?? 0);
         }
@@ -76,30 +87,15 @@ class EscaleraService
 
             foreach ($team1 as $id) {
                 $stats[$id]['points'] += $s1;
-                if ($s1 > $s2) $stats[$id]['wins']++;
             }
             foreach ($team2 as $id) {
                 $stats[$id]['points'] += $s2;
-                if ($s2 > $s1) $stats[$id]['wins']++;
             }
         }
 
         $order = $ids;
-        usort($order, function ($a, $b) use ($stats, $mode, $court) {
-            if ($mode === 'wins') {
-                // Сначала победы, затем сумма очков.
-                if ($stats[$a]['wins'] !== $stats[$b]['wins']) {
-                    return $stats[$b]['wins'] <=> $stats[$a]['wins'];
-                }
-                if ($stats[$a]['points'] !== $stats[$b]['points']) {
-                    return $stats[$b]['points'] <=> $stats[$a]['points'];
-                }
-                // Личная встреча: очки в тех матчах, где эти двое были соперниками.
-                $h2h = $this->headToHead($court, $a, $b);
-                if ($h2h !== 0) {
-                    return $h2h;
-                }
-            } elseif ($stats[$a]['points'] !== $stats[$b]['points']) {
+        usort($order, function ($a, $b) use ($stats) {
+            if ($stats[$a]['points'] !== $stats[$b]['points']) {
                 return $stats[$b]['points'] <=> $stats[$a]['points'];
             }
 
@@ -108,37 +104,6 @@ class EscaleraService
         });
 
         return $order;
-    }
-
-    /**
-     * Личная встреча: сравнение по сумме очков в матчах, где игроки были
-     * соперниками. Возвращает результат сравнения для usort (0 — равенство).
-     */
-    private function headToHead(EscaleraRoundCourt $court, int $a, int $b): int
-    {
-        $scoreA = 0;
-        $scoreB = 0;
-
-        foreach ($court->matches as $match) {
-            $team1 = [$match->team1_player1_id, $match->team1_player2_id];
-            $team2 = [$match->team2_player1_id, $match->team2_player2_id];
-
-            $aIn1 = in_array($a, $team1, true);
-            $bIn1 = in_array($b, $team1, true);
-            $aIn2 = in_array($a, $team2, true);
-            $bIn2 = in_array($b, $team2, true);
-
-            // Интересуют только матчи, где они по разные стороны сетки.
-            if ($aIn1 && $bIn2) {
-                $scoreA += (int) $match->team1_score;
-                $scoreB += (int) $match->team2_score;
-            } elseif ($aIn2 && $bIn1) {
-                $scoreA += (int) $match->team2_score;
-                $scoreB += (int) $match->team1_score;
-            }
-        }
-
-        return $scoreB <=> $scoreA;
     }
 
     /**
@@ -151,6 +116,10 @@ class EscaleraService
      */
     public function planMovements(array $courtRankings): array
     {
+        if (empty($courtRankings)) {
+            throw new InvalidArgumentException('Нет ни одного корта для расчёта перемещений');
+        }
+
         ksort($courtRankings);
         $courts = array_keys($courtRankings);
         $top = min($courts);
@@ -186,7 +155,7 @@ class EscaleraService
         // Целостность: после всех перемещений на каждом корте ровно четверо.
         foreach ($next as $court => $players) {
             if (count($players) !== 4) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     "После перемещений на корте {$court} оказалось " . count($players) . " игроков вместо четырёх"
                 );
             }

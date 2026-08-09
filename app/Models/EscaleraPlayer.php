@@ -17,6 +17,7 @@ class EscaleraPlayer extends Model
         'tournament_id',
         'user_id',
         'total_points',
+        'total_raw_points',
         'start_court',
         'current_court',
         'wins',
