@@ -232,6 +232,21 @@
             border-color: #ef4444;
             color: #ef4444;
         }
+
+        /* Конец смены — действие завершения, а не тревожный выход, поэтому
+           акцент зелёный. Текст в одну строку: кнопка узкая. */
+        .btn-close-shift {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        .btn-close-shift:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #000;
+        }
         
         /* ===== MAIN CONTENT ===== */
         .main-content {
@@ -961,14 +976,8 @@
 					@php($openShift = $modClub
 						? app(\App\Services\ShiftService::class)->currentShift($modClub, auth()->user())
 						: null)
-					@if($openShift)
-					<li class="nav-item">
-						<a href="{{ route('club.shift.closing') }}" class="nav-link {{ request()->routeIs('club.shift.closing') ? 'active' : '' }}">
-							<i class="bi bi-box-arrow-right"></i>
-							<span>Закрыть смену</span>
-						</a>
-					</li>
-					@endif
+					{{-- Закрытие смены живёт кнопкой внизу сайдбара, на месте
+					     привычного «Выйти» — дублировать его в меню незачем. --}}
 					<li class="nav-section-title">Работа клуба</li>
 					@if(!$modClub || $modClub->hasFeature('courts'))
 					<li class="nav-item">
@@ -1225,6 +1234,8 @@
                     <div class="user-role">
                         @if(auth()->user()->isSuperAdmin()) Супер-админ
                         @elseif(auth()->user()->isClubAdmin()) Админ клуба
+                        @elseif(auth()->user()->isClubModerator()) Менеджер
+                        @elseif(auth()->user()->isCoach()) Тренер
                         @else Игрок @endif
                     </div>
                 </div>
@@ -1246,9 +1257,9 @@
             {{-- У менеджера с открытой сменой выход идёт через чек-лист
                  закрытия — сам logout туда же и перенаправит. --}}
             @if(isset($openShift) && $openShift)
-                <a href="{{ route('club.shift.closing') }}" class="btn-logout">
+                <a href="{{ route('club.shift.closing') }}" class="btn-logout btn-close-shift">
                     <i class="bi bi-box-arrow-left"></i>
-                    <span>Закрыть смену и выйти</span>
+                    <span>Закрыть смену</span>
                 </a>
             @else
                 <form action="{{ route('logout') }}" method="POST">
