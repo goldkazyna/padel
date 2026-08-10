@@ -155,6 +155,24 @@ class ShiftChecklistTest extends TestCase
         $this->assertNotNull($this->service()->currentShift($club, $colleague));
     }
 
+    public function test_night_shift_is_not_treated_as_forgotten(): void
+    {
+        // Смена, открытая ночью по Алматы, в UTC попадает на вчерашнюю дату.
+        // Считать её забытой нельзя — менеджер только что вышел на работу.
+        $club = $this->makeClub();
+        $manager = $this->makeManager($club);
+
+        $this->travelTo(now()->setDate(2026, 8, 11)->setTime(5, 0)); // 10:00 в Алматы
+
+        $shift = Shift::create([
+            'club_id' => $club->id,
+            'user_id' => $manager->id,
+            'opened_at' => '2026-08-10 21:00:00', // 02:00 11 августа по Алматы
+        ]);
+
+        $this->assertFalse($shift->isStale(), 'ночная смена того же дня забытой не считается');
+    }
+
     public function test_stale_shift_from_yesterday_is_detected(): void
     {
         $club = $this->makeClub();

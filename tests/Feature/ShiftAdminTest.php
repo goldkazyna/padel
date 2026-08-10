@@ -66,6 +66,28 @@ class ShiftAdminTest extends TestCase
         $this->assertFalse($club->fresh()->hasFeature('shifts'));
     }
 
+    public function test_journal_shows_almaty_time(): void
+    {
+        // opened_at пишется в UTC, а клуб живёт по Алматы (+5): без перевода
+        // админ видит смену на пять часов раньше, чем она была.
+        [$club, $admin] = $this->makeClubAdmin();
+        $manager = User::factory()->create(['role' => 'club_moderator', 'name' => 'Марьяна']);
+        $manager->moderatorClubs()->attach($club->id);
+
+        Shift::create([
+            'club_id' => $club->id,
+            'user_id' => $manager->id,
+            'opened_at' => '2026-08-10 04:14:00',
+            'closed_at' => '2026-08-10 15:30:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.shifts.index'))
+            ->assertOk()
+            ->assertSee('09:14')
+            ->assertSee('20:30');
+    }
+
     public function test_admin_adds_item(): void
     {
         [$club, $admin] = $this->makeClubAdmin();

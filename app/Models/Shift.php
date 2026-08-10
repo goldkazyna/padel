@@ -13,6 +13,9 @@ class Shift extends Model
 {
     use HasFactory;
 
+    /** Часовой пояс клуба — в нём смены показываются людям. */
+    public const TZ = 'Asia/Almaty';
+
     protected $fillable = [
         'club_id',
         'user_id',
@@ -40,15 +43,35 @@ class Shift extends Model
         return $this->hasMany(ShiftChecklistResult::class);
     }
 
+    /**
+     * Время клуба, а не сервера: смены пишутся в UTC, а живёт клуб по
+     * Алматы (+5). Без перевода админ видит смену на пять часов раньше.
+     */
+    public function openedAtLocal(): \Illuminate\Support\Carbon
+    {
+        return $this->opened_at->timezone(self::TZ);
+    }
+
+    public function closedAtLocal(): ?\Illuminate\Support\Carbon
+    {
+        return $this->closed_at?->timezone(self::TZ);
+    }
+
     public function isOpen(): bool
     {
         return $this->closed_at === null;
     }
 
-    /** Смена открыта не сегодня — менеджер забыл её закрыть. */
+    /**
+     * Смена открыта не сегодня — менеджер забыл её закрыть.
+     *
+     * Считаем по дате клуба: ночная смена в UTC попадает на вчера, забытой
+     * она от этого не становится.
+     */
     public function isStale(): bool
     {
-        return $this->isOpen() && !$this->opened_at->isToday();
+        return $this->isOpen()
+            && !$this->openedAtLocal()->isSameDay(now(self::TZ));
     }
 
     /** Сколько длилась смена, в минутах. Для журнала админа. */

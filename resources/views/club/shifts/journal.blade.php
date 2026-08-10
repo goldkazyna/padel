@@ -27,7 +27,7 @@
             <div class="jr-comment">
                 <div class="jr-comment-head">
                     <span class="jr-who">{{ $c->shift?->user?->name ?? '—' }}</span>
-                    <span class="jr-when">{{ $c->created_at->format('d.m.Y, H:i') }}</span>
+                    <span class="jr-when">{{ $c->created_at->timezone(\App\Models\Shift::TZ)->format('d.m.Y, H:i') }}</span>
                     <span class="jr-type">{{ $c->type === 'opening' ? 'открытие' : 'закрытие' }}</span>
                 </div>
                 <div class="jr-item-title">{{ $c->title_snapshot }}</div>
@@ -65,10 +65,10 @@
                     @endphp
                     <tr>
                         <td>{{ $shift->user?->name ?? '—' }}</td>
-                        <td>{{ $shift->opened_at->format('d.m.Y, H:i') }}</td>
+                        <td>{{ $shift->openedAtLocal()->format('d.m.Y, H:i') }}</td>
                         <td>
                             @if($shift->closed_at)
-                                {{ $shift->closed_at->format('d.m.Y, H:i') }}
+                                {{ $shift->closedAtLocal()->format('d.m.Y, H:i') }}
                             @else
                                 <span class="jr-open">смена идёт</span>
                             @endif

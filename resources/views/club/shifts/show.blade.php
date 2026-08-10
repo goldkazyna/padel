@@ -5,12 +5,12 @@
 @section('content')
 <div class="page-header">
     <div>
-        <h2>Смена {{ $shift->opened_at->format('d.m.Y') }}</h2>
+        <h2>Смена {{ $shift->openedAtLocal()->format('d.m.Y') }}</h2>
         <p>
             {{ $shift->user?->name ?? '—' }} ·
-            {{ $shift->opened_at->format('H:i') }}
+            {{ $shift->openedAtLocal()->format('H:i') }}
             @if($shift->closed_at)
-                — {{ $shift->closed_at->format('H:i') }}
+                — {{ $shift->closedAtLocal()->format('H:i') }}
                 @php $m = $shift->durationMinutes(); @endphp
                 ({{ intdiv($m, 60) }} ч {{ $m % 60 }} мин)
             @else
