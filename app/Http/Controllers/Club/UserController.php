@@ -147,8 +147,48 @@ class UserController extends Controller
             ")
             ->first();
 
+        // Панель выгрузки (только супер-админ): считаем, сколько попадёт в
+        // файл, чтобы не выгружать вслепую. Фильтры выгрузки живут в своих
+        // параметрах (levels[], played) и основной список не трогают.
+        $exportFilters = $this->exportFilters($request);
+        $exportCount = null;
+        if ($isSuper && ($request->has('levels') || $request->filled('played'))) {
+            $exportCount = app(\App\Reports\UsersReportService::class)->count($exportFilters);
+        }
+
         $clubCity = $club ? $club->city : null;
-        return view('club.users.index', compact('users', 'levelStats', 'clubCity', 'ratingLocks', 'isSuper'));
+        return view('club.users.index', compact(
+            'users', 'levelStats', 'clubCity', 'ratingLocks', 'isSuper',
+            'exportFilters', 'exportCount'
+        ));
+    }
+
+    /**
+     * Выгрузка выборки игроков в Excel. Только супер-админ: в файле
+     * телефоны, а клубный админ их не видит и на самой странице.
+     */
+    public function export(Request $request)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $filters = $this->exportFilters($request);
+        $sheet = app(\App\Reports\UsersReportService::class)->sheet($filters);
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\GenericSheetExport($sheet),
+            'igroki_' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
+
+    /** Разбор фильтров выгрузки — общий для страницы и для файла. */
+    private function exportFilters(Request $request): array
+    {
+        $played = $request->get('played');
+
+        return [
+            'levels' => array_map('intval', (array) $request->get('levels', [])),
+            'played' => in_array($played, ['yes', 'no'], true) ? $played : null,
+        ];
     }
 
     public function update(Request $request, User $user)

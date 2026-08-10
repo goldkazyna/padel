@@ -128,6 +128,136 @@
         @endforeach
     </div>
 
+    {{-- Выгрузка в Excel: только супер-админ, в файле телефоны игроков --}}
+    @if($isSuper)
+        @php
+            $selLevels = $exportFilters['levels'] ?? [];
+            $selPlayed = $exportFilters['played'] ?? null;
+        @endphp
+        <form method="GET" action="{{ route('club.users.index') }}" class="exp">
+            <div class="exp-head">
+                <div>
+                    <div class="exp-title">Выгрузка в Excel</div>
+                    <div class="exp-sub">Отберите уровни и участие в турнирах, затем скачайте таблицу</div>
+                </div>
+                @if($exportCount !== null)
+                    <div class="exp-found">
+                        <b>{{ $exportCount }}</b>
+                        <span>подходит</span>
+                    </div>
+                @endif
+            </div>
+
+            <div class="exp-row">
+                <span class="exp-label">Уровни</span>
+                <div class="exp-levels">
+                    @foreach([1, 2, 3, 4, 5] as $lvl)
+                        <label class="exp-chip {{ in_array($lvl, $selLevels, true) ? 'on' : '' }}">
+                            <input type="checkbox" name="levels[]" value="{{ $lvl }}"
+                                   {{ in_array($lvl, $selLevels, true) ? 'checked' : '' }}>
+                            {{ $lvl }} — {{ $lvl }}.75
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="exp-row">
+                <span class="exp-label">Турниры</span>
+                <div class="exp-levels">
+                    @foreach([
+                        ['', 'Неважно'],
+                        ['yes', 'Играл хотя бы в одном'],
+                        ['no', 'Ни разу не играл'],
+                    ] as [$val, $text])
+                        <label class="exp-chip {{ (string) $selPlayed === $val ? 'on' : '' }}">
+                            <input type="radio" name="played" value="{{ $val }}"
+                                   {{ (string) $selPlayed === $val ? 'checked' : '' }}>
+                            {{ $text }}
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="exp-actions">
+                <button type="submit" class="exp-btn-ghost">Посчитать</button>
+                <button type="submit" formaction="{{ route('club.users.export') }}" class="exp-btn">
+                    ⬇ Выгрузить в Excel
+                </button>
+                <span class="exp-hint">В файле: имя, телефон, город, уровень, рейтинг, сыгранные турниры</span>
+            </div>
+        </form>
+
+        <style>
+        .exp {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+        }
+        .exp-head {
+            display: flex; align-items: flex-start; gap: 16px;
+            padding-bottom: 16px; margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .exp-title { color: var(--text-primary); font-weight: 700; font-size: 1.05rem; }
+        .exp-sub { color: var(--text-secondary); font-size: .87rem; margin-top: 3px; }
+        .exp-found {
+            margin-left: auto; text-align: center; flex-shrink: 0;
+            background: var(--accent-glow); border-radius: 12px;
+            padding: 8px 18px;
+        }
+        .exp-found b { display: block; color: var(--accent); font-size: 1.35rem; line-height: 1.1; }
+        .exp-found span { color: var(--text-secondary); font-size: .76rem; }
+        .exp-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+        .exp-label {
+            width: 72px; flex-shrink: 0;
+            color: var(--text-secondary); font-size: .82rem;
+            text-transform: uppercase; letter-spacing: .06em;
+        }
+        .exp-levels { display: flex; gap: 8px; flex-wrap: wrap; }
+        .exp-chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 8px 14px;
+            color: var(--text-secondary);
+            font-size: .88rem;
+            cursor: pointer;
+            user-select: none;
+            transition: all .15s;
+        }
+        .exp-chip:hover { border-color: var(--border-light); }
+        .exp-chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+        .exp-chip input { accent-color: var(--accent); cursor: pointer; }
+        .exp-actions {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            margin-top: 18px; padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .exp-btn {
+            background: var(--accent); color: #000;
+            border: none; border-radius: 10px;
+            padding: 11px 22px;
+            font-size: .93rem; font-weight: 600;
+            cursor: pointer;
+        }
+        .exp-btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 11px 20px;
+            font-size: .93rem; cursor: pointer;
+        }
+        .exp-btn-ghost:hover { color: var(--text-primary); border-color: var(--border-light); }
+        .exp-hint { color: var(--text-secondary); font-size: .8rem; margin-left: auto; }
+        @media (max-width: 760px) {
+            .exp-label { width: 100%; }
+            .exp-hint { margin-left: 0; }
+        }
+        </style>
+    @endif
+
     <!-- Table -->
     <div class="users-table-wrap">
         <table class="users-table">

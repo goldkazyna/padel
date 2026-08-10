@@ -300,6 +300,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         // Пользователи
         Route::middleware('club.feature:users')->group(function () {
             Route::get('/users', [App\Http\Controllers\Club\UserController::class, 'index'])->name('users.index');
+            // Выгрузка выборки игроков — доступ проверяется в контроллере
+            // (только супер-админ: в файле телефоны).
+            Route::get('/users/export', [App\Http\Controllers\Club\UserController::class, 'export'])->name('users.export');
             Route::put('/users/{user}', [App\Http\Controllers\Club\UserController::class, 'update'])->name('users.update');
         });
 
