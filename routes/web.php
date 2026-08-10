@@ -206,7 +206,14 @@ Route::middleware('auth')->group(function () {
     | Админ клуба (club_admin, super_admin)
     |--------------------------------------------------------------------------
     */
-    Route::middleware('role:club_admin,club_moderator,super_admin')->prefix('club')->name('club.')->group(function () {
+    Route::middleware(['role:club_admin,club_moderator,super_admin', 'shift.open'])->prefix('club')->name('club.')->group(function () {
+
+        // Чек-листы смены менеджера. Сам middleware их пропускает — на них
+        // он и перенаправляет, когда смена не открыта.
+        Route::get('/shift/opening', [App\Http\Controllers\Club\ShiftController::class, 'opening'])->name('shift.opening');
+        Route::post('/shift/open', [App\Http\Controllers\Club\ShiftController::class, 'open'])->name('shift.open');
+        Route::get('/shift/closing', [App\Http\Controllers\Club\ShiftController::class, 'closing'])->name('shift.closing');
+        Route::post('/shift/close', [App\Http\Controllers\Club\ShiftController::class, 'close'])->name('shift.close');
 
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');

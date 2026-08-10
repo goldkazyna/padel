@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
 			'role' => \App\Http\Middleware\RoleMiddleware::class,
 			'telegram.miniapp' => \App\Http\Middleware\TelegramMiniAppAuth::class,
 			'club.feature' => \App\Http\Middleware\CheckClubFeature::class,
+			'shift.open' => \App\Http\Middleware\RequireOpenShift::class,
 		]);
 	})
     ->withExceptions(function (Exceptions $exceptions): void {
