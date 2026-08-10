@@ -34,6 +34,19 @@ class ShiftChecklistTest extends TestCase
         ]);
     }
 
+    /** Клуб с настроенным ботом — иначе уведомления молча не уходят. */
+    private function makeClubWithBot(): Club
+    {
+        $club = $this->makeClub();
+        $club->update([
+            'telegram_notify_enabled' => true,
+            'telegram_bot_token' => 'test-token',
+            'telegram_chat_ids' => '-100500',
+        ]);
+
+        return $club->fresh();
+    }
+
     private function makeManager(Club $club): User
     {
         $user = User::factory()->create(['role' => 'club_moderator']);
@@ -137,6 +150,69 @@ class ShiftChecklistTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->service()->close($shift->fresh(), []);
+    }
+
+    // ===== Уведомления в Telegram =====
+
+    public function test_opening_shift_notifies_telegram_with_comments(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $club = $this->makeClubWithBot();
+        $manager = $this->makeManager($club);
+        $manager->update(['name' => 'Марьяна']);
+        [$water, $courts] = $this->makeItems($club, 'opening', ['Проверить воду', 'Осмотреть корты']);
+
+        $this->service()->open($club, $manager, [
+            $water->id => ['done' => true, 'comment' => 'осталось 12 бутылок'],
+            $courts->id => ['done' => true, 'comment' => ''],
+        ]);
+
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            $text = $request['text'] ?? '';
+
+            return str_contains($request->url(), 'sendMessage')
+                && str_contains($text, 'Смена открыта')
+                && str_contains($text, 'Марьяна')
+                // Замечание — главное, ради чего админ читает уведомление.
+                && str_contains($text, 'осталось 12 бутылок')
+                && str_contains($text, 'Проверить воду');
+        });
+    }
+
+    public function test_closing_shift_notifies_telegram_with_duration(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $club = $this->makeClubWithBot();
+        $manager = $this->makeManager($club);
+        [$open] = $this->makeItems($club, 'opening', ['Корты']);
+        [$close] = $this->makeItems($club, 'closing', ['Выключить свет']);
+
+        $shift = $this->service()->open($club, $manager, [$open->id => ['done' => true]]);
+        $shift->update(['opened_at' => now()->subHours(3)->subMinutes(20)]);
+
+        $this->service()->close($shift->fresh(), [$close->id => ['done' => true]]);
+
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            $text = $request['text'] ?? '';
+
+            return str_contains($text, 'Смена закрыта')
+                && str_contains($text, '3 ч 20 мин');
+        });
+    }
+
+    public function test_club_without_bot_sends_nothing(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $club = $this->makeClub();
+        $manager = $this->makeManager($club);
+        [$item] = $this->makeItems($club, 'opening', ['Корты']);
+
+        $this->service()->open($club, $manager, [$item->id => ['done' => true]]);
+
+        \Illuminate\Support\Facades\Http::assertNothingSent();
     }
 
     // ===== Состояние менеджера =====

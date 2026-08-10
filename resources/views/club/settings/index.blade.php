@@ -114,18 +114,18 @@
             </div>
         </div>
 
-        {{-- Telegram-уведомления о бронях --}}
+        {{-- Telegram-уведомления клуба --}}
         <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a">
-            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Telegram-уведомления о бронях</div>
-            <div class="form-hint" style="margin-bottom:14px">Бот присылает уведомление, когда игрок бронирует корт или отменяет бронь в приложении. В сообщении — имя, телефон и ID игрока.</div>
+            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Telegram-уведомления клуба</div>
+            <div class="form-hint" style="margin-bottom:14px">Бот присылает уведомление, когда игрок бронирует или отменяет корт в приложении, а также когда менеджер открывает и закрывает смену. Замечания из чек-листа приходят прямо в сообщении.</div>
 
             <label class="settings-toggle-row">
                 <input type="hidden" name="telegram_notify_enabled" value="0">
                 <input type="checkbox" name="telegram_notify_enabled" value="1"
                        {{ old('telegram_notify_enabled', $club->telegram_notify_enabled) ? 'checked' : '' }}>
                 <span class="settings-toggle-text">
-                    <span class="settings-toggle-title">Включить уведомления о бронях</span>
-                    <small class="form-hint">Присылать в Telegram при новой брони и отмене (обычной и по клубной карте).</small>
+                    <span class="settings-toggle-title">Включить уведомления</span>
+                    <small class="form-hint">Брони и отмены (в том числе по клубной карте), открытие и закрытие смен.</small>
                 </span>
             </label>
 

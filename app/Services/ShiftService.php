@@ -7,6 +7,7 @@ use App\Models\Shift;
 use App\Models\ShiftChecklistItem;
 use App\Models\ShiftChecklistResult;
 use App\Models\User;
+use App\Services\ClubTelegramNotifier;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -60,7 +61,7 @@ class ShiftService
         $items = ShiftChecklistItem::forChecklist($club->id, 'opening')->get();
         $this->assertAllChecked($items, $marks);
 
-        return DB::transaction(function () use ($club, $user, $items, $marks) {
+        $shift = DB::transaction(function () use ($club, $user, $items, $marks) {
             $shift = Shift::create([
                 'club_id' => $club->id,
                 'user_id' => $user->id,
@@ -71,6 +72,10 @@ class ShiftService
 
             return $shift;
         });
+
+        $this->notify($shift, $club, $user, 'opening');
+
+        return $shift;
     }
 
     /**
@@ -93,6 +98,54 @@ class ShiftService
             $this->saveResults($shift, $items, $marks, 'closing');
             $shift->update(['closed_at' => now()]);
         });
+
+        $shift->loadMissing(['club', 'user']);
+        $this->notify($shift, $shift->club, $shift->user, 'closing');
+    }
+
+    /**
+     * Сообщить клубу в Telegram, что смена открылась или закрылась.
+     *
+     * Замечания идут прямо в сообщение: ради них админ журнал и открывает,
+     * а так узнает о проблеме сразу, никуда не заходя.
+     */
+    private function notify(Shift $shift, ?Club $club, ?User $user, string $type): void
+    {
+        if (!$club || !$club->telegramNotifyReady()) {
+            return;
+        }
+
+        $isOpening = $type === 'opening';
+        $rows = $shift->results()->where('type', $type)->get();
+        $done = $rows->where('is_done', true)->count();
+
+        $lines = [
+            $isOpening ? '🌅 <b>Смена открыта</b>' : '🌙 <b>Смена закрыта</b>',
+            e($club->name),
+            'Менеджер: ' . e($user?->name ?? '—'),
+        ];
+
+        if ($isOpening) {
+            $lines[] = 'Время: ' . $shift->openedAtLocal()->format('d.m.Y, H:i');
+        } else {
+            $minutes = (int) ($shift->durationMinutes() ?? 0);
+            $lines[] = 'Смена: ' . $shift->openedAtLocal()->format('H:i')
+                . ' — ' . $shift->closedAtLocal()?->format('H:i')
+                . ' (' . intdiv($minutes, 60) . ' ч ' . $minutes % 60 . ' мин)';
+        }
+
+        $lines[] = 'Чек-лист: ' . $done . ' из ' . $rows->count();
+
+        $withComment = $rows->filter(fn ($r) => filled($r->comment));
+        if ($withComment->isNotEmpty()) {
+            $lines[] = '';
+            $lines[] = '⚠️ <b>Замечания:</b>';
+            foreach ($withComment as $row) {
+                $lines[] = '• ' . e($row->title_snapshot) . ' — ' . e($row->comment);
+            }
+        }
+
+        ClubTelegramNotifier::send($club, implode("\n", $lines));
     }
 
     /**
