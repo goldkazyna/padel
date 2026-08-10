@@ -131,8 +131,14 @@
     {{-- Выгрузка в Excel: только супер-админ, в файле телефоны игроков --}}
     @if($isSuper)
         @php
-            $selLevels = $exportFilters['levels'] ?? [];
+            $selFrom = $exportFilters['level_from'] ?? null;
+            $selTo = $exportFilters['level_to'] ?? null;
             $selPlayed = $exportFilters['played'] ?? null;
+            // Шаг 0.25 — тот же, что у уровней игроков.
+            $levelSteps = [];
+            for ($l = 1.0; $l <= 5.75; $l += 0.25) {
+                $levelSteps[] = number_format($l, 2, '.', '');
+            }
         @endphp
         <form method="GET" action="{{ route('club.users.index') }}" class="exp">
             <div class="exp-head">
@@ -149,15 +155,28 @@
             </div>
 
             <div class="exp-row">
-                <span class="exp-label">Уровни</span>
-                <div class="exp-levels">
-                    @foreach([1, 2, 3, 4, 5] as $lvl)
-                        <label class="exp-chip {{ in_array($lvl, $selLevels, true) ? 'on' : '' }}">
-                            <input type="checkbox" name="levels[]" value="{{ $lvl }}"
-                                   {{ in_array($lvl, $selLevels, true) ? 'checked' : '' }}>
-                            {{ $lvl }} — {{ $lvl }}.75
-                        </label>
-                    @endforeach
+                <span class="exp-label">Уровень</span>
+                <div class="exp-range">
+                    <select name="level_from" class="exp-select">
+                        <option value="">от любого</option>
+                        @foreach($levelSteps as $step)
+                            <option value="{{ $step }}"
+                                {{ $selFrom !== null && (float) $selFrom === (float) $step ? 'selected' : '' }}>
+                                от {{ rtrim(rtrim($step, '0'), '.') }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="exp-dash">—</span>
+                    <select name="level_to" class="exp-select">
+                        <option value="">до любого</option>
+                        @foreach($levelSteps as $step)
+                            <option value="{{ $step }}"
+                                {{ $selTo !== null && (float) $selTo === (float) $step ? 'selected' : '' }}>
+                                до {{ rtrim(rtrim($step, '0'), '.') }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <span class="exp-note">границы включаются</span>
                 </div>
             </div>
 
@@ -216,6 +235,20 @@
             text-transform: uppercase; letter-spacing: .06em;
         }
         .exp-levels { display: flex; gap: 8px; flex-wrap: wrap; }
+        .exp-range { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .exp-select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 9px 14px;
+            color: var(--text-primary);
+            font-size: .9rem;
+            cursor: pointer;
+            min-width: 130px;
+        }
+        .exp-select:focus { outline: none; border-color: var(--accent); }
+        .exp-dash { color: var(--text-secondary); }
+        .exp-note { color: var(--text-secondary); font-size: .8rem; }
         .exp-chip {
             display: inline-flex; align-items: center; gap: 7px;
             background: var(--bg-primary);

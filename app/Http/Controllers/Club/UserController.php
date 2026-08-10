@@ -152,7 +152,8 @@ class UserController extends Controller
         // параметрах (levels[], played) и основной список не трогают.
         $exportFilters = $this->exportFilters($request);
         $exportCount = null;
-        if ($isSuper && ($request->has('levels') || $request->filled('played'))) {
+        if ($isSuper && ($request->filled('level_from') || $request->filled('level_to')
+            || $request->filled('played'))) {
             $exportCount = app(\App\Reports\UsersReportService::class)->count($exportFilters);
         }
 
@@ -186,7 +187,8 @@ class UserController extends Controller
         $played = $request->get('played');
 
         return [
-            'levels' => array_map('intval', (array) $request->get('levels', [])),
+            'level_from' => $request->filled('level_from') ? (float) $request->get('level_from') : null,
+            'level_to' => $request->filled('level_to') ? (float) $request->get('level_to') : null,
             'played' => in_array($played, ['yes', 'no'], true) ? $played : null,
         ];
     }

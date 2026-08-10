@@ -109,15 +109,49 @@ class UsersExportTest extends TestCase
 
     // ===== Фильтр по уровням =====
 
-    public function test_levels_filter_takes_whole_quarter_ranges(): void
+    public function test_level_range_includes_both_ends(): void
     {
-        $this->makePlayer('Второй уровень', 2.5);
-        $this->makePlayer('Третий уровень', 3.0);
-        $this->makePlayer('Четвёртый уровень', 4.25);
+        $this->makePlayer('Ниже', 1.25);
+        $this->makePlayer('Ровно снизу', 1.5);
+        $this->makePlayer('Внутри', 2.0);
+        $this->makePlayer('Ровно сверху', 2.5);
+        $this->makePlayer('Выше', 2.75);
 
-        $names = $this->service()->query(['levels' => [2, 4]])->pluck('name')->sort()->values()->all();
+        $names = $this->service()->query(['level_from' => 1.5, 'level_to' => 2.5])
+            ->pluck('name')->sort()->values()->all();
 
-        $this->assertSame(['Второй уровень', 'Четвёртый уровень'], $names);
+        $this->assertSame(['Внутри', 'Ровно сверху', 'Ровно снизу'], $names);
+    }
+
+    public function test_only_lower_bound_works(): void
+    {
+        $this->makePlayer('Слабый', 2.0);
+        $this->makePlayer('Сильный', 4.5);
+
+        $names = $this->service()->query(['level_from' => 3])->pluck('name')->all();
+
+        $this->assertSame(['Сильный'], $names);
+    }
+
+    public function test_only_upper_bound_works(): void
+    {
+        $this->makePlayer('Слабый', 2.0);
+        $this->makePlayer('Сильный', 4.5);
+
+        $names = $this->service()->query(['level_to' => 3])->pluck('name')->all();
+
+        $this->assertSame(['Слабый'], $names);
+    }
+
+    public function test_reversed_range_is_swapped(): void
+    {
+        // Админ выбрал «от 4 до 2» — это опечатка, а не пустая выборка.
+        $this->makePlayer('Внутри', 3.0);
+        $this->makePlayer('Снаружи', 5.0);
+
+        $names = $this->service()->query(['level_from' => 4, 'level_to' => 2])->pluck('name')->all();
+
+        $this->assertSame(['Внутри'], $names);
     }
 
     public function test_filters_combine(): void
@@ -131,7 +165,9 @@ class UsersExportTest extends TestCase
         $tournament->participants()->attach($match->id, ['status' => 'approved']);
         $tournament->participants()->attach($wrongLevel->id, ['status' => 'approved']);
 
-        $names = $this->service()->query(['levels' => [3], 'played' => 'yes'])->pluck('name')->all();
+        $names = $this->service()->query([
+            'level_from' => 3, 'level_to' => 3.75, 'played' => 'yes',
+        ])->pluck('name')->all();
 
         $this->assertSame(['Подходит'], $names);
     }

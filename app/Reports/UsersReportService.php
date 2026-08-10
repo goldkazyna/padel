@@ -18,20 +18,26 @@ use Illuminate\Support\Facades\DB;
 class UsersReportService
 {
     /**
-     * @param array{levels?: array<int>, played?: string} $filters
+     * @param array{level_from?: float|null, level_to?: float|null, played?: string} $filters
      */
     public function query(array $filters): Builder
     {
         $query = User::human()->orderBy('name');
 
-        $levels = array_filter((array) ($filters['levels'] ?? []), fn ($l) => $l !== '' && $l !== null);
-        if ($levels) {
-            $query->where(function ($q) use ($levels) {
-                foreach ($levels as $level) {
-                    $min = (float) $level;
-                    $q->orWhereBetween('level', [$min, $min + 0.75]);
-                }
-            });
+        $from = $filters['level_from'] ?? null;
+        $to = $filters['level_to'] ?? null;
+
+        // «От 4 до 2» — это опечатка, а не пустая выборка.
+        if ($from !== null && $to !== null && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        // Границы включаются: выбрал 1.5—2.5 — игроки с ровно 1.5 и 2.5 внутри.
+        if ($from !== null) {
+            $query->where('level', '>=', (float) $from);
+        }
+        if ($to !== null) {
+            $query->where('level', '<=', (float) $to);
         }
 
         $played = $filters['played'] ?? null;
