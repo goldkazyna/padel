@@ -165,7 +165,11 @@ Route::get('/consent', function () {
 | Авторизованные пользователи
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+// shift.open — блокировка менеджера без открытой смены. Висит на всей
+// авторизованной зоне, а не только на /club/*: после логина менеджер
+// попадает на общий /dashboard, и на клубных страницах его перехватывать
+// уже поздно — чек-лист он бы просто не увидел.
+Route::middleware(['auth', 'shift.open'])->group(function () {
 	// Профиль игрока
 	Route::get('/players/{player}', [App\Http\Controllers\PlayerController::class, 'show'])->name('players.show');
     /*
@@ -206,7 +210,7 @@ Route::middleware('auth')->group(function () {
     | Админ клуба (club_admin, super_admin)
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['role:club_admin,club_moderator,super_admin', 'shift.open'])->prefix('club')->name('club.')->group(function () {
+    Route::middleware(['role:club_admin,club_moderator,super_admin'])->prefix('club')->name('club.')->group(function () {
 
         // Чек-листы смены менеджера. Сам middleware их пропускает — на них
         // он и перенаправляет, когда смена не открыта.

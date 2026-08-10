@@ -64,6 +64,28 @@ class ShiftGateTest extends TestCase
             ->assertRedirect(route('club.shift.opening'));
     }
 
+    public function test_manager_is_sent_to_checklist_from_common_dashboard(): void
+    {
+        // После логина менеджер попадает на общий /dashboard, а не в раздел
+        // клуба. Если не перехватить здесь, чек-лист он просто не увидит.
+        $club = $this->makeClub();
+        $manager = $this->makeManager($club);
+
+        $this->actingAs($manager)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('club.shift.opening'));
+    }
+
+    public function test_player_is_never_blocked_on_common_pages(): void
+    {
+        $this->makeClub();
+        $player = User::factory()->create(['role' => 'player']);
+
+        $this->actingAs($player)
+            ->get(route('dashboard'))
+            ->assertOk();
+    }
+
     public function test_manager_with_open_shift_works_normally(): void
     {
         $club = $this->makeClub();

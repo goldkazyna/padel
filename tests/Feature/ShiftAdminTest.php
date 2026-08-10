@@ -32,6 +32,40 @@ class ShiftAdminTest extends TestCase
         return [$club, $admin];
     }
 
+    public function test_super_admin_can_disable_shifts_feature(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin']);
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+
+        $this->actingAs($superAdmin)->put(route('admin.clubs.update', $club), [
+            'name' => 'C',
+            'address' => 'A',
+            'features' => ['shifts' => '0'],
+        ])->assertRedirect();
+
+        $this->assertFalse($club->fresh()->hasFeature('shifts'));
+    }
+
+    public function test_saving_club_settings_keeps_shifts_disabled(): void
+    {
+        // Форма шлёт весь набор модулей: выключенный флаг не должен
+        // воскресать при следующем сохранении настроек клуба.
+        $superAdmin = User::factory()->create(['role' => 'super_admin']);
+        $club = Club::create([
+            'name' => 'C',
+            'address' => 'A',
+            'features' => ['shifts' => false],
+        ]);
+
+        $this->actingAs($superAdmin)->put(route('admin.clubs.update', $club), [
+            'name' => 'C',
+            'address' => 'A',
+            'features' => ['shifts' => '0', 'courts' => '1'],
+        ])->assertRedirect();
+
+        $this->assertFalse($club->fresh()->hasFeature('shifts'));
+    }
+
     public function test_admin_adds_item(): void
     {
         [$club, $admin] = $this->makeClubAdmin();
