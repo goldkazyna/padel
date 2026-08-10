@@ -102,6 +102,18 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
+        // У менеджера с открытой сменой «Выйти» — это конец смены: сначала
+        // чек-лист закрытия, разлогинит уже он сам. Иначе смена осталась бы
+        // висеть открытой, а проверка перед уходом не пройденной.
+        $user = $request->user();
+        if ($user && $user->isClubModerator()) {
+            $club = $user->moderatorClubs()->first();
+            if ($club && $club->hasFeature('shifts')
+                && app(\App\Services\ShiftService::class)->currentShift($club, $user)) {
+                return redirect()->route('club.shift.closing');
+            }
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

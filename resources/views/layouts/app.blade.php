@@ -224,8 +224,9 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            text-decoration: none;
         }
-        
+
         .btn-logout:hover {
             background: rgba(239, 68, 68, 0.1);
             border-color: #ef4444;
@@ -1242,13 +1243,22 @@
 					</button>
 				</div>
 			</div>
-            <form action="{{ route('logout') }}" method="POST">
-                @csrf
-                <button type="submit" class="btn-logout">
+            {{-- У менеджера с открытой сменой выход идёт через чек-лист
+                 закрытия — сам logout туда же и перенаправит. --}}
+            @if(isset($openShift) && $openShift)
+                <a href="{{ route('club.shift.closing') }}" class="btn-logout">
                     <i class="bi bi-box-arrow-left"></i>
-                    <span>Выйти</span>
-                </button>
-            </form>
+                    <span>Закрыть смену и выйти</span>
+                </a>
+            @else
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn-logout">
+                        <i class="bi bi-box-arrow-left"></i>
+                        <span>Выйти</span>
+                    </button>
+                </form>
+            @endif
         </div>
     </aside>
     

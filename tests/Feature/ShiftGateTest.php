@@ -101,6 +101,44 @@ class ShiftGateTest extends TestCase
             ->assertOk();
     }
 
+    public function test_logout_sends_manager_to_closing_checklist(): void
+    {
+        // «Выйти» при открытой смене — это и есть конец смены: сначала
+        // чек-лист закрытия, разлогинит уже он сам.
+        $club = $this->makeClub();
+        $manager = $this->makeManager($club);
+        Shift::create([
+            'club_id' => $club->id,
+            'user_id' => $manager->id,
+            'opened_at' => now(),
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('logout'))
+            ->assertRedirect(route('club.shift.closing'));
+
+        $this->assertAuthenticatedAs($manager);
+    }
+
+    public function test_manager_without_shift_logs_out_normally(): void
+    {
+        $club = $this->makeClub();
+        $manager = $this->makeManager($club);
+
+        $this->actingAs($manager)->post(route('logout'))->assertRedirect('/');
+
+        $this->assertGuest('web');
+    }
+
+    public function test_player_logs_out_normally(): void
+    {
+        $player = User::factory()->create(['role' => 'player']);
+
+        $this->actingAs($player)->post(route('logout'))->assertRedirect('/');
+
+        $this->assertGuest('web');
+    }
+
     public function test_checklist_page_itself_is_not_blocked(): void
     {
         $club = $this->makeClub();
