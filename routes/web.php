@@ -206,7 +206,14 @@ Route::middleware('auth')->group(function () {
     | Админ клуба (club_admin, super_admin)
     |--------------------------------------------------------------------------
     */
-    Route::middleware('role:club_admin,club_moderator,super_admin')->prefix('club')->name('club.')->group(function () {
+    Route::middleware(['role:club_admin,club_moderator,super_admin', 'shift.open'])->prefix('club')->name('club.')->group(function () {
+
+        // Чек-листы смены менеджера. Сам middleware их пропускает — на них
+        // он и перенаправляет, когда смена не открыта.
+        Route::get('/shift/opening', [App\Http\Controllers\Club\ShiftController::class, 'opening'])->name('shift.opening');
+        Route::post('/shift/open', [App\Http\Controllers\Club\ShiftController::class, 'open'])->name('shift.open');
+        Route::get('/shift/closing', [App\Http\Controllers\Club\ShiftController::class, 'closing'])->name('shift.closing');
+        Route::post('/shift/close', [App\Http\Controllers\Club\ShiftController::class, 'close'])->name('shift.close');
 
         // Dashboard (всегда доступен)
         Route::get('/dashboard', [DashboardController::class, 'club'])->name('dashboard');
@@ -226,6 +233,18 @@ Route::middleware('auth')->group(function () {
         // (проверка доступа внутри контроллера). Поэтому вне группы только-admin.
         Route::middleware('club.feature:activity_log')->group(function () {
             Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
+        });
+
+        // Чек-листы смены и журнал — только админ клуба.
+        Route::middleware('role:club_admin,super_admin')->group(function () {
+            Route::get('/shift-checklists', [App\Http\Controllers\Club\ShiftChecklistController::class, 'index'])->name('shiftChecklists.index');
+            Route::post('/shift-checklists', [App\Http\Controllers\Club\ShiftChecklistController::class, 'store'])->name('shiftChecklists.store');
+            Route::put('/shift-checklists/{item}', [App\Http\Controllers\Club\ShiftChecklistController::class, 'update'])->name('shiftChecklists.update');
+            Route::delete('/shift-checklists/{item}', [App\Http\Controllers\Club\ShiftChecklistController::class, 'destroy'])->name('shiftChecklists.destroy');
+            Route::post('/shift-checklists/{item}/restore', [App\Http\Controllers\Club\ShiftChecklistController::class, 'restore'])->name('shiftChecklists.restore');
+
+            Route::get('/shifts', [App\Http\Controllers\Club\ShiftJournalController::class, 'index'])->name('shifts.index');
+            Route::get('/shifts/{shift}', [App\Http\Controllers\Club\ShiftJournalController::class, 'show'])->name('shifts.show');
         });
 
         // Управление модераторами (только admin)

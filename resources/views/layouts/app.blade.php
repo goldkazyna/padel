@@ -957,6 +957,17 @@
 
                 @if(auth()->user()->isClubModerator())
 					@php($modClub = auth()->user()->moderatorClubs()->first())
+					@php($openShift = $modClub
+						? app(\App\Services\ShiftService::class)->currentShift($modClub, auth()->user())
+						: null)
+					@if($openShift)
+					<li class="nav-item">
+						<a href="{{ route('club.shift.closing') }}" class="nav-link {{ request()->routeIs('club.shift.closing') ? 'active' : '' }}">
+							<i class="bi bi-box-arrow-right"></i>
+							<span>Закрыть смену</span>
+						</a>
+					</li>
+					@endif
 					<li class="nav-section-title">Работа клуба</li>
 					@if(!$modClub || $modClub->hasFeature('courts'))
 					<li class="nav-item">
@@ -1142,6 +1153,20 @@
 						<a href="{{ route('club.moderators.index') }}" class="nav-link {{ request()->routeIs('club.moderators.*') ? 'active' : '' }}">
 							<i class="bi bi-people"></i>
 							<span>Менеджеры / Модераторы</span>
+						</a>
+					</li>
+					@endif
+					@if(!$navClub || $navClub->hasFeature('shifts'))
+					<li class="nav-item">
+						<a href="{{ route('club.shiftChecklists.index') }}" class="nav-link {{ request()->routeIs('club.shiftChecklists.*') ? 'active' : '' }}">
+							<i class="bi bi-list-check"></i>
+							<span>Чек-листы смены</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.shifts.index') }}" class="nav-link {{ request()->routeIs('club.shifts.*') ? 'active' : '' }}">
+							<i class="bi bi-journal-text"></i>
+							<span>Смены менеджеров</span>
 						</a>
 					</li>
 					@endif
