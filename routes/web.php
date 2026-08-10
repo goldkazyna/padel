@@ -235,6 +235,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/activity-log', [App\Http\Controllers\Club\ActivityLogController::class, 'index'])->name('activityLog');
         });
 
+        // Чек-листы смены и журнал — только админ клуба.
+        Route::middleware('role:club_admin,super_admin')->group(function () {
+            Route::get('/shift-checklists', [App\Http\Controllers\Club\ShiftChecklistController::class, 'index'])->name('shiftChecklists.index');
+            Route::post('/shift-checklists', [App\Http\Controllers\Club\ShiftChecklistController::class, 'store'])->name('shiftChecklists.store');
+            Route::put('/shift-checklists/{item}', [App\Http\Controllers\Club\ShiftChecklistController::class, 'update'])->name('shiftChecklists.update');
+            Route::delete('/shift-checklists/{item}', [App\Http\Controllers\Club\ShiftChecklistController::class, 'destroy'])->name('shiftChecklists.destroy');
+            Route::post('/shift-checklists/{item}/restore', [App\Http\Controllers\Club\ShiftChecklistController::class, 'restore'])->name('shiftChecklists.restore');
+
+            Route::get('/shifts', [App\Http\Controllers\Club\ShiftJournalController::class, 'index'])->name('shifts.index');
+            Route::get('/shifts/{shift}', [App\Http\Controllers\Club\ShiftJournalController::class, 'show'])->name('shifts.show');
+        });
+
         // Управление модераторами (только admin)
         Route::middleware('role:club_admin,super_admin')->group(function () {
             Route::middleware('club.feature:moderators')->group(function () {
