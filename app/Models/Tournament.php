@@ -442,7 +442,7 @@ class Tournament extends Model
 			'americano_flex' => 'Americano Flex',
 			'round_robin' => 'Round Robin',
 			'just_padel_it' => 'Just Padel It',
-			'escalera' => 'Эскалера',
+			'escalera' => 'Ladder',
 			default => $this->type,
 		};
 	}

@@ -13,7 +13,7 @@
 <div class="page-header">
     <div>
         <h2>{{ $tournament->name }}</h2>
-        <p>{{ $tournament->club->name }} · Эскалера</p>
+        <p>{{ $tournament->club->name }} · Ladder</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         @if($tournament->status === 'open')

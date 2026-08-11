@@ -532,7 +532,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::post('/justpadelit/tournament/{tournament}/next-round', [JustPadelItController::class, 'generateNextRound'])
                 ->name('justpadelit.nextRound');
 
-            // Эскалера
+            // Ladder
             Route::get('/escalera/{tournament}/seeding', [App\Http\Controllers\Club\EscaleraController::class, 'seeding'])
                 ->name('escalera.seeding');
             Route::post('/escalera/{tournament}/seeding', [App\Http\Controllers\Club\EscaleraController::class, 'saveSeeding'])

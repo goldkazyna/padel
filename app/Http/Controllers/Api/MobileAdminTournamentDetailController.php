@@ -175,7 +175,7 @@ class MobileAdminTournamentDetailController extends Controller
             unset($validated['courts_count']);
         }
 
-        // Эскалера: участников всегда ровно кортов × 4, как и при создании в вебе.
+        // Ladder: участников всегда ровно кортов × 4, как и при создании в вебе.
         // Присланный приложением max_participants игнорируем — иначе инвариант
         // формата молча ломается и турнир перестаёт стартовать.
         if ($tournament->isEscalera()) {
@@ -636,7 +636,7 @@ class MobileAdminTournamentDetailController extends Controller
         if ($t->type === 'just_padel_it' && ! $t->is_paired) {
             $canStart = $t->status === 'open' && $t->jpiSeedingReady();
         }
-        // Эскалера: играют строго кортов × 4, поэтому кнопка старта появляется
+        // Ladder: играют строго кортов × 4, поэтому кнопка старта появляется
         // только когда набралось ровно столько игроков.
         if ($t->isEscalera()) {
             $canStart = $t->status === 'open' && $taken === (int) $t->courts_count * 4;
@@ -2893,7 +2893,7 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
-     * Ответ мобильной админки для «Эскалеры».
+     * Ответ мобильной админки для «Ladder».
      *
      * Матчи всех кортов раунда идут одним списком: приложение группирует их
      * по court_number, как это делает веб-версия. Обёртка в одну виртуальную

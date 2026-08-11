@@ -49,7 +49,7 @@
 							<option value="round_robin" {{ old('type') === 'round_robin' ? 'selected' : '' }}>Round Robin (индивидуальный)</option>
 							<option value="bali_koc" {{ old('type') === 'bali_koc' ? 'selected' : '' }}>Король Корта (Bali Format)</option>
 							<option value="just_padel_it" {{ old('type') === 'just_padel_it' ? 'selected' : '' }}>Just Padel It</option>
-							<option value="escalera" {{ old('type') === 'escalera' ? 'selected' : '' }}>Эскалера</option>
+							<option value="escalera" {{ old('type') === 'escalera' ? 'selected' : '' }}>Ladder</option>
 						</select>
 					</div>
                     <div class="mb-4">
@@ -479,7 +479,7 @@
 					<div id="escaleraFields" style="display: none;">
 						<div class="alert-info-custom mb-4">
 							<i class="bi bi-info-circle me-2"></i>
-							<strong>Эскалера:</strong> лестница из кортов, на каждом четверо. За раунд внутри корта
+							<strong>Ladder:</strong> лестница из кортов, на каждом четверо. За раунд внутри корта
 							играются три коротких матча — каждый с каждым в паре. Первый на корте поднимается выше,
 							четвёртый опускается ниже, двое средних остаются. В таблицу идут не очки, а позиция игрока
 							в общем строю: подняться на корт выше — единственный способ улучшить результат.
@@ -710,12 +710,12 @@ function toggleTypeFields() {
         escaleraFields.style.display = 'block';
     }
 
-    // Эскалера жёстко связывает число участников с числом кортов; для других
+    // Ladder жёстко связывает число участников с числом кортов; для других
     // типов вызов снимает блокировку поля участников.
     updateEscaleraParticipants();
 }
 
-// Эскалера: участников всегда кортов × 4, руками поле не правится —
+// Ladder: участников всегда кортов × 4, руками поле не правится —
 // иначе расстановка по кортам разъедется.
 function updateEscaleraParticipants() {
     const type = document.getElementById('tournamentType')?.value;

@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h2>Стартовая расстановка</h2>
-        <p>{{ $tournament->name }} · Эскалера</p>
+        <p>{{ $tournament->name }} · Ladder</p>
     </div>
     <a href="{{ route('club.tournaments.show', $tournament) }}" class="btn-outline-custom">
         <i class="bi bi-arrow-left"></i> Назад

@@ -1,5 +1,5 @@
 {{-- resources/views/club/tournaments/partials/_round_cards_style.blade.php --}}
-{{-- Общий вид карточек раундов и матчей: «Король корта» и «Эскалера» подключают
+{{-- Общий вид карточек раундов и матчей: «Король корта» и «Ladder» подключают
      этот файл, чтобы ввод счёта в обоих форматах выглядел одинаково.
      Базовые классы (.round-card, .match-card, .btn-score, .team-players и т.д.)
      живут в public/css/tournament-show.css — здесь только переопределения. --}}

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Раунд турнира «Эскалера»: набор кортов, на каждом из которых играется
+ * Раунд турнира «Ladder»: набор кортов, на каждом из которых играется
  * своя четвёрка игроков.
  */
 class EscaleraRound extends Model

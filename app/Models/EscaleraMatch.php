@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Короткий матч «Эскалера»: три на корт за раунд, каждый — своя пара
+ * Короткий матч «Ladder»: три на корт за раунд, каждый — своя пара
  * из четвёрки игроков корта (каждый с каждым в паре).
  */
 class EscaleraMatch extends Model

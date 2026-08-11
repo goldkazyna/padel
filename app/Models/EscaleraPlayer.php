@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Участник турнира «Эскалера»: стартовый и текущий корт, накопленные
+ * Участник турнира «Ladder»: стартовый и текущий корт, накопленные
  * очки/победы, рейтинг до и после турнира.
  */
 class EscaleraPlayer extends Model

@@ -125,7 +125,7 @@ class TournamentController extends Controller
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
 
-		// Эскалера: число кортов задаётся своим полем, а участников всегда
+		// Ladder: число кортов задаётся своим полем, а участников всегда
 		// ровно кортов × 4 — иначе четвёрки по кортам не разложить.
 		if (($validated['type'] ?? null) === 'escalera') {
 			$escaleraCourts = (int) ($validated['escalera_courts_count'] ?? 4);
@@ -268,7 +268,7 @@ class TournamentController extends Controller
 			return app(\App\Http\Controllers\Club\RoundRobinController::class)->show($tournament);
 		}
 
-		// Эскалера — отдельный контроллер
+		// Ladder — отдельный контроллер
 		if ($tournament->isEscalera()) {
 			return app(\App\Http\Controllers\Club\EscaleraController::class)->show($tournament);
 		}
@@ -344,7 +344,7 @@ class TournamentController extends Controller
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
 		]);
 
-		// Эскалера: параметры формата и число кортов правятся только ДО старта.
+		// Ladder: параметры формата и число кортов правятся только ДО старта.
 		// Участников всегда пересчитываем из кортов (кортов × 4), как при
 		// создании, — иначе инвариант ломается и турнир не стартует.
 		if ($tournament->isEscalera()) {
@@ -543,7 +543,7 @@ class TournamentController extends Controller
 			}
 			return redirect()->route('club.justpadelit.seeding', $tournament);
 		} elseif ($tournament->isEscalera()) {
-			// Эскалера стартует со страницы посева: там видна раскладка по кортам
+			// Ladder стартует со страницы посева: там видна раскладка по кортам
 			// и её можно поправить руками до старта.
 			return redirect()->route('club.escalera.seeding', $tournament);
 		} else {

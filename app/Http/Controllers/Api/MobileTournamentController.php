@@ -2078,7 +2078,7 @@ class MobileTournamentController extends Controller
      */
 
     /**
-     * Матчи игрока в «Эскалере» для разбора выступления.
+     * Матчи игрока в «Ladder» для разбора выступления.
      *
      * В отличие от «Короля корта», здесь считаются и дельты рейтинга: прогоняем
      * матчи в том же порядке, что finishTournament, поэтому средние рейтинги
@@ -2526,7 +2526,7 @@ class MobileTournamentController extends Controller
             }
         }
 
-        // Эскалера — место по итоговой таблице формата (её порядок зависит
+        // Ladder — место по итоговой таблице формата (её порядок зависит
         // от режима зачёта, поэтому считаем сервисом, а не сортировкой здесь).
         if ($tournament->isEscalera()) {
             foreach (app(\App\Services\EscaleraService::class)->standings($tournament) as $row) {
@@ -4539,7 +4539,7 @@ class MobileTournamentController extends Controller
      * Хелпер: данные игрока для live-матча
      */
     /**
-     * Live «Эскалеры» для игрока.
+     * Live «Ladder» для игрока.
      *
      * Форма ответа совпадает с «Королём корта»: приложение открывает для
      * обоих форматов один и тот же экран (см. tournament_navigation.dart).

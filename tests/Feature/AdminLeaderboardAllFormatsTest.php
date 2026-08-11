@@ -157,7 +157,7 @@ class AdminLeaderboardAllFormatsTest extends TestCase
         ]);
         app(\App\Services\EscaleraService::class)->startTournament($t);
 
-        $this->assertLeaderboardPresent($t->fresh(), $admin, 'Эскалера');
+        $this->assertLeaderboardPresent($t->fresh(), $admin, 'Ladder');
     }
 
     public function test_verified_flag_reaches_leaderboard(): void

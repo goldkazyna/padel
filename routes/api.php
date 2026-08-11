@@ -210,7 +210,7 @@ Route::prefix('mobile')->group(function () {
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/justpadelit/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveJustPadelItScore']);
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/bali_koc/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveBaliKocScore']);
 
-        // Эскалера — счёт короткого матча. POST и PUT одинаковы: у формата
+        // Ladder — счёт короткого матча. POST и PUT одинаковы: у формата
         // сохранение и правка это одна операция.
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/escalera/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveEscaleraScore']);
 

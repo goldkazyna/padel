@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Корт внутри раунда «Эскалера»: четвёрка игроков в порядке посадки —
+ * Корт внутри раунда «Ladder»: четвёрка игроков в порядке посадки —
  * от неё строится очерёдность трёх коротких матчей.
  */
 class EscaleraRoundCourt extends Model

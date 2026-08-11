@@ -142,7 +142,7 @@ class MobileMatchController extends Controller
             $matches[] = $this->formatPlayerMatch($match, $userId, 'king_of_court', $tournament);
         }
 
-        // Эскалера: путь до турнира длиннее — матч висит на корте раунда.
+        // Ladder: путь до турнира длиннее — матч висит на корте раунда.
         $escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)

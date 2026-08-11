@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Результат игрока за раунд «Эскалера»: место на корте, позиция в общем
+ * Результат игрока за раунд «Ladder»: место на корте, позиция в общем
  * строю и баллы. Нужен для истории движения и колонки «изменение позиции».
  */
 class EscaleraRoundResult extends Model

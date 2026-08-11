@@ -116,7 +116,7 @@
                     </div>
 
                     @php
-                        // Эскалера: параметры формата меняем только до старта —
+                        // Ladder: параметры формата меняем только до старта —
                         // после старта сетка уже разложена по кортам.
                         $isEscalera = $tournament->isEscalera();
                         $escaleraEditable = $isEscalera && in_array($tournament->status, ['draft', 'open'], true);
@@ -553,7 +553,7 @@ function togglePrizes() {
     document.getElementById('prizesWrap').style.display = on ? 'block' : 'none';
 }
 
-// Эскалера: участников всегда кортов × 4 — поле участников только для чтения
+// Ladder: участников всегда кортов × 4 — поле участников только для чтения
 // и пересчитывается при смене количества кортов.
 function updateEscaleraParticipants() {
     var courtsSelect = document.getElementById('escaleraCourtsCount');

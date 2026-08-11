@@ -427,7 +427,7 @@ class User extends Authenticatable
 			}
 		}
 
-		// Эскалера — три коротких матча на корт за раунд. Счёт свободный,
+		// Ladder — три коротких матча на корт за раунд. Счёт свободный,
 		// поэтому ничья возможна и учитывается отдельно.
 		$escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
 			->where(function($q) {
@@ -1047,7 +1047,7 @@ class User extends Authenticatable
 			}
 		}
 
-		// Эскалера
+		// Ladder
 		$escaleraTournaments = \App\Models\Tournament::where('type', 'escalera')
 			->where('is_rated', true)
 			->where('status', 'completed')

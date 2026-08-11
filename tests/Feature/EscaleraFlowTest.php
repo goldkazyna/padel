@@ -25,6 +25,15 @@ class EscaleraFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_format_is_shown_as_ladder(): void
+    {
+        // Показываемое имя формата отдаётся в API и оттуда попадает в
+        // приложение — оно живёт отдельно от кода типа `escalera`.
+        $tournament = new Tournament(['type' => 'escalera']);
+
+        $this->assertSame('Ladder', $tournament->type_name);
+    }
+
     /**
      * «Доминирующий» набор счетов: три матча 12:0, 11:1, 10:2.
      * Суммы очков: посадка1 = 33, посадка4 = 15, посадка3 = 13, посадка2 = 11.
