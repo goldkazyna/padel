@@ -47,37 +47,42 @@ class TournamentPushService
             'tournament_id' => (string) $tournament->id,
         ];
 
-        // Базовая выборка: пользователи с устройствами, с учётом города клуба.
-        $query = User::whereHas('deviceTokens')->with('deviceTokens');
-
-        if ($club && $club->city) {
-            if ($club->city === 'Алматы') {
-                $query->where(fn ($q) => $q->where('city', 'Алматы')->orWhereNull('city'));
-            } else {
-                $query->where('city', $club->city);
-            }
-        }
-
-        $users = $query->get(['id', 'phone', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
-
-        // Тестовый режим: рассылаем только на свои номера из .env.
         $testPhones = $this->testPhones();
-        if ($testPhones) {
-            $users = $users->filter(
-                fn ($user) => in_array($this->normalizePhone($user->phone), $testPhones, true)
-            );
-        }
 
-        // Персональные фильтры пользователя.
-        $recipients = $users->filter(function ($user) use ($tournament) {
-            if (!empty($user->notify_club_ids) && !in_array($tournament->club_id, $user->notify_club_ids)) {
-                return false;
+        if ($testPhones) {
+            // Тестовый режим: шлём строго на свои номера, минуя фильтры города
+            // и личных настроек. Смысл режима — «пришли мне»; если прогонять
+            // его через обычные фильтры, получателей окажется 0 и будет
+            // непонятно, номер не тот или настройки не пускают.
+            $users = User::whereHas('deviceTokens')->with('deviceTokens')
+                ->get(['id', 'phone', 'city', 'level', 'notify_only_my_level', 'notify_club_ids'])
+                ->filter(fn ($user) => in_array($this->normalizePhone($user->phone), $testPhones, true));
+            $recipients = $users;
+        } else {
+            // Базовая выборка: пользователи с устройствами, с учётом города клуба.
+            $query = User::whereHas('deviceTokens')->with('deviceTokens');
+
+            if ($club && $club->city) {
+                if ($club->city === 'Алматы') {
+                    $query->where(fn ($q) => $q->where('city', 'Алматы')->orWhereNull('city'));
+                } else {
+                    $query->where('city', $club->city);
+                }
             }
-            if ($user->notify_only_my_level) {
-                return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
-            }
-            return true;
-        });
+
+            $users = $query->get(['id', 'phone', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
+
+            // Персональные фильтры пользователя.
+            $recipients = $users->filter(function ($user) use ($tournament) {
+                if (!empty($user->notify_club_ids) && !in_array($tournament->club_id, $user->notify_club_ids)) {
+                    return false;
+                }
+                if ($user->notify_only_my_level) {
+                    return $user->level >= $tournament->min_level && $user->level <= $tournament->max_level;
+                }
+                return true;
+            });
+        }
 
         // Один multicast на все токены.
         $tokens = $recipients->flatMap(fn ($user) => $user->deviceTokens->pluck('token'))->toArray();

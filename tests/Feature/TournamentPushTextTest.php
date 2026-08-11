@@ -149,6 +149,44 @@ class TournamentPushTextTest extends TestCase
         $this->assertSame($mine->id, Notification::first()->user_id);
     }
 
+    public function test_test_mode_ignores_city_and_personal_filters(): void
+    {
+        // Смысл режима — «пришли мне», а не «проверь, прошёл бы я фильтры».
+        // Иначе получателей 0 и непонятно, почему.
+        $this->fakePush();
+        config(['mobile_app.push_test_phones' => '77774333822']);
+
+        $tournament = $this->makeTournament(); // клуб в Алматы
+        $me = $this->makePlayerWithDevice();
+        $me->update([
+            'phone' => '+7 (777) 433-38-22',
+            'city' => 'Астана',              // другой город
+            'notify_club_ids' => [999],      // подписан на чужой клуб
+            'notify_only_my_level' => true,
+            'level' => 5.75,                 // вне диапазона турнира
+        ]);
+
+        $result = app(TournamentPushService::class)->send($tournament);
+
+        $this->assertSame(1, $result['sent'], 'тестовый номер должен получить push при любых настройках');
+        $this->assertCount(1, $this->pushed);
+    }
+
+    public function test_test_mode_needs_a_device(): void
+    {
+        // Без устройства слать некуда — важно отличать от «номер не найден».
+        $this->fakePush();
+        config(['mobile_app.push_test_phones' => '77774333822']);
+
+        $tournament = $this->makeTournament();
+        User::factory()->create(['role' => 'player', 'phone' => '77774333822']);
+
+        $result = app(TournamentPushService::class)->send($tournament);
+
+        $this->assertSame(0, $result['sent']);
+        $this->assertEmpty($this->pushed);
+    }
+
     public function test_test_mode_reports_itself(): void
     {
         // Иначе легко разослать «всем» и не понять, почему дошло одному.
