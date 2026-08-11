@@ -1215,7 +1215,7 @@ class TournamentController extends Controller
 	/**
 	 * Отправить push-уведомление о турнире
 	 */
-	public function sendPush(Tournament $tournament)
+	public function sendPush(Request $request, Tournament $tournament)
 	{
 		$club = $this->getClub();
 
@@ -1230,8 +1230,18 @@ class TournamentController extends Controller
 			return back()->with('error', 'Push не отправляется для тестовых клубов');
 		}
 
+		// Текст правится организатором в модалке; пустой — уйдёт заготовка.
+		$validated = $request->validate([
+			'push_title' => 'nullable|string|max:100',
+			'push_body' => 'nullable|string|max:250',
+		]);
+
 		// Единая логика рассылки (общая с мобильным API)
-		$result = app(\App\Services\TournamentPushService::class)->send($tournament);
+		$result = app(\App\Services\TournamentPushService::class)->send(
+			$tournament,
+			$validated['push_title'] ?? null,
+			$validated['push_body'] ?? null
+		);
 		$total = $result['total'];
 		$sent = $result['sent'];
 		$filtered = $result['filtered'];

@@ -13,19 +13,35 @@ use App\Models\User;
  */
 class TournamentPushService
 {
+    /** Заголовок по умолчанию — он же заготовка в форме отправки. */
+    public function defaultTitle(): string
+    {
+        return 'Новый турнир!';
+    }
+
+    /** Текст по умолчанию — он же заготовка в форме отправки. */
+    public function defaultBody(Tournament $tournament): string
+    {
+        return $tournament->name . ' — ' . $tournament->start_date->format('d.m.Y H:i');
+    }
+
     /**
      * Отправить push о турнире.
+     *
+     * $title и $body — текст, поправленный организатором в форме. Пустые
+     * значения (в том числе пробелы из формы) заменяются заготовкой, чтобы
+     * не ушёл пустой пуш.
+     *
      * Возвращает ['total' => int, 'sent' => int, 'filtered' => int].
      */
-    public function send(Tournament $tournament): array
+    public function send(Tournament $tournament, ?string $title = null, ?string $body = null): array
     {
         $tournament->loadMissing('club');
         $club = $tournament->club;
 
         $fcm = app(FCMNotificationService::class);
-        $date = $tournament->start_date->format('d.m.Y H:i');
-        $title = 'Новый турнир!';
-        $body = "{$tournament->name} — {$date}";
+        $title = trim((string) $title) !== '' ? trim($title) : $this->defaultTitle();
+        $body = trim((string) $body) !== '' ? trim($body) : $this->defaultBody($tournament);
         $data = [
             'type' => 'tournament',
             'tournament_id' => (string) $tournament->id,

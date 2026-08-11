@@ -91,13 +91,17 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 @if($tournament->status === 'open')
-                                    <form action="{{ route('club.tournaments.sendPush', $tournament) }}" method="POST" class="d-inline"
-                                          onsubmit="return confirm('Отправить push-уведомление о турнире?')">
-                                        @csrf
-                                        <button class="btn-outline-custom btn-sm btn-push" title="Отправить Push">
-                                            <i class="bi bi-bell"></i>
-                                        </button>
-                                    </form>
+                                    @php
+                                        $pushService = app(\App\Services\TournamentPushService::class);
+                                    @endphp
+                                    <button type="button" class="btn-outline-custom btn-sm btn-push" title="Отправить Push"
+                                            onclick="openPushModal(this)"
+                                            data-action="{{ route('club.tournaments.sendPush', $tournament) }}"
+                                            data-tournament="{{ $tournament->name }}"
+                                            data-title="{{ $pushService->defaultTitle() }}"
+                                            data-body="{{ $pushService->defaultBody($tournament) }}">
+                                        <i class="bi bi-bell"></i>
+                                    </button>
                                 @endif
                                 @if($tournament->status === 'draft')
                                     <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
@@ -119,7 +123,199 @@
     @endif
 </div>
 
+{{-- Окно отправки push: текст заполняется заготовкой, организатор правит --}}
+<div class="push-overlay" id="pushOverlay" onclick="if(event.target === this) closePushModal()">
+    <form method="POST" id="pushForm" class="push-modal">
+        @csrf
+        <div class="push-head">
+            <div>
+                <div class="push-eyebrow"><i class="bi bi-bell"></i> Push-уведомление</div>
+                <div class="push-tournament" id="pushTournament"></div>
+            </div>
+            <button type="button" class="push-close" onclick="closePushModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <label class="push-label">Заголовок</label>
+        <input type="text" name="push_title" id="pushTitle" class="push-input"
+               maxlength="100" required>
+        <div class="push-counter"><span id="pushTitleLeft"></span></div>
+
+        <label class="push-label">Текст</label>
+        <textarea name="push_body" id="pushBody" class="push-input push-area"
+                  maxlength="250" required></textarea>
+        <div class="push-counter"><span id="pushBodyLeft"></span></div>
+
+        {{-- На телефоне пуш обрезается: длинный текст увидят не полностью --}}
+        <div class="push-preview">
+            <div class="push-preview-label">Как увидит игрок</div>
+            <div class="push-phone">
+                <div class="push-phone-app">Padel KZ · сейчас</div>
+                <div class="push-phone-title" id="pushPreviewTitle"></div>
+                <div class="push-phone-body" id="pushPreviewBody"></div>
+            </div>
+        </div>
+
+        <div class="push-actions">
+            <button type="button" class="push-btn-ghost" onclick="resetPushText()">
+                Вернуть заготовку
+            </button>
+            <button type="submit" class="push-btn">
+                <i class="bi bi-send"></i> Отправить
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+let pushDefaults = { title: '', body: '' };
+
+function openPushModal(btn) {
+    pushDefaults = { title: btn.dataset.title, body: btn.dataset.body };
+
+    document.getElementById('pushForm').action = btn.dataset.action;
+    document.getElementById('pushTournament').textContent = btn.dataset.tournament;
+    document.getElementById('pushTitle').value = btn.dataset.title;
+    document.getElementById('pushBody').value = btn.dataset.body;
+
+    refreshPushPreview();
+    document.getElementById('pushOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePushModal() {
+    document.getElementById('pushOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function resetPushText() {
+    document.getElementById('pushTitle').value = pushDefaults.title;
+    document.getElementById('pushBody').value = pushDefaults.body;
+    refreshPushPreview();
+}
+
+function refreshPushPreview() {
+    const title = document.getElementById('pushTitle');
+    const body = document.getElementById('pushBody');
+
+    document.getElementById('pushPreviewTitle').textContent = title.value || '—';
+    document.getElementById('pushPreviewBody').textContent = body.value || '—';
+    document.getElementById('pushTitleLeft').textContent =
+        title.value.length + ' / ' + title.maxLength;
+    document.getElementById('pushBodyLeft').textContent =
+        body.value.length + ' / ' + body.maxLength;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    ['pushTitle', 'pushBody'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', refreshPushPreview);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closePushModal();
+    });
+});
+</script>
+
 <style>
+/* ---- окно отправки push ---- */
+.push-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, .6);
+    backdrop-filter: blur(2px);
+    padding: 20px;
+    overflow-y: auto;
+}
+.push-overlay.open { display: flex; align-items: center; justify-content: center; }
+.push-modal {
+    width: 100%; max-width: 480px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+}
+.push-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.push-eyebrow {
+    display: flex; align-items: center; gap: 7px;
+    color: var(--accent);
+    font-size: .74rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 5px;
+}
+.push-tournament { color: var(--text-primary); font-size: 1.08rem; font-weight: 600; }
+.push-close {
+    margin-left: auto; flex-shrink: 0;
+    background: transparent; border: none;
+    color: var(--text-secondary); cursor: pointer;
+    font-size: 1rem; padding: 4px;
+}
+.push-close:hover { color: var(--text-primary); }
+.push-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 6px;
+}
+.push-input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text-primary);
+    font-size: .95rem;
+    font-family: inherit;
+}
+.push-input:focus { outline: none; border-color: var(--accent); }
+.push-area { min-height: 76px; resize: vertical; }
+.push-counter {
+    text-align: right;
+    color: var(--text-secondary);
+    font-size: .74rem;
+    margin: 4px 0 14px;
+}
+.push-preview { margin-bottom: 18px; }
+.push-preview-label {
+    color: var(--text-secondary);
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 8px;
+}
+.push-phone {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.push-phone-app { color: var(--text-secondary); font-size: .72rem; margin-bottom: 5px; }
+.push-phone-title {
+    color: var(--text-primary); font-weight: 600; font-size: .92rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.push-phone-body {
+    color: var(--text-secondary); font-size: .88rem; line-height: 1.35;
+    margin-top: 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.push-actions { display: flex; gap: 10px; }
+.push-btn {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 10px;
+    padding: 12px 20px;
+    font-size: .95rem; font-weight: 600;
+    cursor: pointer;
+}
+.push-btn-ghost {
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px;
+    font-size: .9rem; cursor: pointer;
+}
+.push-btn-ghost:hover { color: var(--text-primary); border-color: var(--border-light); }
+
 .tournaments-list {
     display: flex;
     flex-direction: column;
