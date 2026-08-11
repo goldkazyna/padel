@@ -174,8 +174,9 @@
             <button type="button" class="push-btn-ghost" onclick="resetPushText()">
                 Вернуть заготовку
             </button>
-            <button type="submit" class="push-btn">
-                <i class="bi bi-send"></i> Отправить
+            <button type="submit" class="push-btn" id="pushSubmit">
+                <span class="push-spinner"></span>
+                <span class="push-btn-text"><i class="bi bi-send"></i> Отправить</span>
             </button>
         </div>
     </form>
@@ -226,6 +227,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closePushModal();
+    });
+
+    // Рассылка идёт несколько секунд. Без блокировки нетерпеливый клик
+    // отправляет push повторно — игроки получают его дважды.
+    document.getElementById('pushForm').addEventListener('submit', function (e) {
+        var btn = document.getElementById('pushSubmit');
+
+        if (btn.disabled) {
+            e.preventDefault();
+            return;
+        }
+
+        // Форма уже собрала данные — кнопку можно гасить.
+        btn.disabled = true;
+        btn.classList.add('sending');
+        btn.querySelector('.push-btn-text').textContent = 'Отправляем…';
+        document.querySelector('.push-btn-ghost').disabled = true;
+        document.querySelector('.push-close').disabled = true;
     });
 });
 </script>
@@ -345,6 +364,20 @@ document.addEventListener('DOMContentLoaded', function () {
     font-size: .9rem; cursor: pointer;
 }
 .push-btn-ghost:hover { color: var(--text-primary); border-color: var(--border-light); }
+.push-btn:disabled, .push-btn-ghost:disabled { opacity: .55; cursor: not-allowed; }
+.push-close:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Спиннер появляется только на время отправки */
+.push-spinner { display: none; }
+.push-btn.sending .push-spinner {
+    display: inline-block;
+    width: 15px; height: 15px;
+    border: 2px solid rgba(0, 0, 0, .25);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: push-spin .7s linear infinite;
+}
+@keyframes push-spin { to { transform: rotate(360deg); } }
 
 .tournaments-list {
     display: flex;
