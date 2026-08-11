@@ -127,6 +127,57 @@ class TournamentPushTextTest extends TestCase
         $this->assertSame('Начало в 19:00, приходите', $this->pushed[0]['body']);
     }
 
+    // ===== Тестовый режим: рассылка только на свои номера =====
+
+    public function test_test_mode_sends_only_to_listed_phones(): void
+    {
+        $this->fakePush();
+        config(['mobile_app.push_test_phones' => '+7 777 433 38 22']);
+
+        $tournament = $this->makeTournament();
+        $mine = $this->makePlayerWithDevice();
+        $mine->update(['phone' => '77774333822']);
+        $stranger = $this->makePlayerWithDevice();
+        $stranger->update(['phone' => '77009998877']);
+
+        $result = app(TournamentPushService::class)->send($tournament);
+
+        // Пуш ушёл, но получатель ровно один — и колокольчик тоже один.
+        $this->assertCount(1, $this->pushed);
+        $this->assertSame(1, $result['sent']);
+        $this->assertSame(1, Notification::count());
+        $this->assertSame($mine->id, Notification::first()->user_id);
+    }
+
+    public function test_test_mode_reports_itself(): void
+    {
+        // Иначе легко разослать «всем» и не понять, почему дошло одному.
+        $this->fakePush();
+        config(['mobile_app.push_test_phones' => '77774333822']);
+
+        $tournament = $this->makeTournament();
+        $this->makePlayerWithDevice()->update(['phone' => '77774333822']);
+
+        $result = app(TournamentPushService::class)->send($tournament);
+
+        $this->assertTrue($result['test_mode']);
+    }
+
+    public function test_without_setting_everyone_gets_push(): void
+    {
+        $this->fakePush();
+        config(['mobile_app.push_test_phones' => '']);
+
+        $tournament = $this->makeTournament();
+        $this->makePlayerWithDevice()->update(['phone' => '77774333822']);
+        $this->makePlayerWithDevice()->update(['phone' => '77009998877']);
+
+        $result = app(TournamentPushService::class)->send($tournament);
+
+        $this->assertSame(2, $result['sent']);
+        $this->assertFalse($result['test_mode']);
+    }
+
     public function test_list_page_carries_default_text_for_the_modal(): void
     {
         $tournament = $this->makeTournament();

@@ -1246,6 +1246,15 @@ class TournamentController extends Controller
 		$sent = $result['sent'];
 		$filtered = $result['filtered'];
 
+		// В тестовом режиме сообщение другое: иначе «отправлено 1 из 1»
+		// выглядит как поломка рассылки.
+		if (!empty($result['test_mode'])) {
+			return back()->with('success',
+				"ТЕСТОВЫЙ РЕЖИМ: push ушёл только на номера из PUSH_TEST_PHONES ({$sent} получателей). "
+				. "Остальные ничего не получили."
+			);
+		}
+
 		$cityLabel = ($club && $club->city) ? ", город: {$club->city}" : "";
 		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей{$cityLabel}" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");
 	}

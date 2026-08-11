@@ -58,7 +58,15 @@ class TournamentPushService
             }
         }
 
-        $users = $query->get(['id', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
+        $users = $query->get(['id', 'phone', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
+
+        // Тестовый режим: рассылаем только на свои номера из .env.
+        $testPhones = $this->testPhones();
+        if ($testPhones) {
+            $users = $users->filter(
+                fn ($user) => in_array($this->normalizePhone($user->phone), $testPhones, true)
+            );
+        }
 
         // Персональные фильтры пользователя.
         $recipients = $users->filter(function ($user) use ($tournament) {
@@ -101,7 +109,37 @@ class TournamentPushService
             'total' => $total,
             'sent' => $sent,
             'filtered' => $total - $sent,
+            'test_mode' => (bool) $testPhones,
         ];
+    }
+
+    /**
+     * Телефоны тестового режима из .env, приведённые к одним цифрам.
+     * Пустой массив — режим выключен, рассылка идёт всем.
+     *
+     * @return array<int, string>
+     */
+    public function testPhones(): array
+    {
+        $raw = (string) config('mobile_app.push_test_phones', '');
+
+        return collect(explode(',', $raw))
+            ->map(fn ($phone) => $this->normalizePhone($phone))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /** Номер к сравнимому виду: только цифры, ведущая 8 → 7. */
+    private function normalizePhone(?string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
+            $digits = '7' . substr($digits, 1);
+        }
+
+        return $digits;
     }
 
     /**

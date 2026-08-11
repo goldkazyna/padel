@@ -137,6 +137,19 @@
             </button>
         </div>
 
+        @php $pushTestPhones = app(\App\Services\TournamentPushService::class)->testPhones(); @endphp
+        @if($pushTestPhones)
+            <div class="push-testmode">
+                <i class="bi bi-cone-striped"></i>
+                <div>
+                    <b>Тестовый режим</b>
+                    Уведомление уйдёт только на {{ implode(', ', $pushTestPhones) }} —
+                    остальные игроки ничего не получат. Снимается строкой
+                    <code>PUSH_TEST_PHONES</code> в <code>.env</code>.
+                </div>
+            </div>
+        @endif
+
         <label class="push-label">Заголовок</label>
         <input type="text" name="push_title" id="pushTitle" class="push-input"
                maxlength="100" required>
@@ -251,6 +264,23 @@ document.addEventListener('DOMContentLoaded', function () {
     font-size: 1rem; padding: 4px;
 }
 .push-close:hover { color: var(--text-primary); }
+.push-testmode {
+    display: flex; gap: 11px; align-items: flex-start;
+    background: rgba(245, 158, 11, .12);
+    border: 1px solid #f59e0b;
+    border-radius: 11px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    color: #f59e0b;
+    font-size: .85rem; line-height: 1.45;
+}
+.push-testmode i { font-size: 1.05rem; flex-shrink: 0; margin-top: 1px; }
+.push-testmode b { display: block; margin-bottom: 2px; }
+.push-testmode code {
+    background: rgba(0, 0, 0, .25);
+    border-radius: 4px; padding: 1px 5px;
+    font-size: .82rem;
+}
 .push-label {
     display: block;
     color: var(--text-secondary);
