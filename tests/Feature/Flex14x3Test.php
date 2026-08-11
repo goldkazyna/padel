@@ -117,6 +117,30 @@ class Flex14x3Test extends TestCase
         $this->assertCount(42, $seen, '7 раундов × 3 корта × 2 пары = 42 разные пары');
     }
 
+    public function test_nobody_rests_two_rounds_in_a_row(): void
+    {
+        // За столом это заметнее всего: два простоя подряд читаются как
+        // «меня забыли», даже если по итогу отдыха у всех поровну.
+        [$tournament, $service] = $this->startTournament();
+
+        $restedLastRound = [];
+        for ($r = 1; $r <= 14; $r++) {
+            $round = $service->getCurrentRound($tournament);
+            $resting = $round->byes()->pluck('user_id')->all();
+
+            foreach ($resting as $userId) {
+                $this->assertNotContains($userId, $restedLastRound,
+                    "игрок {$userId} отдыхает второй раунд подряд (раунд {$r})");
+            }
+
+            $restedLastRound = $resting;
+            $this->playRound($tournament, $service);
+            if ($r < 14) {
+                $service->generateNextRound($tournament);
+            }
+        }
+    }
+
     public function test_fourteen_rounds_keep_rest_even(): void
     {
         // Второй круг: к 14-му раунду у всех ровно по два отдыха.
