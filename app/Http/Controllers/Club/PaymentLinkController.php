@@ -52,9 +52,47 @@ class PaymentLinkController extends Controller
             'paidCount' => $recent->where('status', PaymentLink::STATUS_PAID)->count(),
             'pendingSum' => $recent->where('status', PaymentLink::STATUS_PENDING)->sum('amount'),
             'pendingCount' => $recent->where('status', PaymentLink::STATUS_PENDING)->count(),
-            'clients' => ClubClient::where('club_id', $club->id)
-                ->orderBy('name')->limit(500)->get(['id', 'name', 'phone']),
         ]);
+    }
+
+    /**
+     * Подсказка клиентов для формы счёта: один инпут ищет и по имени,
+     * и по телефону — менеджеру на ресепшене удобнее вбить то, что помнит.
+     * Короче трёх символов не ищем: пол-базы в выпадашке бесполезно.
+     */
+    public function clients(Request $request)
+    {
+        $club = $this->club($request);
+
+        $q = trim((string) $request->get('q'));
+        if (mb_strlen($q) < 3) {
+            return response()->json([]);
+        }
+
+        $digits = preg_replace('/\D/', '', $q);
+
+        $clients = ClubClient::where('club_id', $club->id)
+            ->where(function ($query) use ($q, $digits) {
+                $query->where('name', 'like', "%{$q}%");
+                if ($digits !== '') {
+                    $query->orWhereRaw(
+                        "REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'-','') LIKE ?",
+                        ["%{$digits}%"]
+                    );
+                }
+            })
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'phone']);
+
+        // Уважаем настройку клуба «скрывать телефоны» — в подсказке
+        // показываем маску, сам номер для WhatsApp берётся из базы.
+        $clients->transform(function ($client) {
+            $client->phone = \App\Support\PhoneVisibility::forExport($client->phone);
+            return $client;
+        });
+
+        return response()->json($clients);
     }
 
     public function store(Request $request)

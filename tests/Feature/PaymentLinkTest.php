@@ -265,6 +265,50 @@ class PaymentLinkTest extends TestCase
         $this->assertSame($manager->id, PaymentLink::first()->created_by);
     }
 
+    // ===== Поиск клиента для формы =====
+
+    public function test_client_search_finds_by_name_and_phone(): void
+    {
+        ClubClient::create(['club_id' => $this->club->id, 'name' => 'Асель', 'phone' => '77771112233']);
+        ClubClient::create(['club_id' => $this->club->id, 'name' => 'Бахыт', 'phone' => '77775554433']);
+
+        // Регистр букв здесь не проверяем: на проде MySQL с utf8mb4_*_ci
+        // ищет без учёта регистра, а SQLite в тестах — только для латиницы.
+        $byName = $this->actingAs($this->admin)
+            ->getJson(route('club.payments.clients', ['q' => 'Асе']))
+            ->assertOk()->json();
+        $this->assertCount(1, $byName);
+        $this->assertSame('Асель', $byName[0]['name']);
+
+        // Тот же инпут ищет и по цифрам — менеджеру удобнее вбить телефон.
+        $byPhone = $this->actingAs($this->admin)
+            ->getJson(route('club.payments.clients', ['q' => '5554']))
+            ->assertOk()->json();
+        $this->assertCount(1, $byPhone);
+        $this->assertSame('Бахыт', $byPhone[0]['name']);
+    }
+
+    public function test_client_search_needs_three_characters(): void
+    {
+        ClubClient::create(['club_id' => $this->club->id, 'name' => 'Асель', 'phone' => '77771112233']);
+
+        $this->actingAs($this->admin)
+            ->getJson(route('club.payments.clients', ['q' => 'Ас']))
+            ->assertOk()
+            ->assertExactJson([]);
+    }
+
+    public function test_client_search_does_not_leak_other_clubs(): void
+    {
+        $other = Club::create(['name' => 'Другой', 'address' => 'Б']);
+        ClubClient::create(['club_id' => $other->id, 'name' => 'Чужой Клиент', 'phone' => '77770000000']);
+
+        $this->actingAs($this->admin)
+            ->getJson(route('club.payments.clients', ['q' => 'Чужой']))
+            ->assertOk()
+            ->assertExactJson([]);
+    }
+
     public function test_player_cannot_open_payments(): void
     {
         $player = User::factory()->create(['role' => 'player']);

@@ -191,14 +191,19 @@
                value="{{ old('description') }}" placeholder="Клубная карта на 10 часов" required>
 
         <label class="pay-label">Клиент <span class="pay-opt">необязательно</span></label>
-        <select name="club_client_id" class="pay-input full">
-            <option value="">Не выбран</option>
-            @foreach($clients as $c)
-                <option value="{{ $c->id }}" {{ old('club_client_id') == $c->id ? 'selected' : '' }}>
-                    {{ $c->name }}{{ $c->phone ? ' · ' . $c->phone : '' }}
-                </option>
-            @endforeach
-        </select>
+        <div class="pay-search">
+            <input type="text" id="clientQuery" class="pay-input full" autocomplete="off"
+                   placeholder="Имя или телефон — от 3 символов">
+            <input type="hidden" name="club_client_id" id="clientId" value="{{ old('club_client_id') }}">
+            <div class="pay-found" id="clientFound"></div>
+            <div class="pay-chosen" id="clientChosen" style="display:none">
+                <i class="bi bi-person-check"></i>
+                <span id="clientChosenName"></span>
+                <button type="button" class="pay-chosen-x" onclick="clearClient()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
         <div class="pay-hint">Выберите клиента, чтобы отправить ссылку в WhatsApp одним нажатием.</div>
 
         <label class="pay-label">Ссылка действует</label>
@@ -238,6 +243,58 @@ function copyLink(btn, url) {
 }
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeBillModal();
+});
+
+// ---- поиск клиента ----
+var clientTimer = null;
+
+function clearClient() {
+    document.getElementById('clientId').value = '';
+    document.getElementById('clientChosen').style.display = 'none';
+    document.getElementById('clientQuery').style.display = '';
+    document.getElementById('clientQuery').value = '';
+    document.getElementById('clientFound').innerHTML = '';
+}
+
+function chooseClient(id, name, phone) {
+    document.getElementById('clientId').value = id;
+    document.getElementById('clientChosenName').textContent = phone ? name + ' · ' + phone : name;
+    document.getElementById('clientChosen').style.display = 'flex';
+    document.getElementById('clientQuery').style.display = 'none';
+    document.getElementById('clientFound').innerHTML = '';
+}
+
+document.getElementById('clientQuery').addEventListener('input', function () {
+    var q = this.value.trim();
+    var box = document.getElementById('clientFound');
+
+    clearTimeout(clientTimer);
+    if (q.length < 3) {
+        box.innerHTML = '';
+        return;
+    }
+
+    // Пауза, чтобы не бить в базу на каждой букве.
+    clientTimer = setTimeout(function () {
+        fetch('{{ route('club.payments.clients') }}?q=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (list) {
+                if (!list.length) {
+                    box.innerHTML = '<div class="pay-found-empty">Никого не нашли</div>';
+                    return;
+                }
+                box.innerHTML = list.map(function (c) {
+                    var phone = c.phone || '';
+                    return '<button type="button" class="pay-found-row" '
+                        + 'onclick="chooseClient(' + c.id + ', '
+                        + JSON.stringify(c.name) + ', ' + JSON.stringify(phone) + ')">'
+                        + '<span>' + c.name + '</span>'
+                        + (phone ? '<small>' + phone + '</small>' : '')
+                        + '</button>';
+                }).join('');
+            })
+            .catch(function () { box.innerHTML = ''; });
+    }, 250);
 });
 // Создание ссылки идёт через банк — второй клик выставил бы второй счёт.
 document.getElementById('billForm').addEventListener('submit', function (e) {
@@ -358,6 +415,41 @@ document.getElementById('billForm').addEventListener('submit', function (e) {
 }
 .pay-opt { text-transform: none; letter-spacing: 0; opacity: .7; }
 .pay-hint { color: var(--text-secondary); font-size: .78rem; margin-top: 4px; }
+
+/* ---- поиск клиента ---- */
+.pay-search { position: relative; }
+.pay-found {
+    display: flex; flex-direction: column;
+    max-height: 210px; overflow-y: auto;
+}
+.pay-found:not(:empty) {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 6px;
+    background: var(--bg-primary);
+}
+.pay-found-row {
+    display: flex; align-items: baseline; gap: 10px;
+    background: transparent; border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    color: var(--text-primary); font-size: .9rem;
+    cursor: pointer; text-align: left; width: 100%;
+}
+.pay-found-row:last-child { border-bottom: none; }
+.pay-found-row:hover { background: var(--bg-card-hover); }
+.pay-found-row small { color: var(--text-secondary); font-size: .8rem; margin-left: auto; }
+.pay-found-empty { padding: 10px 14px; color: var(--text-secondary); font-size: .86rem; }
+.pay-chosen {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--accent-glow); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 10px 14px;
+    color: var(--accent); font-size: .9rem;
+}
+.pay-chosen-x {
+    margin-left: auto; background: transparent; border: none;
+    color: var(--accent); cursor: pointer; padding: 0 2px;
+}
 .pay-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .pay-btn {
     flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
