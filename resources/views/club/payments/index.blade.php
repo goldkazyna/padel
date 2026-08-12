@@ -279,19 +279,42 @@ document.getElementById('clientQuery').addEventListener('input', function () {
         fetch('{{ route('club.payments.clients') }}?q=' + encodeURIComponent(q))
             .then(function (r) { return r.json(); })
             .then(function (list) {
+                box.innerHTML = '';
+
                 if (!list.length) {
-                    box.innerHTML = '<div class="pay-found-empty">Никого не нашли</div>';
+                    var empty = document.createElement('div');
+                    empty.className = 'pay-found-empty';
+                    empty.textContent = 'Никого не нашли';
+                    box.appendChild(empty);
                     return;
                 }
-                box.innerHTML = list.map(function (c) {
+
+                // Строки собираем через DOM: имя клиента может содержать
+                // кавычки и угловые скобки — в HTML-строке это ломало onclick
+                // и открывало вставку разметки.
+                list.forEach(function (c) {
                     var phone = c.phone || '';
-                    return '<button type="button" class="pay-found-row" '
-                        + 'onclick="chooseClient(' + c.id + ', '
-                        + JSON.stringify(c.name) + ', ' + JSON.stringify(phone) + ')">'
-                        + '<span>' + c.name + '</span>'
-                        + (phone ? '<small>' + phone + '</small>' : '')
-                        + '</button>';
-                }).join('');
+
+                    var row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'pay-found-row';
+
+                    var name = document.createElement('span');
+                    name.textContent = c.name;
+                    row.appendChild(name);
+
+                    if (phone) {
+                        var tel = document.createElement('small');
+                        tel.textContent = phone;
+                        row.appendChild(tel);
+                    }
+
+                    row.addEventListener('click', function () {
+                        chooseClient(c.id, c.name, phone);
+                    });
+
+                    box.appendChild(row);
+                });
             })
             .catch(function () { box.innerHTML = ''; });
     }, 250);
