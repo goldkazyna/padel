@@ -1041,6 +1041,15 @@
 							<span>Сертификаты</span>
 						</a>
 					</li>
+					{{-- Счета клиентам: только если у клуба настроена онлайн-оплата --}}
+					@if(!$modClub || $modClub->hasPlexyConfigured())
+					<li class="nav-item">
+						<a href="{{ route('club.payments.index') }}" class="nav-link {{ request()->routeIs('club.payments.*') ? 'active' : '' }}">
+							<i class="bi bi-receipt"></i>
+							<span>Платежи</span>
+						</a>
+					</li>
+					@endif
 					@if(!$modClub || $modClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
@@ -1137,6 +1146,15 @@
 							<span>Сертификаты</span>
 						</a>
 					</li>
+					{{-- Счета клиентам: только если у клуба настроена онлайн-оплата --}}
+					@if(!$navClub || $navClub->hasPlexyConfigured())
+					<li class="nav-item">
+						<a href="{{ route('club.payments.index') }}" class="nav-link {{ request()->routeIs('club.payments.*') ? 'active' : '' }}">
+							<i class="bi bi-receipt"></i>
+							<span>Платежи</span>
+						</a>
+					</li>
+					@endif
 					@if(!$navClub || $navClub->hasFeature('tournaments'))
 					<li class="nav-item">
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">

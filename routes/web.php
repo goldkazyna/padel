@@ -349,6 +349,13 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         Route::put('/cards/{card}/expiry', [App\Http\Controllers\Club\ClubCardController::class, 'updateExpiry'])->name('cards.updateExpiry');
         Route::delete('/cards/{card}', [App\Http\Controllers\Club\ClubCardController::class, 'destroy'])->name('cards.destroy');
 
+        // Счета клиентам (платёжные ссылки Plexy). Доступны админу клуба и
+        // менеджеру — счёт чаще всего выставляют на ресепшене.
+        Route::get('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'index'])->name('payments.index');
+        Route::post('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'store'])->name('payments.store');
+        Route::post('/payments/{link}/sync', [App\Http\Controllers\Club\PaymentLinkController::class, 'sync'])->name('payments.sync');
+        Route::delete('/payments/{link}', [App\Http\Controllers\Club\PaymentLinkController::class, 'cancel'])->name('payments.cancel');
+
         // Сертификаты клуба
         Route::get('/certificates', [App\Http\Controllers\Club\CertificateController::class, 'index'])->name('certificates.index');
         Route::post('/certificates', [App\Http\Controllers\Club\CertificateController::class, 'store'])->name('certificates.store');
