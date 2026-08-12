@@ -354,6 +354,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         Route::get('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'index'])->name('payments.index');
         Route::get('/payments/clients', [App\Http\Controllers\Club\PaymentLinkController::class, 'clients'])->name('payments.clients');
         Route::post('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'store'])->name('payments.store');
+        Route::post('/payments/sync-all', [App\Http\Controllers\Club\PaymentLinkController::class, 'syncAll'])->name('payments.syncAll');
         Route::post('/payments/{link}/sync', [App\Http\Controllers\Club\PaymentLinkController::class, 'sync'])->name('payments.sync');
         Route::delete('/payments/{link}', [App\Http\Controllers\Club\PaymentLinkController::class, 'cancel'])->name('payments.cancel');
 

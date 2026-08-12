@@ -134,6 +134,32 @@ class PaymentLinkController extends Controller
         );
     }
 
+    /**
+     * Обновить статусы всех ожидающих счетов разом — чтобы не жать
+     * «Проверить» у каждого по очереди.
+     */
+    public function syncAll(Request $request)
+    {
+        $club = $this->club($request);
+
+        $pending = PaymentLink::forClub($club->id)
+            ->where('status', PaymentLink::STATUS_PENDING)
+            ->whereNotNull('plexy_link_id')
+            ->with('club')
+            ->get();
+
+        $changed = 0;
+        foreach ($pending as $link) {
+            if ($this->links->sync($link)) {
+                $changed++;
+            }
+        }
+
+        return back()->with('success', $changed
+            ? "Обновлено счетов: {$changed}"
+            : 'Проверено ' . $pending->count() . ' — изменений нет');
+    }
+
     public function cancel(Request $request, PaymentLink $link)
     {
         $this->assertOwn($request, $link);

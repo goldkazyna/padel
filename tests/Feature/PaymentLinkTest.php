@@ -265,6 +265,37 @@ class PaymentLinkTest extends TestCase
         $this->assertSame($manager->id, PaymentLink::first()->created_by);
     }
 
+    public function test_sync_all_updates_only_pending_links(): void
+    {
+        // Http::fake() при повторном вызове мержит, поэтому задаём всё разом:
+        // создание отдаёт разные id по очереди, статусы — по конкретным url.
+        Http::fake([
+            '*/v1/payment-links/pl_b' => Http::response(['id' => 'pl_b', 'status' => 'paid']),
+            '*/v1/payment-links/pl_a' => Http::response([], 500),
+            '*/v1/payment-links' => Http::sequence()
+                ->push(['id' => 'pl_a', 'url' => 'https://checkout/a', 'status' => 'active'])
+                ->push(['id' => 'pl_b', 'url' => 'https://checkout/b', 'status' => 'active']),
+        ]);
+
+        $paidAlready = $this->service()->create($this->club, $this->admin, [
+            'amount' => 1000, 'description' => 'Уже оплачен', 'expires_in_hours' => 24,
+        ]);
+        $paidAlready->update(['status' => PaymentLink::STATUS_PAID]);
+
+        $waiting = $this->service()->create($this->club, $this->admin, [
+            'amount' => 2000, 'description' => 'Ждёт', 'expires_in_hours' => 24,
+        ]);
+
+        $this->assertSame('pl_b', $waiting->plexy_link_id, 'ссылка ждущего счёта');
+
+        $this->actingAs($this->admin)
+            ->post(route('club.payments.syncAll'))
+            ->assertRedirect();
+
+        $this->assertTrue($waiting->fresh()->isPaid());
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'pl_a'));
+    }
+
     // ===== Поиск клиента для формы =====
 
     public function test_client_search_finds_by_name_and_phone(): void
