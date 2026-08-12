@@ -1151,6 +1151,19 @@ public function previewRatingChanges(Tournament $tournament): array
 				];
 				break;
 
+			case 'top_bottom':
+				// Верх/низ: сильные одной группы против слабых другой.
+				// Полуфинал 1: A1+B3 vs A2+B4, полуфинал 2: A3+B1 vs A4+B2.
+				$semi1 = [
+					'team1' => [$A[0]->id, $B[2]->id],
+					'team2' => [$A[1]->id, $B[3]->id],
+				];
+				$semi2 = [
+					'team1' => [$A[2]->id, $B[0]->id],
+					'team2' => [$A[3]->id, $B[1]->id],
+				];
+				break;
+
 			case 'mix':
 			default:
 				// Микс: A1+B2 vs A3+B4, A2+B1 vs B3+A4

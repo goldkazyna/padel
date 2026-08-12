@@ -335,6 +335,7 @@
 											<option value="group_vs" {{ old('playoff_format', $tournament->playoff_format) === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
 											<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
 											<option value="cross" {{ old('playoff_format', $tournament->playoff_format) === 'cross' ? 'selected' : '' }}>Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+											<option value="top_bottom" {{ old('playoff_format', $tournament->playoff_format) === 'top_bottom' ? 'selected' : '' }}>Верх/низ (A1+B3 vs A2+B4, A3+B1 vs A4+B2)</option>
 										@elseif($editIsSemi)
 											{{-- 1 группа + полуфинал+финал --}}
 											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>Микс (1+8 vs 4+5, 2+7 vs 3+6)</option>

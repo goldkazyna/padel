@@ -108,7 +108,7 @@ class MobileAdminTournamentDetailController extends Controller
             'teams_advance' => 'nullable|integer|in:1,2,3,4',
             'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
-            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced',
+            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom',
             'telegram_registration_url' => 'nullable|url|max:500',
             // Призовой турнир — настройка задаётся при создании, менять её
             // в редактировании до старта безопасно.

@@ -821,6 +821,7 @@ function togglePlayoffFormat() {
             <option value="group_vs">Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
             <option value="tops">Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
             <option value="cross">Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)</option>
+            <option value="top_bottom">Верх/низ (A1+B3 vs A2+B4, A3+B1 vs A4+B2)</option>
         `;
     }
     // 1 группа и только финал

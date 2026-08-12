@@ -101,6 +101,7 @@ class Tournament extends Model
     const PLAYOFF_FORMAT_GROUP_VS = 'group_vs';
     const PLAYOFF_FORMAT_TOPS = 'tops';
     const PLAYOFF_FORMAT_CROSS = 'cross';
+    const PLAYOFF_FORMAT_TOP_BOTTOM = 'top_bottom';
 	
     protected $fillable = [
         'club_id',
@@ -715,6 +716,7 @@ class Tournament extends Model
             self::PLAYOFF_FORMAT_GROUP_VS => 'Группа vs Группа (A1+A2 vs B1+B2)',
             self::PLAYOFF_FORMAT_TOPS => 'Топы вместе (A1+B1 vs A3+B3)',
             self::PLAYOFF_FORMAT_CROSS => 'Крест (A1+B4 vs B1+A4)',
+            self::PLAYOFF_FORMAT_TOP_BOTTOM => 'Верх/низ (A1+B3 vs A2+B4)',
         ];
     }
 
