@@ -2344,8 +2344,10 @@
         if (val === 'free') {
             const p = document.getElementById('editCustomPrice'); if (p) p.value = 0;
             const d = document.getElementById('editDiscount'); if (d) d.value = 0;
-            document.getElementById('editIsPaidInput').value = '1';
-            document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === '1'));
+        }
+        // Карта, сертификат и «бесплатно» списываются сразу — бронь оплачена.
+        if (val === 'free' || val === 'club_card' || val === 'certificate') {
+            markPaidToggle('edit');
         }
     }
 
@@ -2395,9 +2397,28 @@
             const p = document.getElementById('bookCustomPrice'); if (p) p.value = 0;
             const d = document.getElementById('bookDiscount'); if (d) d.value = 0;
             updateFinalPrice();
-            document.getElementById('isPaidInput').value = '1';
-            document.querySelectorAll('#bookModal .paid-toggle .paid-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-value') === '1'));
         }
+        // Карта, сертификат и «бесплатно» списываются сразу — бронь оплачена.
+        // Цену при этом не трогаем, в отличие от «бесплатно».
+        if (val === 'free' || val === 'club_card' || val === 'certificate') {
+            markPaidToggle('book');
+        }
+    }
+
+    /**
+     * Переключить статус оплаты на «Оплачено» в нужной модалке.
+     * scope: 'book' — новая бронь, 'edit' — редактирование.
+     */
+    function markPaidToggle(scope) {
+        const input = document.getElementById(scope === 'edit' ? 'editIsPaidInput' : 'isPaidInput');
+        if (input) input.value = '1';
+
+        const selector = scope === 'edit'
+            ? '#viewModal .paid-toggle .paid-btn'
+            : '#bookModal .paid-toggle .paid-btn';
+        document.querySelectorAll(selector).forEach(function (b) {
+            b.classList.toggle('active', b.getAttribute('data-value') === '1');
+        });
     }
 
     function setPaid(btn) {
