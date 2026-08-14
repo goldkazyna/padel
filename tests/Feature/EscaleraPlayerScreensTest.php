@@ -141,20 +141,21 @@ class EscaleraPlayerScreensTest extends TestCase
     public function test_live_highlights_requested_player_instead_of_viewer(): void
     {
         [$t, $users] = $this->startedTournament(3);
-        // Смотрит P1, но открывает карточку P12 из чужого профиля.
+        // Смотрит P1, но открывает карточку P3 из чужого профиля.
+        // «Змейка» разводит их по разным кортам: P1 на первом, P3 на третьем.
         Sanctum::actingAs($users['P1']);
 
         $res = $this->getJson(
-            "/api/mobile/tournaments/{$t->id}/live?player_id={$users['P12']->id}"
+            "/api/mobile/tournaments/{$t->id}/live?player_id={$users['P3']->id}"
         )->assertOk();
 
         $me = array_values(array_filter($res->json('leaderboard'), fn ($r) => $r['is_me'] === true));
         $this->assertCount(1, $me);
-        $this->assertSame($users['P12']->id, $me[0]['id'], 'подсвечен запрошенный игрок');
+        $this->assertSame($users['P3']->id, $me[0]['id'], 'подсвечен запрошенный игрок');
 
         $mine = array_values(array_filter($res->json('rounds.0.matches'), fn ($m) => $m['has_me']));
-        $this->assertCount(3, $mine);
-        $this->assertSame(3, $mine[0]['court_number'], 'P12 слабейший — нижний корт');
+        $this->assertCount(3, $mine, 'подсвечены три матча его корта, а не корта зрителя');
+        $this->assertSame(3, $mine[0]['court_number'], 'P3 сидит на третьем корте');
     }
 
     public function test_live_leaderboard_carries_scored_and_conceded(): void

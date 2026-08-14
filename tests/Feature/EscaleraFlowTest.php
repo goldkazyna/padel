@@ -82,22 +82,30 @@ class EscaleraFlowTest extends TestCase
         return $users;
     }
 
-    /** Двенадцать игроков на три корта: A* — сильнейшие, C* — слабейшие. */
+    /**
+     * Двенадцать игроков на три корта. Имя кодирует ПОСАДКУ, а не силу:
+     * A* садятся на корт 1, B* на корт 2, C* на корт 3, цифра — место в посадке.
+     *
+     * Рейтинги подобраны так, чтобы «змейка» дала ровно такой расклад. Порядок
+     * по рейтингу сверху вниз: A1, B1, C1, C2, B2, A2, A3, B3, C3, C4, B4, A4 —
+     * то есть на каждом корте оказываются сильный, слабый и двое из середины.
+     * Внутри корта посадка всё равно идёт по убыванию рейтинга.
+     */
     private function registerTwelve(Tournament $tournament): array
     {
         return $this->register($tournament, [
-            'C3' => 1100,
-            'A2' => 1900,
-            'B4' => 1300,
-            'A4' => 1700,
-            'C1' => 1200,
-            'B1' => 1600,
             'A1' => 2000,
-            'C4' => 1050,
-            'B3' => 1400,
-            'A3' => 1800,
-            'C2' => 1150,
-            'B2' => 1500,
+            'B1' => 1900,
+            'C1' => 1800,
+            'C2' => 1700,
+            'B2' => 1600,
+            'A2' => 1500,
+            'A3' => 1400,
+            'B3' => 1300,
+            'C3' => 1200,
+            'C4' => 1100,
+            'B4' => 1050,
+            'A4' => 1000,
         ]);
     }
 
@@ -122,6 +130,20 @@ class EscaleraFlowTest extends TestCase
                 $this->service()->saveMatchResult($match, $pattern[$i][0], $pattern[$i][1]);
             }
         }
+    }
+
+    /**
+     * Старт с явной расстановкой: $names — имена сверху вниз, каждые четверо
+     * образуют корт. Нужен там, где тест опирается на конкретные соотношения
+     * рейтингов между кортами, которых «змейка» дать не может: она специально
+     * сажает сильного со слабым.
+     */
+    private function startWithSeating(Tournament $tournament, array $users, array $names): bool
+    {
+        return $this->service()->startTournament(
+            $tournament,
+            array_map(fn ($name) => $users[$name]->id, $names)
+        );
     }
 
     /** Имена игроков корта в порядке посадки. */
@@ -153,7 +175,7 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame('open', $tournament->fresh()->status, 'турнир не должен стартовать');
     }
 
-    public function test_start_creates_first_round_seeded_by_rating(): void
+    public function test_start_spreads_players_evenly_across_courts(): void
     {
         $tournament = $this->makeTournament(courts: 3);
         $u = $this->registerTwelve($tournament);
@@ -171,10 +193,33 @@ class EscaleraFlowTest extends TestCase
             $this->assertSame(3, $court->matches()->count(), 'на каждом корте три матча');
         }
 
-        // Первый корт — четверо сильнейших по рейтингу, в порядке убывания.
+        // Расклад «змейкой»: на каждом корте сильный, слабый и двое из середины.
+        // Имена A*/B*/C* — это корты, а сила задана рейтингами в registerTwelve.
         $this->assertSame(['A1', 'A2', 'A3', 'A4'], $this->seatingNames($tournament, 1));
         $this->assertSame(['B1', 'B2', 'B3', 'B4'], $this->seatingNames($tournament, 2));
         $this->assertSame(['C1', 'C2', 'C3', 'C4'], $this->seatingNames($tournament, 3));
+
+        // Главное свойство расклада: корты равны по силе. Считаем сумму мест
+        // в рейтинге на каждом корте — она должна совпадать.
+        $ranks = collect($tournament->participants()->get())
+            ->sortByDesc('rating')
+            ->values()
+            ->mapWithKeys(fn ($user, $i) => [$user->id => $i + 1]);
+
+        $sums = [];
+        foreach ($round->courts as $court) {
+            $sums[(int) $court->court_number] = collect($court->playerIds())
+                ->sum(fn ($id) => $ranks[$id]);
+        }
+        ksort($sums);
+        $this->assertSame([1 => 26, 2 => 26, 3 => 26], $sums, 'корты равны по составу');
+
+        // Сильнейший и слабейший игроки сидят на одном корте — это и есть змейка.
+        $strongest = $ranks->search(1);
+        $weakest = $ranks->search(12);
+        $courtOf = fn ($userId) => (int) EscaleraPlayer::where('tournament_id', $tournament->id)
+            ->where('user_id', $userId)->value('start_court');
+        $this->assertSame($courtOf($strongest), $courtOf($weakest), 'первый номер посева играет со слабейшим');
 
         // Порядок матчей от посадки: 1+4 против 2+3, затем 1+3 против 2+4, затем 1+2 против 3+4.
         $court1 = $round->courts()->where('court_number', 1)->first();
@@ -192,7 +237,7 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame(2000, (int) $a1->rating_before);
 
         $c4 = EscaleraPlayer::where('tournament_id', $tournament->id)->where('user_id', $u['C4']->id)->first();
-        $this->assertSame(3, (int) $c4->start_court, 'слабейший — на нижнем корте');
+        $this->assertSame(3, (int) $c4->start_court, 'четвёртый по посадке остаётся на своём корте');
     }
 
     // ===== Ввод счёта =====
@@ -390,7 +435,8 @@ class EscaleraFlowTest extends TestCase
             'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
             'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
         ]);
-        $this->service()->startTournament($tournament);
+        // Расстановка вручную: тест про тай-брейк, а не про посев.
+        $this->startWithSeating($tournament, $u, ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4']);
 
         // На верхнем корте счета ровные (сумма очков победителя 21),
         // на нижнем — разгромные (сумма очков победителя 33).
@@ -668,7 +714,8 @@ class EscaleraFlowTest extends TestCase
             'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
             'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
         ]);
-        $this->service()->startTournament($tournament);
+        // Расстановка вручную: тест про тай-брейк, а не про посев.
+        $this->startWithSeating($tournament, $u, ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4']);
 
         // A4 набирает 15 очков одной победой, B1 — те же 15 двумя победами.
         // Рейтинг у A4 выше, поэтому без тай-брейка по победам он оказался бы
@@ -704,7 +751,8 @@ class EscaleraFlowTest extends TestCase
             'A1' => 2000, 'A2' => 1900, 'A3' => 1800, 'A4' => 1700,
             'B1' => 1600, 'B2' => 1500, 'B3' => 1400, 'B4' => 1300,
         ]);
-        $this->service()->startTournament($tournament);
+        // Расстановка вручную: тест про тай-брейк, а не про посев.
+        $this->startWithSeating($tournament, $u, ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4']);
 
         $this->playRound($tournament, [
             1 => self::DOMINANT,
@@ -909,6 +957,28 @@ class EscaleraFlowTest extends TestCase
             ->assertSee('A1')
             ->assertSee('C4')
             ->assertSee('Начать турнир');
+    }
+
+    public function test_seeding_page_offers_the_same_arrangement_the_start_would_apply(): void
+    {
+        // Экран всегда отправляет свой порядок в форме старта, поэтому расклад
+        // на экране обязан совпадать с раскладкой сервиса. Разойдутся — админ
+        // начнёт турнир не с той расстановкой, которую видел.
+        $tournament = $this->makeTournament(courts: 3);
+        $this->registerTwelve($tournament);
+        $admin = $this->clubAdmin($tournament);
+
+        $response = $this->actingAs($admin)
+            ->get(route('club.escalera.seeding', $tournament))
+            ->assertOk();
+
+        $shown = collect($response->viewData('participants'))->pluck('name')->all();
+
+        $this->assertSame(
+            ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4'],
+            $shown,
+            'экран показывает раскладку «змейкой», как и старт без ручной расстановки'
+        );
     }
 
     public function test_seeding_page_blocks_start_when_participants_do_not_match_courts(): void

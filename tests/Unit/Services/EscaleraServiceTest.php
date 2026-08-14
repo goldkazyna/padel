@@ -255,4 +255,130 @@ class EscaleraServiceTest extends TestCase
         $all = array_merge(...array_values($next));
         $this->assertCount(16, array_unique($all));
     }
+
+    // ===== Раскладка «змейкой» =====
+
+    /** Разложить плоский список на корты по четыре — как это делает старт. */
+    private function chunkByCourts(array $flat): array
+    {
+        $courts = [];
+        foreach (array_chunk($flat, 4) as $i => $four) {
+            $courts[$i + 1] = $four;
+        }
+
+        return $courts;
+    }
+
+    public function test_snake_order_puts_strongest_and_weakest_together(): void
+    {
+        // Двадцать игроков, места в рейтинге с 1-го по 20-е.
+        $courts = $this->chunkByCourts(
+            app(EscaleraService::class)->snakeOrder(range(1, 20), 5)
+        );
+
+        $this->assertSame([1, 10, 11, 20], $courts[1]);
+        $this->assertSame([2, 9, 12, 19], $courts[2]);
+        $this->assertSame([3, 8, 13, 18], $courts[3]);
+        $this->assertSame([4, 7, 14, 17], $courts[4]);
+        $this->assertSame([5, 6, 15, 16], $courts[5]);
+    }
+
+    public function test_snake_order_makes_courts_equal_in_strength(): void
+    {
+        // Суммы мест по кортам обязаны совпадать — в этом весь смысл раскладки.
+        foreach ([2, 3, 4, 5, 6, 10] as $courtsCount) {
+            $courts = $this->chunkByCourts(
+                app(EscaleraService::class)->snakeOrder(range(1, $courtsCount * 4), $courtsCount)
+            );
+
+            $sums = array_map('array_sum', $courts);
+            $this->assertCount(1, array_unique($sums), "корты не равны при {$courtsCount} кортах");
+        }
+    }
+
+    public function test_snake_order_seats_each_court_by_descending_strength(): void
+    {
+        // Внутри корта посадка идёт от сильного к слабому: от неё зависит
+        // очерёдность трёх матчей, первым должен идти самый ровный.
+        $courts = $this->chunkByCourts(
+            app(EscaleraService::class)->snakeOrder(range(1, 24), 6)
+        );
+
+        foreach ($courts as $number => $four) {
+            $sorted = $four;
+            sort($sorted);
+            $this->assertSame($sorted, $four, "посадка корта {$number} не по убыванию силы");
+        }
+    }
+
+    public function test_snake_order_keeps_everyone_exactly_once(): void
+    {
+        $flat = app(EscaleraService::class)->snakeOrder(range(1, 20), 5);
+
+        $this->assertCount(20, $flat);
+        $this->assertCount(20, array_unique($flat), 'никто не потерялся и не задвоился');
+    }
+
+    public function test_snake_order_returns_input_when_count_does_not_match(): void
+    {
+        $service = app(EscaleraService::class);
+
+        // Игроков не ровно корты × 4 — раскладывать нечего, отдаём как есть.
+        $this->assertSame([1, 2, 3], $service->snakeOrder([1, 2, 3], 5));
+        // Меньше двух кортов эскалера не допускает.
+        $this->assertSame([1, 2, 3, 4], $service->snakeOrder([1, 2, 3, 4], 1));
+    }
+
+    public function test_start_uses_snake_order_when_no_manual_seating(): void
+    {
+        $tournament = $this->makeTournament(courts: 2);
+
+        $users = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $user = User::factory()->create(['name' => "P{$i}", 'rating' => 2000 - $i * 50]);
+            $tournament->participants()->attach($user->id, ['status' => 'registered']);
+            $users[$i] = $user;
+        }
+
+        $this->assertTrue(app(EscaleraService::class)->startTournament($tournament));
+
+        $round = $tournament->fresh()->escaleraRounds()->first();
+        $names = [];
+        foreach ($round->courts()->orderBy('court_number')->get() as $court) {
+            // Имена строго в порядке посадки — от неё зависит очерёдность матчей.
+            $ids = $court->playerIds();
+            $byId = User::whereIn('id', $ids)->pluck('name', 'id');
+            $names[(int) $court->court_number] = array_map(fn ($id) => $byId[$id], $ids);
+        }
+
+        // Сильнейший P1 садится со слабейшим P8, а не с P2 и P3.
+        $this->assertSame(['P1', 'P4', 'P5', 'P8'], $names[1]);
+        $this->assertSame(['P2', 'P3', 'P6', 'P7'], $names[2]);
+    }
+
+    public function test_manual_seating_overrides_snake_order(): void
+    {
+        $tournament = $this->makeTournament(courts: 2);
+
+        $users = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $user = User::factory()->create(['name' => "P{$i}", 'rating' => 2000 - $i * 50]);
+            $tournament->participants()->attach($user->id, ['status' => 'registered']);
+            $users[$i] = $user;
+        }
+
+        // Ручная расстановка админа берётся как есть, без раскладки.
+        $order = [$users[8]->id, $users[7]->id, $users[6]->id, $users[5]->id,
+            $users[4]->id, $users[3]->id, $users[2]->id, $users[1]->id];
+
+        $this->assertTrue(app(EscaleraService::class)->startTournament($tournament, $order));
+
+        $court1 = $tournament->fresh()->escaleraRounds()->first()
+            ->courts()->where('court_number', 1)->first();
+
+        $this->assertSame(
+            [$users[8]->id, $users[7]->id, $users[6]->id, $users[5]->id],
+            $court1->playerIds()
+        );
+    }
 }

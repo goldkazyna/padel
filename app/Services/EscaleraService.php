@@ -177,11 +177,12 @@ class EscaleraService
     // ===================== Проведение турнира =====================
 
     /**
-     * Старт турнира: посев по рейтингу и первый раунд.
+     * Старт турнира: стартовая расстановка и первый раунд.
      *
      * Участников должно быть ровно `корты × 4` — иначе стартовать нельзя.
      * $order — ручная расстановка (id игроков сверху вниз), сделанная админом
-     * на странице стартовой посадки; без неё сеем по рейтингу.
+     * на странице стартовой посадки; без неё раскладываем «змейкой»
+     * (см. snakeOrder), чтобы все корты вышли равными по составу.
      */
     public function startTournament(Tournament $tournament, ?array $order = null): bool
     {
@@ -205,7 +206,7 @@ class EscaleraService
             return false;
         }
 
-        $seeded = $this->seedParticipants($participants, $order);
+        $seeded = $this->seedParticipants($participants, $order, $courtsCount);
 
         DB::transaction(function () use ($tournament, $seeded) {
             $seating = [];
@@ -738,14 +739,66 @@ class EscaleraService
     // ===================== Внутреннее =====================
 
     /**
-     * Порядок посева: по рейтингу сверху вниз, игроки без рейтинга — ниже всех.
-     * $order — ручная расстановка админа (id сверху вниз); забытые дописываются
-     * в конец по рейтингу.
+     * Разложить упорядоченный по силе список «змейкой» по кортам.
+     *
+     * Идём по кортам туда-обратно: сильнейший на корт 1, второй на корт 2 и так
+     * до последнего, затем обратно. За четыре прохода на каждом корте
+     * оказываются сильный, слабый и двое из середины, а суммы мест по кортам
+     * совпадают — то есть корты равны по составу.
+     *
+     * Возвращает плоский список, где каждые четыре подряд — это один корт,
+     * внутри корта по убыванию силы. Если игроков не ровно `корты × 4`,
+     * возвращает исходный порядок без изменений.
+     *
+     * @template T
+     * @param  array<int, T> $ordered список по силе сверху вниз
+     * @return array<int, T>
+     */
+    public function snakeOrder(array $ordered, int $courtsCount): array
+    {
+        $ordered = array_values($ordered);
+
+        if ($courtsCount < 2 || count($ordered) !== $courtsCount * 4) {
+            return $ordered;
+        }
+
+        $courts = array_fill(1, $courtsCount, []);
+        $index = 0;
+
+        for ($pass = 0; $pass < 4; $pass++) {
+            $numbers = range(1, $courtsCount);
+            // Нечётные проходы идут в обратную сторону — это и есть «змейка».
+            if ($pass % 2 === 1) {
+                $numbers = array_reverse($numbers);
+            }
+
+            foreach ($numbers as $courtNumber) {
+                $courts[$courtNumber][] = $ordered[$index++];
+            }
+        }
+
+        $flat = [];
+        foreach ($courts as $players) {
+            foreach ($players as $player) {
+                $flat[] = $player;
+            }
+        }
+
+        return $flat;
+    }
+
+    /**
+     * Порядок посева. Без ручной расстановки игроки раскладываются «змейкой»:
+     * на каждом корте сильный, слабый и двое из середины, поэтому все корты
+     * равны по составу и стартовый корт никому не даёт форы.
+     *
+     * $order — ручная расстановка админа (id сверху вниз); она берётся как есть,
+     * забытые дописываются в конец по рейтингу.
      *
      * @param  Collection<int, User> $participants
      * @return array<int, User>
      */
-    protected function seedParticipants(Collection $participants, ?array $order = null): array
+    protected function seedParticipants(Collection $participants, ?array $order, int $courtsCount): array
     {
         $byRating = $participants->all();
         usort($byRating, function (User $a, User $b) {
@@ -761,7 +814,7 @@ class EscaleraService
         });
 
         if (empty($order)) {
-            return $byRating;
+            return $this->snakeOrder($byRating, $courtsCount);
         }
 
         $byId = $participants->keyBy('id');

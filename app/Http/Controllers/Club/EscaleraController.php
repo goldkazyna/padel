@@ -106,6 +106,10 @@ class EscaleraController extends Controller
 
     /**
      * Стартовая расстановка: игроки по кортам сверху вниз, с ручной перестановкой.
+     *
+     * По умолчанию раскладываем «змейкой» — тем же методом сервиса, что работает
+     * при старте без ручной расстановки. Экран всегда отправляет свой порядок,
+     * поэтому расклад здесь и расклад в сервисе обязаны совпадать.
      */
     public function seeding(Tournament $tournament)
     {
@@ -125,6 +129,12 @@ class EscaleraController extends Controller
         $courtsCount = (int) $tournament->courts_count;
         $needed = $courtsCount * 4;
         $ready = $courtsCount >= 2 && $participants->count() === $needed;
+
+        if ($ready) {
+            $participants = collect(
+                app(EscaleraService::class)->snakeOrder($participants->all(), $courtsCount)
+            );
+        }
 
         // Сохранённая ранее расстановка (кнопка «Сохранить расстановку»).
         $savedOrder = session($this->seedingSessionKey($tournament), []);
