@@ -329,6 +329,11 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         Route::middleware('club.feature:inventory')->group(function () {
             Route::get('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'index'])->name('inventory.index');
             Route::post('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'store'])->name('inventory.store');
+            // Выдача инвентаря на руки. Объявлена до `/inventory/{item}`, иначе
+            // «issue» ушло бы в биндинг позиции справочника.
+            Route::post('/inventory/issue', [App\Http\Controllers\Club\InventoryController::class, 'issue'])->name('inventory.issue');
+            Route::post('/inventory/issue-items/{issueItem}/return', [App\Http\Controllers\Club\InventoryController::class, 'returnItem'])->name('inventory.returnItem');
+            Route::post('/inventory/holders/{client}/return', [App\Http\Controllers\Club\InventoryController::class, 'returnClient'])->name('inventory.returnClient');
             Route::put('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'update'])->name('inventory.update');
             Route::delete('/inventory/{item}', [App\Http\Controllers\Club\InventoryController::class, 'destroy'])->name('inventory.destroy');
         });
