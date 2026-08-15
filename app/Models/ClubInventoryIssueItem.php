@@ -50,6 +50,24 @@ class ClubInventoryIssueItem extends Model
         return $query->whereNull('returned_at');
     }
 
+    /** Строки конкретного клуба — клуб хранится на выдаче, не на строке. */
+    public function scopeOfClub($query, int $clubId)
+    {
+        return $query->whereHas('issue', fn ($q) => $q->where('club_id', $clubId));
+    }
+
+    /**
+     * Сколько единиц инвентаря клуба сейчас не вернули.
+     * Считаем единицы, а не строки: две ракетки одному и одна другому — это три.
+     * Отсюда берётся красный бейдж на пункте меню «Инвентарь».
+     */
+    public static function outstandingUnitsForClub($club): int
+    {
+        if (!$club) return 0;
+
+        return (int) static::query()->ofClub($club->id)->open()->sum('quantity');
+    }
+
     public function isReturned(): bool
     {
         return $this->returned_at !== null;

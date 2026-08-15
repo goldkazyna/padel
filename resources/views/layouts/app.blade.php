@@ -1025,9 +1025,12 @@
 					@endif
 					@if(!$modClub || $modClub->hasFeature('inventory'))
 					<li class="nav-item">
-						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}">
+						{{-- Красный бейдж — сколько единиц инвентаря ждут возврата --}}
+						@php($invOutMod = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub($modClub))
+						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-box-seam"></i>
 							<span>Инвентарь</span>
+							@if($invOutMod > 0)<span class="unprocessed-badge">{{ $invOutMod }}</span>@endif
 						</a>
 					</li>
 					@endif
@@ -1130,9 +1133,15 @@
 					@endif
 					@if(!$navClub || $navClub->hasFeature('inventory'))
 					<li class="nav-item">
-						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}">
+						{{-- Красный бейдж — сколько единиц инвентаря ждут возврата.
+						     У супер-админа своего клуба нет, берём первый — как у клубных карт. --}}
+						@php($invOutNav = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub(
+							$navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)
+						))
+						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-box-seam"></i>
 							<span>Инвентарь</span>
+							@if($invOutNav > 0)<span class="unprocessed-badge">{{ $invOutNav }}</span>@endif
 						</a>
 					</li>
 					@endif

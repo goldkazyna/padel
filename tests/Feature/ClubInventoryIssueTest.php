@@ -327,6 +327,46 @@ class ClubInventoryIssueTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/\d+\.\d+ (минут|часа|дня)/u', $html);
     }
 
+    public function test_sidebar_badge_counts_units_awaiting_return(): void
+    {
+        [$club, $admin, $client] = $this->issued();
+
+        // Выдали две ракетки и одни мячи — в меню должно висеть 3.
+        $this->actingAs($admin)
+            ->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertSee('<span class="unprocessed-badge">3</span>', false);
+
+        $this->actingAs($admin)->post(route('club.inventory.returnClient', $client));
+
+        $this->actingAs($admin)
+            ->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertDontSee('<span class="unprocessed-badge">3</span>', false);
+    }
+
+    public function test_sidebar_badge_is_scoped_to_own_club(): void
+    {
+        [, $admin] = $this->setupClub();
+
+        // В чужом клубе что-то выдали — на наш бейдж это влиять не должно.
+        $other = Club::create(['name' => 'Чужой', 'address' => 'A', 'features' => ['inventory' => true]]);
+        $otherAdmin = User::factory()->create(['role' => 'club_admin']);
+        $otherAdmin->adminClubs()->attach($other->id);
+        $item = $this->makeItem($other, 'Чужая ракетка');
+        $client = $this->makeClient($other, 'Чужой клиент');
+
+        $this->actingAs($otherAdmin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $client->id,
+            'items' => [['id' => $item->id, 'quantity' => 7]],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.inventory.index'))
+            ->assertOk()
+            ->assertDontSee('<span class="unprocessed-badge">7</span>', false);
+    }
+
     public function test_deleting_catalogue_item_keeps_the_issued_line_readable(): void
     {
         [$club, $admin, , $issue] = $this->issued();

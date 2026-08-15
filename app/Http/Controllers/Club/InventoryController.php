@@ -90,12 +90,11 @@ class InventoryController extends Controller
     private function outstandingByItem(int $clubId)
     {
         return ClubInventoryIssueItem::query()
-            ->join('club_inventory_issues as i', 'i.id', '=', 'club_inventory_issue_items.club_inventory_issue_id')
-            ->where('i.club_id', $clubId)
-            ->whereNull('club_inventory_issue_items.returned_at')
-            ->whereNotNull('club_inventory_issue_items.club_inventory_item_id')
-            ->groupBy('club_inventory_issue_items.club_inventory_item_id')
-            ->selectRaw('club_inventory_issue_items.club_inventory_item_id as item_id, SUM(quantity) as qty')
+            ->ofClub($clubId)
+            ->open()
+            ->whereNotNull('club_inventory_item_id')
+            ->groupBy('club_inventory_item_id')
+            ->selectRaw('club_inventory_item_id as item_id, SUM(quantity) as qty')
             ->pluck('qty', 'item_id');
     }
 
