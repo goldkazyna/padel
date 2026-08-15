@@ -652,6 +652,13 @@
                                         </span>
                                     @endif
                                 </div>
+                                @php
+                                    // За клиентом числится невозвращённый инвентарь — та же метка, что в дневном расписании.
+                                    $issuedTitleW = $b->client_phone
+                                        ? ($issuedByPhone[preg_replace('/\D/', '', $b->client_phone)] ?? null)
+                                        : null;
+                                @endphp
+                                @if($issuedTitleW)<i class="bi bi-box-seam-fill slot-card-icon ws-ic-inv" title="На руках инвентарь: {{ $issuedTitleW }}"></i>@endif
                                 @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
                                 @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
                                 @if(!$pmW && $b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
@@ -1069,6 +1076,8 @@
     /* Монохромная иконка: бронь оплачена клубной картой — перед надписью корта */
     .slot-card-icon { color: #a1a1aa; font-size: 11px; opacity: .9; margin-right: 6px; vertical-align: middle; }
     .slot-card-icon.ws-ic-paid { color: #22c55e; opacity: 1; }
+    /* На руках инвентарь — красный, как бейджи «на руках» в самом разделе */
+    .slot-card-icon.ws-ic-inv { color: #ef4444; opacity: 1; cursor: help; }
     /* Полоса способа оплаты сверху карточки (как в дневном виде) */
     .ws-card { position: relative; }
     .ws-card.has-pm { padding-top: 17px; }

@@ -367,6 +367,122 @@ class ClubInventoryIssueTest extends TestCase
             ->assertDontSee('<span class="unprocessed-badge">7</span>', false);
     }
 
+    // ===== Метка на брони корта =====
+
+    /**
+     * Корт и бронь. Бронь сама заводит карточку клиента по телефону.
+     *
+     * Дата — середина следующей недели намеренно. На последний день недели
+     * бронь не попадает в недельную сетку под SQLite: там дата лежит строкой
+     * «2026-08-16 00:00:00» и выпадает из whereBetween по «2026-08-16».
+     * На проде колонка — настоящий DATE в MySQL, и такого нет.
+     */
+    private function bookedCourt(Club $club, User $admin, string $phone = '77770000000'): array
+    {
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date,
+            'start_time' => '13:00',
+            'slots' => 1,
+            'client_name' => 'Денис Дудников',
+            'client_phone' => $phone,
+            'payment_method' => 'kaspi',
+            'is_paid' => 1,
+            'booking_type' => 'individual',
+        ])->assertRedirect();
+
+        $client = ClubClient::where('club_id', $club->id)->where('phone', $phone)->firstOrFail();
+
+        return [$court, $date, $client];
+    }
+
+    public function test_schedule_marks_booking_of_client_holding_inventory(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки');
+        [, $date, $client] = $this->bookedCourt($club, $admin);
+
+        $this->actingAs($admin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $client->id,
+            'items' => [['id' => $racket->id, 'quantity' => 2]],
+        ]);
+
+        // Метка есть и в дневном расписании, и в недельном.
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('На руках инвентарь: Аренда ракетки ×2');
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('На руках инвентарь: Аренда ракетки ×2');
+    }
+
+    public function test_schedule_mark_disappears_after_return(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки');
+        [, $date, $client] = $this->bookedCourt($club, $admin);
+
+        $this->actingAs($admin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $client->id,
+            'items' => [['id' => $racket->id, 'quantity' => 2]],
+        ]);
+        $this->actingAs($admin)->post(route('club.inventory.returnClient', $client));
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertDontSee('На руках инвентарь: Аренда ракетки');
+    }
+
+    public function test_schedule_does_not_mark_bookings_of_other_clients(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки');
+        // Бронь на один номер, инвентарь выдан другому клиенту.
+        [, $date] = $this->bookedCourt($club, $admin, '77770000000');
+        $other = $this->makeClient($club, 'Другой человек');
+        $other->update(['phone' => '77771111111']);
+
+        $this->actingAs($admin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $other->id,
+            'items' => [['id' => $racket->id, 'quantity' => 1]],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertDontSee('На руках инвентарь: Аренда ракетки');
+    }
+
+    public function test_schedule_mark_matches_phone_written_differently(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Аренда ракетки');
+        [, $date, $client] = $this->bookedCourt($club, $admin, '77770000000');
+
+        // В карточке номер записан со скобками и пробелами — метка всё равно ловится,
+        // потому что сравниваем только цифры.
+        $client->update(['phone' => '+7 (777) 000-00-00']);
+
+        $this->actingAs($admin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $client->id,
+            'items' => [['id' => $racket->id, 'quantity' => 1]],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('На руках инвентарь: Аренда ракетки ×1');
+    }
+
     public function test_deleting_catalogue_item_keeps_the_issued_line_readable(): void
     {
         [$club, $admin, , $issue] = $this->issued();

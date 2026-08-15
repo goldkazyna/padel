@@ -186,12 +186,15 @@ class CourtController extends Controller
                 'quantity' => (int) $r->quantity,
             ])->values());
 
+        // Метка на слоте: за этим клиентом числится невыданный обратно инвентарь.
+        $issuedByPhone = $this->issuedInventoryByPhone($club->id);
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
             'bookingTournaments', 'bookingTournamentIds',
-            'inventoryItems', 'bookingInventory'
+            'inventoryItems', 'bookingInventory', 'issuedByPhone'
         ));
     }
 
@@ -435,13 +438,46 @@ class CourtController extends Controller
                 'quantity' => (int) $r->quantity,
             ])->values());
 
+        // Та же метка, что и в дневном расписании.
+        $issuedByPhone = $this->issuedInventoryByPhone($club->id);
+
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
             'bookingTournaments', 'bookingTournamentIds',
-            'inventoryItems', 'bookingInventory'
+            'inventoryItems', 'bookingInventory', 'issuedByPhone'
         ));
+    }
+
+    /**
+     * За кем из клиентов числится невозвращённый инвентарь.
+     *
+     * Бронь связана с карточкой клиента по телефону, поэтому ключ — только цифры
+     * номера: в брони и в карточке он может быть записан с разными скобками.
+     *
+     * @return array<string, string> цифры номера => «Аренда ракетки ×2, Мячи ×1»
+     */
+    private function issuedInventoryByPhone(int $clubId): array
+    {
+        $lines = \App\Models\ClubInventoryIssueItem::query()
+            ->ofClub($clubId)
+            ->open()
+            ->with('issue.client')
+            ->get();
+
+        $byPhone = [];
+        foreach ($lines as $line) {
+            $phone = $line->issue?->client?->phone;
+            if (!$phone) continue;
+
+            $key = preg_replace('/\D/', '', $phone);
+            if ($key === '') continue;
+
+            $byPhone[$key][] = $line->name . ' ×' . $line->quantity;
+        }
+
+        return array_map(fn ($parts) => implode(', ', $parts), $byPhone);
     }
 
     /**

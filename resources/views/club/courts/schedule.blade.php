@@ -333,6 +333,11 @@
                                         $pm = ['Групповая', 'bi-people-fill', '#fbbf24'];
                                     }
                                     if ($pm) $slotClass .= ' has-pm';
+                                    // За клиентом числится невозвращённый инвентарь — покажем метку.
+                                    // Ключ — только цифры номера: в брони и в карточке он записан по-разному.
+                                    $issuedTitle = $booking->client_phone
+                                        ? ($issuedByPhone[preg_replace('/\D/', '', $booking->client_phone)] ?? null)
+                                        : null;
                                     $coachRate = null;
                                     $coachPhoto = null;
                                     if ($booking->coach_id) {
@@ -416,8 +421,9 @@
                                             <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
                                         </div>
                                         @endif
-                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid)
+                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $issuedTitle)
                                         <div class="slot-icons">
+                                            @if($issuedTitle)<i class="bi bi-box-seam-fill slot-ic ic-inv" title="На руках инвентарь: {{ $issuedTitle }}"></i>@endif
                                             @if($booking->source === 'app')<i class="bi bi-phone-fill slot-ic ic-app" title="Заявка из приложения"></i>@endif
                                             @if($booking->is_paid)<i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>@endif
                                             @if($booking->club_card_id && !$pm)<i class="bi bi-credit-card-2-front slot-ic ic-card" title="Оплачено клубной картой"></i>@endif
@@ -3367,6 +3373,9 @@
     .ic-app  { color: #a1a1aa; }   /* из приложения — монохромный телефон */
     .ic-paid { color: #22c55e; }   /* оплачено — зелёный бейдж */
     .ic-card { color: #a1a1aa; }   /* клубная карта — серый (как было) */
+    /* На руках инвентарь — красный, как бейджи «на руках» в самом разделе.
+       pointer-events снят у контейнера, поэтому подсказку возвращаем точечно. */
+    .ic-inv  { color: #ef4444; pointer-events: auto; cursor: help; }
     /* Если есть иконки — цену чуть ниже, чтобы не налезала на них */
     .slot.has-icons .slot-price-court { display: inline-block; margin-top: 12px; }
 
