@@ -72,7 +72,11 @@
             {{-- Название + статус --}}
             <div class="gc-top">
                 <div class="gc-name-wrap">
-                    <div class="gc-name">{{ $group->name }}</div>
+                    <div class="gc-name">
+                        {{ $group->name }}
+                        {{-- Абонементные не метим: их большинство, метка была бы шумом --}}
+                        @if($group->isTrial())<span class="gc-type">Пробная</span>@endif
+                    </div>
                     @if($group->note)<div class="gc-note">{{ $group->note }}</div>@endif
                 </div>
                 @if($group->status === 'active')
@@ -129,6 +133,28 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Вид группы</label>
+                    <div class="gtype-row">
+                        <label class="gtype">
+                            <input type="radio" name="type" value="subscription"
+                                   {{ old('type', 'subscription') === 'subscription' ? 'checked' : '' }}>
+                            <span class="gtype-box">
+                                <span class="gtype-name"><i class="bi bi-calendar2-check"></i> Абонемент</span>
+                                <span class="gtype-hint">Ходят постоянно, занятия списываются с пакета</span>
+                            </span>
+                        </label>
+                        <label class="gtype">
+                            <input type="radio" name="type" value="trial"
+                                   {{ old('type') === 'trial' ? 'checked' : '' }}>
+                            <span class="gtype-box">
+                                <span class="gtype-name"><i class="bi bi-stars"></i> Пробная</span>
+                                <span class="gtype-hint">Пришли разово попробовать, платят за посещение</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Тренер</label>
                     <select name="coach_id" class="form-input">
                         <option value="">— без тренера —</option>
@@ -168,6 +194,24 @@
 </div>
 
 <style>
+    /* Выбор вида группы: абонемент или пробная */
+    .gtype-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .gtype { cursor: pointer; }
+    .gtype input { position: absolute; opacity: 0; pointer-events: none; }
+    .gtype-box {
+        display: flex; flex-direction: column; gap: 4px; height: 100%;
+        border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+        background: var(--bg-card); transition: .15s;
+    }
+    .gtype:hover .gtype-box { border-color: var(--border-light); }
+    .gtype input:checked + .gtype-box { border-color: var(--accent); background: var(--accent-glow); }
+    .gtype-name { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+    .gtype input:checked + .gtype-box .gtype-name { color: var(--accent); }
+    .gtype-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+    /* Метка вида на карточке группы */
+    .gc-type { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 7px;
+        background: rgba(168,85,247,.16); color: #c084fc; white-space: nowrap; }
+
     .groups-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
     .groups-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
     .groups-grid .empty-state { grid-column: 1 / -1; }

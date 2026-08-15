@@ -5,6 +5,23 @@
 <style>
     .gsch-wrap { max-width: 1000px; margin: 0 auto; padding: 8px 4px 40px; }
 
+    /* Выбор вида группы: абонемент или пробная */
+    .gtype-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .gtype { cursor: pointer; }
+    .gtype input { position: absolute; opacity: 0; pointer-events: none; }
+    .gtype-box {
+        display: flex; flex-direction: column; gap: 4px; height: 100%;
+        border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+        background: var(--bg-card); transition: .15s;
+    }
+    .gtype:hover .gtype-box { border-color: var(--border-light); }
+    .gtype input:checked + .gtype-box { border-color: var(--accent); background: var(--accent-glow); }
+    .gtype-name { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+    .gtype input:checked + .gtype-box .gtype-name { color: var(--accent); }
+    .gtype-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+    .gsch-type { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 7px;
+        background: rgba(168,85,247,.16); color: #c084fc; }
+
     /* Шапка */
     .gsch-head { display: flex; align-items: center; gap: 14px; margin: 8px 0 20px; }
     .gsch-back { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.07); color: #cfd3d6; font-size: 18px; text-decoration: none; transition: .15s; }
@@ -181,6 +198,7 @@
         <div style="min-width:0;">
             <div class="gsch-title">{{ $group->name }}</div>
             <div class="gsch-sub">
+                @if($group->isTrial())<span class="gsch-type">Пробная</span> · @endif
                 @if($group->coach)<span>тренер {{ $group->coach->full_name }}</span> · @endif
                 @if($group->price_per_session > 0)<span class="meta-price">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸/занятие</span> · @endif
                 @if($group->status === 'active')<span class="badge-active">Активна</span>@else<span class="badge-archived">Архив</span>@endif
@@ -557,6 +575,25 @@
                 <div class="form-group">
                     <label class="form-label">Название <span style="color:#ef4444">*</span></label>
                     <input type="text" name="name" class="form-input" required value="{{ old('name', $group->name) }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Вид группы</label>
+                    <div class="gtype-row">
+                        @foreach(\App\Models\ClubGroup::types() as $value => $label)
+                            <label class="gtype">
+                                <input type="radio" name="type" value="{{ $value }}"
+                                       {{ old('type', $group->type) === $value ? 'checked' : '' }}>
+                                <span class="gtype-box">
+                                    <span class="gtype-name">{{ $label }}</span>
+                                    <span class="gtype-hint">
+                                        {{ $value === \App\Models\ClubGroup::TYPE_TRIAL
+                                            ? 'Пришли разово попробовать, платят за посещение'
+                                            : 'Ходят постоянно, занятия списываются с пакета' }}
+                                    </span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Тренер</label>

@@ -197,12 +197,16 @@ class ClubGroupController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
+        ], [
+            'type.in' => 'Выберите вид группы: абонемент или пробная',
         ]);
         $validated['club_id'] = $club->id;
+        $validated['type'] = $validated['type'] ?? ClubGroup::TYPE_SUBSCRIPTION;
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
 
         $group = ClubGroup::create($validated);
@@ -257,17 +261,21 @@ class ClubGroupController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
             'status' => 'nullable|in:active,archived',
+        ], [
+            'type.in' => 'Выберите вид группы: абонемент или пробная',
         ]);
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
 
         // Фиксируем «было → стало» по значимым полям для журнала.
         $labels = [
-            'name' => 'Название', 'coach_id' => 'Тренер', 'price_per_session' => 'Цена занятия',
+            'name' => 'Название', 'type' => 'Вид группы', 'coach_id' => 'Тренер',
+            'price_per_session' => 'Цена занятия',
             'capacity' => 'Вместимость', 'note' => 'Заметка', 'status' => 'Статус',
         ];
         $changes = [];
