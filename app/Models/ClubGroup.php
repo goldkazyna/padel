@@ -13,11 +13,13 @@ class ClubGroup extends Model
     public const TYPE_TRIAL = 'trial';
 
     protected $fillable = [
-        'club_id', 'name', 'type', 'coach_id', 'price_per_session', 'capacity', 'status', 'note',
+        'club_id', 'name', 'type', 'coach_id', 'price_per_session', 'coach_price_per_client',
+        'capacity', 'status', 'note',
     ];
 
     protected $casts = [
         'price_per_session' => 'decimal:2',
+        'coach_price_per_client' => 'decimal:2',
         'capacity' => 'integer',
     ];
 

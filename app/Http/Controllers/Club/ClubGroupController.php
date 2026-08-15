@@ -200,6 +200,7 @@ class ClubGroupController extends Controller
             'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
+            'coach_price_per_client' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
         ], [
@@ -207,6 +208,10 @@ class ClubGroupController extends Controller
         ]);
         $validated['club_id'] = $club->id;
         $validated['type'] = $validated['type'] ?? ClubGroup::TYPE_SUBSCRIPTION;
+        // Пустое поле — «не задано»: платим по часовой ставке тренера, а не ноль.
+        $validated['coach_price_per_client'] = $request->filled('coach_price_per_client')
+            ? (float) $request->input('coach_price_per_client')
+            : null;
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
 
         $group = ClubGroup::create($validated);
@@ -264,6 +269,7 @@ class ClubGroupController extends Controller
             'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
+            'coach_price_per_client' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
             'status' => 'nullable|in:active,archived',
@@ -271,11 +277,15 @@ class ClubGroupController extends Controller
             'type.in' => 'Выберите вид группы: абонемент или пробная',
         ]);
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
+        $validated['coach_price_per_client'] = $request->filled('coach_price_per_client')
+            ? (float) $request->input('coach_price_per_client')
+            : null;
 
         // Фиксируем «было → стало» по значимым полям для журнала.
         $labels = [
             'name' => 'Название', 'type' => 'Вид группы', 'coach_id' => 'Тренер',
             'price_per_session' => 'Цена занятия',
+            'coach_price_per_client' => 'Цена тренеру за клиента',
             'capacity' => 'Вместимость', 'note' => 'Заметка', 'status' => 'Статус',
         ];
         $changes = [];

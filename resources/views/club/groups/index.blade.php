@@ -180,6 +180,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Цена тренеру за клиента (₸)</label>
+                    <input type="number" name="coach_price_per_client" class="form-input" min="0" step="1"
+                           placeholder="Не задана" value="{{ old('coach_price_per_client') }}">
+                    <div class="field-hint">
+                        Сколько тренер получит за каждого пришедшего. Оставьте пустым —
+                        платим по его часовой групповой ставке, как раньше.
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Заметка</label>
                     <textarea name="note" class="form-input" rows="3"
                               placeholder="Дополнительная информация о группе...">{{ old('note') }}</textarea>
@@ -194,6 +204,7 @@
 </div>
 
 <style>
+    .field-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-top: 5px; }
     /* Выбор вида группы: абонемент или пробная */
     .gtype-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .gtype { cursor: pointer; }
