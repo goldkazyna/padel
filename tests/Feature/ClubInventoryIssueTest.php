@@ -416,12 +416,73 @@ class ClubInventoryIssueTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertSee('На руках инвентарь: Аренда ракетки ×2');
+            ->assertSee('Инвентарь: на руках Аренда ракетки ×2');
 
         $this->actingAs($admin)
             ->get(route('club.courts.scheduleWeek', ['date' => $date]))
             ->assertOk()
-            ->assertSee('На руках инвентарь: Аренда ракетки ×2');
+            ->assertSee('Инвентарь: на руках Аренда ракетки ×2');
+    }
+
+    public function test_schedule_marks_inventory_added_to_the_booking_itself(): void
+    {
+        // Инвентарь можно добавить прямо в бронь — это продажа, но вещь всё равно
+        // уходит с полки, и на слоте должна быть метка.
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Ракетка');
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date, 'start_time' => '17:00', 'slots' => 1,
+            'client_name' => 'Денис Дудников', 'client_phone' => '77774333822',
+            'payment_method' => 'kaspi', 'is_paid' => 1, 'booking_type' => 'individual',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 1]],
+        ])->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Инвентарь: в брони Ракетка ×1');
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Инвентарь: в брони Ракетка ×1');
+    }
+
+    public function test_schedule_mark_combines_booking_inventory_and_issue(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $racket = $this->makeItem($club, 'Ракетка');
+        $balls = $this->makeItem($club, 'Мячи', 5500);
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.courts.book', $court), [
+            'date' => $date, 'start_time' => '17:00', 'slots' => 1,
+            'client_name' => 'Денис Дудников', 'client_phone' => '77774333822',
+            'payment_method' => 'kaspi', 'is_paid' => 1, 'booking_type' => 'individual',
+            'inventory' => [['item_id' => $racket->id, 'quantity' => 1]],
+        ])->assertRedirect();
+
+        $client = ClubClient::where('club_id', $club->id)->where('phone', '77774333822')->firstOrFail();
+        $this->actingAs($admin)->post(route('club.inventory.issue'), [
+            'club_client_id' => $client->id,
+            'items' => [['id' => $balls->id, 'quantity' => 2]],
+        ]);
+
+        // Оба источника в одной подсказке, чтобы иконка была одна.
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Инвентарь: в брони Ракетка ×1; на руках Мячи ×2');
     }
 
     public function test_schedule_mark_disappears_after_return(): void
@@ -439,7 +500,7 @@ class ClubInventoryIssueTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertDontSee('На руках инвентарь: Аренда ракетки');
+            ->assertDontSee('Инвентарь: на руках Аренда ракетки');
     }
 
     public function test_schedule_does_not_mark_bookings_of_other_clients(): void
@@ -459,7 +520,7 @@ class ClubInventoryIssueTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertDontSee('На руках инвентарь: Аренда ракетки');
+            ->assertDontSee('Инвентарь: на руках Аренда ракетки');
     }
 
     public function test_schedule_mark_matches_phone_written_differently(): void
@@ -480,7 +541,7 @@ class ClubInventoryIssueTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertSee('На руках инвентарь: Аренда ракетки ×1');
+            ->assertSee('Инвентарь: на руках Аренда ракетки ×1');
     }
 
     public function test_deleting_catalogue_item_keeps_the_issued_line_readable(): void

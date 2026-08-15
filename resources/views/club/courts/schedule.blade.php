@@ -333,11 +333,21 @@
                                         $pm = ['Групповая', 'bi-people-fill', '#fbbf24'];
                                     }
                                     if ($pm) $slotClass .= ' has-pm';
-                                    // За клиентом числится невозвращённый инвентарь — покажем метку.
-                                    // Ключ — только цифры номера: в брони и в карточке он записан по-разному.
+                                    // Метка «у клиента наш инвентарь». Два источника:
+                                    // позиции, добавленные в саму бронь, и отдельная выдача на руки.
+                                    // Ключ выдачи — только цифры номера: в брони и в карточке
+                                    // телефон записан по-разному.
+                                    $invParts = [];
+                                    $bkInv = $bookingInventory[$booking->id] ?? collect();
+                                    if (count($bkInv)) {
+                                        $invParts[] = 'в брони ' . collect($bkInv)
+                                            ->map(fn ($r) => $r['name'] . ' ×' . $r['quantity'])->implode(', ');
+                                    }
                                     $issuedTitle = $booking->client_phone
                                         ? ($issuedByPhone[preg_replace('/\D/', '', $booking->client_phone)] ?? null)
                                         : null;
+                                    if ($issuedTitle) $invParts[] = 'на руках ' . $issuedTitle;
+                                    $invTitle = $invParts ? 'Инвентарь: ' . implode('; ', $invParts) : null;
                                     $coachRate = null;
                                     $coachPhoto = null;
                                     if ($booking->coach_id) {
@@ -421,9 +431,9 @@
                                             <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
                                         </div>
                                         @endif
-                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $issuedTitle)
+                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $invTitle)
                                         <div class="slot-icons">
-                                            @if($issuedTitle)<i class="bi bi-box-seam-fill slot-ic ic-inv" title="На руках инвентарь: {{ $issuedTitle }}"></i>@endif
+                                            @if($invTitle)<i class="bi bi-box-seam-fill slot-ic ic-inv" title="{{ $invTitle }}"></i>@endif
                                             @if($booking->source === 'app')<i class="bi bi-phone-fill slot-ic ic-app" title="Заявка из приложения"></i>@endif
                                             @if($booking->is_paid)<i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>@endif
                                             @if($booking->club_card_id && !$pm)<i class="bi bi-credit-card-2-front slot-ic ic-card" title="Оплачено клубной картой"></i>@endif

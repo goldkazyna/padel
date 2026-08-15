@@ -653,12 +653,21 @@
                                     @endif
                                 </div>
                                 @php
-                                    // За клиентом числится невозвращённый инвентарь — та же метка, что в дневном расписании.
+                                    // Та же метка, что в дневном расписании: инвентарь в самой брони
+                                    // и выданный клиенту на руки отдельно.
+                                    $invPartsW = [];
+                                    $bkInvW = $bookingInventory[$b->id] ?? collect();
+                                    if (count($bkInvW)) {
+                                        $invPartsW[] = 'в брони ' . collect($bkInvW)
+                                            ->map(fn ($r) => $r['name'] . ' ×' . $r['quantity'])->implode(', ');
+                                    }
                                     $issuedTitleW = $b->client_phone
                                         ? ($issuedByPhone[preg_replace('/\D/', '', $b->client_phone)] ?? null)
                                         : null;
+                                    if ($issuedTitleW) $invPartsW[] = 'на руках ' . $issuedTitleW;
+                                    $invTitleW = $invPartsW ? 'Инвентарь: ' . implode('; ', $invPartsW) : null;
                                 @endphp
-                                @if($issuedTitleW)<i class="bi bi-box-seam-fill slot-card-icon ws-ic-inv" title="На руках инвентарь: {{ $issuedTitleW }}"></i>@endif
+                                @if($invTitleW)<i class="bi bi-box-seam-fill slot-card-icon ws-ic-inv" title="{{ $invTitleW }}"></i>@endif
                                 @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
                                 @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
                                 @if(!$pmW && $b->club_card_id)<i class="bi bi-credit-card-2-front slot-card-icon" title="Оплачено клубной картой"></i>@endif
