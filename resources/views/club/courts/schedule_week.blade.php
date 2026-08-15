@@ -593,9 +593,9 @@
                                 if (!$pmW && $b->booking_type === 'group') {
                                     // Та же метка, что в дневном расписании.
                                     $grpIdW = $bookingGroupIds[$b->id] ?? null;
-                                    $pmW = ($grpIdW && ($groupTypeById[$grpIdW] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL)
-                                        ? ['Пробная', 'bi-stars', '#c084fc']
-                                        : ['Групповая', 'bi-people-fill', '#fbbf24'];
+                                    $isTrialGroupW = $grpIdW && ($groupTypeById[$grpIdW] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL;
+                                    $pmW = ['Групповая', 'bi-people-fill', '#fbbf24',
+                                        $isTrialGroupW ? 'пробная' : 'абонемент'];
                                 }
                                 if ($pmW) $cls .= ' has-pm';
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');
@@ -645,7 +645,7 @@
                                     'certificateId' => $b->certificate_id,
                                     'slotDuration' => $court->slot_duration ?? 60,
                                 ]) }})">
-                                @if($pmW)<div class="ws-pm-strip" title="Оплата: {{ $pmW[0] }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span></div>@endif
+                                @if($pmW)<div class="ws-pm-strip" title="{{ $pmW[0] }}{{ isset($pmW[3]) ? ' · ' . $pmW[3] : '' }}"><i class="bi {{ $pmW[1] }}"></i><span>{{ $pmW[0] }}</span>@isset($pmW[3])<span class="pm-sub">{{ $pmW[3] }}</span>@endisset</div>@endif
                                 <div class="left">
                                     <span class="name">{{ $b->client_name ?? 'Бронь' }}</span>
                                     @if($b->coach_id || $b->comment)
@@ -1108,6 +1108,9 @@
     }
     .ws-pm-strip i { font-size: 9px; flex-shrink: 0; }
     .ws-pm-strip span { overflow: hidden; text-overflow: ellipsis; }
+    /* Вид группы: то же слово и цвет, отличие — приглушённая приписка */
+    .ws-pm-strip .pm-sub { opacity: .7; font-weight: 700; flex-shrink: 0; }
+    .ws-pm-strip .pm-sub::before { content: '·'; margin: 0 3px; opacity: .55; }
 </style>
 
 <!-- Book Modal -->

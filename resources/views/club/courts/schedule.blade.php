@@ -334,10 +334,12 @@
                                     if (!$pm && $booking->booking_type === 'group') {
                                         // Пробную отличаем прямо в полоске: слот узкий,
                                         // отдельному бейджу там места нет.
+                                        // Цвет и слово «Групповая» те же, отличие — приглушённая
+                                        // подпись справа. Так видно вид, но слот не пестрит.
                                         $grpId = $bookingGroupIds[$booking->id] ?? null;
-                                        $pm = ($grpId && ($groupTypeById[$grpId] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL)
-                                            ? ['Пробная', 'bi-stars', '#c084fc']
-                                            : ['Групповая', 'bi-people-fill', '#fbbf24'];
+                                        $isTrialGroup = $grpId && ($groupTypeById[$grpId] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL;
+                                        $pm = ['Групповая', 'bi-people-fill', '#fbbf24',
+                                            $isTrialGroup ? 'пробная' : 'абонемент'];
                                     }
                                     if ($pm) $slotClass .= ' has-pm';
                                     // Метка «у клиента наш инвентарь». Два источника:
@@ -434,8 +436,10 @@
                                             'slotDuration' => $court->slot_duration ?? 60,
                                         ]) }})">
                                         @if($pm)
-                                        <div class="slot-pm-strip" style="--pm: {{ $pm[2] }}" title="Оплата: {{ $pm[0] }}">
+                                        <div class="slot-pm-strip" style="--pm: {{ $pm[2] }}"
+                                             title="{{ $pm[0] }}{{ isset($pm[3]) ? ' · ' . $pm[3] : '' }}">
                                             <i class="bi {{ $pm[1] }}"></i><span>{{ $pm[0] }}</span>
+                                            @isset($pm[3])<span class="pm-sub">{{ $pm[3] }}</span>@endisset
                                         </div>
                                         @endif
                                         @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $invTitle)
@@ -3409,6 +3413,9 @@
     }
     .slot-pm-strip i { font-size: 10px; flex-shrink: 0; }
     .slot-pm-strip span { overflow: hidden; text-overflow: ellipsis; }
+    /* Вид группы: то же слово и цвет, отличие — приглушённая приписка */
+    .slot-pm-strip .pm-sub { opacity: .7; font-weight: 700; flex-shrink: 0; }
+    .slot-pm-strip .pm-sub::before { content: '·'; margin: 0 4px; opacity: .55; }
     /* Контент уезжает под полосу */
     .slot.has-pm { justify-content: flex-start; padding-top: 20px; }
     .slot.has-pm .slot-icons { top: 1px; }

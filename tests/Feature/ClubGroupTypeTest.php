@@ -139,13 +139,13 @@ class ClubGroupTypeTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertSee('Оплата: Пробная')
-            ->assertDontSee('Оплата: Групповая');
+            ->assertSee('Групповая · пробная')
+            ->assertDontSee('Групповая · абонемент');
 
         $this->actingAs($admin)
             ->get(route('club.courts.scheduleWeek', ['date' => $date]))
             ->assertOk()
-            ->assertSee('Оплата: Пробная');
+            ->assertSee('Групповая · пробная');
     }
 
     public function test_schedule_keeps_group_label_for_subscription(): void
@@ -159,8 +159,8 @@ class ClubGroupTypeTest extends TestCase
         $this->actingAs($admin)
             ->get(route('club.courts.schedule', ['date' => $date]))
             ->assertOk()
-            ->assertSee('Оплата: Групповая')
-            ->assertDontSee('Оплата: Пробная');
+            ->assertSee('Групповая · абонемент')
+            ->assertDontSee('Групповая · пробная');
     }
 
     public function test_group_page_shows_the_type(): void
