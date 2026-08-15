@@ -16,6 +16,8 @@
         'cashless'    => ['Безналичный',   'bi-bank',                '#14b8a6'],
         'free'        => ['Бесплатно',     'bi-gift',                '#94a3b8'],
     ];
+    // Вид группы по её id — чтобы на слоте было видно, пробная это или абонемент.
+    $groupTypeById = collect($activeGroups ?? [])->pluck('type', 'id');
 @endphp
 
 <style>
@@ -589,7 +591,11 @@
                                 $pmW = $paymentMeta[$b->payment_method] ?? null;
                                 // У групповой брони нет способа оплаты — показываем тип
                                 if (!$pmW && $b->booking_type === 'group') {
-                                    $pmW = ['Групповая', 'bi-people-fill', '#fbbf24'];
+                                    // Та же метка, что в дневном расписании.
+                                    $grpIdW = $bookingGroupIds[$b->id] ?? null;
+                                    $pmW = ($grpIdW && ($groupTypeById[$grpIdW] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL)
+                                        ? ['Пробная', 'bi-stars', '#c084fc']
+                                        : ['Групповая', 'bi-people-fill', '#fbbf24'];
                                 }
                                 if ($pmW) $cls .= ' has-pm';
                                 $bStart = \Carbon\Carbon::parse($b->start_time)->format('H:i');

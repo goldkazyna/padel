@@ -105,6 +105,64 @@ class ClubGroupTypeTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="gc-type"'));
     }
 
+    /** Групповая бронь на корте: занятие + бронь, как их создаёт раздел «Занятия». */
+    private function groupBookingOn(\App\Models\Club $club, ClubGroup $group, User $admin): string
+    {
+        $court = \App\Models\Court::create([
+            'club_id' => $club->id, 'name' => 'Корт 1', 'is_active' => true,
+            'open_time' => '08:00', 'close_time' => '23:00', 'slot_duration' => 60,
+        ]);
+        // Середина следующей недели: на последний день недели бронь не попадает
+        // в недельную сетку под SQLite (дата там лежит строкой с временем).
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.groupSessions.store'), [
+            'group_id' => $group->id,
+            'court_id' => $court->id,
+            'date' => $date,
+            'start_time' => '16:00',
+            'slots' => 1,
+        ])->assertRedirect();
+
+        return $date;
+    }
+
+    public function test_schedule_marks_trial_group_booking(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $group = ClubGroup::create([
+            'club_id' => $club->id, 'name' => 'Тестовая', 'type' => 'trial', 'price_per_session' => 2400,
+        ]);
+        $date = $this->groupBookingOn($club, $group, $admin);
+
+        // В узком слоте отдельному бейджу места нет — вид пишем в самой полоске.
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Оплата: Пробная')
+            ->assertDontSee('Оплата: Групповая');
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.scheduleWeek', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Оплата: Пробная');
+    }
+
+    public function test_schedule_keeps_group_label_for_subscription(): void
+    {
+        [$club, $admin] = $this->setupClub();
+        $group = ClubGroup::create([
+            'club_id' => $club->id, 'name' => 'Обычная', 'price_per_session' => 4500,
+        ]);
+        $date = $this->groupBookingOn($club, $group, $admin);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('Оплата: Групповая')
+            ->assertDontSee('Оплата: Пробная');
+    }
+
     public function test_group_page_shows_the_type(): void
     {
         [$club, $admin] = $this->setupClub();

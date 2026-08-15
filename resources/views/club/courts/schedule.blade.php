@@ -15,6 +15,8 @@
         'cashless'    => ['Безналичный',   'bi-bank',                '#14b8a6'],
         'free'        => ['Бесплатно',     'bi-gift',                '#94a3b8'],
     ];
+    // Вид группы по её id — чтобы на слоте было видно, пробная это или абонемент.
+    $groupTypeById = collect($activeGroups ?? [])->pluck('type', 'id');
 @endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
@@ -330,7 +332,12 @@
                                     $pm = $paymentMeta[$booking->payment_method] ?? null;
                                     // У групповой брони нет способа оплаты — показываем тип
                                     if (!$pm && $booking->booking_type === 'group') {
-                                        $pm = ['Групповая', 'bi-people-fill', '#fbbf24'];
+                                        // Пробную отличаем прямо в полоске: слот узкий,
+                                        // отдельному бейджу там места нет.
+                                        $grpId = $bookingGroupIds[$booking->id] ?? null;
+                                        $pm = ($grpId && ($groupTypeById[$grpId] ?? null) === \App\Models\ClubGroup::TYPE_TRIAL)
+                                            ? ['Пробная', 'bi-stars', '#c084fc']
+                                            : ['Групповая', 'bi-people-fill', '#fbbf24'];
                                     }
                                     if ($pm) $slotClass .= ' has-pm';
                                     // Метка «у клиента наш инвентарь». Два источника:
