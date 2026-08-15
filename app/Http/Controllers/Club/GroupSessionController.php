@@ -239,6 +239,10 @@ class GroupSessionController extends Controller
             'status' => 'planned',
         ]);
 
+        // Цена брони = цена занятия × участники (+ пробные). Бронь выше создаётся
+        // с нулём, потому что занятия ещё нет, а считаем мы по нему.
+        app(\App\Services\GroupSessionService::class)->syncBookingPrice($session);
+
         \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroupSession', $session->id,
             "Занятие создано: «{$group->name}» — {$court->name}, {$validated['date']} {$startTime}–{$endTime}", clubId: $club->id);
 
@@ -364,6 +368,9 @@ class GroupSessionController extends Controller
             'trial_amount' => (int) ($validated['trial_amount'] ?? 0),
         ]);
 
+        // Гость платит за разовое посещение — эти деньги идут в цену занятия.
+        app(\App\Services\GroupSessionService::class)->syncBookingPrice($session, force: true);
+
         return back()->with('success', 'Пробный гость добавлен');
     }
 
@@ -376,6 +383,9 @@ class GroupSessionController extends Controller
         if ($attendance->session_id !== $session->id || $attendance->client_id === null) abort(403);
 
         $attendance->delete();
+
+        app(\App\Services\GroupSessionService::class)->syncBookingPrice($session->fresh(), force: true);
+
         return back()->with('success', 'Пробный гость убран');
     }
 

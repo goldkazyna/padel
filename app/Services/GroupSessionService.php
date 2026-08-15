@@ -64,6 +64,10 @@ class GroupSessionService
 
         $this->freezeCoachPay($session, $club);
 
+        // Состав стал окончательным — фиксируем цену занятия. Именно здесь
+        // появляются пробные гости, поэтому считаем после посещаемости.
+        $this->syncBookingPrice($session, force: true);
+
         // Лог пишем только для ручного проведения (есть пользователь). В авто-режиме
         // (крон, $conductedBy === null) auth()->id() null, а activity_logs.user_id NOT NULL —
         // факт авто-проведения виден по conducted_by = null.
@@ -97,5 +101,63 @@ class GroupSessionService
             ? (float) $coach->rate_group * $hrs
             : (float) ($coach?->getRateForHours((int) $hrs) ?? 0);
         $booking->update(['coach_price' => $price]);
+    }
+
+    /**
+     * Сколько занятие приносит клубу: цена занятия × активные участники плюс
+     * деньги пробных гостей.
+     *
+     * Пробных считаем отдельной суммой, а не «ещё одним участником»: они платят
+     * свою цену за разовое посещение, а не абонементную. Без них выходило, что
+     * на корте пять человек, а в цене четыре.
+     */
+    public function sessionRevenue(ClubGroupSession $session): float
+    {
+        $group = $session->group;
+        if (!$group) {
+            return 0.0;
+        }
+
+        $members = $group->members()->where('status', 'active')->count();
+        $trial = (int) ClubGroupAttendance::where('session_id', $session->id)
+            ->where('is_trial', true)
+            ->sum('trial_amount');
+
+        return (float) $group->price_per_session * $members + $trial;
+    }
+
+    /**
+     * Переписать цену брони под текущий состав занятия.
+     *
+     * Проведённые и отменённые занятия не трогаем: их деньги уже посчитаны в
+     * отчётах за закрытый период, и задним числом менять их нельзя.
+     * Исключение — $force: им пользуется само проведение, когда состав
+     * окончательно известен (тогда же появляются пробные гости).
+     */
+    public function syncBookingPrice(ClubGroupSession $session, bool $force = false): void
+    {
+        if (!$force && $session->status !== 'planned') {
+            return;
+        }
+
+        $booking = $session->courtBooking;
+        if (!$booking || $booking->booking_type !== 'group') {
+            return;
+        }
+
+        $booking->update(['price' => $this->sessionRevenue($session)]);
+    }
+
+    /**
+     * Пересчитать все запланированные занятия группы — состав изменился.
+     * Прошедшие занятия остаются как есть.
+     */
+    public function syncPlannedSessionsOfGroup(int $groupId): void
+    {
+        ClubGroupSession::where('group_id', $groupId)
+            ->where('status', 'planned')
+            ->with(['group', 'courtBooking'])
+            ->get()
+            ->each(fn (ClubGroupSession $s) => $this->syncBookingPrice($s));
     }
 }

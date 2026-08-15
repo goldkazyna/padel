@@ -434,6 +434,10 @@ class ClubGroupController extends Controller
         \App\Models\ActivityLog::logGroup($group->id, $isRestore ? 'restored' : 'created', 'ClubGroupMember', $member->id,
             "{$client->name} {$verb} «{$group->name}» ({$validated['sessions']} занятий)", clubId: $club->id);
 
+        // Состав изменился — пересчитываем цену будущих занятий группы.
+        // Прошедшие не трогаем: их деньги уже в отчётах.
+        app(\App\Services\GroupSessionService::class)->syncPlannedSessionsOfGroup($group->id);
+
         return back()->with('success', 'Участник добавлен');
     }
 
@@ -534,6 +538,10 @@ class ClubGroupController extends Controller
                 "Остаток обнулён при удалении: −{$remaining} занятий ({$member->client?->name})", clubId: $club->id);
             $zeroed = true;
         }
+
+        // Состав изменился — пересчитываем цену будущих занятий группы.
+        // Прошедшие не трогаем: их деньги уже в отчётах.
+        app(\App\Services\GroupSessionService::class)->syncPlannedSessionsOfGroup($group->id);
 
         return back()->with('success', $zeroed
             ? "Участник убран, остаток обнулён (−{$remaining})"
