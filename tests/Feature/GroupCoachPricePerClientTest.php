@@ -175,6 +175,72 @@ class GroupCoachPricePerClientTest extends TestCase
         $this->assertSame(0.0, $this->coachPrice($session->fresh()));
     }
 
+    // ===== Прикидка на слоте расписания =====
+
+    public function test_schedule_estimates_by_clients_not_by_hours(): void
+    {
+        [$club, $admin, $court, $coach] = $this->setupClub(rateGroup: 15000);
+        $group = ClubGroup::create([
+            'club_id' => $club->id, 'name' => 'Тестовая',
+            'price_per_session' => 1200, 'coach_price_per_client' => 1500,
+        ]);
+        // Середина следующей недели — иначе бронь на последний день недели
+        // не попадает в недельную сетку под SQLite.
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.groupSessions.store'), [
+            'group_id' => $group->id, 'court_id' => $court->id,
+            'date' => $date, 'start_time' => '16:00', 'slots' => 1,
+        ])->assertRedirect();
+
+        // Занятие ещё не проведено — сумма прикидочная. Двое участников.
+        $this->addMembersTo($club, $group, 2);
+        \App\Models\CourtBooking::query()->update(['coach_id' => $coach->id]);
+
+        $html = $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()->getContent();
+
+        // 1 500 × 2 участника, а не часовая ставка 15 000.
+        $this->assertStringContainsString('+ 3 000', $html);
+        $this->assertStringNotContainsString('+ 15 000', $html);
+    }
+
+    public function test_schedule_falls_back_to_hourly_rate_without_the_field(): void
+    {
+        [$club, $admin, $court, $coach] = $this->setupClub(rateGroup: 15000);
+        $group = ClubGroup::create([
+            'club_id' => $club->id, 'name' => 'Обычная', 'price_per_session' => 1200,
+        ]);
+        $date = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addWeek()->addDays(2)->toDateString();
+
+        $this->actingAs($admin)->post(route('club.groupSessions.store'), [
+            'group_id' => $group->id, 'court_id' => $court->id,
+            'date' => $date, 'start_time' => '16:00', 'slots' => 1,
+        ])->assertRedirect();
+
+        $this->addMembersTo($club, $group, 2);
+        \App\Models\CourtBooking::query()->update(['coach_id' => $coach->id]);
+
+        $this->actingAs($admin)
+            ->get(route('club.courts.schedule', ['date' => $date]))
+            ->assertOk()
+            ->assertSee('+ 15 000');
+    }
+
+    /** Добавить участников в существующую группу. */
+    private function addMembersTo(Club $club, ClubGroup $group, int $count): void
+    {
+        for ($i = 1; $i <= $count; $i++) {
+            $client = ClubClient::create([
+                'club_id' => $club->id, 'name' => "Участник {$i}", 'phone' => '+7 702 000 00 0' . $i,
+            ]);
+            ClubGroupMember::create([
+                'group_id' => $group->id, 'client_id' => $client->id, 'status' => 'active',
+            ]);
+        }
+    }
+
     // ===== Форма =====
 
     public function test_empty_field_means_not_set_and_not_zero(): void

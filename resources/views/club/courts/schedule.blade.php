@@ -17,6 +17,11 @@
     ];
     // Вид группы по её id — чтобы на слоте было видно, пробная это или абонемент.
     $groupTypeById = collect($activeGroups ?? [])->pluck('type', 'id');
+    // Ставка тренеру за клиента и число активных участников — для прикидки
+    // выплаты на ещё не проведённом занятии.
+    $groupCoachPerClient = collect($activeGroups ?? [])->mapWithKeys(fn ($g) => [
+        $g->id => ['rate' => $g->coach_price_per_client, 'members' => $g->members->count()],
+    ]);
 @endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
@@ -378,6 +383,13 @@
                                                 // Зафиксированная сумма: ручная (индивид.) либо замороженная
                                                 // при проведении группового занятия.
                                                 $coachTotal = (float) $booking->coach_price;
+                                            } elseif ($booking->booking_type === 'group'
+                                                && ($gcpcId = $bookingGroupIds[$booking->id] ?? null)
+                                                && ($gcpc = $groupCoachPerClient[$gcpcId] ?? null)
+                                                && $gcpc['rate'] !== null) {
+                                                // У группы своя ставка за клиента — считаем по людям, а не по часам.
+                                                // При проведении сумма пересчитается по фактически пришедшим.
+                                                $coachTotal = (float) $gcpc['rate'] * $gcpc['members'];
                                             } elseif ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
                                                 // Группа ещё не проведена — прикидка по текущей групповой ставке (₸/час × часы).
                                                 $coachTotal = (float) $ccObj->rate_group * $bkHours;
