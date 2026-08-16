@@ -282,6 +282,79 @@ class JustPadelItPairingModeTest extends TestCase
             ->assertSee($players[0]->name);
     }
 
+    // ===== Шапка турнира при самостоятельной записи =====
+
+    public function test_self_mode_offers_test_pairs_not_test_players(): void
+    {
+        [$t, $admin] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('+Тестовые пары')
+            ->assertDontSee('+Тест игроки');
+    }
+
+    public function test_admin_mode_keeps_test_players(): void
+    {
+        [$t, $admin] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('+Тест игроки');
+    }
+
+    /** Тестовые пары должны заполнять турнир до полного состава. */
+    public function test_test_pairs_fill_the_tournament(): void
+    {
+        [$t, $admin] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.addTestTeams', $t))
+            ->assertRedirect();
+
+        $this->assertSame(4, TournamentTeam::where('tournament_id', $t->id)->count(),
+            'восемь мест — четыре пары');
+        $this->assertSame(8, $t->fresh()->approvedParticipantsCount());
+    }
+
+    /**
+     * При самостоятельной записи пары уже собраны игроками — собирать их
+     * заново незачем, турнир должен просто стартовать.
+     */
+    public function test_self_mode_starts_without_pair_assembly(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+        $this->approveTeams($t, $players);
+
+        $response = $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk();
+
+        $response->assertSee('Начать турнир');
+        $response->assertDontSee('Создать пары');
+    }
+
+    /** А при сборе админом — наоборот: сначала пары, потом старт. */
+    public function test_admin_mode_asks_to_assemble_pairs_first(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+        foreach ($players as $p) {
+            $t->participants()->attach($p->id, ['status' => 'registered']);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('Создать пары');
+    }
+
     public function test_non_paired_jpi_is_always_solo(): void
     {
         // Без фиксированных пар выбора нет — записываются поодиночке.

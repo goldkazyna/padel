@@ -7,19 +7,38 @@
     <div class="d-flex gap-2 flex-wrap">
         @if($tournament->status === 'open')
             @if($tournament->participants->count() < $tournament->max_participants)
-                <form action="{{ route('club.tournaments.addTestPlayers', $tournament) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn-outline-custom">
-                        <i class="bi bi-people-fill"></i> +Тест игроки
-                    </button>
-                </form>
+                {{-- При самостоятельной записи игрок один не приходит: заявка
+                     всегда парная, поэтому и тестовые данные должны быть парами. --}}
+                @if($tournament->usesSoloRegistration())
+                    <form action="{{ route('club.tournaments.addTestPlayers', $tournament) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn-outline-custom">
+                            <i class="bi bi-people-fill"></i> +Тест игроки
+                        </button>
+                    </form>
+                @else
+                    <form action="{{ route('club.tournaments.addTestTeams', $tournament) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn-outline-custom">
+                            <i class="bi bi-lightning-fill"></i> +Тестовые пары
+                        </button>
+                    </form>
+                @endif
             @endif
 
-            @if($tournament->isPairedJustPadelIt() ? $tournament->participants->count() === $tournament->max_participants : $tournament->jpiSeedingReady())
+            @php
+                // При самостоятельной записи участников до старта нет: пары
+                // лежат в командах турнира и переезжают в участники при старте.
+                $jpiReady = $tournament->isSelfPairing()
+                    ? $tournament->approvedParticipantsCount() === (int) $tournament->max_participants
+                    : ($tournament->isPairedJustPadelIt()
+                        ? $tournament->participants->count() === (int) $tournament->max_participants
+                        : $tournament->jpiSeedingReady());
+            @endphp
+            @if($jpiReady)
                 @if(!$tournament->hasReserveParticipants())
-                    @php $pairsReady = !$tournament->isPairedJustPadelIt() || $tournament->justPadelItPairs()->exists(); @endphp
-                    @if($tournament->isPairedJustPadelIt() && !$tournament->justPadelItPairs()->exists())
-                        {{-- Фикс-пары: сначала создать пары --}}
+                    @if($tournament->isPairedJustPadelIt() && !$tournament->isSelfPairing() && !$tournament->justPadelItPairs()->exists())
+                        {{-- Пары собирает админ: сначала собрать, потом старт --}}
                         <a href="{{ route('club.justpadelit.pairs', $tournament) }}" class="btn-primary-custom">
                             <i class="bi bi-people-fill"></i> Создать пары
                         </a>
