@@ -136,6 +136,30 @@ class Club extends Model
     }
 
     // Связь: админы клуба
+    /**
+     * Готовая ссылка на логотип.
+     *
+     * В поле лежат три формата, накопившиеся за время жизни проекта: полный
+     * URL, путь от корня вида «/logos/x.jpg» и голое имя файла у самых старых
+     * записей. Разбор был скопирован по вьюхам — держим его в одном месте.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        $logo = $this->logo;
+
+        if (!$logo) {
+            return null;
+        }
+        if (preg_match('#^https?://#', $logo)) {
+            return $logo;
+        }
+        if (str_starts_with($logo, '/')) {
+            return url($logo);
+        }
+
+        return asset('logos/' . $logo);
+    }
+
     public function admins()
     {
         return $this->belongsToMany(User::class, 'club_admins');

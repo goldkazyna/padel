@@ -11,8 +11,19 @@ class ClubController extends Controller
 {
     public function index()
     {
-        $clubs = Club::withCount(['admins', 'tournaments'])->orderBy('id')->get();
-        return view('admin.clubs.index', compact('clubs'));
+        // Админов тянем сразу: на карточке видно имя и почту, чтобы не ходить
+        // за ними на отдельный экран ради одного адреса.
+        $clubs = Club::withCount(['admins', 'tournaments'])
+            ->with(['admins:id,name,email'])
+            ->orderBy('id')
+            ->get();
+
+        // Вкладки: обычные клубы и комьюнити. Флаг в базе есть давно,
+        // но список его не различал.
+        $communities = $clubs->where('is_community', true)->values();
+        $clubs = $clubs->where('is_community', false)->values();
+
+        return view('admin.clubs.index', compact('clubs', 'communities'));
     }
 
     public function create()
