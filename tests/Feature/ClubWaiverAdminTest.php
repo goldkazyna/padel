@@ -57,6 +57,21 @@ class ClubWaiverAdminTest extends TestCase
         $this->assertSame('Текст', $club->waiver_text);
     }
 
+    /** Галочка без текста бессмысленна: QR вёл бы в пустоту. */
+    public function test_empty_text_with_the_flag_on_is_refused(): void
+    {
+        $club = Club::create(['name' => 'Клуб', 'address' => 'Адрес']);
+
+        $this->actingAs($this->superAdmin())
+            ->put(route('admin.clubs.update', $club), $this->payload($club, [
+                'waiver_enabled' => 1,
+                'waiver_text' => '',
+            ]))
+            ->assertSessionHasErrors('waiver_text');
+
+        $this->assertFalse($club->fresh()->collectsWaiver());
+    }
+
     public function test_qr_appears_only_when_the_waiver_is_collected(): void
     {
         $off = Club::create(['name' => 'Без отказа', 'address' => 'А']);

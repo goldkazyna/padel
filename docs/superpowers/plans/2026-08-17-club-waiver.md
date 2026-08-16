@@ -32,7 +32,7 @@
 
 **Отдаёт дальше:** `Club::$waiver_enabled`, `Club::$waiver_text`, `Club::collectsWaiver(): bool`, `Club::waiverTextHash(): ?string`, модель `ClubWaiverSignature`.
 
-- [ ] **Шаг 1: Написать падающий тест**
+- [x] **Шаг 1: Написать падающий тест**
 
 ```php
 <?php
@@ -129,12 +129,12 @@ class ClubWaiverStorageTest extends TestCase
 }
 ```
 
-- [ ] **Шаг 2: Убедиться, что тест падает**
+- [x] **Шаг 2: Убедиться, что тест падает**
 
 Запуск: `php artisan test --filter=ClubWaiverStorageTest`
 Ожидание: FAIL — колонки и модель не существуют.
 
-- [ ] **Шаг 3: Миграции и модель**
+- [x] **Шаг 3: Миграции и модель**
 
 `2026_08_17_000002_add_waiver_to_clubs_table.php`:
 
@@ -273,12 +273,12 @@ class ClubWaiverSignature extends Model
     }
 ```
 
-- [ ] **Шаг 4: Тесты зелёные**
+- [x] **Шаг 4: Тесты зелёные**
 
 Запуск: `php artisan test --filter=ClubWaiverStorageTest`
 Ожидание: 5 passed.
 
-- [ ] **Шаг 5: Коммит**
+- [x] **Шаг 5: Коммит**
 
 ```bash
 git add database/migrations app/Models tests/Feature/ClubWaiverStorageTest.php
@@ -296,7 +296,7 @@ git commit -m "feat(waiver): хранилище отказа от ответст
 
 **Берёт:** поля из задачи 1.
 
-- [ ] **Шаг 1: Написать падающий тест**
+- [x] **Шаг 1: Написать падающий тест**
 
 ```php
 <?php
@@ -379,12 +379,12 @@ class ClubWaiverAdminTest extends TestCase
 }
 ```
 
-- [ ] **Шаг 2: Убедиться, что тест падает**
+- [x] **Шаг 2: Убедиться, что тест падает**
 
 Запуск: `php artisan test --filter=ClubWaiverAdminTest`
 Ожидание: FAIL — поля не сохраняются, QR нет.
 
-- [ ] **Шаг 3: Валидация и форма**
+- [x] **Шаг 3: Валидация и форма**
 
 В `Admin\ClubController@update` в массив правил добавить:
 
@@ -457,12 +457,12 @@ class ClubWaiverAdminTest extends TestCase
                     @endif
 ```
 
-- [ ] **Шаг 4: Тесты зелёные**
+- [x] **Шаг 4: Тесты зелёные**
 
 Запуск: `php artisan test --filter=ClubWaiverAdminTest`
 Ожидание: 3 passed.
 
-- [ ] **Шаг 5: Коммит**
+- [x] **Шаг 5: Коммит**
 
 ```bash
 git add app/Http/Controllers/Admin/ClubController.php resources/views/admin/clubs/edit.blade.php tests/Feature/ClubWaiverAdminTest.php
@@ -480,7 +480,7 @@ git commit -m "feat(waiver): галочка, текст и QR на страни�
 
 **Отдаёт дальше:** публичный маршрут `GET /w/{club}` с именем `waiver.open`.
 
-- [ ] **Шаг 1: Написать падающий тест**
+- [x] **Шаг 1: Написать падающий тест**
 
 ```php
 <?php
@@ -526,12 +526,12 @@ class ClubWaiverLandingTest extends TestCase
 }
 ```
 
-- [ ] **Шаг 2: Убедиться, что тест падает**
+- [x] **Шаг 2: Убедиться, что тест падает**
 
 Запуск: `php artisan test --filter=ClubWaiverLandingTest`
 Ожидание: FAIL — маршрута нет (404 на первом же тесте).
 
-- [ ] **Шаг 3: Маршрут и страница**
+- [x] **Шаг 3: Маршрут и страница**
 
 В `routes/web.php` рядом с `/t/{tournament}`:
 
@@ -615,12 +615,12 @@ Route::get('/w/{club}', function (\App\Models\Club $club) {
 </html>
 ```
 
-- [ ] **Шаг 4: Тесты зелёные**
+- [x] **Шаг 4: Тесты зелёные**
 
 Запуск: `php artisan test --filter=ClubWaiverLandingTest`
 Ожидание: 3 passed.
 
-- [ ] **Шаг 5: Коммит**
+- [x] **Шаг 5: Коммит**
 
 ```bash
 git add routes/web.php resources/views/waiver-open.blade.php tests/Feature/ClubWaiverLandingTest.php
@@ -643,7 +643,7 @@ git commit -m "feat(waiver): страница QR ведёт в приложен�
 - `POST /api/mobile/clubs/{club}/waiver/sign` с `full_name`, `text_hash`, `signature` (data:image/png;base64,…)
 - `WaiverSignatureService::store(Club, User, string $fullName, string $pngBase64, Request): ClubWaiverSignature`
 
-- [ ] **Шаг 1: Написать падающий тест**
+- [x] **Шаг 1: Написать падающий тест**
 
 ```php
 <?php
@@ -785,12 +785,12 @@ class ClubWaiverApiTest extends TestCase
 }
 ```
 
-- [ ] **Шаг 2: Убедиться, что тест падает**
+- [x] **Шаг 2: Убедиться, что тест падает**
 
 Запуск: `php artisan test --filter=ClubWaiverApiTest`
 Ожидание: FAIL — маршрутов нет.
 
-- [ ] **Шаг 3: Сервис, контроллер, маршруты**
+- [x] **Шаг 3: Сервис, контроллер, маршруты**
 
 `app/Services/WaiverSignatureService.php`:
 
@@ -1001,12 +1001,12 @@ class MobileWaiverController extends Controller
 
 плюс импорт `use App\Http\Controllers\Api\MobileWaiverController;`.
 
-- [ ] **Шаг 4: Тесты зелёные**
+- [x] **Шаг 4: Тесты зелёные**
 
 Запуск: `php artisan test --filter=ClubWaiverApiTest`
 Ожидание: 7 passed.
 
-- [ ] **Шаг 5: Коммит**
+- [x] **Шаг 5: Коммит**
 
 ```bash
 git add app/Services/WaiverSignatureService.php app/Http/Controllers/Api/MobileWaiverController.php routes/api.php tests/Feature/ClubWaiverApiTest.php
@@ -1027,7 +1027,7 @@ git commit -m "feat(waiver): API чтения текста и подписи"
 **Берёт:** модель `ClubWaiverSignature`.
 **Отдаёт дальше:** маршруты `club.waivers.index` и `club.waivers.image`.
 
-- [ ] **Шаг 1: Написать падающий тест**
+- [x] **Шаг 1: Написать падающий тест**
 
 ```php
 <?php
@@ -1115,12 +1115,12 @@ class ClubWaiverListTest extends TestCase
 }
 ```
 
-- [ ] **Шаг 2: Убедиться, что тест падает**
+- [x] **Шаг 2: Убедиться, что тест падает**
 
 Запуск: `php artisan test --filter=ClubWaiverListTest`
 Ожидание: FAIL — маршрутов нет.
 
-- [ ] **Шаг 3: Контроллер, вью, маршруты, меню**
+- [x] **Шаг 3: Контроллер, вью, маршруты, меню**
 
 `app/Http/Controllers/Club/WaiverController.php`:
 
@@ -1295,12 +1295,12 @@ class WaiverController extends Controller
 					@endif
 ```
 
-- [ ] **Шаг 4: Тесты зелёные**
+- [x] **Шаг 4: Тесты зелёные**
 
 Запуск: `php artisan test --filter=ClubWaiverListTest`
 Ожидание: 4 passed.
 
-- [ ] **Шаг 5: Полный прогон и коммит**
+- [x] **Шаг 5: Полный прогон и коммит**
 
 Запуск: `php -d memory_limit=1G vendor/bin/phpunit`
 Ожидание: не хуже базового уровня — 3 ошибки, 23 падения.
@@ -1323,7 +1323,7 @@ git push
 **Берёт:** эндпоинты из задачи 4.
 **Отдаёт дальше:** класс `ClubWaiver` с полями `collects`, `clubName`, `text`, `textHash`, `signedAt`, `signedText`; `WaiverService.load(int clubId)` и `WaiverService.sign(...)`.
 
-- [ ] **Шаг 1: Модель**
+- [x] **Шаг 1: Модель**
 
 ```dart
 /// Отказ от ответственности клуба и состояние подписи текущего игрока.
@@ -1367,7 +1367,7 @@ class ClubWaiver {
 }
 ```
 
-- [ ] **Шаг 2: Сервис**
+- [x] **Шаг 2: Сервис**
 
 ```dart
 import 'dart:convert';
@@ -1429,12 +1429,12 @@ class WaiverService {
 
 Зарегистрировать в `main.dart` тем же способом, что и `AchievementService`: создать рядом с остальными сервисами и добавить `Provider<WaiverService>.value(...)` в список провайдеров.
 
-- [ ] **Шаг 3: Проверить**
+- [x] **Шаг 3: Проверить**
 
 Запуск: `flutter analyze lib/models/club_waiver.dart lib/services/waiver_service.dart lib/main.dart`
 Ожидание: 0 errors.
 
-- [ ] **Шаг 4: Коммит**
+- [x] **Шаг 4: Коммит**
 
 ```bash
 git add lib/models/club_waiver.dart lib/services/waiver_service.dart lib/main.dart
@@ -1454,7 +1454,7 @@ git commit -m "feat(waiver): модель и сервис отказа от от
 
 Холст подписи пишется руками, без пакета: `GestureDetector` копит точки штрихов, `CustomPainter` их рисует, `ui.PictureRecorder` отдаёт PNG. Новых зависимостей не появляется.
 
-- [ ] **Шаг 1: Холст подписи**
+- [x] **Шаг 1: Холст подписи**
 
 ```dart
 import 'dart:typed_data';
@@ -1524,7 +1524,7 @@ class SignaturePad extends StatefulWidget {
 
 Состояние: `GestureDetector` с `onPanStart` (новый штрих), `onPanUpdate` (добавить точку, `setState`), `onPanEnd`. Внутри `CustomPaint` с painter, который зовёт `controller._paintStrokes(canvas, Colors.black)`. Размер холста запоминается в `controller._size` через `LayoutBuilder`.
 
-- [ ] **Шаг 2: Экран**
+- [x] **Шаг 2: Экран**
 
 `ClubWaiverScreen(clubId)`:
 
@@ -1536,12 +1536,12 @@ class SignaturePad extends StatefulWidget {
 - на `WaiverTextChanged` показывает диалог «Текст изменился, перечитайте», подставляет свежий текст и очищает холст;
 - шапка как на остальных вложенных экранах: `AppBackButton` в отступе слева, заголовок 20/w800.
 
-- [ ] **Шаг 3: Проверить**
+- [x] **Шаг 3: Проверить**
 
 Запуск: `flutter analyze lib/`
 Ожидание: 0 errors.
 
-- [ ] **Шаг 4: Коммит**
+- [x] **Шаг 4: Коммит**
 
 ```bash
 git add lib/widgets/waiver lib/screens/club_waiver_screen.dart
@@ -1557,7 +1557,7 @@ git commit -m "feat(waiver): экран подписи с холстом"
 
 **Берёт:** `ClubWaiverScreen` из задачи 7.
 
-- [ ] **Шаг 1: Разбор ссылки**
+- [x] **Шаг 1: Разбор ссылки**
 
 В `_handleUri`, перед разбором клуба (иначе `/w/` не спутается ни с чем):
 
@@ -1581,12 +1581,12 @@ git commit -m "feat(waiver): экран подписи с холстом"
 
 плюс метод `_navigateToWaiver`, повторяющий `_navigateToTournament`: ожидание готовности навигатора до ста попыток по 100 мс, затем `push` на `ClubWaiverScreen(clubId: id)`.
 
-- [ ] **Шаг 2: Проверить**
+- [x] **Шаг 2: Проверить**
 
 Запуск: `flutter analyze lib/`
 Ожидание: 0 errors.
 
-- [ ] **Шаг 3: Коммит и пуш**
+- [x] **Шаг 3: Коммит и пуш**
 
 ```bash
 git add lib/services/deep_link_service.dart

@@ -91,7 +91,7 @@ class ClubController extends Controller
             'plexy_merchant_id' => 'nullable|string|max:255',
             'plexy_webhook_secret' => 'nullable|string|max:500',
             'waiver_enabled' => 'nullable|boolean',
-            'waiver_text' => 'nullable|string|max:20000',
+            'waiver_text' => 'required_if:waiver_enabled,1|nullable|string|max:20000',
         ]);
 
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
