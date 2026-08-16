@@ -216,10 +216,16 @@ class JustPadelItPairingModeTest extends TestCase
         $this->assertTrue($t->isSelfPairing());
     }
 
-    /** И меняет его при редактировании, пока турнир не начался. */
-    public function test_app_can_change_pairing_mode_on_edit(): void
+    /**
+     * Режим задаётся при создании и дальше не меняется.
+     *
+     * Смена обнуляет уже записавшихся: при «сами игроки» они хранятся парами
+     * в командах, при «админ собирает» — поодиночке в участниках. Переключение
+     * делает половину невидимой, и турнир перестаёт стартовать.
+     */
+    public function test_pairing_mode_cannot_be_changed_from_the_app(): void
     {
-        [$t, $admin] = $this->makeTournament('admin');
+        [$t, $admin] = $this->makeTournament('self');
         $t->update(['status' => 'open']);
         Sanctum::actingAs($admin);
 
@@ -228,10 +234,42 @@ class JustPadelItPairingModeTest extends TestCase
             'start_date' => now()->addDay()->toDateString(),
             'min_level' => 1, 'max_level' => 5,
             'max_participants' => 8,
-            'pairing_mode' => 'self',
+            'pairing_mode' => 'admin',
         ])->assertOk();
 
+        $this->assertSame('self', $t->fresh()->pairing_mode, 'режим остался прежним');
+    }
+
+    public function test_pairing_mode_cannot_be_changed_from_the_web(): void
+    {
+        [$t, $admin] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+
+        $this->actingAs($admin)->put(route('club.tournaments.update', $t), [
+            'club_id' => $t->club_id,
+            'name' => $t->name,
+            'type' => 'just_padel_it',
+            'start_date' => now()->addDay()->toDateString(),
+            'max_participants' => 8,
+            'min_level' => 1, 'max_level' => 5,
+            'status' => 'open',
+            'jpi_pairing_mode' => 'admin',
+        ])->assertRedirect();
+
         $this->assertSame('self', $t->fresh()->pairing_mode);
+    }
+
+    /** В форме редактирования режим показан, но менять его нечем. */
+    public function test_edit_form_shows_mode_without_a_selector(): void
+    {
+        [$t, $admin] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.edit', $t))
+            ->assertOk()
+            ->assertSee('Сами игроки (поиск партнёра)')
+            ->assertDontSee('name="jpi_pairing_mode"', false);
     }
 
     /**

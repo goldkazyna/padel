@@ -198,14 +198,11 @@
                         </div>
                         @endif
                         @if($tournament->isPairedJustPadelIt())
-                        @php $jpiPairing = old('jpi_pairing_mode', $tournament->pairing_mode ?? 'admin'); @endphp
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Кто собирает пары</label>
-                            <select name="jpi_pairing_mode" class="form-select">
-                                <option value="admin" {{ $jpiPairing === 'admin' ? 'selected' : '' }}>Админ собирает (запись по одному)</option>
-                                <option value="self" {{ $jpiPairing === 'self' ? 'selected' : '' }}>Сами игроки (поиск партнёра)</option>
-                            </select>
-                            <small class="text-secondary">Менять после начала записи не стоит: уже записавшиеся останутся в прежнем виде.</small>
+                            <input type="text" class="form-control" disabled
+                                   value="{{ $tournament->isSelfPairing() ? 'Сами игроки (поиск партнёра)' : 'Админ собирает (запись по одному)' }}">
+                            <small class="text-secondary">Задаётся при создании. Сменить нельзя: уже записавшиеся перестали бы отображаться — при парной записи они хранятся парами, при одиночной по одному.</small>
                         </div>
                         @endif
                         @if($tournament->isJustPadelIt())

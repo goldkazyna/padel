@@ -378,14 +378,12 @@ class TournamentController extends Controller
 		}
 		unset($validated['escalera_courts_count']);
 
-		// Парный JPI: способ сбора пар приходит своим полем (см. store).
-		// Пока турнир не начат — можно поменять; после старта не трогаем.
+		// Парный JPI: способ сбора пар задаётся только при создании.
+		// Смена на ходу обнуляет уже записавшихся: при «сами игроки» они лежат
+		// парами в командах, при «админ собирает» — поодиночке в участниках.
+		// Переключение делает половину невидимой, и турнир не стартует вовсе.
 		if ($tournament->isPairedJustPadelIt()) {
-			if (in_array($tournament->status, ['draft', 'open'], true) && $request->filled('jpi_pairing_mode')) {
-				$validated['pairing_mode'] = $request->input('jpi_pairing_mode') === 'self' ? 'self' : 'admin';
-			} else {
-				unset($validated['pairing_mode']);
-			}
+			unset($validated['pairing_mode']);
 		}
 
 		// Кол-во групп/раундов (Американо) — менять можно только ДО старта.
