@@ -96,6 +96,97 @@ class AmericanoThreeGroupsPageTest extends TestCase
         $response->assertSee('Победитель ЧФ 2');
     }
 
+    /**
+     * Турнир до старта — редактируются только такие.
+     *
+     * @return array{0: Tournament, 1: User}
+     */
+    private function openTournament(int $groupsCount): array
+    {
+        $club = Club::create(['name' => 'Padel', 'address' => 'A']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+
+        $t = Tournament::factory()->create([
+            'club_id' => $club->id,
+            'type' => 'americano',
+            'status' => 'open',
+            'groups_count' => $groupsCount,
+            'max_participants' => 24,
+            'has_playoff' => true,
+            'playoff_type' => 'semifinal_final',
+            'playoff_format' => $groupsCount >= 3 ? Tournament::PLAYOFF_FORMAT_TABLE_QF : 'mix',
+        ]);
+
+        return [$t, $admin];
+    }
+
+    public function test_edit_form_offers_table_format_for_three_groups(): void
+    {
+        [$t, $admin] = $this->openTournament(3);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.edit', $t))
+            ->assertOk()
+            ->assertSee('value="table_qf"', false)
+            ->assertSee('Формат плей-офф');
+    }
+
+    public function test_edit_form_keeps_group_formats_for_two_groups(): void
+    {
+        [$t, $admin] = $this->openTournament(2);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.edit', $t))
+            ->assertOk()
+            ->assertSee('Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)');
+    }
+
+    public function test_edit_saves_table_format(): void
+    {
+        [$t, $admin] = $this->openTournament(2);
+
+        $this->actingAs($admin)
+            ->put(route('club.tournaments.update', $t), [
+                'club_id' => $t->club_id,
+                'name' => 'Американо 24',
+                'type' => 'americano',
+                'start_date' => now()->addDay()->toDateString(),
+                'max_participants' => 24,
+                'min_level' => 1,
+                'max_level' => 5,
+                'status' => 'open',
+                'groups_count' => 3,
+                'has_playoff' => 1,
+                'playoff_type' => 'semifinal_final',
+                'playoff_format' => 'table_qf',
+            ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $t = $t->fresh();
+        $this->assertSame(3, (int) $t->groups_count, 'три группы сохранились');
+        $this->assertSame('table_qf', $t->playoff_format);
+    }
+
+    public function test_mobile_admin_can_set_three_groups(): void
+    {
+        [$t, $admin] = $this->openTournament(2);
+
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+        $this->putJson("/api/mobile/admin/tournaments/{$t->id}", [
+            'name' => 'Американо 24',
+            'start_date' => now()->addDay()->toDateString(),
+            'min_level' => 1,
+            'max_level' => 5,
+            'max_participants' => 24,
+            'groups_count' => 3,
+            'playoff_format' => 'table_qf',
+        ])->assertOk();
+
+        $t = $t->fresh();
+        $this->assertSame(3, (int) $t->groups_count, 'три группы не схлопнулись до одной');
+        $this->assertSame('table_qf', $t->playoff_format);
+    }
+
     public function test_score_saved_from_web_advances_quarterfinal_winner(): void
     {
         [$t, $admin] = $this->scenario();

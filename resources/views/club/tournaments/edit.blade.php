@@ -264,7 +264,7 @@
 						<div class="col-md-6 mb-4">
 							<label class="form-label">Количество групп</label>
 							@if($amNotStarted && !$amGroupsFormed)
-								<select name="groups_count" class="form-select">
+								<select name="groups_count" id="americanoGroupsCount" class="form-select" onchange="togglePlayoffFormat()">
 									@for($g = 1; $g <= 4; $g++)
 										<option value="{{ $g }}" {{ (int) $amGroups === $g ? 'selected' : '' }}>{{ $g }} {{ $g === 1 ? 'группа' : ($g >= 5 ? 'групп' : 'группы') }}</option>
 									@endfor
@@ -364,7 +364,7 @@
 											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>1+3 vs 2+4 (микс)</option>
 										@endif
 									</select>
-									<small class="text-secondary mt-2 d-block">
+									<small class="text-secondary mt-2 d-block" id="playoffFormatHint">
 										@if($editGroups >= 3)
 											Цифры = места в общей таблице всех групп. Нужно минимум 12 игроков.
 										@elseif($editGroups >= 2)
@@ -583,6 +583,11 @@ function updateEscaleraParticipants() {
     maxInput.value = courts * 4;
 }
 document.addEventListener('DOMContentLoaded', updateEscaleraParticipants);
+// Приводим блок плей-офф к сохранённому состоянию: без этого список форматов
+// остаётся серверной разметкой и не знает про смену числа групп.
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('playoffFormat')) togglePlayoffFormat();
+});
 function toggleTeamPlayoffOptions() {
     const cb = document.getElementById('teamHasPlayoff');
     const opts = document.getElementById('teamPlayoffOptions');
@@ -609,17 +614,81 @@ function togglePlayoffFormat() {
     const bronzeWrap = document.getElementById('americanoBronzeWrap');
     const bronze = document.getElementById('americanoBronze');
 
-    // 3+ групп играют только по общей таблице: топ-4 в полуфинале,
-    // 5–12 в четвертьфинале. Один финал такую сетку не вместит.
-    const amGroupsCount = {{ (int) ($tournament->groups_count ?? 1) }};
+    // Число групп берём из живого селекта: его могли только что поменять,
+    // а серверная разметка знает лишь сохранённое значение.
+    const groupsSelect = document.getElementById('americanoGroupsCount');
+    const amGroupsCount = groupsSelect
+        ? parseInt(groupsSelect.value)
+        : {{ (int) ($tournament->groups_count ?? 1) }};
+
+    const playoffFormatSelect = document.getElementById('playoffFormat');
+    const finalOnly = document.getElementById('finalOnly');
+
+    // 3+ групп играют только по общей таблице: топ-4 ждут в полуфинале,
+    // 5–12 играют четвертьфинал. Один финал такую сетку не вместит.
     if (amGroupsCount >= 3) {
-        const finalOnly = document.getElementById('finalOnly');
         if (semifinalFinal) semifinalFinal.checked = true;
         if (finalOnly) { finalOnly.checked = false; finalOnly.disabled = true; }
+    } else if (finalOnly) {
+        finalOnly.disabled = false;
+    }
+
+    // Список форматов пересобираем под текущее число групп, сохраняя выбор,
+    // если он в новом наборе есть.
+    if (playoffFormatSelect) {
+        const isSemi = semifinalFinal && semifinalFinal.checked;
+        let options;
+        if (amGroupsCount >= 3) {
+            options = [['table_qf', 'Общая таблица (1+4 и 2+3 ждут в полуфинале, 5–12 играют четвертьфинал)']];
+        } else if (amGroupsCount >= 2) {
+            options = [
+                ['mix', 'Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)'],
+                ['group_vs', 'Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)'],
+                ['tops', 'Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)'],
+                ['cross', 'Крест (A1+B4 vs B1+A4, A2+B3 vs B2+A3)'],
+                ['top_bottom', 'Верх/низ (A1+B3 vs A2+B4, A3+B1 vs A4+B2)'],
+            ];
+        } else if (isSemi) {
+            options = [
+                ['mix', 'Микс (1+8 vs 4+5, 2+7 vs 3+6)'],
+                ['tops', 'Топы вместе (1+2 vs 7+8, 3+4 vs 5+6)'],
+                ['balanced', 'Сбалансированный (1+4 vs 5+8, 2+3 vs 6+7)'],
+            ];
+        } else {
+            options = [
+                ['cross', '1+4 vs 2+3 (крест)'],
+                ['tops', '1+2 vs 3+4 (топы вместе)'],
+                ['mix', '1+3 vs 2+4 (микс)'],
+            ];
+        }
+
+        const previous = playoffFormatSelect.value;
+        playoffFormatSelect.innerHTML = options
+            .map(([value, label]) => '<option value="' + value + '">' + label + '</option>')
+            .join('');
+        if (options.some(([value]) => value === previous)) {
+            playoffFormatSelect.value = previous;
+        }
+
+        const hint = document.getElementById('playoffFormatHint');
+        const label = document.getElementById('playoffFormatLabel');
+        if (label) {
+            label.textContent = amGroupsCount >= 3
+                ? 'Формат плей-офф'
+                : (amGroupsCount >= 2 || isSemi ? 'Формат пар в полуфиналах' : 'Формат пар в финале');
+        }
+        if (hint) {
+            hint.textContent = amGroupsCount >= 3
+                ? 'Цифры = места в общей таблице всех групп. Нужно минимум 12 игроков.'
+                : (amGroupsCount >= 2
+                    ? 'A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.'
+                    : 'Цифры = места в таблице лидеров после основных раундов');
+        }
     }
 
     if (playoffFormatOptions && semifinalFinal) {
-        playoffFormatOptions.style.display = semifinalFinal.checked ? 'block' : 'none';
+        playoffFormatOptions.style.display =
+            (semifinalFinal.checked || amGroupsCount >= 3) ? 'block' : 'none';
     }
     if (bronzeWrap) {
         const isSemi = semifinalFinal && semifinalFinal.checked;
