@@ -204,6 +204,8 @@
 								<select name="groups_count" id="americanoGroupsCount" class="form-select" onchange="togglePlayoffOptions()" disabled>
 									<option value="1" {{ old('groups_count', 1) == 1 ? 'selected' : '' }}>1 группа</option>
 									<option value="2" {{ old('groups_count') == 2 ? 'selected' : '' }}>2 группы</option>
+									<option value="3" {{ old('groups_count') == 3 ? 'selected' : '' }}>3 группы</option>
+									<option value="4" {{ old('groups_count') == 4 ? 'selected' : '' }}>4 группы</option>
 								</select>
 							</div>
 							<div class="col-md-6 mb-4">
@@ -819,9 +821,21 @@ function togglePlayoffFormat() {
     }
     
     const groups = parseInt(groupsCount.value);
-    
-    // 2+ группы и полуфинал+финал
-    if (groups >= 2 && semifinalFinal && semifinalFinal.checked) {
+
+    // 3+ группы: пары по местам в группах не сложить — третья группа осталась бы
+    // за бортом. Сетка строится по общей таблице, выбирать нечего.
+    if (groups >= 3) {
+        if (semifinalFinal) semifinalFinal.checked = true;
+        if (finalOnly) finalOnly.disabled = true;
+        playoffFormatOptions.style.display = 'block';
+        playoffFormatLabel.textContent = 'Формат плей-офф';
+        playoffFormatHint.textContent = 'Цифры = места в общей таблице всех групп. Нужно минимум 12 игроков.';
+        playoffFormatSelect.innerHTML = `
+            <option value="table_qf">Общая таблица (1+4 и 2+3 ждут в полуфинале, 5–12 играют четвертьфинал)</option>
+        `;
+    }
+    // 2 группы и полуфинал+финал
+    else if (groups >= 2 && semifinalFinal && semifinalFinal.checked) {
         playoffFormatOptions.style.display = 'block';
         playoffFormatLabel.textContent = 'Формат пар в полуфиналах';
         playoffFormatHint.textContent = 'A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.';
@@ -856,6 +870,8 @@ function togglePlayoffFormat() {
         `;
     }
 
+    if (groups < 3 && finalOnly) finalOnly.disabled = false;
+
     // Опции сеток Американо
     const bracketOptions = document.getElementById('americanoBracketOptions');
     const bronzeWrap = document.getElementById('americanoBronzeWrap');
@@ -868,6 +884,13 @@ function togglePlayoffFormat() {
         if (!isSemi) {
             const bronze = document.getElementById('americanoBronze');
             if (bronze) bronze.checked = false;
+        }
+        // Сетка по общей таблице занимает 12 мест общего ряда — нижней сетки в ней нет.
+        const lowerWrap = document.getElementById('americanoLowerBracket')?.closest('.col-md-6');
+        if (lowerWrap) lowerWrap.style.display = groups >= 3 ? 'none' : 'block';
+        if (groups >= 3) {
+            const lb = document.getElementById('americanoLowerBracket');
+            if (lb) lb.checked = false;
         }
         const minPlayers = isSemi ? 16 : 8;
         if (lowerHint) lowerHint.textContent = 'Для нижней сетки нужно минимум ' + minPlayers + ' участников';

@@ -897,6 +897,15 @@ public function previewRatingChanges(Tournament $tournament): array
 			return false;
 		}
 
+		// Три группы и больше обычные форматы не тянут: они разводят пары только
+		// по группам A и B, а остальные группы в сетку не попадают. Там строим
+		// сетку по общей таблице — она видит всех.
+		if ($this->usesTableQfBracket($tournament)) {
+			// Откатываться на форматы по группам нельзя: они просто выкинут
+			// лишние группы из сетки. Не хватило игроков — не строим ничего.
+			return $this->createTableQfBracket($tournament, 'upper');
+		}
+
 		$perGroupUpperSize = $this->upperBracketSize($tournament);
 		$upperLeaders = $this->collectLeaders($tournament, 0, $perGroupUpperSize);
 
@@ -919,6 +928,13 @@ public function previewRatingChanges(Tournament $tournament): array
 		}
 
 		return true;
+	}
+
+	/** Строится ли плей-офф по общей таблице, а не по местам в группах. */
+	protected function usesTableQfBracket(Tournament $tournament): bool
+	{
+		return $tournament->playoff_format === Tournament::PLAYOFF_FORMAT_TABLE_QF
+			|| $tournament->groups->count() >= 3;
 	}
 
 	/** Сколько игроков из группы идёт в верхнюю сетку (на тир). */
@@ -1226,6 +1242,191 @@ public function previewRatingChanges(Tournament $tournament): array
 			]);
 		}
 	}
+	/**
+	 * Общая таблица турнира: все игроки всех групп в одном ряду.
+	 *
+	 * Критерии те же, что внутри группы — очки → победы → разница → личная встреча.
+	 * Нужна форматам, где сетка строится по общему месту, а не по местам в группах.
+	 *
+	 * @return \Illuminate\Support\Collection<int, \App\Models\User>
+	 */
+	protected function rankAllPlayers(Tournament $tournament): \Illuminate\Support\Collection
+	{
+		$playerStats = [];
+		foreach ($tournament->groups as $group) {
+			foreach ($group->players as $player) {
+				$playerStats[$player->id] = [
+					'player' => $player,
+					'total_points' => $player->pivot->total_points,
+					'wins' => 0, 'points_for' => 0, 'points_against' => 0,
+				];
+			}
+		}
+
+		foreach ($tournament->groups as $group) {
+			foreach ($group->rounds as $round) {
+				foreach ($round->matches as $match) {
+					if ($match->status !== 'completed') continue;
+					$sides = [
+						[[$match->team1_player1_id, $match->team1_player2_id], $match->team1_score, $match->team2_score],
+						[[$match->team2_player1_id, $match->team2_player2_id], $match->team2_score, $match->team1_score],
+					];
+					foreach ($sides as [$ids, $scored, $conceded]) {
+						foreach ($ids as $pId) {
+							if (!isset($playerStats[$pId])) continue;
+							$playerStats[$pId]['points_for'] += $scored;
+							$playerStats[$pId]['points_against'] += $conceded;
+							if ($scored > $conceded) $playerStats[$pId]['wins']++;
+						}
+					}
+				}
+			}
+		}
+
+		$h2h = \App\Support\AmericanoTie::fromGroups($tournament->groups->all());
+		uasort($playerStats, function ($a, $b) use ($h2h) {
+			if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+			if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+			$diffA = $a['points_for'] - $a['points_against'];
+			$diffB = $b['points_for'] - $b['points_against'];
+			if ($diffA !== $diffB) return $diffB <=> $diffA;
+			return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+		});
+
+		return collect(array_values($playerStats))->map(fn($s) => $s['player']);
+	}
+
+	/**
+	 * Сетка «общая таблица»: топ-4 ждут в полуфинале, места 5–12 играют четвертьфинал.
+	 *
+	 * Нужна, когда групп три и больше: обычные форматы разводят пары по группам A и B,
+	 * а третья группа в сетку не попадает вовсе. Здесь все группы складываются в один ряд.
+	 *
+	 *   Ждут в полуфинале:  А = 1+4,  Б = 2+3
+	 *   Четвертьфинал:      ЧФ 1 = (5+12) vs (8+9),  ЧФ 2 = (6+11) vs (7+10)
+	 *   Полуфинал:          ПФ 1 = А vs победитель ЧФ 2,  ПФ 2 = Б vs победитель ЧФ 1
+	 *
+	 * Пары складываются змейкой — сильный со слабым, чтобы силы пар были ровными.
+	 * Сильнейшая пара четвертьфинала выходит на вторую пару таблицы, а не на первую.
+	 *
+	 * @return bool удалось ли построить сетку (нужно минимум 12 игроков)
+	 */
+	protected function createTableQfBracket(Tournament $tournament, string $bracket = 'upper'): bool
+	{
+		$ranked = $this->rankAllPlayers($tournament)->values();
+		if ($ranked->count() < 12) {
+			return false;
+		}
+
+		$id = fn(int $place) => $ranked[$place - 1]->id; // место в таблице, с единицы
+
+		$quarters = [
+			1 => [[$id(5), $id(12)], [$id(8), $id(9)]],
+			2 => [[$id(6), $id(11)], [$id(7), $id(10)]],
+		];
+		foreach ($quarters as $number => [$team1, $team2]) {
+			\App\Models\TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'stage' => 'Четвертьфинал',
+				'bracket' => $bracket,
+				'match_number' => $number,
+				'team1_player1_id' => $team1[0],
+				'team1_player2_id' => $team1[1],
+				'team2_player1_id' => $team2[0],
+				'team2_player2_id' => $team2[1],
+				'status' => 'pending',
+			]);
+		}
+
+		$semifinals = [
+			1 => [[$id(1), $id(4)], 'Победитель ЧФ 2'],
+			2 => [[$id(2), $id(3)], 'Победитель ЧФ 1'],
+		];
+		foreach ($semifinals as $number => [$team1, $source]) {
+			\App\Models\TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'stage' => 'Полуфинал',
+				'bracket' => $bracket,
+				'match_number' => $number,
+				'team1_player1_id' => $team1[0],
+				'team1_player2_id' => $team1[1],
+				'team2_source' => $source,
+				'status' => 'pending',
+			]);
+		}
+
+		\App\Models\TournamentPlayoffMatch::create([
+			'tournament_id' => $tournament->id,
+			'stage' => 'Финал',
+			'bracket' => $bracket,
+			'match_number' => 1,
+			'status' => 'pending',
+		]);
+
+		if ($tournament->has_bronze_match) {
+			\App\Models\TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'stage' => 'Матч за 3-е место',
+				'bracket' => $bracket,
+				'match_number' => 1,
+				'is_bronze' => true,
+				'status' => 'pending',
+			]);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Провести матч плей-офф дальше по сетке: четвертьфинал наполняет полуфинал,
+	 * полуфинал — финал. Один вход для всех мест, где сохраняется счёт.
+	 */
+	public function advancePlayoff(TournamentPlayoffMatch $match): void
+	{
+		if ($match->stage === 'Четвертьфинал') {
+			$this->updateSemifinalAfterQuarterfinal($match);
+			return;
+		}
+		if ($match->stage === 'Полуфинал') {
+			$this->updateFinalAfterSemifinal($match);
+		}
+	}
+
+	/**
+	 * Подставить победителя четвертьфинала в его полуфинал.
+	 * ЧФ 1 отдаёт победителя в ПФ 2, ЧФ 2 — в ПФ 1: пары разведены по разным половинам.
+	 */
+	public function updateSemifinalAfterQuarterfinal(TournamentPlayoffMatch $quarterMatch): void
+	{
+		if ($quarterMatch->stage !== 'Четвертьфинал' || $quarterMatch->status !== 'completed') {
+			return;
+		}
+		if ($quarterMatch->team1_score === $quarterMatch->team2_score) {
+			return; // ничья — победителя нет, ждём исправления счёта
+		}
+
+		$winner = $quarterMatch->team1_score > $quarterMatch->team2_score
+			? [$quarterMatch->team1_player1_id, $quarterMatch->team1_player2_id]
+			: [$quarterMatch->team2_player1_id, $quarterMatch->team2_player2_id];
+
+		$semifinalNumber = ((int) $quarterMatch->match_number) === 1 ? 2 : 1;
+
+		$semifinal = $quarterMatch->tournament->playoffMatches()
+			->where('stage', 'Полуфинал')
+			->where('bracket', $quarterMatch->bracket ?: 'upper')
+			->where('match_number', $semifinalNumber)
+			->first();
+
+		if (!$semifinal) {
+			return;
+		}
+
+		$semifinal->update([
+			'team2_player1_id' => $winner[0],
+			'team2_player2_id' => $winner[1],
+		]);
+	}
+
 	/**
 	 * Обновить финал после полуфинала
 	 */

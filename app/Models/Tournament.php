@@ -117,6 +117,7 @@ class Tournament extends Model
     const PLAYOFF_FORMAT_TOPS = 'tops';
     const PLAYOFF_FORMAT_CROSS = 'cross';
     const PLAYOFF_FORMAT_TOP_BOTTOM = 'top_bottom';
+    const PLAYOFF_FORMAT_TABLE_QF = 'table_qf';
 	
     protected $fillable = [
         'club_id',
@@ -752,6 +753,7 @@ class Tournament extends Model
             self::PLAYOFF_FORMAT_TOPS => 'Топы вместе (A1+B1 vs A3+B3)',
             self::PLAYOFF_FORMAT_CROSS => 'Крест (A1+B4 vs B1+A4)',
             self::PLAYOFF_FORMAT_TOP_BOTTOM => 'Верх/низ (A1+B3 vs A2+B4)',
+            self::PLAYOFF_FORMAT_TABLE_QF => 'Общая таблица (1+4 и 2+3 ждут в полуфинале, 5–12 играют четвертьфинал)',
         ];
     }
 

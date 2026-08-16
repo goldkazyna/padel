@@ -146,10 +146,8 @@ class AmericanoController extends Controller
 			'status' => 'completed',
 		]);
 
-		// Если это полуфинал — обновляем финал
-		if ($match->stage === 'Полуфинал') {
-			$americanoService->updateFinalAfterSemifinal($match);
-		}
+		// Проводим победителя дальше: четвертьфинал → полуфинал → финал
+		$americanoService->advancePlayoff($match);
 
 		return back()->with('success', 'Счёт сохранён!');
 	}
@@ -169,10 +167,8 @@ class AmericanoController extends Controller
 			'team2_score' => $validated['team2_score'],
 		]);
 
-		// Если это полуфинал — обновляем финал
-		if ($match->stage === 'Полуфинал') {
-			$americanoService->updateFinalAfterSemifinal($match);
-		}
+		// Проводим победителя дальше: четвертьфинал → полуфинал → финал
+		$americanoService->advancePlayoff($match);
 
 		return back()->with('success', 'Счёт обновлён!');
 	}

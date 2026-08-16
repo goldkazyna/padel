@@ -1,14 +1,88 @@
+@php
+	// Общая таблица нужна там, где плей-офф строится по ней, а не по местам
+	// в группах, — то есть при трёх группах и больше.
+	$showOverallTable = $tournament->groups->count() >= 3;
+	$overallStats = [];
+	if ($showOverallTable) {
+		foreach ($tournament->groups as $g) {
+			foreach ($g->players as $player) {
+				$overallStats[$player->id] = [
+					'player' => $player,
+					'group' => $g->name,
+					'wins' => 0, 'losses' => 0, 'draws' => 0,
+					'points_for' => 0, 'points_against' => 0,
+					'total_points' => $player->pivot->total_points,
+				];
+			}
+		}
+		$overallH2h = [];
+		foreach ($tournament->groups as $g) {
+			foreach ($g->rounds as $round) {
+				foreach ($round->matches as $match) {
+					if ($match->status !== 'completed') continue;
+					$sides = [
+						[[$match->team1_player1_id, $match->team1_player2_id], $match->team1_score, $match->team2_score],
+						[[$match->team2_player1_id, $match->team2_player2_id], $match->team2_score, $match->team1_score],
+					];
+					foreach ($sides as [$ids, $scored, $conceded]) {
+						foreach ($ids as $pId) {
+							if (!isset($overallStats[$pId])) continue;
+							$overallStats[$pId]['points_for'] += $scored;
+							$overallStats[$pId]['points_against'] += $conceded;
+							if ($scored > $conceded) $overallStats[$pId]['wins']++;
+							elseif ($scored < $conceded) $overallStats[$pId]['losses']++;
+							else $overallStats[$pId]['draws']++;
+						}
+					}
+					if ($match->team1_score === $match->team2_score) continue;
+					$t1 = [$match->team1_player1_id, $match->team1_player2_id];
+					$t2 = [$match->team2_player1_id, $match->team2_player2_id];
+					$winners = $match->team1_score > $match->team2_score ? $t1 : $t2;
+					$losers = $match->team1_score > $match->team2_score ? $t2 : $t1;
+					foreach ($winners as $w) {
+						foreach ($losers as $l) {
+							if (!isset($overallStats[$w]) || !isset($overallStats[$l])) continue;
+							$overallH2h[$w][$l] = ($overallH2h[$w][$l] ?? 0) + 1;
+							$overallH2h[$l][$w] = ($overallH2h[$l][$w] ?? 0) - 1;
+						}
+					}
+				}
+			}
+		}
+		// Порядок тот же, что в группе: очки → победы → разница → личная встреча.
+		uasort($overallStats, function ($a, $b) use ($overallH2h) {
+			if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
+			if ($a['wins'] !== $b['wins']) return $b['wins'] <=> $a['wins'];
+			$diffA = $a['points_for'] - $a['points_against'];
+			$diffB = $b['points_for'] - $b['points_against'];
+			if ($diffA !== $diffB) return $diffB <=> $diffA;
+			$net = $overallH2h[$a['player']->id][$b['player']->id] ?? 0;
+			return $net === 0 ? 0 : ($net > 0 ? -1 : 1);
+		});
+	}
+@endphp
+
 <div class="section-header">
     <h5><i class="bi bi-diagram-3"></i> Группы и раунды</h5>
 </div>
 
 <!-- Вкладки групп -->
 <ul class="group-tabs mb-4" id="groupTabs" role="tablist">
+    @if($showOverallTable)
+        <li class="nav-item" role="presentation">
+            <button class="group-tab active" id="overall-tab"
+                    data-bs-toggle="tab" data-bs-target="#overallTable"
+                    type="button" role="tab">
+                Общая таблица
+                <span class="group-tab-count">{{ count($overallStats) }}</span>
+            </button>
+        </li>
+    @endif
     @foreach($tournament->groups as $groupIndex => $group)
         <li class="nav-item" role="presentation">
-            <button class="group-tab {{ $groupIndex === 0 ? 'active' : '' }}" 
+            <button class="group-tab {{ !$showOverallTable && $groupIndex === 0 ? 'active' : '' }}"
                     id="group{{ $group->id }}-tab"
-                    data-bs-toggle="tab" 
+                    data-bs-toggle="tab"
                     data-bs-target="#group{{ $group->id }}"
                     type="button"
                     role="tab">
@@ -21,8 +95,69 @@
 
 <!-- Контент вкладок -->
 <div class="tab-content" id="groupTabsContent">
+    @if($showOverallTable)
+        <div class="tab-pane fade show active" id="overallTable" role="tabpanel">
+            <div class="section-subheader">
+                <i class="bi bi-trophy"></i> Общая таблица всех групп
+            </div>
+            <p class="overall-hint">
+                Места 1–4 ждут соперников в полуфинале, места 5–12 играют четвертьфинал.
+            </p>
+            <div class="leaderboard-table-wrapper mb-4">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="col-rank">#</th>
+                            <th class="col-player">Игрок</th>
+                            <th class="col-stat">Группа</th>
+                            <th class="col-stat">В</th>
+                            <th class="col-stat">П</th>
+                            <th class="col-stat">З</th>
+                            <th class="col-stat">Пр</th>
+                            <th class="col-points">Очки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($overallStats as $stats)
+                            @php
+                                $player = $stats['player'];
+                                $rank = $loop->iteration;
+                                $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
+                                $slot = $rank <= 4 ? 'ПФ' : ($rank <= 12 ? 'ЧФ' : null);
+                            @endphp
+                            <tr class="{{ $rankClass }}">
+                                <td class="col-rank">
+                                    <span class="rank-badge {{ $rankClass }}">{{ $rank }}</span>
+                                </td>
+                                <td class="col-player">
+                                    <div class="player-info">
+                                        <div class="player-avatar">
+                                            {{ mb_strtoupper(mb_substr($player->first_name, 0, 1) . mb_substr($player->last_name, 0, 1)) }}
+                                        </div>
+                                        <div class="player-details">
+                                            <div class="player-name">
+                                                {{ $player->name }}
+                                                @if($slot)<span class="slot-badge slot-{{ $slot === 'ПФ' ? 'semi' : 'quarter' }}">{{ $slot }}</span>@endif
+                                            </div>
+                                            <div class="player-rating">{{ $player->rating }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="col-stat">{{ $stats['group'] }}</td>
+                                <td class="col-stat wins">{{ $stats['wins'] }}</td>
+                                <td class="col-stat losses">{{ $stats['losses'] }}</td>
+                                <td class="col-stat points-for">{{ $stats['points_for'] }}</td>
+                                <td class="col-stat points-against">{{ $stats['points_against'] }}</td>
+                                <td class="col-points">{{ $stats['total_points'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
     @foreach($tournament->groups as $groupIndex => $group)
-        <div class="tab-pane fade {{ $groupIndex === 0 ? 'show active' : '' }}" 
+        <div class="tab-pane fade {{ !$showOverallTable && $groupIndex === 0 ? 'show active' : '' }}"
              id="group{{ $group->id }}"
              role="tabpanel">
             
@@ -298,6 +433,30 @@
 .match-court-header{
 	font-size:24px;
 }
+/* Общая таблица: подсказка и метка места в сетке */
+.overall-hint {
+	margin: -8px 0 14px;
+	font-size: 13px;
+	color: #9aa0a6;
+}
+.slot-badge {
+	margin-left: 8px;
+	padding: 1px 7px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	vertical-align: middle;
+}
+.slot-badge.slot-semi {
+	background: rgba(250, 204, 21, 0.16);
+	color: #facc15;
+}
+.slot-badge.slot-quarter {
+	background: rgba(148, 163, 184, 0.16);
+	color: #cbd5e1;
+}
+
 /* Таблица лидеров */
 .leaderboard-table-wrapper {
     overflow-x: auto;

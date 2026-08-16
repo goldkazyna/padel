@@ -271,7 +271,7 @@ class MobileAdminTournamentController extends Controller
             'has_lower_bracket' => 'nullable|boolean',
             'has_bronze_match' => 'nullable|boolean',
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
-            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom',
+            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom,table_qf',
             'telegram_registration_url' => 'nullable|url|max:500',
             'is_rated' => 'nullable|boolean',
             'verified_only' => 'nullable|boolean',

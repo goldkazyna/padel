@@ -22,8 +22,8 @@
         $lowerBronze = $allMatches->filter(fn($m) => ($m->bracket ?: 'upper') === 'lower' && $m->is_bronze);
         if ($upperMain->isNotEmpty()) $brackets[] = ['label' => 'Верхняя сетка', 'matches' => $upperMain, 'bronze' => $upperBronze];
         if ($lowerMain->isNotEmpty()) $brackets[] = ['label' => 'Нижняя сетка', 'matches' => $lowerMain, 'bronze' => $lowerBronze];
-        $stageOrder = ['Полуфинал' => 'Полуфинал', 'Финал' => 'Финал'];
-        $stageShortNames = ['Полуфинал' => 'ПФ', 'Финал' => 'Финал'];
+        $stageOrder = ['Четвертьфинал' => 'Четвертьфинал', 'Полуфинал' => 'Полуфинал', 'Финал' => 'Финал'];
+        $stageShortNames = ['Четвертьфинал' => 'ЧФ', 'Полуфинал' => 'ПФ', 'Финал' => 'Финал'];
     @endphp
 
     @foreach($brackets as $bracketIdx => $bracketInfo)
@@ -50,8 +50,8 @@
                                 $isCompleted = $match->status === 'completed';
                                 $t1set = $match->team1_player1_id && $match->team1_player2_id;
                                 $t2set = $match->team2_player1_id && $match->team2_player2_id;
-                                $t1name = $t1set ? ($match->team1Player1->name . ' / ' . $match->team1Player2->name) : 'Ожидание…';
-                                $t2name = $t2set ? ($match->team2Player1->name . ' / ' . $match->team2Player2->name) : 'Ожидание…';
+                                $t1name = $t1set ? ($match->team1Player1->name . ' / ' . $match->team1Player2->name) : ($match->team1_source ?: 'Ожидание…');
+                                $t2name = $t2set ? ($match->team2Player1->name . ' / ' . $match->team2Player2->name) : ($match->team2_source ?: 'Ожидание…');
                                 $team1Wins = $isCompleted && $match->team1_score > $match->team2_score;
                                 $team2Wins = $isCompleted && $match->team2_score > $match->team1_score;
                                 $matchLabel = $isFinal ? 'Финал' : ($stageShortNames[$stageKey] . ' ' . $matchCounter);
@@ -204,8 +204,8 @@
                         $isCompleted = $match->status === 'completed';
                         $t1set = $match->team1_player1_id && $match->team1_player2_id;
                         $t2set = $match->team2_player1_id && $match->team2_player2_id;
-                        $t1name = $t1set ? ($match->team1Player1->name . ' / ' . $match->team1Player2->name) : 'Ожидание…';
-                        $t2name = $t2set ? ($match->team2Player1->name . ' / ' . $match->team2Player2->name) : 'Ожидание…';
+                        $t1name = $t1set ? ($match->team1Player1->name . ' / ' . $match->team1Player2->name) : ($match->team1_source ?: 'Ожидание…');
+                        $t2name = $t2set ? ($match->team2Player1->name . ' / ' . $match->team2Player2->name) : ($match->team2_source ?: 'Ожидание…');
                         $team1Wins = $isCompleted && $match->team1_score > $match->team2_score;
                         $team2Wins = $isCompleted && $match->team2_score > $match->team1_score;
                         $canEnter = !$isCompleted && $t1set && $t2set;

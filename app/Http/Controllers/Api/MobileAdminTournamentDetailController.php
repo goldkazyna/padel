@@ -108,7 +108,7 @@ class MobileAdminTournamentDetailController extends Controller
             'teams_advance' => 'nullable|integer|in:1,2,3,4',
             'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
             'playoff_type' => 'nullable|in:final_only,semifinal_final',
-            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom',
+            'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom,table_qf',
             'telegram_registration_url' => 'nullable|url|max:500',
             // Призовой турнир — настройка задаётся при создании, менять её
             // в редактировании до старта безопасно.
@@ -1795,9 +1795,7 @@ class MobileAdminTournamentDetailController extends Controller
             'status' => 'completed',
         ]);
 
-        if ($match->stage === 'Полуфинал') {
-            $service->updateFinalAfterSemifinal($match);
-        }
+        $service->advancePlayoff($match);
 
         $match->refresh();
         $winner = null;
@@ -4246,6 +4244,7 @@ class MobileAdminTournamentDetailController extends Controller
             $stageOrder = [
                 '1/8 финала' => 1,
                 '1/4 финала' => 2,
+                'Четвертьфинал' => 2,
                 'Полуфинал' => 3,
                 'За 3-е место' => 4,
                 'Финал' => 5,

@@ -300,7 +300,7 @@
 						$editPlayoffType = old('playoff_type', $tournament->playoff_type);
 						$editHasPlayoff  = old('has_playoff', $tournament->has_playoff);
 						$editIsSemi      = $editPlayoffType === 'semifinal_final';
-						$showFormatBlock = $editIsSemi || ($editPlayoffType === 'final_only' && $editGroups === 1);
+						$showFormatBlock = $editIsSemi || $editGroups >= 3 || ($editPlayoffType === 'final_only' && $editGroups === 1);
 					@endphp
 					<div class="mb-4">
 						<label class="form-label">Плей-офф</label>
@@ -332,7 +332,9 @@
 								{{-- Выбор формата пар --}}
 								<div id="playoffFormatOptions" class="mt-3" style="{{ $showFormatBlock ? '' : 'display: none;' }}">
 									<label class="form-label" id="playoffFormatLabel">
-										@if($editGroups >= 2)
+										@if($editGroups >= 3)
+											Формат плей-офф
+										@elseif($editGroups >= 2)
 											Формат пар в полуфиналах
 										@elseif($editIsSemi)
 											Формат пар в полуфиналах
@@ -341,7 +343,10 @@
 										@endif
 									</label>
 									<select name="playoff_format" id="playoffFormat" class="form-select">
-										@if($editGroups >= 2)
+										@if($editGroups >= 3)
+											{{-- 3+ групп: пары по местам в группах не сложить, идём по общей таблице --}}
+											<option value="table_qf" selected>Общая таблица (1+4 и 2+3 ждут в полуфинале, 5–12 играют четвертьфинал)</option>
+										@elseif($editGroups >= 2)
 											<option value="mix" {{ old('playoff_format', $tournament->playoff_format) === 'mix' ? 'selected' : '' }}>Микс (A1+B2 vs A3+B4, A2+B1 vs B3+A4)</option>
 											<option value="group_vs" {{ old('playoff_format', $tournament->playoff_format) === 'group_vs' ? 'selected' : '' }}>Группа vs Группа (A1+A2 vs B1+B2, A3+A4 vs B3+B4)</option>
 											<option value="tops" {{ old('playoff_format', $tournament->playoff_format) === 'tops' ? 'selected' : '' }}>Топы вместе (A1+B1 vs A3+B3, A2+B2 vs A4+B4)</option>
@@ -360,7 +365,9 @@
 										@endif
 									</select>
 									<small class="text-secondary mt-2 d-block">
-										@if($editGroups >= 2)
+										@if($editGroups >= 3)
+											Цифры = места в общей таблице всех групп. Нужно минимум 12 игроков.
+										@elseif($editGroups >= 2)
 											A1 = 1-е место группы A, B2 = 2-е место группы B и т.д.
 										@else
 											Цифры = места в таблице лидеров после основных раундов
@@ -601,6 +608,15 @@ function togglePlayoffFormat() {
     const playoffFormatOptions = document.getElementById('playoffFormatOptions');
     const bronzeWrap = document.getElementById('americanoBronzeWrap');
     const bronze = document.getElementById('americanoBronze');
+
+    // 3+ групп играют только по общей таблице: топ-4 в полуфинале,
+    // 5–12 в четвертьфинале. Один финал такую сетку не вместит.
+    const amGroupsCount = {{ (int) ($tournament->groups_count ?? 1) }};
+    if (amGroupsCount >= 3) {
+        const finalOnly = document.getElementById('finalOnly');
+        if (semifinalFinal) semifinalFinal.checked = true;
+        if (finalOnly) { finalOnly.checked = false; finalOnly.disabled = true; }
+    }
 
     if (playoffFormatOptions && semifinalFinal) {
         playoffFormatOptions.style.display = semifinalFinal.checked ? 'block' : 'none';

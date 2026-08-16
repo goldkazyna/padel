@@ -1476,7 +1476,7 @@ class MobileTournamentController extends Controller
         foreach ($tournament->playoffMatches()
             ->where('status', 'completed')
             ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2'])
-            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
+            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Четвертьфинал', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
             ->get() as $m) {
 
             // Для team-based плей-офф: игроки берутся из команды
@@ -1676,7 +1676,7 @@ class MobileTournamentController extends Controller
 
         $matches = $tournament->playoffMatches()
             ->with(['team1Player1', 'team1Player2', 'team2Player1', 'team2Player2'])
-            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
+            ->orderByRaw("FIELD(stage, '1/8 финала', '1/4 финала', 'Четвертьфинал', 'Полуфинал', 'За 3-е место', 'Финал'), match_number")
             ->get();
 
         if ($matches->isEmpty()) return [];
@@ -3393,6 +3393,7 @@ class MobileTournamentController extends Controller
         $stageOrder = [
             '1/8 финала' => 1,
             '1/4 финала' => 2,
+            'Четвертьфинал' => 2,
             'Полуфинал' => 3,
             'За 3-е место' => 4,
             'Финал' => 5,
