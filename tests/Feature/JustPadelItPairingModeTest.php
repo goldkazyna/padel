@@ -368,6 +368,42 @@ class JustPadelItPairingModeTest extends TestCase
             ->assertSee('Создать пары');
     }
 
+    /**
+     * Приложение решает по этому флагу, показывать ли «Создать пары».
+     * При самостоятельной записи он должен быть false, иначе организатору
+     * предложат собрать то, что игроки уже собрали сами.
+     */
+    public function test_detail_reports_pairing_mode_to_the_app(): void
+    {
+        [$self, $admin, $players] = $this->makeTournament('self');
+        $self->update(['status' => 'open']);
+        $this->approveTeams($self, $players);
+        Sanctum::actingAs($admin);
+
+        $detail = $this->getJson("/api/mobile/admin/tournaments/{$self->id}")
+            ->assertOk()->json('tournament');
+
+        $this->assertFalse($detail['is_admin_pairing'], 'пары собирают игроки');
+        $this->assertTrue($detail['can_start'], 'турнир можно начинать сразу');
+        $this->assertSame(8, $detail['participants_count'], 'пары считаются как игроки');
+    }
+
+    public function test_detail_reports_admin_pairing(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+        foreach ($players as $p) {
+            $t->participants()->attach($p->id, ['status' => 'registered']);
+        }
+        Sanctum::actingAs($admin);
+
+        $detail = $this->getJson("/api/mobile/admin/tournaments/{$t->id}")
+            ->assertOk()->json('tournament');
+
+        $this->assertTrue($detail['is_admin_pairing']);
+        $this->assertFalse($detail['jpi_pairs_created'], 'пар ещё нет — их соберёт админ');
+    }
+
     public function test_non_paired_jpi_is_always_solo(): void
     {
         // Без фиксированных пар выбора нет — записываются поодиночке.
