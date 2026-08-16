@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MobileCoachTrainingController;
 use App\Http\Controllers\Api\MobileTrainingController;
 use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
+use App\Http\Controllers\Api\MobileAchievementController;
 use App\Http\Controllers\Api\MobileMatchController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileNotificationController;
@@ -231,6 +232,10 @@ Route::prefix('mobile')->group(function () {
 
         // Матчи
         Route::get('/matches/history', [MobileMatchController::class, 'history']);
+
+        // Достижения
+        Route::get('/achievements', [MobileAchievementController::class, 'index']);
+        Route::get('/achievements/player/{user}', [MobileAchievementController::class, 'player']);
 
         // Рейтинг
         Route::get('/rating', [MobileRatingController::class, 'index']);

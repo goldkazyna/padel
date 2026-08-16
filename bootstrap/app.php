@@ -55,6 +55,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyTenMinutes()
             ->withoutOverlapping();
 
+        // Значки за только что сыгранное + уведомления о новых.
+        $schedule->command('achievements:sync')
+            ->everyTenMinutes()
+            ->withoutOverlapping();
+
         // Ежедневный бэкап БД + загруженных файлов (локально 7 копий + облако).
         $schedule->command('backup:run')
             ->dailyAt('03:30')
