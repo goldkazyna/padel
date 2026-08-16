@@ -124,6 +124,55 @@ class AmericanoOverallTableApiTest extends TestCase
         $this->assertSame('quarterfinal', $overall[4]['playoff_slot'], 'пятое место — четвертьфинал');
     }
 
+    /**
+     * Полное равенство между группами: личной встречи там нет, а если совпали
+     * очки и разница, то совпали и пропущенные — арифметика не оставляет
+     * вариантов. Выше должен встать игрок с бо́льшим рейтингом, а не тот,
+     * чья группа просто идёт первой в списке.
+     */
+    public function test_equal_players_from_different_groups_are_split_by_rating(): void
+    {
+        $club = Club::create(['name' => 'Клуб', 'address' => 'Адрес']);
+        $t = Tournament::factory()->create([
+            'club_id' => $club->id, 'type' => 'americano', 'status' => 'in_progress',
+            'groups_count' => 3, 'max_participants' => 12, 'rounds_count' => 1,
+        ]);
+
+        // Слабый в группе A, сильный в группе C — при равных цифрах выше
+        // должен оказаться сильный, хотя его группа идёт последней.
+        $weakInA = User::factory()->create(['name' => 'Слабый', 'rating' => 1200]);
+        $strongInC = User::factory()->create(['name' => 'Сильный', 'rating' => 1900]);
+
+        $groups = [];
+        foreach (['A', 'B', 'C'] as $i => $letter) {
+            $groups[$letter] = TournamentGroup::create([
+                'tournament_id' => $t->id, 'name' => 'Группа ' . $letter,
+            ]);
+        }
+
+        foreach ([['A', $weakInA], ['C', $strongInC]] as [$letter, $user]) {
+            $groups[$letter]->players()->attach($user->id, [
+                'total_points' => 50, 'rating_before' => $user->rating, 'rating_after' => null,
+            ]);
+        }
+        // Добиваем группы до четвёрок, чтобы таблица была настоящей.
+        foreach ($groups as $letter => $group) {
+            $need = 4 - $group->players()->count();
+            for ($i = 0; $i < $need; $i++) {
+                $filler = User::factory()->create(['rating' => 1500]);
+                $group->players()->attach($filler->id, [
+                    'total_points' => 10, 'rating_before' => 1500, 'rating_after' => null,
+                ]);
+            }
+        }
+
+        Sanctum::actingAs($weakInA);
+        $overall = $this->getJson("/api/mobile/tournaments/{$t->id}/live")->assertOk()->json('overall');
+
+        $this->assertSame($strongInC->id, $overall[0]['id'], 'выше тот, у кого рейтинг больше');
+        $this->assertSame($weakInA->id, $overall[1]['id']);
+    }
+
     public function test_two_groups_have_no_overall_table(): void
     {
         [$t, $players] = $this->tournament(2);

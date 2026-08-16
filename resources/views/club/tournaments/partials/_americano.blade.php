@@ -57,7 +57,11 @@
 			$diffB = $b['points_for'] - $b['points_against'];
 			if ($diffA !== $diffB) return $diffB <=> $diffA;
 			$net = $overallH2h[$a['player']->id][$b['player']->id] ?? 0;
-			return $net === 0 ? 0 : ($net > 0 ? -1 : 1);
+			if ($net !== 0) return $net > 0 ? -1 : 1;
+			// Полное равенство бывает между группами: личной встречи там нет, а
+			// очки, победы и разница совпали — значит совпали и пропущенные.
+			// Разводим рейтингом, других данных не осталось.
+			return (int) $b['player']->rating <=> (int) $a['player']->rating;
 		});
 	}
 @endphp
@@ -270,7 +274,8 @@
 					if ($net !== 0) {
 						return $net > 0 ? -1 : 1;
 					}
-					return 0;
+					// Личка не рассудила — выше тот, у кого рейтинг больше.
+					return (int) $b['player']->rating <=> (int) $a['player']->rating;
 				});
 			@endphp
 

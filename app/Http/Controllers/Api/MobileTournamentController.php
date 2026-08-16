@@ -3014,7 +3014,11 @@ class MobileTournamentController extends Controller
                 $diffA = $a['points_for'] - $a['points_against'];
                 $diffB = $b['points_for'] - $b['points_against'];
                 if ($diffA !== $diffB) return $diffB <=> $diffA;
-                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                $tie = \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                if ($tie !== 0) return $tie;
+
+                // Полное равенство: разводим рейтингом, других данных нет.
+                return (int) $b['rating'] <=> (int) $a['rating'];
             });
 
             $position = 1;
@@ -3112,7 +3116,11 @@ class MobileTournamentController extends Controller
                 if ($a['point_diff'] !== $b['point_diff']) {
                     return $b['point_diff'] <=> $a['point_diff'];
                 }
-                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                $tie = \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+                if ($tie !== 0) return $tie;
+
+                // Полное равенство: разводим рейтингом, других данных нет.
+                return (int) $b['rating'] <=> (int) $a['rating'];
             });
 
             $place = 1;

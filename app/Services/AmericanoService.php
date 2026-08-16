@@ -1004,7 +1004,13 @@ public function previewRatingChanges(Tournament $tournament): array
 			$diffA = $a['points_for'] - $a['points_against'];
 			$diffB = $b['points_for'] - $b['points_against'];
 			if ($diffA !== $diffB) return $diffB <=> $diffA;
-			return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+			$tie = \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+			if ($tie !== 0) return $tie;
+
+			// Полное равенство бывает между группами: личной встречи там нет, а
+			// очки, победы и разница совпали — значит совпали и пропущенные.
+			// Разводим рейтингом, других данных не осталось.
+			return (int) $b['player']->rating <=> (int) $a['player']->rating;
 		});
 		return collect(array_values($playerStats))->map(fn($s) => $s['player']);
 	}
@@ -1290,7 +1296,13 @@ public function previewRatingChanges(Tournament $tournament): array
 			$diffA = $a['points_for'] - $a['points_against'];
 			$diffB = $b['points_for'] - $b['points_against'];
 			if ($diffA !== $diffB) return $diffB <=> $diffA;
-			return \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+			$tie = \App\Support\AmericanoTie::compare($h2h, $a['player']->id, $b['player']->id);
+			if ($tie !== 0) return $tie;
+
+			// Полное равенство бывает между группами: личной встречи там нет, а
+			// очки, победы и разница совпали — значит совпали и пропущенные.
+			// Разводим рейтингом, других данных не осталось.
+			return (int) $b['player']->rating <=> (int) $a['player']->rating;
 		});
 
 		return collect(array_values($playerStats))->map(fn($s) => $s['player']);
