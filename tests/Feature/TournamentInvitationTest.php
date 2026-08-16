@@ -167,6 +167,101 @@ class TournamentInvitationTest extends TestCase
         $this->assertDatabaseCount('tournament_invitations', 11);
     }
 
+    // ===== Свой текст приглашения =====
+
+    public function test_web_invite_uses_custom_text(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+
+        $this->actingAs($admin)->post(route('club.tournaments.invite', $tournament), [
+            'user_id' => $player->id,
+            'invite_title' => 'Ждём тебя!',
+            'invite_body' => 'Корт 3, сбор в 19:40, форма светлая',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $player->id,
+            'type' => 'tournament_invite',
+            'title' => 'Ждём тебя!',
+            'body' => 'Корт 3, сбор в 19:40, форма светлая',
+        ]);
+    }
+
+    public function test_mobile_invite_uses_custom_text(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/invite", [
+            'user_id' => $player->id,
+            'title' => 'Нужен четвёртый',
+            'body' => 'Одно место осталось, стартуем в 20:00',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $player->id,
+            'title' => 'Нужен четвёртый',
+            'body' => 'Одно место осталось, стартуем в 20:00',
+        ]);
+    }
+
+    /** Пустой текст — уходит заготовка, а не пустое уведомление. */
+    public function test_blank_text_falls_back_to_template(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+
+        $this->actingAs($admin)->post(route('club.tournaments.invite', $tournament), [
+            'user_id' => $player->id,
+            'invite_title' => '   ',
+            'invite_body' => '',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $player->id,
+            'title' => 'Приглашение на турнир',
+            'body' => "Вас пригласили на турнир «{$tournament->name}»",
+        ]);
+    }
+
+    public function test_too_long_text_is_rejected(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+
+        $this->actingAs($admin)->post(route('club.tournaments.invite', $tournament), [
+            'user_id' => $player->id,
+            'invite_body' => str_repeat('я', 251),
+        ])->assertSessionHasErrors('invite_body');
+
+        $this->assertDatabaseMissing('tournament_invitations', [
+            'tournament_id' => $tournament->id, 'user_id' => $player->id,
+        ]);
+    }
+
+    /** Приложению нужна та же заготовка, что стоит в вебе. */
+    public function test_invitations_endpoint_returns_defaults(): void
+    {
+        [, $admin, $tournament, ] = $this->setup3();
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$tournament->id}/invitations")
+            ->assertOk()
+            ->assertJsonPath('invite_defaults.title', 'Приглашение на турнир')
+            ->assertJsonPath('invite_defaults.body', "Вас пригласили на турнир «{$tournament->name}»");
+    }
+
+    /** Форма приглашения на странице турнира даёт править текст. */
+    public function test_web_form_has_editable_text(): void
+    {
+        [, $admin, $tournament, ] = $this->setup3();
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('name="invite_title"', false)
+            ->assertSee('name="invite_body"', false)
+            ->assertSee('Как увидит игрок');
+    }
+
     /** Счётчик в блоке приглашений больше не показывает потолок. */
     public function test_web_page_shows_plain_invite_count(): void
     {

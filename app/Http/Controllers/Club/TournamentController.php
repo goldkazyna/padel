@@ -1040,43 +1040,31 @@ class TournamentController extends Controller
 			return back()->with('error', 'Приглашения доступны только для индивидуальных турниров');
 		}
 
-		$validated = $request->validate(['user_id' => 'required|exists:users,id']);
+		// Текст правится организатором в модалке; пустой — уйдёт заготовка.
+		$validated = $request->validate([
+			'user_id' => 'required|exists:users,id',
+			'invite_title' => 'nullable|string|max:100',
+			'invite_body' => 'nullable|string|max:250',
+		]);
 		$userId = (int) $validated['user_id'];
 
 		if ($tournament->participants()->where('user_id', $userId)->exists()) {
 			return back()->with('error', 'Игрок уже участвует в турнире');
 		}
 
-		$invitation = \App\Models\TournamentInvitation::updateOrCreate(
-			['tournament_id' => $tournament->id, 'user_id' => $userId],
-			['invited_by' => auth()->id(), 'status' => 'pending', 'responded_at' => null],
+		$invitation = app(\App\Services\TournamentInvitationService::class)->invite(
+			$tournament,
+			$userId,
+			(int) auth()->id(),
+			$validated['invite_title'] ?? null,
+			$validated['invite_body'] ?? null,
 		);
 
-		$player = \App\Models\User::find($userId);
-		if ($player) {
-			$title = 'Приглашение на турнир';
-			$body = "Вас пригласили на турнир «{$tournament->name}»";
-			\App\Models\Notification::create([
-				'user_id' => $player->id,
-				'title' => $title,
-				'body' => $body,
-				'type' => 'tournament_invite',
-				'category' => 'tournament',
-				'data' => [
-					'tournament_id' => $tournament->id,
-					'invitation_id' => $invitation->id,
-				],
-			]);
-			try {
-				app(\App\Services\FCMNotificationService::class)->sendToUser($player, $title, $body, [
-					'type' => 'tournament_invite',
-					'tournament_id' => (string) $tournament->id,
-					'invitation_id' => (string) $invitation->id,
-				]);
-			} catch (\Throwable $e) {
-				// пуш не критичен — приглашение уже сохранено
-			}
+		if (!$invitation) {
+			return back()->with('error', 'Игрок не найден');
 		}
+
+		$player = \App\Models\User::find($userId);
 
 		return back()->with('success', "Приглашение отправлено: {$player->full_name}");
 	}

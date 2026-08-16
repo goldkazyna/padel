@@ -1233,47 +1233,32 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Приглашения доступны только для индивидуальных турниров');
         }
 
+        // Текст правится админом в приложении; пустой — уйдёт заготовка.
         $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
+            'title' => 'nullable|string|max:100',
+            'body' => 'nullable|string|max:250',
         ]);
         if ($validator->fails()) {
             return $this->error($validator->errors()->first());
         }
-        $userId = (int) $validator->validated()['user_id'];
+        $validated = $validator->validated();
+        $userId = (int) $validated['user_id'];
 
         if ($tournament->participants()->where('user_id', $userId)->exists()) {
             return $this->error('Игрок уже участвует в турнире');
         }
 
-        $invitation = \App\Models\TournamentInvitation::updateOrCreate(
-            ['tournament_id' => $tournament->id, 'user_id' => $userId],
-            ['invited_by' => $request->user()->id, 'status' => 'pending', 'responded_at' => null],
+        $invitation = app(\App\Services\TournamentInvitationService::class)->invite(
+            $tournament,
+            $userId,
+            (int) $request->user()->id,
+            $validated['title'] ?? null,
+            $validated['body'] ?? null,
         );
 
-        $player = User::find($userId);
-        if ($player) {
-            $title = 'Приглашение на турнир';
-            $body = "Вас пригласили на турнир «{$tournament->name}»";
-            \App\Models\Notification::create([
-                'user_id' => $player->id,
-                'title' => $title,
-                'body' => $body,
-                'type' => 'tournament_invite',
-                'category' => 'tournament',
-                'data' => [
-                    'tournament_id' => $tournament->id,
-                    'invitation_id' => $invitation->id,
-                ],
-            ]);
-            try {
-                app(\App\Services\FCMNotificationService::class)->sendToUser($player, $title, $body, [
-                    'type' => 'tournament_invite',
-                    'tournament_id' => (string) $tournament->id,
-                    'invitation_id' => (string) $invitation->id,
-                ]);
-            } catch (\Throwable $e) {
-                // пуш не критичен — приглашение уже сохранено
-            }
+        if (!$invitation) {
+            return $this->error('Игрок не найден');
         }
 
         return response()->json(['success' => true]);
@@ -1302,9 +1287,17 @@ class MobileAdminTournamentDetailController extends Controller
             ])
             ->values();
 
+        // Заготовка текста приходит с сервера, чтобы формулировка была одна
+        // и в вебе, и в приложении.
+        $defaults = app(\App\Services\TournamentInvitationService::class);
+
         return response()->json([
             'success' => true,
             'invitations' => $invitations,
+            'invite_defaults' => [
+                'title' => $defaults->defaultTitle(),
+                'body' => $defaults->defaultBody($tournament),
+            ],
         ]);
     }
 
