@@ -296,6 +296,19 @@ class JustPadelItPairingModeTest extends TestCase
             ->assertDontSee('+Тест игроки');
     }
 
+    /** На заполненном турнире кнопка тестовых пар пропадает. */
+    public function test_test_pairs_button_hides_when_full(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+        $this->approveTeams($t, $players);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertDontSee('+Тестовые пары');
+    }
+
     public function test_admin_mode_keeps_test_players(): void
     {
         [$t, $admin] = $this->makeTournament('admin');

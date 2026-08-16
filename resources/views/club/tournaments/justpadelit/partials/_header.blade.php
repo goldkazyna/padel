@@ -6,7 +6,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         @if($tournament->status === 'open')
-            @if($tournament->participants->count() < $tournament->max_participants)
+            @if($tournament->approvedParticipantsCount() < (int) $tournament->max_participants)
                 {{-- При самостоятельной записи игрок один не приходит: заявка
                      всегда парная, поэтому и тестовые данные должны быть парами. --}}
                 @if($tournament->usesSoloRegistration())
