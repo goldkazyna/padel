@@ -15,6 +15,12 @@ return [
     // обычная рассылка всем. Задаётся в .env как PUSH_TEST_PHONES.
     'push_test_phones' => env('PUSH_TEST_PHONES', ''),
 
+    // Уведомления о новых значках. Пока выключено, крон считает достижения
+    // молча: до релиза приложения экрана значков у игроков нет, и пуш вёл бы
+    // в пустоту. Включать одновременно с выходом релиза, в .env как
+    // ACHIEVEMENTS_PUSH_ENABLED=true.
+    'achievements_push' => env('ACHIEVEMENTS_PUSH_ENABLED', false),
+
     // Ссылки на магазины
     'store_url_ios' => env('APP_STORE_URL_IOS', 'https://apps.apple.com/app/padel-kz/id6740451498'),
     'store_url_android' => env('APP_STORE_URL_ANDROID', 'https://play.google.com/store/apps/details?id=com.padelkz.app'),

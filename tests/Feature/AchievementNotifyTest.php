@@ -35,6 +35,12 @@ class AchievementNotifyTest extends TestCase
         return $user;
     }
 
+    /** Рассылка по умолчанию выключена — включаем там, где проверяем именно её. */
+    private function enablePush(): void
+    {
+        config(['mobile_app.achievements_push' => true]);
+    }
+
     private function achievementNotifications(User $user): int
     {
         return Notification::where('user_id', $user->id)->where('type', 'achievement')->count();
@@ -42,6 +48,7 @@ class AchievementNotifyTest extends TestCase
 
     public function test_command_sends_one_notification_for_the_whole_batch(): void
     {
+        $this->enablePush();
         $user = $this->playerOfRecentTournament();
 
         $this->artisan('achievements:sync')->assertSuccessful();
@@ -56,6 +63,7 @@ class AchievementNotifyTest extends TestCase
 
     public function test_second_run_stays_quiet(): void
     {
+        $this->enablePush();
         $user = $this->playerOfRecentTournament();
         $this->artisan('achievements:sync');
 
@@ -66,6 +74,7 @@ class AchievementNotifyTest extends TestCase
 
     public function test_notified_at_is_stamped(): void
     {
+        $this->enablePush();
         $user = $this->playerOfRecentTournament();
 
         $this->artisan('achievements:sync');
@@ -95,6 +104,39 @@ class AchievementNotifyTest extends TestCase
             ->json('categories'))->pluck('key');
 
         $this->assertContains('achievement', $keys->all());
+    }
+
+    // ===== Выключенная рассылка =====
+
+    /**
+     * До релиза приложения экрана значков у игроков нет: пуш вёл бы в пустоту.
+     * Крон при этом продолжает считать достижения.
+     */
+    public function test_disabled_push_sends_nothing_but_still_counts(): void
+    {
+        $user = $this->playerOfRecentTournament();
+
+        $this->artisan('achievements:sync')->assertSuccessful();
+
+        $this->assertSame(0, Notification::where('user_id', $user->id)->count());
+        $this->assertGreaterThan(0, UserAchievement::where('user_id', $user->id)
+            ->whereNotNull('unlocked_at')->count(), 'значки всё равно посчитаны');
+    }
+
+    /**
+     * Самое важное: в день включения не должно высыпаться всё, что накопилось
+     * за тихий период. Поэтому и при выключенной рассылке ставится отметка.
+     */
+    public function test_enabling_push_later_does_not_dump_the_backlog(): void
+    {
+        $user = $this->playerOfRecentTournament();
+        $this->artisan('achievements:sync');
+
+        $this->enablePush();
+        $this->artisan('achievements:sync')->assertSuccessful();
+
+        $this->assertSame(0, $this->achievementNotifications($user),
+            'за тихий период пушей нет даже после включения');
     }
 
     // ===== Тихая заливка =====

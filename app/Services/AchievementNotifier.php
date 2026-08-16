@@ -30,6 +30,15 @@ class AchievementNotifier
             return;
         }
 
+        // Пока уведомления выключены, значки всё равно помечаем отправленными.
+        // Иначе в день включения на игроков разом высыпался бы весь накопленный
+        // за тихий период запас — ровно то, от чего спасает заливка истории.
+        if (!config('mobile_app.achievements_push', false)) {
+            $this->markNotified($user, $codes);
+
+            return;
+        }
+
         [$title, $body] = $this->text($codes);
 
         // Запись создаём до отправки: значок должен быть виден в приложении,
@@ -55,6 +64,12 @@ class AchievementNotifier
         // Отметку ставим независимо от исхода отправки. Повторять попытку
         // нельзя: чаще всего «не ушёл» значит «приложение не установлено»,
         // и крон плодил бы уведомления каждые десять минут.
+        $this->markNotified($user, $codes);
+    }
+
+    /** @param array<int, string> $codes */
+    private function markNotified(User $user, array $codes): void
+    {
         UserAchievement::where('user_id', $user->id)
             ->whereIn('code', $codes)
             ->update(['notified_at' => now()]);
