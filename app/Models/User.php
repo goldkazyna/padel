@@ -1067,6 +1067,46 @@ class User extends Authenticatable
 			}
 		}
 
+		// Just Padel It
+		$jpiTournaments = \App\Models\Tournament::where('type', 'just_padel_it')
+			->where('is_rated', true)
+			->where('status', 'completed')
+			->whereHas('justPadelItPlayers', function($q) {
+				$q->where('user_id', $this->id);
+			})->get();
+
+		foreach ($jpiTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['just_padel_it'] = ($stats['by_type']['just_padel_it'] ?? 0) + 1;
+
+			// Порядок таблицы зависит от режима зачёта (по очкам либо по победам),
+			// поэтому сортируем тем же ключом, что и остальные экраны формата.
+			if ($tournament->isPairedJustPadelIt()) {
+				// Фиксированные пары: чемпион — верхняя пара, зачёт идёт по ней.
+				$standings = app(\App\Services\JustPadelItService::class)->getPairStandings($tournament);
+				$top = $standings[0]['pair'] ?? null;
+				if ($top && ((int) $top->player1_id === (int) $this->id
+					|| (int) $top->player2_id === (int) $this->id)) {
+					$stats['wins']++;
+				}
+				continue;
+			}
+
+			$rows = $tournament->justPadelItPlayers->map(fn($jp) => [
+				'user_id' => (int) $jp->user_id,
+				'total_points' => (int) $jp->total_points,
+				'wins' => (int) $jp->wins,
+				'diff' => (int) $jp->points_for - (int) $jp->points_against,
+			])->all();
+			$rows = \App\Services\JustPadelItScoring::sortStandings(
+				$rows,
+				(bool) $tournament->jpi_rank_by_wins
+			);
+			if (!empty($rows) && $rows[0]['user_id'] === (int) $this->id) {
+				$stats['wins']++;
+			}
+		}
+
 		// Групповой
 		$teamTournaments = \App\Models\Tournament::where('type', 'team')
 			->where('is_rated', true)
