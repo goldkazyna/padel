@@ -90,6 +90,8 @@ class ClubController extends Controller
             'plexy_api_key' => 'nullable|string|max:500',
             'plexy_merchant_id' => 'nullable|string|max:255',
             'plexy_webhook_secret' => 'nullable|string|max:500',
+            'waiver_enabled' => 'nullable|boolean',
+            'waiver_text' => 'nullable|string|max:20000',
         ]);
 
         // Чекбокс онлайн-оплаты (снятый чекбокс не приходит в запросе).
@@ -104,6 +106,8 @@ class ClubController extends Controller
         if (trim((string) $request->input('plexy_webhook_secret', '')) === '') {
             unset($validated['plexy_webhook_secret']);
         }
+        // Галочка отказа приходит парой hidden+checkbox, как остальные флаги формы.
+        $validated['waiver_enabled'] = $request->boolean('waiver_enabled');
         $validated['coming_soon'] = $request->boolean('coming_soon');
         $validated['is_community'] = $request->boolean('is_community');
         // Пустое поле снимает ручной порядок — клуб уходит к остальным.

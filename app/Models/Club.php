@@ -46,6 +46,8 @@ class Club extends Model
         'telegram_bot_token',
         'telegram_notify_enabled',
         'telegram_chat_ids',
+        'waiver_enabled',
+        'waiver_text',
     ];
 
     /** Секреты не отдаём в API-ответах. */
@@ -91,7 +93,30 @@ class Club extends Model
         'auto_conduct_group_sessions' => 'boolean',
         'telegram_notify_enabled' => 'boolean',
         'features' => 'array',
+        'waiver_enabled' => 'boolean',
     ];
+
+    public function waiverSignatures()
+    {
+        return $this->hasMany(ClubWaiverSignature::class);
+    }
+
+    /** Собирает ли клуб отказ от ответственности: галочка без текста ничего не значит. */
+    public function collectsWaiver(): bool
+    {
+        return (bool) $this->waiver_enabled && trim((string) $this->waiver_text) !== '';
+    }
+
+    /**
+     * Контрольная сумма текста отказа.
+     *
+     * Приложение присылает её обратно при подписи: если текст успели поправить,
+     * пока человек читал, подпись отклоняется и он перечитывает свежую версию.
+     */
+    public function waiverTextHash(): ?string
+    {
+        return $this->collectsWaiver() ? hash('sha256', (string) $this->waiver_text) : null;
+    }
 
     /** Chat id получателей Telegram-уведомлений о бронях (массив строк). */
     public function telegramChatIds(): array

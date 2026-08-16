@@ -267,6 +267,63 @@
                         </div>
                     @endforeach
 
+                    {{-- Отказ от ответственности: клиент подписывает его пальцем в приложении --}}
+                    <div class="mb-4">
+                        <label class="form-check">
+                            <input type="hidden" name="waiver_enabled" value="0">
+                            <input type="checkbox" name="waiver_enabled" value="1" class="form-check-input"
+                                   {{ old('waiver_enabled', $club->waiver_enabled) ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Отказ от ответственности</span>
+                        </label>
+                        <div class="text-secondary small mt-1">
+                            Клиент сканирует QR на стойке, читает текст в приложении и расписывается пальцем.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Текст отказа</label>
+                        <textarea name="waiver_text" rows="8"
+                                  class="form-control @error('waiver_text') is-invalid @enderror"
+                                  placeholder="Текст, который клиент прочитает и подпишет">{{ old('waiver_text', $club->waiver_text) }}</textarea>
+                        @error('waiver_text')<div class="text-danger mt-2 small">{{ $message }}</div>@enderror
+                        <div class="text-secondary small mt-1">
+                            Правка текста не отменяет уже собранные подписи: у каждой сохранён тот текст,
+                            который человек видел.
+                        </div>
+                    </div>
+
+                    @if($club->collectsWaiver())
+                        @php($waiverUrl = url('/w/' . $club->id))
+                        <div class="mb-4" id="waiver-qr">
+                            <label class="form-label">QR для стойки</label>
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <canvas id="waiverQrCanvas" width="220" height="220"
+                                        style="background:#fff;border-radius:12px;padding:10px"></canvas>
+                                <div>
+                                    <div class="text-secondary small mb-2">{{ $waiverUrl }}</div>
+                                    <a id="waiverQrDownload" class="btn-outline-custom btn-sm"
+                                       download="waiver-{{ $club->id }}.png">
+                                        <i class="bi bi-download"></i> Скачать для печати
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                var canvas = document.getElementById('waiverQrCanvas');
+                                if (!canvas || typeof QRCode === 'undefined') return;
+                                QRCode.toCanvas(canvas, @json($waiverUrl), { width: 220, margin: 1 }, function (err) {
+                                    if (err) return;
+                                    // Ссылку на скачивание берём с уже нарисованного холста,
+                                    // чтобы не генерировать картинку второй раз.
+                                    document.getElementById('waiverQrDownload').href = canvas.toDataURL('image/png');
+                                });
+                            });
+                        </script>
+                    @endif
+
                     <div class="mb-4">
                         <label class="form-check">
                             <input type="hidden" name="is_active" value="0">

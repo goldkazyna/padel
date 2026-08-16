@@ -54,6 +54,22 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     ]);
 })->name('tournament.share');
 
+/**
+ * Отказ от ответственности: QR на стойке клуба ведёт сюда.
+ * Страница сразу пробует открыть приложение и уводит в стор, если его нет.
+ */
+Route::get('/w/{club}', function (\App\Models\Club $club) {
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+
+    return view('waiver-open', [
+        'club' => $club,
+        'storeUrl' => $isIOS
+            ? config('mobile_app.store_url_ios')
+            : config('mobile_app.store_url_android'),
+    ]);
+})->name('waiver.open');
+
 // Лендинг клуба — для шаринга. Открывает deep-link «padelp://club/{id}»
 // или редиректит в магазин если приложения нет.
 Route::get('/c/{club}', function (\App\Models\Club $club) {
