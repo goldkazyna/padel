@@ -104,6 +104,26 @@ class AmericanoOverallTableApiTest extends TestCase
         $this->assertSame('quarterfinal', $overall[12]['playoff_slot']);
     }
 
+    /** Админский экран приложения ходит другим запросом — там таблица тоже нужна. */
+    public function test_admin_matches_endpoint_returns_overall(): void
+    {
+        [$t, $players] = $this->tournament(3);
+
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($t->club_id);
+        Sanctum::actingAs($admin);
+
+        $overall = $this->getJson("/api/mobile/admin/tournaments/{$t->id}/matches")
+            ->assertOk()
+            ->json('overall');
+
+        $this->assertCount(12, $overall);
+        $this->assertSame(1, $overall[0]['position']);
+        $this->assertSame('semifinal', $overall[0]['playoff_slot']);
+        $this->assertSame('Группа A', $overall[0]['group_name']);
+        $this->assertSame('quarterfinal', $overall[4]['playoff_slot'], 'пятое место — четвертьфинал');
+    }
+
     public function test_two_groups_have_no_overall_table(): void
     {
         [$t, $players] = $this->tournament(2);

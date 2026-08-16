@@ -1838,6 +1838,43 @@ class MobileAdminTournamentDetailController extends Controller
             ];
         });
 
+        // Общая таблица: при трёх группах и больше плей-офф строится по ней,
+        // а не по местам в группах. Порядок тот же, что у посева:
+        // очки → победы → разница → личная встреча.
+        $overall = [];
+        if ($groups->count() >= 3) {
+            $rows = [];
+            foreach ($groups as $group) {
+                foreach ($group['leaderboard'] as $row) {
+                    $row['group_name'] = $group['name'];
+                    $rows[] = $row;
+                }
+            }
+
+            $h2h = \App\Support\AmericanoTie::fromGroups($tournament->groups->all());
+            usort($rows, function ($a, $b) use ($h2h) {
+                if ($a['total_points'] !== $b['total_points']) {
+                    return $b['total_points'] <=> $a['total_points'];
+                }
+                if ($a['wins'] !== $b['wins']) {
+                    return $b['wins'] <=> $a['wins'];
+                }
+                if ($a['point_diff'] !== $b['point_diff']) {
+                    return $b['point_diff'] <=> $a['point_diff'];
+                }
+                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+            });
+
+            $place = 1;
+            foreach ($rows as $row) {
+                $row['position'] = $place;
+                // Куда ведёт место: топ-4 ждут в полуфинале, 5–12 играют четвертьфинал.
+                $row['playoff_slot'] = $place <= 4 ? 'semifinal' : ($place <= 12 ? 'quarterfinal' : null);
+                $overall[] = $row;
+                $place++;
+            }
+        }
+
         // Плей-офф
         $playoffMatches = $tournament->playoffMatches
             ->filter(fn($m) => $m->isAmericanoMatch())
@@ -1855,6 +1892,7 @@ class MobileAdminTournamentDetailController extends Controller
             'success' => true,
             'type' => 'americano',
             'groups' => $groups,
+            'overall' => $overall,
             'playoff' => $playoff,
             'summary' => [
                 'matches_total' => $matchesTotal,
