@@ -346,6 +346,11 @@ class MobileAdminTournamentController extends Controller
             $validated['is_paired'] = true;
         } elseif ($type === 'just_padel_it' && $request->boolean('is_paired')) {
             $validated['is_paired'] = true;
+            // Способ сбора пар не прислали (старая сборка) — оставляем админа,
+            // как работало до появления выбора.
+            if (!$request->filled('pairing_mode')) {
+                $validated['pairing_mode'] = 'admin';
+            }
         } else {
             $validated['is_paired'] = false;
         }

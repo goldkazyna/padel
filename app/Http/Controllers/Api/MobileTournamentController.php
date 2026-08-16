@@ -656,7 +656,8 @@ class MobileTournamentController extends Controller
         ]);
         $confirmWaitlist = $request->boolean('confirm_waitlist');
 
-        if ($tournament->type !== 'team' || $tournament->isAdminPairing()) {
+        // Парой записываются групповой и парный JPI, если пары собирают сами игроки.
+        if (!$tournament->isSelfPairing()) {
             return response()->json(['success' => false, 'message' => 'Парная регистрация для этого турнира недоступна'], 400);
         }
 

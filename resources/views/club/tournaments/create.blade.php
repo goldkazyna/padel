@@ -463,6 +463,14 @@
 								</label>
 							</div>
 						</div>
+						<div class="mb-3" id="jpiPairingModeBlock" style="display: none;">
+							<label class="form-label">Кто собирает пары *</label>
+							<select name="jpi_pairing_mode" id="jpiPairingMode" class="form-select">
+								<option value="admin" {{ old('jpi_pairing_mode', 'admin') === 'admin' ? 'selected' : '' }}>Админ собирает (запись по одному)</option>
+								<option value="self" {{ old('jpi_pairing_mode') === 'self' ? 'selected' : '' }}>Сами игроки (поиск партнёра)</option>
+							</select>
+							<small class="text-secondary">«Сами игроки» — записываются парой сразу, как в групповом турнире. «Админ собирает» — игроки записываются поодиночке, пары вы соберёте перед стартом.</small>
+						</div>
 						<div class="mb-3">
 							<label class="form-label">Ранжирование таблицы</label>
 							<div class="form-check">
@@ -705,6 +713,7 @@ function toggleTypeFields() {
         generateCourtsInputs();
     } else if (type === 'just_padel_it' && justPadelItFields) {
         justPadelItFields.style.display = 'block';
+        syncJpiPairingBlock();
         generateCourtsInputs();
     } else if (type === 'escalera' && escaleraFields) {
         escaleraFields.style.display = 'block';
@@ -919,6 +928,16 @@ function toggleMexicanoPlayoffFormat() {
         playoffFormatOptions.style.display = semifinalFinal.checked ? 'block' : 'none';
     }
 }
+
+// Кто собирает пары — вопрос только для фиксированных пар.
+function syncJpiPairingBlock() {
+    const cb = document.getElementById('jpiFixedPairs');
+    const block = document.getElementById('jpiPairingModeBlock');
+    if (!cb || !block) return;
+    block.style.display = cb.checked ? 'block' : 'none';
+}
+document.getElementById('jpiFixedPairs')?.addEventListener('change', syncJpiPairingBlock);
+syncJpiPairingBlock();
 
 document.addEventListener('DOMContentLoaded', function() {
     toggleTypeFields();

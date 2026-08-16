@@ -140,6 +140,9 @@ class JustPadelItService
         if (!$tournament->isPairedJustPadelIt()) {
             return [false, 'Турнир не «Just Padel It» с фиксированными парами'];
         }
+        if ($tournament->isSelfPairing()) {
+            return [false, 'В этом турнире пары собирают сами игроки при записи'];
+        }
         if ($tournament->status !== 'open') {
             return [false, 'Турнир уже запущен или завершён'];
         }
@@ -206,6 +209,63 @@ class JustPadelItService
     }
 
     /**
+     * Перенести пары, собранные самими игроками, из команд турнира в пары формата.
+     *
+     * При самостоятельной записи пара регистрируется в tournament_teams — там уже
+     * есть модерация, лист ожидания и вывод в приложение. Формату же нужны свои
+     * пары и участники, поэтому переносим одобренные команды сюда.
+     *
+     * @return int сколько пар перенесено
+     */
+    public function syncPairsFromTeams(Tournament $tournament): int
+    {
+        if (!$tournament->isPairedJustPadelIt() || !$tournament->isSelfPairing()) {
+            return 0;
+        }
+
+        $teams = $tournament->teams()
+            ->where('status', 'approved')
+            ->whereNotNull('player2_id')
+            ->orderBy('id')
+            ->get();
+
+        $made = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $teams, &$made) {
+            foreach ($teams as $team) {
+                // Оба игрока должны быть участниками: по ним формат считает состав.
+                foreach ([$team->player1_id, $team->player2_id] as $userId) {
+                    if (!$tournament->participants()->where('users.id', $userId)->exists()) {
+                        $tournament->participants()->attach($userId, ['status' => 'registered']);
+                    }
+                }
+
+                $exists = $tournament->justPadelItPairs()
+                    ->where(function ($q) use ($team) {
+                        $q->where(function ($q2) use ($team) {
+                            $q2->where('player1_id', $team->player1_id)
+                               ->where('player2_id', $team->player2_id);
+                        })->orWhere(function ($q2) use ($team) {
+                            $q2->where('player1_id', $team->player2_id)
+                               ->where('player2_id', $team->player1_id);
+                        });
+                    })
+                    ->exists();
+
+                if ($exists) continue;
+
+                \App\Models\JustPadelItPair::create([
+                    'tournament_id' => $tournament->id,
+                    'player1_id' => $team->player1_id,
+                    'player2_id' => $team->player2_id,
+                ]);
+                $made++;
+            }
+        });
+
+        return $made;
+    }
+
+    /**
      * Запустить турнир: создаём JPI-игроков, генерим первый раунд.
      * Соло-режим — посев по рейтингу (либо явный порядок из экрана посева);
      * парный (is_paired) — фикс-пары по 2 на корт, отсортированные по рейтингу.
@@ -214,6 +274,12 @@ class JustPadelItService
     {
         if (!$tournament->isJustPadelIt()) return false;
         if ($tournament->status !== 'open') return false;
+
+        // Пары собрали сами игроки — они лежат в командах турнира, как в групповом.
+        // Переносим их в пары формата и в участников, иначе стартовать нечем.
+        if ($tournament->isSelfPairing()) {
+            $this->syncPairsFromTeams($tournament);
+        }
 
         $participants = $tournament->participants()
             ->wherePivot('status', 'registered')

@@ -197,6 +197,17 @@
                             <small class="text-secondary">Игроков должно быть ровно кортов × 4, чтобы начать посев. Напр. 3 корта = 12 игроков.</small>
                         </div>
                         @endif
+                        @if($tournament->isPairedJustPadelIt())
+                        @php $jpiPairing = old('jpi_pairing_mode', $tournament->pairing_mode ?? 'admin'); @endphp
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Кто собирает пары</label>
+                            <select name="jpi_pairing_mode" class="form-select">
+                                <option value="admin" {{ $jpiPairing === 'admin' ? 'selected' : '' }}>Админ собирает (запись по одному)</option>
+                                <option value="self" {{ $jpiPairing === 'self' ? 'selected' : '' }}>Сами игроки (поиск партнёра)</option>
+                            </select>
+                            <small class="text-secondary">Менять после начала записи не стоит: уже записавшиеся останутся в прежнем виде.</small>
+                        </div>
+                        @endif
                         @if($tournament->isJustPadelIt())
                         @php $jpiByWins = old('jpi_rank_by_wins', $tournament->jpi_rank_by_wins); @endphp
                         <div class="col-md-6 mb-4">

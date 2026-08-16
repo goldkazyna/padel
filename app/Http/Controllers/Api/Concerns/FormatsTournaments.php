@@ -66,6 +66,9 @@ trait FormatsTournaments
             'verified_only' => (bool) $t->verified_only,
             'pairing_mode' => $t->pairing_mode ?? 'self',
             'is_admin_pairing' => $t->isAdminPairing(),
+            // Готовый ответ на вопрос «поодиночке или парой»: клиенту не нужно
+            // знать, у каких форматов бывают пары.
+            'uses_solo_registration' => $t->usesSoloRegistration(),
             'min_level' => (float) $t->min_level,
             'max_level' => (float) $t->max_level,
             'price' => (float) $t->price,

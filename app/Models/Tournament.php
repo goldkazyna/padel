@@ -18,6 +18,21 @@ class Tournament extends Model
      */
     protected static function booted(): void
     {
+        // Колонка pairing_mode заведена под групповой турнир, и её умолчание —
+        // «self». Для парного Just Padel It правильное умолчание обратное: пары
+        // собирает админ, так формат работал до появления выбора. Ставим его
+        // здесь, а не в контроллерах, чтобы любой способ создания турнира
+        // (сидер, команда, тест) получал безопасное поведение.
+        static::creating(function (self $tournament) {
+            if (
+                $tournament->type === 'just_padel_it'
+                && $tournament->is_paired
+                && !array_key_exists('pairing_mode', $tournament->getAttributes())
+            ) {
+                $tournament->pairing_mode = 'admin';
+            }
+        });
+
         static::deleting(function (self $tournament) {
             \App\Models\RatingHistory::where('tournament_id', $tournament->id)->delete();
         });
@@ -195,15 +210,33 @@ class Tournament extends Model
     }
 
     /**
-     * Групповой турнир, где пары собирает админ (игроки регистрируются поодиночке).
+     * Турнир, где пары собирает админ, а игроки записываются поодиночке.
      */
     public function isAdminPairing(): bool
     {
-        // Сбор пар админом: групповой team-турнир ИЛИ парный Americano Flex.
+        // Парный Americano Flex собирает только админ — выбора там нет.
         if ($this->isPairedFlex()) {
             return true;
         }
-        return $this->type === 'team' && $this->pairing_mode === 'admin';
+
+        return $this->supportsPairingModeChoice() && $this->pairing_mode === 'admin';
+    }
+
+    /**
+     * Форматы, где клуб выбирает, кто собирает пары: групповой и парный JPI.
+     * У остальных выбора нет — либо пар нет вовсе, либо их собирает только админ.
+     */
+    public function supportsPairingModeChoice(): bool
+    {
+        return $this->type === 'team' || $this->isPairedJustPadelIt();
+    }
+
+    /**
+     * Игроки записываются парой сами (вводят партнёра при регистрации).
+     */
+    public function isSelfPairing(): bool
+    {
+        return $this->supportsPairingModeChoice() && !$this->isAdminPairing();
     }
 
     /**
@@ -221,7 +254,9 @@ class Tournament extends Model
      */
     public function usesSoloRegistration(): bool
     {
-        return $this->type !== 'team' || $this->pairing_mode === 'admin';
+        // Парой записываются только там, где есть выбор способа и выбран «сами
+        // игроки». Во всех остальных случаях — поодиночке.
+        return !$this->isSelfPairing();
     }
 
     // Связи

@@ -165,6 +165,13 @@ class TournamentController extends Controller
 			$validated['is_paired'] = false;
 		}
 
+		// Парный JPI: способ сбора пар приходит своим полем — в форме уже есть
+		// pairing_mode у группового блока, а скрытые поля тоже отправляются.
+		// Не прислали (старая форма/сборка) — оставляем админа, как было раньше.
+		if (($validated['type'] ?? null) === 'just_padel_it' && !empty($validated['is_paired'])) {
+			$validated['pairing_mode'] = $request->input('jpi_pairing_mode') === 'self' ? 'self' : 'admin';
+		}
+
 
 		$validated['has_lower_bracket'] = $request->has('has_lower_bracket');
 		$validated['has_bronze_match'] = $request->has('has_bronze_match');
@@ -370,6 +377,16 @@ class TournamentController extends Controller
 			unset($validated['escalera_standings_mode']);
 		}
 		unset($validated['escalera_courts_count']);
+
+		// Парный JPI: способ сбора пар приходит своим полем (см. store).
+		// Пока турнир не начат — можно поменять; после старта не трогаем.
+		if ($tournament->isPairedJustPadelIt()) {
+			if (in_array($tournament->status, ['draft', 'open'], true) && $request->filled('jpi_pairing_mode')) {
+				$validated['pairing_mode'] = $request->input('jpi_pairing_mode') === 'self' ? 'self' : 'admin';
+			} else {
+				unset($validated['pairing_mode']);
+			}
+		}
 
 		// Кол-во групп/раундов (Американо) — менять можно только ДО старта.
 		// Группы — пока они ещё не сформированы (иначе рассинхрон с редактором).
