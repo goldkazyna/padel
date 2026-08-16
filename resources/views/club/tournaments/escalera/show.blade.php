@@ -108,12 +108,39 @@
         <div class="esc-preview">
             @foreach($preview as $courtPreview)
                 <div class="esc-preview-court">
-                    <div class="esc-preview-court-title">Корт {{ $courtPreview['court_number'] }}</div>
+                    <div class="esc-preview-court-head">
+                        <span class="esc-preview-court-title">Корт {{ $courtPreview['court_number'] }}</span>
+                        @if($courtPreview['manual'] ?? false)
+                            <span class="esc-manual-badge">места заданы вручную</span>
+                            <form action="{{ route('club.escalera.resetCourtPlaces', $courtPreview['court_id']) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="esc-reset-btn" title="Вернуть расчётный порядок">
+                                    <i class="bi bi-arrow-counterclockwise"></i> сбросить
+                                </button>
+                            </form>
+                        @endif
+                    </div>
                     @foreach($courtPreview['places'] as $place)
                         <div class="esc-preview-row">
                             <span class="esc-preview-place">{{ $place['place'] }}</span>
                             <span class="esc-preview-name">{{ $place['user']->name ?? '—' }}</span>
                             <span class="esc-preview-points">{{ $place['court_points'] }} оч.</span>
+                            <span class="esc-preview-reorder">
+                                @foreach(['up' => ['bi-chevron-up', $place['place'] > 1, 'Поднять'], 'down' => ['bi-chevron-down', $place['place'] < 4, 'Опустить']] as $dir => [$icon, $enabled, $title])
+                                    @if($enabled)
+                                        <form action="{{ route('club.escalera.moveCourtPlace', $courtPreview['court_id']) }}" method="POST">
+                                            @csrf
+                                            <input type="hidden" name="user_id" value="{{ $place['user_id'] }}">
+                                            <input type="hidden" name="direction" value="{{ $dir }}">
+                                            <button type="submit" class="esc-move-btn" title="{{ $title }}">
+                                                <i class="bi {{ $icon }}"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="esc-move-btn is-off"><i class="bi {{ $icon }}"></i></span>
+                                    @endif
+                                @endforeach
+                            </span>
                             <span class="esc-preview-move esc-move-{{ $place['movement'] }}">
                                 @if($place['movement'] === 'up')
                                     <i class="bi bi-arrow-up"></i> вверх
@@ -206,7 +233,47 @@ body.light-theme .esc-scope {
     border-radius: 10px;
     padding: 12px 16px;
 }
-.esc-preview-court-title { font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+.esc-preview-court-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.esc-preview-court-title { font-weight: 600; color: var(--accent); }
+.esc-manual-badge {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(250, 204, 21, 0.14);
+    color: #facc15;
+    font-size: 11px;
+    font-weight: 600;
+}
+.esc-reset-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+}
+.esc-reset-btn:hover { color: var(--text-primary); }
+/* Стрелки правки мест: нужны, когда ничью надо рассудить не по рейтингу */
+.esc-preview-reorder { display: flex; gap: 2px; }
+.esc-move-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+}
+.esc-move-btn:hover { color: var(--text-primary); border-color: rgba(255, 255, 255, 0.3); }
+.esc-move-btn.is-off { opacity: 0.25; cursor: default; }
 .esc-preview-row {
     display: flex;
     align-items: center;

@@ -560,6 +560,10 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // club.tournaments.partials._modal_edit_score.
             Route::put('/escalera/match/{match}/score', [App\Http\Controllers\Club\EscaleraController::class, 'saveScore'])
                 ->name('escalera.updateScore');
+            Route::post('/escalera/court/{court}/move-place', [App\Http\Controllers\Club\EscaleraController::class, 'moveCourtPlace'])
+                ->name('escalera.moveCourtPlace');
+            Route::post('/escalera/court/{court}/reset-places', [App\Http\Controllers\Club\EscaleraController::class, 'resetCourtPlaces'])
+                ->name('escalera.resetCourtPlaces');
             Route::post('/escalera/{tournament}/close-round', [App\Http\Controllers\Club\EscaleraController::class, 'closeRound'])
                 ->name('escalera.closeRound');
             Route::post('/escalera/{tournament}/next-round', [App\Http\Controllers\Club\EscaleraController::class, 'nextRound'])

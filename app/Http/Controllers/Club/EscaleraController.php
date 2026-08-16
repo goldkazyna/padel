@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
 use App\Models\EscaleraMatch;
+use App\Models\EscaleraRoundCourt;
 use App\Models\Tournament;
 use App\Services\EscaleraService;
 use Illuminate\Database\QueryException;
@@ -221,6 +222,53 @@ class EscaleraController extends Controller
         }
 
         return back()->with('success', 'Счёт сохранён');
+    }
+
+    /**
+     * Поднять или опустить игрока в итогах корта на одну строку.
+     *
+     * Ничья по очкам решается рейтингом, а вверх по лестнице едет только
+     * первый — организатору нужен способ рассудить иначе, пока раунд не закрыт.
+     */
+    public function moveCourtPlace(Request $request, EscaleraRoundCourt $court, EscaleraService $service)
+    {
+        $tournament = $court->round->tournament;
+        $this->authorizeTournament($tournament);
+
+        $validated = $request->validate([
+            'user_id' => 'required|integer',
+            'direction' => 'required|in:up,down',
+        ]);
+
+        $order = $service->rankCourt($court);
+        $index = array_search((int) $validated['user_id'], array_map('intval', $order), true);
+        if ($index === false) {
+            return back()->with('error', 'Игрок не с этого корта');
+        }
+
+        $target = $validated['direction'] === 'up' ? $index - 1 : $index + 1;
+        if ($target < 0 || $target > 3) {
+            return back(); // выше первого и ниже четвёртого мест нет
+        }
+
+        [$order[$index], $order[$target]] = [$order[$target], $order[$index]];
+
+        try {
+            $service->setCourtOrder($court, $order);
+        } catch (InvalidArgumentException | RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Порядок на корте изменён');
+    }
+
+    /** Вернуть корту расчётный порядок. */
+    public function resetCourtPlaces(EscaleraRoundCourt $court, EscaleraService $service)
+    {
+        $this->authorizeTournament($court->round->tournament);
+        $service->clearCourtOrder($court);
+
+        return back()->with('success', 'Порядок на корте пересчитан');
     }
 
     /**

@@ -77,6 +77,12 @@ class EscaleraService
      */
     public function rankCourt(EscaleraRoundCourt $court): array
     {
+        // Организатор мог решить ничью руками — его порядок главнее расчётного.
+        $manual = $court->manualOrder();
+        if ($manual !== null) {
+            return $manual;
+        }
+
         $ids = $court->playerIds();
         $stats = [];
         foreach ($ids as $id) {
@@ -114,6 +120,43 @@ class EscaleraService
         });
 
         return $order;
+    }
+
+    /**
+     * Задать места на корте руками.
+     *
+     * Нужно, когда расчётная ничья решена не так, как хочет организатор:
+     * рейтинг — грубый разделитель, а вверх едет первый.
+     *
+     * @param  array<int,int> $userIds четыре игрока корта в нужном порядке
+     * @throws InvalidArgumentException если это не та же четвёрка
+     */
+    public function setCourtOrder(EscaleraRoundCourt $court, array $userIds): void
+    {
+        $given = array_map('intval', array_values($userIds));
+        $seated = array_map('intval', $court->playerIds());
+
+        $checkGiven = $given;
+        $checkSeated = $seated;
+        sort($checkGiven);
+        sort($checkSeated);
+
+        if (count($given) !== 4 || $checkGiven !== $checkSeated) {
+            throw new InvalidArgumentException('Порядок должен содержать ровно четвёрку этого корта');
+        }
+
+        $round = $court->round;
+        if ($round && $round->isCompleted()) {
+            throw new RuntimeException('Раунд уже закрыт — места менять поздно');
+        }
+
+        $court->update(['manual_rank' => $given]);
+    }
+
+    /** Убрать ручной порядок: корт снова считается по очкам. */
+    public function clearCourtOrder(EscaleraRoundCourt $court): void
+    {
+        $court->update(['manual_rank' => null]);
     }
 
     /**
@@ -272,6 +315,13 @@ class EscaleraService
             'status' => 'completed',
         ]);
 
+        // Ручной порядок решал ничью по старым числам — после правки счёта
+        // он уже ни о чём не говорит, считаем корт заново.
+        if ($court->manual_rank !== null) {
+            $court->update(['manual_rank' => null]);
+            $court->refresh();
+        }
+
         if ($round->isCompleted()) {
             DB::transaction(function () use ($round, $tournament) {
                 $this->writeRoundResults($round, $tournament, $this->computeRankings($round));
@@ -358,7 +408,13 @@ class EscaleraService
                 ];
             }
 
-            $preview[] = ['court_number' => $courtNumber, 'places' => $places];
+            $preview[] = [
+                'court_number' => $courtNumber,
+                'court_id' => $court->id,
+                // Организатор правил места руками — покажем это и дадим сброс.
+                'manual' => $court->manualOrder() !== null,
+                'places' => $places,
+            ];
         }
 
         return $preview;

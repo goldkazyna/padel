@@ -20,6 +20,11 @@ class EscaleraRoundCourt extends Model
         'player2_id',
         'player3_id',
         'player4_id',
+        'manual_rank',
+    ];
+
+    protected $casts = [
+        'manual_rank' => 'array',
     ];
 
     public function round()
@@ -50,6 +55,30 @@ class EscaleraRoundCourt extends Model
     public function player4()
     {
         return $this->belongsTo(User::class, 'player4_id');
+    }
+
+    /**
+     * Ручной порядок мест, если организатор его задал и он всё ещё описывает
+     * ровно эту четвёрку. Иначе null — места считаются от очков.
+     *
+     * @return array<int,int>|null
+     */
+    public function manualOrder(): ?array
+    {
+        $order = $this->manual_rank;
+        if (!is_array($order) || count($order) !== 4) {
+            return null;
+        }
+
+        $order = array_map('intval', $order);
+        $seated = array_map('intval', $this->playerIds());
+        sort($order);
+        sort($seated);
+        if ($order !== $seated) {
+            return null; // состав корта поменялся — ручной порядок устарел
+        }
+
+        return array_map('intval', $this->manual_rank);
     }
 
     /** Четыре id игроков в порядке посадки. */
