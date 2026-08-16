@@ -16,6 +16,7 @@ class Formats5 implements Achievement
     public function description(): string { return 'Сыграть пять разных форматов'; }
     public function icon(): string { return 'explore'; }
     public function group(): string { return 'variety'; }
+    public function tier(): string { return 'bronze'; }
     public function target(): int { return 5; }
 
     public function progress(PlayerHistory $history): int

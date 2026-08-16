@@ -23,6 +23,15 @@ interface Achievement
     /** Группа показа: first_steps | wins | rating | variety | together. */
     public function group(): string;
 
+    /**
+     * Металл медали: bronze | silver | gold.
+     *
+     * Закреплён за значком навсегда и зависит от того, насколько трудно его
+     * взять. Не от живой статистики: иначе медаль меняла бы цвет под игроком,
+     * а награда так не работает.
+     */
+    public function tier(): string;
+
     public function target(): int;
 
     /** Сколько уже сделано. Никогда не больше target. */

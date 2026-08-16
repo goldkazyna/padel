@@ -16,6 +16,9 @@ use App\Models\UserAchievement;
  */
 class AchievementService
 {
+    /** Меньше этого числа играющих — доли не показываем, они ничего не значат. */
+    private const RARITY_MIN_PLAYERS = 20;
+
     public function __construct(private readonly AchievementRegistry $registry)
     {
     }
@@ -66,9 +69,10 @@ class AchievementService
     public function forOwner(User $user): array
     {
         $rows = UserAchievement::where('user_id', $user->id)->get()->keyBy('code');
+        $rarity = $this->rarity();
 
         return array_map(
-            fn (Achievement $rule) => $this->present($rule, $rows->get($rule->code())),
+            fn (Achievement $rule) => $this->present($rule, $rows->get($rule->code()), $rarity),
             $this->registry->all()
         );
     }
@@ -86,19 +90,23 @@ class AchievementService
             ->get()
             ->keyBy('code');
 
+        $rarity = $this->rarity();
         $result = [];
         foreach ($this->registry->all() as $rule) {
             $row = $rows->get($rule->code());
             if ($row) {
-                $result[] = $this->present($rule, $row);
+                $result[] = $this->present($rule, $row, $rarity);
             }
         }
 
         return $result;
     }
 
-    /** @return array<string, mixed> */
-    private function present(Achievement $rule, ?UserAchievement $row): array
+    /**
+     * @param array<string, int> $rarity доля игроков по коду значка
+     * @return array<string, mixed>
+     */
+    private function present(Achievement $rule, ?UserAchievement $row, array $rarity = []): array
     {
         return [
             'code' => $rule->code(),
@@ -106,9 +114,41 @@ class AchievementService
             'description' => $rule->description(),
             'icon' => $rule->icon(),
             'group' => $rule->group(),
+            'tier' => $rule->tier(),
             'progress' => (int) ($row->progress ?? 0),
             'target' => $rule->target(),
             'unlocked_at' => $row?->unlocked_at?->toIso8601String(),
+            'rarity' => $rarity[$rule->code()] ?? null,
         ];
+    }
+
+    /**
+     * Сколько процентов игроков открыли каждый значок.
+     *
+     * Именно эта цифра превращает значок в награду: «есть у 9%» весит больше
+     * любой картинки. За сто процентов берём тех, кто вообще играл, — у них
+     * открыт «Дебют». Считать от всех зарегистрированных нечестно: половина
+     * базы не сыграла ни одного турнира, и любая медаль выглядела бы редкой.
+     *
+     * Пока играющих мало, доли не показываем вовсе: «есть у 50%» при четырёх
+     * игроках — не редкость, а шум.
+     *
+     * @return array<string, int>
+     */
+    private function rarity(): array
+    {
+        $counts = UserAchievement::whereNotNull('unlocked_at')
+            ->selectRaw('code, count(*) as total')
+            ->groupBy('code')
+            ->pluck('total', 'code');
+
+        $base = (int) ($counts['debut'] ?? 0);
+        if ($base < self::RARITY_MIN_PLAYERS) {
+            return [];
+        }
+
+        return $counts
+            ->map(fn ($count) => (int) round($count / $base * 100))
+            ->all();
     }
 }

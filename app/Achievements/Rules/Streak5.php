@@ -12,6 +12,7 @@ class Streak5 implements Achievement
     public function description(): string { return 'Пять побед подряд'; }
     public function icon(): string { return 'bolt'; }
     public function group(): string { return 'wins'; }
+    public function tier(): string { return 'silver'; }
     public function target(): int { return 5; }
 
     public function progress(PlayerHistory $history): int

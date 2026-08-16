@@ -102,6 +102,59 @@ class AchievementServiceTest extends TestCase
         $this->assertArrayHasKey('group', $owner[0]);
     }
 
+    public function test_medal_tier_is_exposed(): void
+    {
+        $user = $this->playerWithJump();
+        $service = app(AchievementService::class);
+        $service->sync($user);
+
+        $byCode = collect($service->forOwner($user))->keyBy('code');
+
+        $this->assertSame('bronze', $byCode['first_win']['tier']);
+        $this->assertSame('silver', $byCode['streak_5']['tier']);
+        $this->assertSame('gold', $byCode['veteran_50']['tier']);
+    }
+
+    /** Доли считаем от тех, кто играл, а не от всех зарегистрированных. */
+    public function test_rarity_counts_share_of_players_who_played(): void
+    {
+        $service = app(AchievementService::class);
+
+        // 25 игроков сыграли турнир, из них 5 сделали рывок рейтинга.
+        for ($i = 0; $i < 25; $i++) {
+            $user = User::factory()->create();
+            UserAchievement::create([
+                'user_id' => $user->id, 'code' => 'debut',
+                'progress' => 1, 'target' => 1, 'unlocked_at' => now(),
+            ]);
+            if ($i < 5) {
+                UserAchievement::create([
+                    'user_id' => $user->id, 'code' => 'jump_100',
+                    'progress' => 1, 'target' => 1, 'unlocked_at' => now(),
+                ]);
+            }
+        }
+        // Ещё 100 зарегистрированных, но не игравших: на доли влиять не должны.
+        User::factory()->count(100)->create();
+
+        $byCode = collect($service->forOwner($user))->keyBy('code');
+
+        $this->assertSame(100, $byCode['debut']['rarity']);
+        $this->assertSame(20, $byCode['jump_100']['rarity'], '5 из 25 играющих');
+    }
+
+    /** На маленькой базе доля — шум, показывать её нечестно. */
+    public function test_rarity_is_hidden_while_there_are_few_players(): void
+    {
+        $user = $this->playerWithJump();
+        $service = app(AchievementService::class);
+        $service->sync($user);
+
+        $byCode = collect($service->forOwner($user))->keyBy('code');
+
+        $this->assertNull($byCode['jump_100']['rarity']);
+    }
+
     public function test_visitor_view_does_not_recalculate(): void
     {
         $user = $this->playerWithJump();

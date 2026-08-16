@@ -12,6 +12,7 @@ class Debut implements Achievement
     public function description(): string { return 'Сыграть первый турнир'; }
     public function icon(): string { return 'flag'; }
     public function group(): string { return 'first_steps'; }
+    public function tier(): string { return 'bronze'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

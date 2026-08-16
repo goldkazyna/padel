@@ -12,6 +12,7 @@ class FirstGold implements Achievement
     public function description(): string { return 'Выиграть турнир'; }
     public function icon(): string { return 'military_tech'; }
     public function group(): string { return 'wins'; }
+    public function tier(): string { return 'silver'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

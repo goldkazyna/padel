@@ -12,6 +12,7 @@ class Veteran50 implements Achievement
     public function description(): string { return 'Сыграть 50 турниров'; }
     public function icon(): string { return 'workspace_premium'; }
     public function group(): string { return 'first_steps'; }
+    public function tier(): string { return 'gold'; }
     public function target(): int { return 50; }
 
     public function progress(PlayerHistory $history): int

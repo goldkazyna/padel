@@ -12,6 +12,7 @@ class Clubs3 implements Achievement
     public function description(): string { return 'Сыграть турниры в трёх клубах'; }
     public function icon(): string { return 'location_city'; }
     public function group(): string { return 'variety'; }
+    public function tier(): string { return 'bronze'; }
     public function target(): int { return 3; }
 
     public function progress(PlayerHistory $history): int

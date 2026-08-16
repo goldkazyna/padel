@@ -16,6 +16,7 @@ class FormatsAll implements Achievement
     public function description(): string { return 'Сыграть все десять форматов'; }
     public function icon(): string { return 'auto_awesome'; }
     public function group(): string { return 'variety'; }
+    public function tier(): string { return 'gold'; }
     public function target(): int { return 10; }
 
     public function progress(PlayerHistory $history): int

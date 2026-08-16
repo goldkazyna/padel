@@ -12,6 +12,7 @@ class FirstWin implements Achievement
     public function description(): string { return 'Выиграть первый матч'; }
     public function icon(): string { return 'emoji_events'; }
     public function group(): string { return 'first_steps'; }
+    public function tier(): string { return 'bronze'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

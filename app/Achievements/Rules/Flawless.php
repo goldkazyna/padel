@@ -12,6 +12,7 @@ class Flawless implements Achievement
     public function description(): string { return 'Выиграть все свои матчи одного турнира'; }
     public function icon(): string { return 'shield'; }
     public function group(): string { return 'wins'; }
+    public function tier(): string { return 'gold'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

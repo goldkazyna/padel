@@ -12,6 +12,7 @@ class Gold3 implements Achievement
     public function description(): string { return 'Выиграть три турнира'; }
     public function icon(): string { return 'military_tech'; }
     public function group(): string { return 'wins'; }
+    public function tier(): string { return 'gold'; }
     public function target(): int { return 3; }
 
     public function progress(PlayerHistory $history): int

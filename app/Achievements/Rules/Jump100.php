@@ -12,6 +12,7 @@ class Jump100 implements Achievement
     public function description(): string { return 'Набрать +100 рейтинга за один турнир'; }
     public function icon(): string { return 'trending_up'; }
     public function group(): string { return 'rating'; }
+    public function tier(): string { return 'bronze'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

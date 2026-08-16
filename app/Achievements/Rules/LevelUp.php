@@ -12,6 +12,7 @@ class LevelUp implements Achievement
     public function description(): string { return 'Подняться на уровень выше'; }
     public function icon(): string { return 'star'; }
     public function group(): string { return 'rating'; }
+    public function tier(): string { return 'silver'; }
     public function target(): int { return 1; }
 
     public function progress(PlayerHistory $history): int

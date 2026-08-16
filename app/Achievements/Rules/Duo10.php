@@ -12,6 +12,7 @@ class Duo10 implements Achievement
     public function description(): string { return 'Сыграть 10 матчей с одним партнёром'; }
     public function icon(): string { return 'handshake'; }
     public function group(): string { return 'together'; }
+    public function tier(): string { return 'silver'; }
     public function target(): int { return 10; }
 
     public function progress(PlayerHistory $history): int
