@@ -3088,6 +3088,42 @@ class MobileTournamentController extends Controller
             ];
         }
 
+        // Общая таблица: при трёх группах и больше плей-офф строится по ней,
+        // а не по местам в группах, — значит игрок должен её видеть.
+        // Порядок тот же, что у посева: очки → победы → разница → личная встреча.
+        $overall = [];
+        if (count($groups) >= 3) {
+            $rows = [];
+            foreach ($groups as $group) {
+                foreach ($group['leaderboard'] as $row) {
+                    $row['group_name'] = $group['name'];
+                    $rows[] = $row;
+                }
+            }
+
+            $h2h = \App\Support\AmericanoTie::fromGroups($tournament->groups->all());
+            usort($rows, function ($a, $b) use ($h2h) {
+                if ($a['total_points'] !== $b['total_points']) {
+                    return $b['total_points'] <=> $a['total_points'];
+                }
+                if ($a['wins'] !== $b['wins']) {
+                    return $b['wins'] <=> $a['wins'];
+                }
+                if ($a['point_diff'] !== $b['point_diff']) {
+                    return $b['point_diff'] <=> $a['point_diff'];
+                }
+                return \App\Support\AmericanoTie::compare($h2h, $a['id'], $b['id']);
+            });
+
+            $place = 1;
+            foreach ($rows as $row) {
+                $row['position'] = $place;
+                // Куда ведёт место: топ-4 ждут в полуфинале, 5–12 играют четвертьфинал.
+                $row['playoff_slot'] = $place <= 4 ? 'semifinal' : ($place <= 12 ? 'quarterfinal' : null);
+                $overall[] = $row;
+                $place++;
+            }
+        }
         // Показываем плей-офф если он есть в БД — независимо от has_playoff.
         // Так покрываем team-турниры со старым флагом и любые случаи с
         // существующими матчами плей-офф.
@@ -3110,6 +3146,7 @@ class MobileTournamentController extends Controller
                 'has_playoff' => (bool) $tournament->has_playoff,
             ],
             'groups' => $groups,
+            'overall' => $overall,
             'playoff' => $playoff,
         ]);
     }
