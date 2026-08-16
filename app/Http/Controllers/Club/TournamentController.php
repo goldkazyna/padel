@@ -1047,17 +1047,6 @@ class TournamentController extends Controller
 			return back()->with('error', 'Игрок уже участвует в турнире');
 		}
 
-		// Лимит приглашений (анти-спам). Повторное приглашение уже приглашённого
-		// не считается новым (обновляет существующее).
-		$alreadyInvited = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)
-			->where('user_id', $userId)->exists();
-		if (!$alreadyInvited) {
-			$count = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)->count();
-			if ($count >= 10) {
-				return back()->with('error', 'Можно отправить не более 10 приглашений на турнир');
-			}
-		}
-
 		$invitation = \App\Models\TournamentInvitation::updateOrCreate(
 			['tournament_id' => $tournament->id, 'user_id' => $userId],
 			['invited_by' => auth()->id(), 'status' => 'pending', 'responded_at' => null],

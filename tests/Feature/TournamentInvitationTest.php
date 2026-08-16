@@ -118,10 +118,11 @@ class TournamentInvitationTest extends TestCase
         $this->assertDatabaseMissing('tournament_invitations', ['id' => $inv->id]);
     }
 
-    public function test_invite_limited_to_ten_per_tournament(): void
+    /** Лимита на число приглашений нет — зовут столько, сколько нужно. */
+    public function test_invites_are_not_capped(): void
     {
         [, $admin, $tournament, ] = $this->setup3();
-        // Уже 10 приглашений
+        // Уже 10 приглашений — раньше на этом месте стоял потолок.
         for ($i = 0; $i < 10; $i++) {
             TournamentInvitation::create([
                 'tournament_id' => $tournament->id,
@@ -131,19 +132,55 @@ class TournamentInvitationTest extends TestCase
         }
         Sanctum::actingAs($admin);
 
-        // 11-й — блок
         $eleventh = User::factory()->create();
         $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/invite", [
             'user_id' => $eleventh->id,
-        ])->assertStatus(422);
-        $this->assertDatabaseCount('tournament_invitations', 10);
+        ])->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseCount('tournament_invitations', 11);
 
-        // Повтор уже приглашённого — разрешён (не создаёт нового)
+        // Повтор уже приглашённого по-прежнему обновляет существующее, а не плодит дубль.
         $existing = TournamentInvitation::where('tournament_id', $tournament->id)->first();
         $this->postJson("/api/mobile/admin/tournaments/{$tournament->id}/invite", [
             'user_id' => $existing->user_id,
         ])->assertOk();
-        $this->assertDatabaseCount('tournament_invitations', 10);
+        $this->assertDatabaseCount('tournament_invitations', 11);
+    }
+
+    /** Веб-админка: та же свобода, что и в приложении. */
+    public function test_web_invite_is_not_capped(): void
+    {
+        [, $admin, $tournament, ] = $this->setup3();
+        for ($i = 0; $i < 10; $i++) {
+            TournamentInvitation::create([
+                'tournament_id' => $tournament->id,
+                'user_id' => User::factory()->create()->id,
+                'invited_by' => $admin->id, 'status' => 'pending',
+            ]);
+        }
+
+        $eleventh = User::factory()->create();
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.invite', $tournament), ['user_id' => $eleventh->id])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('tournament_invitations', 11);
+    }
+
+    /** Счётчик в блоке приглашений больше не показывает потолок. */
+    public function test_web_page_shows_plain_invite_count(): void
+    {
+        [, $admin, $tournament, $player] = $this->setup3();
+        TournamentInvitation::create([
+            'tournament_id' => $tournament->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Приглашения (1)')
+            ->assertDontSee('Приглашения (1/10)');
     }
 
     public function test_player_lists_and_counts_pending(): void

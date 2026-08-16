@@ -36,9 +36,6 @@ use Illuminate\Support\Facades\Validator;
  */
 class MobileAdminTournamentDetailController extends Controller
 {
-    /** Максимум приглашений на один турнир (анти-спам). */
-    private const MAX_INVITATIONS = 10;
-
     /**
      * GET /api/mobile/admin/tournaments/{tournament}
      */
@@ -1246,18 +1243,6 @@ class MobileAdminTournamentDetailController extends Controller
 
         if ($tournament->participants()->where('user_id', $userId)->exists()) {
             return $this->error('Игрок уже участвует в турнире');
-        }
-
-        // Лимит приглашений на турнир (анти-спам). Повторное приглашение уже
-        // приглашённого игрока не считается новым (обновляет существующее).
-        $alreadyInvited = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)
-            ->where('user_id', $userId)
-            ->exists();
-        if (!$alreadyInvited) {
-            $invitesCount = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)->count();
-            if ($invitesCount >= self::MAX_INVITATIONS) {
-                return $this->error('Можно отправить не более ' . self::MAX_INVITATIONS . ' приглашений на турнир');
-            }
         }
 
         $invitation = \App\Models\TournamentInvitation::updateOrCreate(

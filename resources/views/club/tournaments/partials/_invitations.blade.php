@@ -8,14 +8,13 @@
         ->get()
         ->filter(fn($inv) => $inv->user)
         ->values();
-    $inviteLimit = 10;
     $canInvite = $tournament->status === 'open';
 @endphp
 
 <div class="invitations-block mt-4">
     <div class="add-participant-header" style="color:#60a5fa;">
         <i class="bi bi-send"></i>
-        <span>Приглашения ({{ $invitations->count() }}/{{ $inviteLimit }})</span>
+        <span>Приглашения ({{ $invitations->count() }})</span>
     </div>
 
     {{-- Список приглашённых --}}
@@ -56,7 +55,7 @@
     @endif
 
     {{-- Форма приглашения --}}
-    @if($canInvite && $invitations->count() < $inviteLimit)
+    @if($canInvite)
         <div class="invite-section">
             <form action="{{ route('club.tournaments.invite', $tournament) }}" method="POST" class="add-participant-form">
                 @csrf
@@ -76,7 +75,7 @@
             </form>
             <small class="text-secondary d-block mt-2">Игроку придёт пуш-уведомление и приглашение в приложении — он сможет принять и записаться.</small>
         </div>
-    @elseif(!$canInvite)
+    @else
         <small class="text-secondary">Приглашать можно только пока турнир открыт для записи.</small>
     @endif
 </div>
