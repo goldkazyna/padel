@@ -234,6 +234,54 @@ class JustPadelItPairingModeTest extends TestCase
         $this->assertSame('self', $t->fresh()->pairing_mode);
     }
 
+    /**
+     * Страница турнира при самостоятельной записи.
+     *
+     * Заявка приходит парой и живёт в командах турнира, а не в участниках.
+     * Раньше счётчик показывал «2 на модерации», а список был пуст: он читал
+     * участников, которых при таком режиме ещё нет.
+     */
+    public function test_web_page_shows_pending_pairs(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+
+        TournamentTeam::create([
+            'tournament_id' => $t->id,
+            'player1_id' => $players[0]->id, 'player2_id' => $players[1]->id,
+            'rating_avg' => 1985, 'status' => 'pending',
+        ]);
+        TournamentTeam::create([
+            'tournament_id' => $t->id,
+            'player1_id' => $players[2]->id, 'player2_id' => $players[3]->id,
+            'rating_avg' => 1965, 'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk();
+
+        $response->assertSee('Пары на модерации (1)');
+        $response->assertSee($players[0]->name . ' / ' . $players[1]->name);
+        $response->assertSee($players[2]->name . ' / ' . $players[3]->name);
+        $response->assertSee('Пара записана');
+        $response->assertDontSee('Пока нет участников');
+    }
+
+    /** У одиночной записи страница работает как раньше. */
+    public function test_web_page_keeps_solo_list_for_admin_pairing(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+        $t->participants()->attach($players[0]->id, ['status' => 'pending']);
+
+        $this->actingAs($admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('Заявки на модерации (1)')
+            ->assertSee($players[0]->name);
+    }
+
     public function test_non_paired_jpi_is_always_solo(): void
     {
         // Без фиксированных пар выбора нет — записываются поодиночке.

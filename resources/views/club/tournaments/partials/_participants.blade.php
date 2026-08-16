@@ -45,8 +45,102 @@
 		</div>
 	@endif
 
+    {{-- Пары записываются сами: заявка приходит парой, а не игроком, и живёт
+         в командах турнира. Список участников заполнится только при старте,
+         поэтому здесь показываем пары — иначе организатору нечего одобрять. --}}
+    @if(!$tournament->usesSoloRegistration())
+        @php
+            $pendingPairs = $tournament->teams()->where('status', 'pending')
+                ->with(['player1', 'player2'])->orderBy('created_at')->get();
+            $approvedPairs = $tournament->teams()->where('status', 'approved')
+                ->with(['player1', 'player2'])->orderByDesc('rating_avg')->get();
+        @endphp
+
+        @if($pendingPairs->count() > 0)
+        <div class="pending-section mb-4">
+            <div class="pending-header">
+                <i class="bi bi-hourglass-split text-warning"></i>
+                <span>Пары на модерации ({{ $pendingPairs->count() }})</span>
+            </div>
+            <div class="participants-list">
+                @foreach($pendingPairs as $pair)
+                    <div class="participant-row pending">
+                        <div class="participant-status-indicator pending">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="participant-info">
+                            <div class="participant-name">
+                                {{ $pair->player1->name ?? '—' }} / {{ $pair->player2->name ?? '—' }}
+                            </div>
+                            <small class="text-muted">
+                                @phoneFmt($pair->player1->phone ?? '') / @phoneFmt($pair->player2->phone ?? '')
+                            </small>
+                            <div class="participant-meta">
+                                <span class="text-warning">На модерации</span>
+                            </div>
+                        </div>
+                        <div class="participant-rating">{{ $pair->rating_avg }}</div>
+                        @if($tournament->status === 'open')
+                            <div class="participant-actions">
+                                <form action="{{ route('club.tournaments.approveTeam', [$tournament, $pair]) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn-success-custom btn-sm" title="Одобрить">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <form action="{{ route('club.tournaments.rejectTeam', [$tournament, $pair]) }}" method="POST" class="d-inline" onsubmit="return confirm('Отклонить заявку пары?')">
+                                    @csrf
+                                    <button type="submit" class="btn-danger-custom btn-sm" title="Отклонить">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <div class="participants-list">
+            @forelse($approvedPairs as $index => $pair)
+                <div class="participant-row approved">
+                    <div class="participant-status-indicator approved">
+                        <i class="bi bi-check"></i>
+                    </div>
+                    <div class="participant-rank">{{ $index + 1 }}</div>
+                    <div class="participant-info">
+                        <div class="participant-name">
+                            {{ $pair->player1->name ?? '—' }} / {{ $pair->player2->name ?? '—' }}
+                        </div>
+                        <small class="text-muted">
+                            @phoneFmt($pair->player1->phone ?? '') / @phoneFmt($pair->player2->phone ?? '')
+                        </small>
+                        <div class="participant-meta">
+                            <span class="text-success">Пара записана</span>
+                        </div>
+                    </div>
+                    <div class="participant-rating">{{ $pair->rating_avg }}</div>
+                    @if($tournament->status === 'open')
+                        <div class="participant-actions">
+                            <form action="{{ route('club.tournaments.rejectTeam', [$tournament, $pair]) }}" method="POST" class="d-inline" onsubmit="return confirm('Убрать пару из турнира?')">
+                                @csrf
+                                <button class="btn-danger-custom btn-sm" title="Убрать"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+            @empty
+                <div class="empty-participants">
+                    <i class="bi bi-people"></i>
+                    <p>Пока нет записавшихся пар</p>
+                </div>
+            @endforelse
+        </div>
+    @endif
+
     {{-- Заявки на модерации --}}
-    @if($tournament->pendingParticipantsCount() > 0)
+    @if($tournament->usesSoloRegistration() && $tournament->pendingParticipantsCount() > 0)
     <div class="pending-section mb-4">
         <div class="pending-header">
             <i class="bi bi-hourglass-split text-warning"></i>
@@ -102,6 +196,7 @@
     @endif
 	
     {{-- Одобренные участники --}}
+    @if($tournament->usesSoloRegistration())
     <div class="participants-list">
         @forelse($tournament->approvedParticipants as $index => $participant)
             <div class="participant-row approved">
@@ -195,6 +290,7 @@
             </div>
         @endforelse
     </div>
+    @endif
 
     {{-- Лист ожидания --}}
     @if($waitlistParticipants->count() > 0)
