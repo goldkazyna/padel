@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 use App\Http\Controllers\Api\MobileAdminUserController;
 use App\Http\Controllers\Api\MobileAdminModeratorController;
 use App\Http\Controllers\Api\MobileGameController;
+use App\Http\Controllers\Api\MobileWaiverController;
 
 /*
 |--------------------------------------------------------------------------
@@ -377,6 +378,10 @@ Route::prefix('mobile')->group(function () {
         Route::get('/clubs/{club}', [MobileClubController::class, 'show']);
         Route::get('/clubs/{club}/stats', [MobileClubController::class, 'stats']);
         Route::post('/clubs/{club}/toggle-hide', [MobileClubController::class, 'toggleHide']);
+
+        // Отказ от ответственности
+        Route::get('/clubs/{club}/waiver', [MobileWaiverController::class, 'show']);
+        Route::post('/clubs/{club}/waiver/sign', [MobileWaiverController::class, 'sign']);
 
         // Бронирование кортов
         Route::get('/courts/clubs', [MobileCourtController::class, 'clubs']);

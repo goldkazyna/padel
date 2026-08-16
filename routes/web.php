@@ -342,6 +342,10 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         });
 
         // Инвентарь клуба
+        // Отказы от ответственности: подписи, собранные через приложение
+        Route::get('/waivers', [App\Http\Controllers\Club\WaiverController::class, 'index'])->name('waivers.index');
+        Route::get('/waivers/{signature}/image', [App\Http\Controllers\Club\WaiverController::class, 'image'])->name('waivers.image');
+
         Route::middleware('club.feature:inventory')->group(function () {
             Route::get('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'index'])->name('inventory.index');
             Route::post('/inventory', [App\Http\Controllers\Club\InventoryController::class, 'store'])->name('inventory.store');

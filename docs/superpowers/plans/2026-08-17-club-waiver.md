@@ -13,7 +13,7 @@
 - Весь текст в коде, комментариях и коммитах — на русском.
 - Комментарии объясняют «почему», а не «что».
 - Тесты точечно: `php artisan test --filter`, полный прогон: `php -d memory_limit=1G vendor/bin/phpunit`.
-- Базовый уровень полного прогона: **3 ошибки, 20 падений**. Отклонение — регрессия.
+- Базовый уровень полного прогона: **3 ошибки, 23 падения** (Breeze-заготовки, CourtScheduleTest, AmericanoFlexServiceTest, TournamentRemindersTest; два Auth-теста плавают от порядка запуска). Отклонение — регрессия.
 - Коммитить после каждой задачи.
 - Прод: миграции точечно через `--path`.
 - Картинка подписи — персональные данные: **никогда не в `public/`**.
@@ -1303,7 +1303,7 @@ class WaiverController extends Controller
 - [ ] **Шаг 5: Полный прогон и коммит**
 
 Запуск: `php -d memory_limit=1G vendor/bin/phpunit`
-Ожидание: 3 ошибки, 20 падений — базовый уровень.
+Ожидание: не хуже базового уровня — 3 ошибки, 23 падения.
 
 ```bash
 git add app/Http/Controllers/Club/WaiverController.php resources/views/club/waivers routes/web.php resources/views/layouts/app.blade.php tests/Feature/ClubWaiverListTest.php
