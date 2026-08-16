@@ -306,6 +306,10 @@
                                        download="waiver-{{ $club->id }}.png">
                                         <i class="bi bi-download"></i> Скачать для печати
                                     </a>
+                                    <div id="waiverQrFail" class="text-danger small mt-2" hidden>
+                                        Не удалось загрузить библиотеку QR. Ссылку выше можно
+                                        превратить в код любым генератором.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -313,7 +317,16 @@
                         <script>
                             document.addEventListener('DOMContentLoaded', function () {
                                 var canvas = document.getElementById('waiverQrCanvas');
-                                if (!canvas || typeof QRCode === 'undefined') return;
+                                if (!canvas) return;
+
+                                // Библиотека грузится с CDN: если её заблокировали,
+                                // пустой холст без объяснения выглядит как поломка.
+                                if (typeof QRCode === 'undefined') {
+                                    canvas.hidden = true;
+                                    document.getElementById('waiverQrDownload').hidden = true;
+                                    document.getElementById('waiverQrFail').hidden = false;
+                                    return;
+                                }
                                 QRCode.toCanvas(canvas, @json($waiverUrl), { width: 220, margin: 1 }, function (err) {
                                     if (err) return;
                                     // Ссылку на скачивание берём с уже нарисованного холста,
