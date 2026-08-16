@@ -191,6 +191,49 @@ class JustPadelItPairingModeTest extends TestCase
         $this->assertTrue($t->isAdminPairing());
     }
 
+    /** Приложение создаёт парный JPI и сразу задаёт способ сбора пар. */
+    public function test_app_can_choose_pairing_mode_on_create(): void
+    {
+        $club = Club::create(['name' => 'C', 'address' => 'A']);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/clubs/{$club->id}/tournaments", [
+            'club_id' => $club->id,
+            'name' => 'JPI парный',
+            'type' => 'just_padel_it',
+            'start_date' => now()->addDay()->toIso8601String(),
+            'min_level' => 1, 'max_level' => 5,
+            'max_participants' => 8, 'courts_count' => 2,
+            'is_paired' => true,
+            'pairing_mode' => 'self',
+            'status' => 'open',
+        ])->assertOk();
+
+        $t = Tournament::where('type', 'just_padel_it')->firstOrFail();
+        $this->assertSame('self', $t->pairing_mode);
+        $this->assertTrue($t->isSelfPairing());
+    }
+
+    /** И меняет его при редактировании, пока турнир не начался. */
+    public function test_app_can_change_pairing_mode_on_edit(): void
+    {
+        [$t, $admin] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+        Sanctum::actingAs($admin);
+
+        $this->putJson("/api/mobile/admin/tournaments/{$t->id}", [
+            'name' => $t->name,
+            'start_date' => now()->addDay()->toDateString(),
+            'min_level' => 1, 'max_level' => 5,
+            'max_participants' => 8,
+            'pairing_mode' => 'self',
+        ])->assertOk();
+
+        $this->assertSame('self', $t->fresh()->pairing_mode);
+    }
+
     public function test_non_paired_jpi_is_always_solo(): void
     {
         // Без фиксированных пар выбора нет — записываются поодиночке.
