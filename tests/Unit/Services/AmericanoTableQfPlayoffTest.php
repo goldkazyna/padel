@@ -132,10 +132,10 @@ class AmericanoTableQfPlayoffTest extends TestCase
         $qf1 = $this->stage($t, 'Четвертьфинал', 1);
         $qf2 = $this->stage($t, 'Четвертьфинал', 2);
 
-        $this->assertEqualsCanonicalizing([$p[4]->id, $p[11]->id], $this->team($qf1, 1), 'ЧФ 1: 5+12');
-        $this->assertEqualsCanonicalizing([$p[7]->id, $p[8]->id], $this->team($qf1, 2), 'ЧФ 1: 8+9');
-        $this->assertEqualsCanonicalizing([$p[5]->id, $p[10]->id], $this->team($qf2, 1), 'ЧФ 2: 6+11');
-        $this->assertEqualsCanonicalizing([$p[6]->id, $p[9]->id], $this->team($qf2, 2), 'ЧФ 2: 7+10');
+        $this->assertEqualsCanonicalizing([$p[4]->id, $p[5]->id], $this->team($qf1, 1), 'ЧФ 1: 5+6');
+        $this->assertEqualsCanonicalizing([$p[10]->id, $p[11]->id], $this->team($qf1, 2), 'ЧФ 1: 11+12');
+        $this->assertEqualsCanonicalizing([$p[6]->id, $p[7]->id], $this->team($qf2, 1), 'ЧФ 2: 7+8');
+        $this->assertEqualsCanonicalizing([$p[8]->id, $p[9]->id], $this->team($qf2, 2), 'ЧФ 2: 9+10');
 
         // Каждый из мест 5–12 играет ровно один четвертьфинал.
         $inQf = collect([$qf1, $qf2])->flatMap(fn($m) => array_merge($this->team($m, 1), $this->team($m, 2)));
@@ -170,9 +170,9 @@ class AmericanoTableQfPlayoffTest extends TestCase
         $qf1->update(['team1_score' => 21, 'team2_score' => 15, 'status' => 'completed']);
         $this->service->advancePlayoff($qf1->fresh());
 
-        // Победитель ЧФ 1 — пара 5+12 — уходит в ПФ 2, к паре 2+3.
+        // Победитель ЧФ 1 — пара 5+6 — уходит в ПФ 2, к паре 2+3.
         $semi2 = $this->stage($t, 'Полуфинал', 2);
-        $this->assertEqualsCanonicalizing([$p[4]->id, $p[11]->id], $this->team($semi2, 2));
+        $this->assertEqualsCanonicalizing([$p[4]->id, $p[5]->id], $this->team($semi2, 2));
 
         $semi1 = $this->stage($t, 'Полуфинал', 1);
         $this->assertNull($semi1->team2_player1_id, 'ПФ 1 ждёт свой четвертьфинал');
@@ -187,9 +187,9 @@ class AmericanoTableQfPlayoffTest extends TestCase
         $qf2->update(['team1_score' => 10, 'team2_score' => 21, 'status' => 'completed']);
         $this->service->advancePlayoff($qf2->fresh());
 
-        // Победила вторая пара — 7+10, идёт в ПФ 1.
+        // Победила вторая пара — 9+10, идёт в ПФ 1.
         $semi1 = $this->stage($t, 'Полуфинал', 1);
-        $this->assertEqualsCanonicalizing([$p[6]->id, $p[9]->id], $this->team($semi1, 2));
+        $this->assertEqualsCanonicalizing([$p[8]->id, $p[9]->id], $this->team($semi1, 2));
     }
 
     public function test_final_fills_after_both_semifinals(): void
@@ -236,9 +236,9 @@ class AmericanoTableQfPlayoffTest extends TestCase
 
         $bronze->refresh();
         // Полуфиналы проиграли победители четвертьфиналов; порядок — по номеру ПФ:
-        // ПФ 1 отдаёт победителя ЧФ 2 (6+11), ПФ 2 — победителя ЧФ 1 (5+12).
-        $this->assertEqualsCanonicalizing([$p[5]->id, $p[10]->id], $this->team($bronze, 1));
-        $this->assertEqualsCanonicalizing([$p[4]->id, $p[11]->id], $this->team($bronze, 2));
+        // ПФ 1 отдаёт победителя ЧФ 2 (7+8), ПФ 2 — победителя ЧФ 1 (5+6).
+        $this->assertEqualsCanonicalizing([$p[6]->id, $p[7]->id], $this->team($bronze, 1));
+        $this->assertEqualsCanonicalizing([$p[4]->id, $p[5]->id], $this->team($bronze, 2));
     }
 
     public function test_two_groups_keep_the_old_bracket(): void
