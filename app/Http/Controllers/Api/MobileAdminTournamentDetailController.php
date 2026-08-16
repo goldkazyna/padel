@@ -336,7 +336,12 @@ class MobileAdminTournamentDetailController extends Controller
             }
             $ok = $bali->startTournament($tournament);
         } elseif ($tournament->isJustPadelIt()) {
-            if ($tournament->isPairedJustPadelIt() && !$jpi->arePairsCreated($tournament)) {
+            // Пары нужны заранее, только если их собирает админ. При
+            // самостоятельной записи они лежат в командах турнира и переезжают
+            // в формат внутри startTournament — требовать их до старта нельзя.
+            if ($tournament->isPairedJustPadelIt()
+                && !$tournament->isSelfPairing()
+                && !$jpi->arePairsCreated($tournament)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Сначала создайте пары',

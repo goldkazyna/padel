@@ -442,6 +442,46 @@ class JustPadelItPairingModeTest extends TestCase
         $this->assertFalse($detail['jpi_pairs_created'], 'пар ещё нет — их соберёт админ');
     }
 
+    /**
+     * Старт из приложения при самостоятельной записи.
+     *
+     * Пары создаются внутри старта — требовать их заранее нельзя, иначе
+     * турнир не запустить ни из приложения, ни из веба.
+     */
+    public function test_app_starts_self_paired_tournament(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('self');
+        $t->update(['status' => 'open']);
+        $this->approveTeams($t, $players);
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $t = $t->fresh();
+        $this->assertSame('in_progress', $t->status);
+        $this->assertSame(4, JustPadelItPair::where('tournament_id', $t->id)->count(),
+            'пары собрались из команд при старте');
+    }
+
+    /** А при сборе админом заслон остаётся: пары нужны заранее. */
+    public function test_app_refuses_to_start_admin_paired_without_pairs(): void
+    {
+        [$t, $admin, $players] = $this->makeTournament('admin');
+        $t->update(['status' => 'open']);
+        foreach ($players as $p) {
+            $t->participants()->attach($p->id, ['status' => 'registered']);
+        }
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/start")
+            ->assertStatus(422)
+            ->assertJsonPath('pairs_required', true);
+
+        $this->assertSame('open', $t->fresh()->status);
+    }
+
     public function test_non_paired_jpi_is_always_solo(): void
     {
         // Без фиксированных пар выбора нет — записываются поодиночке.
