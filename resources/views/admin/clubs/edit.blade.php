@@ -298,8 +298,8 @@
                         <div class="mb-4" id="waiver-qr">
                             <label class="form-label">QR для стойки</label>
                             <div class="d-flex align-items-center gap-3 flex-wrap">
-                                <canvas id="waiverQrCanvas" width="220" height="220"
-                                        style="background:#fff;border-radius:12px;padding:10px"></canvas>
+                                <div id="waiverQrCanvas"
+                                     style="background:#fff;border-radius:12px;padding:10px;line-height:0"></div>
                                 <div>
                                     <div class="text-secondary small mb-2">{{ $waiverUrl }}</div>
                                     <a id="waiverQrDownload" class="btn-outline-custom btn-sm"
@@ -313,26 +313,37 @@
                                 </div>
                             </div>
                         </div>
-                        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+                        <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
                         <script>
                             document.addEventListener('DOMContentLoaded', function () {
-                                var canvas = document.getElementById('waiverQrCanvas');
-                                if (!canvas) return;
+                                var holder = document.getElementById('waiverQrCanvas');
+                                var download = document.getElementById('waiverQrDownload');
+                                if (!holder) return;
 
                                 // Библиотека грузится с CDN: если её заблокировали,
-                                // пустой холст без объяснения выглядит как поломка.
+                                // пустое место без объяснения выглядит как поломка.
                                 if (typeof QRCode === 'undefined') {
-                                    canvas.hidden = true;
-                                    document.getElementById('waiverQrDownload').hidden = true;
+                                    holder.hidden = true;
+                                    download.hidden = true;
                                     document.getElementById('waiverQrFail').hidden = false;
                                     return;
                                 }
-                                QRCode.toCanvas(canvas, @json($waiverUrl), { width: 220, margin: 1 }, function (err) {
-                                    if (err) return;
-                                    // Ссылку на скачивание берём с уже нарисованного холста,
-                                    // чтобы не генерировать картинку второй раз.
-                                    document.getElementById('waiverQrDownload').href = canvas.toDataURL('image/png');
+
+                                new QRCode(holder, {
+                                    text: @json($waiverUrl),
+                                    width: 220,
+                                    height: 220,
+                                    correctLevel: QRCode.CorrectLevel.M
                                 });
+
+                                // Ссылку на скачивание берём с уже нарисованного холста,
+                                // чтобы не генерировать картинку второй раз.
+                                var canvas = holder.querySelector('canvas');
+                                if (canvas) {
+                                    download.href = canvas.toDataURL('image/png');
+                                } else {
+                                    download.hidden = true;
+                                }
                             });
                         </script>
                     @endif
