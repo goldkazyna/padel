@@ -264,6 +264,46 @@ class JpiAdminPairsTest extends TestCase
             ->assertJsonCount(0);
     }
 
+    /**
+     * Записанного в одиночку до парной записи надо уметь убрать.
+     *
+     * Список участников в парных турнирах не показывается, а старт с непарными
+     * не пустит — без этого блока турнир было бы не запустить.
+     */
+    public function test_unpaired_player_is_visible_and_removable(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+        $solo = User::factory()->create(['name' => 'Mister Bekson']);
+        $t->participants()->attach($solo->id, ['status' => 'registered']);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('Без пары')
+            ->assertSee('Mister Bekson');
+
+        $this->actingAs($this->admin)
+            ->delete(route('club.tournaments.participants.remove', [$t, $solo->id]))
+            ->assertRedirect();
+
+        $this->assertSame(0, $t->participants()->count());
+    }
+
+    /** Когда все в парах, блок «Без пары» не мозолит глаза. */
+    public function test_no_unpaired_block_when_everyone_is_paired(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+        [$a, $b] = User::factory()->count(2)->create();
+        $this->actingAs($this->admin)->post(route('club.tournaments.addTeam', $t), [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertDontSee('Без пары');
+    }
+
     /** Форма пары названия не шлёт — оно для JPI бессмысленно. */
     public function test_pair_is_added_without_a_name(): void
     {

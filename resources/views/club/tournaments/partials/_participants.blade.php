@@ -138,6 +138,54 @@
             @endforelse
         </div>
 
+        {{--
+            Записанные, но не попавшие ни в одну пару.
+
+            Без этого блока их не видно и не убрать: список участников для
+            парных турниров не показывается, а старт с непарными не пустит.
+        --}}
+        @php
+            $pairedIds = $approvedPairs->flatMap(fn ($p) => [$p->player1_id, $p->player2_id])
+                ->merge($tournament->teams()->pluck('player1_id'))
+                ->merge($tournament->teams()->pluck('player2_id'))
+                ->unique();
+            $unpaired = $tournament->approvedParticipants->reject(fn ($u) => $pairedIds->contains($u->id));
+        @endphp
+        @if($unpaired->isNotEmpty())
+            <div class="pair-add-section mt-4">
+                <div class="add-participant-header">
+                    <i class="bi bi-person-exclamation"></i>
+                    <span>Без пары</span>
+                    <span class="pair-rest-badge">{{ $unpaired->count() }}</span>
+                </div>
+                <div class="pair-list">
+                    @foreach($unpaired as $participant)
+                        <div class="pair-row">
+                            <div class="pair-row-names">
+                                {{ $participant->name }}
+                                <small class="text-muted d-block">@phoneFmt($participant->phone)</small>
+                            </div>
+                            @if($tournament->status === 'open')
+                                <form action="{{ route('club.tournaments.participants.remove', [$tournament, $participant->id]) }}"
+                                      method="POST" class="d-inline"
+                                      onsubmit="return confirm('Убрать из турнира?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn-danger-custom btn-sm" title="Убрать из турнира">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                <div class="text-secondary small">
+                    Пока эти игроки не в парах, турнир не стартует: по кортам раскладываются пары.
+                    Соберите им пару выше или уберите из турнира.
+                </div>
+            </div>
+        @endif
+
         {{-- Организатор может завести пару сам, не дожидаясь записи --}}
         @if($tournament->status === 'open')
             <div class="pair-add-section mt-4">
