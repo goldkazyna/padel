@@ -194,12 +194,30 @@ class JpiAdminPairsTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('club.tournaments.show', $admin))
             ->assertOk()
-            ->assertSee('Добавить пару');
+            ->assertSee('Добавить пару')
+            ->assertSee(route('club.tournaments.jpiPairs.add', $admin), false);
 
         $solo = $this->tournament(['is_paired' => false]);
         $this->actingAs($this->admin)
             ->get(route('club.tournaments.show', $solo))
             ->assertOk()
             ->assertDontSee('Добавить пару');
+    }
+
+    /**
+     * Когда пары собирают сами игроки, организатор всё равно должен уметь
+     * завести пару — через команды турнира, как в групповом.
+     */
+    public function test_self_pairing_page_offers_a_pair_form_not_a_participant_one(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $t))
+            ->assertOk()
+            ->assertSee('Добавить пару')
+            ->assertSee(route('club.tournaments.addTeam', $t), false)
+            // Поодиночке в парный турнир не записывают.
+            ->assertDontSee('Добавить участника');
     }
 }

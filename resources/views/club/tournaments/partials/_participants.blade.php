@@ -137,6 +137,19 @@
                 </div>
             @endforelse
         </div>
+
+        {{-- Организатор может завести пару сам, не дожидаясь записи --}}
+        @if($tournament->status === 'open')
+            <div class="pair-add-section mt-4">
+                <div class="add-participant-header">
+                    <i class="bi bi-person-plus"></i>
+                    <span>Добавить пару</span>
+                </div>
+                @include('club.tournaments.partials._pair_add_form', [
+                    'action' => route('club.tournaments.addTeam', $tournament),
+                ])
+            </div>
+        @endif
     @endif
 
     {{-- Заявки на модерации --}}
@@ -339,8 +352,8 @@
         @include('club.tournaments.partials._jpi_pairs')
     @endif
 
-    {{-- Форма добавления участника --}}
-    @if($tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
+    {{-- Форма добавления участника: только при записи поодиночке --}}
+    @if($tournament->usesSoloRegistration() && $tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">
         <div class="add-participant-header">
             <i class="bi bi-person-plus"></i>
