@@ -478,6 +478,12 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 ->name('tournaments.searchPlayers');
             Route::post('/tournaments/{tournament}/participants/add', [ClubTournamentController::class, 'addParticipant'])
                 ->name('tournaments.participants.add');
+
+            // Готовая пара в Just Padel It с фиксированными парами
+            Route::post('/tournaments/{tournament}/jpi-pairs', [ClubTournamentController::class, 'addJustPadelItPair'])
+                ->name('tournaments.jpiPairs.add');
+            Route::delete('/tournaments/{tournament}/jpi-pairs/{pair}', [ClubTournamentController::class, 'removeJustPadelItPair'])
+                ->name('tournaments.jpiPairs.remove');
             // Приглашения игроков (как в мобильной админке) — все индивидуальные турниры
             Route::post('/tournaments/{tournament}/invite', [ClubTournamentController::class, 'invite'])
                 ->name('tournaments.invite');

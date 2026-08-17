@@ -334,6 +334,11 @@
     </div>
     @endif
 
+    {{-- Фиксированные пары JPI: организатор заводит пару целиком --}}
+    @if($tournament->isPairedJustPadelIt() && !$tournament->isSelfPairing())
+        @include('club.tournaments.partials._jpi_pairs')
+    @endif
+
     {{-- Форма добавления участника --}}
     @if($tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">

@@ -1,0 +1,205 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Club;
+use App\Models\JustPadelItPair;
+use App\Models\Tournament;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Готовые пары в «Just Padel It» с фиксированными парами.
+ *
+ * Единица записи здесь — пара, а не игрок: организатор заводит сразу обоих.
+ */
+class JpiAdminPairsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Club $club;
+    private User $admin;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->club = Club::create(['name' => 'Клуб', 'address' => 'А']);
+        $this->admin = User::factory()->create(['role' => 'club_admin']);
+        $this->admin->adminClubs()->attach($this->club->id);
+    }
+
+    private function tournament(array $over = []): Tournament
+    {
+        return Tournament::factory()->create(array_merge([
+            'club_id' => $this->club->id,
+            'type' => 'just_padel_it',
+            'is_paired' => true,
+            'pairing_mode' => 'admin',
+            'status' => 'open',
+            'max_participants' => 8,
+        ], $over));
+    }
+
+    public function test_admin_adds_a_ready_pair(): void
+    {
+        $t = $this->tournament();
+        [$a, $b] = User::factory()->count(2)->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $a->id,
+                'player2_id' => $b->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(1, JustPadelItPair::where('tournament_id', $t->id)->count());
+        // Оба игрока записаны на турнир.
+        $this->assertSame(2, $t->participants()->count());
+    }
+
+    /** Игрок мог записаться сам — повторно привязывать его нельзя. */
+    public function test_already_registered_player_is_not_attached_twice(): void
+    {
+        $t = $this->tournament();
+        [$a, $b] = User::factory()->count(2)->create();
+        $t->participants()->attach($a->id, ['status' => 'registered']);
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $a->id,
+                'player2_id' => $b->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(2, $t->participants()->count());
+        $this->assertSame(1, JustPadelItPair::where('tournament_id', $t->id)->count());
+    }
+
+    public function test_player_cannot_be_in_two_pairs(): void
+    {
+        $t = $this->tournament();
+        [$a, $b, $c] = User::factory()->count(3)->create();
+
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ])->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $a->id, 'player2_id' => $c->id,
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, JustPadelItPair::where('tournament_id', $t->id)->count());
+    }
+
+    public function test_pair_does_not_fit_over_the_limit(): void
+    {
+        $t = $this->tournament(['max_participants' => 2]);
+        $players = User::factory()->count(4)->create();
+
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $players[0]->id, 'player2_id' => $players[1]->id,
+        ])->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $players[2]->id, 'player2_id' => $players[3]->id,
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, JustPadelItPair::where('tournament_id', $t->id)->count());
+    }
+
+    /** Разбиваем пару — игроки остаются в списке участников. */
+    public function test_breaking_a_pair_keeps_the_players(): void
+    {
+        $t = $this->tournament();
+        [$a, $b] = User::factory()->count(2)->create();
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ]);
+        $pair = JustPadelItPair::where('tournament_id', $t->id)->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->delete(route('club.tournaments.jpiPairs.remove', [$t, $pair]))
+            ->assertRedirect();
+
+        $this->assertSame(0, JustPadelItPair::where('tournament_id', $t->id)->count());
+        $this->assertSame(2, $t->participants()->count());
+    }
+
+    /** Когда пары собирают сами игроки, организатор их не заводит. */
+    public function test_self_pairing_tournament_refuses(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+        [$a, $b] = User::factory()->count(2)->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $a->id, 'player2_id' => $b->id,
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, JustPadelItPair::where('tournament_id', $t->id)->count());
+    }
+
+    /**
+     * Непарный участник не должен пройти в старт.
+     *
+     * Посев раскладывает по кортам именно пары — лишний участник молча
+     * остался бы без игры.
+     */
+    public function test_start_refuses_while_someone_is_without_a_pair(): void
+    {
+        $t = $this->tournament(['max_participants' => 12, 'courts_count' => 2]);
+        $players = User::factory()->count(12)->create();
+
+        // Четыре пары — восемь человек.
+        for ($i = 0; $i < 4; $i++) {
+            $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+                'player1_id' => $players[$i * 2]->id,
+                'player2_id' => $players[$i * 2 + 1]->id,
+            ]);
+        }
+        // И ещё четверо записались сами, без пар.
+        foreach ([8, 9, 10, 11] as $i) {
+            $t->participants()->attach($players[$i]->id, ['status' => 'registered']);
+        }
+
+        $service = app(\App\Services\JustPadelItService::class);
+
+        $this->assertSame(12, $t->participants()->wherePivot('status', 'registered')->count());
+        $this->assertFalse(
+            $service->startTournament($t->fresh()),
+            'старт с непарными участниками недопустим'
+        );
+
+        // Спарили оставшихся — теперь стартует.
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $players[8]->id, 'player2_id' => $players[9]->id,
+        ]);
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $players[10]->id, 'player2_id' => $players[11]->id,
+        ]);
+
+        $this->assertTrue($service->startTournament($t->fresh()));
+    }
+
+    public function test_form_shows_only_for_admin_paired_jpi(): void
+    {
+        $admin = $this->tournament();
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $admin))
+            ->assertOk()
+            ->assertSee('Добавить пару');
+
+        $solo = $this->tournament(['is_paired' => false]);
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $solo))
+            ->assertOk()
+            ->assertDontSee('Добавить пару');
+    }
+}

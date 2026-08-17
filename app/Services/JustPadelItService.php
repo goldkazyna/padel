@@ -291,8 +291,15 @@ class JustPadelItService
         }
 
         $paired = $tournament->isPairedJustPadelIt();
-        if ($paired && !$this->arePairsCreated($tournament)) {
-            return false; // Парный JPI требует созданные пары
+        if ($paired) {
+            if (!$this->arePairsCreated($tournament)) {
+                return false; // Парный JPI требует созданные пары
+            }
+            // Все участники должны быть в парах: посев раскладывает по кортам
+            // именно пары, и лишний участник молча остался бы без игры.
+            if ($tournament->justPadelItPairs()->count() * 2 !== $count) {
+                return false;
+            }
         }
 
         // Записи JPI-игроков (стат = 0 в начале)
