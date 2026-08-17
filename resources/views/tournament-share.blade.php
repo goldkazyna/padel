@@ -48,13 +48,9 @@
             text-align: center;
         }
         .logo {
-            width: 64px; height: 64px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #22C55E, #16A34A);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
+            width: 84px;
+            height: 84px;
+            object-fit: contain;
             margin-bottom: 24px;
         }
         h1 {
@@ -96,7 +92,7 @@
     </style>
 </head>
 <body>
-    <div class="logo">🎾</div>
+    <img src="/favicon-512.png" alt="Padel KZ" class="logo">
     <h1>{{ $tournament->name }}</h1>
     <div class="meta">
         {{ $tournament->club?->name ?? 'Padel-турнир' }}<br>
