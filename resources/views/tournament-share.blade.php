@@ -116,10 +116,31 @@
         Если приложение не установлено — попадёте в магазин.
     </div>
 
-    @include('partials.open-app-script', [
-        'deepLink' => 'padelp://tournament/' . $tournament->id,
-        'storeAppUrl' => $storeAppUrl,
-        'storeWebUrl' => $storeUrl,
-    ])
+    <script>
+        (function () {
+            var ua = navigator.userAgent || navigator.vendor || window.opera;
+            var isAndroid = /android/i.test(ua);
+            var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+            var storeUrl = {!! json_encode($storeUrl) !!};
+            var deepLink = 'padelp://tournament/{{ $tournament->id }}';
+
+            // Только на мобилках пробуем deep link
+            if (!isAndroid && !isIOS) return;
+
+            var fallbackTimer = setTimeout(function () {
+                window.location.href = storeUrl;
+            }, 1800);
+
+            // Если страница ушла в фон (= приложение открылось) — не ходим в стор
+            window.addEventListener('blur', function () {
+                clearTimeout(fallbackTimer);
+            });
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) clearTimeout(fallbackTimer);
+            });
+
+            window.location.href = deepLink;
+        })();
+    </script>
 </body>
 </html>

@@ -39,10 +39,6 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     $storeUrl = $isIOS
         ? config('mobile_app.store_url_ios')
         : config('mobile_app.store_url_android');
-    // Схема открывает само приложение магазина, обычная ссылка — запасной путь.
-    $storeAppUrl = $isIOS
-        ? config('mobile_app.store_app_url_ios')
-        : config('mobile_app.store_app_url_android');
 
     // Картинка для OG-превью: лого клуба → fallback общая картинка.
     $logo = $tournament->club->logo ?? null;
@@ -54,7 +50,6 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     return view('tournament-share', [
         'tournament' => $tournament,
         'storeUrl' => $storeUrl,
-        'storeAppUrl' => $storeAppUrl,
         'ogImage' => $ogImage,
     ]);
 })->name('tournament.share');
@@ -72,10 +67,6 @@ Route::get('/w/{club}', function (\App\Models\Club $club) {
         'storeUrl' => $isIOS
             ? config('mobile_app.store_url_ios')
             : config('mobile_app.store_url_android'),
-        // Схема открывает само приложение магазина, обычная ссылка — запасной путь.
-        'storeAppUrl' => $isIOS
-            ? config('mobile_app.store_app_url_ios')
-            : config('mobile_app.store_app_url_android'),
     ]);
 })->name('waiver.open');
 
@@ -87,10 +78,6 @@ Route::get('/c/{club}', function (\App\Models\Club $club) {
     $storeUrl = $isIOS
         ? config('mobile_app.store_url_ios')
         : config('mobile_app.store_url_android');
-    // Схема открывает само приложение магазина, обычная ссылка — запасной путь.
-    $storeAppUrl = $isIOS
-        ? config('mobile_app.store_app_url_ios')
-        : config('mobile_app.store_app_url_android');
 
     // Картинка для OG-превью: обложка → лого → fallback общая картинка.
     $resolveImage = function (?string $path): ?string {
@@ -107,7 +94,6 @@ Route::get('/c/{club}', function (\App\Models\Club $club) {
     return view('club-share', [
         'club'     => $club,
         'storeUrl' => $storeUrl,
-        'storeAppUrl' => $storeAppUrl,
         'ogImage'  => $ogImage,
     ]);
 })->name('club.share');

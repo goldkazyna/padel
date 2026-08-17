@@ -24,10 +24,4 @@ return [
     // Ссылки на магазины
     'store_url_ios' => env('APP_STORE_URL_IOS', 'https://apps.apple.com/app/padel-kz/id6740451498'),
     'store_url_android' => env('APP_STORE_URL_ANDROID', 'https://play.google.com/store/apps/details?id=com.padelkz.app'),
-
-    // Те же магазины, но схемами: открывают приложение магазина, а не сайт.
-    // Переход из JS по обычной ссылке остаётся в браузере — человек видит
-    // веб-страницу Play Market вместо самого Play Market.
-    'store_app_url_ios' => env('APP_STORE_APP_URL_IOS', 'itms-apps://apps.apple.com/app/id6740451498'),
-    'store_app_url_android' => env('APP_STORE_APP_URL_ANDROID', 'market://details?id=com.padelkz.app'),
 ];
