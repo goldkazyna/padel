@@ -204,6 +204,23 @@ class JpiAdminPairsTest extends TestCase
             ->assertDontSee('Добавить пару');
     }
 
+    /** Форма пары названия не шлёт — оно для JPI бессмысленно. */
+    public function test_pair_is_added_without_a_name(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+        [$a, $b] = User::factory()->count(2)->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('club.tournaments.addTeam', $t), [
+                'player1_id' => $a->id,
+                'player2_id' => $b->id,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(1, $t->teams()->count());
+    }
+
     /**
      * Когда пары собирают сами игроки, организатор всё равно должен уметь
      * завести пару — через команды турнира, как в групповом.

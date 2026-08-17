@@ -61,7 +61,7 @@ class TeamTournamentController extends Controller
                 'tournament_id' => $tournament->id,
                 'player1_id' => $validated['player1_id'],
                 'player2_id' => $validated['player2_id'],
-                'name' => $validated['name'],
+                'name' => $validated['name'] ?? null,
                 'rating_avg' => intval(($player1->rating + $player2->rating) / 2),
             ]);
             return 'ok';
