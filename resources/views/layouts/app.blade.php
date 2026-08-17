@@ -1034,15 +1034,6 @@
 						</a>
 					</li>
 					@endif
-					{{-- Отказы от ответственности: только у клубов, которые их собирают --}}
-					@if(($modClub ?? null)?->collectsWaiver())
-					<li class="nav-item">
-						<a href="{{ route('club.waivers.index') }}" class="nav-link {{ request()->routeIs('club.waivers.*') ? 'active' : '' }}">
-							<i class="bi bi-pencil-square"></i>
-							<span>Отказы</span>
-						</a>
-					</li>
-					@endif
 					<li class="nav-item">
 						@php($cardsPendingMod = ($__cc = $modClub) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
 						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
@@ -1151,15 +1142,6 @@
 							<i class="bi bi-box-seam"></i>
 							<span>Инвентарь</span>
 							@if($invOutNav > 0)<span class="unprocessed-badge">{{ $invOutNav }}</span>@endif
-						</a>
-					</li>
-					@endif
-					{{-- Отказы от ответственности: только у клубов, которые их собирают --}}
-					@if(($navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null))?->collectsWaiver())
-					<li class="nav-item">
-						<a href="{{ route('club.waivers.index') }}" class="nav-link {{ request()->routeIs('club.waivers.*') ? 'active' : '' }}">
-							<i class="bi bi-pencil-square"></i>
-							<span>Отказы</span>
 						</a>
 					</li>
 					@endif

@@ -56,8 +56,31 @@
         .client-cert-badge span{color:#71717a;font-weight:600;}
 
         /* Иконка «есть аккаунт в приложении Padel KZ» */
-        .client-app-badge{width:26px;height:26px;object-fit:contain;margin-left:auto;flex:none;
+        .client-app-badge{width:26px;height:26px;object-fit:contain;flex:none;
             border-radius:6px;opacity:.95;}
+        .client-badges{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none;}
+        .client-waiver-badge{width:26px;height:26px;flex:none;display:grid;place-items:center;
+            border:none;border-radius:6px;background:rgba(34,197,94,.14);color:#22c55e;
+            font-size:15px;cursor:pointer;padding:0;}
+        .client-waiver-badge:hover{background:rgba(34,197,94,.26);}
+
+        /* Окно с подписанным отказом */
+        .waiver-modal{position:fixed;inset:0;z-index:1080;display:none;
+            align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.66);}
+        .waiver-modal.is-open{display:flex;}
+        .waiver-modal-box{background:var(--cl-card,#16161a);border:1px solid var(--cl-border,#27272a);
+            border-radius:16px;max-width:520px;width:100%;max-height:86vh;overflow:auto;padding:22px;}
+        .waiver-modal-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;}
+        .waiver-modal-title{font-size:17px;font-weight:800;color:var(--cl-text,#f4f4f5);}
+        .waiver-modal-sub{font-size:13px;color:#a1a1aa;margin-top:3px;}
+        .waiver-modal-close{margin-left:auto;background:none;border:none;color:#a1a1aa;
+            font-size:20px;cursor:pointer;line-height:1;padding:0;}
+        .waiver-modal-sign{background:#fff;border-radius:10px;padding:10px;width:100%;
+            max-width:300px;display:block;margin-bottom:16px;}
+        .waiver-modal-label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+            color:#71717a;font-weight:700;margin-bottom:7px;}
+        .waiver-modal-text{white-space:pre-wrap;word-break:break-word;font-size:13px;
+            line-height:1.55;color:#a1a1aa;margin:0;font-family:inherit;}
 
         /* Кнопка «Сертификаты» в деталях клиента */
         .client-cert-btn{display:flex;align-items:center;gap:10px;padding:13px 16px;
@@ -125,9 +148,19 @@
                                 <div class="client-cert-badge"><i class="bi bi-award"></i> {{ $client->certificates_count }}@if(($client->certificates_used_count ?? 0) > 0) <span>({{ $client->certificates_used_count }})</span>@endif</div>
                             @endif
                         </div>
-                        @if(!empty($client->has_app))
-                            <img src="{{ asset('images/padel-logo.png') }}" alt="Padel KZ" title="Зарегистрирован в приложении Padel KZ" class="client-app-badge">
-                        @endif
+                        <div class="client-badges">
+                            @if(!empty($client->waiver_signature_id))
+                                {{-- Отказ подписан: открываем что именно и подпись --}}
+                                <button type="button" class="client-waiver-badge"
+                                        title="Подписал отказ от ответственности"
+                                        data-waiver="{{ route('club.waivers.show', $client->waiver_signature_id) }}">
+                                    <i class="bi bi-file-earmark-check"></i>
+                                </button>
+                            @endif
+                            @if(!empty($client->has_app))
+                                <img src="{{ asset('images/padel-logo.png') }}" alt="Padel KZ" title="Зарегистрирован в приложении Padel KZ" class="client-app-badge">
+                            @endif
+                        </div>
                     </a>
                 @empty
                     <div class="clients-empty">
@@ -549,6 +582,57 @@
         </div>
     </div>
 </div>
+
+{{-- Подписанный отказ от ответственности: открывается значком в списке --}}
+<div class="waiver-modal" id="waiverModal">
+    <div class="waiver-modal-box">
+        <div class="waiver-modal-head">
+            <div>
+                <div class="waiver-modal-title" id="waiverModalName"></div>
+                <div class="waiver-modal-sub" id="waiverModalDate"></div>
+            </div>
+            <button type="button" class="waiver-modal-close" id="waiverModalClose">&times;</button>
+        </div>
+        <div class="waiver-modal-label">Подпись</div>
+        <img class="waiver-modal-sign" id="waiverModalSign" src="" alt="Подпись">
+        <div class="waiver-modal-label">Текст, который человек подписал</div>
+        <pre class="waiver-modal-text" id="waiverModalText"></pre>
+    </div>
+</div>
+
+<script>
+// Отказ от ответственности в карточке клиента.
+document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('waiverModal');
+    if (!modal) return;
+
+    function close() { modal.classList.remove('is-open'); }
+
+    document.getElementById('waiverModalClose').addEventListener('click', close);
+    // Клик по подложке закрывает, клик внутри окна — нет.
+    modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+
+    document.querySelectorAll('[data-waiver]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            // Строка клиента — сама по себе ссылка, переход нам не нужен.
+            e.preventDefault();
+            e.stopPropagation();
+
+            fetch(btn.dataset.waiver, { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                .then(function (data) {
+                    document.getElementById('waiverModalName').textContent = data.full_name;
+                    document.getElementById('waiverModalDate').textContent = 'Подписано ' + data.signed_at;
+                    document.getElementById('waiverModalSign').src = data.image_url;
+                    document.getElementById('waiverModalText').textContent = data.text;
+                    modal.classList.add('is-open');
+                })
+                .catch(function () { alert('Не удалось открыть отказ'); });
+        });
+    });
+});
+</script>
 
 <script>
 function openAddModal() {

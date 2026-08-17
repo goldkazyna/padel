@@ -102,13 +102,23 @@ class ClientController extends Controller
             ->filter()->values()->all();
         $appPhones = [];
         if (!empty($clientDigits)) {
-            $appPhones = array_flip(
-                \App\Models\User::whereIn('phone', $clientDigits)->pluck('phone')->all()
-            );
+            // Телефон → id аккаунта: id нужен, чтобы найти подпись под отказом.
+            $appPhones = \App\Models\User::whereIn('phone', $clientDigits)
+                ->pluck('id', 'phone')->all();
         }
+
+        // Кто подписал отказ от ответственности этого клуба.
+        $waivers = \App\Models\ClubWaiverSignature::where('club_id', $club->id)
+            ->pluck('id', 'user_id')->all();
+
         foreach ($clients as $c) {
             $digits = preg_replace('/\D/', '', (string) $c->phone);
             $c->has_app = (bool) ($c->user_id || isset($appPhones[$digits]));
+
+            // Клиент может быть привязан к аккаунту напрямую либо найтись
+            // по номеру — подпись ищем по тому id, который нашёлся.
+            $userId = $c->user_id ?: ($appPhones[$digits] ?? null);
+            $c->waiver_signature_id = $userId ? ($waivers[$userId] ?? null) : null;
         }
 
         return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes'));

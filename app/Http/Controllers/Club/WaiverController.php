@@ -22,6 +22,17 @@ class WaiverController extends Controller
         return $user->adminClubs()->first();
     }
 
+    /** Подпись видит супер-админ и свой клуб. Остальным 403. */
+    private function authorizeSignature(ClubWaiverSignature $signature): void
+    {
+        if (auth()->user()->isSuperAdmin()) {
+            return;
+        }
+
+        $club = $this->getClub();
+        abort_if(!$club || $signature->club_id !== $club->id, 403);
+    }
+
     public function index(Request $request)
     {
         $club = $this->getClub();
@@ -47,6 +58,20 @@ class WaiverController extends Controller
         return view('club.waivers.index', compact('signatures', 'club', 'search'));
     }
 
+    /** Подписанный отказ для окна в карточке клиента. */
+    public function show(ClubWaiverSignature $signature)
+    {
+        $this->authorizeSignature($signature);
+
+        return response()->json([
+            'full_name' => $signature->full_name,
+            'phone' => $signature->phone,
+            'signed_at' => $signature->signed_at->translatedFormat('j F Y, H:i'),
+            'text' => $signature->waiver_text,
+            'image_url' => route('club.waivers.image', $signature),
+        ]);
+    }
+
     /**
      * Картинка подписи.
      *
@@ -55,11 +80,7 @@ class WaiverController extends Controller
      */
     public function image(ClubWaiverSignature $signature)
     {
-        $user = auth()->user();
-        if (!$user->isSuperAdmin()) {
-            $club = $this->getClub();
-            abort_if(!$club || $signature->club_id !== $club->id, 403);
-        }
+        $this->authorizeSignature($signature);
 
         abort_unless(Storage::disk('local')->exists($signature->signature_path), 404);
 
