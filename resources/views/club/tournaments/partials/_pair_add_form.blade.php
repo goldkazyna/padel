@@ -11,7 +11,7 @@
         <div class="pair-add-field">
             <label class="form-label">Игрок 1</label>
             <div class="search-wrapper">
-                <input type="text" class="form-control player-search-input" data-target="pairP1"
+                <input type="text" class="form-control player-search-input" data-target="pairP1" data-mode="pair"
                        placeholder="Телефон или имя..." autocomplete="off">
                 <input type="hidden" name="player1_id" id="pairP1PlayerId">
                 <div class="search-results" id="pairP1Results"></div>
@@ -21,7 +21,7 @@
         <div class="pair-add-field">
             <label class="form-label">Игрок 2</label>
             <div class="search-wrapper">
-                <input type="text" class="form-control player-search-input" data-target="pairP2"
+                <input type="text" class="form-control player-search-input" data-target="pairP2" data-mode="pair"
                        placeholder="Телефон или имя..." autocomplete="off">
                 <input type="hidden" name="player2_id" id="pairP2PlayerId">
                 <div class="search-results" id="pairP2Results"></div>

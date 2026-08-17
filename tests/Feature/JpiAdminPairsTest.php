@@ -204,6 +204,66 @@ class JpiAdminPairsTest extends TestCase
             ->assertDontSee('Добавить пару');
     }
 
+    /**
+     * Записавшегося в одиночку надо уметь найти для пары.
+     *
+     * Обычный поиск исключает уже записанных — иначе создателя турнира
+     * или солиста не с кем спарить.
+     */
+    public function test_pair_search_finds_an_already_registered_player(): void
+    {
+        $t = $this->tournament();
+        $solo = User::factory()->create(['name' => 'Mister Bekson']);
+        $t->participants()->attach($solo->id, ['status' => 'registered']);
+
+        // Обычный поиск его прячет.
+        $this->actingAs($this->admin)
+            ->getJson(route('club.tournaments.searchPlayers', $t) . '?q=Bekson')
+            ->assertOk()
+            ->assertJsonCount(0);
+
+        // Поиск для пары — находит.
+        $this->actingAs($this->admin)
+            ->getJson(route('club.tournaments.searchPlayers', $t) . '?q=Bekson&for=pair')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.name', 'Mister Bekson');
+    }
+
+    /** А вот того, кто уже в паре, показывать не надо. */
+    public function test_pair_search_hides_someone_already_paired(): void
+    {
+        $t = $this->tournament();
+        $a = User::factory()->create(['name' => 'Mister Bekson']);
+        $b = User::factory()->create();
+
+        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->getJson(route('club.tournaments.searchPlayers', $t) . '?q=Bekson&for=pair')
+            ->assertOk()
+            ->assertJsonCount(0);
+    }
+
+    /** То же самое, когда пары собирают сами игроки: пара живёт в командах. */
+    public function test_pair_search_hides_someone_already_in_a_team(): void
+    {
+        $t = $this->tournament(['pairing_mode' => 'self']);
+        $a = User::factory()->create(['name' => 'Mister Bekson']);
+        $b = User::factory()->create();
+
+        $this->actingAs($this->admin)->post(route('club.tournaments.addTeam', $t), [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->getJson(route('club.tournaments.searchPlayers', $t) . '?q=Bekson&for=pair')
+            ->assertOk()
+            ->assertJsonCount(0);
+    }
+
     /** Форма пары названия не шлёт — оно для JPI бессмысленно. */
     public function test_pair_is_added_without_a_name(): void
     {

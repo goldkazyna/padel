@@ -650,7 +650,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             searchTimeout = setTimeout(() => {
-                fetch(`{{ route('club.tournaments.searchPlayers', $tournament) }}?q=${encodeURIComponent(query)}`)
+                // Форма пары ищет иначе: там не исключают уже записанных.
+                const mode = input.dataset.mode ? `&for=${input.dataset.mode}` : '';
+                fetch(`{{ route('club.tournaments.searchPlayers', $tournament) }}?q=${encodeURIComponent(query)}${mode}`)
                     .then(response => response.json())
                     .then(players => {
                         if (players.length === 0) {

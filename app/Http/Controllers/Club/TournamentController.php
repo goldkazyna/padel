@@ -1002,8 +1002,22 @@ class TournamentController extends Controller
 			return response()->json([]);
 		}
 		
-		// Получаем ID уже добавленных участников
-		$existingIds = $tournament->participants()->pluck('user_id')->toArray();
+		// Для формы пары исключаем не участников, а тех, кто уже в паре:
+		// записавшийся в одиночку и создатель турнира как раз и ждут напарника.
+		if ($request->get('for') === 'pair') {
+			$existingIds = $tournament->isSelfPairing()
+				? $tournament->teams()
+					->get(['player1_id', 'player2_id'])
+					->flatMap(fn ($t) => [$t->player1_id, $t->player2_id])
+					->all()
+				: $tournament->justPadelItPairs()
+					->get(['player1_id', 'player2_id'])
+					->flatMap(fn ($p) => [$p->player1_id, $p->player2_id])
+					->all();
+		} else {
+			// Получаем ID уже добавленных участников
+			$existingIds = $tournament->participants()->pluck('user_id')->toArray();
+		}
 		
 		$players = \App\Models\User::human()
 			->where(function ($q) use ($query) {
