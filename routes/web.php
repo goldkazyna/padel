@@ -698,6 +698,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:super_admin')->prefix('admin')->name('admin.')->group(function () {
+        // Цифры платформы за прошлое — для разговоров с партнёрами
+        Route::get('/analytics', [App\Http\Controllers\Admin\AnalyticsController::class, 'index'])
+            ->name('analytics');
         
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
