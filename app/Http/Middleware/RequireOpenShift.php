@@ -39,10 +39,9 @@ class RequireOpenShift
 
         $shift = $this->shifts->currentShift($club, $user);
 
-        // Смену забыли закрыть вчера — сначала закрываем её, потом новая.
-        if ($shift && $shift->isStale()) {
-            return redirect()->route('club.shift.closing');
-        }
+        // Смену закрывает менеджер кнопкой, и только он. Раньше в полночь
+        // система сама гнала на чек-лист закрытия — ночная смена рвалась
+        // пополам прямо в разгар работы, хотя корты работают за полночь.
 
         if (!$shift && $this->shifts->needsOpening($club, $user)) {
             return redirect()->route('club.shift.opening');

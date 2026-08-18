@@ -23,15 +23,6 @@
     </div>
 @endif
 
-@if(!$isOpening && isset($shift) && $shift->isStale())
-    <div class="shift-alert mb-3">
-        <i class="bi bi-clock-history"></i>
-        <div>
-            Смена от {{ $shift->opened_at->timezone($tz)->format('d.m.Y, H:i') }} осталась незакрытой.
-            Закройте её, чтобы начать новую.
-        </div>
-    </div>
-@endif
 
 <form method="POST" action="{{ $isOpening ? route('club.shift.open') : route('club.shift.close') }}"
       id="shiftForm">

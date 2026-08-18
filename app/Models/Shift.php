@@ -62,18 +62,6 @@ class Shift extends Model
         return $this->closed_at === null;
     }
 
-    /**
-     * Смена открыта не сегодня — менеджер забыл её закрыть.
-     *
-     * Считаем по дате клуба: ночная смена в UTC попадает на вчера, забытой
-     * она от этого не становится.
-     */
-    public function isStale(): bool
-    {
-        return $this->isOpen()
-            && !$this->openedAtLocal()->isSameDay(now(self::TZ));
-    }
-
     /** Сколько длилась смена, в минутах. Для журнала админа. */
     public function durationMinutes(): ?int
     {
