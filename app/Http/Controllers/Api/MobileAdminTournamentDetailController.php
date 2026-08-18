@@ -746,6 +746,10 @@ class MobileAdminTournamentDetailController extends Controller
             'status_name' => $t->status_name,
             'pairing_mode' => $t->pairing_mode ?? 'self',
             'is_admin_pairing' => $t->isAdminPairing(),
+            // Можно ли заводить пары целиком. Правило одно на веб и приложение,
+            // поэтому считаем на сервере, а не повторяем в Dart.
+            'supports_pair_registration' => $t->status === 'open'
+                && app(\App\Services\PairRegistrationService::class)->supports($t),
             'uses_solo_registration' => $t->usesSoloRegistration(),
             'club' => $t->club ? [
                 'id' => $t->club->id,
