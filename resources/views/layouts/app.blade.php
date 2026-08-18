@@ -1022,6 +1022,12 @@
 							<span>Клиенты</span>
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.contacts.index') }}" class="nav-link {{ request()->routeIs('club.contacts.*') ? 'active' : '' }}">
+							<i class="bi bi-person-rolodex"></i>
+							<span>Контакты</span>
+						</a>
+					</li>
 					@endif
 					@if(!$modClub || $modClub->hasFeature('inventory'))
 					<li class="nav-item">
@@ -1120,6 +1126,12 @@
 						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
 							<i class="bi bi-person-lines-fill"></i>
 							<span>Клиенты</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.contacts.index') }}" class="nav-link {{ request()->routeIs('club.contacts.*') ? 'active' : '' }}">
+							<i class="bi bi-person-rolodex"></i>
+							<span>Контакты</span>
 						</a>
 					</li>
 					@endif

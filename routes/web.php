@@ -342,6 +342,15 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         });
 
         // Инвентарь клуба
+        // Справочник контактов клуба
+        Route::get('/contacts', [App\Http\Controllers\Club\ContactController::class, 'index'])->name('contacts.index');
+        Route::post('/contacts', [App\Http\Controllers\Club\ContactController::class, 'store'])->name('contacts.store');
+        Route::put('/contacts/{contact}', [App\Http\Controllers\Club\ContactController::class, 'update'])->name('contacts.update');
+        Route::delete('/contacts/{contact}', [App\Http\Controllers\Club\ContactController::class, 'destroy'])->name('contacts.destroy');
+        Route::post('/contact-groups', [App\Http\Controllers\Club\ContactController::class, 'storeGroup'])->name('contactGroups.store');
+        Route::put('/contact-groups/{group}', [App\Http\Controllers\Club\ContactController::class, 'updateGroup'])->name('contactGroups.update');
+        Route::delete('/contact-groups/{group}', [App\Http\Controllers\Club\ContactController::class, 'destroyGroup'])->name('contactGroups.destroy');
+
         // Отказы от ответственности: подписи, собранные через приложение
         Route::get('/waivers', [App\Http\Controllers\Club\WaiverController::class, 'index'])->name('waivers.index');
         Route::get('/waivers/{signature}', [App\Http\Controllers\Club\WaiverController::class, 'show'])->name('waivers.show');
