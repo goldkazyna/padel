@@ -423,6 +423,73 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * GET /api/mobile/admin/tournaments/{tournament}/pairs
+     *
+     * Собранные пары и те, кто записан без пары. Зеркало веба.
+     */
+    public function pairsState(Request $request, Tournament $tournament, \App\Services\PairRegistrationService $pairs): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$pairs->supports($tournament)) {
+            return response()->json([
+                'success' => true,
+                'supported' => false,
+                'mode' => null,
+                'pairs' => [],
+                'unpaired' => [],
+            ]);
+        }
+
+        return response()->json(['success' => true, 'supported' => true] + $pairs->state($tournament));
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairs
+     */
+    public function addPair(Request $request, Tournament $tournament, \App\Services\PairRegistrationService $pairs): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        $data = $request->validate([
+            'player1_id' => 'required|integer',
+            'player2_id' => 'required|integer',
+        ]);
+
+        [$ok, $message] = $pairs->addPair($tournament, (int) $data['player1_id'], (int) $data['player2_id']);
+        if (!$ok) {
+            return response()->json(['success' => false, 'message' => $message], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+        ] + $pairs->state($tournament));
+    }
+
+    /**
+     * DELETE /api/mobile/admin/tournaments/{tournament}/pairs/{pair}
+     */
+    public function removePair(Request $request, Tournament $tournament, int $pair, \App\Services\PairRegistrationService $pairs): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        [$ok, $message] = $pairs->removePair($tournament, $pair);
+        if (!$ok) {
+            return response()->json(['success' => false, 'message' => $message], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+        ] + $pairs->state($tournament));
+    }
+
+    /**
      * DELETE /api/mobile/admin/tournaments/{tournament}/pairing/teams/{pair}
      */
     public function deletePairing(Request $request, Tournament $tournament, TournamentTeam $pair, TeamTournamentService $team): JsonResponse

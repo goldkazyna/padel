@@ -1187,27 +1187,16 @@ class TournamentController extends Controller
 	}
 
 	/**
-	 * Добавить готовую пару в «Just Padel It» с фиксированными парами.
+	 * Завести пару: организатор добавляет сразу двоих.
 	 *
-	 * Единица записи здесь — пара, а не игрок: организатор сразу заводит обоих
-	 * и связывает их. Уже записанного игрока повторно не привязываем — он мог
-	 * записаться сам в приложении, а пару ему организатор подбирает вручную.
+	 * Куда именно ляжет пара — в пары формата или в команды турнира —
+	 * решает PairRegistrationService, разница между режимами внутри него.
 	 */
-	public function addJustPadelItPair(Request $request, Tournament $tournament)
+	public function addPair(Request $request, Tournament $tournament, \App\Services\PairRegistrationService $pairs)
 	{
 		$club = $this->getClub();
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
-		}
-
-		if (!$tournament->isPairedJustPadelIt()) {
-			return back()->with('error', 'Пары добавляются только в Just Padel It с фиксированными парами');
-		}
-		if ($tournament->isSelfPairing()) {
-			return back()->with('error', 'В этом турнире пары собирают сами игроки при записи');
-		}
-		if ($tournament->status !== 'open') {
-			return back()->with('error', 'Турнир уже запущен или завершён');
 		}
 
 		$validated = $request->validate([
@@ -1217,77 +1206,28 @@ class TournamentController extends Controller
 			'player2_id.different' => 'Игрок не может быть в паре с самим собой',
 		]);
 
-		$ids = [(int) $validated['player1_id'], (int) $validated['player2_id']];
+		[$ok, $message] = $pairs->addPair(
+			$tournament,
+			(int) $validated['player1_id'],
+			(int) $validated['player2_id']
+		);
 
-		$result = DB::transaction(function () use ($tournament, $ids) {
-			Tournament::where('id', $tournament->id)->lockForUpdate()->first();
-
-			$inPair = $tournament->justPadelItPairs()
-				->where(function ($q) use ($ids) {
-					$q->whereIn('player1_id', $ids)->orWhereIn('player2_id', $ids);
-				})
-				->exists();
-			if ($inPair) {
-				return 'in_pair';
-			}
-
-			$registered = $tournament->participants()
-				->whereIn('users.id', $ids)
-				->pluck('users.id')
-				->all();
-			$toAttach = array_values(array_diff($ids, $registered));
-
-			if ($tournament->takenSlotsCount() + count($toAttach) > $tournament->max_participants) {
-				return 'full';
-			}
-
-			foreach ($toAttach as $id) {
-				$tournament->participants()->attach($id, ['status' => 'registered']);
-			}
-
-			\App\Models\JustPadelItPair::create([
-				'tournament_id' => $tournament->id,
-				'player1_id' => $ids[0],
-				'player2_id' => $ids[1],
-			]);
-
-			return 'ok';
-		});
-
-		if ($result === 'in_pair') {
-			return back()->with('error', 'Один из игроков уже состоит в паре');
-		}
-		if ($result === 'full') {
-			return back()->with('error', 'Не хватает мест для новой пары');
-		}
-
-		$names = \App\Models\User::whereIn('id', $ids)->pluck('name')->implode(' / ');
-
-		return back()->with('success', "Пара добавлена: {$names}");
+		return back()->with($ok ? 'success' : 'error', $message);
 	}
 
 	/**
-	 * Разбить пару.
-	 *
-	 * Игроки остаются записанными на турнир — организатор может собрать их
-	 * заново с кем-то другим. Убрать совсем можно обычным удалением участника.
+	 * Разбить пару. Игроки остаются записанными на турнир.
 	 */
-	public function removeJustPadelItPair(Tournament $tournament, \App\Models\JustPadelItPair $pair)
+	public function removePair(Tournament $tournament, int $pair, \App\Services\PairRegistrationService $pairs)
 	{
 		$club = $this->getClub();
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
 		}
-		if ($pair->tournament_id !== $tournament->id) {
-			abort(404);
-		}
-		if ($tournament->status !== 'open') {
-			return back()->with('error', 'Турнир уже запущен или завершён');
-		}
 
-		$pair->delete();
+		[$ok, $message] = $pairs->removePair($tournament, $pair);
 
-		return back()->with('success', 'Пара разбита, игроки остались в списке участников');
+		return back()->with($ok ? 'success' : 'error', $message);
 	}
 
 	/**

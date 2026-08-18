@@ -30,7 +30,7 @@
                         {{ $pair->player1->name ?? '—' }} <span>/</span> {{ $pair->player2->name ?? '—' }}
                     </div>
                     @if($tournament->status === 'open')
-                        <form action="{{ route('club.tournaments.jpiPairs.remove', [$tournament, $pair]) }}"
+                        <form action="{{ route('club.tournaments.pairs.remove', [$tournament, $pair]) }}"
                               method="POST" class="d-inline"
                               onsubmit="return confirm('Разбить пару? Игроки останутся в списке участников.')">
                             @csrf
@@ -47,7 +47,7 @@
 
     @if($tournament->status === 'open')
         @include('club.tournaments.partials._pair_add_form', [
-            'action' => route('club.tournaments.jpiPairs.add', $tournament),
+            'action' => route('club.tournaments.pairs.add', $tournament),
         ])
     @endif
 </div>

@@ -194,7 +194,7 @@
                     <span>Добавить пару</span>
                 </div>
                 @include('club.tournaments.partials._pair_add_form', [
-                    'action' => route('club.tournaments.addTeam', $tournament),
+                    'action' => route('club.tournaments.pairs.add', $tournament),
                 ])
             </div>
         @endif

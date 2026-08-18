@@ -169,6 +169,11 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/teams/{team}/reject', [MobileAdminTournamentDetailController::class, 'rejectTeam']);
         Route::delete('/admin/tournaments/{tournament}/teams/{team}', [MobileAdminTournamentDetailController::class, 'removeTeam']);
 
+        // Запись парой: организатор добавляет сразу двоих
+        Route::get('/admin/tournaments/{tournament}/pairs', [MobileAdminTournamentDetailController::class, 'pairsState']);
+        Route::post('/admin/tournaments/{tournament}/pairs', [MobileAdminTournamentDetailController::class, 'addPair']);
+        Route::delete('/admin/tournaments/{tournament}/pairs/{pair}', [MobileAdminTournamentDetailController::class, 'removePair']);
+
         // Ручной сбор пар (групповой турнир, pairing_mode=admin)
         Route::get('/admin/tournaments/{tournament}/pairing', [MobileAdminTournamentDetailController::class, 'pairingState']);
         Route::post('/admin/tournaments/{tournament}/pairing/teams', [MobileAdminTournamentDetailController::class, 'createPairing']);

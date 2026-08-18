@@ -48,7 +48,7 @@ class JpiAdminPairsTest extends TestCase
         [$a, $b] = User::factory()->count(2)->create();
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.jpiPairs.add', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $a->id,
                 'player2_id' => $b->id,
             ])
@@ -67,7 +67,7 @@ class JpiAdminPairsTest extends TestCase
         $t->participants()->attach($a->id, ['status' => 'registered']);
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.jpiPairs.add', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $a->id,
                 'player2_id' => $b->id,
             ])
@@ -82,12 +82,12 @@ class JpiAdminPairsTest extends TestCase
         $t = $this->tournament();
         [$a, $b, $c] = User::factory()->count(3)->create();
 
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
         ])->assertRedirect();
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.jpiPairs.add', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $a->id, 'player2_id' => $c->id,
             ])
             ->assertSessionHas('error');
@@ -100,12 +100,12 @@ class JpiAdminPairsTest extends TestCase
         $t = $this->tournament(['max_participants' => 2]);
         $players = User::factory()->count(4)->create();
 
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $players[0]->id, 'player2_id' => $players[1]->id,
         ])->assertRedirect();
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.jpiPairs.add', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $players[2]->id, 'player2_id' => $players[3]->id,
             ])
             ->assertSessionHas('error');
@@ -118,31 +118,38 @@ class JpiAdminPairsTest extends TestCase
     {
         $t = $this->tournament();
         [$a, $b] = User::factory()->count(2)->create();
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
         ]);
         $pair = JustPadelItPair::where('tournament_id', $t->id)->firstOrFail();
 
         $this->actingAs($this->admin)
-            ->delete(route('club.tournaments.jpiPairs.remove', [$t, $pair]))
+            ->delete(route('club.tournaments.pairs.remove', [$t, $pair]))
             ->assertRedirect();
 
         $this->assertSame(0, JustPadelItPair::where('tournament_id', $t->id)->count());
         $this->assertSame(2, $t->participants()->count());
     }
 
-    /** Когда пары собирают сами игроки, организатор их не заводит. */
-    public function test_self_pairing_tournament_refuses(): void
+    /**
+     * Когда пары собирают сами игроки, пара ложится в команды турнира.
+     *
+     * Там уже есть модерация, лист ожидания и вывод в приложении — заводить
+     * ей вторую жизнь в парах формата незачем.
+     */
+    public function test_self_pairing_pair_goes_to_teams(): void
     {
         $t = $this->tournament(['pairing_mode' => 'self']);
         [$a, $b] = User::factory()->count(2)->create();
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.jpiPairs.add', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $a->id, 'player2_id' => $b->id,
             ])
-            ->assertSessionHas('error');
+            ->assertRedirect()
+            ->assertSessionHas('success');
 
+        $this->assertSame(1, $t->teams()->count());
         $this->assertSame(0, JustPadelItPair::where('tournament_id', $t->id)->count());
     }
 
@@ -159,7 +166,7 @@ class JpiAdminPairsTest extends TestCase
 
         // Четыре пары — восемь человек.
         for ($i = 0; $i < 4; $i++) {
-            $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+            $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $players[$i * 2]->id,
                 'player2_id' => $players[$i * 2 + 1]->id,
             ]);
@@ -178,10 +185,10 @@ class JpiAdminPairsTest extends TestCase
         );
 
         // Спарили оставшихся — теперь стартует.
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $players[8]->id, 'player2_id' => $players[9]->id,
         ]);
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $players[10]->id, 'player2_id' => $players[11]->id,
         ]);
 
@@ -195,7 +202,7 @@ class JpiAdminPairsTest extends TestCase
             ->get(route('club.tournaments.show', $admin))
             ->assertOk()
             ->assertSee('Добавить пару')
-            ->assertSee(route('club.tournaments.jpiPairs.add', $admin), false);
+            ->assertSee(route('club.tournaments.pairs.add', $admin), false);
 
         $solo = $this->tournament(['is_paired' => false]);
         $this->actingAs($this->admin)
@@ -237,7 +244,7 @@ class JpiAdminPairsTest extends TestCase
         $a = User::factory()->create(['name' => 'Mister Bekson']);
         $b = User::factory()->create();
 
-        $this->actingAs($this->admin)->post(route('club.tournaments.jpiPairs.add', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
         ]);
 
@@ -254,7 +261,7 @@ class JpiAdminPairsTest extends TestCase
         $a = User::factory()->create(['name' => 'Mister Bekson']);
         $b = User::factory()->create();
 
-        $this->actingAs($this->admin)->post(route('club.tournaments.addTeam', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
         ]);
 
@@ -294,7 +301,7 @@ class JpiAdminPairsTest extends TestCase
     {
         $t = $this->tournament(['pairing_mode' => 'self']);
         [$a, $b] = User::factory()->count(2)->create();
-        $this->actingAs($this->admin)->post(route('club.tournaments.addTeam', $t), [
+        $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
         ]);
 
@@ -311,7 +318,7 @@ class JpiAdminPairsTest extends TestCase
         [$a, $b] = User::factory()->count(2)->create();
 
         $this->actingAs($this->admin)
-            ->post(route('club.tournaments.addTeam', $t), [
+            ->post(route('club.tournaments.pairs.add', $t), [
                 'player1_id' => $a->id,
                 'player2_id' => $b->id,
             ])
@@ -333,7 +340,7 @@ class JpiAdminPairsTest extends TestCase
             ->get(route('club.tournaments.show', $t))
             ->assertOk()
             ->assertSee('Добавить пару')
-            ->assertSee(route('club.tournaments.addTeam', $t), false)
+            ->assertSee(route('club.tournaments.pairs.add', $t), false)
             // Поодиночке в парный турнир не записывают.
             ->assertDontSee('Добавить участника');
     }
