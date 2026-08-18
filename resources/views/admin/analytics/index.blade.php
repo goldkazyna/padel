@@ -17,8 +17,10 @@
         ['Играли за 30 дней', number_format($totals['active_30d'], 0, '.', ' '), 'activity'],
         ['Турниров проведено', number_format($totals['tournaments'], 0, '.', ' '), 'trophy'],
         ['Участий в турнирах', number_format($totals['participations'], 0, '.', ' '), 'person-check'],
-        ['Броней кортов', number_format($totals['bookings'], 0, '.', ' '), 'calendar'],
+        ['Броней состоялось', number_format($totals['bookings'], 0, '.', ' '), 'calendar'],
         ['Выручка с броней', number_format($totals['revenue'], 0, '.', ' ') . ' ₸', 'cash'],
+        ['Броней вперёд', number_format($totals['future_bookings'], 0, '.', ' '), 'calendar-plus'],
+        ['Ждут оплаты', number_format($totals['future_revenue'], 0, '.', ' ') . ' ₸', 'hourglass'],
     ] as [$label, $value, $icon])
         <div class="an-card">
             <div class="an-card-label">{{ $label }}</div>
@@ -45,8 +47,11 @@
             </thead>
             <tbody>
                 @forelse($monthly as $row)
-                    <tr>
-                        <td class="an-month">{{ $row['month'] }}</td>
+                    <tr class="{{ $row['is_future'] ? 'is-future' : '' }}">
+                        <td class="an-month">
+                            {{ $row['month'] }}
+                            @if($row['is_future'])<span class="an-ahead">вперёд</span>@endif
+                        </td>
                         <td>{{ $row['new_players'] ?: '—' }}</td>
                         <td>{{ $row['active_players'] ?: '—' }}</td>
                         <td>{{ $row['tournaments'] ?: '—' }}</td>
@@ -68,6 +73,11 @@
     <p class="an-hint">
         Из тех, кто впервые сыграл в этом месяце, сколько сыграли ещё хотя бы раз позже.
         Разовый посетитель и постоянный игрок — это два разных бизнеса.
+    </p>
+    <p class="an-hint">
+        <b>Последние месяцы всегда выглядят хуже:</b> у новичка августа было
+        меньше времени вернуться, чем у новичка января. Сравнивать корректно
+        только месяцы одинаковой давности.
     </p>
     <div class="an-table-wrap">
         <table class="an-table">
@@ -135,6 +145,8 @@
     в приложении нет аналитики, и задним числом этих цифр не существует.
     Журнал входов ловит только веб-панель клуба, поэтому в отчёт не идёт.
     Всё, что выше, посчитано по турнирам, участиям и броням — они есть с первого дня.
+    Тестовые клубы в отчёт не идут: если клуб виден здесь, а не должен —
+    поставьте ему галочку «Тестовый» на странице клуба.
 </div>
 
 <style>
@@ -226,5 +238,17 @@
     line-height: 1.6;
 }
 .an-note b { color: var(--text-secondary); }
+.an-table tr.is-future td { opacity: .55; }
+.an-ahead {
+    background: rgba(96,165,250,.16);
+    color: #60a5fa;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
 </style>
 @endsection

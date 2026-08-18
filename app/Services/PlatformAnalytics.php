@@ -49,10 +49,14 @@ class PlatformAnalytics
 
         ksort($months);
 
+        $currentMonth = Carbon::now()->format('Y-m');
+
         $result = [];
         foreach ($months as $month => $row) {
             $result[] = array_merge([
                 'month' => $month,
+                // Брони вперёд деньгами ещё не стали — в таблице это видно.
+                'is_future' => $month > $currentMonth,
                 'new_players' => 0,
                 'tournaments' => 0,
                 'participations' => 0,
@@ -77,11 +81,15 @@ class PlatformAnalytics
         return [
             'players' => $clubId === null ? DB::table('users')->count() : $this->clubPlayers($clubId),
             'tournaments' => $this->tournamentsQuery($clubId)->count(),
-            'participations' => $this->participationsQuery($clubId)->count(),
-            'bookings' => $this->bookingsQuery($clubId)->count(),
-            'revenue' => (int) $this->bookingsQuery($clubId)->sum('court_bookings.price'),
+            'participations' => $this->participationsCount($clubId),
+            // Будущие брони деньгами ещё не стали: без отсечки итог обещал бы
+            // партнёрам выручку, которую клуб пока не получил.
+            'bookings' => $this->pastBookings($clubId)->count(),
+            'revenue' => (int) $this->pastBookings($clubId)->sum('court_bookings.price'),
+            'future_bookings' => $this->futureBookings($clubId)->count(),
+            'future_revenue' => (int) $this->futureBookings($clubId)->sum('court_bookings.price'),
             'active_30d' => $this->activePlayersSince($since, $clubId),
-            'bookings_30d' => (int) $this->bookingsQuery($clubId)
+            'bookings_30d' => (int) $this->pastBookings($clubId)
                 ->where('court_bookings.date', '>=', $since->toDateString())->count(),
         ];
     }
@@ -133,7 +141,11 @@ class PlatformAnalytics
      */
     public function byClub(): array
     {
-        $clubs = DB::table('clubs')->select('id', 'name')->orderBy('name')->get();
+        $clubs = DB::table('clubs')
+            ->where('is_test', false)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         $rows = [];
         foreach ($clubs as $club) {
@@ -171,15 +183,17 @@ class PlatformAnalytics
     private function tournamentsQuery(?int $clubId)
     {
         return DB::table('tournaments')
-            ->where('status', 'completed')
-            ->when($clubId, fn ($q) => $q->where('club_id', $clubId));
+            ->join('clubs', 'clubs.id', '=', 'tournaments.club_id')
+            ->where('clubs.is_test', false)
+            ->where('tournaments.status', 'completed')
+            ->when($clubId, fn ($q) => $q->where('tournaments.club_id', $clubId));
     }
 
     /** @return array<string, int> */
     private function tournamentsByMonth(?int $clubId): array
     {
         return $this->tournamentsQuery($clubId)
-            ->selectRaw("SUBSTR(start_date, 1, 7) as m, COUNT(*) as c")
+            ->selectRaw("SUBSTR(tournaments.start_date, 1, 7) as m, COUNT(*) as c")
             ->groupBy('m')
             ->pluck('c', 'm')
             ->all();
@@ -195,6 +209,8 @@ class PlatformAnalytics
     {
         return DB::table('tournament_participants')
             ->join('tournaments', 'tournaments.id', '=', 'tournament_participants.tournament_id')
+            ->join('clubs', 'clubs.id', '=', 'tournaments.club_id')
+            ->where('clubs.is_test', false)
             ->where('tournaments.status', 'completed')
             ->when($clubId, fn ($q) => $q->where('tournaments.club_id', $clubId));
     }
@@ -210,6 +226,8 @@ class PlatformAnalytics
 
         $paired = DB::table('tournament_teams')
             ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
+            ->join('clubs', 'clubs.id', '=', 'tournaments.club_id')
+            ->where('clubs.is_test', false)
             ->where('tournaments.status', 'completed')
             ->whereIn('tournament_teams.status', ['approved', 'pending'])
             ->when($clubId, fn ($q) => $q->where('tournaments.club_id', $clubId))
@@ -296,10 +314,43 @@ class PlatformAnalytics
         return DB::table('club_clients')->where('club_id', $clubId)->count();
     }
 
+    /** Участия вместе с парами: пара — это два человека. */
+    private function participationsCount(?int $clubId): int
+    {
+        $solo = $this->participationsQuery($clubId)->count();
+
+        $paired = DB::table('tournament_teams')
+            ->join('tournaments', 'tournaments.id', '=', 'tournament_teams.tournament_id')
+            ->join('clubs', 'clubs.id', '=', 'tournaments.club_id')
+            ->where('clubs.is_test', false)
+            ->where('tournaments.status', 'completed')
+            ->whereIn('tournament_teams.status', ['approved', 'pending'])
+            ->when($clubId, fn ($q) => $q->where('tournaments.club_id', $clubId))
+            ->count();
+
+        return $solo + $paired * 2;
+    }
+
+    /** Брони, которые уже состоялись. */
+    private function pastBookings(?int $clubId)
+    {
+        return $this->bookingsQuery($clubId)
+            ->where('court_bookings.date', '<=', Carbon::now()->toDateString());
+    }
+
+    /** Брони вперёд: место занято, но деньги ещё не получены. */
+    private function futureBookings(?int $clubId)
+    {
+        return $this->bookingsQuery($clubId)
+            ->where('court_bookings.date', '>', Carbon::now()->toDateString());
+    }
+
     private function bookingsQuery(?int $clubId)
     {
         return DB::table('court_bookings')
             ->join('courts', 'courts.id', '=', 'court_bookings.court_id')
+            ->join('clubs', 'clubs.id', '=', 'courts.club_id')
+            ->where('clubs.is_test', false)
             ->where('court_bookings.status', self::BOOKING_ACTIVE)
             ->when($clubId, fn ($q) => $q->where('courts.club_id', $clubId));
     }
