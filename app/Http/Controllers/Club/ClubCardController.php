@@ -55,16 +55,14 @@ class ClubCardController extends Controller
         $club = $this->getClub();
         if (!$club) return response()->json(['cards' => []]);
 
-        $digits = preg_replace('/\D/', '', (string) $request->get('phone'));
-        if (strlen($digits) < 5) return response()->json(['cards' => []]);
-        $last10 = substr($digits, -10);
+        // Клиентов с одним номером может быть несколько (заводили дважды) —
+        // карты собираем со всех, иначе карта найдётся не у той записи.
+        $clientIds = ClubClient::where('club_id', $club->id)
+            ->byPhone((string) $request->get('phone'))
+            ->pluck('id');
+        if ($clientIds->isEmpty()) return response()->json(['cards' => []]);
 
-        $client = ClubClient::where('club_id', $club->id)
-            ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
-            ->first();
-        if (!$client) return response()->json(['cards' => []]);
-
-        $allCards = ClubCard::where('club_client_id', $client->id)
+        $allCards = ClubCard::whereIn('club_client_id', $clientIds)
             ->where('club_id', $club->id)
             ->with('type')
             ->orderByDesc('created_at')

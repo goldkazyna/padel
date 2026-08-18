@@ -212,20 +212,18 @@ class CertificateController extends Controller
         $club = $this->getClub();
         if (!$club) return response()->json(['certificates' => []]);
 
-        $digits = preg_replace('/\D/', '', (string) $request->get('phone', ''));
-        if (strlen($digits) < 5) return response()->json(['certificates' => []]);
-        $last10 = substr($digits, -10);
-
-        $client = \App\Models\ClubClient::where('club_id', $club->id)
-            ->where(fn($q) => $q->where('phone', $digits)->orWhere('phone', 'like', '%' . $last10))
-            ->first();
-        if (!$client) return response()->json(['certificates' => []]);
+        // Клиентов с одним номером может быть несколько — берём сертификаты
+        // со всех, иначе найдётся не та запись.
+        $clientIds = \App\Models\ClubClient::where('club_id', $club->id)
+            ->byPhone((string) $request->get('phone', ''))
+            ->pluck('id');
+        if ($clientIds->isEmpty()) return response()->json(['certificates' => []]);
 
         // При редактировании брони её сертификат уже погашен (used_at) — чтобы он
         // отображался и был выбран, его id передаётся в include и включается всегда.
         $includeId = (int) $request->get('include', 0);
 
-        $certs = Certificate::where('client_id', $client->id)
+        $certs = Certificate::whereIn('client_id', $clientIds)
             ->whereIn('value_type', [Certificate::VALUE_AMOUNT, Certificate::VALUE_HOURS])
             ->where(function ($q) use ($includeId) {
                 $q->whereNull('used_at');
