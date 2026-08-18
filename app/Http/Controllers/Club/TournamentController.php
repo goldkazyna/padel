@@ -1273,6 +1273,32 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Отметить, что участник пришёл на турнир.
+	 *
+	 * Отметка живёт в базе, а не в галочке на странице: организатор
+	 * перезагрузит список — она останется.
+	 */
+	public function toggleAttendance(Request $request, Tournament $tournament, $userId)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$participant = $tournament->participants()->where('user_id', $userId)->first();
+		if (!$participant) {
+			return response()->json(['success' => false, 'message' => 'Участник не найден'], 404);
+		}
+
+		$attended = $request->boolean('attended');
+		$tournament->participants()->updateExistingPivot($userId, [
+			'attended_at' => $attended ? now() : null,
+		]);
+
+		return response()->json(['success' => true, 'attended' => $attended]);
+	}
+
+	/**
 	 * Заменить участника
 	 */
 	public function replaceParticipant(Request $request, Tournament $tournament, $userId)

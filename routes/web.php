@@ -472,6 +472,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 ->name('tournaments.participants.approveAll');
             Route::delete('/tournaments/{tournament}/participants/{user}', [ClubTournamentController::class, 'removeParticipant'])
                 ->name('tournaments.participants.remove');
+            // Отметка «пришёл» в списке участников
+            Route::post('/tournaments/{tournament}/participants/{user}/attendance', [ClubTournamentController::class, 'toggleAttendance'])
+                ->name('tournaments.participants.attendance');
             Route::post('/tournaments/{tournament}/add-test-players', [ClubTournamentController::class, 'addTestPlayers'])
                 ->name('tournaments.addTestPlayers');
             Route::get('/tournaments/{tournament}/search-players', [ClubTournamentController::class, 'searchPlayers'])

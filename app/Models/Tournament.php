@@ -275,7 +275,7 @@ class Tournament extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'tournament_participants')
-                    ->withPivot('status', 'moderation_deadline', 'reminder_sent_at', 'reminded_1d_at', 'reminded_2h_at', 'reminded_1h_at')
+                    ->withPivot('status', 'attended_at', 'moderation_deadline', 'reminder_sent_at', 'reminded_1d_at', 'reminded_2h_at', 'reminded_1h_at')
                     ->withTimestamps();
     }
 
@@ -656,7 +656,7 @@ class Tournament extends Model
     public function approvedParticipants()
     {
         return $this->belongsToMany(User::class, 'tournament_participants')
-                    ->withPivot('status')
+                    ->withPivot('status', 'attended_at')
                     ->withTimestamps()
                     ->wherePivot('status', 'registered');
     }

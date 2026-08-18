@@ -213,11 +213,21 @@
                     <div class="participant-status-indicator pending">
                         <i class="bi bi-clock"></i>
                     </div>
-                    <div class="participant-avatar">
-                        {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
-                    </div>
+                    @if($participant->avatar)
+                        <img class="participant-avatar participant-avatar-img"
+                             src="{{ $participant->avatar }}" alt="{{ $participant->name }}" loading="lazy">
+                    @else
+                        <div class="participant-avatar">
+                            {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
+                        </div>
+                    @endif
                     <div class="participant-info">
-                        <div class="participant-name">{{ $participant->name }}</div>
+                        <div class="participant-name">
+                            {{ $participant->name }}
+                            @if($participant->level_verified)
+                                <i class="bi bi-patch-check-fill verified-tick" title="Уровень подтверждён"></i>
+                            @endif
+                        </div>
                         <small class="text-muted">@phoneFmt($participant->phone)</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
@@ -261,15 +271,29 @@
     <div class="participants-list">
         @forelse($tournament->approvedParticipants as $index => $participant)
             <div class="participant-row approved">
-                <div class="participant-status-indicator approved">
-                    <i class="bi bi-check"></i>
-                </div>
+                {{-- Отметка «пришёл»: сохраняется сразу, переживает перезагрузку --}}
+                <label class="attend-box" title="Отметить, что игрок пришёл">
+                    <input type="checkbox" class="attend-check"
+                           data-url="{{ route('club.tournaments.participants.attendance', [$tournament, $participant->id]) }}"
+                           {{ $participant->pivot->attended_at ? 'checked' : '' }}>
+                    <span></span>
+                </label>
                 <div class="participant-rank">{{ $index + 1 }}</div>
-                <div class="participant-avatar">
-                    {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
-                </div>
+                @if($participant->avatar)
+                    <img class="participant-avatar participant-avatar-img"
+                         src="{{ $participant->avatar }}" alt="{{ $participant->name }}" loading="lazy">
+                @else
+                    <div class="participant-avatar">
+                        {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
+                    </div>
+                @endif
                 <div class="participant-info">
-                    <div class="participant-name">{{ $participant->name }}</div>
+                    <div class="participant-name">
+                        {{ $participant->name }}
+                        @if($participant->level_verified)
+                            <i class="bi bi-patch-check-fill verified-tick" title="Уровень подтверждён"></i>
+                        @endif
+                    </div>
                     <small class="text-muted">@phoneFmt($participant->phone)</small>
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
@@ -367,11 +391,21 @@
                         <i class="bi bi-hourglass"></i>
                     </div>
                     <div class="participant-rank">{{ $i + 1 }}</div>
-                    <div class="participant-avatar">
-                        {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
-                    </div>
+                    @if($participant->avatar)
+                        <img class="participant-avatar participant-avatar-img"
+                             src="{{ $participant->avatar }}" alt="{{ $participant->name }}" loading="lazy">
+                    @else
+                        <div class="participant-avatar">
+                            {{ mb_strtoupper(mb_substr($participant->first_name, 0, 1) . mb_substr($participant->last_name, 0, 1)) }}
+                        </div>
+                    @endif
                     <div class="participant-info">
-                        <div class="participant-name">{{ $participant->name }}</div>
+                        <div class="participant-name">
+                            {{ $participant->name }}
+                            @if($participant->level_verified)
+                                <i class="bi bi-patch-check-fill verified-tick" title="Уровень подтверждён"></i>
+                            @endif
+                        </div>
                         <small class="text-muted">@phoneFmt($participant->phone)</small>
                         <div class="participant-meta">
                             <span class="level-badge">{{ $participant->level }}</span>
@@ -431,6 +465,28 @@
 </div>
 
 <style>
+/* Отметка «пришёл» */
+.attend-box { display: inline-flex; align-items: center; cursor: pointer; flex: none; }
+.attend-box input { position: absolute; opacity: 0; width: 0; height: 0; }
+.attend-box span {
+    width: 22px; height: 22px; border-radius: 7px;
+    border: 2px solid var(--border-light, #3f3f46);
+    display: grid; place-items: center; transition: background .15s, border-color .15s;
+}
+.attend-box span::after {
+    content: ''; width: 10px; height: 6px;
+    border-left: 2px solid #08130c; border-bottom: 2px solid #08130c;
+    transform: rotate(-45deg) scale(0); transition: transform .15s;
+}
+.attend-box input:checked + span { background: #22c55e; border-color: #22c55e; }
+.attend-box input:checked + span::after { transform: rotate(-45deg) scale(1); }
+.attend-box.is-saving span { opacity: .5; }
+.participant-row.attended { background: rgba(34,197,94,.06); }
+
+/* Аватар картинкой и синяя галочка верификации */
+.participant-avatar-img { object-fit: cover; }
+.verified-tick { color: #3b82f6; font-size: 13px; margin-left: 5px; vertical-align: baseline; }
+
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -675,6 +731,45 @@
     font-size: 12px;
 }
 </style>
+
+<script>
+// Отметка «пришёл» сохраняется сразу — организатор перезагрузит список,
+// и она останется.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.attend-check').forEach(function (input) {
+        var box = input.closest('.attend-box');
+        var row = input.closest('.participant-row');
+
+        function paint() {
+            if (row) row.classList.toggle('attended', input.checked);
+        }
+        paint();
+
+        input.addEventListener('change', function () {
+            box.classList.add('is-saving');
+            paint();
+
+            fetch(input.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ attended: input.checked })
+            })
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                .catch(function () {
+                    // Не сохранилось — возвращаем галочку, чтобы не обманывать.
+                    input.checked = !input.checked;
+                    paint();
+                    alert('Не удалось сохранить отметку');
+                })
+                .finally(function () { box.classList.remove('is-saving'); });
+        });
+    });
+});
+</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
