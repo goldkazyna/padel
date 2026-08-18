@@ -13,7 +13,26 @@
 <div class="row">
     <div class="col-lg-8">
         <div class="card-dark">
-            <div class="card-body">
+            @if(!empty($source))
+    <div class="dup-note">
+        <i class="bi bi-files"></i>
+        <div>
+            Поля заполнены из турнира «{{ $source->name }}».
+            Осталось выбрать дату — остальное можно поправить.
+        </div>
+    </div>
+    <style>
+        .dup-note {
+            display: flex; align-items: flex-start; gap: 10px;
+            background: rgba(34,197,94,.10); border: 1px solid rgba(34,197,94,.35);
+            border-radius: 12px; padding: 12px 16px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 13.5px; line-height: 1.5;
+        }
+        .dup-note i { color: #22c55e; font-size: 16px; margin-top: 1px; }
+    </style>
+@endif
+
+<div class="card-body">
                 <form action="{{ route('club.tournaments.store') }}" method="POST">
 				@if($errors->any())
 					<div class="alert-danger-custom mb-4">

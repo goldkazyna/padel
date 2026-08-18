@@ -59,7 +59,26 @@ class TournamentController extends Controller
 		return view('club.tournaments.index', compact('groupedTournaments', 'club'));
 	}
 
-    public function create()
+    /**
+     * Поля, которые переносятся при дублировании турнира.
+     *
+     * Дата, время и статус намеренно не переносятся: дату организатор
+     * и выбирает заново, ради этого дублирование и затевалось.
+     */
+    private const DUPLICATE_FIELDS = [
+        'venue_club_id', 'name', 'description', 'has_prizes', 'prizes',
+        'jpi_rank_by_wins', 'duration_hours', 'min_level', 'max_level',
+        'max_participants', 'price', 'is_rated', 'verified_only',
+        'round_robin_schedule', 'type', 'points_to_win', 'groups_count',
+        'rounds_count', 'teams_advance', 'pairing_mode', 'is_paired',
+        'has_playoff', 'playoff_type', 'playoff_format', 'reserve_count',
+        'waitlist_size', 'moderation_hours', 'moderation_minutes',
+        'courts', 'courts_count', 'has_lower_bracket', 'has_bronze_match',
+        'telegram_registration_url', 'chat_enabled', 'chat_write_mode',
+        'escalera_standings_mode',
+    ];
+
+    public function create(Request $request)
     {
 		$user = auth()->user();
 		if ($user->isClubModerator()) {
@@ -72,7 +91,30 @@ class TournamentController extends Controller
         $clubs = auth()->user()->isSuperAdmin() ? Club::active()->get() : collect([$club]);
         $venueClubs = Club::active()->orderBy('name')->get(['id', 'name', 'city']);
 
-        return view('club.tournaments.create', compact('clubs', 'club', 'venueClubs'));
+        // Дублирование: подставляем значения через old-input, и форма
+        // подхватывает их сама — она вся построена на old().
+        $source = null;
+        if ($request->filled('from')) {
+            $source = Tournament::where('id', (int) $request->get('from'))
+                ->when(!$user->isSuperAdmin(), fn ($q) => $q->where('club_id', $club?->id))
+                ->first();
+
+            if ($source) {
+                $values = collect(self::DUPLICATE_FIELDS)
+                    ->mapWithKeys(fn ($field) => [$field => $source->$field])
+                    ->filter(fn ($value) => $value !== null)
+                    ->all();
+
+                // Цена в модели — «19000.00»; в поле ввода это выглядит неряшливо.
+                if (isset($values['price'])) {
+                    $values['price'] = (int) $values['price'];
+                }
+
+                $request->session()->flashInput($values);
+            }
+        }
+
+        return view('club.tournaments.create', compact('clubs', 'club', 'venueClubs', 'source'));
     }
 
     public function store(Request $request)

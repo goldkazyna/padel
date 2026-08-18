@@ -90,6 +90,10 @@
                                 <a href="{{ route('club.tournaments.edit', $tournament) }}" class="btn-outline-custom btn-sm" title="Редактировать">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <a href="{{ route('club.tournaments.create', ['from' => $tournament->id]) }}"
+                                   class="btn-outline-custom btn-sm" title="Дублировать турнир">
+                                    <i class="bi bi-files"></i>
+                                </a>
                                 @if($tournament->status === 'open')
                                     @php
                                         $pushService = app(\App\Services\TournamentPushService::class);
