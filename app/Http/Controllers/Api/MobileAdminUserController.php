@@ -233,7 +233,7 @@ class MobileAdminUserController extends Controller
                 'rating_before' => $oldRating,
                 'rating_after' => (int) $update['rating'],
                 'change' => (int) $update['rating'] - $oldRating,
-                'reason' => 'Ручная корректировка',
+                'reason' => \App\Models\RatingHistory::REASON_MANUAL,
             ]);
         }
         $newVerified = (bool) $target->level_verified;

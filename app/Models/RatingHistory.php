@@ -7,6 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class RatingHistory extends Model
 {
+    /**
+     * Причина ручной правки рейтинга администратором.
+     *
+     * Отличить её больше нечем: у ручной правки, поединка и игры одинаково
+     * пустой tournament_id. Достижения такие записи не считают — иначе
+     * поднятие уровня руками выдаёт значок за игровое достижение.
+     */
+    public const REASON_MANUAL = 'Ручная корректировка';
+
+    /** Только то, что игрок заработал игрой, без ручных правок. */
+    public function scopeFromPlay($query)
+    {
+        return $query->where('reason', '!=', self::REASON_MANUAL);
+    }
+
     use HasFactory;
 
     protected $table = 'rating_history';

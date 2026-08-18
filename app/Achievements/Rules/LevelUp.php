@@ -17,14 +17,25 @@ class LevelUp implements Achievement
 
     public function progress(PlayerHistory $history): int
     {
-        $first = $history->ratingEntries->first();
+        // Ручные правки рейтинга администратором в счёт не идут: поднятие
+        // уровня руками не должно выдавать значок за игровое достижение.
+        $play = $history->ratingEntries
+            ->reject(fn ($entry) => $entry->reason === \App\Models\RatingHistory::REASON_MANUAL)
+            ->values();
+
+        $first = $play->first();
         if (!$first) {
             return 0;
         }
 
-        $startLevel = $this->levelOf((int) $first->rating_before);
-        foreach ($history->ratingEntries as $entry) {
-            if ($this->levelOf((int) $entry->rating_after) > $startLevel) {
+        // Считаем рейтинг заново, прибавляя только игровые изменения: иначе
+        // ручная надбавка посреди истории всё равно протащит игрока наверх.
+        $rating = (int) $first->rating_before;
+        $startLevel = $this->levelOf($rating);
+
+        foreach ($play as $entry) {
+            $rating += (int) $entry->change;
+            if ($this->levelOf($rating) > $startLevel) {
                 return 1;
             }
         }

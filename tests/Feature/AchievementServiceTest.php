@@ -20,8 +20,14 @@ class AchievementServiceTest extends TestCase
     private function playerWithJump(): User
     {
         $user = User::factory()->create(['rating' => 1300]);
+        // Запись за турнир обязана нести tournament_id: значок «Рывок» считает
+        // только турниры, иначе его выдавала бы ручная правка рейтинга.
+        $club = \App\Models\Club::create(['name' => 'Клуб', 'address' => 'А']);
+        $tournament = \App\Models\Tournament::factory()->create(['club_id' => $club->id]);
+
         RatingHistory::create([
-            'user_id' => $user->id, 'rating_before' => 1000, 'rating_after' => 1300,
+            'user_id' => $user->id, 'tournament_id' => $tournament->id,
+            'rating_before' => 1000, 'rating_after' => 1300,
             'change' => 300, 'reason' => 'Турнир',
         ]);
 
