@@ -144,6 +144,40 @@ class MobileAdminPairsTest extends TestCase
             ->assertJsonPath('supported', false);
     }
 
+    /** Записавшегося в одиночку надо уметь найти для пары. */
+    public function test_pair_search_finds_an_already_registered_player(): void
+    {
+        $t = $this->tournament();
+        $solo = User::factory()->create(['name' => 'Mister Bekson']);
+        $t->participants()->attach($solo->id, ['status' => 'registered']);
+        Sanctum::actingAs($this->admin);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}/players/search?q=Bekson")
+            ->assertOk()
+            ->assertJsonCount(0, 'players');
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}/players/search?q=Bekson&for=pair")
+            ->assertOk()
+            ->assertJsonCount(1, 'players');
+    }
+
+    /** А того, кто уже в паре, показывать не надо. */
+    public function test_pair_search_hides_someone_already_paired(): void
+    {
+        $t = $this->tournament();
+        $a = User::factory()->create(['name' => 'Mister Bekson']);
+        $b = User::factory()->create();
+        Sanctum::actingAs($this->admin);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$t->id}/pairs", [
+            'player1_id' => $a->id, 'player2_id' => $b->id,
+        ])->assertOk();
+
+        $this->getJson("/api/mobile/admin/tournaments/{$t->id}/players/search?q=Bekson&for=pair")
+            ->assertOk()
+            ->assertJsonCount(0, 'players');
+    }
+
     public function test_stranger_cannot_add_a_pair(): void
     {
         $t = $this->tournament();

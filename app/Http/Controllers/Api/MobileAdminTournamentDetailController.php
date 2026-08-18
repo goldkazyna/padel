@@ -1411,8 +1411,16 @@ class MobileAdminTournamentDetailController extends Controller
             return response()->json(['success' => true, 'players' => []]);
         }
 
+        // Для формы пары исключаем не участников, а тех, кто уже в паре:
+        // записавшийся в одиночку как раз и ждёт напарника.
+        if ($request->get('for') === 'pair') {
+            $pairs = app(\App\Services\PairRegistrationService::class);
+            $excluded = collect($pairs->state($tournament)['pairs'])
+                ->flatMap(fn ($p) => [$p['player1']['id'], $p['player2']['id']])
+                ->unique()->values()->all();
+        }
         // Уже занятые игроки (для одиночных — pivot, для team — обе колонки)
-        if ($tournament->type === 'team') {
+        elseif ($tournament->type === 'team') {
             $excluded = $tournament->teams()
                 ->get()
                 ->flatMap(fn($t) => [$t->player1_id, $t->player2_id])
