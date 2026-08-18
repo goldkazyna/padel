@@ -242,7 +242,13 @@ class ShiftGateTest extends TestCase
         $this->assertGuest('web');
     }
 
-    public function test_stale_shift_sends_manager_to_closing_first(): void
+    /**
+     * Смену закрывает менеджер кнопкой, и только он.
+     *
+     * Раньше в полночь система сама гнала на чек-лист закрытия: корты
+     * работают за полночь, и ночная смена рвалась пополам в разгар работы.
+     */
+    public function test_yesterday_shift_does_not_force_closing(): void
     {
         $club = $this->makeClub();
         $manager = $this->makeManager($club);
@@ -259,6 +265,6 @@ class ShiftGateTest extends TestCase
 
         $this->actingAs($manager)
             ->get(route('club.dashboard'))
-            ->assertRedirect(route('club.shift.closing'));
+            ->assertOk();
     }
 }

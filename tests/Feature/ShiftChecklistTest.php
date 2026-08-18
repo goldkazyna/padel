@@ -231,50 +231,6 @@ class ShiftChecklistTest extends TestCase
         $this->assertNotNull($this->service()->currentShift($club, $colleague));
     }
 
-    /**
-     * Смену закрывает менеджер кнопкой, и только он.
-     *
-     * Раньше в полночь система сама гнала на чек-лист закрытия: ночная
-     * смена рвалась пополам, хотя корты работают за полночь.
-     */
-    public function test_open_shift_is_not_forced_to_close_next_day(): void
-    {
-        $club = $this->makeClub();
-        $manager = $this->makeManager($club);
-
-        Shift::create([
-            'club_id' => $club->id,
-            'user_id' => $manager->id,
-            'opened_at' => now()->subDay()->setTime(9, 0),
-        ]);
-
-        // Вчерашняя смена открыта — на чек-лист закрытия никто не гонит.
-        $response = $this->actingAs($manager)->get(route('club.courts.schedule'));
-
-        $this->assertNotSame(
-            route('club.shift.closing'),
-            $response->headers->get('Location'),
-            'смену закрывает менеджер кнопкой, а не смена даты'
-        );
-    }
-
-    /** Без открытой смены менеджера по-прежнему ведут на чек-лист открытия. */
-    public function test_manager_without_a_shift_is_sent_to_opening(): void
-    {
-        $club = $this->makeClub();
-        $manager = $this->makeManager($club);
-        ShiftChecklistItem::create([
-            'club_id' => $club->id,
-            'type' => 'opening',
-            'title' => 'Проверить корты',
-            'sort_order' => 1,
-        ]);
-
-        $this->actingAs($manager)
-            ->get(route('club.courts.schedule'))
-            ->assertRedirect(route('club.shift.opening'));
-    }
-
     // ===== История не переписывается =====
 
     public function test_renaming_item_keeps_history_intact(): void
