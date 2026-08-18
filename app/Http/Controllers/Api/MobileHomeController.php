@@ -280,16 +280,16 @@ class MobileHomeController extends Controller
     /**
      * Количество участников турнира
      */
+    /**
+     * Сколько мест занято.
+     *
+     * Правило одно на всё приложение и живёт в модели: где записываются
+     * парой — считаем пары, где поодиночке — участников. Раньше здесь было
+     * четыре копии этого метода, и две отстали: главная показывала 0/12
+     * у турнира с фиксированными парами, пока деталка показывала 10/12.
+     */
     private function getParticipantsCount(Tournament $t): int
     {
-        if ($t->type === 'team') {
-            return TournamentTeam::where('tournament_id', $t->id)
-                ->whereIn('status', ['approved', 'pending'])
-                ->count() * 2;
-        }
-
-        return $t->participants()
-            ->wherePivotIn('status', ['registered', 'pending'])
-            ->count();
+        return $t->takenSlotsCount();
     }
 }
