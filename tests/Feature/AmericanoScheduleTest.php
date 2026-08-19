@@ -16,11 +16,23 @@ class AmericanoScheduleTest extends TestCase
     /** @return array<int, array<int, int>> */
     private function schedule(int $players): array
     {
-        $service = app(AmericanoService::class);
-        $method = new \ReflectionMethod($service, 'getOptimalSchedule');
-        $method->setAccessible(true);
+        return \App\Support\PairingSchedules::forPlayers($players);
+    }
 
-        return $method->invoke($service, $players);
+    /** Оба сервиса должны брать расписание из общего справочника. */
+    public function test_services_share_one_source(): void
+    {
+        foreach ([AmericanoService::class, \App\Services\RoundRobinService::class] as $class) {
+            $service = app($class);
+            $method = new \ReflectionMethod($service, 'getOptimalSchedule');
+            $method->setAccessible(true);
+
+            $this->assertSame(
+                \App\Support\PairingSchedules::forPlayers(16),
+                $method->invoke($service, 16),
+                "{$class} должен брать расписание из справочника"
+            );
+        }
     }
 
     /**
