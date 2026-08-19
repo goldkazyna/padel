@@ -214,17 +214,38 @@ class CertificateController extends Controller
 
         // Клиентов с одним номером может быть несколько — берём сертификаты
         // со всех, иначе найдётся не та запись.
-        $clientIds = \App\Models\ClubClient::where('club_id', $club->id)
+        $clients = \App\Models\ClubClient::where('club_id', $club->id)
             ->byPhone((string) $request->get('phone', ''))
-            ->pluck('id');
-        if ($clientIds->isEmpty()) return response()->json(['certificates' => []]);
+            ->get(['id', 'name']);
+        if ($clients->isEmpty()) return response()->json(['certificates' => []]);
+
+        $clientIds = $clients->pluck('id');
+
+        // Именной сертификат могли выпустить, просто вписав ФИО: форма честно
+        // предупреждает «сертификат создастся на введённое ФИО», и привязки
+        // к клиенту у него нет. Такой сертификат существует, но в брони его
+        // было не найти — ищем ещё и по точному совпадению имени.
+        $names = $clients->pluck('name')
+            ->filter()
+            ->map(fn ($name) => $this->normalizeName($name))
+            ->unique()
+            ->values();
 
         // При редактировании брони её сертификат уже погашен (used_at) — чтобы он
         // отображался и был выбран, его id передаётся в include и включается всегда.
         $includeId = (int) $request->get('include', 0);
 
-        $certs = Certificate::whereIn('client_id', $clientIds)
+        // Сертификаты клиента: привязанные напрямую плюс именные без привязки,
+        // у которых ФИО совпадает. Имя сверяем в PHP: в базе оно записано
+        // как придётся — лишние пробелы, другой регистр.
+        $certs = Certificate::where('club_id', $club->id)
             ->whereIn('value_type', [Certificate::VALUE_AMOUNT, Certificate::VALUE_HOURS])
+            ->where(function ($q) use ($clientIds) {
+                $q->whereIn('client_id', $clientIds)
+                    ->orWhere(function ($sub) {
+                        $sub->whereNull('client_id')->where('type', Certificate::TYPE_NAMED);
+                    });
+            })
             ->where(function ($q) use ($includeId) {
                 $q->whereNull('used_at');
                 if ($includeId > 0) {
@@ -233,6 +254,16 @@ class CertificateController extends Controller
             })
             ->latest()
             ->get()
+            ->filter(function ($c) use ($clientIds, $names, $includeId) {
+                if ($c->client_id !== null) {
+                    return $clientIds->contains($c->client_id);
+                }
+                if ($c->id === $includeId) {
+                    return true;
+                }
+
+                return $names->contains($this->normalizeName($c->recipient_name));
+            })
             ->map(fn($c) => [
                 'id' => $c->id,
                 'number' => $c->number,
@@ -241,9 +272,16 @@ class CertificateController extends Controller
                 'hours' => (int) ($c->hours ?? 0),
                 'is_free' => $c->value_type === Certificate::VALUE_HOURS,
                 'label' => $c->valueLabel(),
-            ]);
+            ])
+            ->values();
 
         return response()->json(['certificates' => $certs]);
+    }
+
+    /** ФИО к единому виду: регистр и лишние пробелы значения не имеют. */
+    private function normalizeName(?string $name): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $name)));
     }
 
     /** Сертификаты конкретного клиента. */

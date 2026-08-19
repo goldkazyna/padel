@@ -1264,6 +1264,7 @@ class CourtController extends Controller
             'coaches.*.paid' => 'nullable|boolean',
             'custom_price' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'certificate_id' => 'nullable|integer',
             'club_card_id' => 'nullable|integer',
             'slots' => 'nullable|integer|min:1|max:12',
             'inventory' => 'nullable|array|max:50',
@@ -1405,6 +1406,40 @@ class CourtController extends Controller
                 $updateData['card_charged_at'] = null;
             }
             $updateData['club_card_id'] = $clubCardId;
+
+            // Сертификат брони. Раньше его тут не было вовсе: при создании
+            // сертификат выбирался и гасился, а при редактировании поле даже
+            // не принималось — сменить или снять сертификат было нечем.
+            $postedCertId = $request->input('certificate_id') !== null
+                ? (int) $request->input('certificate_id')
+                : null;
+            $postedCertId = $postedCertId ?: null;
+
+            if ($postedCertId !== (int) $booking->certificate_id) {
+                // Старый возвращается в оборот: бронь его больше не держит.
+                if ($booking->certificate_id) {
+                    \App\Models\Certificate::where('id', $booking->certificate_id)
+                        ->update(['used_at' => null]);
+                }
+
+                $newCert = $postedCertId
+                    ? \App\Models\Certificate::where('club_id', $club->id)
+                        ->where('id', $postedCertId)
+                        ->whereNull('used_at')
+                        ->first()
+                    : null;
+
+                if ($postedCertId && !$newCert) {
+                    return back()->withInput()
+                        ->with('error', 'Сертификат уже использован или не найден');
+                }
+
+                if ($newCert) {
+                    $newCert->update(['used_at' => now()]);
+                }
+
+                $updateData['certificate_id'] = $newCert?->id;
+            }
         }
         if ($isTournamentBooking) {
             // Клиента/оплату переписываем, только когда турнир реально привязан
