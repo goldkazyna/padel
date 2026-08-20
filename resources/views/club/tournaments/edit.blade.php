@@ -493,6 +493,29 @@
 						</div>
 					</div>
 					@endif
+					@if($tournament->isKingOfCourt())
+					@php
+						$kocTaken = $tournament->takenSlotsCount();
+						$kocPaired = old('is_paired', $tournament->is_paired);
+					@endphp
+					<div class="mb-4">
+						<label class="form-label">Формат записи</label>
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" name="is_paired" id="kocFixedPairs" value="1"
+								   {{ $kocPaired ? 'checked' : '' }} {{ $kocTaken > 0 ? 'disabled' : '' }}>
+							<label class="form-check-label" for="kocFixedPairs">
+								<strong>Фиксированные пары</strong> — игроки записываются по одному, затем пары собираете вы. Пары не перемешиваются, таблица ведётся по парам.
+							</label>
+						</div>
+						<small class="text-secondary">
+							@if($kocTaken > 0)
+								Уже есть записи ({{ $kocTaken }}) — переключать нельзя: в парном режиме игроки хранятся парами, в обычном поодиночке, и половина состава перестала бы отображаться.
+							@else
+								Снятая галочка — обычный Король корта: пары перемешиваются каждый раунд, таблица личная.
+							@endif
+						</small>
+					</div>
+					@endif
 					@if($tournament->isTeamBased())
 					<div class="row">
 						<div class="col-md-12 mb-4">

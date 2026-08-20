@@ -361,6 +361,7 @@ class TournamentController extends Controller
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom,winners_final,table_qf',
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
+			'is_paired' => 'nullable|boolean',
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
@@ -430,6 +431,17 @@ class TournamentController extends Controller
 			}
 		} else {
 			unset($validated['groups_count'], $validated['rounds_count']);
+		}
+
+		// Фиксированные пары (Король корта) — переключаются, пока никто не
+		// записался. Дальше нельзя: в парном режиме игроки хранятся парами,
+		// в соло — поодиночке, и смена на ходу спрятала бы половину состава.
+		// Чекбокс в снятом виде не отправляется, поэтому значение читаем не
+		// из $validated, а по наличию поля в запросе.
+		if ($tournament->isKingOfCourt() && $tournament->takenSlotsCount() === 0) {
+			$validated['is_paired'] = $request->has('is_paired');
+		} else {
+			unset($validated['is_paired']);
 		}
 
 		// Americano Flex — кол-во кортов задаётся вручную (хранится в courts_count).
