@@ -322,6 +322,11 @@ class MobileAdminTournamentController extends Controller
             $validated['playoff_format'] = null;
             $validated['has_lower_bracket'] = false;
             $validated['has_bronze_match'] = false;
+        } elseif (($validated['type'] ?? null) === 'mexicano' && empty($validated['playoff_type'])) {
+            // У Мексикано ветку плей-офф выбирает isFinalOnly(): пустой тип
+            // уводил в полуфиналы, а они требуют 8 игроков — на меньшем составе
+            // сетка молча не создавалась. Старые сборки приложения тип не шлют.
+            $validated['playoff_type'] = 'final_only';
         }
 
         // Названия кортов — пустые слоты обнуляем, если массив целиком пустой — null

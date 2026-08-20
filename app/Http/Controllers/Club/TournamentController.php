@@ -409,16 +409,24 @@ class TournamentController extends Controller
 			unset($validated['pairing_mode']);
 		}
 
-		// Кол-во групп/раундов (Американо) — менять можно только ДО старта.
-		// Группы — пока они ещё не сформированы (иначе рассинхрон с редактором).
+		// Кол-во групп/раундов — менять можно только ДО старта.
+		// Группы (Американо) — пока они ещё не сформированы, иначе рассинхрон
+		// с редактором групп. У Мексикано групп нет, но раунды правятся так же:
+		// это просто план, который «завершить досрочно» и так подрезает по факту.
+		$notStarted = in_array($tournament->status, ['draft', 'open'], true);
+
 		if ($tournament->isAmericano()) {
-			$notStarted = in_array($tournament->status, ['draft', 'open'], true);
 			$groupsFormed = $tournament->groups()->count() > 0;
 			if (!$notStarted) {
 				unset($validated['rounds_count']);
 			}
 			if (!$notStarted || $groupsFormed) {
 				unset($validated['groups_count']);
+			}
+		} elseif ($tournament->isMexicano()) {
+			unset($validated['groups_count']);
+			if (!$notStarted) {
+				unset($validated['rounds_count']);
 			}
 		} else {
 			unset($validated['groups_count'], $validated['rounds_count']);

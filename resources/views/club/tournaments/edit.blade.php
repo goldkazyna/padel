@@ -440,11 +440,18 @@
 						$editMexPlayoffType = old('playoff_type', $tournament->playoff_type ?? 'final_only');
 						$editMexPlayoffFormat = old('playoff_format', $tournament->playoff_format ?? 'mix');
 					@endphp
+					@php $mexNotStarted = in_array($tournament->status, ['draft', 'open'], true); @endphp
 					<div class="row">
 						<div class="col-md-4 mb-4">
 							<label class="form-label">Количество раундов</label>
-							<input type="text" class="form-control" value="{{ $tournament->rounds_count }}" disabled>
-							<small class="text-secondary">Нельзя изменить после создания</small>
+							@if($mexNotStarted)
+								<input type="number" name="rounds_count" class="form-control"
+									   value="{{ old('rounds_count', $tournament->rounds_count) }}" min="1" max="30">
+								<small class="text-secondary">Сколько раундов сыграть (обычно 5–9).</small>
+							@else
+								<input type="text" class="form-control" value="{{ $tournament->rounds_count }}" disabled>
+								<small class="text-secondary">Турнир уже начат — изменить нельзя. Закончить раньше плана можно кнопкой «Завершить отборочный этап».</small>
+							@endif
 						</div>
 					</div>
 					{{-- Плей-офф Мексикано — можно включить/выключить во время турнира --}}
