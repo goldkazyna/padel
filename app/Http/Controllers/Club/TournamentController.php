@@ -161,6 +161,7 @@ class TournamentController extends Controller
 			'courts.*' => 'nullable|string|max:50',
 			'courts_count' => 'nullable|integer|min:1|max:32',
 			'flex_courts_count' => 'nullable|integer|min:1|max:8',
+			'jpi_courts_count' => 'nullable|integer|min:1|max:32',
 			'pairing_mode' => 'nullable|in:self,admin',
 			'is_paired' => 'nullable|boolean',
 			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
@@ -197,6 +198,16 @@ class TournamentController extends Controller
 			}
 		}
 		unset($validated['flex_courts_count']);
+
+		// Solo Just Padel It: число кортов задаётся своим полем — у командного
+		// блока формы имя courts_count уже занято, а скрытые поля тоже уходят
+		// на сервер, и одноимённый инпут перебил бы значение.
+		if (($validated['type'] ?? null) === 'just_padel_it'
+			&& !$request->boolean('is_paired')
+			&& $request->filled('jpi_courts_count')) {
+			$validated['courts_count'] = (int) $request->input('jpi_courts_count');
+		}
+		unset($validated['jpi_courts_count']);
 
 		// is_paired имеет смысл только для americano_flex (обработан выше),
 		// king_of_court и just_padel_it (фикс-пары). Для остальных типов —

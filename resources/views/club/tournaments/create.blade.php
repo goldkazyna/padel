@@ -484,6 +484,14 @@
 								</label>
 							</div>
 						</div>
+						<div class="mb-3" id="jpiCourtsBlock">
+							<label class="form-label">Количество кортов</label>
+							<input type="number" name="jpi_courts_count" id="jpiCourtsCount" class="form-control"
+								   value="{{ old('jpi_courts_count') }}" min="1" max="32"
+								   placeholder="оставьте пустым для авто"
+								   oninput="generateCourtsInputs()">
+							<small class="text-secondary">Посев требует ровно кортов × 4 записавшихся. Пусто — подойдёт любое число игроков, кратное четырём.</small>
+						</div>
 						<div class="mb-3" id="jpiPairingModeBlock" style="display: none;">
 							<label class="form-label">Кто собирает пары *</label>
 							<select name="jpi_pairing_mode" id="jpiPairingMode" class="form-select">
@@ -921,6 +929,10 @@ function generateCourtsInputs() {
     if (type === 'americano_flex') {
         // Для Flex количество кортов задаётся вручную, а не считается от игроков
         courtsCount = parseInt(document.getElementById('flexCourtsCount')?.value) || 2;
+    } else if (type === 'just_padel_it'
+               && parseInt(document.getElementById('jpiCourtsCount')?.value) > 0) {
+        // Solo Just Padel It: корты заданы вручную — названий столько же.
+        courtsCount = parseInt(document.getElementById('jpiCourtsCount').value);
     } else {
         const maxParticipants = document.querySelector('input[name="max_participants"]')?.value || 16;
         courtsCount = Math.ceil(maxParticipants / 4);
@@ -977,6 +989,18 @@ function syncJpiPairingBlock() {
     const block = document.getElementById('jpiPairingModeBlock');
     if (!cb || !block) return;
     block.style.display = cb.checked ? 'block' : 'none';
+
+    // У парного JPI число кортов не спрашиваем: там посев идёт по парам,
+    // а не по «ровно кортов × 4 игроков».
+    const courtsBlock = document.getElementById('jpiCourtsBlock');
+    if (courtsBlock) {
+        courtsBlock.style.display = cb.checked ? 'none' : 'block';
+        if (cb.checked) {
+            const input = document.getElementById('jpiCourtsCount');
+            if (input) input.value = '';
+        }
+    }
+    generateCourtsInputs();
 }
 document.getElementById('jpiFixedPairs')?.addEventListener('change', syncJpiPairingBlock);
 syncJpiPairingBlock();
