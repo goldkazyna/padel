@@ -181,11 +181,17 @@
                         </div>
                         @endif
                         @if($tournament->type === 'americano_flex')
+                        @php $flexNotStarted = in_array($tournament->status, ['draft', 'open'], true); @endphp
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Количество кортов (Americano Flex)</label>
-                            <input type="number" name="flex_courts_count" class="form-control"
-                                   value="{{ old('flex_courts_count', $tournament->courts_count ?? 2) }}" min="1" max="8">
-                            <small class="text-secondary">Сколько кортов реально играет. Каждый раунд играют кортов × 4 игроков, остальные в очереди. Менять только до старта турнира.</small>
+                            @if($flexNotStarted)
+                                <input type="number" name="flex_courts_count" class="form-control"
+                                       value="{{ old('flex_courts_count', $tournament->courts_count ?? 2) }}" min="1" max="8">
+                                <small class="text-secondary">Сколько кортов реально играет. Каждый раунд играют кортов × 4 игроков, остальные в очереди — значит игроков нужно минимум кортов × 4.</small>
+                            @else
+                                <input type="text" class="form-control" value="{{ $tournament->courts_count }}" disabled>
+                                <small class="text-secondary">Турнир уже начат — изменить нельзя: число кортов задаёт размер раунда, и правка на ходу перекроила бы расписание.</small>
+                            @endif
                         </div>
                         @endif
                         @if($tournament->isJustPadelIt() && !$tournament->is_paired)
@@ -491,6 +497,29 @@
 								</small>
 							</div>
 						</div>
+					</div>
+					@endif
+					@if($tournament->type === 'americano_flex')
+					@php
+						$flexTaken = $tournament->takenSlotsCount();
+						$flexPaired = old('is_paired', $tournament->is_paired);
+					@endphp
+					<div class="mb-4">
+						<label class="form-label">Формат записи</label>
+						<div class="form-check">
+							<input type="checkbox" class="form-check-input" name="is_paired" id="flexIsPaired" value="1"
+								   {{ $flexPaired ? 'checked' : '' }} {{ $flexTaken > 0 ? 'disabled' : '' }}>
+							<label class="form-check-label" for="flexIsPaired">
+								<strong>Парный</strong> — фиксированные пары, партнёр не меняется. Игроки записываются по одному, пары собираете вы. Число игроков должно быть чётным.
+							</label>
+						</div>
+						<small class="text-secondary">
+							@if($flexTaken > 0)
+								Уже есть записи ({{ $flexTaken }}) — переключать нельзя: в парном режиме игроки хранятся парами, в обычном поодиночке, и половина состава перестала бы отображаться.
+							@else
+								Снятая галочка — обычный Flex: партнёры и соперники миксуются каждый раунд, таблица личная.
+							@endif
+						</small>
 					</div>
 					@endif
 					@if($tournament->isKingOfCourt())

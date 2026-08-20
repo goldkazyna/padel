@@ -265,6 +265,19 @@ class MobileAdminTournamentDetailController extends Controller
             }
         }
 
+        // Парный флекс играет парами, поэтому мест должно быть чётное число.
+        // Проверка выше срабатывает только в момент включения режима, а лимит
+        // правят и отдельно — тогда турнир оставался с нечётным числом мест.
+        if ($tournament->type === 'americano_flex') {
+            $pairedFlex = $validated['is_paired'] ?? (bool) $tournament->is_paired;
+            if ($pairedFlex && ((int) $validated['max_participants']) % 2 !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Для парного турнира число игроков должно быть чётным',
+                ], 422);
+            }
+        }
+
         // Не позволяем уменьшать max_participants ниже текущих участников
         $taken = $tournament->takenSlotsCount();
         if ($validated['max_participants'] < $taken) {

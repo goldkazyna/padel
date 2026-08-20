@@ -433,19 +433,42 @@ class TournamentController extends Controller
 			unset($validated['groups_count'], $validated['rounds_count']);
 		}
 
-		// Фиксированные пары (Король корта) — переключаются, пока никто не
-		// записался. Дальше нельзя: в парном режиме игроки хранятся парами,
-		// в соло — поодиночке, и смена на ходу спрятала бы половину состава.
-		// Чекбокс в снятом виде не отправляется, поэтому значение читаем не
-		// из $validated, а по наличию поля в запросе.
-		if ($tournament->isKingOfCourt() && $tournament->takenSlotsCount() === 0) {
+		// Фиксированные пары (Король корта и Americano Flex) — переключаются,
+		// пока никто не записался. Дальше нельзя: в парном режиме игроки
+		// хранятся парами, в соло — поодиночке, и смена на ходу спрятала бы
+		// половину состава. Чекбокс в снятом виде не отправляется, поэтому
+		// значение читаем не из $validated, а по наличию поля в запросе.
+		$supportsPairToggle = $tournament->isKingOfCourt()
+			|| $tournament->type === 'americano_flex';
+
+		if ($supportsPairToggle && $tournament->takenSlotsCount() === 0) {
 			$validated['is_paired'] = $request->has('is_paired');
+			// Пары парного флекса собирает админ — как при создании.
+			if ($validated['is_paired'] && $tournament->type === 'americano_flex') {
+				$validated['pairing_mode'] = 'admin';
+			}
 		} else {
 			unset($validated['is_paired']);
 		}
 
-		// Americano Flex — кол-во кортов задаётся вручную (хранится в courts_count).
-		if ($tournament->type === 'americano_flex' && $request->filled('flex_courts_count')) {
+		// Парный флекс играет парами, поэтому мест должно быть чётное число.
+		// При создании это проверяется, а в редактировании раньше — нет, и
+		// турнир можно было пересохранить с нечётным лимитом.
+		if ($tournament->type === 'americano_flex') {
+			$pairedFlex = $validated['is_paired'] ?? (bool) $tournament->is_paired;
+			if ($pairedFlex && ((int) $validated['max_participants']) % 2 !== 0) {
+				return back()->withInput()->withErrors([
+					'max_participants' => 'Для парного турнира число игроков должно быть чётным',
+				]);
+			}
+		}
+
+		// Americano Flex — кол-во кортов задаётся вручную (хранится в
+		// courts_count). Только до старта: значение задаёт размер раунда
+		// (кортов × 4), и правка на ходу молча перекроила бы расписание.
+		if ($tournament->type === 'americano_flex'
+			&& $notStarted
+			&& $request->filled('flex_courts_count')) {
 			$validated['courts_count'] = (int) $request->input('flex_courts_count');
 		}
 		unset($validated['flex_courts_count']);
