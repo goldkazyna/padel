@@ -253,33 +253,7 @@ class TournamentController extends Controller
         // всё пусто → null) — этим занимается syncCourtNames().
         $tournament->syncCourtNames();
 		// Добавляем резервных игроков
-		$reserveCount = $validated['reserve_count'] ?? 0;
-		if ($reserveCount > 0) {
-			$reserves = \App\Models\User::where('role', 'reserve')
-				->orderBy('id')
-				->get();
-
-			if ($tournament->type === 'team') {
-				// Для командных турниров создаём резервные пары
-				$needed = $reserveCount * 2;
-				$reservePairs = $reserves->take($needed);
-				for ($i = 0; $i + 1 < $reservePairs->count(); $i += 2) {
-					\App\Models\TournamentTeam::create([
-						'tournament_id' => $tournament->id,
-						'player1_id' => $reservePairs[$i]->id,
-						'player2_id' => $reservePairs[$i + 1]->id,
-						'status' => 'approved',
-					]);
-				}
-			} else {
-				// Для одиночных форматов — как раньше
-				foreach ($reserves->take($reserveCount) as $reserve) {
-					$tournament->participants()->attach($reserve->id, [
-						'status' => 'registered',
-					]);
-				}
-			}
-		}
+		$this->syncReserves($tournament, (int) ($validated['reserve_count'] ?? 0));
 
         return redirect()->route('club.tournaments.index')->with('success', 'Турнир создан!');
     }
@@ -343,8 +317,12 @@ class TournamentController extends Controller
 
         $clubs = auth()->user()->isSuperAdmin() ? Club::active()->get() : collect([$club]);
         $venueClubs = Club::active()->orderBy('name')->get(['id', 'name', 'city']);
+        // Фактическое число забронированных мест, а не сохранённое в поле:
+        // резервиста могли заменить на живого игрока вручную, и тогда поле
+        // врёт. Форма должна показывать то, что есть в турнире сейчас.
+        $reserveCount = $this->countReserves($tournament);
 
-        return view('club.tournaments.edit', compact('tournament', 'clubs', 'club', 'venueClubs'));
+        return view('club.tournaments.edit', compact('tournament', 'clubs', 'club', 'venueClubs', 'reserveCount'));
     }
 
     public function update(Request $request, Tournament $tournament)
@@ -382,6 +360,9 @@ class TournamentController extends Controller
 			'playoff_type' => 'nullable|in:final_only,semifinal_final',
 			'playoff_format' => 'nullable|in:mix,group_vs,tops,cross,balanced,top_bottom,winners_final,table_qf',
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
+			'reserve_count' => 'nullable|integer|min:0|max:10',
+			'courts' => 'nullable|array',
+			'courts.*' => 'nullable|string|max:50',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
 			'moderation_minutes' => 'nullable|integer|min:0|max:1440',
 			'courts_count' => 'nullable|integer|min:1|max:32',
@@ -491,7 +472,124 @@ class TournamentController extends Controller
 
 		$tournament->update($validated);
 		$tournament->syncCourtNames();
+		// Забронированные места правим только до старта: после посева состав
+		// уже разложен по группам, и снимать/досаживать игроков нельзя.
+		if ($request->has('reserve_count') && in_array($tournament->status, ['draft', 'open'], true)) {
+			$this->syncReserves($tournament, (int) $request->input('reserve_count'));
+		}
 		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
+	}
+
+	/**
+	 * Сколько мест сейчас занято резервистами (для командных — пар).
+	 */
+	private function countReserves(Tournament $tournament): int
+	{
+		if ($tournament->isTeamBased()) {
+			return $tournament->teams()
+				->with(['player1', 'player2'])
+				->get()
+				->filter(fn ($team) => $team->player1?->role === 'reserve'
+					&& $team->player2?->role === 'reserve')
+				->count();
+		}
+
+		return $tournament->participants()->where('users.role', 'reserve')->count();
+	}
+
+	/**
+	 * Привести число «забронированных» мест к заданному.
+	 *
+	 * Резерв — служебные аккаунты с ролью reserve: админ занимает ими места
+	 * для знакомых и позже меняет на настоящих игроков. При создании метод
+	 * просто добавляет нужное количество, при редактировании — считает
+	 * разницу в обе стороны. Настоящих участников не трогает никогда:
+	 * выборка и удаление идут только по role = reserve.
+	 */
+	private function syncReserves(Tournament $tournament, int $target): void
+	{
+		$target = max(0, $target);
+
+		if ($tournament->isTeamBased()) {
+			$this->syncReserveTeams($tournament, $target);
+			return;
+		}
+
+		$current = $tournament->participants()
+			->where('users.role', 'reserve')
+			->orderBy('users.id')
+			->get();
+
+		if ($current->count() > $target) {
+			// Снимаем последних посаженных — раньше сел, дольше сидит.
+			$tournament->participants()->detach(
+				$current->slice($target)->pluck('id')->all()
+			);
+			return;
+		}
+
+		$needed = $target - $current->count();
+		if ($needed <= 0) {
+			return;
+		}
+
+		$free = \App\Models\User::where('role', 'reserve')
+			->whereNotIn('id', $current->pluck('id')->all())
+			->orderBy('id')
+			->take($needed)
+			->get();
+
+		foreach ($free as $reserve) {
+			$tournament->participants()->attach($reserve->id, [
+				'status' => 'registered',
+			]);
+		}
+	}
+
+	/**
+	 * То же для командных турниров: там место занимает пара резервистов,
+	 * поэтому целевое число — это число пар, а не игроков.
+	 */
+	private function syncReserveTeams(Tournament $tournament, int $target): void
+	{
+		$reserveTeams = $tournament->teams()
+			->with(['player1', 'player2'])
+			->orderBy('id')
+			->get()
+			->filter(fn ($team) => $team->player1?->role === 'reserve'
+				&& $team->player2?->role === 'reserve')
+			->values();
+
+		if ($reserveTeams->count() > $target) {
+			$tournament->teams()
+				->whereIn('id', $reserveTeams->slice($target)->pluck('id')->all())
+				->delete();
+			return;
+		}
+
+		$needed = $target - $reserveTeams->count();
+		if ($needed <= 0) {
+			return;
+		}
+
+		$busy = $reserveTeams
+			->flatMap(fn ($team) => [$team->player1_id, $team->player2_id])
+			->all();
+
+		$free = \App\Models\User::where('role', 'reserve')
+			->whereNotIn('id', $busy)
+			->orderBy('id')
+			->take($needed * 2)
+			->get();
+
+		for ($i = 0; $i + 1 < $free->count(); $i += 2) {
+			\App\Models\TournamentTeam::create([
+				'tournament_id' => $tournament->id,
+				'player1_id' => $free[$i]->id,
+				'player2_id' => $free[$i + 1]->id,
+				'status' => 'approved',
+			]);
+		}
 	}
 
     public function destroy(Tournament $tournament)

@@ -219,6 +219,18 @@
                             </div>
                         </div>
                         @endif
+                        @php $reserveEditable = in_array($tournament->status, ['draft', 'open'], true); @endphp
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label">Забронировать мест {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
+                            @if($reserveEditable)
+                                <input type="number" name="reserve_count" class="form-control"
+                                       value="{{ old('reserve_count', $reserveCount) }}" min="0" max="10">
+                                <small class="text-secondary">Места для знакомых, которых заменишь позже. Уменьшите число — лишние брони снимутся.</small>
+                            @else
+                                <input type="text" class="form-control" value="{{ $reserveCount }}" disabled>
+                                <small class="text-secondary">Турнир уже начат — изменить нельзя.</small>
+                            @endif
+                        </div>
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
                             <input type="number" name="waitlist_size" class="form-control"
@@ -237,6 +249,33 @@
                                    value="{{ old('moderation_minutes', $tournament->moderation_minutes) }}" min="0" max="1440" placeholder="Если задано — важнее часов">
                             <small class="text-secondary">Для теста; если задано — приоритетнее часов</small>
                         </div>
+                    </div>
+                    {{-- Названия кортов. Количество считаем так же, как на
+                         создании: у Flex/Ladder оно задаётся своим полем, у
+                         остальных типов — от числа игроков (4 на корт). --}}
+                    @php
+                        $courtsSaved = is_array($tournament->courts) ? $tournament->courts : [];
+                        $courtsOld = old('courts');
+                        $courtsAuto = (int) ceil(($tournament->max_participants ?: 4) / 4);
+                        $courtsShown = $tournament->courts_count > 0
+                            ? (int) $tournament->courts_count
+                            : $courtsAuto;
+                        $courtsShown = max($courtsShown, count($courtsSaved), 1);
+                        $courtsFixed = in_array($tournament->type, ['americano_flex', 'escalera'], true);
+                    @endphp
+                    <div class="mb-4" id="courtsSection" data-fixed-count="{{ $courtsFixed ? '1' : '0' }}">
+                        <label class="form-label">Названия кортов</label>
+                        <div id="courtsInputs">
+                            @for($i = 0; $i < $courtsShown; $i++)
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">Корт {{ $i + 1 }}</span>
+                                <input type="text" name="courts[]" class="form-control"
+                                       value="{{ is_array($courtsOld) ? ($courtsOld[$i] ?? '') : ($courtsSaved[$i] ?? '') }}"
+                                       placeholder="Название корта {{ $i + 1 }}">
+                            </div>
+                            @endfor
+                        </div>
+                        <small class="text-secondary">Оставьте пустым для "Корт 1", "Корт 2" и т.д.</small>
                     </div>
 					<div class="mb-4">
 						<div class="form-check">
@@ -772,6 +811,53 @@ function toggleMexicanoPlayoffFormat() {
     }
 
     toggleClearBtn();
+})();
+</script>
+<script>
+// Названия кортов: у большинства типов число кортов считается от числа
+// игроков (4 на корт), поэтому пересобираем поля при правке «Макс.
+// участников». Уже введённые названия переносим в новые поля.
+// У Flex и Ladder корты задаются своим полем — там секция помечена
+// data-fixed-count="1" и не трогается.
+(function () {
+    const section = document.getElementById('courtsSection');
+    if (!section || section.dataset.fixedCount === '1') return;
+
+    const container = document.getElementById('courtsInputs');
+    const maxInput = document.querySelector('input[name="max_participants"]');
+    if (!container || !maxInput) return;
+
+    function rebuild() {
+        const players = parseInt(maxInput.value) || 4;
+        const needed = Math.max(1, Math.ceil(players / 4));
+        const inputs = container.querySelectorAll('input[name="courts[]"]');
+        if (inputs.length === needed) return;
+
+        const values = Array.from(inputs).map((input) => input.value);
+        container.innerHTML = '';
+
+        for (let i = 1; i <= needed; i++) {
+            const group = document.createElement('div');
+            group.className = 'input-group mb-2';
+
+            const label = document.createElement('span');
+            label.className = 'input-group-text';
+            label.textContent = 'Корт ' + i;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'courts[]';
+            input.className = 'form-control';
+            input.placeholder = 'Название корта ' + i;
+            input.value = values[i - 1] || '';
+
+            group.appendChild(label);
+            group.appendChild(input);
+            container.appendChild(group);
+        }
+    }
+
+    maxInput.addEventListener('input', rebuild);
 })();
 </script>
 <style>
