@@ -28,10 +28,10 @@ class GroupController extends Controller
             return back()->with('error', 'Группы уже сформированы');
         }
 
-        // Получаем подтверждённых участников
+        // Подтверждённые участники по рейтингу — как при автоматическом старте.
 		$participants = $tournament->participants()
 			->wherePivot('status', 'registered')
-			->inRandomOrder()
+			->orderBy('rating', 'desc')
 			->get();
 
 		if ($participants->count() !== $tournament->max_participants) {
@@ -39,7 +39,6 @@ class GroupController extends Controller
 		}
 
         $groupsCount = $tournament->groups_count ?? 2;
-        $playersPerGroup = ceil($participants->count() / $groupsCount);
 
         // Создаём группы
         $groups = [];
@@ -50,18 +49,19 @@ class GroupController extends Controller
             ]);
         }
 
-        // Распределяем игроков по группам
-        $groupIndex = 0;
-        foreach ($participants as $index => $player) {
+        // Распределяем ЗМЕЙКОЙ по рейтингу — ранги 1→1, 2→2, 3→2, 4→1, 5→1...
+        // Тот же алгоритм, что в AmericanoService::startTournament(): раньше
+        // здесь был inRandomOrder(), и состав групп зависел от того, нажал ли
+        // организатор «Сформировать группы» или запустил турнир сразу.
+        foreach ($participants->values() as $index => $player) {
+            $row = intdiv($index, $groupsCount);
+            $pos = $index % $groupsCount;
+            $groupIndex = ($row % 2 === 0) ? $pos : ($groupsCount - 1 - $pos);
+
             $groups[$groupIndex]->players()->attach($player->id, [
                 'total_points' => 0,
                 'rating_before' => $player->rating,
             ]);
-
-            // Переходим к следующей группе
-            if (($index + 1) % $playersPerGroup === 0 && $groupIndex < $groupsCount - 1) {
-                $groupIndex++;
-            }
         }
 
         return back()->with('success', "Создано {$groupsCount} групп. Теперь можете отредактировать состав.");
