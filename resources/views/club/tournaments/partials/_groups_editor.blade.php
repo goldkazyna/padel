@@ -12,6 +12,7 @@
         $unassignedPlayers = $tournament->participants()
             ->wherePivot('status', 'registered')
             ->whereNotIn('users.id', $assignedPlayerIds)
+            ->orderBy('rating', 'desc')
             ->get();
         
         $approvedCount = $tournament->approvedParticipantsCount();
@@ -114,7 +115,10 @@
                         <span class="ge-group-count {{ $countClass }}">{{ $group->players->count() }} чел.</span>
                     </div>
                     <div class="ge-players-list">
-                        @foreach($group->players as $player)
+                        {{-- По рейтингу вниз: у players() сортировка по очкам,
+                             а до старта они у всех нули, и порядок выходит
+                             случайным. --}}
+                        @foreach($group->players->sortByDesc('rating') as $player)
                         <div class="ge-player-item">
                             <div class="ge-player-info">
                                 <div class="ge-player-avatar">
