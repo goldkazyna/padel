@@ -173,7 +173,13 @@
                                        id="escaleraModeRaw" value="raw_points"
                                        {{ $escMode === 'raw_points' ? 'checked' : '' }}
                                        {{ $escaleraEditable ? '' : 'disabled' }}>
-                                <label class="form-check-label" for="escaleraModeRaw">По сумме очков за матчи <small class="text-secondary">(плюс бонус: победа +2, ничья +1)</small></label>
+                                <label class="form-check-label" for="escaleraModeRaw">По сумме очков за матчи
+                                    @if($tournament->escalera_win_bonus)
+                                        <small class="text-secondary">(плюс бонус: победа +2, ничья +1)</small>
+                                    @else
+                                        <small class="text-secondary">(турнир создан до появления бонуса за результат — считается только забитое)</small>
+                                    @endif
+                                </label>
                             </div>
                             @unless($escaleraEditable)
                                 <small class="text-secondary">Турнир уже начат — режим таблицы менять нельзя.</small>

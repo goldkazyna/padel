@@ -4773,6 +4773,7 @@ class MobileTournamentController extends Controller
                 'has_playoff' => false,
                 'courts_count' => $courtsTotal,
                 'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
+                'win_bonus' => (bool) $tournament->escalera_win_bonus,
             ],
             'leaderboard' => $leaderboard,
             'rounds' => $roundsOut,
