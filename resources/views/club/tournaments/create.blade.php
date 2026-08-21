@@ -553,6 +553,14 @@
 									По сумме очков за матчи <small class="text-muted">(по умолчанию)</small>
 								</label>
 							</div>
+							<div class="form-check mt-3" id="escaleraWinBonusBlock">
+								<input type="checkbox" class="form-check-input" name="escalera_win_bonus"
+									   id="escaleraWinBonus" value="1" {{ old('escalera_win_bonus') ? 'checked' : '' }}>
+								<label class="form-check-label" for="escaleraWinBonus">
+									Бонус за результат матча <small class="text-muted">— победа +2, ничья +1, поражение 0</small>
+								</label>
+								<div><small class="text-secondary">Начисляется поверх забитых очков, чтобы выигранный матч весил больше разгромного поражения. Работает только в зачёте по сумме очков.</small></div>
+							</div>
 							<small class="text-secondary mt-2 d-block">
 								По баллам считается родной зачёт формата: номер корта встроен в позицию, поэтому
 								игроку выгодно подниматься на корт выше. По сумме очков в зачёт идут все набранные
@@ -984,6 +992,21 @@ function toggleMexicanoPlayoffFormat() {
 }
 
 // Кто собирает пары — вопрос только для фиксированных пар.
+// Бонус за результат осмыслен только в зачёте по сумме очков.
+function syncEscaleraWinBonus() {
+    const block = document.getElementById('escaleraWinBonusBlock');
+    const raw = document.getElementById('escaleraModeRaw');
+    if (!block || !raw) return;
+    block.style.display = raw.checked ? 'block' : 'none';
+    if (!raw.checked) {
+        const cb = document.getElementById('escaleraWinBonus');
+        if (cb) cb.checked = false;
+    }
+}
+document.getElementById('escaleraModeRaw')?.addEventListener('change', syncEscaleraWinBonus);
+document.getElementById('escaleraModePoints')?.addEventListener('change', syncEscaleraWinBonus);
+syncEscaleraWinBonus();
+
 function syncJpiPairingBlock() {
     const cb = document.getElementById('jpiFixedPairs');
     const block = document.getElementById('jpiPairingModeBlock');

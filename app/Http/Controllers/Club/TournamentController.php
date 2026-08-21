@@ -75,7 +75,7 @@ class TournamentController extends Controller
         'waitlist_size', 'moderation_hours', 'moderation_minutes',
         'courts', 'courts_count', 'has_lower_bracket', 'has_bronze_match',
         'telegram_registration_url', 'chat_enabled', 'chat_write_mode',
-        'escalera_standings_mode',
+        'escalera_standings_mode', 'escalera_win_bonus',
     ];
 
     public function create(Request $request)
@@ -166,6 +166,7 @@ class TournamentController extends Controller
 			'is_paired' => 'nullable|boolean',
 			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
+			'escalera_win_bonus' => 'nullable|boolean',
 		]);
 
 		// Ladder: число кортов задаётся своим полем, а участников всегда
@@ -175,9 +176,13 @@ class TournamentController extends Controller
 			$validated['courts_count'] = $escaleraCourts;
 			$validated['max_participants'] = $escaleraCourts * 4;
 			$validated['escalera_standings_mode'] = $validated['escalera_standings_mode'] ?? 'raw_points';
+			// Бонус за результат осмыслен только в зачёте по сумме очков:
+			// в позиционном зачёте очки за матчи вообще не складываются.
+			$validated['escalera_win_bonus'] = $validated['escalera_standings_mode'] === 'raw_points'
+				&& $request->boolean('escalera_win_bonus');
 		} else {
 			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
-			unset($validated['escalera_standings_mode']);
+			unset($validated['escalera_standings_mode'], $validated['escalera_win_bonus']);
 		}
 		unset($validated['escalera_courts_count']);
 
@@ -384,6 +389,7 @@ class TournamentController extends Controller
 			'rounds_count' => 'nullable|integer|min:1|max:30',
 			'escalera_courts_count' => 'nullable|integer|min:2|max:10',
 			'escalera_standings_mode' => 'nullable|in:points,raw_points',
+			'escalera_win_bonus' => 'nullable|boolean',
 		]);
 
 		// Ladder: параметры формата и число кортов правятся только ДО старта.
@@ -404,12 +410,14 @@ class TournamentController extends Controller
 			if ($notStarted) {
 				$validated['escalera_standings_mode'] = $validated['escalera_standings_mode']
 					?? ($tournament->escalera_standings_mode ?? 'raw_points');
+				$validated['escalera_win_bonus'] = $validated['escalera_standings_mode'] === 'raw_points'
+					&& $request->boolean('escalera_win_bonus');
 			} else {
-				unset($validated['escalera_standings_mode']);
+				unset($validated['escalera_standings_mode'], $validated['escalera_win_bonus']);
 			}
 		} else {
 			// Скрытые поля чужого блока формы не должны прилипать к другим типам.
-			unset($validated['escalera_standings_mode']);
+			unset($validated['escalera_standings_mode'], $validated['escalera_win_bonus']);
 		}
 		unset($validated['escalera_courts_count']);
 

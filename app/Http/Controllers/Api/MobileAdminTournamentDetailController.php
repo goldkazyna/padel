@@ -3089,6 +3089,7 @@ class MobileAdminTournamentDetailController extends Controller
                 continue;
             }
             $scored = (int) $row['raw_points'];
+            $scorePoints = (int) $row['score_points'];
             $conceded = (int) $row['points_against'];
             $balls = $scored + $conceded;
             $games = (int) $row['wins'] + (int) $row['losses'];
@@ -3107,8 +3108,10 @@ class MobileAdminTournamentDetailController extends Controller
                 'points_against' => $conceded,
                 // В колонку очков идёт та метрика, по которой таблица и
                 // отсортирована, — иначе первое место показывает меньше
-                // очков, чем второе.
-                'total_points' => $isRawMode ? $scored : (int) $row['points'],
+                // очков, чем второе. В зачёте по очкам это забитое плюс бонус
+                // за результат, если он включён у турнира.
+                'total_points' => $isRawMode ? $scorePoints : (int) $row['points'],
+                'bonus_points' => (int) $row['bonus_points'],
                 'escalera_points' => (int) $row['points'],
                 'games_played' => $games,
                 'point_diff' => $scored - $conceded,
@@ -3126,6 +3129,7 @@ class MobileAdminTournamentDetailController extends Controller
             'success' => true,
             'type' => 'escalera',
             'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
+            'win_bonus' => (bool) $tournament->escalera_win_bonus,
             'groups' => [[
                 'id' => 0,
                 'name' => '',

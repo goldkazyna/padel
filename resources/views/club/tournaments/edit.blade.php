@@ -178,6 +178,17 @@
                             @unless($escaleraEditable)
                                 <small class="text-secondary">Турнир уже начат — режим таблицы менять нельзя.</small>
                             @endunless
+                            @php $escWinBonus = old('escalera_win_bonus', $tournament->escalera_win_bonus); @endphp
+                            <div class="form-check mt-3">
+                                <input type="checkbox" class="form-check-input" name="escalera_win_bonus"
+                                       id="escaleraWinBonus" value="1"
+                                       {{ $escWinBonus ? 'checked' : '' }}
+                                       {{ $escaleraEditable ? '' : 'disabled' }}>
+                                <label class="form-check-label" for="escaleraWinBonus">
+                                    Бонус за результат матча <small class="text-secondary">— победа +2, ничья +1, поражение 0</small>
+                                </label>
+                                <div><small class="text-secondary">Начисляется поверх забитых очков. Работает только в зачёте по сумме очков.</small></div>
+                            </div>
                         </div>
                         @endif
                         @if($tournament->type === 'americano_flex')

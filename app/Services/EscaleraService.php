@@ -541,6 +541,8 @@ class EscaleraService
                 'player' => $stat['player'],
                 'points' => $stat['points'],
                 'raw_points' => $stat['raw_points'],
+                'bonus_points' => $stat['bonus_points'],
+                'score_points' => $stat['score_points'],
                 'points_against' => $stat['points_against'],
                 'wins' => $stat['wins'],
                 'losses' => $stat['losses'],
@@ -1027,6 +1029,9 @@ class EscaleraService
                 'points_against' => 0,
                 'wins' => 0,
                 'losses' => 0,
+                // Бонус за результат матча: победа +2, ничья +1, поражение 0.
+                // Начисляется, только если у турнира включена настройка.
+                'bonus_points' => 0,
                 // Последний тай-брейк таблицы — рейтинг НА СТАРТЕ турнира.
                 // Живой рейтинг брать нельзя: завершение турнира его переписывает,
                 // и таблица (а с ней и чемпион) переупорядочилась бы задним числом.
@@ -1069,8 +1074,11 @@ class EscaleraService
                         $stats[$id]['points_against'] += $score2;
                         if ($score1 > $score2) {
                             $stats[$id]['wins']++;
+                            $stats[$id]['bonus_points'] += 2;
                         } elseif ($score2 > $score1) {
                             $stats[$id]['losses']++;
+                        } else {
+                            $stats[$id]['bonus_points'] += 1;
                         }
                     }
                     foreach ($team2 as $id) {
@@ -1081,12 +1089,24 @@ class EscaleraService
                         $stats[$id]['points_against'] += $score1;
                         if ($score2 > $score1) {
                             $stats[$id]['wins']++;
+                            $stats[$id]['bonus_points'] += 2;
                         } elseif ($score1 > $score2) {
                             $stats[$id]['losses']++;
+                        } else {
+                            $stats[$id]['bonus_points'] += 1;
                         }
                     }
                 }
             }
+        }
+
+        // Зачётная сумма режима «по сумме очков»: забитое плюс бонус за
+        // результат, если он включён у турнира. Само `raw_points` не трогаем —
+        // это «забито», и оно показывается отдельной колонкой.
+        $withBonus = (bool) $tournament->escalera_win_bonus;
+        foreach ($stats as $id => $row) {
+            $stats[$id]['score_points'] = $row['raw_points']
+                + ($withBonus ? $row['bonus_points'] : 0);
         }
 
         return $stats;
@@ -1141,7 +1161,7 @@ class EscaleraService
      */
     protected function sortPlayers(array $ids, array $stats, string $mode, array $headToHead): array
     {
-        $main = $mode === 'raw_points' ? 'raw_points' : 'points';
+        $main = $mode === 'raw_points' ? 'score_points' : 'points';
 
         usort($ids, function ($a, $b) use ($stats, $main, $headToHead) {
             if ($stats[$a][$main] !== $stats[$b][$main]) {

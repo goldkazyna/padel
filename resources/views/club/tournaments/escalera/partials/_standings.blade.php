@@ -1,6 +1,7 @@
 {{-- resources/views/club/tournaments/escalera/partials/_standings.blade.php --}}
 @php
     $isRawMode = $tournament->escalera_standings_mode === 'raw_points';
+    $winBonus = (bool) $tournament->escalera_win_bonus;
 @endphp
 
 <div class="section-subheader">
@@ -25,7 +26,7 @@
                          Как в приложении: «Очки» при зачёте по забитым,
                          «Баллы» при зачёте по позициям. --}}
                     <th class="col-points ttt esc-main-col"
-                        title="{{ $isRawMode ? 'Сумма забитых очков — по ней зачёт' : 'Баллы за позиции в общем строю — по ним зачёт' }}">
+                        title="{{ $isRawMode ? ($winBonus ? 'Забитые очки плюс бонус за результат (победа +2, ничья +1) — по сумме зачёт' : 'Сумма забитых очков — по ней зачёт') : 'Баллы за позиции в общем строю — по ним зачёт' }}">
                         {{ $isRawMode ? 'Очки' : 'Баллы' }}
                     </th>
                 </tr>
@@ -58,7 +59,10 @@
                         <td class="col-stat points-against ttt">{{ $row['points_against'] }}</td>
                         <td class="col-stat percentage ttt">{{ $percentage }}%</td>
                         <td class="col-points ttt esc-main-col">
-                            {{ $isRawMode ? $row['raw_points'] : $row['points'] }}
+                            {{ $isRawMode ? $row['score_points'] : $row['points'] }}
+                            @if($isRawMode && $winBonus && $row['bonus_points'] > 0)
+                                <small class="text-secondary">(+{{ $row['bonus_points'] }})</small>
+                            @endif
                         </td>
                     </tr>
                 @endforeach

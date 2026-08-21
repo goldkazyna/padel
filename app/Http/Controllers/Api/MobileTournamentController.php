@@ -4724,6 +4724,7 @@ class MobileTournamentController extends Controller
                 continue;
             }
             $scored = (int) $row['raw_points'];
+            $scorePoints = (int) $row['score_points'];
             $conceded = (int) $row['points_against'];
             $balls = $scored + $conceded;
             $games = (int) $row['wins'] + (int) $row['losses'];
@@ -4741,9 +4742,11 @@ class MobileTournamentController extends Controller
                 'points_for' => $scored,
                 'points_against' => $conceded,
                 // В колонку очков идёт то, по чему считается место в этом
-                // турнире: баллы за позиции либо сумма забитых.
-                'total_points' => $isRawMode ? $scored : (int) $row['points'],
-                'points' => $isRawMode ? $scored : (int) $row['points'],
+                // турнире: баллы за позиции либо зачётная сумма (забитое плюс
+                // бонус за результат, если он включён).
+                'total_points' => $isRawMode ? $scorePoints : (int) $row['points'],
+                'points' => $isRawMode ? $scorePoints : (int) $row['points'],
+                'bonus_points' => (int) $row['bonus_points'],
                 'escalera_points' => (int) $row['points'],
                 'games_played' => $games,
                 'point_diff' => $scored - $conceded,
@@ -4770,6 +4773,7 @@ class MobileTournamentController extends Controller
                 'has_playoff' => false,
                 'courts_count' => $courtsTotal,
                 'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
+                'win_bonus' => (bool) $tournament->escalera_win_bonus,
             ],
             'leaderboard' => $leaderboard,
             'rounds' => $roundsOut,
