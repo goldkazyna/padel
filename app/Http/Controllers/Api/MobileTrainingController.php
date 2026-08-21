@@ -128,6 +128,8 @@ class MobileTrainingController extends Controller
                 'id' => $training->club?->id,
                 'name' => $training->club?->name,
                 'city' => $training->club?->city,
+                // Логотип показываем в карточке рядом с названием площадки.
+                'logo' => $training->club?->logo ? url($training->club->logo) : null,
             ],
             'starts_at' => $training->starts_at->format('Y-m-d H:i'),
             'date' => $training->starts_at->translatedFormat('j F'),
