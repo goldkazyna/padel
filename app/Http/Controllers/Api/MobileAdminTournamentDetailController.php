@@ -3129,7 +3129,6 @@ class MobileAdminTournamentDetailController extends Controller
             'success' => true,
             'type' => 'escalera',
             'standings_mode' => $tournament->escalera_standings_mode ?? 'raw_points',
-            'win_bonus' => (bool) $tournament->escalera_win_bonus,
             'groups' => [[
                 'id' => 0,
                 'name' => '',

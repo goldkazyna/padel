@@ -161,7 +161,6 @@ class Tournament extends Model
 		'chat_enabled',
 		'chat_write_mode',
 		'escalera_standings_mode',
-		'escalera_win_bonus',
     ];
 
     /**
@@ -188,7 +187,6 @@ class Tournament extends Model
 		'is_paired' => 'boolean',
 		'verified_only' => 'boolean',
 		'chat_enabled' => 'boolean',
-		'escalera_win_bonus' => 'boolean',
 		'round_robin_schedule' => 'array',
 		'courts' => 'array',
 		'moderation_hours' => 'integer',
