@@ -58,12 +58,7 @@
                         <td class="col-stat points-for ttt">{{ $row['raw_points'] }}</td>
                         <td class="col-stat points-against ttt">{{ $row['points_against'] }}</td>
                         <td class="col-stat percentage ttt">{{ $percentage }}%</td>
-                        <td class="col-points ttt esc-main-col">
-                            {{ $isRawMode ? $row['score_points'] : $row['points'] }}
-                            @if($isRawMode && $winBonus && $row['bonus_points'] > 0)
-                                <small class="text-secondary">(+{{ $row['bonus_points'] }})</small>
-                            @endif
-                        </td>
+                        <td class="col-points ttt esc-main-col">{{ $isRawMode ? $row['score_points'] : $row['points'] }}@if($isRawMode && $winBonus && $row['bonus_points'] > 0)<span class="esc-bonus">+{{ $row['bonus_points'] }}</span>@endif</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -89,5 +84,13 @@
 /* Размеры как в таблице «Короля корта» (kingofcourt/partials/_leaderboard). */
 .player-name { font-weight: 500; font-size: 24px; }
 .ttt { font-size: 24px; }
-.esc-main-col { color: var(--accent) !important; }
+/* Очки и бонус — одной строкой: при 24px «45 +6» иначе рвётся на две. */
+.esc-main-col { color: var(--accent) !important; white-space: nowrap; }
+.esc-bonus {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-left: 5px;
+    vertical-align: 2px;
+}
 </style>
