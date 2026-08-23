@@ -200,6 +200,9 @@ Route::prefix('mobile')->group(function () {
         // KOC — ввод счёта и генерация следующего раунда
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/kingofcourt/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveKingOfCourtScore']);
         Route::post('/admin/tournaments/{tournament}/next-round', [MobileAdminTournamentDetailController::class, 'nextRound']);
+        // Пересобрать последний раунд по актуальным результатам — для форматов,
+        // где состав зависит от предыдущего раунда.
+        Route::post('/admin/tournaments/{tournament}/rebuild-last-round', [MobileAdminTournamentDetailController::class, 'rebuildLastRound']);
 
         // Round Robin — ввод счёта (next-round/finish/start общие выше)
         Route::match(['POST', 'PUT'], '/admin/tournaments/{tournament}/round_robin/matches/{match}/score', [MobileAdminTournamentDetailController::class, 'saveRoundRobinScore']);

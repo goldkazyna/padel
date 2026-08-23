@@ -2060,6 +2060,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
                 // Действия доступны только пока турнир идёт.
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive
                     && app(AmericanoService::class)->canFinishTournament($tournament),
                 'can_generate_playoff' => $isLive
@@ -2346,6 +2347,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $svc->canFinishTournament($tournament),
                 'can_generate_playoff' => $isLive && $svc->canGeneratePlayoff($tournament),
                 'can_generate_next_round' => $isLive && $svc->canGenerateNextRound($tournament),
@@ -2826,6 +2828,76 @@ class MobileAdminTournamentDetailController extends Controller
      * POST /api/mobile/admin/tournaments/{tournament}/next-round
      * Сейчас работает только для KOC (Mexicano добавим в 3c-3).
      */
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/rebuild-last-round
+     *
+     * Пересобрать последний раунд по актуальным результатам. Нужно, когда счёт
+     * прошлого раунда исправили уже после генерации следующего: состав
+     * считается от результатов, и раунд остаётся построенным по старым данным.
+     * Счёт, введённый в пересобираемом раунде, теряется — приложение
+     * предупреждает об этом перед отправкой.
+     */
+    /**
+     * Можно ли пересобрать последний раунд: формат зависит от результатов,
+     * турнир идёт и раундов больше одного (первый строится посевом).
+     */
+    private function canRebuildLastRound(Tournament $t): bool
+    {
+        if (!in_array($t->type, \App\Http\Controllers\Club\TournamentRoundController::REBUILDABLE, true)) {
+            return false;
+        }
+        if ($t->status !== 'in_progress') {
+            return false;
+        }
+
+        $rounds = match ($t->type) {
+            'mexicano' => $t->mexicanoRounds()->count(),
+            'king_of_court' => $t->kingOfCourtRounds()->count(),
+            'just_padel_it' => $t->justPadelItRounds()->count(),
+            'bali_koc' => $t->baliKocRounds()->count(),
+            'escalera' => $t->escaleraRounds()->count(),
+            default => 0,
+        };
+
+        return $rounds > 1;
+    }
+
+    public function rebuildLastRound(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$this->hasTournamentsFullAccess($request->user(), $tournament)) {
+            return $this->noPermission('Нет прав на управление турниром');
+        }
+
+        if (!in_array($tournament->type, \App\Http\Controllers\Club\TournamentRoundController::REBUILDABLE, true)) {
+            return $this->error('У этого формата раунды не зависят от результатов — пересобирать нечего.');
+        }
+        if ($tournament->status !== 'in_progress') {
+            return $this->error('Пересобрать раунд можно только у идущего турнира.');
+        }
+
+        $done = match ($tournament->type) {
+            'mexicano' => app(MexicanoService::class)->rebuildLastRound($tournament),
+            'king_of_court' => app(KingOfCourtService::class)->rebuildLastRound($tournament),
+            'just_padel_it' => app(JustPadelItService::class)->rebuildLastRound($tournament),
+            'bali_koc' => app(BaliKocService::class)->rebuildLastRound($tournament),
+            'escalera' => app(\App\Services\EscaleraService::class)->rebuildLastRound($tournament),
+            default => false,
+        };
+
+        if (!$done) {
+            return $this->error('Не удалось пересобрать: первый раунд строится посевом, а не результатами.');
+        }
+
+        $tournament->refresh();
+
+        // Возвращаем ту же нагрузку, что и обычный запрос матчей — экран
+        // сразу отрисует пересобранный раунд, без второго запроса.
+        return $this->matches($request, $tournament);
+    }
+
     public function nextRound(
         Request $request,
         Tournament $tournament,
@@ -3033,6 +3105,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $king->canFinishTournament($tournament),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $isLive && $king->canGenerateNextRound($tournament),
@@ -3180,6 +3253,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $canClose || ($isLive && $service->canFinishTournament($tournament)),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $canClose,
@@ -3350,6 +3424,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $jpi->canFinishTournament($tournament),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $isLive && $jpi->canGenerateNextRound($tournament),
@@ -3586,6 +3661,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $rr->canFinishTournament($tournament),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $isLive && $rr->canGenerateNextRound($tournament),
@@ -3996,6 +4072,7 @@ class MobileAdminTournamentDetailController extends Controller
                     'matches_total' => 0,
                     'matches_played' => 0,
                     'all_group_matches_played' => false,
+                    'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                     'can_finish' => false,
                     'can_generate_playoff' => false,
                     'can_generate_next_round' => false,
@@ -4051,6 +4128,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $bali->canFinishTournament($tournament),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $isLive && $bali->canGenerateNextRound($tournament),
@@ -4512,6 +4590,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $service->isGroupStageCompleted($tournament),
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $service->canFinishTournament($tournament),
                 'can_generate_playoff' => $canGeneratePlayoff,
                 'can_generate_next_round' => false,
@@ -4641,6 +4720,7 @@ class MobileAdminTournamentDetailController extends Controller
                 'matches_total' => $matchesTotal,
                 'matches_played' => $matchesPlayed,
                 'all_group_matches_played' => $matchesTotal > 0 && $matchesTotal === $matchesPlayed,
+                'can_rebuild_round' => $this->canRebuildLastRound($tournament),
                 'can_finish' => $isLive && $flex->canFinishTournament($tournament),
                 'can_generate_playoff' => false,
                 'can_generate_next_round' => $isLive && $flex->canGenerateNextRound($tournament),
