@@ -1,32 +1,25 @@
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    /**
-     * Бонус за результат матча стал частью формата Ladder и больше не
-     * настраивается — колонка не нужна. Проверка hasColumn нужна потому,
-     * что добавляющая миграция могла быть не применена: обе выкатываются
-     * одним деплоем.
-     */
-    public function up(): void
-    {
-        if (Schema::hasColumn('tournaments', 'escalera_win_bonus')) {
-            Schema::table('tournaments', function (Blueprint $table) {
-                $table->dropColumn('escalera_win_bonus');
-            });
-        }
-    }
-
-    public function down(): void
-    {
-        if (!Schema::hasColumn('tournaments', 'escalera_win_bonus')) {
-            Schema::table('tournaments', function (Blueprint $table) {
-                $table->boolean('escalera_win_bonus')->default(false)->after('escalera_standings_mode');
-            });
-        }
-    }
-};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+
+return new class extends Migration
+{
+    /**
+     * Когда-то бонус за результат перестал быть настройкой, и колонку решили
+     * убрать. Решение отменили: следующая миграция (000003) вернула флаг, и
+     * код им пользуется — новые турниры Ladder создаются с включённым бонусом.
+     *
+     * На боевой базе эта миграция осталась неприменённой, и выполнить её
+     * теперь означало бы снести рабочую колонку прямо под живым сайтом.
+     * Поэтому она пустая; файл оставлен, чтобы история миграций не расходилась.
+     */
+    public function up(): void
+    {
+        //
+    }
+
+    public function down(): void
+    {
+        //
+    }
+};

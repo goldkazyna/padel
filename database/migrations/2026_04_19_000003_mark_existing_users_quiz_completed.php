@@ -1,18 +1,25 @@
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        // Существующие юзеры на момент добавления опросника не должны его проходить.
-        DB::table('users')->update(['quiz_completed' => true]);
-    }
-
-    public function down(): void
-    {
-        // ничего не откатываем
-    }
-};
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+
+return new class extends Migration
+{
+    /**
+     * Разовая правка данных, апрель 2026: тем, кто зарегистрировался до
+     * появления опросника, он не нужен — им проставляли quiz_completed.
+     *
+     * Сейчас миграция ничего не делает. На боевой базе она осталась
+     * неприменённой, а выполнить её теперь означало бы отметить «прошёл
+     * опросник» у всех, кто зарегистрировался ПОСЛЕ апреля и честно его не
+     * проходил. Файл оставлен, чтобы история миграций не расходилась.
+     */
+    public function up(): void
+    {
+        //
+    }
+
+    public function down(): void
+    {
+        // ничего не откатываем
+    }
+};
