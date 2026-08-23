@@ -335,6 +335,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/clients/groups', [App\Http\Controllers\Club\ClientController::class, 'groupsOverview'])->name('clients.groups');
             Route::get('/clients', [App\Http\Controllers\Club\ClientController::class, 'index'])->name('clients.index');
             Route::get('/clients/{client}/bookings', [App\Http\Controllers\Club\ClientController::class, 'bookings'])->name('clients.bookings');
+            Route::get('/clients/{client}/detail', [App\Http\Controllers\Club\ClientController::class, 'show'])->name('clients.show');
             Route::post('/clients', [App\Http\Controllers\Club\ClientController::class, 'store'])->name('clients.store');
             Route::put('/clients/{client}', [App\Http\Controllers\Club\ClientController::class, 'update'])->name('clients.update');
             Route::put('/clients/{client}/unlink-app-user', [App\Http\Controllers\Club\ClientController::class, 'unlinkAppUser'])->name('clients.unlinkAppUser');

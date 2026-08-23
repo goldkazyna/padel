@@ -83,11 +83,7 @@ class ClientController extends Controller
                 ->sortByDesc(fn($a) => optional($a->session)->date)
                 ->values();
 
-            $clientCards = \App\Models\ClubCard::where('club_client_id', $selectedClient->id)
-                ->where('club_id', $club->id)
-                ->with('type')
-                ->orderByDesc('created_at')
-                ->get();
+            $clientCards = $this->clientCards($selectedClient, $club->id);
 
             // Активные типы карт клуба — для модалки выпуска.
             $cardTypes = \App\Models\ClubCardType::where('club_id', $club->id)
@@ -96,32 +92,207 @@ class ClientController extends Controller
                 ->get();
         }
 
-        // У кого есть аккаунт в приложении (зарегистрирован на этом номере).
-        $clientDigits = $clients->pluck('phone')->filter()
-            ->map(fn($p) => preg_replace('/\D/', '', (string) $p))
-            ->filter()->values()->all();
-        $appPhones = [];
-        if (!empty($clientDigits)) {
-            // Телефон → id аккаунта: id нужен, чтобы найти подпись под отказом.
-            $appPhones = \App\Models\User::whereIn('phone', $clientDigits)
-                ->pluck('id', 'phone')->all();
-        }
+        // Аккаунты приложения на номерах клиентов: нужны и для значка «есть
+        // приложение», и для аватарки — фото из профиля узнаётся быстрее буквы.
+        $appUsers = $this->appUsersByPhone($clients->pluck('phone'));
 
         // Кто подписал отказ от ответственности этого клуба.
         $waivers = \App\Models\ClubWaiverSignature::where('club_id', $club->id)
             ->pluck('id', 'user_id')->all();
 
         foreach ($clients as $c) {
-            $digits = preg_replace('/\D/', '', (string) $c->phone);
-            $c->has_app = (bool) ($c->user_id || isset($appPhones[$digits]));
+            $appUser = $appUsers[$this->phoneKey($c->phone)] ?? null;
+            $c->has_app = (bool) ($c->user_id || $appUser);
+            $c->app_avatar = $appUser?->avatar;
 
             // Клиент может быть привязан к аккаунту напрямую либо найтись
             // по номеру — подпись ищем по тому id, который нашёлся.
-            $userId = $c->user_id ?: ($appPhones[$digits] ?? null);
+            $userId = $c->user_id ?: $appUser?->id;
             $c->waiver_signature_id = $userId ? ($waivers[$userId] ?? null) : null;
         }
 
+        // Выбранный клиент может быть не с этой страницы списка — ищем отдельно.
+        if ($selectedClient) {
+            $selectedAppUser = $this->appUserFor($selectedClient);
+            $selectedClient->has_app = (bool) ($selectedClient->user_id || $selectedAppUser);
+            $selectedClient->app_avatar = $selectedAppUser?->avatar;
+        }
+
         return view('club.clients.index', compact('clients', 'totalCount', 'selectedClient', 'clientGroups', 'clientTrials', 'clientCards', 'cardTypes'));
+    }
+
+    /**
+     * Детальная карточка клиента: всё, что клуб о нём знает, на одной странице.
+     * GET /club/clients/{client}/detail
+     *
+     * Боковая панель в списке умышленно короткая — здесь наоборот, полная
+     * картина: карты, сертификаты, группы, брони, турниры и деньги.
+     */
+    public function show(Request $request, ClubClient $client)
+    {
+        $club = $this->getClub();
+        if (!$club || $client->club_id !== $club->id) abort(403);
+
+        $client->loadCount([
+            'certificates',
+            'certificates as certificates_used_count' => fn($q) => $q->whereNotNull('used_at'),
+        ]);
+
+        $appUser = $this->appUserFor($client);
+        $waiver = $appUser || $client->user_id
+            ? \App\Models\ClubWaiverSignature::where('club_id', $club->id)
+                ->where('user_id', $client->user_id ?: $appUser?->id)
+                ->first()
+            : null;
+
+        $cards = $this->clientCards($client, $club->id);
+
+        $certificates = $client->certificates()
+            ->with('template')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $groups = \App\Models\ClubGroupMember::where('client_id', $client->id)
+            ->whereHas('group', fn($q) => $q->where('club_id', $club->id))
+            ->with('group')
+            ->get();
+
+        $trials = \App\Models\ClubGroupAttendance::where('is_trial', true)
+            ->where(function ($q) use ($client) {
+                $q->where('client_id', $client->id)
+                  ->orWhereHas('member', fn($m) => $m->where('client_id', $client->id));
+            })
+            ->whereHas('session', fn($q) => $q->whereHas('group', fn($g) => $g->where('club_id', $club->id)))
+            ->with(['session.group'])
+            ->get()
+            ->sortByDesc(fn($a) => optional($a->session)->date)
+            ->values();
+
+        // Брони за всё время: сверху ближайшие, ниже история.
+        $bookings = collect();
+        $last10 = $this->phoneKey($client->phone);
+        if ($last10) {
+            // Номер в брони записан как придётся: «+7 777 100 10 20»,
+            // «+7 (777) 100-10-20», «77771001020». Сравниваем по последним
+            // десяти цифрам, вычищая разделители прямо в запросе.
+            $digits = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(client_phone, '+', ''), ' ', ''), '(', ''), ')', ''), '-', ''), '.', '')";
+
+            $bookings = CourtBooking::with(['court', 'coach'])
+                ->whereHas('court', fn($q) => $q->where('club_id', $club->id))
+                ->whereRaw("{$digits} LIKE ?", ['%' . $last10])
+                ->where('status', 'confirmed')
+                ->orderBy('date', 'desc')
+                ->orderBy('start_time', 'desc')
+                ->get();
+        }
+
+        $today = Carbon::now()->startOfDay();
+        $upcoming = $bookings->filter(fn($b) => $b->date && $b->date->gte($today))
+            ->sortBy([['date', 'asc'], ['start_time', 'asc']])->values();
+        $past = $bookings->filter(fn($b) => !$b->date || $b->date->lt($today))->values();
+
+        $stats = ['count' => 0, 'hours' => 0.0, 'amount' => 0.0, 'unpaid' => 0];
+        foreach ($bookings as $b) {
+            $stats['count']++;
+            $stats['hours'] += $this->bookingHours($b);
+            $stats['amount'] += (float) $b->price;
+            if (!$b->is_paid) $stats['unpaid']++;
+        }
+
+        // Турниры клуба видно только у клиентов с аккаунтом: запись идёт
+        // через приложение, у «бумажного» клиента её попросту нет.
+        $tournaments = collect();
+        $userId = $client->user_id ?: $appUser?->id;
+        if ($userId) {
+            $tournaments = \App\Models\Tournament::where('club_id', $club->id)
+                ->whereHas('participants', fn($q) => $q->where('users.id', $userId))
+                ->orderByDesc('start_date')
+                ->get();
+        }
+
+        return view('club.clients.show', compact(
+            'club', 'client', 'appUser', 'waiver', 'cards', 'certificates',
+            'groups', 'trials', 'upcoming', 'past', 'stats', 'tournaments'
+        ));
+    }
+
+    /**
+     * Карты клиента: сверху та, что действует дольше всех.
+     *
+     * Клуб смотрит в карточку, чтобы понять, чем клиент может оплатить
+     * сейчас, поэтому порядок по сроку полезнее порядка по дате выдачи:
+     * бессрочные идут первыми, просроченные оседают внизу.
+     */
+    private function clientCards(ClubClient $client, int $clubId)
+    {
+        return \App\Models\ClubCard::where('club_client_id', $client->id)
+            ->where('club_id', $clubId)
+            ->with('type')
+            ->orderByRaw('expires_at IS NULL DESC')
+            ->orderByDesc('expires_at')
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    /** Длительность брони в часах (через полночь считается корректно). */
+    private function bookingHours(CourtBooking $b): float
+    {
+        $start = Carbon::parse($b->start_time);
+        $end = Carbon::parse($b->end_time);
+        $startMin = $start->hour * 60 + $start->minute;
+        $endMin = $end->hour * 60 + $end->minute;
+        if ($endMin <= $startMin) $endMin += 24 * 60;
+
+        return ($endMin - $startMin) / 60;
+    }
+
+    /** Последние 10 цифр номера — общий ключ для сопоставления с аккаунтами. */
+    private function phoneKey($phone): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+
+        return strlen($digits) >= 10 ? substr($digits, -10) : null;
+    }
+
+    /**
+     * Аккаунты приложения по номерам клиентов: [последние 10 цифр => User].
+     *
+     * Номер и у клиента, и у аккаунта записан как придётся — с плюсом,
+     * пробелами, с ведущей семёркой и без. Сравниваем по последним десяти
+     * цифрам, а в запрос отдаём разумные варианты написания, чтобы не
+     * тянуть всю таблицу пользователей.
+     */
+    private function appUsersByPhone($phones): array
+    {
+        $keys = collect($phones)->map(fn($p) => $this->phoneKey($p))->filter()->unique()->values();
+        if ($keys->isEmpty()) return [];
+
+        $variants = [];
+        foreach ($keys as $k) {
+            $variants[] = $k;
+            $variants[] = '7' . $k;
+            $variants[] = '+7' . $k;
+            $variants[] = '8' . $k;
+        }
+
+        $found = [];
+        foreach (\App\Models\User::whereIn('phone', $variants)->get(['id', 'name', 'phone', 'avatar']) as $u) {
+            $key = $this->phoneKey($u->phone);
+            if ($key && !isset($found[$key])) $found[$key] = $u;
+        }
+
+        return $found;
+    }
+
+    /** Аккаунт приложения одного клиента: сначала привязка, потом номер. */
+    private function appUserFor(ClubClient $client): ?\App\Models\User
+    {
+        if ($client->user_id) {
+            $linked = \App\Models\User::find($client->user_id);
+            if ($linked) return $linked;
+        }
+
+        return $this->findAppUserByPhone($client->phone);
     }
 
     /**
@@ -524,7 +695,7 @@ class ClientController extends Controller
         $tail = substr($last10, -8);
         return \App\Models\User::whereNotNull('phone')
             ->where('phone', 'like', '%' . $tail . '%')
-            ->get(['id', 'phone'])
+            ->get(['id', 'name', 'phone', 'avatar'])
             ->first(fn($u) =>
                 substr(preg_replace('/\D/', '', (string) $u->phone), -10) === $last10);
     }

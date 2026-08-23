@@ -132,7 +132,13 @@
                     @endphp
                     <a href="{{ route('club.clients.index', ['selected' => $client->id, 'search' => request('search'), 'page' => $clients->currentPage()]) }}"
                        class="clients-list-item {{ $selectedClient && $selectedClient->id === $client->id ? 'selected' : '' }}">
-                        <div class="client-avatar">{{ mb_strtoupper(mb_substr($client->name, 0, 1)) }}</div>
+                        <div class="client-avatar">
+                            @if(!empty($client->app_avatar))
+                                <img src="{{ $client->app_avatar }}" alt="{{ $client->name }}">
+                            @else
+                                {{ mb_strtoupper(mb_substr($client->name, 0, 1)) }}
+                            @endif
+                        </div>
                         <div class="client-list-info">
                             <div class="client-list-name">
                                 <span>{{ $client->name }}</span>
@@ -211,7 +217,13 @@
             @endphp
             <div class="client-detail">
                 <div class="client-detail-header">
-                    <div class="client-detail-avatar">{{ mb_strtoupper(mb_substr($selectedClient->name, 0, 1)) }}</div>
+                    <div class="client-detail-avatar">
+                        @if(!empty($selectedClient->app_avatar))
+                            <img src="{{ $selectedClient->app_avatar }}" alt="{{ $selectedClient->name }}">
+                        @else
+                            {{ mb_strtoupper(mb_substr($selectedClient->name, 0, 1)) }}
+                        @endif
+                    </div>
                     <div class="client-detail-name">{{ $selectedClient->name }}</div>
                     <div class="client-detail-phone">@phoneFmt($selectedClient->phone)</div>
                     @if($selectedNoLastName)
@@ -353,6 +365,14 @@
                     <div class="client-detail-note">{{ $selectedClient->note }}</div>
                 </div>
                 @endif
+
+                <div class="client-detail-section">
+                    <a href="{{ route('club.clients.show', $selectedClient) }}" class="client-full-btn">
+                        <i class="bi bi-person-vcard"></i>
+                        <span>Детальная карточка</span>
+                        <i class="bi bi-chevron-right client-cert-btn-arrow"></i>
+                    </a>
+                </div>
 
                 <div class="client-detail-actions">
                     <button type="button" class="btn-bookings"
@@ -649,6 +669,12 @@ function openCardHistory(url) {
 function openEditModal() {
     document.getElementById('editModal').classList.add('active');
 }
+
+// С детальной карточки «Редактировать» возвращает сюда с ?edit=1 —
+// форма правки живёт только в списке, открываем её сразу.
+@if(request('edit') && $selectedClient)
+document.addEventListener('DOMContentLoaded', openEditModal);
+@endif
 function openIssueCardModal() {
     document.getElementById('issueCardModal').classList.add('active');
     issueToggle();
@@ -917,7 +943,9 @@ document.addEventListener('keydown', function(e) {
     font-weight: 700;
     color: var(--cl-bg);
     flex-shrink: 0;
+    overflow: hidden;
 }
+.client-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .client-list-info { flex: 1; min-width: 0; }
 .client-list-name {
     font-size: 15px;
@@ -1042,7 +1070,9 @@ document.addEventListener('keydown', function(e) {
     font-weight: 700;
     color: var(--cl-bg);
     margin: 0 auto 12px;
+    overflow: hidden;
 }
+.client-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .client-detail-name {
     font-size: 20px;
     font-weight: 700;
@@ -1308,6 +1338,25 @@ document.addEventListener('keydown', function(e) {
     transition: all 0.2s;
 }
 .btn-save:hover { background: var(--cl-accent-dark); }
+
+/* Кнопка «Детальная карточка» — ведёт на полную страницу клиента */
+.client-full-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px 15px;
+    background: var(--cl-card-hover);
+    border: 1px solid var(--cl-border);
+    border-radius: 12px;
+    color: var(--cl-text);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+.client-full-btn:hover { border-color: var(--cl-accent); color: #fff; }
+.client-full-btn > .bi-person-vcard { color: var(--cl-accent); font-size: 16px; }
+.client-full-btn span { flex: 1; }
 
 /* Клубные карты в карточке клиента */
 .client-cards-head { display:flex; align-items:center; justify-content:space-between; }
