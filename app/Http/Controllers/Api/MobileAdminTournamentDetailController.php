@@ -116,6 +116,8 @@ class MobileAdminTournamentDetailController extends Controller
             'is_paired' => 'nullable|boolean',
             'courts' => 'nullable|array',
             'courts.*' => 'nullable|string|max:50',
+            // Смена формата до старта — те же правила, что в веб-админке.
+            'type' => 'nullable|in:' . implode(',', \App\Services\TournamentTypeSwitcher::SOLO_TYPES),
         ]);
 
         if ($validator->fails()) {
@@ -127,6 +129,29 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $validated = $validator->validated();
+
+        // Смена формата. Работает только до старта и только между одиночными
+        // типами: состав у них общий, а сетки ещё нет. Настройки старого
+        // формата чистит переключатель, он же подгоняет лимит участников —
+        // поэтому присланные клиентом поля формата дальше не применяем.
+        $switcher = app(\App\Services\TournamentTypeSwitcher::class);
+        $newType = $validated['type'] ?? null;
+        unset($validated['type']);
+        $typeChanged = false;
+        if ($newType !== null && $newType !== $tournament->type && $switcher->canSwitch($tournament)) {
+            $tournament->update($switcher->changesFor($tournament, $newType));
+            $tournament->refresh();
+            $typeChanged = true;
+            unset(
+                $validated['groups_count'], $validated['rounds_count'],
+                $validated['teams_advance'], $validated['points_to_win'],
+                $validated['has_playoff'], $validated['playoff_type'],
+                $validated['playoff_format'], $validated['courts_count'],
+                $validated['max_participants'], $validated['escalera_standings_mode'],
+                $validated['is_paired'], $validated['pairing_mode'],
+            );
+        }
+
 
         // verified_only: меняем только если поле прислано (старые версии приложения не трогают).
         if ($request->has('verified_only')) {
@@ -155,9 +180,12 @@ class MobileAdminTournamentDetailController extends Controller
         // Плей-офф (командный турнир) — меняем только если присланы флаги.
         // Нормализация как при создании: has_playoff включается, если отмечены
         // нижняя сетка или матч за 3-е место; при выключенном плей-офф всё сбрасываем.
-        if ($request->has('has_playoff')
+        //
+        // После смены формата флаги игнорируем: их уже сбросил переключатель,
+        // а клиент прислал настройки прежнего типа.
+        if (!$typeChanged && ($request->has('has_playoff')
             || $request->has('has_lower_bracket')
-            || $request->has('has_bronze_match')) {
+            || $request->has('has_bronze_match'))) {
             $hasLower = $request->boolean('has_lower_bracket');
             $hasBronze = $request->boolean('has_bronze_match');
             $hasPlayoff = $request->boolean('has_playoff') || $hasLower || $hasBronze;
@@ -178,8 +206,9 @@ class MobileAdminTournamentDetailController extends Controller
             unset($validated['has_playoff'], $validated['has_lower_bracket'], $validated['has_bronze_match']);
         }
 
-        // courts_count — меняем только если прислан.
-        if ($request->filled('courts_count')) {
+        // courts_count — меняем только если прислан. После смены формата не
+        // трогаем: клиент прислал корты старого типа, а нужные уже выставлены.
+        if (!$typeChanged && $request->filled('courts_count')) {
             $validated['courts_count'] = (int) $request->input('courts_count');
         } else {
             unset($validated['courts_count']);
@@ -188,7 +217,7 @@ class MobileAdminTournamentDetailController extends Controller
         // Ladder: участников всегда ровно кортов × 4, как и при создании в вебе.
         // Присланный приложением max_participants игнорируем — иначе инвариант
         // формата молча ломается и турнир перестаёт стартовать.
-        if ($tournament->isEscalera()) {
+        if (!$typeChanged && $tournament->isEscalera()) {
             $escaleraCourts = $request->filled('courts_count')
                 ? (int) $request->input('courts_count')
                 : (int) $tournament->courts_count;
@@ -240,7 +269,7 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         // Парный режим (Flex / King of Court / Just Padel It) — менять нельзя, если уже есть записи.
-        if ($request->has('is_paired')) {
+        if (!$typeChanged && $request->has('is_paired')) {
             $paired = $request->boolean('is_paired');
             if ($tournament->takenSlotsCount() > 0 && $paired !== (bool) $tournament->is_paired) {
                 return response()->json([
@@ -253,7 +282,7 @@ class MobileAdminTournamentDetailController extends Controller
                 $validated['is_paired'] = true;
                 if ($type === 'americano_flex') {
                     $validated['pairing_mode'] = 'admin';
-                    if (((int) $validated['max_participants']) % 2 !== 0) {
+                    if (((int) ($validated['max_participants'] ?? $tournament->max_participants)) % 2 !== 0) {
                         return response()->json([
                             'success' => false,
                             'message' => 'Для парного турнира число игроков должно быть чётным',
@@ -270,7 +299,8 @@ class MobileAdminTournamentDetailController extends Controller
         // правят и отдельно — тогда турнир оставался с нечётным числом мест.
         if ($tournament->type === 'americano_flex') {
             $pairedFlex = $validated['is_paired'] ?? (bool) $tournament->is_paired;
-            if ($pairedFlex && ((int) $validated['max_participants']) % 2 !== 0) {
+            $flexLimit = (int) ($validated['max_participants'] ?? $tournament->max_participants);
+            if ($pairedFlex && $flexLimit % 2 !== 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Для парного турнира число игроков должно быть чётным',
@@ -278,9 +308,11 @@ class MobileAdminTournamentDetailController extends Controller
             }
         }
 
-        // Не позволяем уменьшать max_participants ниже текущих участников
+        // Не позволяем уменьшать max_participants ниже текущих участников.
+        // После смены формата лимит уже выставил переключатель — берём его.
+        $limit = (int) ($validated['max_participants'] ?? $tournament->max_participants);
         $taken = $tournament->takenSlotsCount();
-        if ($validated['max_participants'] < $taken) {
+        if ($limit < $taken) {
             return response()->json([
                 'success' => false,
                 'message' => "Уже {$taken} участников — нельзя поставить лимит меньше",
@@ -821,6 +853,13 @@ class MobileAdminTournamentDetailController extends Controller
             'is_paired' => (bool) $t->is_paired,
             'moderation_hours' => $t->moderation_hours !== null ? (int) $t->moderation_hours : null,
             'moderation_minutes' => $t->moderation_minutes !== null ? (int) $t->moderation_minutes : null,
+            // Смена формата до старта: признак и список доступных типов.
+            'can_switch_type' => app(\App\Services\TournamentTypeSwitcher::class)->canSwitch($t),
+            'switch_types' => collect(\App\Services\TournamentTypeSwitcher::SOLO_TYPES)
+                ->map(fn ($type) => [
+                    'value' => $type,
+                    'label' => \App\Services\TournamentTypeSwitcher::TYPE_NAMES[$type] ?? $type,
+                ])->all(),
             'tournaments_full_access' => $hasFullAccess,
             'chat_enabled' => (bool) $t->chat_enabled,
             'chat_write_mode' => $t->chat_write_mode ?? 'participants',
