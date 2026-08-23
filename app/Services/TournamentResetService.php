@@ -28,6 +28,9 @@ class TournamentResetService
                     DB::table('mexicano_rounds')->where('tournament_id', $tournament->id)->delete();
                     DB::table('mexicano_players')->where('tournament_id', $tournament->id)->delete();
                     DB::table('mexicano_pair_history')->where('tournament_id', $tournament->id)->delete();
+                    // Финал и полуфиналы Мексикано лежат в общей таблице
+                    // плей-офф — без этого после сброса они всплывали снова.
+                    DB::table('tournament_playoff_matches')->where('tournament_id', $tournament->id)->delete();
                     break;
 
                 case 'team':
@@ -58,6 +61,15 @@ class TournamentResetService
                     DB::table('just_padel_it_rounds')->where('tournament_id', $tournament->id)->delete();
                     DB::table('just_padel_it_pairs')->where('tournament_id', $tournament->id)->delete();
                     DB::table('just_padel_it_players')->where('tournament_id', $tournament->id)->delete();
+                    break;
+
+                case 'round_robin':
+                    $roundIds = DB::table('round_robin_rounds')->where('tournament_id', $tournament->id)->pluck('id');
+                    DB::table('round_robin_matches')->whereIn('round_robin_round_id', $roundIds)->delete();
+                    DB::table('round_robin_rounds')->where('tournament_id', $tournament->id)->delete();
+                    DB::table('round_robin_players')->where('tournament_id', $tournament->id)->delete();
+                    // Расписание круга хранится в самом турнире.
+                    $tournament->update(['round_robin_schedule' => null]);
                     break;
 
                 case 'americano_flex':

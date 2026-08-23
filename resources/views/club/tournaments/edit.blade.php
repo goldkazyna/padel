@@ -19,8 +19,31 @@
                     @method('PUT')
 					<div class="mb-4">
 						<label class="form-label">Тип турнира</label>
-						<input type="text" class="form-control" value="{{ $tournament->type_name }}" disabled>
-						<small class="text-secondary">Тип нельзя изменить после создания</small>
+						@if($canSwitchType)
+							@php
+								$registeredNow = $tournament->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
+							@endphp
+							<select name="type" class="form-select">
+								@foreach($switchTypes as $key => $label)
+									<option value="{{ $key }}" {{ old('type', $tournament->type) === $key ? 'selected' : '' }}>{{ $label }}</option>
+								@endforeach
+							</select>
+							<small class="text-secondary">
+								Формат можно сменить, пока турнир не начат — записавшиеся ({{ $registeredNow }}) остаются.
+								Настройки старого формата сбросятся, а число участников подгонится под новый:
+								у Американо, Мексикано, Короля корта, Round Robin и Just Padel It оно кратно четырём,
+								у Ladder — ровно корты × 4. Если людей станет не хватать, турнир просто дождётся остальных.
+							</small>
+						@else
+							<input type="text" class="form-control" value="{{ $tournament->type_name }}" disabled>
+							<small class="text-secondary">
+								@if($tournament->is_paired || in_array($tournament->type, ['team', 'bali_koc'], true))
+									Парный формат менять нельзя: пары уже собраны, в одиночном турнире их некуда перенести.
+								@else
+									Турнир уже начат — формат менять нельзя.
+								@endif
+							</small>
+						@endif
 					</div>
                     <div class="mb-4">
                         <label class="form-label">Название *</label>

@@ -332,8 +332,14 @@ class TournamentController extends Controller
         // резервиста могли заменить на живого игрока вручную, и тогда поле
         // врёт. Форма должна показывать то, что есть в турнире сейчас.
         $reserveCount = $this->countReserves($tournament);
+        $switcher = app(\App\Services\TournamentTypeSwitcher::class);
+        $canSwitchType = $switcher->canSwitch($tournament);
+        $switchTypes = \App\Services\TournamentTypeSwitcher::TYPE_NAMES;
 
-        return view('club.tournaments.edit', compact('tournament', 'clubs', 'club', 'venueClubs', 'reserveCount'));
+        return view('club.tournaments.edit', compact(
+            'tournament', 'clubs', 'club', 'venueClubs', 'reserveCount',
+            'canSwitchType', 'switchTypes'
+        ));
     }
 
     public function update(Request $request, Tournament $tournament)
@@ -373,6 +379,7 @@ class TournamentController extends Controller
 			'waitlist_size' => 'nullable|integer|min:0|max:32',
 			'reserve_count' => 'nullable|integer|min:0|max:10',
 			'is_paired' => 'nullable|boolean',
+			'type' => 'nullable|in:' . implode(',', \App\Services\TournamentTypeSwitcher::SOLO_TYPES),
 			'courts' => 'nullable|array',
 			'courts.*' => 'nullable|string|max:50',
 			'moderation_hours' => 'nullable|integer|min:0|max:720',
@@ -419,6 +426,29 @@ class TournamentController extends Controller
 		// Переключение делает половину невидимой, и турнир не стартует вовсе.
 		if ($tournament->isPairedJustPadelIt()) {
 			unset($validated['pairing_mode']);
+		}
+
+		// Смена типа. Только до старта и только между одиночными форматами:
+		// состав у них лежит в одной таблице и переезжает как есть, а сетки
+		// ещё нет. Настройки чужого формата чистит переключатель, он же
+		// подгоняет лимит участников под требования нового типа.
+		$switcher = app(\App\Services\TournamentTypeSwitcher::class);
+		$newType = $validated['type'] ?? null;
+		unset($validated['type']);
+		$typeChanged = false;
+
+		if ($newType !== null && $newType !== $tournament->type && $switcher->canSwitch($tournament)) {
+			$tournament->update($switcher->changesFor($tournament, $newType));
+			$tournament->refresh();
+			$typeChanged = true;
+			// Дальше форма прислала поля старого формата — они больше не наши.
+			unset(
+				$validated['groups_count'], $validated['rounds_count'],
+				$validated['teams_advance'], $validated['points_to_win'],
+				$validated['has_playoff'], $validated['playoff_type'],
+				$validated['playoff_format'], $validated['courts_count'],
+				$validated['max_participants'], $validated['escalera_standings_mode'],
+			);
 		}
 
 		// Кол-во групп/раундов — менять можно только ДО старта.
@@ -531,7 +561,16 @@ class TournamentController extends Controller
 		if ($request->has('reserve_count') && in_array($tournament->status, ['draft', 'open'], true)) {
 			$this->syncReserves($tournament, (int) $request->input('reserve_count'));
 		}
-		return redirect()->route('club.tournaments.index')->with('success', 'Турнир обновлён!');
+		$message = 'Турнир обновлён!';
+		if ($typeChanged) {
+			$name = \App\Services\TournamentTypeSwitcher::TYPE_NAMES[$tournament->type] ?? $tournament->type;
+			$message = "Формат изменён на «{$name}».";
+			if ($hint = $switcher->startHint($tournament->fresh())) {
+				$message .= ' ' . $hint;
+			}
+		}
+
+		return redirect()->route('club.tournaments.index')->with('success', $message);
 	}
 
 	/**
