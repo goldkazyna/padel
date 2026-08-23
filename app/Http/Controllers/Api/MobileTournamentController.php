@@ -1641,13 +1641,22 @@ class MobileTournamentController extends Controller
         }
 
         if ($tournament->type === 'americano_flex') {
-            // Flex: рейтинг по среднему за матч → суммарные очки
-            usort($playerStats, function ($a, $b) {
-                $avgA = $a['matches_played'] > 0 ? $a['total_points'] / $a['matches_played'] : 0;
-                $avgB = $b['matches_played'] > 0 ? $b['total_points'] / $b['matches_played'] : 0;
-                if ($avgA != $avgB) return $avgB <=> $avgA;
-                return $b['total_points'] <=> $a['total_points'];
-            });
+            // Flex: среднее → % побед → личная встреча → рейтинг.
+            // Порядок общий с вебом и админкой, см. AmericanoFlexRanking.
+            $playerStats = \App\Support\AmericanoFlexRanking::sortRows(
+                array_map(fn($s) => $s + [
+                    'matches' => $s['matches_played'],
+                    'points_for' => $s['points_for'],
+                    'wins' => $s['wins'],
+                    // Процент побед у флекса — от всех сыгранных матчей, а не
+                    // от «побед + поражений»: ничьи здесь обычное дело, и по
+                    // этому же проценту строится порядок таблицы.
+                    'win_percent' => $s['matches_played'] > 0
+                        ? (int) round($s['wins'] / $s['matches_played'] * 100)
+                        : 0,
+                ], array_values($playerStats)),
+                \App\Support\AmericanoFlexRanking::headToHead($tournament)
+            );
         } else {
             usort($playerStats, function ($a, $b) use ($h2h) {
                 if ($a['total_points'] !== $b['total_points']) return $b['total_points'] <=> $a['total_points'];
@@ -1664,8 +1673,9 @@ class MobileTournamentController extends Controller
 
         return array_values(array_map(function ($s, $i) {
             $totalGames = $s['wins'] + $s['losses'];
-            $s['position'] = $i + 1;
-            $s['win_percent'] = $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0;
+            // У флекса position и процент побед уже посчитаны по общим правилам.
+            $s['position'] ??= $i + 1;
+            $s['win_percent'] ??= $totalGames > 0 ? (int) round($s['wins'] / $totalGames * 100) : 0;
             return $s;
         }, $playerStats, array_keys($playerStats)));
     }
@@ -3232,17 +3242,27 @@ class MobileTournamentController extends Controller
         }
         unset($s);
 
-        // Сортировка flex: среднее за матч → суммарные очки
-        uasort($playerStats, function ($a, $b) {
-            $avgA = $a['matches_played'] > 0 ? $a['total_points'] / $a['matches_played'] : 0;
-            $avgB = $b['matches_played'] > 0 ? $b['total_points'] / $b['matches_played'] : 0;
-            if ($avgA != $avgB) return $avgB <=> $avgA;
-            return $b['total_points'] <=> $a['total_points'];
-        });
+        // Порядок flex: среднее → % побед → личная встреча → рейтинг.
+        // Общий с вебом и админкой, см. AmericanoFlexRanking.
+        $flexH2h = \App\Support\AmericanoFlexRanking::headToHead($tournament);
+        $ranked = \App\Support\AmericanoFlexRanking::sortRows(
+            array_map(fn($s) => $s + [
+                'matches' => $s['matches_played'],
+                'points_for' => $s['points_for'],
+                'wins' => $s['wins'],
+            ], array_values($playerStats)),
+            $flexH2h
+        );
+
+        // Процент побед — от всех сыгранных матчей: ничьи во флексе обычное
+        // дело, и порядок таблицы строится именно по этому проценту.
+        $winPercent = fn(array $s) => $s['matches_played'] > 0
+            ? (int) round($s['wins'] / $s['matches_played'] * 100)
+            : 0;
 
         $position = 1;
         $leaderboard = [];
-        foreach ($playerStats as $s) {
+        foreach ($ranked as $s) {
             $totalBalls = $s['points_for'] + $s['points_against'];
             $ballPercent = $totalBalls > 0 ? (int) round($s['points_for'] / $totalBalls * 100) : 0;
             $leaderboard[] = [
@@ -3260,6 +3280,7 @@ class MobileTournamentController extends Controller
                 'ball_percent' => $ballPercent,
                 'total_points' => $s['total_points'],
                 'games_played' => $s['matches_played'],
+                'win_percent' => $winPercent($s),
                 'verified' => $s['verified'],
                 'is_me' => $userId !== null && (int) $s['id'] === $userId,
             ];
@@ -3290,12 +3311,17 @@ class MobileTournamentController extends Controller
                     'avatar' => $t->player1?->avatar,
                 ];
             }
-            usort($pairRows, function ($a, $b) {
-                $avgA = $a['games'] > 0 ? $a['points'] / $a['games'] : 0;
-                $avgB = $b['games'] > 0 ? $b['points'] / $b['games'] : 0;
-                if ($avgA != $avgB) return $avgB <=> $avgA;
-                return $b['points'] <=> $a['points'];
-            });
+            // Пары ранжируем по тем же критериям: партнёры всегда играют
+            // вместе, поэтому статистика и личные встречи берутся по игроку 1.
+            $pairRows = \App\Support\AmericanoFlexRanking::sortRows(
+                array_map(fn($r) => $r + [
+                    'id' => (int) ($r['p1']->id ?? 0),
+                    'matches' => $r['games'],
+                    'points_for' => $r['pf'],
+                    'rating' => (int) ($r['p1']->rating ?? 0),
+                ], $pairRows),
+                $flexH2h
+            );
 
             $position = 1;
             $leaderboard = [];
@@ -3322,6 +3348,9 @@ class MobileTournamentController extends Controller
                     'ball_percent' => $totalBalls > 0 ? (int) round($r['pf'] / $totalBalls * 100) : 0,
                     'total_points' => $r['points'],
                     'games_played' => $r['games'],
+                    'win_percent' => $r['games'] > 0
+                        ? (int) round($r['wins'] / $r['games'] * 100)
+                        : 0,
                     'verified' => false,
                     'is_me' => $r['is_me'],
                 ];

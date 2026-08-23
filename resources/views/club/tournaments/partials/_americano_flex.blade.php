@@ -2,10 +2,15 @@
     $flex = app(\App\Services\AmericanoFlexService::class);
     $rounds = $tournament->americanoFlexRounds()->orderBy('round_number')->get();
     $currentRound = $flex->getCurrentRound($tournament);
-    $leaderboard = $flex->getLeaderboard($tournament); // Collection<AmericanoFlexPlayer>, по среднему DESC
+    // Порядок: среднее → % побед → личная встреча → рейтинг (AmericanoFlexRanking).
+    $leaderboard = $flex->getLeaderboard($tournament); // Collection<AmericanoFlexPlayer>
+    // Числа таблицы — оттуда же: хранимые в модели счётчики считают и 0:0,
+    // которым отмечают несыгранный матч, и среднее из них врёт.
+    $flexStats = $flex->getLeaderboardStats($tournament);
     $allMatchesCompleted = $currentRound ? $flex->isRoundCompleted($currentRound) : false;
-    $allPlayersEqual = $leaderboard->count() > 0
-        && $leaderboard->min('matches_played') === $leaderboard->max('matches_played');
+    $matchCounts = collect($flexStats)->pluck('matches');
+    $allPlayersEqual = $matchCounts->isNotEmpty()
+        && $matchCounts->min() === $matchCounts->max();
 
     $registeredCount = \App\Models\TournamentParticipant::where('tournament_id', $tournament->id)
         ->where('status', 'registered')
@@ -24,28 +29,7 @@
             ? auth()->user()->hasTournamentsFullAccess($tournament->club)
             : true);
 
-    // Забито / пропущено по всем сыгранным матчам — для колонок таблицы.
-    $flexStats = [];
-    foreach ($leaderboard as $p) {
-        $flexStats[$p->user_id] = ['for' => 0, 'against' => 0];
-    }
-    foreach ($rounds as $r) {
-        foreach ($r->matches as $m) {
-            if (!$m->isCompleted() || $m->team1_score === null || $m->team2_score === null) continue;
-            foreach ([$m->team1_player1_id, $m->team1_player2_id] as $pid) {
-                if (isset($flexStats[$pid])) {
-                    $flexStats[$pid]['for'] += $m->team1_score;
-                    $flexStats[$pid]['against'] += $m->team2_score;
-                }
-            }
-            foreach ([$m->team2_player1_id, $m->team2_player2_id] as $pid) {
-                if (isset($flexStats[$pid])) {
-                    $flexStats[$pid]['for'] += $m->team2_score;
-                    $flexStats[$pid]['against'] += $m->team1_score;
-                }
-            }
-        }
-    }
+
 @endphp
 
 <div class="section-header flex-section-header">
@@ -181,10 +165,10 @@
 @else
 
     {{-- Подсказка про равенство --}}
-    @if($allPlayersEqual && $leaderboard->count() > 0 && $leaderboard->first()->matches_played > 0)
+    @if($allPlayersEqual && $leaderboard->count() > 0 && $matchCounts->max() > 0)
         <div class="alert-info-custom mb-4">
             <i class="bi bi-info-circle me-2"></i>
-            Каждый игрок сыграл по <strong>{{ $leaderboard->first()->matches_played }}</strong> матчей —
+            Каждый игрок сыграл по <strong>{{ $matchCounts->max() }}</strong> матчей —
             все на равных. Хороший момент завершить турнир.
         </div>
     @endif
@@ -206,7 +190,8 @@
                         <th class="col-stat" title="Разница забито − пропущено">Разница</th>
                         <th class="col-stat">Матчей</th>
                         <th class="col-stat" title="Сколько раундов отдыхала пара">Отдых</th>
-                        <th class="col-points" title="Среднее забитых очков за матч">Среднее</th>
+                        <th class="col-stat" title="Процент побед — второй критерий при равном среднем">% побед</th>
+                        <th class="col-points" title="Среднее забитых очков за матч. Первый критерий таблицы">Среднее</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -214,9 +199,9 @@
                         @php
                             $rank = $i + 1;
                             $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
-                            $pid = $row['player1']->id ?? 0;
-                            $forPts = $flexStats[$pid]['for'] ?? $row['total_points'];
-                            $againstPts = $flexStats[$pid]['against'] ?? 0;
+                            // Агрегаты пары уже в строке: партнёры играют вместе.
+                            $forPts = $row['points_for'];
+                            $againstPts = $row['points_against'];
                             $diff = $forPts - $againstPts;
                         @endphp
                         <tr class="{{ $rankClass }}">
@@ -236,6 +221,7 @@
                             <td class="col-stat {{ $diff > 0 ? 'points-for' : ($diff < 0 ? 'points-against' : '') }}">{{ $diff > 0 ? '+' : '' }}{{ $diff }}</td>
                             <td class="col-stat">{{ $row['matches_played'] }}</td>
                             <td class="col-stat">{{ $row['bye_count'] }}</td>
+                            <td class="col-stat">{{ $row['win_percent'] }}%</td>
                             <td class="col-points">{{ number_format($row['avg_points'], 2) }}</td>
                         </tr>
                     @endforeach
@@ -253,7 +239,8 @@
                     <th class="col-stat" title="Пропущено очков">Пропущено</th>
                     <th class="col-stat" title="Разница забито − пропущено">Разница</th>
                     <th class="col-stat">Матчей</th>
-                    <th class="col-points" title="Среднее забитых очков за матч = Забито ÷ Матчей">Среднее</th>
+                    <th class="col-stat" title="Процент побед — второй критерий при равном среднем">% побед</th>
+                    <th class="col-points" title="Среднее забитых очков за матч = Забито ÷ Матчей. Первый критерий таблицы">Среднее</th>
                     <th class="col-rating">Рейтинг</th>
                 </tr>
             </thead>
@@ -287,15 +274,17 @@
                             </div>
                         </td>
                         @php
-                            $forPts = $flexStats[$player->user_id]['for'] ?? $player->total_points;
-                            $againstPts = $flexStats[$player->user_id]['against'] ?? 0;
+                            $st = $flexStats[$player->user_id] ?? \App\Support\AmericanoFlexRanking::row($player->user_id, []);
+                            $forPts = $st['points_for'];
+                            $againstPts = $st['points_against'];
                             $diff = $forPts - $againstPts;
                         @endphp
                         <td class="col-stat points-for">{{ $forPts }}</td>
                         <td class="col-stat points-against">{{ $againstPts }}</td>
                         <td class="col-stat {{ $diff > 0 ? 'points-for' : ($diff < 0 ? 'points-against' : '') }}">{{ $diff > 0 ? '+' : '' }}{{ $diff }}</td>
-                        <td class="col-stat">{{ $player->matches_played }}</td>
-                        <td class="col-points">{{ number_format($player->average_score, 2) }}</td>
+                        <td class="col-stat">{{ $st['matches'] }}</td>
+                        <td class="col-stat">{{ $st['win_percent'] }}%</td>
+                        <td class="col-points">{{ number_format($st['avg'], 2) }}</td>
                         <td class="col-rating">
                             {{ $player->rating_before ?? '—' }}
                             @if($player->rating_after !== null)

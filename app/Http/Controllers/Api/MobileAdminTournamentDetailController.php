@@ -4756,26 +4756,24 @@ class MobileAdminTournamentDetailController extends Controller
         ];
     }
 
+    /**
+     * Строки таблицы Flex для приложения (и для выгрузки картинкой — она
+     * рисует ровно этот список). Порядок и агрегаты берём у
+     * AmericanoFlexRanking, чтобы веб и приложение не расходились местами.
+     */
     private function buildAmericanoFlexLeaderboard(Tournament $tournament): array
     {
-        // Парный флекс: лидерборд по парам (одна строка = пара «A / B»).
+        // Парный флекс: одна строка = пара «A / B». Партнёры всегда играют
+        // вместе, поэтому статистика пары считается по первому игроку.
         if ($tournament->isPairedFlex()) {
-            // В паре оба игрока всегда играют вместе — статистика у них одинаковая,
-            // берём по player1.
-            $stats = $this->flexPlayerStats($tournament);
-            $pairRows = app(AmericanoFlexService::class)->getPairedLeaderboard($tournament);
             $rows = [];
-            foreach ($pairRows as $r) {
+            foreach (app(AmericanoFlexService::class)->getPairedLeaderboard($tournament) as $r) {
                 $p1 = $r['player1'];
                 $p2 = $r['player2'];
-                $name = trim(($p1->name ?? '—') . ' / ' . ($p2->name ?? '—'));
-                $st = $stats[$p1->id ?? 0] ?? [0, 0, 0, 0, 0];
-                $matches = $st[4];
-                $points = $st[2]; // очки = сумма набранного (без 0:0)
-                $avg = $matches > 0 ? round($points / $matches, 2) : 0;
                 $rows[] = [
+                    'position' => (int) $r['position'],
                     'id' => $p1->id ?? 0,
-                    'name' => $name,
+                    'name' => trim(($p1->name ?? '—') . ' / ' . ($p2->name ?? '—')),
                     'avatar' => $p1?->avatar, // в БД уже готовый URL
                     // Пара: оба игрока с аватарами — для отображения на двух строках.
                     'players' => [
@@ -4785,32 +4783,31 @@ class MobileAdminTournamentDetailController extends Controller
                     'rating' => null,
                     'rating_before' => null,
                     'rating_after' => null,
-                    'total_points' => $points,
-                    'matches_played' => $matches,
+                    'total_points' => $r['points_for'],
+                    'matches_played' => $r['matches'],
                     'bye_count' => (int) $r['bye_count'],
                     'bye_streak' => (int) $r['bye_streak'],
-                    'avg_points' => $avg,
-                    'wins' => $st[0],
-                    'losses' => $st[1],
-                    'points_for' => $st[2],
-                    'points_against' => $st[3],
+                    'avg_points' => $r['avg'],
+                    'wins' => $r['wins'],
+                    'losses' => $r['losses'],
+                    'points_for' => $r['points_for'],
+                    'points_against' => $r['points_against'],
+                    'win_percent' => $r['win_percent'],
                 ];
             }
-            return $this->rankFlexRows($rows);
+
+            return $rows;
         }
 
-        // Статистика из завершённых матчей (матчи 0:0 не учитываются).
-        $stats = $this->flexPlayerStats($tournament);
+        $players = $tournament->americanoFlexPlayers()->with('user')->get()->keyBy('user_id');
 
         $rows = [];
-        foreach ($tournament->americanoFlexPlayers as $fp) {
-            $u = $fp->user;
+        foreach (\App\Support\AmericanoFlexRanking::soloRows($tournament) as $r) {
+            $fp = $players[$r['id']] ?? null;
+            $u = $fp?->user;
             if (!$u) continue;
-            $st = $stats[$u->id] ?? [0, 0, 0, 0, 0];
-            $matches = $st[4];
-            $points = $st[2]; // очки = сумма набранного (без 0:0)
-            $avg = $matches > 0 ? round($points / $matches, 2) : 0;
             $rows[] = [
+                'position' => (int) $r['position'],
                 'id' => $u->id,
                 'name' => $u->full_name ?? $u->name,
                 'avatar' => $u->avatar, // в БД уже готовый URL (как в рейтинге)
@@ -4818,74 +4815,19 @@ class MobileAdminTournamentDetailController extends Controller
                 'rating' => (int) ($u->rating ?? 0),
                 'rating_before' => $fp->rating_before !== null ? (int) $fp->rating_before : null,
                 'rating_after' => $fp->rating_after !== null ? (int) $fp->rating_after : null,
-                'total_points' => $points,
-                'matches_played' => $matches,
+                'total_points' => $r['points_for'], // очки = сумма набранного (без 0:0)
+                'matches_played' => $r['matches'],
                 'bye_count' => (int) $fp->bye_count,
                 'bye_streak' => (int) $fp->bye_streak,
-                'avg_points' => $avg,
-                'wins' => $st[0],
-                'losses' => $st[1],
-                'points_for' => $st[2],
-                'points_against' => $st[3],
+                'avg_points' => $r['avg'],
+                'wins' => $r['wins'],
+                'losses' => $r['losses'],
+                'points_for' => $r['points_for'],
+                'points_against' => $r['points_against'],
+                'win_percent' => $r['win_percent'],
             ];
         }
-        return $this->rankFlexRows($rows);
-    }
 
-    /**
-     * Статистика по игрокам из завершённых матчей Americano Flex.
-     * Матчи со счётом 0:0 (несыгранные) НЕ учитываются нигде.
-     * Возвращает user_id => [wins, losses, points_for, points_against, matches].
-     */
-    private function flexPlayerStats(Tournament $tournament): array
-    {
-        $stats = [];
-        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
-            foreach ($round->matches as $m) {
-                if ($m->status !== 'completed') continue;
-                $s1 = (int) $m->team1_score;
-                $s2 = (int) $m->team2_score;
-                if ($s1 === 0 && $s2 === 0) continue; // 0:0 — матч не игрался, не считаем
-                $team1 = [$m->team1_player1_id, $m->team1_player2_id];
-                $team2 = [$m->team2_player1_id, $m->team2_player2_id];
-                foreach ($team1 as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid] ??= [0, 0, 0, 0, 0];
-                    $stats[$uid][2] += $s1;
-                    $stats[$uid][3] += $s2;
-                    $stats[$uid][4]++;
-                    if ($s1 > $s2) $stats[$uid][0]++; elseif ($s1 < $s2) $stats[$uid][1]++;
-                }
-                foreach ($team2 as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid] ??= [0, 0, 0, 0, 0];
-                    $stats[$uid][2] += $s2;
-                    $stats[$uid][3] += $s1;
-                    $stats[$uid][4]++;
-                    if ($s2 > $s1) $stats[$uid][0]++; elseif ($s2 < $s1) $stats[$uid][1]++;
-                }
-            }
-        }
-        return $stats;
-    }
-
-    /**
-     * Отсортировать строки лидерборда флекса по среднему очков за матч
-     * (затем по сумме) и проставить position.
-     */
-    private function rankFlexRows(array $rows): array
-    {
-        usort($rows, function ($a, $b) {
-            if ($a['avg_points'] != $b['avg_points']) {
-                return $b['avg_points'] <=> $a['avg_points'];
-            }
-            return $b['total_points'] <=> $a['total_points'];
-        });
-        $position = 1;
-        foreach ($rows as &$r) {
-            $r['position'] = $position++;
-        }
-        unset($r);
         return $rows;
     }
 }

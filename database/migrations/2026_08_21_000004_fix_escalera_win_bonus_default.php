@@ -16,18 +16,30 @@ return new class extends Migration
      *
      * Значения существующих строк не трогаем: у сыгранных турниров бонус
      * должен остаться выключенным.
+     *
+     * `MODIFY` — синтаксис MySQL, поэтому на других драйверах пропускаем:
+     * тесты гоняются на SQLite, где третья миграция и так создаёт колонку
+     * сразу с нужным умолчанием.
      */
     public function up(): void
     {
-        if (Schema::hasColumn('tournaments', 'escalera_win_bonus')) {
-            DB::statement('ALTER TABLE `tournaments` MODIFY `escalera_win_bonus` TINYINT(1) NOT NULL DEFAULT 1');
-        }
+        $this->setDefault(1);
     }
 
     public function down(): void
     {
-        if (Schema::hasColumn('tournaments', 'escalera_win_bonus')) {
-            DB::statement('ALTER TABLE `tournaments` MODIFY `escalera_win_bonus` TINYINT(1) NOT NULL DEFAULT 0');
+        $this->setDefault(0);
+    }
+
+    private function setDefault(int $default): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
         }
+        if (!Schema::hasColumn('tournaments', 'escalera_win_bonus')) {
+            return;
+        }
+
+        DB::statement("ALTER TABLE `tournaments` MODIFY `escalera_win_bonus` TINYINT(1) NOT NULL DEFAULT {$default}");
     }
 };

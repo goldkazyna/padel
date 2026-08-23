@@ -8,6 +8,7 @@ use App\Models\AmericanoFlexPairHistory;
 use App\Models\AmericanoFlexPlayer;
 use App\Models\AmericanoFlexRound;
 use App\Models\Tournament;
+use App\Support\AmericanoFlexRanking;
 use App\Models\TournamentParticipant;
 use App\Traits\RatingCalculator;
 use Illuminate\Support\Collection;
@@ -686,68 +687,29 @@ class AmericanoFlexService
     {
         $teams = $this->pairedTeams($tournament);
         $players = $tournament->americanoFlexPlayers()->get()->keyBy('user_id');
-        // Очки и число матчей — из фактически сыгранных (матчи 0:0 не считаем),
-        // а не из хранимых полей, чтобы несыгранные матчи не искажали таблицу.
-        $stats = $this->pairedMatchStats($tournament);
+        // Агрегаты — из фактически сыгранных матчей (0:0 не считаем), а не из
+        // хранимых полей: иначе несыгранные матчи искажают таблицу.
+        // Партнёры всегда играют вместе, поэтому статистика пары = статистика
+        // её первого игрока, и личные встречи тоже ищутся по нему.
+        $stats = AmericanoFlexRanking::stats($tournament);
 
         $rows = [];
         foreach ($teams as $t) {
             $fp = $players[$t->player1_id] ?? null;
-            $st = $stats[$t->player1_id] ?? ['points' => 0, 'matches' => 0];
-            $matchesPlayed = $st['matches'];
-            $totalPoints = $st['points'];
-            $byeCount = $fp ? (int) $fp->bye_count : 0;
-            $byeStreak = $fp ? (int) $fp->bye_streak : 0;
-            $avg = $matchesPlayed > 0 ? round($totalPoints / $matchesPlayed, 2) : 0.0;
-            $rows[] = [
+            $row = AmericanoFlexRanking::row((int) $t->player1_id, $stats, (int) ($t->rating_avg ?? 0));
+            $rows[] = $row + [
                 'team_id' => $t->id,
                 'player1' => $t->player1,
                 'player2' => $t->player2,
-                'total_points' => $totalPoints,
-                'matches_played' => $matchesPlayed,
-                'bye_count' => $byeCount,
-                'bye_streak' => $byeStreak,
-                'avg_points' => $avg,
+                'total_points' => $row['points_for'],
+                'matches_played' => $row['matches'],
+                'bye_count' => $fp ? (int) $fp->bye_count : 0,
+                'bye_streak' => $fp ? (int) $fp->bye_streak : 0,
+                'avg_points' => $row['avg'],
             ];
         }
 
-        usort($rows, function ($a, $b) {
-            if ($a['avg_points'] !== $b['avg_points']) {
-                return $b['avg_points'] <=> $a['avg_points'];
-            }
-            return $b['total_points'] <=> $a['total_points'];
-        });
-
-        return $rows;
-    }
-
-    /**
-     * Очки (сумма забитого) и число сыгранных матчей по игрокам из завершённых
-     * матчей. Матчи со счётом 0:0 (несыгранные) не учитываются.
-     * Возвращает user_id => ['points' => int, 'matches' => int].
-     */
-    private function pairedMatchStats(Tournament $tournament): array
-    {
-        $stats = [];
-        foreach ($tournament->americanoFlexRounds()->with('matches')->get() as $round) {
-            foreach ($round->matches as $m) {
-                if ($m->status !== 'completed') continue;
-                $s1 = (int) $m->team1_score;
-                $s2 = (int) $m->team2_score;
-                if ($s1 === 0 && $s2 === 0) continue;
-                foreach ([$m->team1_player1_id, $m->team1_player2_id] as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid]['points'] = ($stats[$uid]['points'] ?? 0) + $s1;
-                    $stats[$uid]['matches'] = ($stats[$uid]['matches'] ?? 0) + 1;
-                }
-                foreach ([$m->team2_player1_id, $m->team2_player2_id] as $uid) {
-                    if (!$uid) continue;
-                    $stats[$uid]['points'] = ($stats[$uid]['points'] ?? 0) + $s2;
-                    $stats[$uid]['matches'] = ($stats[$uid]['matches'] ?? 0) + 1;
-                }
-            }
-        }
-        return $stats;
+        return AmericanoFlexRanking::sortRows($rows, AmericanoFlexRanking::headToHead($tournament));
     }
 
     /**
@@ -970,18 +932,37 @@ class AmericanoFlexService
     }
 
     /**
-     * Лидерборд: коллекция AmericanoFlexPlayer, сортировка по среднему DESC.
+     * Лидерборд: коллекция AmericanoFlexPlayer в порядке итоговой таблицы
+     * (среднее → % побед → личная встреча → рейтинг, см. AmericanoFlexRanking).
+     *
+     * Хранимые в модели total_points / matches_played для порядка не годятся:
+     * счётчик матчей растёт и на 0:0, которым отмечают несыгранный матч.
+     * Актуальные агрегаты каждой строки лежат в getLeaderboardStats().
      */
     public function getLeaderboard(Tournament $tournament): Collection
     {
-        return $tournament->americanoFlexPlayers()
-            ->with('user')
-            ->get()
-            ->sortByDesc(function ($p) {
-                return $p->matches_played > 0
-                    ? $p->total_points / $p->matches_played
-                    : 0;
-            })
-            ->values();
+        $players = $tournament->americanoFlexPlayers()->with('user')->get()->keyBy('user_id');
+
+        $ordered = collect();
+        foreach (AmericanoFlexRanking::soloRows($tournament) as $row) {
+            $player = $players[$row['id']] ?? null;
+            if ($player) $ordered->push($player);
+        }
+
+        return $ordered->values();
+    }
+
+    /**
+     * Агрегаты для таблицы: user_id => строка AmericanoFlexRanking.
+     * Веб показывает числа отсюда, а не из хранимых полей игрока.
+     */
+    public function getLeaderboardStats(Tournament $tournament): array
+    {
+        $byUser = [];
+        foreach (AmericanoFlexRanking::soloRows($tournament) as $row) {
+            $byUser[$row['id']] = $row;
+        }
+
+        return $byUser;
     }
 }
