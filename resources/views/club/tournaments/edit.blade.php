@@ -27,14 +27,21 @@
 								 возвращается сюда же, уже с полями нового типа. Иначе
 								 организатор правил бы настройки старого формата. --}}
 							<input type="hidden" name="apply_type" id="applyType" value="">
-							<select name="type" id="tournamentTypeSelect" class="form-select">
-								@foreach($switchTypes as $key => $label)
-									<option value="{{ $key }}" {{ old('type', $tournament->type) === $key ? 'selected' : '' }}>{{ $label }}</option>
-								@endforeach
-							</select>
+							<div class="d-flex gap-2">
+								<select name="type" id="tournamentTypeSelect" class="form-select">
+									@foreach($switchTypes as $key => $label)
+										<option value="{{ $key }}" {{ old('type', $tournament->type) === $key ? 'selected' : '' }}>{{ $label }}</option>
+									@endforeach
+								</select>
+								{{-- Кнопка — основной путь: работает и без JS. Скрипт ниже
+									 отправляет форму сам, как только выбран другой формат. --}}
+								<button type="submit" name="apply_type" value="1" class="btn-outline-custom" style="white-space: nowrap;">
+									Применить
+								</button>
+							</div>
 							<small class="text-secondary">
 								Формат меняется прямо здесь, пока турнир не начат — записавшиеся ({{ $registeredNow }}) остаются.
-								Выбор применяется сразу: страница сохранится и откроется заново с настройками нового формата.
+								Выберите формат и нажмите «Применить»: страница сохранится и откроется заново с его настройками.
 								Число участников подгонится под него — у Американо, Мексикано, Короля корта, Round Robin
 								и Just Padel It оно кратно четырём, у Ladder ровно корты × 4. Если людей станет не хватать,
 								турнир просто дождётся остальных.
