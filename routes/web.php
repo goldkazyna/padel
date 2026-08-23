@@ -539,6 +539,11 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 ->name('mexicano.saveScore');
             Route::put('/mexicano/match/{match}/score', [MexicanoController::class, 'updateScore'])
                 ->name('mexicano.updateScore');
+            // Пересобрать последний раунд по актуальным результатам — общий
+            // маршрут для форматов, где состав зависит от предыдущего раунда.
+            Route::post('/tournaments/{tournament}/rebuild-last-round', [App\Http\Controllers\Club\TournamentRoundController::class, 'rebuildLast'])
+                ->name('tournaments.rebuildLastRound');
+
             Route::post('/mexicano/tournament/{tournament}/next-round', [MexicanoController::class, 'generateNextRound'])
                 ->name('mexicano.nextRound');
             Route::post('/mexicano/tournament/{tournament}/generate-playoff', [MexicanoController::class, 'generatePlayoff'])

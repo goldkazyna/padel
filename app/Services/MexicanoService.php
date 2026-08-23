@@ -7,6 +7,7 @@ use App\Models\MexicanoPlayer;
 use App\Models\MexicanoRound;
 use App\Models\MexicanoMatch;
 use App\Models\MexicanoPairHistory;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 
 class MexicanoService
@@ -122,6 +123,80 @@ class MexicanoService
     /**
 	 * Генерация следующего раунда (по очкам)
 	 */
+	/**
+	 * Пересобрать последний раунд из актуальных результатов.
+	 *
+	 * Нужно, когда счёт предыдущего раунда исправили уже после генерации
+	 * следующего: пары считаются от таблицы, и раунд оказывается составлен
+	 * по неверным данным. Введённый в нём счёт теряется.
+	 */
+	public function rebuildLastRound(Tournament $tournament): bool
+	{
+		if (!$tournament->isMexicano() || $tournament->status !== 'in_progress') {
+			return false;
+		}
+
+		$last = $tournament->mexicanoRounds()
+			->reorder('round_number', 'desc')
+			->with('matches')
+			->first();
+
+		// Первый раунд строится посевом по рейтингу, а не результатами —
+		// пересобирать его нечем.
+		if (!$last || (int) $last->round_number <= 1) {
+			return false;
+		}
+
+		DB::transaction(function () use ($tournament, $last) {
+			foreach ($last->matches as $match) {
+				// Очки за матч снимаем, иначе таблица останется завышенной.
+				if ($match->isCompleted()) {
+					$this->addPlayerPoints($tournament->id, $match->team1_player1_id, -$match->team1_score);
+					$this->addPlayerPoints($tournament->id, $match->team1_player2_id, -$match->team1_score);
+					$this->addPlayerPoints($tournament->id, $match->team2_player1_id, -$match->team2_score);
+					$this->addPlayerPoints($tournament->id, $match->team2_player2_id, -$match->team2_score);
+				}
+
+				// История пар считается счётчиками без привязки к раунду,
+				// поэтому вычитаем ровно те связки, что дал этот раунд.
+				$t1 = [$match->team1_player1_id, $match->team1_player2_id];
+				$t2 = [$match->team2_player1_id, $match->team2_player2_id];
+				$this->forgetPairHistory($tournament->id, $t1[0], $t1[1], true);
+				$this->forgetPairHistory($tournament->id, $t2[0], $t2[1], true);
+				foreach ($t1 as $a) {
+					foreach ($t2 as $b) {
+						$this->forgetPairHistory($tournament->id, $a, $b, false);
+					}
+				}
+			}
+
+			$last->matches()->delete();
+			$last->delete();
+		});
+
+		return $this->generateNextRound($tournament->fresh()) !== null;
+	}
+
+	/**
+	 * Снять одну отметку из истории пар — обратное к recordPairHistory().
+	 */
+	protected function forgetPairHistory(int $tournamentId, int $player1Id, int $player2Id, bool $asPartners): void
+	{
+		$history = MexicanoPairHistory::where('tournament_id', $tournamentId)
+			->where('player1_id', min($player1Id, $player2Id))
+			->where('player2_id', max($player1Id, $player2Id))
+			->first();
+
+		if (!$history) {
+			return;
+		}
+
+		$field = $asPartners ? 'times_as_partners' : 'times_as_opponents';
+		if ((int) $history->$field > 0) {
+			$history->decrement($field);
+		}
+	}
+
 	public function generateNextRound(Tournament $tournament): ?MexicanoRound
 	{
 		$currentRoundNumber = $tournament->mexicanoRounds()->reorder('round_number', 'desc')->value('round_number') ?? 0;

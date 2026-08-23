@@ -6,6 +6,7 @@ use App\Models\KingOfCourtMatch;
 use App\Models\KingOfCourtPlayer;
 use App\Models\KingOfCourtRound;
 use App\Models\Tournament;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Турнир «Король корта».
@@ -321,6 +322,44 @@ class KingOfCourtService
     /**
      * Сгенерировать следующий раунд: применить ротацию + перемешать пары.
      */
+    /**
+     * Пересобрать последний раунд из актуальных результатов.
+     *
+     * Нужно, когда счёт предыдущего раунда исправили уже после генерации
+     * следующего: состав считается от результатов, и старый раунд оказывается
+     * построен по неверным данным. Введённый в нём счёт теряется — организатор
+     * подтверждает это в диалоге.
+     */
+    public function rebuildLastRound(Tournament $tournament): bool
+    {
+        if (!$tournament->isKingOfCourt() || $tournament->status !== 'in_progress') {
+            return false;
+        }
+
+        $last = $tournament->kingOfCourtRounds()
+            ->reorder('round_number', 'desc')
+            ->with('matches')
+            ->first();
+
+        // Первый раунд пересобирать не из чего: он построен посевом, а не
+        // результатами. Для него есть перезапуск турнира.
+        if (!$last || (int) $last->round_number <= 1) {
+            return false;
+        }
+
+        DB::transaction(function () use ($last) {
+            foreach ($last->matches as $match) {
+                if ($match->isCompleted()) {
+                    $this->rollbackMatchStats($match);
+                }
+            }
+            $last->matches()->delete();
+            $last->delete();
+        });
+
+        return $this->generateNextRound($tournament->fresh());
+    }
+
     public function generateNextRound(Tournament $tournament): bool
     {
         if (!$this->canGenerateNextRound($tournament)) return false;

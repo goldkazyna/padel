@@ -191,6 +191,7 @@
                 </form>
             </div>
         @endif
+@include('club.tournaments.partials._rebuild_round')
 
         @if($showEarly)
             <div class="text-center mt-3">

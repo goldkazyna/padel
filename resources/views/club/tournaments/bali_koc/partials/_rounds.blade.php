@@ -201,6 +201,7 @@
                 </div>
             </div>
         @endif
+@include('club.tournaments.partials._rebuild_round')
     @endif
 </div>
 

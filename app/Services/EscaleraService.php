@@ -457,6 +457,69 @@ class EscaleraService
      * Создать следующий раунд из текущих кортов игроков.
      * Посадка внутри корта — по текущему месту в общей таблице: лидер первым.
      */
+    /**
+     * Пересобрать последний раунд из актуальных результатов.
+     *
+     * У лестницы мало удалить раунд: закрытие предыдущего уже развезло игроков
+     * по кортам, и после правки счёта эти перемещения неверны. Поэтому позиции
+     * пересчитываем с нуля — от стартовой расстановки прогоняем все закрытые
+     * раунды заново, а потом собираем новый.
+     */
+    public function rebuildLastRound(Tournament $tournament): bool
+    {
+        if (!$tournament->isEscalera() || $tournament->status !== 'in_progress') {
+            return false;
+        }
+
+        $last = $tournament->escaleraRounds()->reorder('round_number', 'desc')->first();
+        if (!$last || (int) $last->round_number <= 1) {
+            return false;
+        }
+
+        DB::transaction(function () use ($tournament, $last) {
+            $courtIds = EscaleraRoundCourt::where('escalera_round_id', $last->id)->pluck('id');
+            EscaleraMatch::whereIn('escalera_round_court_id', $courtIds)->delete();
+            EscaleraRoundResult::where('escalera_round_id', $last->id)->delete();
+            EscaleraRoundCourt::whereIn('id', $courtIds)->delete();
+            $last->delete();
+
+            $this->recalculateCourts($tournament);
+        });
+
+        return $this->generateNextRound($tournament->fresh());
+    }
+
+    /**
+     * Разложить игроков по кортам заново: со стартовой расстановки применяем
+     * перемещения каждого закрытого раунда по порядку. Итог зависит только от
+     * счетов, поэтому после правки результата лестница сходится сама.
+     */
+    protected function recalculateCourts(Tournament $tournament): void
+    {
+        EscaleraPlayer::where('tournament_id', $tournament->id)
+            ->get()
+            ->each(fn (EscaleraPlayer $player) => $player->update([
+                'current_court' => $player->start_court,
+            ]));
+
+        $rounds = $tournament->escaleraRounds()
+            ->where('status', 'completed')
+            ->with(['courts.matches'])
+            ->orderBy('round_number')
+            ->get();
+
+        foreach ($rounds as $round) {
+            $movements = $this->planMovements($this->computeRankings($round));
+            foreach ($movements as $courtNumber => $userIds) {
+                EscaleraPlayer::where('tournament_id', $tournament->id)
+                    ->whereIn('user_id', $userIds)
+                    ->update(['current_court' => $courtNumber]);
+            }
+        }
+
+        $this->refreshTotals($tournament);
+    }
+
     public function generateNextRound(Tournament $tournament): bool
     {
         if (!$tournament->isEscalera() || $tournament->status !== 'in_progress') {

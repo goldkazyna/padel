@@ -173,6 +173,7 @@
                 </button>
             </form>
         </div>
+@include('club.tournaments.partials._rebuild_round')
     @endif
 
     {{-- Действия после закрытия раунда --}}
