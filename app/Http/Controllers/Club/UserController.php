@@ -53,10 +53,14 @@ class UserController extends Controller
         // Поиск
         $isSuper = auth()->user()->isSuperAdmin();
         if ($search = $request->get('search')) {
-            $query->where(function($q) use ($search, $isSuper) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
+            // Имя ищем во всех написаниях: «Денис» находит и Denis.
+            $variants = \App\Support\NameSearch::variants($search);
+            $query->where(function($q) use ($search, $isSuper, $variants) {
+                foreach ($variants as $variant) {
+                    $q->orWhere('name', 'like', "%{$variant}%")
+                      ->orWhere('first_name', 'like', "%{$variant}%")
+                      ->orWhere('last_name', 'like', "%{$variant}%");
+                }
                 if (ctype_digit((string) $search)) {
                     $q->orWhere('id', (int) $search);
                 }
@@ -71,6 +75,13 @@ class UserController extends Controller
                     }
                 }
             });
+
+            // Совпавшие с запросом как есть — выше найденных по другому
+            // написанию имени. Приоритет ставим перед выбранной сортировкой:
+            // человек искал конкретное имя, а не листал список.
+            $query->reorder();
+            \App\Support\NameSearch::orderExactFirst($query, $search);
+            $query->orderBy($sort, $direction);
         }
 
         // Фильтр по уровню

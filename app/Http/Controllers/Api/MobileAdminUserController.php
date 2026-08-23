@@ -57,14 +57,24 @@ class MobileAdminUserController extends Controller
 
         // Поиск
         if ($search = trim((string) $request->get('search', ''))) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
+            // Имя ищем во всех написаниях: «Денис» находит и Denis.
+            $variants = \App\Support\NameSearch::variants($search);
+            $query->where(function ($q) use ($search, $variants) {
+                foreach ($variants as $variant) {
+                    $q->orWhere('name', 'like', "%{$variant}%")
+                      ->orWhere('first_name', 'like', "%{$variant}%")
+                      ->orWhere('last_name', 'like', "%{$variant}%");
+                }
                 if (ctype_digit($search)) {
                     $q->orWhere('id', (int) $search);
                 }
             });
+
+            // Совпавшие с запросом как есть — выше найденных по другому
+            // написанию имени. Приоритет ставим перед сортировкой по имени.
+            $query->reorder();
+            \App\Support\NameSearch::orderExactFirst($query, $search);
+            $query->orderBy('name');
         }
 
         // Уровень

@@ -34,8 +34,9 @@ class MobileRatingController extends Controller
         $total = $query->count();
         $totalPages = max(1, (int) ceil($total / $perPage));
 
-        // Топ игроков (пагинация)
-        $players = (clone $query)
+        // Топ игроков (пагинация). При поиске те, кто совпал с запросом как
+        // есть, идут выше найденных по другому написанию имени.
+        $players = \App\Support\NameSearch::orderExactFirst(clone $query, $search)
             ->orderBy('rating', 'desc')
             ->orderBy('id', 'asc')
             ->offset(($page - 1) * $perPage)
@@ -216,12 +217,7 @@ class MobileRatingController extends Controller
         }
 
         if ($search) {
-            $userIds = User::visibleInRating()
-                ->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('first_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%");
-                })->pluck('id');
+            $userIds = \App\Support\NameSearch::apply(User::visibleInRating(), $search)->pluck('id');
             $query->whereIn('user_id', $userIds);
         }
 
@@ -570,12 +566,7 @@ class MobileRatingController extends Controller
         }
 
         if ($search) {
-            $userIds = User::visibleInRating()
-                ->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('first_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%");
-                })->pluck('id');
+            $userIds = \App\Support\NameSearch::apply(User::visibleInRating(), $search)->pluck('id');
             $query->whereIn('user_id', $userIds);
         }
 
@@ -860,15 +851,15 @@ class MobileRatingController extends Controller
     /**
      * Поиск по имени
      */
+    /**
+     * Поиск по имени с учётом алфавита: «Денис» находит и Denis.
+     * Точные совпадения поднимаются наверх — см. NameSearch.
+     */
     private function applySearch($query, ?string $search): void
     {
         if (!$search) return;
 
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('first_name', 'like', "%{$search}%")
-              ->orWhere('last_name', 'like', "%{$search}%");
-        });
+        \App\Support\NameSearch::apply($query, $search);
     }
 
     /**
