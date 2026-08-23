@@ -9,6 +9,7 @@ class ClubCardType extends Model
     protected $fillable = [
         'club_id',
         'name',
+        'description',
         'code_prefix',
         'last_card_number',
         'kind',

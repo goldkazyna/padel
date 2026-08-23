@@ -38,6 +38,11 @@
                     @elseif($t->default_validity_days)<span class="cc-tsub">· срок {{ $t->default_validity_days }} дн.</span>
                     @else<span class="cc-tsub">· бессрочно</span>@endif
                 </div>
+                @if($t->description)
+                    {{-- Первая строка описания: полный текст владелец видит в приложении. --}}
+                    <div class="cc-tdesc" title="{{ $t->description }}">{{ strtok($t->description, "
+") }}</div>
+                @endif
             </div>
             @if($t->isCounter())
                 <span class="cc-tbadge {{ $t->ui_cls }}">{{ $t->nominal }}ч</span>
@@ -47,7 +52,7 @@
             <span class="cc-tcount">{{ $t->ui_count }}</span>
             <div class="cc-tact">
                 @if($t->ui_count > 0)
-                    <button class="cc-ic" type="button" title="Изменить срок действия"
+                    <button class="cc-ic" type="button" title="Изменить описание и срок действия"
                             onclick='openCardTypeModal(@json($t))'><i class="bi bi-pencil"></i></button>
                     <button class="cc-ic" type="button" title="Просмотреть тип карты"
                             onclick='openCardTypeModal(@json($t), true)'><i class="bi bi-eye"></i></button>
@@ -117,6 +122,7 @@
 .cc-tprice{font-weight:800;font-size:14px;margin-top:3px;color:var(--text-primary)}
 .cc-type.t-blue .cc-tprice{color:#60a5fa}.cc-type.t-amber .cc-tprice{color:#fbbf24}.cc-type.t-purple .cc-tprice{color:#a78bfa}
 .cc-tsub{color:var(--text-muted);font-weight:500;font-size:12px}
+.cc-tdesc{color:var(--text-muted);font-size:12px;margin-top:3px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cc-tbadge{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:rgba(139,92,246,.18);color:#a78bfa}
 .cc-tbadge.t-blue{background:rgba(59,130,246,.18);color:#60a5fa}.cc-tbadge.t-amber{background:rgba(245,158,11,.18);color:#fbbf24}
 .cc-tbadge.t-green{background:rgba(34,197,94,.18);color:#4ade80}.cc-tbadge.t-pink{background:rgba(236,72,153,.18);color:#f472b6}.cc-tbadge.t-cyan{background:rgba(6,182,212,.18);color:#22d3ee}

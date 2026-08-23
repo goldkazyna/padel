@@ -15,6 +15,12 @@
                     <input type="text" name="name" id="ctName" required placeholder="Напр.: 10 посещений">
                 </div>
                 <div class="ct-field">
+                    <label>Что даёт карта</label>
+                    <textarea name="description" id="ctDesc" rows="4" maxlength="2000"
+                              placeholder="Напр.: 10 часов корта в любое время, аренда ракетки бесплатно, можно приводить гостя"></textarea>
+                    <div class="ct-hint">Виден владельцу карты в приложении. Каждая строка показывается отдельным пунктом.</div>
+                </div>
+                <div class="ct-field">
                     <label>Префикс номера карты *</label>
                     <input type="text" name="code_prefix" id="ctPrefix" required maxlength="12"
                            placeholder="Напр.: VIP" style="text-transform:uppercase;"
@@ -76,7 +82,8 @@
 .ct-modal-body { padding:18px 20px; }
 .ct-field { margin-bottom:14px; }
 .ct-field label { display:block; color:#a1a1aa; font-size:12px; margin-bottom:6px; }
-.ct-field input, .ct-field select { width:100%; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:10px 12px; color:#fff; }
+.ct-field input, .ct-field select, .ct-field textarea { width:100%; background:#18181b; border:1px solid #27272a; border-radius:10px; padding:10px 12px; color:#fff; }
+.ct-field textarea { resize:vertical; min-height:76px; font-family:inherit; font-size:14px; line-height:1.5; }
 .ct-field input.ct-date { color-scheme: dark; }
 .ct-hint { color:#71717a; font-size:11px; margin-top:5px; }
 .ct-hint b { color:#a78bfa; font-family:monospace; letter-spacing:1px; }
@@ -84,7 +91,7 @@
 .btn-cancel { flex:1; background:#27272a; color:#d4d4d8; border:none; border-radius:10px; padding:11px; cursor:pointer; }
 .btn-save { flex:2; background:#22c55e; color:#fff; border:none; border-radius:10px; padding:11px; font-weight:700; cursor:pointer; }
 .ct-issued-note { background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35); color:#fbbf24; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:14px; line-height:1.4; }
-.ct-field input:disabled, .ct-field select:disabled { opacity:.5; cursor:not-allowed; }
+.ct-field input:disabled, .ct-field select:disabled, .ct-field textarea:disabled { opacity:.5; cursor:not-allowed; }
 </style>
 
 <script>
@@ -110,6 +117,7 @@ function openCardTypeModal(t, readOnly) {
         form.action = '{{ url("club/card-types") }}/' + t.id;
         document.getElementById('ctMethod').value = 'PUT';
         document.getElementById('ctName').value = t.name || '';
+        document.getElementById('ctDesc').value = t.description || '';
         document.getElementById('ctPrefix').value = t.code_prefix || '';
         document.getElementById('ctKind').value = t.kind;
         document.getElementById('ctNominal').value = t.nominal || 10;
@@ -142,9 +150,10 @@ function openCardTypeModal(t, readOnly) {
     // По типу уже выпущены карты → менять можно только срок действия.
     const issued = (t && t.ui_count) ? Number(t.ui_count) : 0;
     const validityOnly = !readOnly && issued > 0;
-    const validityIds = ['ctValidityMode', 'ctDate', 'ctValidity'];
+    // Описание — просто текст для владельца карты, его правим и после выдачи.
+    const validityIds = ['ctDesc', 'ctValidityMode', 'ctDate', 'ctValidity'];
 
-    modal.querySelectorAll('input, select').forEach(function (el) {
+    modal.querySelectorAll('input, select, textarea').forEach(function (el) {
         // Скрытые поля (_token CSRF, _method) не трогаем: disabled-инпут не
         // отправляется с формой — без _token сервер вернёт 419 Page Expired.
         if (el.type === 'hidden') return;
@@ -153,8 +162,8 @@ function openCardTypeModal(t, readOnly) {
     });
 
     if (validityOnly) {
-        document.getElementById('ctModalTitle').textContent = 'Редактировать срок действия';
-        note.textContent = 'По типу выпущено карт: ' + issued + '. Менять можно только срок — он применится к новым картам, уже выпущенные не изменятся.';
+        document.getElementById('ctModalTitle').textContent = 'Редактировать описание и срок';
+        note.textContent = 'По типу выпущено карт: ' + issued + '. Менять можно описание и срок действия. Описание сразу увидят все владельцы карт этого типа, а новый срок применится только к новым картам — у выпущенных он не изменится.';
         note.style.display = '';
     } else {
         note.style.display = 'none';

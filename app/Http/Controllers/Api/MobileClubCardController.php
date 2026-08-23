@@ -128,6 +128,8 @@ class MobileClubCardController extends Controller
             'id' => $card->id,
             'code' => $card->code,
             'type_name' => $card->type?->name,
+            // Что даёт карта — текст клуба, показываем на экране карты.
+            'description' => $card->type?->description ?: null,
             'kind' => $card->type?->kind,
             'kind_name' => $card->type?->kindName(),
             'is_counter' => $card->isCounter(),

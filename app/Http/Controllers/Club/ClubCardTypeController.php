@@ -93,6 +93,7 @@ class ClubCardTypeController extends Controller
             $typesData[] = [
                 'id' => (int) $t->id,
                 'name' => (string) $t->name,
+                'desc' => (string) ($t->description ?? ''),
                 'hours' => $t->isCounter() ? (int) $t->nominal : null,
                 'cls' => $typeMeta[$t->id]['cls'],
                 'tag' => $typeMeta[$t->id]['tag'],
@@ -161,7 +162,10 @@ class ClubCardTypeController extends Controller
         // их изменение сломало бы смысл уже выданных карт.
         $issued = $cardType->cards()->count();
         if ($issued > 0) {
+            // Описание — просто текст для владельца карты, менять его безопасно
+            // и после выдачи: условия клуба со временем уточняются.
             $data = $request->validate([
+                'description' => 'nullable|string|max:2000',
                 'validity_mode' => 'nullable|in:forever,date,days',
                 'default_expires_at' => 'nullable|date|after:today',
                 'default_validity_days' => 'nullable|integer|min:1|max:3650',
@@ -169,7 +173,7 @@ class ClubCardTypeController extends Controller
             $this->normalizeValidity($data);
             $cardType->update($data);
 
-            return back()->with('success', 'Срок действия обновлён. Уже выпущенные карты не изменятся — новый срок применится к новым картам.');
+            return back()->with('success', 'Описание и срок действия обновлены. Уже выпущенные карты сохранят свой срок — новый применится к новым картам.');
         }
 
         $data = $this->validateType($request, $club, $cardType->id);
@@ -206,6 +210,7 @@ class ClubCardTypeController extends Controller
 
         return $request->validate([
             'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
             'code_prefix' => [
                 'required', 'string', 'max:12', 'regex:/^[A-Z0-9]+$/',
                 \Illuminate\Validation\Rule::unique('club_card_types', 'code_prefix')
