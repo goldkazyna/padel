@@ -821,31 +821,23 @@ class MobileRatingController extends Controller
             }
         }
 
-        // Americano Flex — место по среднему за матч → суммарным очкам
+        // Americano Flex — место по итоговой таблице формата
+        // (среднее → % побед → личная встреча → рейтинг, AmericanoFlexRanking).
         if ($tournament->type === 'americano_flex') {
             // Парный: место по таблице ПАР (игрок — player1 или player2).
             if ($tournament->isPairedFlex()) {
                 $pairRows = app(\App\Services\AmericanoFlexService::class)->getPairedLeaderboard($tournament);
-                foreach ($pairRows as $i => $r) {
+                foreach ($pairRows as $r) {
                     $p1 = $r['player1']->id ?? null;
                     $p2 = $r['player2']->id ?? null;
                     if ($p1 === $userId || $p2 === $userId) {
-                        return $i + 1;
+                        return (int) $r['position'];
                     }
                 }
                 return null;
             }
-            $players = $tournament->americanoFlexPlayers()->get()
-                ->sort(function ($a, $b) {
-                    $avgA = $a->matches_played > 0 ? $a->total_points / $a->matches_played : 0;
-                    $avgB = $b->matches_played > 0 ? $b->total_points / $b->matches_played : 0;
-                    if ($avgA != $avgB) return $avgB <=> $avgA;
-                    return $b->total_points <=> $a->total_points;
-                })
-                ->values();
-            foreach ($players as $i => $fp) {
-                if ((int) $fp->user_id === $userId) return $i + 1;
-            }
+
+            return \App\Support\AmericanoFlexRanking::place($tournament, $userId);
         }
 
         return null;

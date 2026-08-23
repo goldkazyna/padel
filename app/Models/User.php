@@ -1163,13 +1163,9 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['americano_flex'] = ($stats['by_type']['americano_flex'] ?? 0) + 1;
 
-			// Чемпион — лучший средний результат за матч (как в лидерборде Флекс)
-			$winner = $tournament->americanoFlexPlayers()->get()
-				->sortByDesc(fn($p) => $p->matches_played > 0
-					? $p->total_points / $p->matches_played
-					: 0)
-				->first();
-			if ($winner && $winner->user_id === $this->id) {
+			// Чемпион — первая строка итоговой таблицы формата
+			// (среднее → % побед → личная встреча → рейтинг).
+			if (\App\Support\AmericanoFlexRanking::place($tournament, $this->id) === 1) {
 				$stats['wins']++;
 			}
 		}
