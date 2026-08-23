@@ -23,16 +23,21 @@
 							@php
 								$registeredNow = $tournament->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
 							@endphp
-							<select name="type" class="form-select">
+							{{-- Смена формата применяется сразу: форма отправляется и
+								 возвращается сюда же, уже с полями нового типа. Иначе
+								 организатор правил бы настройки старого формата. --}}
+							<input type="hidden" name="apply_type" id="applyType" value="">
+							<select name="type" id="tournamentTypeSelect" class="form-select">
 								@foreach($switchTypes as $key => $label)
 									<option value="{{ $key }}" {{ old('type', $tournament->type) === $key ? 'selected' : '' }}>{{ $label }}</option>
 								@endforeach
 							</select>
 							<small class="text-secondary">
-								Формат можно сменить, пока турнир не начат — записавшиеся ({{ $registeredNow }}) остаются.
-								Настройки старого формата сбросятся, а число участников подгонится под новый:
-								у Американо, Мексикано, Короля корта, Round Robin и Just Padel It оно кратно четырём,
-								у Ladder — ровно корты × 4. Если людей станет не хватать, турнир просто дождётся остальных.
+								Формат меняется прямо здесь, пока турнир не начат — записавшиеся ({{ $registeredNow }}) остаются.
+								Выбор применяется сразу: страница сохранится и откроется заново с настройками нового формата.
+								Число участников подгонится под него — у Американо, Мексикано, Короля корта, Round Robin
+								и Just Padel It оно кратно четырём, у Ladder ровно корты × 4. Если людей станет не хватать,
+								турнир просто дождётся остальных.
 							</small>
 						@else
 							<input type="text" class="form-control" value="{{ $tournament->type_name }}" disabled>
@@ -899,6 +904,22 @@ function toggleMexicanoPlayoffFormat() {
     }
 
     toggleClearBtn();
+})();
+</script>
+<script>
+// Смена формата: применяем сразу, чтобы дальше правились поля нового типа,
+// а не старого. Форма уходит на сохранение и возвращается на эту же страницу.
+(function () {
+    const select = document.getElementById('tournamentTypeSelect');
+    const flag = document.getElementById('applyType');
+    if (!select || !flag) return;
+
+    const initial = select.value;
+    select.addEventListener('change', function () {
+        if (select.value === initial) return;
+        flag.value = '1';
+        select.form.submit();
+    });
 })();
 </script>
 <script>

@@ -570,6 +570,14 @@ class TournamentController extends Controller
 			}
 		}
 
+		// Смена формата выбором в списке: возвращаем на ту же форму, уже с
+		// настройками нового типа — их и нужно дозаполнить.
+		if ($request->boolean('apply_type')) {
+			return redirect()
+				->route('club.tournaments.edit', $tournament)
+				->with('success', $message);
+		}
+
 		return redirect()->route('club.tournaments.index')->with('success', $message);
 	}
 
