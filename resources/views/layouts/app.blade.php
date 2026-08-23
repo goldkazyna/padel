@@ -1504,5 +1504,7 @@
 
     @stack('scripts')
     @yield('modals')
+
+    @include('club.tournaments.partials._modal_lift')
 </body>
 </html>
