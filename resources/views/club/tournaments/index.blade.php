@@ -97,15 +97,32 @@
                                 @if($tournament->status === 'open')
                                     @php
                                         $pushService = app(\App\Services\TournamentPushService::class);
+                                        $pushLeft = $pushService->remaining($tournament);
+                                        $pushMax = \App\Services\TournamentPushService::MAX_SENDS;
                                     @endphp
-                                    <button type="button" class="btn-outline-custom btn-sm btn-push" title="Отправить Push"
-                                            onclick="openPushModal(this)"
-                                            data-action="{{ route('club.tournaments.sendPush', $tournament) }}"
-                                            data-tournament="{{ $tournament->name }}"
-                                            data-title="{{ $pushService->defaultTitle() }}"
-                                            data-body="{{ $pushService->defaultBody($tournament) }}">
-                                        <i class="bi bi-bell"></i>
-                                    </button>
+                                    {{-- Больше двух рассылок на турнир не даём: одно и то же
+                                         объявление не должно прилетать людям снова и снова. --}}
+                                    <span class="push-wrap">
+                                        @if($pushLeft > 0)
+                                            <button type="button" class="btn-outline-custom btn-sm btn-push"
+                                                    title="Отправить Push · осталось {{ $pushLeft }} из {{ $pushMax }}"
+                                                    onclick="openPushModal(this)"
+                                                    data-action="{{ route('club.tournaments.sendPush', $tournament) }}"
+                                                    data-tournament="{{ $tournament->name }}"
+                                                    data-title="{{ $pushService->defaultTitle() }}"
+                                                    data-body="{{ $pushService->defaultBody($tournament) }}"
+                                                    data-left="{{ $pushLeft }}">
+                                                <i class="bi bi-bell"></i>
+                                            </button>
+                                            <span class="push-left" title="Осталось отправок">{{ $pushLeft }}</span>
+                                        @else
+                                            <button type="button" class="btn-outline-custom btn-sm btn-push is-spent" disabled
+                                                    title="Лимит исчерпан: отправлено {{ $pushMax }} из {{ $pushMax }}">
+                                                <i class="bi bi-bell-slash"></i>
+                                            </button>
+                                            <span class="push-left is-spent" title="Лимит исчерпан">0</span>
+                                        @endif
+                                    </span>
                                 @endif
                                 @if($tournament->status === 'draft')
                                     <form action="{{ route('club.tournaments.destroy', $tournament) }}" method="POST" class="d-inline"
@@ -549,6 +566,40 @@ document.addEventListener('DOMContentLoaded', function () {
 .btn-push:hover {
     background: #f59e0b;
     color: white;
+}
+
+/* Счётчик оставшихся рассылок рядом с колокольчиком */
+.push-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+}
+.push-left {
+    margin-left: 3px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, .16);
+    color: #f59e0b;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 16px;
+    text-align: center;
+}
+.push-left.is-spent {
+    background: rgba(148, 163, 184, .16);
+    color: #94a3b8;
+}
+.btn-push.is-spent {
+    color: #94a3b8;
+    border-color: #3f3f46;
+    cursor: not-allowed;
+}
+.btn-push.is-spent:hover {
+    background: transparent;
+    color: #94a3b8;
 }
 
 /* Month groups */

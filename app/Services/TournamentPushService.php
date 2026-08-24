@@ -13,6 +13,34 @@ use App\Models\User;
  */
 class TournamentPushService
 {
+    /**
+     * Сколько раз можно разослать пуш по одному турниру.
+     *
+     * Организаторы жали колокольчик по многу раз, и одно и то же
+     * объявление прилетало людям снова и снова. Лимит живёт здесь, а не
+     * в контроллере, чтобы действовал и в вебе, и в мобильной админке —
+     * они шлют одним и тем же методом.
+     */
+    public const MAX_SENDS = 2;
+
+    /** Сколько рассылок по турниру уже сделано. */
+    public function sentCount(Tournament $tournament): int
+    {
+        return (int) ($tournament->push_sent_count ?? 0);
+    }
+
+    /** Сколько отправок осталось. */
+    public function remaining(Tournament $tournament): int
+    {
+        return max(0, self::MAX_SENDS - $this->sentCount($tournament));
+    }
+
+    /** Можно ли ещё отправлять. */
+    public function canSend(Tournament $tournament): bool
+    {
+        return $this->remaining($tournament) > 0;
+    }
+
     /** Заголовок по умолчанию — он же заготовка в форме отправки. */
     public function defaultTitle(): string
     {
@@ -33,9 +61,17 @@ class TournamentPushService
      * не ушёл пустой пуш.
      *
      * Возвращает ['total' => int, 'sent' => int, 'filtered' => int].
+     * Если лимит исчерпан — ['limit_reached' => true] и ничего не шлём.
      */
     public function send(Tournament $tournament, ?string $title = null, ?string $body = null): array
     {
+        if (!$this->canSend($tournament)) {
+            return [
+                'total' => 0, 'sent' => 0, 'filtered' => 0,
+                'test_mode' => false, 'limit_reached' => true,
+            ];
+        }
+
         $tournament->loadMissing('club');
         $club = $tournament->club;
 
@@ -107,6 +143,12 @@ class TournamentPushService
             Notification::insert($notifications);
         }
 
+        // Тестовый режим лимит не тратит: он шлёт только на свои номера,
+        // и отладка не должна съедать отправки, положенные игрокам.
+        if (!$testPhones) {
+            $tournament->increment('push_sent_count');
+        }
+
         $total = $users->count();
         $sent = $recipients->count();
 
@@ -115,6 +157,8 @@ class TournamentPushService
             'sent' => $sent,
             'filtered' => $total - $sent,
             'test_mode' => (bool) $testPhones,
+            'limit_reached' => false,
+            'remaining' => $this->remaining($tournament->fresh()),
         ];
     }
 

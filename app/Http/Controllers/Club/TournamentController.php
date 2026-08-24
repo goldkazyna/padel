@@ -1554,7 +1554,15 @@ class TournamentController extends Controller
 		]);
 
 		// Единая логика рассылки (общая с мобильным API)
-		$result = app(\App\Services\TournamentPushService::class)->send(
+		$pushService = app(\App\Services\TournamentPushService::class);
+
+		if (!$pushService->canSend($tournament)) {
+			return back()->with('error', 'По этому турниру уже отправлено '
+				. \App\Services\TournamentPushService::MAX_SENDS
+				. ' уведомления — больше нельзя.');
+		}
+
+		$result = $pushService->send(
 			$tournament,
 			$validated['push_title'] ?? null,
 			$validated['push_body'] ?? null
@@ -1583,7 +1591,12 @@ class TournamentController extends Controller
 		}
 
 		$cityLabel = ($club && $club->city) ? ", город: {$club->city}" : "";
-		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей{$cityLabel}" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")");
+		$left = $result['remaining'] ?? 0;
+		$leftLabel = $left > 0
+			? " Осталось отправок: {$left}."
+			: ' Это была последняя отправка по этому турниру.';
+
+		return back()->with('success', "Push отправлен ({$sent} из {$total} пользователей{$cityLabel}" . ($filtered ? ", {$filtered} отфильтровано по настройкам" : "") . ")." . $leftLabel);
 	}
 
 	/**

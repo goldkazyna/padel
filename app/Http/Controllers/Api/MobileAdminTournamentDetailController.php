@@ -1658,7 +1658,15 @@ class MobileAdminTournamentDetailController extends Controller
             return $this->error('Уведомление не отправляется для тестовых клубов');
         }
 
-        $result = app(\App\Services\TournamentPushService::class)->send($tournament);
+        $pushService = app(\App\Services\TournamentPushService::class);
+
+        if (!$pushService->canSend($tournament)) {
+            return $this->error('По этому турниру уже отправлено '
+                . \App\Services\TournamentPushService::MAX_SENDS
+                . ' уведомления — больше нельзя.');
+        }
+
+        $result = $pushService->send($tournament);
 
         return response()->json([
             'success' => true,
@@ -1667,6 +1675,7 @@ class MobileAdminTournamentDetailController extends Controller
             'sent' => $result['sent'],
             'total' => $result['total'],
             'filtered' => $result['filtered'],
+            'push_remaining' => $result['remaining'] ?? 0,
         ]);
     }
 
