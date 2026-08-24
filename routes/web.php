@@ -440,6 +440,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::resource('courts', CourtController::class)->except(['create', 'edit', 'show']);
             Route::post('/courts/{court}/toggle-active', [CourtController::class, 'toggleActive'])->name('courts.toggleActive');
             Route::post('/courts/{court}/book', [CourtController::class, 'book'])->name('courts.book');
+            // Занятость корта по дням для календаря повторов в модалке брони.
+            Route::get('/courts/{court}/availability', [CourtController::class, 'availability'])->name('courts.availability');
             Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
             Route::put('/courts/bookings/{booking}', [CourtController::class, 'updateBooking'])->name('courts.updateBooking');
             Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');

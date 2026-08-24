@@ -1231,7 +1231,8 @@
         @foreach($courts as $court)
             '{{ $court->id }}': {
                 book: '{{ route('club.courts.book', $court) }}',
-                block: '{{ route('club.courts.blockSlot', $court) }}'
+                block: '{{ route('club.courts.blockSlot', $court) }}',
+                availability: '{{ route('club.courts.availability', $court) }}'
             },
         @endforeach
     };
@@ -1292,6 +1293,9 @@
         document.getElementById('bookDiscount').value = 0;
         updateFinalPrice();
         document.getElementById('bookSlots').value = currentBook.duration;
+        // Длительность изменилась — календарь повторов должен перечитать
+        // занятость: другое время окончания, другие свободные дни.
+        if (window.refreshRepeatCalendar) window.refreshRepeatCalendar();
         // Длительность сбросила цену/скидку — переприменим выбранную карту/сертификат.
         if (selectedCard.book) applyCardPricing('book');
         if (selectedCert.book) applyCertPricing('book');

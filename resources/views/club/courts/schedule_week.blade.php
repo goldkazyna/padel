@@ -1680,7 +1680,8 @@
         @foreach($courts as $court)
             '{{ $court->id }}': {
                 book: '{{ route('club.courts.book', $court) }}',
-                block: '{{ route('club.courts.blockSlot', $court) }}'
+                block: '{{ route('club.courts.blockSlot', $court) }}',
+                availability: '{{ route('club.courts.availability', $court) }}'
             },
         @endforeach
     };
@@ -2156,6 +2157,9 @@
         const discountInput = document.getElementById('editDiscount');
         if (priceInput) priceInput.value = total;
         if (discountInput) discountInput.value = 0;
+        // Длительность изменилась — календарь повторов должен перечитать
+        // занятость: другое время окончания, другие свободные дни.
+        if (window.refreshRepeatCalendar) window.refreshRepeatCalendar();
         // Пересчёт цены тренера под новую длительность.
         const coachId = document.getElementById('editCoachId').value;
         const coachPrice = document.getElementById('editCoachPrice');

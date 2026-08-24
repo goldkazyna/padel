@@ -458,6 +458,55 @@ class CourtController extends Controller
     }
 
     /**
+     * Какие дни свободны на этом корте в это же время.
+     * GET /club/courts/{court}/availability
+     *
+     * Нужен календарю в модалке брони: администратор отмечает даты повтора
+     * и должен видеть, где корт в это время уже занят, а не узнавать об
+     * этом из списка пропущенных после сохранения.
+     */
+    public function availability(Request $request, Court $court)
+    {
+        $club = $this->getClub();
+        if (!$club || $court->club_id !== $club->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'start_time' => 'required|date_format:H:i',
+            'slots' => 'required|integer|min:1|max:12',
+            'from' => 'required|date_format:Y-m-d',
+            'to' => 'required|date_format:Y-m-d',
+        ]);
+
+        $from = Carbon::parse($validated['from'])->startOfDay();
+        $to = Carbon::parse($validated['to'])->startOfDay();
+        // Ограничиваем окно: календарь показывает месяц, больше и не нужно.
+        if ($to->lessThan($from)) $to = $from->copy();
+        if ($from->diffInDays($to) > 62) $to = $from->copy()->addDays(62);
+
+        $startTime = $validated['start_time'];
+        $endTime = Carbon::parse($startTime)
+            ->addMinutes($validated['slots'] * $court->slot_duration)
+            ->format('H:i');
+
+        $today = Carbon::today();
+        $days = [];
+        for ($cursor = $from->copy(); $cursor->lessThanOrEqualTo($to); $cursor->addDay()) {
+            $date = $cursor->format('Y-m-d');
+            $days[$date] = $cursor->lessThan($today)
+                ? 'past'
+                : ($this->scheduleService->canBook($court, $date, $startTime, $endTime) ? 'free' : 'busy');
+        }
+
+        return response()->json([
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'days' => $days,
+        ]);
+    }
+
+    /**
      * Заметки о клиентах клуба: [последние 10 цифр телефона => заметка].
      *
      * Нужны, чтобы на слоте расписания было видно: про этого человека есть
@@ -806,8 +855,11 @@ class CourtController extends Controller
             'discount' => 'nullable|numeric|min:0',
             'club_card_id' => 'nullable|integer',
             'certificate_id' => 'nullable|integer',
-            'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly',
+            'repeat' => 'nullable|in:none,daily,every_2_days,weekly,biweekly,custom',
             'repeat_until' => 'nullable|in:week,two_weeks,month',
+            // Режим «выбрать даты»: администратор отмечает дни в календаре.
+            'repeat_dates' => 'nullable|array|max:60',
+            'repeat_dates.*' => 'date_format:Y-m-d',
             'inventory' => 'nullable|array|max:50',
             'inventory.*.item_id' => 'required_with:inventory|integer',
             'inventory.*.quantity' => 'nullable|integer|min:1|max:99',
@@ -886,7 +938,12 @@ class CourtController extends Controller
         $repeatUntil = $validated['repeat_until'] ?? 'month';
 
         // Список дат для бронирования (одна или несколько при повторе)
-        $dates = $this->expandRepeatDates($validated['date'], $repeat, $repeatUntil);
+        $dates = $this->expandRepeatDates(
+            $validated['date'],
+            $repeat,
+            $repeatUntil,
+            $validated['repeat_dates'] ?? []
+        );
 
         // Цена считается ПОДАТНО внутри цикла (учёт будни/выходные), т.к. при
         // повторе даты могут попадать и на будни, и на выходные.
@@ -1213,12 +1270,32 @@ class CourtController extends Controller
     /**
      * Разворачивает start-дату + паттерн повтора в массив дат (Y-m-d).
      * - none: [start]
+     * - custom: даты, отмеченные в календаре (плюс сама start-дата)
      * - daily / every_2_days / weekly / biweekly + repeat_until (week/two_weeks/month)
      */
-    private function expandRepeatDates(string $startDate, string $repeat, string $repeatUntil): array
-    {
+    private function expandRepeatDates(
+        string $startDate,
+        string $repeat,
+        string $repeatUntil,
+        array $customDates = []
+    ): array {
         if ($repeat === 'none') {
             return [$startDate];
+        }
+
+        // Выбор дат вручную: первая бронь всегда в исходной дате, остальные
+        // берём из календаря. Прошедшие даты отсекаем — там бронировать нечего.
+        if ($repeat === 'custom') {
+            $today = Carbon::today()->format('Y-m-d');
+            $dates = collect($customDates)
+                ->push($startDate)
+                ->filter(fn ($d) => $d >= $today)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            return $dates ?: [$startDate];
         }
 
         $start = Carbon::parse($startDate)->startOfDay();
