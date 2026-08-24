@@ -672,7 +672,15 @@
                                         : null;
                                     if ($issuedTitleW) $invPartsW[] = 'на руках ' . $issuedTitleW;
                                     $invTitleW = $invPartsW ? 'Инвентарь: ' . implode('; ', $invPartsW) : null;
+                                    // Заметка о клиенте из его карточки — ключ по последним 10 цифрам.
+                                    $phoneKeyW = substr(preg_replace('/\D/', '', (string) $b->client_phone), -10);
+                                    $clientNoteW = strlen($phoneKeyW) === 10
+                                        ? ($clientNotesByPhone[$phoneKeyW] ?? null)
+                                        : null;
                                 @endphp
+                                {{-- Заметки видно сразу, не открывая бронь. --}}
+                                @if($clientNoteW)<i class="bi bi-person-vcard-fill slot-card-icon ws-ic-note-client" title="Заметка о клиенте: {{ $clientNoteW }}"></i>@endif
+                                @if($b->comment)<i class="bi bi-chat-left-text-fill slot-card-icon ws-ic-note-booking" title="Комментарий к брони: {{ $b->comment }}"></i>@endif
                                 @if($invTitleW)<i class="bi bi-box-seam-fill slot-card-icon ws-ic-inv" title="{{ $invTitleW }}"></i>@endif
                                 @if($b->source === 'app')<i class="bi bi-phone-fill slot-card-icon" title="Заявка из приложения"></i>@endif
                                 @if($b->is_paid)<i class="bi bi-patch-check-fill slot-card-icon ws-ic-paid" title="Оплачено"></i>@endif
@@ -1093,6 +1101,9 @@
     .slot-card-icon.ws-ic-paid { color: #22c55e; opacity: 1; }
     /* На руках инвентарь — красный, как бейджи «на руках» в самом разделе */
     .slot-card-icon.ws-ic-inv { color: #ef4444; opacity: 1; cursor: help; }
+    /* Заметки: о клиенте — сиреневая карточка, к брони — жёлтая реплика */
+    .slot-card-icon.ws-ic-note-client  { color: #a78bfa; opacity: 1; cursor: help; }
+    .slot-card-icon.ws-ic-note-booking { color: #eab308; opacity: 1; cursor: help; }
     /* Полоса способа оплаты сверху карточки (как в дневном виде) */
     .ws-card { position: relative; }
     .ws-card.has-pm { padding-top: 17px; }

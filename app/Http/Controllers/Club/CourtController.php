@@ -189,12 +189,16 @@ class CourtController extends Controller
         // Метка на слоте: за этим клиентом числится невыданный обратно инвентарь.
         $issuedByPhone = $this->issuedInventoryByPhone($club->id);
 
+        // Метка на слоте: о клиенте есть заметка в его карточке.
+        $clientNotesByPhone = $this->clientNotesByPhone($club->id);
+
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
             'bookingTournaments', 'bookingTournamentIds',
-            'inventoryItems', 'bookingInventory', 'issuedByPhone'
+            'inventoryItems', 'bookingInventory', 'issuedByPhone',
+            'clientNotesByPhone'
         ));
     }
 
@@ -441,13 +445,43 @@ class CourtController extends Controller
         // Та же метка, что и в дневном расписании.
         $issuedByPhone = $this->issuedInventoryByPhone($club->id);
 
+        $clientNotesByPhone = $this->clientNotesByPhone($club->id);
+
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
             'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
             'bookingTournaments', 'bookingTournamentIds',
-            'inventoryItems', 'bookingInventory', 'issuedByPhone'
+            'inventoryItems', 'bookingInventory', 'issuedByPhone',
+            'clientNotesByPhone'
         ));
+    }
+
+    /**
+     * Заметки о клиентах клуба: [последние 10 цифр телефона => заметка].
+     *
+     * Нужны, чтобы на слоте расписания было видно: про этого человека есть
+     * что помнить. Ключ по последним десяти цифрам, потому что телефон у
+     * клиента и у брони записан как придётся — с плюсом, пробелами, с
+     * ведущей семёркой и без.
+     */
+    private function clientNotesByPhone(int $clubId): array
+    {
+        $notes = [];
+
+        $rows = \App\Models\ClubClient::where('club_id', $clubId)
+            ->whereNotNull('note')
+            ->where('note', '!=', '')
+            ->get(['phone', 'note']);
+
+        foreach ($rows as $row) {
+            $digits = preg_replace('/\D/', '', (string) $row->phone);
+            if (strlen($digits) < 10) continue;
+
+            $notes[substr($digits, -10)] = $row->note;
+        }
+
+        return $notes;
     }
 
     /**

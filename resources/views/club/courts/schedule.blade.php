@@ -362,6 +362,12 @@
                                         : null;
                                     if ($issuedTitle) $invParts[] = 'на руках ' . $issuedTitle;
                                     $invTitle = $invParts ? 'Инвентарь: ' . implode('; ', $invParts) : null;
+                                    // Заметка о клиенте из его карточки — ключ по последним 10 цифрам.
+                                    $phoneKey = substr(preg_replace('/\D/', '', (string) $booking->client_phone), -10);
+                                    $clientNote = strlen($phoneKey) === 10
+                                        ? ($clientNotesByPhone[$phoneKey] ?? null)
+                                        : null;
+                                    $hasNotes = $booking->comment || $clientNote;
                                     $coachRate = null;
                                     $coachPhoto = null;
                                     if ($booking->coach_id) {
@@ -416,7 +422,7 @@
                                             }
                                         }
                                     @endphp
-                                    <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid) ? ' has-icons' : '' }}"
+                                    <div class="slot {{ $slotClass }}{{ ($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $hasNotes) ? ' has-icons' : '' }}"
                                          id="slot-booking-{{ $booking->id }}"
                                          onclick="openViewModal({{ json_encode([
                                             'id' => $booking->id,
@@ -454,8 +460,12 @@
                                             @isset($pm[3])<span class="pm-sub">{{ $pm[3] }}</span>@endisset
                                         </div>
                                         @endif
-                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $invTitle)
+                                        @if($booking->club_card_id || $booking->source === 'app' || $booking->is_paid || $invTitle || $hasNotes)
                                         <div class="slot-icons">
+                                            {{-- Заметки видно сразу, не открывая бронь: в короткий слот
+                                                 текст комментария просто не помещается. --}}
+                                            @if($clientNote)<i class="bi bi-person-vcard-fill slot-ic ic-note-client" title="Заметка о клиенте: {{ $clientNote }}"></i>@endif
+                                            @if($booking->comment)<i class="bi bi-chat-left-text-fill slot-ic ic-note-booking" title="Комментарий к брони: {{ $booking->comment }}"></i>@endif
                                             @if($invTitle)<i class="bi bi-box-seam-fill slot-ic ic-inv" title="{{ $invTitle }}"></i>@endif
                                             @if($booking->source === 'app')<i class="bi bi-phone-fill slot-ic ic-app" title="Заявка из приложения"></i>@endif
                                             @if($booking->is_paid)<i class="bi bi-patch-check-fill slot-ic ic-paid" title="Оплачено"></i>@endif
@@ -3409,6 +3419,10 @@
     /* На руках инвентарь — красный, как бейджи «на руках» в самом разделе.
        pointer-events снят у контейнера, поэтому подсказку возвращаем точечно. */
     .ic-inv  { color: #ef4444; pointer-events: auto; cursor: help; }
+    /* Заметки: о клиенте — сиреневая карточка, к брони — жёлтая реплика.
+       pointer-events нужен, чтобы подсказка с текстом показывалась. */
+    .ic-note-client  { color: #a78bfa; pointer-events: auto; cursor: help; }
+    .ic-note-booking { color: #eab308; pointer-events: auto; cursor: help; }
     /* Если есть иконки — цену чуть ниже, чтобы не налезала на них */
     .slot.has-icons .slot-price-court { display: inline-block; margin-top: 12px; }
 
