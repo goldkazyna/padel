@@ -92,7 +92,8 @@ class MobileProfileController extends Controller
         $rawHistory = \App\Models\RatingHistory::where('user_id', $user->id)
             ->whereNotNull('rating_after')
             ->orderBy('id', 'asc')
-            ->get(['id', 'tournament_id', 'rating_after', 'created_at']);
+            ->with('club:id,name')
+            ->get(['id', 'tournament_id', 'club_id', 'rating_after', 'created_at']);
 
         $entries = [];
         $prevTournamentId = -1; // -1 = «нет предыдущей»
@@ -108,6 +109,7 @@ class MobileProfileController extends Controller
                     'tournament_id' => $tid,
                     'rating_after' => (int) $h->rating_after,
                     'created_at' => $h->created_at,
+                    'club_name' => $h->club?->name,
                 ];
                 $prevTournamentId = $tid ?? -1;
             }
@@ -138,7 +140,10 @@ class MobileProfileController extends Controller
                 $details[] = [
                     'tournament_id' => null,
                     'name' => 'Ручная корректировка',
-                    'club_name' => 'Padel Kz',
+                    // Клуб администратора, который правил рейтинг. У правок,
+                    // сделанных до появления этого поля, его нет — там
+                    // остаётся прежняя подпись.
+                    'club_name' => $entry['club_name'] ?? 'Padel Kz',
                     'date' => $entry['created_at']?->translatedFormat('j M Y'),
                     'rating' => $rating,
                     'delta' => $delta,

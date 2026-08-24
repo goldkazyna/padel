@@ -244,8 +244,11 @@ class MobileClubController extends Controller
                     return null;
                 }
                 $row = $rows[$uid] ?? null;
-                $w = $winStats[$uid] ?? ['won' => 0, 'lost' => 0];
-                $total = $w['won'] + $w['lost'];
+                $w = $winStats[$uid] ?? ['won' => 0, 'lost' => 0, 'draw' => 0];
+                // Ничьи входят в знаменатель: в Американо и Флексе матч до
+                // фиксированного счёта часто заканчивается вничью, и без них
+                // винрейт задирается — 7 побед при 7 ничьих давали 88%.
+                $total = $w['won'] + $w['lost'] + $w['draw'];
 
                 return [
                     'user' => [
@@ -260,6 +263,7 @@ class MobileClubController extends Controller
                     'rating_earned' => $row ? (int) $row->rating_earned : 0,
                     'wins' => $w['won'],
                     'losses' => $w['lost'],
+                    'draws' => $w['draw'],
                     'winrate' => $total > 0 ? (int) round($w['won'] / $total * 100) : 0,
                 ];
             })->filter()->sortByDesc('rating_earned')->values()->all();
@@ -288,29 +292,45 @@ class MobileClubController extends Controller
 
         // Применить парный матч (по player_id) ко всем 4 игрокам.
         $applyPlayerMatch = function ($m) use (&$stats) {
-            if ($m->team1_score == $m->team2_score) {
-                return;
-            }
-            $team1Won = $m->team1_score > $m->team2_score;
             $t1 = array_filter([$m->team1_player1_id, $m->team1_player2_id]);
             $t2 = array_filter([$m->team2_player1_id, $m->team2_player2_id]);
-            foreach ($t1 as $pid) {
-                $stats[$pid] ??= ['won' => 0, 'lost' => 0];
-                $team1Won ? $stats[$pid]['won']++ : $stats[$pid]['lost']++;
-            }
-            foreach ($t2 as $pid) {
-                $stats[$pid] ??= ['won' => 0, 'lost' => 0];
-                $team1Won ? $stats[$pid]['lost']++ : $stats[$pid]['won']++;
+            $draw = $m->team1_score == $m->team2_score;
+            $team1Won = $m->team1_score > $m->team2_score;
+
+            foreach ([[$t1, $team1Won], [$t2, !$team1Won]] as [$ids, $won]) {
+                foreach ($ids as $pid) {
+                    $stats[$pid] ??= ['won' => 0, 'lost' => 0, 'draw' => 0];
+                    if ($draw) {
+                        $stats[$pid]['draw']++;
+                    } else {
+                        $won ? $stats[$pid]['won']++ : $stats[$pid]['lost']++;
+                    }
+                }
             }
         };
 
-        // Парные типы: раунд → турнир.
-        foreach ([MexicanoMatch::class, KingOfCourtMatch::class, AmericanoFlexMatch::class, RoundRobinMatch::class] as $model) {
+        // Типы, где матч лежит в раунде, а раунд знает турнир.
+        // Just Padel It сюда попал не сразу: его матчей в статистике не было
+        // вовсе, и игроки таких турниров висели с нулевым винрейтом.
+        $roundModels = [
+            MexicanoMatch::class,
+            KingOfCourtMatch::class,
+            AmericanoFlexMatch::class,
+            RoundRobinMatch::class,
+            \App\Models\JustPadelItMatch::class,
+        ];
+        foreach ($roundModels as $model) {
             $model::where('status', 'completed')
                 ->whereHas('round', fn($q) => $q->whereIn('tournament_id', $tournamentIds))
                 ->get()
                 ->each($applyPlayerMatch);
         }
+
+        // Ladder: матч → корт раунда → раунд → турнир.
+        \App\Models\EscaleraMatch::where('status', 'completed')
+            ->whereHas('court.round', fn($q) => $q->whereIn('tournament_id', $tournamentIds))
+            ->get()
+            ->each($applyPlayerMatch);
 
         // Американо: раунд → группа → турнир.
         AmericanoMatch::where('status', 'completed')
@@ -332,19 +352,20 @@ class MobileClubController extends Controller
 
         if ($teams->isNotEmpty()) {
             $applyTeamMatch = function ($m) use (&$stats, $teams) {
-                if ($m->team1_score == $m->team2_score) {
-                    return;
-                }
+                $draw = $m->team1_score == $m->team2_score;
                 $team1Won = $m->team1_score > $m->team2_score;
-                $winTeam = $teams[$team1Won ? $m->team1_id : $m->team2_id] ?? null;
-                $loseTeam = $teams[$team1Won ? $m->team2_id : $m->team1_id] ?? null;
-                foreach (array_filter([$winTeam?->player1_id, $winTeam?->player2_id]) as $pid) {
-                    $stats[$pid] ??= ['won' => 0, 'lost' => 0];
-                    $stats[$pid]['won']++;
-                }
-                foreach (array_filter([$loseTeam?->player1_id, $loseTeam?->player2_id]) as $pid) {
-                    $stats[$pid] ??= ['won' => 0, 'lost' => 0];
-                    $stats[$pid]['lost']++;
+                $first = $teams[$m->team1_id] ?? null;
+                $second = $teams[$m->team2_id] ?? null;
+
+                foreach ([[$first, $team1Won], [$second, !$team1Won]] as [$team, $won]) {
+                    foreach (array_filter([$team?->player1_id, $team?->player2_id]) as $pid) {
+                        $stats[$pid] ??= ['won' => 0, 'lost' => 0, 'draw' => 0];
+                        if ($draw) {
+                            $stats[$pid]['draw']++;
+                        } else {
+                            $won ? $stats[$pid]['won']++ : $stats[$pid]['lost']++;
+                        }
+                    }
                 }
             };
 

@@ -268,6 +268,9 @@ class UserController extends Controller
             \App\Models\RatingHistory::create([
                 'user_id' => $user->id,
                 'tournament_id' => null,
+                // Игрок должен видеть, чей администратор правил ему рейтинг.
+                'changed_by_user_id' => auth()->id(),
+                'club_id' => $this->getClub()?->id,
                 'rating_before' => $oldRating,
                 'rating_after' => (int) $update['rating'],
                 'change' => (int) $update['rating'] - $oldRating,

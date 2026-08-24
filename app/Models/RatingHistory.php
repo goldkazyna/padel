@@ -16,6 +16,18 @@ class RatingHistory extends Model
      */
     public const REASON_MANUAL = 'Ручная корректировка';
 
+    /** Кто сделал ручную правку (у турнирных записей пусто). */
+    public function changedBy()
+    {
+        return $this->belongsTo(User::class, 'changed_by_user_id');
+    }
+
+    /** От какого клуба сделана правка. */
+    public function club()
+    {
+        return $this->belongsTo(Club::class);
+    }
+
     /** Только то, что игрок заработал игрой, без ручных правок. */
     public function scopeFromPlay($query)
     {
@@ -28,6 +40,8 @@ class RatingHistory extends Model
 
     protected $fillable = [
         'user_id',
+        'changed_by_user_id',
+        'club_id',
         'tournament_id',
         'rating_before',
         'rating_after',
