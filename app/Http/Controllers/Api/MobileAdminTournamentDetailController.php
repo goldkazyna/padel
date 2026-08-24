@@ -847,6 +847,10 @@ class MobileAdminTournamentDetailController extends Controller
             'can_start' => $canStart,
             'can_restart' => $t->canRestart(),
             'can_delete' => $canDelete,
+            // Рассылок по турниру не больше двух — приложение показывает
+            // остаток и гасит пункт меню, когда отправки кончились.
+            'push_remaining' => app(\App\Services\TournamentPushService::class)->remaining($t),
+            'push_max' => \App\Services\TournamentPushService::MAX_SENDS,
             'bali_pairs_created' => $baliPairsCreated,
             'koc_pairs_created' => $kocPairsCreated,
             'jpi_pairs_created' => $jpiPairsCreated,
