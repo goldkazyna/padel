@@ -250,10 +250,15 @@
 .rep-table th{text-align:left;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;
   color:var(--t3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);}
 .rep-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05);}
-.rep-table .num{text-align:right;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;}
-.rep-table .c-date{white-space:nowrap;font-variant-numeric:tabular-nums;width:1%;}
-.rep-table .c-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--t2);width:1%;}
+.rep-table{table-layout:fixed;}
+.rep-table .num{text-align:right;font-weight:700;white-space:nowrap;
+  font-variant-numeric:tabular-nums;width:22%;}
+.rep-table .c-date{white-space:nowrap;font-variant-numeric:tabular-nums;width:20%;}
+.rep-table .c-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--t2);width:22%;}
 .rep-table .muted{color:var(--t3);}
+/* Первая и последняя ячейки — вровень с краем листа, без лишнего отступа. */
+.rep-table th:first-child,.rep-table td:first-child{padding-left:0;}
+.rep-table th:last-child,.rep-table td:last-child{padding-right:0;}
 
 .rep-foot{margin-top:4px;}
 .rep-foot-total{display:flex;justify-content:space-between;align-items:baseline;
@@ -263,7 +268,10 @@
 
 /* ── Печать: только документ, на белом ───────────────────────────────── */
 @media print{
-  @page{margin:16mm 14mm;}
+  /* Портрет прибит явно: иначе браузер берёт ориентацию из диалога
+     печати, и лист уезжает в альбомный — колонки расползаются по
+     ширине, между кортом и суммой зияет пустота. */
+  @page{size:A4 portrait;margin:15mm;}
 
   /* Макет держит контент в окне: .main-content — это 100dvh со своим
      скроллом. Без роспуска высот в PDF уходил только первый экран. */
@@ -273,9 +281,14 @@
   .no-print,.sidebar,.navbar,nav,header.page-header,footer.site-footer,
   .mobile-nav,.mobile-menu-btn,.overlay{display:none !important;}
 
-  .dbt-wrap{max-width:none;padding:0;color:#12181c;overflow:visible;}
+  /* 210mm листа минус поля: документ не растягивается на всю ширину
+     окна печати, а держит книжную колонку. */
+  .dbt-wrap{max-width:180mm;margin:0 auto;padding:0;color:#12181c;overflow:visible;}
   .dbt-cols{display:block;}
-  .rep{background:#fff;border:none;border-radius:0;padding:0;}
+  .rep{background:#fff;border:none;border-radius:0;padding:0;max-width:180mm;}
+  .rep-table{font-size:11px;}
+  .rep-table th{padding:5px 6px;}
+  .rep-table td{padding:6px;}
 
   .rep-head{padding-bottom:16px;border-bottom:2px solid #12b05f;}
   .rep-logo{background:#f4f7f8;}
