@@ -70,6 +70,15 @@
             @else
                 <div class="dbt-card">
                     <div class="dbt-card-head">
+                        {{-- Логотип клуба: лист печатают и отдают клиенту,
+                             он должен выглядеть как документ клуба. --}}
+                        <div class="dbt-logo">
+                            @if($club->logo)
+                                <img src="{{ url($club->logo) }}" alt="{{ $club->name }}">
+                            @else
+                                {{ mb_strtoupper(mb_substr($club->name, 0, 2)) }}
+                            @endif
+                        </div>
                         <div>
                             <div class="dbt-label">Задолженность клиента</div>
                             <h2>{{ $current['name'] }}</h2>
@@ -182,6 +191,10 @@
 .dbt-card-head{display:flex;align-items:flex-start;gap:16px;padding-bottom:14px;
   border-bottom:2px solid var(--accent);margin-bottom:16px;}
 .dbt-card-head h2{font-size:20px;font-weight:800;margin:2px 0 4px;}
+.dbt-logo{width:52px;height:52px;border-radius:12px;background:var(--card2);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;
+  font-size:17px;font-weight:800;color:var(--accent);}
+.dbt-logo img{width:100%;height:100%;object-fit:contain;}
 .dbt-card-sum{margin-left:auto;text-align:right;white-space:nowrap;}
 .dbt-card-sum b{display:block;font-size:24px;font-weight:800;color:var(--red);}
 .dbt-card-sum span{font-size:11px;color:var(--t3);}
@@ -217,9 +230,15 @@
 /* На печать уходит только карточка клиента, на белом и без интерфейса. */
 @media print{
   @page{margin:14mm;}
-  body{background:#fff !important;}
-  .no-print,.sidebar,.navbar,nav,header,footer{display:none !important;}
-  .dbt-wrap{max-width:none;padding:0;color:#12181c;}
+  /* Макет держит контент в окне: .main-content — это 100dvh со своим
+     скроллом. На печати из-за этого уходил только первый экран, а
+     остальное обрезалось. Распускаем высоты по всей цепочке. */
+  html,body{height:auto !important;overflow:visible !important;background:#fff !important;}
+  .main-content{height:auto !important;min-height:0 !important;overflow:visible !important;
+    margin-left:0 !important;padding:0 !important;}
+  .no-print,.sidebar,.navbar,nav,header,footer,.mobile-nav,.mobile-menu-btn,.overlay{display:none !important;}
+  .dbt-wrap{max-width:none;padding:0;color:#12181c;overflow:visible;}
+  .dbt-logo{background:#f1f5f6;color:#12b05f;}
   .dbt-cols{display:block;}
   .dbt-card{background:#fff;border:none;padding:0;}
   .dbt-card-head{border-bottom:2px solid #12b05f;}
