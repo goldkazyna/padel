@@ -60,7 +60,11 @@ class ClubGroupCrudTest extends TestCase
         $this->actingAs($admin)->get(route('club.groups.show', $foreign))->assertForbidden();
     }
 
-    public function test_destroy_group_cancels_future_bookings(): void
+    /**
+     * Удаление группы закрыто: оно уносило всю историю — занятия,
+     * посещаемость, списания по абонементам. Вместо него архив.
+     */
+    public function test_группу_нельзя_удалить_даже_прямым_запросом(): void
     {
         [$club, $admin] = $this->adminClub();
         $court = \App\Models\Court::create([
@@ -85,10 +89,12 @@ class ClubGroupCrudTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(route('club.groups.destroy', $group))
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('error');
 
-        $this->assertNull(ClubGroup::find($group->id));
-        $this->assertSame('cancelled', $booking->fresh()->status);
+        $this->assertNotNull(ClubGroup::find($group->id), 'группа должна остаться');
+        $this->assertSame('confirmed', $booking->fresh()->status,
+            'бронь трогать не должны — занятия отменяет архив, а не удаление');
     }
 
     public function test_archive_group_cancels_future_bookings_and_sets_status(): void

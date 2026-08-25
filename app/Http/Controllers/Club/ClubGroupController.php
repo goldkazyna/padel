@@ -357,43 +357,23 @@ class ClubGroupController extends Controller
             ->with('success', 'Группа возвращена из архива');
     }
 
+    /**
+     * Удаление группы закрыто.
+     *
+     * Оно уносило с собой всю историю: занятия, посещаемость, списания по
+     * абонементам — и восстановить это было неоткуда. По смыслу нужен архив:
+     * он так же отменяет будущие занятия и освобождает корты, но данные
+     * оставляет. Маршрут сохранён, чтобы старая вкладка или закладка
+     * получила понятный ответ, а не 404.
+     */
     public function destroy(ClubGroup $group)
     {
         $club = $this->getClub();
         if (!$club || $group->club_id !== $club->id) abort(403);
 
-        $groupId = $group->id;
-        $groupName = $group->name;
-        $cancelledCount = 0;
-        \Illuminate\Support\Facades\DB::transaction(function () use ($group, &$cancelledCount) {
-            // У всех НЕ отменённых занятий — отменяем связанную бронь,
-            // чтобы корты освободились в общем расписании.
-            // (Затем cascadeOnDelete снесёт сами сессии вместе с группой.)
-            $group->sessions()
-                ->where('status', '!=', 'cancelled')
-                ->with('courtBooking')
-                ->get()
-                ->each(function ($session) use (&$cancelledCount) {
-                    if ($session->courtBooking && $session->courtBooking->status !== 'cancelled') {
-                        // Помечаем сессию до брони — чтобы booted-хук брони не
-                        // залогировал её отдельно (причину даём на уровне группы).
-                        $session->update(['status' => 'cancelled']);
-                        $session->courtBooking->update([
-                            'status' => 'cancelled',
-                            'cancelled_at' => now(),
-                        ]);
-                        $cancelledCount++;
-                    }
-                });
-
-            $group->delete();
-        });
-
-        $suffix = $cancelledCount > 0 ? " — отменено {$cancelledCount} будущих занятий" : '';
-        \App\Models\ActivityLog::logGroup($groupId, 'deleted', 'ClubGroup', $groupId,
-            "Группа удалена: {$groupName}{$suffix}", clubId: $club->id);
-
-        return redirect()->route('club.groups.index')->with('success', 'Группа удалена');
+        return redirect()
+            ->route('club.groups.show', $group)
+            ->with('error', 'Группу нельзя удалить — переведите её в архив. История занятий и оплат должна сохраниться.');
     }
 
     public function addMember(Request $request, ClubGroup $group)

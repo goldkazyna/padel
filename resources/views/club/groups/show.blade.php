@@ -219,11 +219,10 @@
                     <button type="submit" class="gs-mbtn unarch">&#8617; Вернуть</button>
                 </form>
             @endif
-            <form method="POST" action="{{ route('club.groups.destroy', $group) }}" onsubmit="return confirm('Удалить группу «{{ $group->name }}» и всю её историю? Будущие занятия будут отменены, корты освободятся.')" style="display:inline;">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="gs-mbtn del">&#10005; Удалить</button>
-            </form>
+            {{-- Удаления группы нет намеренно: оно уносило всю историю —
+                 занятия, посещаемость, списания по абонементам. Вместо него
+                 архив: будущие занятия отменяются, корты освобождаются,
+                 данные остаются. --}}
         </div>
     </div>
 
