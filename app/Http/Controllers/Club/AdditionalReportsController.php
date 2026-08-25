@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Club;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use App\Models\Club;
 use App\Reports\ClubIncomeReportService;
 use App\Reports\ClubLoadReportService;
@@ -70,6 +71,98 @@ class AdditionalReportsController extends Controller
             'preset' => $request->get('preset'),
             'grouped' => $grouped,
         ]);
+    }
+
+    /**
+     * Задолженности в разрезе одного клиента.
+     * GET /club/reports/debts-by-client
+     *
+     * Общий отчёт отвечает на вопрос «сколько нам должны», а этот — «за что
+     * должен вот этот человек»: с датами, временем и кортом, чтобы было что
+     * показать при разговоре. Печатается из браузера в PDF.
+     *
+     * Период по умолчанию не ставим: долг не перестаёт быть долгом оттого,
+     * что бронь была в прошлом месяце.
+     */
+    public function debtsByClient(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $from = $request->filled('from') ? Carbon::parse($request->get('from'))->startOfDay() : null;
+        $to = $request->filled('to') ? Carbon::parse($request->get('to'))->endOfDay() : null;
+
+        $query = \App\Models\CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
+            ->where('status', 'confirmed')
+            ->where('is_paid', false)
+            ->with(['court', 'coach'])
+            ->orderBy('date')->orderBy('start_time');
+
+        if ($from) $query->whereDate('date', '>=', $from->toDateString());
+        if ($to) $query->whereDate('date', '<=', $to->toDateString());
+
+        $revenue = app(\App\Reports\FinanceReportService::class);
+        $bookings = $query->get();
+
+        // Клиенты группируются по последним 10 цифрам номера: в бронях он
+        // записан как придётся, а долг у человека один.
+        $clients = [];
+        foreach ($bookings as $b) {
+            $key = $this->debtorKey($b);
+            $amount = (float) $revenue->amountOf($b, $club->id);
+            if ($amount <= 0) continue;
+
+            $clients[$key] ??= [
+                'key' => $key,
+                'name' => $b->client_name ?: 'Без имени',
+                'phone' => $b->client_phone,
+                'total' => 0.0,
+                'count' => 0,
+                'bookings' => [],
+            ];
+            $clients[$key]['total'] += $amount;
+            $clients[$key]['count']++;
+            $clients[$key]['bookings'][] = ['booking' => $b, 'amount' => $amount];
+        }
+
+        uasort($clients, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        $selected = $request->get('client');
+        $current = $selected !== null ? ($clients[$selected] ?? null) : null;
+
+        // Разбивка выбранного клиента по месяцам: так видно, когда долг рос.
+        $months = [];
+        if ($current) {
+            foreach ($current['bookings'] as $row) {
+                $date = Carbon::parse($row['booking']->date);
+                $key = $date->format('Y-m');
+                $months[$key] ??= ['label' => $date->locale('ru')->translatedFormat('F Y'),
+                                   'total' => 0.0, 'rows' => []];
+                $months[$key]['total'] += $row['amount'];
+                $months[$key]['rows'][] = $row;
+            }
+            ksort($months);
+        }
+
+        return view('club.reports.debts_by_client', [
+            'club' => $club,
+            'clients' => array_values($clients),
+            'current' => $current,
+            'months' => $months,
+            'from' => $from,
+            'to' => $to,
+            'totalDebt' => array_sum(array_column($clients, 'total')),
+        ]);
+    }
+
+    /** Ключ должника: последние 10 цифр номера, иначе имя. */
+    private function debtorKey(\App\Models\CourtBooking $booking): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $booking->client_phone);
+
+        return strlen($digits) >= 10
+            ? substr($digits, -10)
+            : 'name:' . mb_strtolower(trim((string) $booking->client_name));
     }
 
     public function download(Request $request, string $report)

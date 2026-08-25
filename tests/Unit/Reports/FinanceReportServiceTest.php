@@ -46,7 +46,10 @@ class FinanceReportServiceTest extends TestCase
     {
         $sheet = (new FinanceReportService())->debts($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $this->assertCount(1, $sheet->rows);
-        $this->assertEquals(5000, $sheet->totals[4]); // debt total (6000-1000)
+        // Колонки: Дата, Время, Корт, Клиент, Телефон, Сумма, Менеджер.
+        $this->assertEquals(5000, $sheet->totals[5], 'долг = 6000 − 1000');
+        $this->assertMatchesRegularExpression('/^\d\d:\d\d–\d\d:\d\d$/u', $sheet->rows[0][1],
+            'во второй колонке должно быть время брони');
     }
 
     public function test_sales_amount_includes_coach_cost(): void

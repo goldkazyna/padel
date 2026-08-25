@@ -37,6 +37,17 @@ class FinanceReportService
         return $date instanceof Carbon ? $date : Carbon::parse((string) $date);
     }
 
+    /**
+     * Сумма одной брони — цена корта минус скидка плюс тренер.
+     *
+     * Нужна снаружи: страница «Задолженности по клиенту» считает те же
+     * деньги, что и отчёт, и расходиться с ним не должна.
+     */
+    public function amountOf($booking, int $clubId): float
+    {
+        return $this->bookingRevenue($booking, $clubId);
+    }
+
     public function sales(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $bookings = $this->confirmed($club, $from, $to);
@@ -129,6 +140,9 @@ class FinanceReportService
             $amount = $this->bookingRevenue($b, $club->id);
             $rows[] = [
                 $this->parseDate($b->date)->format('d.m.Y'),
+                // Время нужно, чтобы отличать две брони клиента в один день.
+                Carbon::parse($b->start_time)->format('H:i')
+                    . '–' . Carbon::parse($b->end_time)->format('H:i'),
                 $b->court->name ?? '',
                 $b->client_name ?? '',
                 $b->client_phone ?? '',
@@ -139,10 +153,10 @@ class FinanceReportService
         }
         return new ReportSheet(
             title: 'Задолженности',
-            headings: ['Дата', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Менеджер'],
+            headings: ['Дата', 'Время', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Менеджер'],
             rows: $rows,
-            totals: ['Итого', '', '', '', round($tDebt, 2), ''],
-            columnFormats: [3 => '@', 4 => '#,##0'],
+            totals: ['Итого', '', '', '', '', round($tDebt, 2), ''],
+            columnFormats: [4 => '@', 5 => '#,##0'],
         );
     }
 }

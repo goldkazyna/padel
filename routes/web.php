@@ -285,6 +285,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
 
             // Дополнительные отчёты (Excel)
             Route::get('/reports/extra', [App\Http\Controllers\Club\AdditionalReportsController::class, 'index'])->name('reports.extra.index');
+            // Разбивка долгов по одному клиенту — с печатью в PDF из браузера.
+            Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
             Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
         });
 

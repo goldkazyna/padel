@@ -40,6 +40,21 @@
         </form>
     </div>
 
+    {{-- Разбор долга по конкретному человеку — отдельный экран, не Excel:
+         его показывают клиенту в разговоре и печатают в PDF. --}}
+    <a href="{{ route('club.reports.debts.client') }}"
+       style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;
+              background:linear-gradient(135deg,rgba(240,85,77,.14),rgba(28,28,33,.9));
+              border:1px solid rgba(240,85,77,.35);text-decoration:none;color:inherit;margin-bottom:28px;">
+        <i class="bi bi-person-lines-fill" style="font-size:20px;color:#f0554d;"></i>
+        <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:#f3f3f5;">Задолженности по клиенту</div>
+            <div style="font-size:12px;color:#a1a1aa;margin-top:2px;">Кто и за какие брони должен — с датами, временем и кортом</div>
+        </div>
+        <span style="background:rgba(240,85,77,.16);color:#f0554d;padding:3px 10px;border-radius:20px;
+                     font-size:11px;font-weight:700;white-space:nowrap;">Экран · PDF</span>
+    </a>
+
     {{-- Report groups --}}
     @foreach ($grouped as $category => $reports)
         <div style="margin-bottom:28px;">
