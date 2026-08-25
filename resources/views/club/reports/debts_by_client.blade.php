@@ -1,14 +1,21 @@
 {{-- Задолженности в разрезе клиента.
 
      Общий отчёт отвечает «сколько нам должны», этот — «за что должен вот
-     этот человек»: даты, время, корт. Печатается из браузера в PDF, поэтому
-     ниже есть отдельный набор print-стилей: на бумагу уходит только
-     разбивка выбранного клиента, без меню и списка должников. --}}
+     этот человек»: даты, время, корт. Лист печатают и отдают клиенту,
+     поэтому печатная версия — отдельный минималистичный документ: на бумагу
+     уходит только карточка, без меню и списка должников. --}}
 @extends('layouts.app')
 
 @section('title', 'Задолженности по клиенту')
 
 @section('content')
+@php
+    // Колонку тренера показываем, только если он вообще где-то есть:
+    // столбец из одних прочерков только зашумляет лист.
+    $hasCoach = $current
+        ? collect($current['bookings'])->contains(fn ($r) => $r['booking']->coach_id)
+        : false;
+@endphp
 <div class="dbt-wrap">
 
     <div class="dbt-head no-print">
@@ -17,7 +24,7 @@
             <h1>Задолженности по клиенту</h1>
             <div class="dbt-sub">{{ $club->name }} · неоплаченные брони</div>
         </div>
-        <div class="dbt-total">
+        <div class="dbt-total-head">
             <b>{{ number_format($totalDebt, 0, '', ' ') }} ₸</b>
             <span>всего долг</span>
         </div>
@@ -60,7 +67,7 @@
             @endforelse
         </div>
 
-        {{-- Разбивка --}}
+        {{-- Документ --}}
         <div class="dbt-detail">
             @if(!$current)
                 <div class="dbt-empty dbt-empty-big no-print">
@@ -68,47 +75,65 @@
                     <p>Выберите клиента слева — покажем, за что он должен</p>
                 </div>
             @else
-                <div class="dbt-card">
-                    <div class="dbt-card-head">
-                        {{-- Логотип клуба: лист печатают и отдают клиенту,
-                             он должен выглядеть как документ клуба. --}}
-                        <div class="dbt-logo">
+                <article class="rep">
+                    <header class="rep-head">
+                        <div class="rep-logo">
                             @if($club->logo)
                                 <img src="{{ url($club->logo) }}" alt="{{ $club->name }}">
                             @else
-                                {{ mb_strtoupper(mb_substr($club->name, 0, 2)) }}
+                                <span>{{ mb_strtoupper(mb_substr($club->name, 0, 2)) }}</span>
                             @endif
                         </div>
-                        <div>
-                            <div class="dbt-label">Задолженность клиента</div>
-                            <h2>{{ $current['name'] }}</h2>
-                            <div class="dbt-sub">
-                                @if($current['phone'])@phoneFmt($current['phone'])@endif
-                                · {{ $club->name }}
-                                @if($from || $to)
-                                    · период {{ $from?->format('d.m.Y') ?? '…' }} — {{ $to?->format('d.m.Y') ?? '…' }}
-                                @endif
-                            </div>
+                        <div class="rep-id">
+                            <div class="rep-club">{{ $club->name }}</div>
+                            <h2 class="rep-title">Задолженность</h2>
                         </div>
-                        <div class="dbt-card-sum">
+                        <div class="rep-sum">
                             <b>{{ number_format($current['total'], 0, '', ' ') }} ₸</b>
-                            <span>{{ $current['count'] }} неоплаченных броней</span>
+                            <span>к оплате</span>
                         </div>
-                    </div>
+                    </header>
+
+                    <dl class="rep-meta">
+                        <div>
+                            <dt>Клиент</dt>
+                            <dd>{{ $current['name'] }}</dd>
+                        </div>
+                        @if($current['phone'])
+                            <div>
+                                <dt>Телефон</dt>
+                                <dd>@phoneFmt($current['phone'])</dd>
+                            </div>
+                        @endif
+                        <div>
+                            <dt>Броней</dt>
+                            <dd>{{ $current['count'] }}</dd>
+                        </div>
+                        <div>
+                            <dt>Период</dt>
+                            <dd>
+                                @if($from || $to)
+                                    {{ $from?->format('d.m.Y') ?? '…' }} — {{ $to?->format('d.m.Y') ?? '…' }}
+                                @else
+                                    за всё время
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
 
                     @foreach($months as $month)
-                        <div class="dbt-month">
-                            <div class="dbt-month-head">
+                        <section class="rep-month">
+                            <div class="rep-month-cap">
                                 <span>{{ $month['label'] }}</span>
                                 <b>{{ number_format($month['total'], 0, '', ' ') }} ₸</b>
                             </div>
-                            <table class="dbt-table">
+                            <table class="rep-table">
                                 <thead>
                                     <tr>
-                                        <th>Дата</th>
-                                        <th>Время</th>
+                                        <th class="c-date">Дата</th>
+                                        <th class="c-time">Время</th>
                                         <th>Корт</th>
-                                        <th>Тренер</th>
+                                        @if($hasCoach)<th>Тренер</th>@endif
                                         <th class="num">Сумма</th>
                                     </tr>
                                 </thead>
@@ -120,29 +145,30 @@
                                             $end = \Carbon\Carbon::parse($b->end_time)->format('H:i');
                                         @endphp
                                         <tr>
-                                            <td>{{ \Carbon\Carbon::parse($b->date)->format('d.m.Y') }}</td>
-                                            <td class="mono">{{ $start }}–{{ $end }}</td>
+                                            <td class="c-date">{{ \Carbon\Carbon::parse($b->date)->format('d.m.Y') }}</td>
+                                            <td class="c-time">{{ $start }}–{{ $end }}</td>
                                             <td>{{ $b->court->name ?? '—' }}</td>
-                                            <td class="muted">
-                                                {{ $b->coach ? ($b->coach->first_name ?? $b->coach->name) : '—' }}
-                                            </td>
+                                            @if($hasCoach)
+                                                <td class="muted">{{ $b->coach ? ($b->coach->first_name ?? $b->coach->name) : '' }}</td>
+                                            @endif
                                             <td class="num">{{ number_format($row['amount'], 0, '', ' ') }} ₸</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
-                        </div>
+                        </section>
                     @endforeach
 
-                    <div class="dbt-foot">
-                        <span>Итого к оплате</span>
-                        <b>{{ number_format($current['total'], 0, '', ' ') }} ₸</b>
-                    </div>
-
-                    <div class="dbt-print-note">
-                        {{ $club->name }} · сформировано {{ now()->format('d.m.Y') }}
-                    </div>
-                </div>
+                    <footer class="rep-foot">
+                        <div class="rep-foot-total">
+                            <span>Итого к оплате</span>
+                            <b>{{ number_format($current['total'], 0, '', ' ') }} ₸</b>
+                        </div>
+                        <div class="rep-note">
+                            {{ $club->name }} · сформировано {{ now()->format('d.m.Y') }}
+                        </div>
+                    </footer>
+                </article>
 
                 <button type="button" class="dbt-print no-print" onclick="window.print()">
                     <i class="bi bi-printer"></i> Печать / сохранить в PDF
@@ -160,9 +186,9 @@
 .dbt-back{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
   background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--t2);text-decoration:none;}
 .dbt-sub{color:var(--t3);font-size:13px;margin-top:2px;}
-.dbt-total{margin-left:auto;text-align:right;}
-.dbt-total b{display:block;font-size:22px;font-weight:800;color:var(--red);}
-.dbt-total span{font-size:11px;color:var(--t3);}
+.dbt-total-head{margin-left:auto;text-align:right;}
+.dbt-total-head b{display:block;font-size:22px;font-weight:800;color:var(--red);}
+.dbt-total-head span{font-size:11px;color:var(--t3);}
 
 .dbt-filter{display:flex;align-items:center;gap:8px;margin-bottom:18px;color:var(--t3);font-size:13px;}
 .dbt-filter input{padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f3f3f5;
@@ -187,69 +213,92 @@
 .dbt-item-sum{font-size:14px;font-weight:800;color:var(--red);white-space:nowrap;}
 
 .dbt-detail{min-width:0;}
-.dbt-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
-.dbt-card-head{display:flex;align-items:flex-start;gap:16px;padding-bottom:14px;
-  border-bottom:2px solid var(--accent);margin-bottom:16px;}
-.dbt-card-head h2{font-size:20px;font-weight:800;margin:2px 0 4px;}
-.dbt-logo{width:52px;height:52px;border-radius:12px;background:var(--card2);
-  display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;
-  font-size:17px;font-weight:800;color:var(--accent);}
-.dbt-logo img{width:100%;height:100%;object-fit:contain;}
-.dbt-card-sum{margin-left:auto;text-align:right;white-space:nowrap;}
-.dbt-card-sum b{display:block;font-size:24px;font-weight:800;color:var(--red);}
-.dbt-card-sum span{font-size:11px;color:var(--t3);}
-
-.dbt-month{margin-bottom:18px;}
-.dbt-month-head{display:flex;justify-content:space-between;align-items:baseline;
-  padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--line);}
-.dbt-month-head span{font-size:12.5px;font-weight:700;text-transform:capitalize;color:var(--t2);}
-.dbt-month-head b{font-size:13px;font-weight:800;}
-
-.dbt-table{width:100%;border-collapse:collapse;font-size:13px;}
-.dbt-table th{text-align:left;font-size:10px;letter-spacing:.8px;text-transform:uppercase;
-  color:var(--t3);font-weight:700;padding:4px 8px;}
-.dbt-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.04);}
-.dbt-table tr:last-child td{border-bottom:none;}
-.dbt-table .num{text-align:right;font-weight:700;white-space:nowrap;}
-.dbt-table .mono{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--t2);}
-.dbt-table .muted{color:var(--t3);}
-
-.dbt-foot{display:flex;justify-content:space-between;align-items:center;
-  padding-top:12px;border-top:2px solid var(--accent);font-size:15px;}
-.dbt-foot b{font-size:20px;font-weight:800;color:var(--red);}
-.dbt-print-note{display:none;}
-
 .dbt-print{margin-top:14px;padding:11px 18px;border-radius:10px;background:var(--accent);
   color:#0a0a0d;border:none;font-weight:700;font-size:14px;cursor:pointer;}
-
 .dbt-empty{color:var(--t3);font-size:13.5px;padding:8px 2px;}
 .dbt-empty-big{text-align:center;padding:60px 20px;background:var(--card);
   border:1px dashed var(--line);border-radius:14px;}
 .dbt-empty-big i{font-size:28px;display:block;margin-bottom:10px;opacity:.5;}
 
-/* На печать уходит только карточка клиента, на белом и без интерфейса. */
+/* ── Сам документ ────────────────────────────────────────────────────── */
+.rep{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px;}
+.rep-head{display:flex;align-items:center;gap:18px;padding-bottom:20px;}
+.rep-logo{width:56px;height:56px;border-radius:14px;background:var(--card2);flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;padding:7px;}
+.rep-logo img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
+.rep-logo span{font-size:17px;font-weight:800;color:var(--accent);}
+.rep-id{flex:1;min-width:0;}
+.rep-club{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);
+  font-weight:700;margin-bottom:4px;}
+.rep-title{font-size:23px;font-weight:800;margin:0;letter-spacing:-.2px;}
+.rep-sum{text-align:right;white-space:nowrap;}
+.rep-sum b{display:block;font-size:26px;font-weight:800;color:var(--red);line-height:1.1;}
+.rep-sum span{font-size:11px;color:var(--t3);}
+
+.rep-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:0 0 24px;
+  padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.rep-meta dt{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);
+  font-weight:700;margin-bottom:3px;}
+.rep-meta dd{margin:0;font-size:13.5px;font-weight:600;}
+
+.rep-month{margin-bottom:22px;}
+.rep-month-cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.rep-month-cap span{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--t2);}
+.rep-month-cap b{font-size:13px;font-weight:800;}
+
+.rep-table{width:100%;border-collapse:collapse;font-size:13px;}
+.rep-table th{text-align:left;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--t3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);}
+.rep-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05);}
+.rep-table .num{text-align:right;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.rep-table .c-date{white-space:nowrap;font-variant-numeric:tabular-nums;width:1%;}
+.rep-table .c-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--t2);width:1%;}
+.rep-table .muted{color:var(--t3);}
+
+.rep-foot{margin-top:4px;}
+.rep-foot-total{display:flex;justify-content:space-between;align-items:baseline;
+  padding-top:14px;border-top:2px solid var(--accent);font-size:14px;font-weight:600;}
+.rep-foot-total b{font-size:22px;font-weight:800;color:var(--red);}
+.rep-note{margin-top:10px;font-size:10.5px;color:var(--t3);}
+
+/* ── Печать: только документ, на белом ───────────────────────────────── */
 @media print{
-  @page{margin:14mm;}
+  @page{margin:16mm 14mm;}
+
   /* Макет держит контент в окне: .main-content — это 100dvh со своим
-     скроллом. На печати из-за этого уходил только первый экран, а
-     остальное обрезалось. Распускаем высоты по всей цепочке. */
+     скроллом. Без роспуска высот в PDF уходил только первый экран. */
   html,body{height:auto !important;overflow:visible !important;background:#fff !important;}
   .main-content{height:auto !important;min-height:0 !important;overflow:visible !important;
     margin-left:0 !important;padding:0 !important;}
-  .no-print,.sidebar,.navbar,nav,header,footer,.mobile-nav,.mobile-menu-btn,.overlay{display:none !important;}
+  .no-print,.sidebar,.navbar,nav,header.page-header,footer.site-footer,
+  .mobile-nav,.mobile-menu-btn,.overlay{display:none !important;}
+
   .dbt-wrap{max-width:none;padding:0;color:#12181c;overflow:visible;}
-  .dbt-logo{background:#f1f5f6;color:#12b05f;}
   .dbt-cols{display:block;}
-  .dbt-card{background:#fff;border:none;padding:0;}
-  .dbt-card-head{border-bottom:2px solid #12b05f;}
-  .dbt-card-sum b,.dbt-foot b,.dbt-item-sum{color:#b4553f;}
-  .dbt-label,.dbt-sub,.dbt-card-sum span,.dbt-month-head span,.dbt-table th,.dbt-table .muted{color:#5b6b73;}
-  .dbt-table td{border-bottom:1px solid #eef2f4;}
-  .dbt-month-head{border-bottom:1px solid #e3e9ec;}
-  .dbt-foot{border-top:2px solid #12b05f;}
-  .dbt-month{break-inside:avoid;}
-  .dbt-print-note{display:block;margin-top:18px;padding-top:10px;
-    border-top:1px solid #e3e9ec;color:#93a1a8;font-size:10px;}
+  .rep{background:#fff;border:none;border-radius:0;padding:0;}
+
+  .rep-head{padding-bottom:16px;border-bottom:2px solid #12b05f;}
+  .rep-logo{background:#f4f7f8;}
+  .rep-logo span{color:#12b05f;}
+  .rep-club{color:#93a1a8;}
+  .rep-title{color:#12181c;}
+  .rep-sum b{color:#b4553f;}
+  .rep-sum span,.rep-meta dt,.rep-month-cap span,.rep-table th,.rep-table .c-time,
+  .rep-table .muted,.rep-note{color:#5b6b73;}
+  .rep-meta{border-color:#e3e9ec;}
+  .rep-table th{border-bottom:1px solid #e3e9ec;}
+  .rep-table td{border-bottom:1px solid #f1f5f6;}
+  .rep-foot-total{border-top:2px solid #12b05f;}
+  .rep-foot-total b{color:#b4553f;}
+
+  /* Месяц НЕ запрещаем разрывать: в блоке бывает полсотни строк, и запрет
+     выталкивал его целиком на следующий лист — первая страница выходила
+     пустой. Рвём только между строками, а шапку таблицы повторяем. */
+  .rep-month{break-inside:auto;}
+  .rep-table thead{display:table-header-group;}
+  .rep-table tr{break-inside:avoid;}
+  .rep-month-cap{break-after:avoid;}
+  .rep-head,.rep-meta,.rep-foot{break-inside:avoid;}
 }
 </style>
 @endsection
