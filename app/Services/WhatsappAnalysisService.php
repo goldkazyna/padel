@@ -98,8 +98,19 @@ class WhatsappAnalysisService
             throw new RuntimeException('Claude ответил ошибкой ' . $response->status());
         }
 
-        $text = $response->json('content.0.text');
-        if (!is_string($text) || $text === '') {
+        // Ответ приходит блоками, и первым может лежать не текст
+        // (например, рассуждение) — собираем все текстовые.
+        $text = collect($response->json('content') ?? [])
+            ->filter(fn ($block) => ($block['type'] ?? '') === 'text')
+            ->pluck('text')
+            ->filter(fn ($t) => is_string($t) && $t !== '')
+            ->implode('');
+
+        if ($text === '') {
+            Log::warning('Claude: в ответе нет текстовых блоков', [
+                'body' => mb_substr((string) $response->body(), 0, 500),
+            ]);
+
             throw new RuntimeException('Claude вернул пустой ответ');
         }
 
