@@ -229,6 +229,65 @@ class TournamentPushService
     }
 
     /** id участников турнира (одиночная регистрация + командные пары). */
+    /**
+     * Участник написал в чат — сообщаем организаторам.
+     *
+     * Обратная сторона `sendChatMessage`: там организатор пишет участникам,
+     * здесь участник — организаторам. Остальные участники ничего не получают,
+     * иначе живая переписка в чате звонила бы всем подряд.
+     */
+    public function sendChatMessageToOrganizers(Tournament $tournament, User $author, string $text): void
+    {
+        $organizerIds = collect($this->chatOrganizerUserIds($tournament))
+            ->reject(fn ($id) => (int) $id === (int) $author->id)
+            ->unique()
+            ->values();
+        if ($organizerIds->isEmpty()) {
+            return;
+        }
+
+        $users = User::whereIn('id', $organizerIds)
+            ->where('notify_organizer_chat', true)
+            ->whereHas('deviceTokens')
+            ->with('deviceTokens')
+            ->get(['id']);
+
+        $tokens = $users->flatMap(fn ($u) => $u->deviceTokens->pluck('token'))->unique()->values()->toArray();
+        if (empty($tokens)) {
+            return;
+        }
+
+        // Организатору важно сразу видеть, кто написал: в его чатах десятки
+        // людей, и «Вечерний турнир: оплатил» без имени бесполезно.
+        $title = $tournament->name;
+        $body = \Illuminate\Support\Str::limit(trim($author->name ?? 'Участник'), 30)
+            . ': ' . \Illuminate\Support\Str::limit(trim($text), 90);
+
+        app(FCMNotificationService::class)->sendMulticastToTokens($tokens, $title, $body, [
+            'type' => 'tournament_chat',
+            'tournament_id' => (string) $tournament->id,
+        ]);
+    }
+
+    /** Кому в клубе принадлежит турнир: создатель, админы и модераторы. */
+    private function chatOrganizerUserIds(Tournament $tournament): array
+    {
+        $ids = [];
+        if ($tournament->creator_id) {
+            $ids[] = (int) $tournament->creator_id;
+        }
+
+        if ($tournament->club_id) {
+            $clubId = $tournament->club_id;
+            $ids = array_merge(
+                $ids,
+                User::whereHas('adminClubs', fn ($q) => $q->where('clubs.id', $clubId))->pluck('id')->all(),
+                User::whereHas('moderatorClubs', fn ($q) => $q->where('clubs.id', $clubId))->pluck('id')->all(),
+            );
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
     private function chatParticipantUserIds(Tournament $tournament): \Illuminate\Support\Collection
     {
         if ($tournament->usesSoloRegistration()) {

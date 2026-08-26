@@ -101,13 +101,17 @@ class MobileTournamentChatController extends Controller
         $message->setRelation('user', $user);
 
         // Организатор написал в чат — пуш участникам (у кого включена настройка).
-        if ($isAdmin) {
-            try {
-                app(\App\Services\TournamentPushService::class)
-                    ->sendChatMessage($tournament, $user, $message->text);
-            } catch (\Throwable $e) {
-                report($e); // не роняем отправку сообщения из-за ошибки пуша
+        // Написал участник — пуш уходит только организаторам: остальным
+        // игрокам чужая переписка в кармане не нужна.
+        try {
+            $push = app(\App\Services\TournamentPushService::class);
+            if ($isAdmin) {
+                $push->sendChatMessage($tournament, $user, $message->text);
+            } else {
+                $push->sendChatMessageToOrganizers($tournament, $user, $message->text);
             }
+        } catch (\Throwable $e) {
+            report($e); // не роняем отправку сообщения из-за ошибки пуша
         }
 
         $adminIds = $this->chatAdminUserIds($tournament);
