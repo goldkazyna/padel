@@ -44,6 +44,7 @@ class User extends Authenticatable
         'notify_booking_reminders',
         'notify_organizer_chat',
         'notify_club_ids',
+        'notify_cities_off',
         'hidden_club_ids',
         'terms_accepted_at',
         'terms_version',
@@ -70,6 +71,7 @@ class User extends Authenticatable
         'notify_booking_reminders' => 'boolean',
         'notify_organizer_chat' => 'boolean',
         'notify_club_ids' => 'array',
+        'notify_cities_off' => 'array',
         'hidden_club_ids' => 'array',
         'terms_accepted_at' => 'datetime',
     ];

@@ -106,10 +106,19 @@ class TournamentPushService
                 }
             }
 
-            $users = $query->get(['id', 'phone', 'city', 'level', 'notify_only_my_level', 'notify_club_ids']);
+            $users = $query->get([
+                'id', 'phone', 'city', 'level',
+                'notify_only_my_level', 'notify_club_ids', 'notify_cities_off',
+            ]);
+
+            $clubCity = $club?->city;
 
             // Персональные фильтры пользователя.
-            $recipients = $users->filter(function ($user) use ($tournament) {
+            $recipients = $users->filter(function ($user) use ($tournament, $clubCity) {
+                // Город выключен в настройках — ни пуша, ни записи в колокольчике.
+                if ($clubCity && in_array($clubCity, (array) $user->notify_cities_off, true)) {
+                    return false;
+                }
                 if (!empty($user->notify_club_ids) && !in_array($tournament->club_id, $user->notify_club_ids)) {
                     return false;
                 }

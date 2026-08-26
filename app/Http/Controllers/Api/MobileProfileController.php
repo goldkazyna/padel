@@ -190,7 +190,7 @@ class MobileProfileController extends Controller
         $validated = $request->validate([
             'name'        => 'nullable|string|max:255',
             'patronymic'  => 'nullable|string|max:100',
-            'city'        => 'nullable|string|in:Алматы,Астана,Шымкент,Караганда,Актобе,Актау,Атырау,Костанай',
+            'city'        => 'nullable|string|in:' . implode(',', config('cities')),
             'gender'      => 'nullable|string|in:male,female',
             'age'         => 'nullable|integer|min:1|max:99',
             'birth_date'  => 'nullable|date|before:today',

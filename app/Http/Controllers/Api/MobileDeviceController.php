@@ -49,7 +49,9 @@ class MobileDeviceController extends Controller
             'notify_booking_reminders' => (bool) $user->notify_booking_reminders,
             'notify_organizer_chat' => (bool) $user->notify_organizer_chat,
             'notify_club_ids' => $user->notify_club_ids,
+            'notify_cities_off' => $user->notify_cities_off ?? [],
             'clubs' => $clubs,
+            'cities' => config('cities'),
         ]);
     }
 
@@ -62,6 +64,8 @@ class MobileDeviceController extends Controller
             'notify_organizer_chat' => 'sometimes|boolean',
             'notify_club_ids' => 'sometimes|nullable|array',
             'notify_club_ids.*' => 'integer|exists:clubs,id',
+            'notify_cities_off' => 'sometimes|nullable|array',
+            'notify_cities_off.*' => 'string|in:' . implode(',', config('cities')),
         ]);
 
         $request->user()->update($validated);
