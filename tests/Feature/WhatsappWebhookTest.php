@@ -160,6 +160,47 @@ class WhatsappWebhookTest extends TestCase
             ->assertSee('19 августа 2026');
     }
 
+    public function test_опрос_отдаёт_только_новые_сообщения(): void
+    {
+        $this->send($this->payload(['id' => 'a', 'timestamp' => 1787000000]))->assertOk();
+        $first = WhatsappMessage::first();
+
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($this->club->id);
+
+        // Пока нового нет — вкладке отдавать нечего.
+        $this->actingAs($admin)
+            ->getJson(route('club.whatsapp.chat-updates', '77779001122') . '?after=' . $first->id)
+            ->assertOk()->assertJsonCount(0, 'messages');
+
+        $this->send($this->payload([
+            'id' => 'b', 'timestamp' => 1787100000,
+            'text' => ['body' => 'И ещё вопрос'],
+        ]))->assertOk();
+
+        $this->actingAs($admin)
+            ->getJson(route('club.whatsapp.chat-updates', '77779001122') . '?after=' . $first->id)
+            ->assertOk()
+            ->assertJsonCount(1, 'messages')
+            ->assertJsonPath('messages.0.text', 'И ещё вопрос')
+            ->assertJsonPath('messages.0.day', '19 августа 2026')
+            ->assertJsonPath('messages.0.from_me', false);
+    }
+
+    public function test_маячок_списка_отдаёт_последний_id(): void
+    {
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($this->club->id);
+
+        $this->actingAs($admin)->getJson(route('club.whatsapp.updates'))
+            ->assertOk()->assertJson(['last_id' => 0]);
+
+        $this->send($this->payload())->assertOk();
+
+        $this->actingAs($admin)->getJson(route('club.whatsapp.updates'))
+            ->assertOk()->assertJson(['last_id' => WhatsappMessage::first()->id]);
+    }
+
     public function test_событие_в_конце_адреса_тоже_принимается(): void
     {
         // Whapi настроен так, что дописывает имя события в путь: .../messages.

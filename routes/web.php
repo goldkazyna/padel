@@ -289,7 +289,11 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
             // Переписка WhatsApp: пока только чтение того, что принёс вебхук.
             Route::get('/whatsapp', [App\Http\Controllers\Club\WhatsappController::class, 'index'])->name('whatsapp.index');
-            Route::get('/whatsapp/{phone}', [App\Http\Controllers\Club\WhatsappController::class, 'show'])->name('whatsapp.show');
+            // Опрос новых сообщений: адреса объявлены до /whatsapp/{phone},
+            // иначе номер-заглушка перехватил бы их на себя.
+            Route::get('/whatsapp/updates', [App\Http\Controllers\Club\WhatsappController::class, 'updates'])->name('whatsapp.updates');
+            Route::get('/whatsapp/{phone}/updates', [App\Http\Controllers\Club\WhatsappController::class, 'chatUpdates'])->name('whatsapp.chat-updates')->where('phone', '[0-9]+');
+            Route::get('/whatsapp/{phone}', [App\Http\Controllers\Club\WhatsappController::class, 'show'])->name('whatsapp.show')->where('phone', '[0-9]+');
             Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
         });
 

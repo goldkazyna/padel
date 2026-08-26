@@ -75,6 +75,8 @@ class WhatsappController extends Controller
             'clients' => $clients,
             'search' => $search,
             'total' => WhatsappMessage::where('club_id', $club->id)->count(),
+            // Точка отсчёта для опроса: с чем сравнивать «пришло ли новое».
+            'lastId' => (int) WhatsappMessage::where('club_id', $club->id)->max('id'),
         ]);
     }
 
@@ -104,6 +106,50 @@ class WhatsappController extends Controller
         ]);
     }
 
+    /**
+     * Маячок для списка диалогов: id самого свежего сообщения клуба.
+     * Вкладка сравнивает его со своим и перерисовывает список, только
+     * если что-то действительно пришло.
+     */
+    public function updates()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        return response()->json([
+            'last_id' => (int) WhatsappMessage::where('club_id', $club->id)->max('id'),
+        ]);
+    }
+
+    /** Сообщения диалога, пришедшие после указанного id. */
+    public function chatUpdates(Request $request, string $phone)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $digits = preg_replace('/\D/', '', $phone);
+        $after = (int) $request->get('after');
+
+        $messages = WhatsappMessage::where('club_id', $club->id)
+            ->where('phone', $digits)
+            ->where('id', '>', $after)
+            ->orderBy('id')
+            ->limit(200)
+            ->get();
+
+        return response()->json([
+            'messages' => $messages->map(fn ($m) => [
+                'id' => $m->id,
+                'from_me' => (bool) $m->from_me,
+                'text' => $m->body ?: $m->preview(),
+                // Нетекстовое показываем подписью типа — курсивом, как на сервере.
+                'plain' => (bool) $m->body,
+                'time' => $m->sent_at->format('H:i'),
+                'date' => $m->sent_at->toDateString(),
+                'day' => $m->sent_at->locale('ru')->translatedFormat('j F Y'),
+            ])->values(),
+        ]);
+    }
     /**
      * Карточки клиентов по номерам: [последние 10 цифр => ClubClient].
      * Номер в WhatsApp — цифрами, в карточке записан как придётся.

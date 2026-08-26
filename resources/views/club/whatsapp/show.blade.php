@@ -28,11 +28,11 @@
 
     <div class="wa-chat">
         @foreach($days as $date => $dayMessages)
-            <div class="wa-day">
+            <div class="wa-day" data-date="{{ $date }}">
                 <span>{{ \Carbon\Carbon::parse($date)->locale('ru')->translatedFormat('j F Y') }}</span>
             </div>
             @foreach($dayMessages as $m)
-                <div class="wa-msg {{ $m->from_me ? 'out' : 'in' }}">
+                <div class="wa-msg {{ $m->from_me ? 'out' : 'in' }}" data-id="{{ $m->id }}">
                     <div class="wa-bubble">
                         @if($m->body)
                             <div class="wa-text">{{ $m->body }}</div>
@@ -40,7 +40,7 @@
                             <div class="wa-text wa-other">{{ $m->preview() }}</div>
                         @endif
                         <div class="wa-meta">
-                            {{ $m->sent_at->format('HH:mm') }}
+                            {{ $m->sent_at->format('H:i') }}
                             @if($m->from_me)<i class="bi bi-check2-all"></i>@endif
                         </div>
                     </div>
@@ -86,5 +86,78 @@
 .wa-meta i{font-size:11px;margin-left:3px;color:var(--wa);}
 
 .wa-note{display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--t3);font-size:12.5px;}
+
+/* Пришло, пока страница открыта. */
+.wa-new .wa-bubble{animation:wa-pop .35s ease-out;}
+@keyframes wa-pop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){.wa-new .wa-bubble{animation:none;}}
 </style>
+
+<script>
+// Новые сообщения дорисовываем сами: перезагрузка страницы сбрасывала бы
+// прокрутку, а переписка читается сверху вниз.
+(function () {
+    const chat = document.querySelector('.wa-chat');
+    if (!chat) return;
+
+    const url = @json(route('club.whatsapp.chat-updates', $phone));
+    let lastId = Math.max(0, ...[...chat.querySelectorAll('.wa-msg')].map(el => +el.dataset.id || 0));
+    let lastDate = [...chat.querySelectorAll('.wa-day')].pop()?.dataset.date || '';
+
+    const atBottom = () =>
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 120;
+
+    function draw(m) {
+        if (m.date !== lastDate) {
+            const day = document.createElement('div');
+            day.className = 'wa-day';
+            day.dataset.date = m.date;
+            day.innerHTML = '<span></span>';
+            day.firstChild.textContent = m.day;
+            chat.appendChild(day);
+            lastDate = m.date;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'wa-msg wa-new ' + (m.from_me ? 'out' : 'in');
+        row.dataset.id = m.id;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'wa-bubble';
+
+        const text = document.createElement('div');
+        text.className = m.plain ? 'wa-text' : 'wa-text wa-other';
+        text.textContent = m.text;
+
+        const meta = document.createElement('div');
+        meta.className = 'wa-meta';
+        meta.textContent = m.time;
+        if (m.from_me) meta.innerHTML += ' <i class="bi bi-check2-all"></i>';
+
+        bubble.append(text, meta);
+        row.appendChild(bubble);
+        chat.appendChild(row);
+    }
+
+    async function poll() {
+        if (document.hidden) return;
+        try {
+            const res = await fetch(url + '?after=' + lastId, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.messages || !data.messages.length) return;
+
+            const stick = atBottom();
+            data.messages.forEach(m => { draw(m); lastId = Math.max(lastId, m.id); });
+            if (stick) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        } catch (e) { /* сеть моргнула — попробуем на следующем круге */ }
+    }
+
+    setInterval(poll, 12000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+})();
+</script>
 @endsection

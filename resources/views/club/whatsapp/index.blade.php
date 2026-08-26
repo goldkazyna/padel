@@ -28,6 +28,7 @@
         @endif
     </form>
 
+    <div class="wa-body">
     @if($chats->isEmpty())
         <div class="wa-empty">
             <i class="bi bi-chat-dots"></i>
@@ -68,6 +69,7 @@
             @endforeach
         </div>
     @endif
+    </div>
 </div>
 
 <style>
@@ -113,4 +115,43 @@
 .wa-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
 .wa-empty span{font-size:13px;}
 </style>
+
+<script>
+// Раз в 12 секунд спрашиваем id последнего сообщения. Пока он тот же —
+// не трогаем страницу: поиск и прокрутка должны переживать ожидание.
+(function () {
+    const body = document.querySelector('.wa-body');
+    if (!body) return;
+
+    const url = @json(route('club.whatsapp.updates'));
+    let lastId = @json($lastId);
+
+    async function poll() {
+        if (document.hidden) return;
+        try {
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.last_id || data.last_id === lastId) return;
+            lastId = data.last_id;
+
+            // Список перерисовываем тем же адресом — вместе с поиском в нём.
+            const page = await fetch(location.href, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!page.ok) return;
+
+            const fresh = new DOMParser().parseFromString(await page.text(), 'text/html');
+            const list = fresh.querySelector('.wa-body');
+            const count = fresh.querySelector('.wa-count');
+            if (list) body.innerHTML = list.innerHTML;
+            if (count) document.querySelector('.wa-count').innerHTML = count.innerHTML;
+        } catch (e) { /* сеть моргнула — вернёмся через круг */ }
+    }
+
+    setInterval(poll, 12000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+})();
+</script>
 @endsection
