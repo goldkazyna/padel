@@ -155,6 +155,32 @@
             </div>
         @endif
 
+        @if(!empty($report['automation']))
+            <div class="wa-card">
+                <div class="wa-card-head"><i class="bi bi-robot"></i> Что можно отвечать автоматически</div>
+                <p class="wa-card-note">
+                    Повторяющиеся вопросы с однозначным ответом. Готовый текст можно отдать боту —
+                    остальное по-прежнему за менеджером.
+                </p>
+                @foreach($report['automation'] as $item)
+                    <div class="wa-row">
+                        <div class="wa-row-top">
+                            <b>{{ $item['question'] }}</b>
+                            @if($item['times'])
+                                <span class="wa-chip">{{ $item['times'] }} раз за день</span>
+                            @endif
+                        </div>
+                        @if($item['answer'])
+                            <blockquote class="answer">{{ $item['answer'] }}</blockquote>
+                        @endif
+                        @if($item['caution'])
+                            <p class="caution"><i class="bi bi-exclamation-triangle"></i> {{ $item['caution'] }}</p>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         @if(!empty($report['actions']))
             <div class="wa-card">
                 <div class="wa-card-head ok"><i class="bi bi-list-check"></i> Что сделать завтра</div>
@@ -231,6 +257,9 @@
   background:var(--card2);color:var(--t2);font-variant-numeric:tabular-nums;}
 blockquote{margin:8px 0 0;padding:8px 12px;border-left:2px solid var(--line);
   background:var(--card2);border-radius:0 8px 8px 0;font-size:13px;color:var(--t2);font-style:italic;}
+.wa-card-note{margin:-4px 0 12px;font-size:12.5px;color:var(--t3);line-height:1.5;}
+blockquote.answer{border-left-color:var(--wa);font-style:normal;color:#e7e7ea;}
+.wa-row p.caution{color:var(--warn);}
 .wa-actions{margin:0;padding-left:20px;}
 .wa-actions li{font-size:13.5px;line-height:1.6;margin-bottom:6px;}
 

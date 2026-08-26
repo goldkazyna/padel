@@ -171,6 +171,12 @@ class WhatsappAnalysisTest extends TestCase
             'quality' => [['issue' => 'Сухой ответ ценой', 'example' => '12 000 в час', 'fix' => 'Предложить свободное время']],
             'good' => [],
             'actions' => ['Не отвечать одной цифрой'],
+            'automation' => [[
+                'question' => 'Сколько стоит аренда корта',
+                'times' => '3',
+                'answer' => 'Аренда корта — 12 000 тенге в час. Подскажите день и время, проверю свободные корты.',
+                'caution' => 'Скидки и абонементы обсуждает менеджер',
+            ]],
         ]);
 
         $this->actingAs($this->admin)->post(route('club.whatsapp.analysis.run'), [
@@ -183,6 +189,9 @@ class WhatsappAnalysisTest extends TestCase
             ->assertSee('Отвечали медленно, но продали.')
             ->assertSee('Сухой ответ ценой')
             ->assertSee('Не отвечать одной цифрой')
+            ->assertSee('Что можно отвечать автоматически')
+            ->assertSee('Аренда корта — 12 000 тенге в час. Подскажите день и время, проверю свободные корты.')
+            ->assertSee('Скидки и абонементы обсуждает менеджер')
             ->assertSee('40 мин');            // наша цифра, не модельная
     }
 
@@ -213,6 +222,7 @@ class WhatsappAnalysisTest extends TestCase
             return str_contains($content, 'нужен корт в субботу')
                 && str_contains($content, 'остался без ответа')
                 && str_contains($content, '"unanswered": 1')
+                && str_contains($body['system'], 'automation')
                 && $body['model'] === 'claude-sonnet-5';
         });
     }
