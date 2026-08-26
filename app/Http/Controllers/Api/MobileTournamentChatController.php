@@ -56,6 +56,9 @@ class MobileTournamentChatController extends Controller
     /**
      * POST /api/mobile/tournaments/{tournament}/chat/messages  body: { text }
      */
+    /** Сколько секунд одинаковый текст от того же автора считается повтором. */
+    private const REPEAT_WINDOW = 15;
+
     public function store(Request $request, Tournament $tournament): JsonResponse
     {
         $user = $request->user();
@@ -67,10 +70,32 @@ class MobileTournamentChatController extends Controller
             'text' => 'required|string|max:' . self::MAX_LEN,
         ]);
 
+        $text = trim($data['text']);
+
+        // Двойной тап по кнопке отправлял два одинаковых сообщения — и два
+        // пуша участникам. Повтор того же текста в первые секунды считаем
+        // тем же сообщением и возвращаем уже созданное.
+        $justSent = TournamentChatMessage::where('tournament_id', $tournament->id)
+            ->where('user_id', $user->id)
+            ->where('text', $text)
+            ->where('created_at', '>=', now()->subSeconds(self::REPEAT_WINDOW))
+            ->latest('id')
+            ->first();
+
+        if ($justSent) {
+            return response()->json([
+                'message' => $this->formatMessage(
+                    $justSent->load('user'),
+                    $this->chatAdminUserIds($tournament),
+                    $user->id
+                ),
+            ]);
+        }
+
         $message = TournamentChatMessage::create([
             'tournament_id' => $tournament->id,
             'user_id' => $user->id,
-            'text' => trim($data['text']),
+            'text' => $text,
             'created_at' => now(),
         ]);
         $message->setRelation('user', $user);
