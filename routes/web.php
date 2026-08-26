@@ -287,6 +287,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/reports/extra', [App\Http\Controllers\Club\AdditionalReportsController::class, 'index'])->name('reports.extra.index');
             // Разбивка долгов по одному клиенту — с печатью в PDF из браузера.
             Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
+            // Переписка WhatsApp: пока только чтение того, что принёс вебхук.
+            Route::get('/whatsapp', [App\Http\Controllers\Club\WhatsappController::class, 'index'])->name('whatsapp.index');
+            Route::get('/whatsapp/{phone}', [App\Http\Controllers\Club\WhatsappController::class, 'show'])->name('whatsapp.show');
             Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
         });
 

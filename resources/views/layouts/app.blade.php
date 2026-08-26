@@ -1022,6 +1022,13 @@
 							<span>Клиенты</span>
 						</a>
 					</li>
+					{{-- Переписка WhatsApp: приходит вебхуком, отвечают из мессенджера. --}}
+					<li class="nav-item">
+						<a href="{{ route('club.whatsapp.index') }}" class="nav-link {{ request()->routeIs('club.whatsapp.*') ? 'active' : '' }}">
+							<i class="bi bi-whatsapp"></i>
+							<span>WhatsApp</span>
+						</a>
+					</li>
 					<li class="nav-item">
 						<a href="{{ route('club.contacts.index') }}" class="nav-link {{ request()->routeIs('club.contacts.*') ? 'active' : '' }}">
 							<i class="bi bi-person-rolodex"></i>
@@ -1126,6 +1133,13 @@
 						<a href="{{ route('club.clients.index') }}" class="nav-link {{ request()->routeIs('club.clients.*') ? 'active' : '' }}">
 							<i class="bi bi-person-lines-fill"></i>
 							<span>Клиенты</span>
+						</a>
+					</li>
+					{{-- Переписка WhatsApp: приходит вебхуком, отвечают из мессенджера. --}}
+					<li class="nav-item">
+						<a href="{{ route('club.whatsapp.index') }}" class="nav-link {{ request()->routeIs('club.whatsapp.*') ? 'active' : '' }}">
+							<i class="bi bi-whatsapp"></i>
+							<span>WhatsApp</span>
 						</a>
 					</li>
 					<li class="nav-item">

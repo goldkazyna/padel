@@ -1,8 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Api\TelegramMiniAppController;
 use App\Http\Controllers\Api\TelegramWebhookController;
+use App\Http\Controllers\WhapiWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
@@ -30,6 +32,11 @@ use App\Http\Controllers\Api\MobileAdminUserController;
 use App\Http\Controllers\Api\MobileAdminModeratorController;
 use App\Http\Controllers\Api\MobileGameController;
 use App\Http\Controllers\Api\MobileWaiverController;
+
+// Вебхук WhatsApp (Whapi.Cloud). Секрет в адресе: сервис не умеет
+// подписывать запросы заголовком, а маршрут обязан быть публичным.
+Route::post('/whapi/webhook/{secret}', WhapiWebhookController::class)
+    ->name('whapi.webhook');
 
 /*
 |--------------------------------------------------------------------------

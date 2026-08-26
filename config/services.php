@@ -78,6 +78,17 @@ return [
 		'originator' => env('KAZINFOTEH_ORIGINATOR', 'KiT_Notify'),
 	],
 
+	// WhatsApp через Whapi.Cloud: приём входящих вебхуком и ручная отправка.
+	// Секрет вебхука живёт в адресе — Whapi не умеет слать свои заголовки.
+	'whapi' => [
+		'url' => env('WHAPI_URL', 'https://gate.whapi.cloud/'),
+		'token' => env('WHAPI_TOKEN'),
+		'channel' => env('WHAPI_CHANNEL'),
+		'webhook_secret' => env('WHAPI_WEBHOOK_SECRET'),
+		// Канал пока один; чей это WhatsApp — задаём явно.
+		'club_id' => env('WHAPI_CLUB_ID'),
+	],
+
 	// Claude API (Anthropic) — AI-разбор выступления игрока в турнире.
 	'anthropic' => [
 		'key' => env('ANTHROPIC_API_KEY'),
