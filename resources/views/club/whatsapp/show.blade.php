@@ -4,6 +4,7 @@
 @section('title', 'WhatsApp — ' . ($client->name ?? $name ?? $phone))
 
 @section('content')
+@php $tz = config('app.schedule_timezone', 'Asia/Almaty'); @endphp
 <div class="wa-wrap">
 
     <div class="wa-head">
@@ -40,7 +41,7 @@
                             <div class="wa-text wa-other">{{ $m->preview() }}</div>
                         @endif
                         <div class="wa-meta">
-                            {{ $m->sent_at->format('H:i') }}
+                            {{ $m->sent_at->timezone($tz)->format('H:i') }}
                             @if($m->from_me)<i class="bi bi-check2-all"></i>@endif
                         </div>
                     </div>

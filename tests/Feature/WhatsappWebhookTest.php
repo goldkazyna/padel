@@ -155,8 +155,9 @@ class WhatsappWebhookTest extends TestCase
         $admin->adminClubs()->attach($this->club->id);
 
         $response = $this->actingAs($admin)->get(route('club.whatsapp.show', '77779001122'));
+        // Дни местные (Алматы, +5): метка 20:53 UTC — это уже 18-е в клубе.
         $response->assertOk()
-            ->assertSee('17 августа 2026')
+            ->assertSee('18 августа 2026')
             ->assertSee('19 августа 2026');
     }
 

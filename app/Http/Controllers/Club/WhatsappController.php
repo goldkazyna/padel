@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\ClubClient;
 use App\Models\WhatsappMessage;
+use App\Support\WhatsappSla;
 use Illuminate\Http\Request;
 
 /**
@@ -77,6 +78,7 @@ class WhatsappController extends Controller
             'total' => WhatsappMessage::where('club_id', $club->id)->count(),
             // Точка отсчёта для опроса: с чем сравнивать «пришло ли новое».
             'lastId' => (int) WhatsappMessage::where('club_id', $club->id)->max('id'),
+            'waitingCount' => WhatsappSla::waitingChats($club->id)->count(),
         ]);
     }
 
@@ -94,7 +96,10 @@ class WhatsappController extends Controller
 
         if ($messages->isEmpty()) abort(404);
 
-        $days = $messages->groupBy(fn ($m) => $m->sent_at->toDateString());
+        // Сутки — местные: сообщение в 02:00 по Алматы это уже новый день,
+        // хотя в UTC ещё вчерашний вечер.
+        $tz = config('app.schedule_timezone', 'Asia/Almaty');
+        $days = $messages->groupBy(fn ($m) => $m->sent_at->timezone($tz)->toDateString());
 
         return view('club.whatsapp.show', [
             'club' => $club,
@@ -106,6 +111,30 @@ class WhatsappController extends Controller
         ]);
     }
 
+    /**
+     * Кто ждёт ответа прямо сейчас.
+     *
+     * Экран оперативный, а не аналитический: он нужен, чтобы клиента не
+     * потеряли сегодня. Разбор «кто и как долго молчал» — отдельный отчёт.
+     */
+    public function waiting()
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $waiting = WhatsappSla::waitingChats($club->id);
+        $clients = $this->clientsByPhone($club, $waiting->pluck('phone')->all());
+
+        return view('club.whatsapp.waiting', [
+            'club' => $club,
+            'waiting' => $waiting,
+            'clients' => $clients,
+            'overdue' => $waiting->where('overdue', true)->count(),
+            'threshold' => WhatsappSla::threshold(),
+            'workFrom' => WhatsappSla::workFrom(),
+            'workTo' => WhatsappSla::workTo(),
+        ]);
+    }
     /**
      * Маячок для списка диалогов: id самого свежего сообщения клуба.
      * Вкладка сравнивает его со своим и перерисовывает список, только
@@ -129,6 +158,7 @@ class WhatsappController extends Controller
 
         $digits = preg_replace('/\D/', '', $phone);
         $after = (int) $request->get('after');
+        $tz = config('app.schedule_timezone', 'Asia/Almaty');
 
         $messages = WhatsappMessage::where('club_id', $club->id)
             ->where('phone', $digits)
@@ -144,9 +174,9 @@ class WhatsappController extends Controller
                 'text' => $m->body ?: $m->preview(),
                 // Нетекстовое показываем подписью типа — курсивом, как на сервере.
                 'plain' => (bool) $m->body,
-                'time' => $m->sent_at->format('H:i'),
-                'date' => $m->sent_at->toDateString(),
-                'day' => $m->sent_at->locale('ru')->translatedFormat('j F Y'),
+                'time' => $m->sent_at->timezone($tz)->format('H:i'),
+                'date' => $m->sent_at->timezone($tz)->toDateString(),
+                'day' => $m->sent_at->timezone($tz)->locale('ru')->translatedFormat('j F Y'),
             ])->values(),
         ]);
     }

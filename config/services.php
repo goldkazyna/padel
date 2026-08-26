@@ -87,6 +87,10 @@ return [
 		'webhook_secret' => env('WHAPI_WEBHOOK_SECRET'),
 		// Канал пока один; чей это WhatsApp — задаём явно.
 		'club_id' => env('WHAPI_CLUB_ID'),
+		// Рабочее окно клуба: ночное молчание не считаем просрочкой.
+		'work_from' => env('WHAPI_WORK_FROM', '09:00'),
+		'work_to' => env('WHAPI_WORK_TO', '23:00'),
+		'sla_minutes' => env('WHAPI_SLA_MINUTES', 15),
 	],
 
 	// Claude API (Anthropic) — AI-разбор выступления игрока в турнире.

@@ -67,6 +67,38 @@ class WhapiService
     }
 
     /**
+     * Страница истории из Whapi: сообщения от свежих к старым.
+     * Нужна для выгрузки переписки за то время, когда вебхука ещё не было.
+     */
+    public function fetchHistory(int $count = 500, int $offset = 0): array
+    {
+        $token = (string) config('services.whapi.token');
+        if ($token === '') {
+            Log::warning('Whapi: токен не задан, выгрузка пропущена');
+            return [];
+        }
+
+        $response = Http::withToken($token)
+            ->acceptJson()
+            ->timeout(60)
+            ->get(rtrim((string) config('services.whapi.url'), '/') . '/messages/list', [
+                'count' => $count,
+                'offset' => $offset,
+            ]);
+
+        if ($response->failed()) {
+            Log::error('Whapi: не удалось выгрузить историю', [
+                'status' => $response->status(),
+                'offset' => $offset,
+            ]);
+
+            return [];
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /**
      * Отправить текст в WhatsApp.
      * Возвращает ответ Whapi или null, если канал не настроен.
      */

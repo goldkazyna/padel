@@ -5,6 +5,7 @@
 @section('title', 'WhatsApp')
 
 @section('content')
+@php $tz = config('app.schedule_timezone', 'Asia/Almaty'); @endphp
 <div class="wa-wrap">
 
     <div class="wa-head">
@@ -13,6 +14,11 @@
             <h1>WhatsApp</h1>
             <div class="wa-sub">{{ $club->name }} · входящие сообщения</div>
         </div>
+        <a href="{{ route('club.whatsapp.waiting') }}" class="wa-waiting {{ $waitingCount ? 'hot' : '' }}">
+            <i class="bi bi-hourglass-split"></i>
+            <span>Ждут ответа</span>
+            <b>{{ $waitingCount }}</b>
+        </a>
         <div class="wa-count">
             <b>{{ $chats->count() }}</b>
             <span>{{ trans_choice('диалог|диалога|диалогов', $chats->count()) }}</span>
@@ -54,7 +60,7 @@
                         <div class="wa-item-top">
                             <span class="wa-name">{{ $client->name ?? $chat['name'] ?? 'Без имени' }}</span>
                             @if($client)<span class="wa-tag">клиент</span>@endif
-                            <span class="wa-time">{{ $last->sent_at->locale('ru')->translatedFormat('j M, H:i') }}</span>
+                            <span class="wa-time">{{ $last->sent_at->timezone($tz)->locale('ru')->translatedFormat('j M, H:i') }}</span>
                         </div>
                         <div class="wa-item-bottom">
                             <span class="wa-preview">
@@ -80,6 +86,12 @@
 .wa-icon{font-size:26px;color:var(--wa);}
 .wa-sub{color:var(--t3);font-size:13px;margin-top:2px;}
 .wa-count{margin-left:auto;text-align:right;}
+.wa-waiting{margin-left:auto;display:flex;align-items:center;gap:8px;text-decoration:none;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 14px;color:var(--t2);font-size:13px;}
+.wa-waiting b{font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
+.wa-waiting.hot{border-color:rgba(248,113,113,.45);color:#fca5a5;}
+.wa-waiting.hot b{color:#f87171;}
+.wa-waiting + .wa-count{margin-left:0;}
 .wa-count b{display:block;font-size:20px;font-weight:800;color:var(--wa);}
 .wa-count span{font-size:11px;color:var(--t3);}
 
