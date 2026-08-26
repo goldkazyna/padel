@@ -85,8 +85,15 @@ class WhatsappSla
     {
         $messages = WhatsappMessage::where('club_id', $clubId)
             ->where('sent_at', '>=', now()->subDays($days))
+            // Групповые чаты — не обращения: там переписываются игроки между
+            // собой, и «ответить» клубу там некому.
+            ->where('chat_id', 'not like', '%@g.us')
+            ->where('phone', '<>', '')
+            // action — служебные события WhatsApp (добавили в группу, удалили
+            // сообщение), их клиент не писал.
+            ->whereNotIn('type', ['action', 'system', 'notification'])
             ->orderBy('sent_at')
-            ->get(['id', 'phone', 'from_me', 'sent_at', 'body', 'type', 'author_name']);
+            ->get(['id', 'phone', 'chat_id', 'from_me', 'sent_at', 'body', 'type', 'author_name']);
 
         return $messages
             ->groupBy('phone')
@@ -110,6 +117,9 @@ class WhatsappSla
 
                 return [
                     'phone' => $phone,
+                    // У части клиентов WhatsApp отдаёт LID вместо номера —
+                    // это живой человек, но телефон скрыт настройками.
+                    'hidden_number' => !str_contains((string) $last->chat_id, '@s.whatsapp.net'),
                     'name' => $chat->firstWhere('from_me', false)?->author_name,
                     'since' => $first->sent_at,
                     'last' => $last,

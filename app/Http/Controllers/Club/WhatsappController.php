@@ -117,12 +117,20 @@ class WhatsappController extends Controller
      * Экран оперативный, а не аналитический: он нужен, чтобы клиента не
      * потеряли сегодня. Разбор «кто и как долго молчал» — отдельный отчёт.
      */
-    public function waiting()
+    public function waiting(Request $request)
     {
         $club = $this->getClub();
         if (!$club) abort(403);
 
-        $waiting = WhatsappSla::waitingChats($club->id);
+        $all = $request->boolean('all');
+        $everything = WhatsappSla::waitingChats($club->id);
+
+        // По умолчанию — последние трое суток. Диалог, где клиент написал
+        // «спасибо» три недели назад, формально без ответа, но дежурному
+        // сегодня он не нужен — иначе список превращается в кладбище.
+        $waiting = $all
+            ? $everything
+            : $everything->filter(fn ($row) => $row['since']->greaterThan(now()->subDays(3)))->values();
         $clients = $this->clientsByPhone($club, $waiting->pluck('phone')->all());
 
         return view('club.whatsapp.waiting', [
@@ -130,6 +138,8 @@ class WhatsappController extends Controller
             'waiting' => $waiting,
             'clients' => $clients,
             'overdue' => $waiting->where('overdue', true)->count(),
+            'all' => $all,
+            'totalWaiting' => $everything->count(),
             'threshold' => WhatsappSla::threshold(),
             'workFrom' => WhatsappSla::workFrom(),
             'workTo' => WhatsappSla::workTo(),

@@ -40,9 +40,9 @@ class WhatsappWaitingTest extends TestCase
     }
 
     /** Сообщение в переписке. Время задаём по Алматы — так его читает человек. */
-    private function message(string $phone, bool $fromMe, string $localTime, string $body = 'текст'): WhatsappMessage
+    private function message(string $phone, bool $fromMe, string $localTime, string $body = 'текст', array $extra = []): WhatsappMessage
     {
-        return WhatsappMessage::create([
+        return WhatsappMessage::create(array_merge([
             'club_id' => $this->club->id,
             'wa_message_id' => uniqid('wa', true),
             'chat_id' => $phone . '@s.whatsapp.net',
@@ -53,7 +53,7 @@ class WhatsappWaitingTest extends TestCase
             'body' => $body,
             'payload' => [],
             'sent_at' => Carbon::parse($localTime, 'Asia/Almaty')->utc(),
-        ]);
+        ], $extra));
     }
 
     public function test_ночное_молчание_не_считается_просрочкой(): void
@@ -154,6 +154,44 @@ class WhatsappWaitingTest extends TestCase
             strpos($html, 'давно жду'),
             'кто ждёт дольше — тот выше'
         );
+    }
+
+    public function test_групповой_чат_не_считается_обращением(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-20 12:00', 'Asia/Almaty')->utc());
+
+        $this->message('77770000006', false, '2026-08-20 10:00', 'кто на вечер?', [
+            'chat_id' => '77770000006-1600000000@g.us',
+        ]);
+
+        $this->assertCount(0, WhatsappSla::waitingChats($this->club->id),
+            'в группе игроков клубу отвечать нечего');
+    }
+
+    public function test_служебное_событие_не_считается_сообщением(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-20 12:00', 'Asia/Almaty')->utc());
+
+        $this->message('77770000007', false, '2026-08-20 10:00', 'вас добавили в группу', ['type' => 'action']);
+
+        $this->assertCount(0, WhatsappSla::waitingChats($this->club->id));
+    }
+
+    public function test_экран_по_умолчанию_показывает_последние_трое_суток(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-20 12:00', 'Asia/Almaty')->utc());
+
+        $this->message('77770000008', false, '2026-08-01 10:00', 'старое спасибо');
+        $this->message('77770000009', false, '2026-08-20 10:00', 'свежий вопрос');
+
+        $this->actingAs($this->admin)->get(route('club.whatsapp.waiting'))
+            ->assertOk()
+            ->assertSee('свежий вопрос')
+            ->assertDontSee('старое спасибо');
+
+        $this->actingAs($this->admin)->get(route('club.whatsapp.waiting', ['all' => 1]))
+            ->assertOk()
+            ->assertSee('старое спасибо');
     }
 
     public function test_минуты_в_человеческом_виде(): void

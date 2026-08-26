@@ -21,10 +21,15 @@
         </div>
     </div>
 
+    <div class="wa-tabs">
+        <a href="{{ route('club.whatsapp.waiting') }}" class="{{ $all ? '' : 'on' }}">Последние 3 дня</a>
+        <a href="{{ route('club.whatsapp.waiting', ['all' => 1]) }}" class="{{ $all ? 'on' : '' }}">Все без ответа · {{ $totalWaiting }}</a>
+    </div>
+
     <div class="wa-stats">
         <div class="wa-stat">
             <b>{{ $waiting->count() }}</b>
-            <span>{{ trans_choice('диалог|диалога|диалогов', $waiting->count()) }} без ответа</span>
+            <span>{{ trans_choice('диалог|диалога|диалогов', $waiting->count()) }} без ответа{{ $all ? '' : ' за 3 дня' }}</span>
         </div>
         <div class="wa-stat {{ $overdue ? 'bad' : '' }}">
             <b>{{ $overdue }}</b>
@@ -40,7 +45,7 @@
         <div class="wa-empty">
             <i class="bi bi-check2-circle"></i>
             <p>Все ответили</p>
-            <span>Ни одного диалога, где последнее слово осталось за клиентом.</span>
+            <span>{{ $all ? 'Ни одного диалога, где последнее слово осталось за клиентом.' : 'За последние три дня без ответа никого не осталось.' }}</span>
         </div>
     @else
         <div class="wa-list">
@@ -69,7 +74,13 @@
                         </div>
                         <div class="wa-item-bottom">
                             <span class="wa-preview">{{ \Illuminate\Support\Str::limit($row['last']->body ?: $row['last']->preview(), 110) }}</span>
-                            <span class="wa-phone">@phoneFmt($row['phone'])</span>
+                            <span class="wa-phone">
+                                @if($row['hidden_number'])
+                                    номер скрыт настройками WhatsApp
+                                @else
+                                    @phoneFmt($row['phone'])
+                                @endif
+                            </span>
                         </div>
                     </div>
                     <i class="bi bi-chevron-right wa-go"></i>
@@ -80,6 +91,7 @@
         <div class="wa-note">
             <i class="bi bi-info-circle"></i>
             Ожидание считается только в рабочие часы: написали ночью — отсчёт пойдёт с открытия.
+            Групповые чаты и служебные события WhatsApp сюда не попадают.
         </div>
     @endif
 </div>
@@ -93,6 +105,10 @@
   background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--t2);text-decoration:none;}
 .wa-sub{color:var(--t3);font-size:13px;margin-top:2px;}
 
+.wa-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.wa-tabs a{padding:8px 14px;border-radius:10px;text-decoration:none;font-size:13px;
+  background:var(--card);border:1px solid var(--line);color:var(--t2);}
+.wa-tabs a.on{background:rgba(37,211,102,.14);border-color:rgba(37,211,102,.35);color:var(--wa);font-weight:700;}
 .wa-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
 .wa-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
 .wa-stat b{display:block;font-size:24px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
