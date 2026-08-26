@@ -21,7 +21,7 @@ class TournamentPushService
      * в контроллере, чтобы действовал и в вебе, и в мобильной админке —
      * они шлют одним и тем же методом.
      */
-    public const MAX_SENDS = 2;
+    public const MAX_SENDS = 3;
 
     /** Сколько рассылок по турниру уже сделано. */
     public function sentCount(Tournament $tournament): int

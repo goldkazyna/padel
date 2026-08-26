@@ -62,24 +62,24 @@ class TournamentPushLimitTest extends TestCase
         return $admin;
     }
 
-    public function test_первые_две_отправки_проходят_третья_нет(): void
+    public function test_отправки_идут_до_лимита_и_дальше_не_пускают(): void
     {
         $this->fakePush();
         $tournament = $this->makeTournament();
         $this->makePlayerWithDevice();
         $service = app(TournamentPushService::class);
+        $limit = TournamentPushService::MAX_SENDS;
 
-        $this->assertSame(2, $service->remaining($tournament), 'сначала доступны обе отправки');
+        $this->assertSame($limit, $service->remaining($tournament), 'сначала доступны все отправки');
 
-        $service->send($tournament);
-        $this->assertSame(1, $service->remaining($tournament->fresh()));
-
-        $service->send($tournament->fresh());
-        $this->assertSame(0, $service->remaining($tournament->fresh()));
+        for ($sent = 1; $sent <= $limit; $sent++) {
+            $service->send($tournament->fresh());
+            $this->assertSame($limit - $sent, $service->remaining($tournament->fresh()));
+        }
 
         $result = $service->send($tournament->fresh());
-        $this->assertTrue($result['limit_reached'], 'третья отправка должна упереться в лимит');
-        $this->assertSame(2, $this->pushCalls, 'на третий раз push слаться не должен');
+        $this->assertTrue($result['limit_reached'], 'отправка сверх лимита должна упереться');
+        $this->assertSame($limit, $this->pushCalls, 'сверх лимита push не уходит');
     }
 
     public function test_после_лимита_не_появляется_новых_записей_в_колокольчике(): void
@@ -89,8 +89,9 @@ class TournamentPushLimitTest extends TestCase
         $this->makePlayerWithDevice();
         $service = app(TournamentPushService::class);
 
-        $service->send($tournament);
-        $service->send($tournament->fresh());
+        for ($i = 0; $i < TournamentPushService::MAX_SENDS; $i++) {
+            $service->send($tournament->fresh());
+        }
         $before = Notification::count();
 
         $service->send($tournament->fresh());
@@ -105,7 +106,7 @@ class TournamentPushLimitTest extends TestCase
         $this->makePlayerWithDevice();
         $admin = $this->makeAdmin($tournament);
 
-        for ($i = 0; $i < 2; $i++) {
+        for ($i = 0; $i < TournamentPushService::MAX_SENDS; $i++) {
             $this->actingAs($admin)
                 ->post(route('club.tournaments.sendPush', $tournament), ['push_title' => 'Т', 'push_body' => 'Б'])
                 ->assertSessionHas('success');
@@ -115,7 +116,7 @@ class TournamentPushLimitTest extends TestCase
             ->post(route('club.tournaments.sendPush', $tournament), ['push_title' => 'Т', 'push_body' => 'Б'])
             ->assertSessionHas('error');
 
-        $this->assertSame(2, $this->pushCalls);
+        $this->assertSame(TournamentPushService::MAX_SENDS, $this->pushCalls);
     }
 
     public function test_в_сообщении_видно_сколько_осталось(): void
@@ -125,9 +126,18 @@ class TournamentPushLimitTest extends TestCase
         $this->makePlayerWithDevice();
         $admin = $this->makeAdmin($tournament);
 
+        $limit = TournamentPushService::MAX_SENDS;
+
         $this->actingAs($admin)
             ->post(route('club.tournaments.sendPush', $tournament), [])
-            ->assertSessionHas('success', fn ($m) => str_contains($m, 'Осталось отправок: 1'));
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'Осталось отправок: ' . ($limit - 1)));
+
+        // Доходим до последней: о ней должно быть сказано прямым текстом.
+        for ($sent = 2; $sent < $limit; $sent++) {
+            $this->actingAs($admin)
+                ->post(route('club.tournaments.sendPush', $tournament->fresh()), [])
+                ->assertSessionHas('success');
+        }
 
         $this->actingAs($admin)
             ->post(route('club.tournaments.sendPush', $tournament->fresh()), [])
@@ -146,8 +156,9 @@ class TournamentPushLimitTest extends TestCase
             ->assertSee('btn-push')
             ->assertDontSee('btn-push is-spent');
 
-        app(TournamentPushService::class)->send($tournament);
-        app(TournamentPushService::class)->send($tournament->fresh());
+        for ($i = 0; $i < TournamentPushService::MAX_SENDS; $i++) {
+            app(TournamentPushService::class)->send($tournament->fresh());
+        }
 
         // Лимит исчерпан — кнопка неактивна.
         $this->actingAs($admin)->get(route('club.tournaments.index'))
@@ -169,7 +180,7 @@ class TournamentPushLimitTest extends TestCase
         $service->send($tournament->fresh());
         $service->send($tournament->fresh());
 
-        $this->assertSame(2, $service->remaining($tournament->fresh()));
+        $this->assertSame(TournamentPushService::MAX_SENDS, $service->remaining($tournament->fresh()));
         $this->assertSame(3, $this->pushCalls);
     }
 
@@ -187,6 +198,6 @@ class TournamentPushLimitTest extends TestCase
             'min_level' => 1, 'max_level' => 5, 'max_participants' => 8,
         ]);
 
-        $this->assertSame(2, app(TournamentPushService::class)->remaining($copy));
+        $this->assertSame(TournamentPushService::MAX_SENDS, app(TournamentPushService::class)->remaining($copy));
     }
 }
