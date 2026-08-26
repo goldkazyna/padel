@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\ClubClient;
 use App\Models\WhatsappMessage;
+use App\Models\WhatsappAnalysis;
+use App\Services\WhatsappAnalysisService;
+use App\Support\WhatsappDayReport;
 use App\Support\WhatsappSla;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
@@ -144,6 +148,82 @@ class WhatsappController extends Controller
             'workFrom' => WhatsappSla::workFrom(),
             'workTo' => WhatsappSla::workTo(),
         ]);
+    }
+    /** Разбор дня: цифры считаем сами, объяснение спрашиваем у Claude. */
+    public function analysis(Request $request)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $tz = WhatsappSla::timezone();
+        $date = $this->analysisDate($request, $tz);
+
+        $analysis = WhatsappAnalysis::where('club_id', $club->id)
+            ->whereDate('date', $date)
+            ->first();
+
+        // Цифры показываем всегда, даже если разбор ещё не заказывали:
+        // по ним уже видно, был ли день проблемным.
+        $report = WhatsappDayReport::build($club->id, $date);
+
+        return view('club.whatsapp.analysis', [
+            'club' => $club,
+            'date' => $date,
+            'metrics' => $report['metrics'],
+            'dialogs' => $report['dialogs'],
+            'analysis' => $analysis,
+            'days' => $this->recentDays($club->id, $tz),
+        ]);
+    }
+
+    /** Заказать разбор у модели. */
+    public function runAnalysis(Request $request, WhatsappAnalysisService $service)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $date = $this->analysisDate($request, WhatsappSla::timezone());
+
+        try {
+            $service->analyze($club->id, $date, $request->boolean('force'), auth()->id());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('club.whatsapp.analysis', ['date' => $date->toDateString()])
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('club.whatsapp.analysis', ['date' => $date->toDateString()])
+            ->with('success', 'Разбор готов');
+    }
+
+    /** Выбранный день или вчерашний: сегодняшний ещё не закончился. */
+    private function analysisDate(Request $request, string $tz): Carbon
+    {
+        $raw = (string) $request->get('date');
+
+        try {
+            $date = $raw !== '' ? Carbon::parse($raw, $tz) : now($tz)->subDay();
+        } catch (\Throwable) {
+            $date = now($tz)->subDay();
+        }
+
+        return $date->startOfDay();
+    }
+
+    /** Дни, за которые вообще есть переписка — для быстрых кнопок. */
+    private function recentDays(int $clubId, string $tz): array
+    {
+        return WhatsappMessage::where('club_id', $clubId)
+            ->where('sent_at', '>=', now()->subDays(14))
+            ->orderByDesc('sent_at')
+            ->limit(5000)
+            ->pluck('sent_at')
+            ->map(fn ($at) => $at->timezone($tz)->toDateString())
+            ->unique()
+            ->take(10)
+            ->values()
+            ->all();
     }
     /**
      * Маячок для списка диалогов: id самого свежего сообщения клуба.

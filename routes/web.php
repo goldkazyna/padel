@@ -293,6 +293,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // иначе номер-заглушка перехватил бы их на себя.
             Route::get('/whatsapp/updates', [App\Http\Controllers\Club\WhatsappController::class, 'updates'])->name('whatsapp.updates');
             Route::get('/whatsapp/waiting', [App\Http\Controllers\Club\WhatsappController::class, 'waiting'])->name('whatsapp.waiting');
+            Route::get('/whatsapp/analysis', [App\Http\Controllers\Club\WhatsappController::class, 'analysis'])->name('whatsapp.analysis');
+            Route::post('/whatsapp/analysis', [App\Http\Controllers\Club\WhatsappController::class, 'runAnalysis'])->name('whatsapp.analysis.run');
             Route::get('/whatsapp/{phone}/updates', [App\Http\Controllers\Club\WhatsappController::class, 'chatUpdates'])->name('whatsapp.chat-updates')->where('phone', '[0-9]+');
             Route::get('/whatsapp/{phone}', [App\Http\Controllers\Club\WhatsappController::class, 'show'])->name('whatsapp.show')->where('phone', '[0-9]+');
             Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');

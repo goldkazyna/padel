@@ -19,6 +19,10 @@
             <span>Ждут ответа</span>
             <b>{{ $waitingCount }}</b>
         </a>
+        <a href="{{ route('club.whatsapp.analysis') }}" class="wa-waiting">
+            <i class="bi bi-stars"></i>
+            <span>Разбор дня</span>
+        </a>
         <div class="wa-count">
             <b>{{ $chats->count() }}</b>
             <span>{{ trans_choice('диалог|диалога|диалогов', $chats->count()) }}</span>
@@ -91,7 +95,7 @@
 .wa-waiting b{font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
 .wa-waiting.hot{border-color:rgba(248,113,113,.45);color:#fca5a5;}
 .wa-waiting.hot b{color:#f87171;}
-.wa-waiting + .wa-count{margin-left:0;}
+.wa-waiting + .wa-count, .wa-waiting + .wa-waiting{margin-left:0;}
 .wa-count b{display:block;font-size:20px;font-weight:800;color:var(--wa);}
 .wa-count span{font-size:11px;color:var(--t3);}
 

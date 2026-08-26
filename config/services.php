@@ -90,7 +90,9 @@ return [
 		// Рабочее окно клуба: ночное молчание не считаем просрочкой.
 		'work_from' => env('WHAPI_WORK_FROM', '09:00'),
 		'work_to' => env('WHAPI_WORK_TO', '23:00'),
-		'sla_minutes' => env('WHAPI_SLA_MINUTES', 15),
+		'sla_minutes' => env('WHAPI_SLA_MINUTES', 5),
+		// Разбор дня переписки: модель посильнее, чем для разбора турнира.
+		'analysis_model' => env('WHAPI_ANALYSIS_MODEL', 'claude-sonnet-5'),
 	],
 
 	// Claude API (Anthropic) — AI-разбор выступления игрока в турнире.
