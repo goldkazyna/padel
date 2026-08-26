@@ -70,10 +70,12 @@ class ClubCoach extends Model
         if ($override && !$override->is_available && !$override->start_time) {
             // Полный выходной — слотов нет
         } elseif ($override && $override->is_available && $override->start_time) {
-            $intervals[] = [$this->toMinutes($override->start_time), $this->toMinutes($override->end_time)];
+            $ovStart = $this->toMinutes($override->start_time);
+            $intervals[] = [$ovStart, $this->endMinutes($override->end_time, $ovStart)];
         } elseif ($weekSchedules->isNotEmpty()) {
             foreach ($weekSchedules as $ws) {
-                $intervals[] = [$this->toMinutes($ws->start_time), $this->toMinutes($ws->end_time)];
+                $wsStart = $this->toMinutes($ws->start_time);
+                $intervals[] = [$wsStart, $this->endMinutes($ws->end_time, $wsStart)];
             }
         }
 
@@ -146,25 +148,52 @@ class ClubCoach extends Model
         return $p->hour * 60 + $p->minute;
     }
 
+    /**
+     * Конец интервала в минутах, где 00:00 — это конец суток, а не ноль.
+     *
+     * Смена «14:00 — 00:00» превращалась в 840..0, интервал получался
+     * пустым, и тренер считался занятым в любое время своей же смены.
+     * Тем же способом закрываются ночные интервалы вроде 22:00 — 02:00.
+     */
+    private function endMinutes(string $end, int $startMin): int
+    {
+        $min = $this->toMinutes($end);
+
+        return $min <= $startMin ? $min + 1440 : $min;
+    }
+
+    /**
+     * Условие пересечения с интервалом для запроса по броням.
+     * Конец 00:00:00 означает полночь, а не начало суток.
+     */
+    private function overlapping($query, string $start, string $end): void
+    {
+        $query->where('start_time', '<', $end)
+            ->where(function ($q) use ($start) {
+                $q->where('end_time', '>', $start)
+                  ->orWhere('end_time', '00:00:00');
+            });
+    }
+
     public function isAvailableAt(string $date, string $startTime, string $endTime): bool
     {
         $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeekIso;
         $startMin = $this->toMinutes($startTime);
-        $endMin = $this->toMinutes($endTime);
+        $endMin = $this->endMinutes($endTime, $startMin);
 
         $override = $this->overrides()->where('date', $date)->first();
         if ($override) {
             if (!$override->is_available) {
                 if (!$override->start_time) return false;
                 $ovStart = $this->toMinutes($override->start_time);
-                $ovEnd = $this->toMinutes($override->end_time);
+                $ovEnd = $this->endMinutes($override->end_time, $ovStart);
                 if ($startMin < $ovEnd && $endMin > $ovStart) {
                     return false;
                 }
             } else {
                 if ($override->start_time && $override->end_time) {
                     $ovStart = $this->toMinutes($override->start_time);
-                    $ovEnd = $this->toMinutes($override->end_time);
+                    $ovEnd = $this->endMinutes($override->end_time, $ovStart);
                     return $startMin >= $ovStart && $endMin <= $ovEnd;
                 }
                 return true;
@@ -176,7 +205,7 @@ class ClubCoach extends Model
 
         foreach ($schedules as $schedule) {
             $schStart = $this->toMinutes($schedule->start_time);
-            $schEnd = $this->toMinutes($schedule->end_time);
+            $schEnd = $this->endMinutes($schedule->end_time, $schStart);
             if ($startMin >= $schStart && $endMin <= $schEnd) {
                 return true;
             }
@@ -195,15 +224,15 @@ class ClubCoach extends Model
 
         $startFormatted = \Carbon\Carbon::parse($startTime)->format('H:i:s');
         $endFormatted = \Carbon\Carbon::parse($endTime)->format('H:i:s');
+        // Бронь до полуночи хранится как 00:00:00 — по сравнению строк она
+        // «раньше» своего же начала, и пересечение не находилось.
+        $endBound = $endFormatted === '00:00:00' ? '23:59:59' : $endFormatted;
 
         $hasBooking = CourtBooking::where('coach_id', $this->user_id)
             ->whereDate('date', $date)
             ->where('status', 'confirmed')
             ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
-            ->where(function ($q) use ($startFormatted, $endFormatted) {
-                $q->where('start_time', '<', $endFormatted)
-                  ->where('end_time', '>', $startFormatted);
-            })
+            ->where(fn ($q) => $this->overlapping($q, $startFormatted, $endBound))
             ->exists();
 
         if ($hasBooking) return false;
@@ -213,10 +242,7 @@ class ClubCoach extends Model
             ->where('status', 'confirmed')
             ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
             ->whereHas('coaches', fn($q) => $q->where('coach_id', $this->user_id))
-            ->where(function ($q) use ($startFormatted, $endFormatted) {
-                $q->where('start_time', '<', $endFormatted)
-                  ->where('end_time', '>', $startFormatted);
-            })
+            ->where(fn ($q) => $this->overlapping($q, $startFormatted, $endBound))
             ->exists();
 
         if ($inMultiBooking) return false;
@@ -227,11 +253,12 @@ class ClubCoach extends Model
             ->get();
 
         $startMin = $this->toMinutes($startTime);
-        $endMin = $this->toMinutes($endTime);
+        $endMin = $this->endMinutes($endTime, $startMin);
 
         foreach ($blocks as $bl) {
             $blStart = $this->toMinutes($bl->start_time);
-            $blEnd = $this->toMinutes($bl->end_time);
+            // Блокировка до полуночи — такой же случай, что и смена.
+            $blEnd = $this->endMinutes($bl->end_time, $blStart);
             if ($startMin < $blEnd && $endMin > $blStart) {
                 return false;
             }
