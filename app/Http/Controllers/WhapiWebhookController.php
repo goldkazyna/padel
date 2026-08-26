@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
  */
 class WhapiWebhookController extends Controller
 {
-    public function __invoke(Request $request, string $secret, WhapiService $whapi): JsonResponse
+    public function __invoke(Request $request, string $secret, ?string $event = null): JsonResponse
     {
         $expected = (string) config('services.whapi.webhook_secret');
 

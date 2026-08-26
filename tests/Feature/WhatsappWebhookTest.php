@@ -160,6 +160,24 @@ class WhatsappWebhookTest extends TestCase
             ->assertSee('19 августа 2026');
     }
 
+    public function test_событие_в_конце_адреса_тоже_принимается(): void
+    {
+        // Whapi настроен так, что дописывает имя события в путь: .../messages.
+        $this->postJson('/api/whapi/webhook/' . $this->secret . '/messages', $this->payload())
+            ->assertOk()->assertJson(['saved' => 1]);
+
+        $this->assertSame(1, WhatsappMessage::count());
+    }
+
+    public function test_статусы_доставки_ничего_не_ломают(): void
+    {
+        // На тот же адрес прилетают статусы «доставлено/прочитано» — сообщений в них нет.
+        $this->postJson('/api/whapi/webhook/' . $this->secret . '/statuses', [
+            'channel_id' => 'IRONMN-9RPDB',
+            'statuses' => [['id' => 'wamid.TEST1', 'status' => 'delivered']],
+        ])->assertOk()->assertJson(['saved' => 0]);
+    }
+
     public function test_пустой_пакет_не_ломает_приём(): void
     {
         $this->send(['channel_id' => 'IRONMN-9RPDB', 'messages' => []])

@@ -35,7 +35,9 @@ use App\Http\Controllers\Api\MobileWaiverController;
 
 // Вебхук WhatsApp (Whapi.Cloud). Секрет в адресе: сервис не умеет
 // подписывать запросы заголовком, а маршрут обязан быть публичным.
-Route::post('/whapi/webhook/{secret}', WhapiWebhookController::class)
+// Whapi может дописывать имя события в конец адреса (.../messages,
+// .../statuses) — принимаем оба вида, событие всё равно есть в теле.
+Route::post('/whapi/webhook/{secret}/{event?}', WhapiWebhookController::class)
     ->name('whapi.webhook');
 
 /*
