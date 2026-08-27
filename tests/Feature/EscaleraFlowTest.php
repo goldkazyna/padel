@@ -378,8 +378,8 @@ class EscaleraFlowTest extends TestCase
 
         // Перемещения: первый идёт вверх, четвёртый вниз, средние остаются.
         $this->assertSame(1, (int) $players[$u['A1']->id]->current_court, 'с верхнего корта не уходят');
-        $this->assertSame(2, (int) $players[$u['A2']->id]->current_court, 'четвёртый на первом корте — вниз');
-        $this->assertSame(1, (int) $players[$u['B1']->id]->current_court, 'первый на втором корте — вверх');
+        $this->assertSame(2, (int) $players[$u['A2']->id]->current_court, 'двое последних с первого корта — вниз');
+        $this->assertSame(1, (int) $players[$u['B1']->id]->current_court, 'двое первых со второго корта — вверх');
         $this->assertSame(3, (int) $players[$u['B2']->id]->current_court);
         $this->assertSame(2, (int) $players[$u['C1']->id]->current_court);
         $this->assertSame(3, (int) $players[$u['C2']->id]->current_court, 'с нижнего корта не опускаются');
@@ -405,21 +405,25 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame(2, $round->round_number);
         $this->assertSame(3, $round->courts()->count());
 
-        // Составы соответствуют перемещениям, посадка — по текущему месту в таблице.
-        $this->assertSame(['A1', 'A4', 'A3', 'B1'], $this->seatingNames($tournament, 1));
-        $this->assertSame(['A2', 'B4', 'B3', 'C1'], $this->seatingNames($tournament, 2));
-        $this->assertSame(['B2', 'C4', 'C3', 'C2'], $this->seatingNames($tournament, 3));
+        // Составы соответствуют перемещениям: двое вверх, двое вниз.
+        // Верхний корт: пара лидеров осталась, снизу приехали двое лучших.
+        $this->assertSame(['A1', 'A4', 'B1', 'B4'], $this->seatingNames($tournament, 1));
+        // Средний обновился целиком: двое слабейших сверху, двое сильнейших снизу.
+        $this->assertSame(['A3', 'A2', 'C1', 'C4'], $this->seatingNames($tournament, 2));
+        // Нижний: сверху приехали двое, двое последних остались.
+        $this->assertSame(['B3', 'B2', 'C3', 'C2'], $this->seatingNames($tournament, 3));
 
         // Матчи второго раунда строятся от новой посадки.
         $court1 = $round->courts()->where('court_number', 1)->first();
         $match1 = $court1->matches->values()[0];
-        $this->assertSame([$u['A1']->id, $u['B1']->id], [$match1->team1_player1_id, $match1->team1_player2_id]);
+        $this->assertSame([$u['A1']->id, $u['B4']->id], [$match1->team1_player1_id, $match1->team1_player2_id]);
         $this->assertSame('pending', $match1->status);
 
         // current_court игроков соответствует новым кортам.
         $players = EscaleraPlayer::where('tournament_id', $tournament->id)->get()->keyBy('user_id');
         $this->assertSame(1, (int) $players[$u['B1']->id]->current_court);
         $this->assertSame(2, (int) $players[$u['A2']->id]->current_court);
+        $this->assertSame(1, (int) $players[$u['B4']->id]->current_court, 'вторые тоже поднимаются');
 
         // Пока счетов второго раунда нет — новый раунд не закрыть.
         $this->assertFalse($this->service()->canCloseRound($tournament));
@@ -476,16 +480,17 @@ class EscaleraFlowTest extends TestCase
         $this->service()->closeRound($tournament);
         $this->service()->generateNextRound($tournament);
 
-        // Второй раунд: на первом корте выигрывает поднявшийся снизу B1.
-        $this->playRound($tournament, [1 => [[11, 1], [2, 10], [5, 7]]]);
+        // Второй раунд: на первом корте выигрывает поднявшийся снизу B1
+        // (после перехода «двое вверх» он сидит третьим, счета — под него).
+        $this->playRound($tournament, [1 => [[1, 11], [11, 1], [1, 11]]]);
         $this->service()->closeRound($tournament);
 
         $standings = $this->service()->standings($tournament);
         $rows = collect($standings)->keyBy('user_id');
 
-        // После первого раунда B1 был пятым, после второго поднялся на третье место.
-        $this->assertSame(3, $rows[$u['B1']->id]['position']);
-        $this->assertSame(2, $rows[$u['B1']->id]['change'], 'поднялся на две позиции');
+        // После первого раунда B1 был пятым, после второго поднялся на второе место.
+        $this->assertSame(2, $rows[$u['B1']->id]['position']);
+        $this->assertSame(3, $rows[$u['B1']->id]['change'], 'поднялся на три позиции');
         // A3 был третьим, стал четвёртым.
         $this->assertSame(4, $rows[$u['A3']->id]['position']);
         $this->assertSame(-1, $rows[$u['A3']->id]['change']);
@@ -494,11 +499,11 @@ class EscaleraFlowTest extends TestCase
         $this->assertSame(0, $rows[$u['A1']->id]['change']);
 
         // Третий раунд: посадка идёт по общей таблице, а не по порядку приезда
-        // на корт. B1 выиграл второй раунд на первом корте, но в таблице он
-        // третий — значит и садится третьим.
+        // на корт. B1 выиграл второй раунд на первом корте и в таблице второй —
+        // значит и садится вторым, хотя приехал снизу.
         $this->service()->generateNextRound($tournament);
-        $this->assertSame(['A1', 'A4', 'B1', 'A2'], $this->seatingNames($tournament, 1));
-        $this->assertSame(['A3', 'B3', 'C1', 'B2'], $this->seatingNames($tournament, 2));
+        $this->assertSame(['A1', 'B1', 'A3', 'C4'], $this->seatingNames($tournament, 1));
+        $this->assertSame(['A4', 'B4', 'B3', 'C2'], $this->seatingNames($tournament, 2));
     }
 
     // ===== Правка счёта задним числом =====
@@ -560,7 +565,7 @@ class EscaleraFlowTest extends TestCase
 
         // Раунд 2: на первом корте выигрывает поднявшийся снизу B1,
         // A1 остаётся вторым и сохраняет первое место в таблице.
-        $this->playRound($tournament, [1 => [[11, 1], [2, 10], [5, 7]]]);
+        $this->playRound($tournament, [1 => [[1, 11], [11, 1], [1, 11]]]);
         $this->service()->closeRound($tournament);
 
         $ratingsBefore = User::whereIn('id', collect($u)->pluck('id'))->pluck('rating', 'id');
@@ -740,10 +745,11 @@ class EscaleraFlowTest extends TestCase
 
     public function test_standings_tie_break_by_head_to_head(): void
     {
-        // Конструкция: A2 и A3 играли вместе на первом корте в первом раунде,
-        // где A3 набрал против A2 13 очков, а A2 против A3 — 11. Во втором
-        // раунде они оказались на разных кортах и добрали ровно столько, чтобы
-        // сравняться и по сумме очков (42), и по числу побед (4).
+        // Конструкция: A2 и A3 играли друг против друга на первом корте в
+        // первом раунде — A3 набрал против A2 13 очков, A2 против A3 — 6.
+        // После раунда A3 остался наверху, A2 уехал вниз, и во втором раунде
+        // они добрали ровно столько, чтобы сравняться и по сумме очков (39),
+        // и по числу побед (3).
         // Рейтинг у A2 выше, поэтому без тай-брейка по личной встрече впереди
         // оказался бы он — а должен быть A3.
         $tournament = $this->makeTournament(courts: 2, mode: 'raw_points');
@@ -755,28 +761,28 @@ class EscaleraFlowTest extends TestCase
         $this->startWithSeating($tournament, $u, ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4']);
 
         $this->playRound($tournament, [
-            1 => self::DOMINANT,
+            1 => [[10, 2], [13, 5], [6, 8]],
             2 => [[7, 5], [7, 5], [7, 5]],
         ]);
         $this->service()->closeRound($tournament);
         $this->service()->generateNextRound($tournament);
 
-        // Во втором раунде A3 сидит четвёртым на первом корте, A2 — четвёртым на втором.
-        $this->assertSame(['A1', 'B1', 'A4', 'A3'], $this->seatingNames($tournament, 1));
-        $this->assertSame(['B2', 'B3', 'B4', 'A2'], $this->seatingNames($tournament, 2));
+        // Во втором раунде A3 остался на первом корте, A2 уехал на второй.
+        $this->assertSame(['A1', 'A3', 'B1', 'B2'], $this->seatingNames($tournament, 1));
+        $this->assertSame(['A4', 'B3', 'B4', 'A2'], $this->seatingNames($tournament, 2));
 
         $this->playRound($tournament, [
-            1 => [[11, 1], [2, 10], [4, 8]],
-            2 => [[12, 0], [3, 9], [2, 10]],
+            1 => [[4, 8], [9, 3], [5, 7]],
+            2 => [[9, 1], [2, 10], [0, 7]],
         ]);
         $this->service()->closeRound($tournament);
 
         $rows = collect($this->service()->standings($tournament))->keyBy('user_id');
 
-        $this->assertSame(42, $rows[$u['A2']->id]['raw_points']);
-        $this->assertSame(42, $rows[$u['A3']->id]['raw_points']);
-        $this->assertSame(4, $rows[$u['A2']->id]['wins']);
-        $this->assertSame(4, $rows[$u['A3']->id]['wins']);
+        $this->assertSame(39, $rows[$u['A2']->id]['raw_points']);
+        $this->assertSame(39, $rows[$u['A3']->id]['raw_points']);
+        $this->assertSame(3, $rows[$u['A2']->id]['wins']);
+        $this->assertSame(3, $rows[$u['A3']->id]['wins']);
         $this->assertTrue(
             $rows[$u['A3']->id]['position'] < $rows[$u['A2']->id]['position'],
             'при равных очках и победах решает личная встреча, а не рейтинг'
@@ -814,7 +820,7 @@ class EscaleraFlowTest extends TestCase
         // Второй (последний) раунд: на втором корте выигрывает поднявшийся снизу
         // C1 — закрытие раунда переставит его на первый корт, хотя играл он на
         // втором. B1 играл второй раунд на первом корте и остался там же.
-        $this->playRound($tournament, [2 => [[11, 1], [2, 10], [5, 7]]]);
+        $this->playRound($tournament, [2 => [[1, 11], [11, 1], [1, 11]]]);
         $this->service()->closeRound($tournament);
         $this->service()->finishTournament($tournament);
 

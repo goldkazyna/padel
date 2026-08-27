@@ -214,12 +214,12 @@ class EscaleraServiceTest extends TestCase
         // Порядок важен, не только состав: он напрямую идёт в matchLineup() и
         // определяет, кто с кем играет первый матч следующего раунда.
         // Ожидаемый порядок — по возрастанию общей позиции прошлого раунда.
-        // Верхний корт: первые трое остаются, четвёртый вниз; снизу приходит первый со второго.
-        $this->assertSame([101, 102, 103, 201], $next[1]);
-        // Средний: пришёл 104 сверху и 301 снизу, остались 202 и 203.
-        $this->assertSame([104, 202, 203, 301], $next[2]);
-        // Нижний: пришёл 204 сверху, остались 302, 303, 304.
-        $this->assertSame([204, 302, 303, 304], $next[3]);
+        // Верхний корт: пара лидеров остаётся, снизу приезжают двое лучших.
+        $this->assertSame([101, 102, 201, 202], $next[1]);
+        // Средний обновляется целиком: двое слабейших сверху и двое сильнейших снизу.
+        $this->assertSame([103, 104, 301, 302], $next[2]);
+        // Нижний: сверху приехали двое, двое последних остались.
+        $this->assertSame([203, 204, 303, 304], $next[3]);
     }
 
     public function test_movements_two_courts(): void
@@ -233,8 +233,16 @@ class EscaleraServiceTest extends TestCase
         $next = app(EscaleraService::class)->planMovements($rankings);
 
         // Порядок — по возрастанию общей позиции прошлого раунда (см. пояснение выше).
-        $this->assertSame([101, 102, 103, 201], $next[1]);
-        $this->assertSame([104, 202, 203, 204], $next[2]);
+        $this->assertSame([101, 102, 201, 202], $next[1]);
+        $this->assertSame([103, 104, 203, 204], $next[2]);
+    }
+
+    public function test_movements_single_court(): void
+    {
+        // Один корт: подниматься и опускаться некуда, все остаются.
+        $next = app(EscaleraService::class)->planMovements([1 => [101, 102, 103, 104]]);
+
+        $this->assertSame([101, 102, 103, 104], $next[1]);
     }
 
     public function test_every_court_keeps_four_players(): void

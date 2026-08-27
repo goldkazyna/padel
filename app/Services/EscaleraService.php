@@ -161,8 +161,12 @@ class EscaleraService
 
     /**
      * Куда поедут игроки после раунда.
-     * Первый на корте вверх, четвёртый вниз, двое средних остаются.
-     * На верхнем корте вниз уходит только четвёртый, на нижнем вверх — только первый.
+     * Первые двое на корте едут вверх, вторые двое — вниз.
+     * С верхнего корта наверх уходить некуда, поэтому пара лидеров там
+     * остаётся; на нижнем так же остаются двое последних.
+     *
+     * Состав корта каждый раунд обновляется целиком: сверху приезжают двое
+     * слабейших с корта выше, снизу — двое сильнейших с корта ниже.
      *
      * @param  array<int, array<int,int>> $courtRankings корт => четвёрка по местам
      * @return array<int, array<int,int>> корт => состав на следующий раунд
@@ -178,31 +182,39 @@ class EscaleraService
         $top = min($courts);
         $bottom = max($courts);
 
-        $next = [];
+        // Раскладываем по трём стопкам, чтобы собрать корт в порядке силы:
+        // сначала приехавшие сверху, потом оставшиеся, потом снизу. Порядок
+        // идёт прямо в matchLineup() и определяет пары первого матча.
+        $fromAbove = $stay = $fromBelow = [];
         foreach ($courts as $court) {
-            $next[$court] = [];
+            $fromAbove[$court] = $stay[$court] = $fromBelow[$court] = [];
         }
 
         foreach ($courtRankings as $court => $places) {
             [$first, $second, $third, $fourth] = $places;
 
-            // Первый идёт наверх, но с верхнего корта уходить некуда.
+            // Двое лучших едут наверх; с верхнего корта ехать некуда.
             if ($court === $top) {
-                $next[$court][] = $first;
+                $stay[$court][] = $first;
+                $stay[$court][] = $second;
             } else {
-                $next[$court - 1][] = $first;
+                $fromBelow[$court - 1][] = $first;
+                $fromBelow[$court - 1][] = $second;
             }
 
-            // Двое средних всегда остаются.
-            $next[$court][] = $second;
-            $next[$court][] = $third;
-
-            // Четвёртый идёт вниз, но с нижнего корта опускаться некуда.
+            // Двое последних едут вниз; с нижнего корта опускаться некуда.
             if ($court === $bottom) {
-                $next[$court][] = $fourth;
+                $stay[$court][] = $third;
+                $stay[$court][] = $fourth;
             } else {
-                $next[$court + 1][] = $fourth;
+                $fromAbove[$court + 1][] = $third;
+                $fromAbove[$court + 1][] = $fourth;
             }
+        }
+
+        $next = [];
+        foreach ($courts as $court) {
+            $next[$court] = array_merge($fromAbove[$court], $stay[$court], $fromBelow[$court]);
         }
 
         // Целостность: после всех перемещений на каждом корте ровно четверо.
@@ -389,11 +401,12 @@ class EscaleraService
                 $place = $i + 1;
                 $position = $this->positionFor($courtNumber, $place);
 
-                // Первый едет вверх, четвёртый вниз; с крайних кортов ехать некуда.
+                // Двое первых едут вверх, двое последних вниз;
+                // с крайних кортов ехать некуда.
                 $movement = 'stay';
-                if ($place === 1 && $courtNumber !== $top) {
+                if ($place <= 2 && $courtNumber !== $top) {
                     $movement = 'up';
-                } elseif ($place === 4 && $courtNumber !== $bottom) {
+                } elseif ($place >= 3 && $courtNumber !== $bottom) {
                     $movement = 'down';
                 }
 
