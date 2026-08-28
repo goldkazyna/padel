@@ -152,6 +152,8 @@ Route::prefix('mobile')->group(function () {
         // Управление существующим турниром (Этап 3a)
         Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
         Route::put('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'update']);
+        // Описание можно править в любом статусе, в том числе у завершённого.
+        Route::match(['put', 'patch'], '/admin/tournaments/{tournament}/description', [MobileAdminTournamentDetailController::class, 'updateDescription']);
         Route::post('/admin/tournaments/{tournament}/send-push', [MobileAdminTournamentDetailController::class, 'sendPush']);
         Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
         Route::post('/admin/tournaments/{tournament}/restart', [MobileAdminTournamentDetailController::class, 'restart']);

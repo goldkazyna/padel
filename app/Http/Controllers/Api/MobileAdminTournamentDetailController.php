@@ -56,6 +56,49 @@ class MobileAdminTournamentDetailController extends Controller
     /**
      * PUT /api/mobile/admin/tournaments/{tournament}
      */
+    /**
+     * Правка одного описания — в любом статусе, включая завершённый турнир.
+     *
+     * Полное редактирование после старта закрыто намеренно: состав, уровни и
+     * лимит мест влияют на уже сыгранное. А описание ни на что не влияет, и
+     * поправить в нём опечатку или дописать итоги хочется как раз после
+     * турнира — раньше для этого не было способа.
+     */
+    public function updateDescription(Request $request, Tournament $tournament): JsonResponse
+    {
+        $user = $request->user();
+        if (!$this->canManageTournament($user, $tournament)) {
+            return $this->forbidden();
+        }
+        if (!$this->hasTournamentsFullAccess($user, $tournament)) {
+            return $this->noPermission('Нет прав на редактирование турниров');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'description' => 'nullable|string|max:5000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $description = $request->input('description');
+        $tournament->update([
+            'description' => is_string($description) && trim($description) !== ''
+                ? trim($description)
+                : null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Описание сохранено',
+            'description' => $tournament->fresh()->description,
+        ]);
+    }
+
     public function update(Request $request, Tournament $tournament): JsonResponse
     {
         $user = $request->user();
