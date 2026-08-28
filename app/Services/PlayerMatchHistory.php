@@ -31,6 +31,7 @@ class PlayerMatchHistory
 
         // Американо
         $americanoMatches = AmericanoMatch::where('status', 'completed')
+            ->whereHas('round.group.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -47,6 +48,7 @@ class PlayerMatchHistory
 
         // Мексикано
         $mexicanoMatches = MexicanoMatch::where('status', 'completed')
+            ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -63,6 +65,7 @@ class PlayerMatchHistory
 
         // Americano Flex
         $flexMatches = AmericanoFlexMatch::where('status', 'completed')
+            ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -79,6 +82,7 @@ class PlayerMatchHistory
 
         // Round Robin
         $roundRobinMatches = RoundRobinMatch::where('status', 'completed')
+            ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -95,6 +99,7 @@ class PlayerMatchHistory
 
         // Король корта (King of Court)
         $kocMatches = KingOfCourtMatch::where('status', 'completed')
+            ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -111,6 +116,7 @@ class PlayerMatchHistory
 
         // Ladder: путь до турнира длиннее — матч висит на корте раунда.
         $escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
+            ->whereHas('court.round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -130,6 +136,7 @@ class PlayerMatchHistory
 
         // Just Padel It (player-based, как King of Court)
         $jpiMatches = JustPadelItMatch::where('status', 'completed')
+            ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
                   ->orWhere('team1_player2_id', $userId)
@@ -150,6 +157,7 @@ class PlayerMatchHistory
             ->pluck('id');
         if ($baliPairIds->count() > 0) {
             $baliMatches = BaliKocMatch::where('status', 'completed')
+                ->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
                 ->where(function ($q) use ($baliPairIds) {
                     $q->whereIn('pair1_id', $baliPairIds)->orWhereIn('pair2_id', $baliPairIds);
                 })
@@ -163,6 +171,7 @@ class PlayerMatchHistory
 
         // Плей-офф американо/мексикано (по player_id)
         $playoffPlayerMatches = TournamentPlayoffMatch::where('status', 'completed')
+            ->whereHas('tournament', fn ($q) => $q->where('status', 'completed'))
             ->whereNotNull('team1_player1_id')
             ->where(function ($q) use ($userId) {
                 $q->where('team1_player1_id', $userId)
@@ -185,6 +194,7 @@ class PlayerMatchHistory
         if ($teamIds->count() > 0) {
             // Групповой этап
             $groupMatches = TournamentGroupMatch::where('status', 'completed')
+                ->whereHas('group.tournament', fn ($q) => $q->where('status', 'completed'))
                 ->where(function ($q) use ($teamIds) {
                     $q->whereIn('team1_id', $teamIds)
                       ->orWhereIn('team2_id', $teamIds);
@@ -198,6 +208,7 @@ class PlayerMatchHistory
 
             // Плей-офф командный (по team_id)
             $playoffTeamMatches = TournamentPlayoffMatch::where('status', 'completed')
+                ->whereHas('tournament', fn ($q) => $q->where('status', 'completed'))
                 ->whereNull('team1_player1_id')
                 ->where(function ($q) use ($teamIds) {
                     $q->whereIn('team1_id', $teamIds)

@@ -205,9 +205,12 @@ class MobileClubController extends Controller
             ? Carbon::parse($request->to)->endOfDay()
             : now()->endOfDay();
 
-        // Турниры клуба за период (по дате старта).
+        // Турниры клуба за период (по дате старта). Только завершённые:
+        // у отменённого турнира результатов как будто не было, а его матчи
+        // раньше продолжали висеть в статистике игроков.
         $tournamentIds = Tournament::where('club_id', $club->id)
             ->whereBetween('start_date', [$from, $to])
+            ->where('status', 'completed')
             ->pluck('id');
 
         $players = [];
@@ -264,7 +267,7 @@ class MobileClubController extends Controller
                     'wins' => $w['won'],
                     'losses' => $w['lost'],
                     'draws' => $w['draw'],
-                    'winrate' => $total > 0 ? (int) round($w['won'] / $total * 100) : 0,
+                    'winrate' => \App\Support\CountedMatches::winrate($w['won'], $w['lost']),
                 ];
             })->filter()->sortByDesc('rating_earned')->values()->all();
         }
@@ -318,6 +321,9 @@ class MobileClubController extends Controller
             AmericanoFlexMatch::class,
             RoundRobinMatch::class,
             \App\Models\JustPadelItMatch::class,
+            // Bali KOC сюда не входил: в клубной статистике таких матчей
+            // не было вообще, хотя в профиле игрока они считались.
+            \App\Models\BaliKocMatch::class,
         ];
         foreach ($roundModels as $model) {
             $model::where('status', 'completed')

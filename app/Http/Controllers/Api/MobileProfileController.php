@@ -171,9 +171,13 @@ class MobileProfileController extends Controller
                 'matches_played' => $matchStats['total'],
                 'wins' => $matchStats['won'],
                 'losses' => $matchStats['lost'],
-                'winrate' => $matchStats['total'] > 0
-                    ? (int) round(($matchStats['won'] / $matchStats['total']) * 100)
-                    : 0,
+                // Ничьи в знаменатель не идут: вечер с ничьими не должен
+                // выглядеть как вечер с поражениями.
+                'winrate' => \App\Support\CountedMatches::winrate(
+                    $matchStats['won'],
+                    $matchStats['lost']
+                ),
+                'draws' => $matchStats['draw'] ?? 0,
                 'tournaments_count' => $tournamentStats['total'],
                 'rating_trend' => $ratingTrend,
                 'rating_trend_details' => $details,

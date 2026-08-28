@@ -365,6 +365,7 @@ class User extends Authenticatable
 		
 		// Американо - групповые матчи
 		$americanoMatches = \App\Models\AmericanoMatch::where('status', 'completed')
+			->whereHas('round.group.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -387,6 +388,7 @@ class User extends Authenticatable
 		
 		// Мексикано - групповые матчи
 		$mexicanoMatches = \App\Models\MexicanoMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -409,6 +411,7 @@ class User extends Authenticatable
 		
 		// Король корта — все матчи всех раундов
 		$kocMatches = \App\Models\KingOfCourtMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -432,6 +435,7 @@ class User extends Authenticatable
 		// Ladder — три коротких матча на корт за раунд. Счёт свободный,
 		// поэтому ничья возможна и учитывается отдельно.
 		$escaleraMatches = \App\Models\EscaleraMatch::where('status', 'completed')
+			->whereHas('court.round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -454,6 +458,7 @@ class User extends Authenticatable
 
 		// Just Padel It (player-based, как King of Court)
 		$jpiMatches = \App\Models\JustPadelItMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -476,6 +481,7 @@ class User extends Authenticatable
 
 		// Плей-офф матчи Американо/Мексикано (по player_id)
 		$playoffPlayerMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+			->whereHas('tournament', fn ($q) => $q->where('status', 'completed'))
 			->whereNotNull('team1_player1_id') // Это Американо/Мексикано матч
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
@@ -505,6 +511,7 @@ class User extends Authenticatable
 		if ($teamIds->count() > 0) {
 			// Групповой этап
 			$groupMatches = \App\Models\TournamentGroupMatch::where('status', 'completed')
+			->whereHas('group.tournament', fn ($q) => $q->where('status', 'completed'))
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
@@ -525,6 +532,7 @@ class User extends Authenticatable
 			
 			// Плей-офф командного турнира (по team_id)
 			$playoffTeamMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+			->whereHas('tournament', fn ($q) => $q->where('status', 'completed'))
 				->whereNull('team1_player1_id') // Это командный матч
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
@@ -547,6 +555,7 @@ class User extends Authenticatable
 
 		// Americano Flex — все матчи всех раундов
 		$flexMatches = \App\Models\AmericanoFlexMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -569,6 +578,7 @@ class User extends Authenticatable
 
 		// Round Robin — все матчи всех раундов
 		$roundRobinMatches = \App\Models\RoundRobinMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -596,6 +606,7 @@ class User extends Authenticatable
 
 		if ($baliPairIds->count() > 0) {
 			$baliMatches = \App\Models\BaliKocMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 				->where(function($q) use ($baliPairIds) {
 					$q->whereIn('pair1_id', $baliPairIds)
 					  ->orWhereIn('pair2_id', $baliPairIds);
@@ -640,8 +651,8 @@ class User extends Authenticatable
 	public function winRate(): float
 	{
 		$stats = $this->getAllMatchesStats();
-		if ($stats['total'] === 0) return 0;
-		return round(($stats['won'] / $stats['total']) * 100, 1);
+
+		return \App\Support\CountedMatches::winrateExact($stats['won'], $stats['lost']);
 	}
 	/**
 	 * Получить историю всех матчей
@@ -652,6 +663,7 @@ class User extends Authenticatable
 
 		// Американо
 		$americanoMatches = \App\Models\AmericanoMatch::where('status', 'completed')
+			->whereHas('round.group.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -686,6 +698,7 @@ class User extends Authenticatable
 
 		// Мексикано
 		$mexicanoMatches = \App\Models\MexicanoMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -731,6 +744,7 @@ class User extends Authenticatable
 
 			// Групповой этап
 			$groupMatches = \App\Models\TournamentGroupMatch::where('status', 'completed')
+			->whereHas('group.tournament', fn ($q) => $q->where('status', 'completed'))
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
@@ -760,6 +774,7 @@ class User extends Authenticatable
 
 			// Плей-офф
 			$playoffMatches = \App\Models\TournamentPlayoffMatch::where('status', 'completed')
+			->whereHas('tournament', fn ($q) => $q->where('status', 'completed'))
 				->where(function($q) use ($teamIds) {
 					$q->whereIn('team1_id', $teamIds)
 					  ->orWhereIn('team2_id', $teamIds);
@@ -790,6 +805,7 @@ class User extends Authenticatable
 
 		// Americano Flex
 		$flexMatches = \App\Models\AmericanoFlexMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -824,6 +840,7 @@ class User extends Authenticatable
 
 		// Round Robin
 		$roundRobinMatches = \App\Models\RoundRobinMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -858,6 +875,7 @@ class User extends Authenticatable
 
 		// Король корта
 		$kocMatches = \App\Models\KingOfCourtMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -892,6 +910,7 @@ class User extends Authenticatable
 
 		// Just Padel It (player-based, как King of Court)
 		$jpiMatches = \App\Models\JustPadelItMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 			->where(function($q) {
 				$q->where('team1_player1_id', $this->id)
 				  ->orWhere('team1_player2_id', $this->id)
@@ -930,6 +949,7 @@ class User extends Authenticatable
 			->pluck('id');
 		if ($baliPairIds->count() > 0) {
 			$baliMatches = \App\Models\BaliKocMatch::where('status', 'completed')
+			->whereHas('round.tournament', fn ($q) => $q->where('status', 'completed'))
 				->where(function($q) use ($baliPairIds) {
 					$q->whereIn('pair1_id', $baliPairIds)->orWhereIn('pair2_id', $baliPairIds);
 				})
@@ -1503,6 +1523,7 @@ class User extends Authenticatable
 		
 		// Групповые матчи
 		$groupMatches = \App\Models\TournamentGroupMatch::where('status', 'completed')
+			->whereHas('group.tournament', fn ($q) => $q->where('status', 'completed'))
 			->whereHas('group', fn($q) => $q->where('tournament_id', $tournament->id))
 			->where(function($q) use ($teamIds) {
 				$q->whereIn('team1_id', $teamIds)->orWhereIn('team2_id', $teamIds);
