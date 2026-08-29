@@ -8,6 +8,7 @@ use App\Http\Controllers\WhapiWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
+use App\Http\Controllers\Api\MobileLeagueController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileTournamentChatController;
 use App\Http\Controllers\Api\MobileCoachController;
@@ -265,6 +266,14 @@ Route::prefix('mobile')->group(function () {
         Route::get('/rating/tournaments', [MobileRatingController::class, 'tournaments']);
 
         // Турниры
+        // Лиги: серия турниров с общей таблицей. Этапы открываются обычным
+        // экраном турнира, поэтому своих маршрутов у них нет.
+        Route::get('/leagues', [MobileLeagueController::class, 'index']);
+        Route::get('/leagues/my', [MobileLeagueController::class, 'my']);
+        Route::get('/leagues/{league}', [MobileLeagueController::class, 'show']);
+        Route::post('/leagues/{league}/register', [MobileLeagueController::class, 'register']);
+        Route::post('/leagues/{league}/cancel', [MobileLeagueController::class, 'cancel']);
+
         Route::get('/tournaments', [MobileTournamentController::class, 'index']);
         Route::get('/tournaments/my', [MobileTournamentController::class, 'my']);
         Route::get('/tournaments/archive', [MobileTournamentController::class, 'archive']);

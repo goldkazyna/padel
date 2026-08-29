@@ -62,6 +62,14 @@ trait FormatsTournaments
             ] : null,
             'status' => $t->status,
             'status_name' => $t->status_name,
+            // Этап лиги: приложение показывает плашку «Этап 3 из 8» со
+            // ссылкой на лигу. У обычного турнира — null.
+            'league' => $t->league ? [
+                'id' => $t->league->id,
+                'name' => $t->league->name,
+                'stage' => (int) $t->league_stage,
+                'stages_total' => max((int) $t->league->stages_planned, $t->league->stages()->count()),
+            ] : null,
             'is_rated' => (bool) $t->is_rated,
             'verified_only' => (bool) $t->verified_only,
             'pairing_mode' => $t->pairing_mode ?? 'self',
