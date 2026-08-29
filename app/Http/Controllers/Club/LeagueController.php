@@ -8,6 +8,7 @@ use App\Models\League;
 use App\Models\LeaguePlayer;
 use App\Models\Tournament;
 use App\Models\User;
+use App\Services\LeagueService;
 use App\Support\LeagueStandings;
 use Illuminate\Http\Request;
 
@@ -133,9 +134,9 @@ class LeagueController extends Controller
      * целиком, а не в каждый этап отдельно. Организатор правит состав перед
      * стартом обычным экраном участников.
      */
-    public function addStage(Request $request, League $league)
+    public function addStage(Request $request, League $league, LeagueService $service)
     {
-        $club = $this->guard($league);
+        $this->guard($league);
 
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
@@ -145,52 +146,11 @@ class LeagueController extends Controller
             'courts_count' => 'nullable|integer|min:1|max:16',
         ]);
 
-        $stage = $league->nextStageNumber();
-
-        $tournament = Tournament::create([
-            'club_id' => $club->id,
-            'league_id' => $league->id,
-            'league_stage' => $stage,
-            'creator_id' => auth()->id(),
-            // Название необязательное: пустое поле формы вообще не приходит.
-            'name' => $validated['name'] ?? null ?: "{$league->name} — этап {$stage}",
-            'type' => 'americano_flex',
-            'status' => 'open',
-            'start_date' => $validated['start_date'],
-            'min_level' => $league->min_level ?? 1,
-            'max_level' => $league->max_level ?? 7,
-            'max_participants' => $validated['max_participants'],
-            // Цена в турнире обязательна; берём из этапа, потом из лиги, иначе ноль.
-            'price' => $validated['price'] ?? $league->price ?? 0,
-            'courts_count' => $validated['courts_count'] ?? 2,
-            'is_rated' => $league->is_rated,
-        ]);
-
-        $this->fillFromLeague($league, $tournament);
-
-        if ($league->status === 'open') {
-            $league->update(['status' => 'in_progress']);
-        }
+        $tournament = $service->createStage($league, $validated, auth()->id());
 
         return redirect()->route('club.tournaments.show', $tournament)
-            ->with('success', "Этап {$stage} создан, состав лиги записан");
+            ->with('success', "Этап {$tournament->league_stage} создан, состав лиги записан");
     }
-
-    /** Записать состав лиги в турнир этапа. */
-    private function fillFromLeague(League $league, Tournament $tournament): void
-    {
-        $userIds = $league->activePlayers()->pluck('user_id');
-        if ($userIds->isEmpty()) {
-            return;
-        }
-
-        $rows = $userIds->take($tournament->max_participants)
-            ->mapWithKeys(fn ($id) => [$id => ['status' => 'registered', 'created_at' => now(), 'updated_at' => now()]])
-            ->all();
-
-        $tournament->participants()->syncWithoutDetaching($rows);
-    }
-
     /**
      * Поиск игроков для состава лиги.
      *
@@ -234,10 +194,7 @@ class LeagueController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        LeaguePlayer::updateOrCreate(
-            ['league_id' => $league->id, 'user_id' => $validated['user_id']],
-            ['status' => 'registered', 'joined_at' => now(), 'left_at' => null]
-        );
+        app(LeagueService::class)->addPlayer($league, (int) $validated['user_id']);
 
         return back()->with('success', 'Игрок добавлен в лигу');
     }
@@ -253,9 +210,7 @@ class LeagueController extends Controller
     {
         $this->guard($league);
 
-        LeaguePlayer::where('league_id', $league->id)
-            ->where('user_id', $user->id)
-            ->update(['status' => 'left', 'left_at' => now()]);
+        app(LeagueService::class)->removePlayer($league, $user->id);
 
         return back()->with('success', 'Игрок убран из состава');
     }

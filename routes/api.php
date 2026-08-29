@@ -8,6 +8,7 @@ use App\Http\Controllers\WhapiWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileHomeController;
 use App\Http\Controllers\Api\MobileRatingController;
+use App\Http\Controllers\Api\MobileAdminLeagueController;
 use App\Http\Controllers\Api\MobileLeagueController;
 use App\Http\Controllers\Api\MobileTournamentController;
 use App\Http\Controllers\Api\MobileTournamentChatController;
@@ -152,6 +153,16 @@ Route::prefix('mobile')->group(function () {
 
         // Управление существующим турниром (Этап 3a)
         Route::get('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'show']);
+        // Лиги в админке приложения: правила общие с веб-CRM (LeagueService).
+        Route::get('/admin/leagues', [MobileAdminLeagueController::class, 'index']);
+        Route::post('/admin/leagues', [MobileAdminLeagueController::class, 'store']);
+        Route::get('/admin/leagues/{league}', [MobileAdminLeagueController::class, 'show']);
+        Route::put('/admin/leagues/{league}', [MobileAdminLeagueController::class, 'update']);
+        Route::post('/admin/leagues/{league}/stages', [MobileAdminLeagueController::class, 'addStage']);
+        Route::get('/admin/leagues/{league}/players/search', [MobileAdminLeagueController::class, 'searchPlayers']);
+        Route::post('/admin/leagues/{league}/players', [MobileAdminLeagueController::class, 'addPlayer']);
+        Route::delete('/admin/leagues/{league}/players/{user}', [MobileAdminLeagueController::class, 'removePlayer']);
+
         Route::put('/admin/tournaments/{tournament}', [MobileAdminTournamentDetailController::class, 'update']);
         // Описание можно править в любом статусе, в том числе у завершённого.
         Route::match(['put', 'patch'], '/admin/tournaments/{tournament}/description', [MobileAdminTournamentDetailController::class, 'updateDescription']);
