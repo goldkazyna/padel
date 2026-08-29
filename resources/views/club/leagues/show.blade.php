@@ -166,21 +166,21 @@
                 <div class="row align-items-end">
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Название этапа</label>
-                        <input type="text" name="name" class="form-control-custom"
+                        <input type="text" name="name" class="form-control"
                                placeholder="{{ $league->name }} — этап {{ $league->nextStageNumber() }}">
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label">Дата и время *</label>
-                        <input type="datetime-local" name="start_date" class="form-control-custom" required>
+                        <input type="datetime-local" name="start_date" class="form-control" required>
                     </div>
                     <div class="col-md-2 mb-3">
                         <label class="form-label">Мест *</label>
-                        <input type="number" name="max_participants" class="form-control-custom"
+                        <input type="number" name="max_participants" class="form-control"
                                min="4" max="64" value="{{ $league->max_players ?? 12 }}" required>
                     </div>
                     <div class="col-md-2 mb-3">
                         <label class="form-label">Кортов</label>
-                        <input type="number" name="courts_count" class="form-control-custom" min="1" max="16" value="2">
+                        <input type="number" name="courts_count" class="form-control" min="1" max="16" value="2">
                     </div>
                     <div class="col-md-1 mb-3">
                         <button type="submit" class="btn-add w-100 justify-content-center">
@@ -199,7 +199,7 @@
             <form method="POST" action="{{ route('club.leagues.players.add', $league) }}">
                 @csrf
                 <div class="player-search-wrap">
-                    <input type="text" id="playerSearch" class="form-control-custom"
+                    <input type="text" id="playerSearch" class="form-control"
                            placeholder="Имя или телефон" autocomplete="off">
                     <input type="hidden" name="user_id" id="playerId">
                     <div class="search-results" id="playerResults"></div>
