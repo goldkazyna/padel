@@ -391,6 +391,7 @@ class ClubController extends Controller
 				'name' => $p->full_name,
 				'email' => $p->email,
 				'phone' => $p->phone,
+				'avatar' => $p->avatar,
 			])->values(),
 		]);
 	}

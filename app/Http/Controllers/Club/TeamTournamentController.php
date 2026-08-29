@@ -258,7 +258,7 @@ class TeamTournamentController extends Controller
 			})
 			->tap(fn ($q) => \App\Support\NameSearch::orderExactFirst($q, $query, ['name']))
 			->limit(10)
-			->get(['id', 'name', 'phone', 'rating', 'level']);
+			->get(['id', 'name', 'phone', 'rating', 'level', 'avatar']);
 
         $players->transform(function ($player) {
             $player->phone = PhoneVisibility::forExport($player->phone);

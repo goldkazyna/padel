@@ -648,6 +648,7 @@ class TelegramMiniAppController extends Controller
 				'name' => $p->name,
 				'level' => $p->level,
 				'phone' => $p->phone,
+				'avatar' => $p->avatar,
 			])
 		]);
 	}

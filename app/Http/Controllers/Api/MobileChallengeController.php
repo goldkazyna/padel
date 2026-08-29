@@ -570,6 +570,7 @@ class MobileChallengeController extends Controller
                 'phone' => $user->phone,
                 'rating' => $user->rating,
                 'level' => (float) $user->level,
+                'avatar' => $user->avatar,
             ];
         });
 

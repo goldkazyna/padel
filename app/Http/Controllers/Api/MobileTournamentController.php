@@ -636,6 +636,8 @@ class MobileTournamentController extends Controller
                 'level' => $p->level,
                 'rating' => $p->rating,
                 'phone' => $p->phone,
+                // В базе лежит готовый URL — как в рейтинге и профиле.
+                'avatar' => $p->avatar,
             ]);
 
         if ($partners->isEmpty()) {

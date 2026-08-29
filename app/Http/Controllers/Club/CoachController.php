@@ -489,6 +489,7 @@ class CoachController extends Controller
                 'name' => $user->full_name,
                 'phone' => PhoneVisibility::forExport($user->phone),
                 'email' => $user->email,
+                'avatar' => $user->avatar,
             ]);
 
         return response()->json($users);

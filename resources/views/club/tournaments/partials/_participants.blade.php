@@ -661,10 +661,31 @@
 }
 
 .search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 12px;
     cursor: pointer;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     transition: background 0.2s;
+}
+
+.search-result-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+}
+
+.search-result-avatar-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .search-result-item:hover {
@@ -772,6 +793,14 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script>
+    // Аватар в результатах поиска: фото, если есть, иначе инициал.
+    function playerAvatar(player) {
+        if (player.avatar) {
+            return `<img class="search-result-avatar" src="${player.avatar}" alt="">`;
+        }
+        const letter = (player.name || '?').trim().charAt(0).toUpperCase();
+        return `<div class="search-result-avatar search-result-avatar-empty">${letter}</div>`;
+    }
 document.addEventListener('DOMContentLoaded', function() {
     const searchInputs = document.querySelectorAll('.player-search-input');
     
@@ -808,8 +837,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                      data-phone="${player.phone}"
                                      data-rating="${player.rating}"
                                      data-level="${player.level}">
-                                    <div class="search-result-name">${player.name}</div>
-                                    <div class="search-result-meta">${player.phone} • Уровень: ${player.level} • Рейтинг: ${player.rating}</div>
+                                    ${playerAvatar(player)}
+                                    <div>
+                                        <div class="search-result-name">${player.name}</div>
+                                        <div class="search-result-meta">${player.phone} • Уровень: ${player.level} • Рейтинг: ${player.rating}</div>
+                                    </div>
                                 </div>
                             `).join('');
                         }

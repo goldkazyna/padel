@@ -1273,7 +1273,7 @@ class TournamentController extends Controller
 			->whereNotIn('id', $existingIds)
 			->tap(fn ($q) => \App\Support\NameSearch::orderExactFirst($q, $query, ['name']))
 			->limit(10)
-			->get(['id', 'name', 'phone', 'level', 'rating']);
+			->get(['id', 'name', 'phone', 'level', 'rating', 'avatar']);
 		
 		return response()->json($players->map(function ($player) {
 			return [

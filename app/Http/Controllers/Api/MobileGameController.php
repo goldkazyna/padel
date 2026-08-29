@@ -976,6 +976,7 @@ class MobileGameController extends Controller
                 'phone' => $u->phone,
                 'rating' => $u->rating,
                 'level' => (float) $u->level,
+                'avatar' => $u->avatar,
             ];
         });
 
