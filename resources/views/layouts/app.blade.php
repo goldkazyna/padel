@@ -1077,6 +1077,12 @@
 							<span>Турниры клуба</span>
 						</a>
 					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.leagues.index') }}" class="nav-link {{ request()->routeIs('club.leagues.*') ? 'active' : '' }}">
+							<i class="bi bi-collection"></i>
+							<span>Лиги</span>
+						</a>
+					</li>
 					@endif
 					<li class="nav-section-title">Управление</li>
 					@if($modClub && $modClub->hasFeature('activity_log') && auth()->user()->canViewActivityLog($modClub))
@@ -1199,6 +1205,12 @@
 						<a href="{{ route('club.tournaments.index') }}" class="nav-link {{ request()->routeIs('club.tournaments.*') ? 'active' : '' }}">
 							<i class="bi bi-trophy"></i>
 							<span>Турниры клуба</span>
+						</a>
+					</li>
+					<li class="nav-item">
+						<a href="{{ route('club.leagues.index') }}" class="nav-link {{ request()->routeIs('club.leagues.*') ? 'active' : '' }}">
+							<i class="bi bi-collection"></i>
+							<span>Лиги</span>
 						</a>
 					</li>
 					@endif

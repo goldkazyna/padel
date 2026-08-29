@@ -288,6 +288,19 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // Разбивка долгов по одному клиенту — с печатью в PDF из браузера.
             Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
             // Переписка WhatsApp: пока только чтение того, что принёс вебхук.
+            // Лиги: серия турниров с общей таблицей. Этап лиги — обычный
+            // турнир, он живёт в существующем разделе «Турниры».
+            Route::get('/leagues', [App\Http\Controllers\Club\LeagueController::class, 'index'])->name('leagues.index');
+            Route::get('/leagues/create', [App\Http\Controllers\Club\LeagueController::class, 'create'])->name('leagues.create');
+            Route::post('/leagues', [App\Http\Controllers\Club\LeagueController::class, 'store'])->name('leagues.store');
+            Route::get('/leagues/{league}', [App\Http\Controllers\Club\LeagueController::class, 'show'])->name('leagues.show');
+            Route::get('/leagues/{league}/edit', [App\Http\Controllers\Club\LeagueController::class, 'edit'])->name('leagues.edit');
+            Route::put('/leagues/{league}', [App\Http\Controllers\Club\LeagueController::class, 'update'])->name('leagues.update');
+            Route::post('/leagues/{league}/status', [App\Http\Controllers\Club\LeagueController::class, 'status'])->name('leagues.status');
+            Route::post('/leagues/{league}/stages', [App\Http\Controllers\Club\LeagueController::class, 'addStage'])->name('leagues.stages.add');
+            Route::get('/leagues/{league}/players/search', [App\Http\Controllers\Club\LeagueController::class, 'searchPlayers'])->name('leagues.players.search');
+            Route::post('/leagues/{league}/players', [App\Http\Controllers\Club\LeagueController::class, 'addPlayer'])->name('leagues.players.add');
+            Route::delete('/leagues/{league}/players/{user}', [App\Http\Controllers\Club\LeagueController::class, 'removePlayer'])->name('leagues.players.remove');
             Route::get('/whatsapp', [App\Http\Controllers\Club\WhatsappController::class, 'index'])->name('whatsapp.index');
             // Опрос новых сообщений: адреса объявлены до /whatsapp/{phone},
             // иначе номер-заглушка перехватил бы их на себя.

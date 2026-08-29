@@ -120,6 +120,8 @@ class Tournament extends Model
     const PLAYOFF_FORMAT_TABLE_QF = 'table_qf';
 	
     protected $fillable = [
+		'league_id',        // этап лиги; у обычного турнира пусто
+		'league_stage',
         'club_id',
         'venue_club_id',
         'creator_id',
@@ -262,6 +264,11 @@ class Tournament extends Model
     }
 
     // Связи
+	/** Лига, этапом которой является турнир. У обычного турнира — null. */
+	public function league()
+	{
+		return $this->belongsTo(League::class);
+	}
     public function club()
     {
         return $this->belongsTo(Club::class);
