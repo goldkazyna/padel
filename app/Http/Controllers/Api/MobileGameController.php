@@ -945,9 +945,22 @@ class MobileGameController extends Controller
     /** Поиск игрока по телефону (для приглашений). */
     public function searchPlayer(Request $request)
     {
-        $request->validate(['phone' => 'required|string|min:3']);
+        // Ключ остался 'phone' ради старых сборок, но принимаем и имя.
+        $request->validate(['phone' => 'required|string|min:2']);
 
-        $users = User::where('phone', 'like', '%' . $request->phone . '%')->limit(10)->get();
+        $term = trim((string) $request->phone);
+        $digits = preg_replace('/\D/', '', $term);
+
+        $users = User::where(function ($w) use ($term, $digits) {
+                foreach (\App\Support\NameSearch::variants($term) as $variant) {
+                    $w->orWhere('name', 'like', "%{$variant}%");
+                }
+                if (strlen($digits) >= 3) {
+                    $w->orWhere('phone', 'like', "%{$digits}%");
+                }
+            })
+            ->tap(fn ($w) => \App\Support\NameSearch::orderExactFirst($w, $term, ['name']))
+            ->limit(10)->get();
         if ($users->isEmpty()) {
             return response()->json(['success' => false, 'message' => 'Пользователь не найден'], 404);
         }

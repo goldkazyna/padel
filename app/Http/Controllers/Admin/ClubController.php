@@ -365,16 +365,22 @@ class ClubController extends Controller
 
 		$digits = preg_replace('/\D/', '', $q);
 
+		// Имя ищем во всех написаниях: «Денис» находит и Denis.
+		$variants = \App\Support\NameSearch::variants($q);
+
 		$players = User::where('role', 'player')
-			->where(function ($w) use ($q, $digits) {
-				$w->where('email', 'like', "%{$q}%")
-				  ->orWhere('name', 'like', "%{$q}%")
-				  ->orWhere('first_name', 'like', "%{$q}%")
-				  ->orWhere('last_name', 'like', "%{$q}%");
+			->where(function ($w) use ($q, $digits, $variants) {
+				$w->where('email', 'like', "%{$q}%");
+				foreach ($variants as $variant) {
+					$w->orWhere('name', 'like', "%{$variant}%")
+					  ->orWhere('first_name', 'like', "%{$variant}%")
+					  ->orWhere('last_name', 'like', "%{$variant}%");
+				}
 				if ($digits !== '') {
 					$w->orWhere('phone', 'like', "%{$digits}%");
 				}
 			})
+			->tap(fn ($w) => \App\Support\NameSearch::orderExactFirst($w, $q))
 			->orderBy('first_name')
 			->limit(10)
 			->get();

@@ -246,11 +246,17 @@ class TeamTournamentController extends Controller
             return response()->json([]);
         }
 
+        // Имя ищем во всех написаниях: «Денис» находит и Denis.
+        $variants = \App\Support\NameSearch::variants($query);
+
         $players = User::human()
-			->where(function($q) use ($query) {
-				$q->where('phone', 'like', "%{$query}%")
-				  ->orWhere('name', 'like', "%{$query}%");
+			->where(function($q) use ($query, $variants) {
+				$q->where('phone', 'like', "%{$query}%");
+				foreach ($variants as $variant) {
+					$q->orWhere('name', 'like', "%{$variant}%");
+				}
 			})
+			->tap(fn ($q) => \App\Support\NameSearch::orderExactFirst($q, $query, ['name']))
 			->limit(10)
 			->get(['id', 'name', 'phone', 'rating', 'level']);
 

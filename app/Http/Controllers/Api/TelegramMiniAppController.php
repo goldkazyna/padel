@@ -613,19 +613,27 @@ class TelegramMiniAppController extends Controller
 			return response()->json(['error' => 'Unauthorized'], 401);
 		}
 
-		$phone = $request->input('phone');
-		
-		// Убираем всё кроме цифр
-		$phone = preg_replace('/\D/', '', $phone);
-		
-		if (strlen($phone) < 5) {
-			return response()->json(['error' => 'Введите минимум 5 цифр'], 400);
+		// Ключ остался 'phone' ради старых версий мини-аппа, но искать можно
+		// и по имени — в любом написании.
+		$term = trim((string) $request->input('phone'));
+		$digits = preg_replace('/\D/', '', $term);
+
+		if (mb_strlen($term) < 2) {
+			return response()->json(['error' => 'Введите минимум 2 символа'], 400);
 		}
 
 		// Ищем игроков
 		$partners = User::human()
 			->where('id', '!=', $user->id)
-			->where('phone', 'LIKE', "%{$phone}%")
+			->where(function ($w) use ($term, $digits) {
+				foreach (\App\Support\NameSearch::variants($term) as $variant) {
+					$w->orWhere('name', 'LIKE', "%{$variant}%");
+				}
+				if (strlen($digits) >= 3) {
+					$w->orWhere('phone', 'LIKE', "%{$digits}%");
+				}
+			})
+			->tap(fn ($w) => \App\Support\NameSearch::orderExactFirst($w, $term, ['name']))
 			->limit(10)
 			->get();
 

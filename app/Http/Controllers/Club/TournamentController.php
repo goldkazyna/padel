@@ -1260,12 +1260,18 @@ class TournamentController extends Controller
 			$existingIds = $tournament->participants()->pluck('user_id')->toArray();
 		}
 		
+		// Имя ищем во всех написаниях: «Денис» находит и Denis.
+		$variants = \App\Support\NameSearch::variants($query);
+
 		$players = \App\Models\User::human()
-			->where(function ($q) use ($query) {
-				$q->where('phone', 'LIKE', "%{$query}%")
-				  ->orWhere('name', 'LIKE', "%{$query}%");
+			->where(function ($q) use ($query, $variants) {
+				$q->where('phone', 'LIKE', "%{$query}%");
+				foreach ($variants as $variant) {
+					$q->orWhere('name', 'LIKE', "%{$variant}%");
+				}
 			})
 			->whereNotIn('id', $existingIds)
+			->tap(fn ($q) => \App\Support\NameSearch::orderExactFirst($q, $query, ['name']))
 			->limit(10)
 			->get(['id', 'name', 'phone', 'level', 'rating']);
 		

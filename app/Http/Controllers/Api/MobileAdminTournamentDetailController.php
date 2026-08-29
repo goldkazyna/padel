@@ -1548,15 +1548,21 @@ class MobileAdminTournamentDetailController extends Controller
             $excluded = $tournament->participants()->pluck('users.id')->toArray();
         }
 
+        // Имя ищем во всех написаниях: «Денис» находит и Denis.
+        $variants = \App\Support\NameSearch::variants($q);
+
         $players = User::human()
-            ->where(function ($qq) use ($q) {
-                $qq->where('phone', 'like', "%{$q}%")
-                    ->orWhere('name', 'like', "%{$q}%");
+            ->where(function ($qq) use ($q, $variants) {
+                $qq->where('phone', 'like', "%{$q}%");
+                foreach ($variants as $variant) {
+                    $qq->orWhere('name', 'like', "%{$variant}%");
+                }
                 if (ctype_digit($q)) {
                     $qq->orWhere('id', (int) $q);
                 }
             })
             ->whereNotIn('id', $excluded)
+            ->tap(fn ($qq) => \App\Support\NameSearch::orderExactFirst($qq, $q, ['name']))
             ->orderBy('name')
             ->limit(20)
             ->get(['id', 'name', 'phone', 'level', 'rating', 'avatar', 'level_verified'])

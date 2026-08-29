@@ -468,8 +468,20 @@ class CoachController extends Controller
         // любом клубе (их нельзя назначить повторно), а не только в этом.
         $existingCoachIds = ClubCoach::pluck('user_id');
 
-        $users = User::where('name', 'like', "%{$q}%")
+        // Имя ищем во всех написаниях, плюс по телефону: тренера чаще
+        // заводят по номеру, который уже есть в клиентах.
+        $digits = preg_replace('/\D/', '', $q);
+
+        $users = User::where(function ($w) use ($q, $digits) {
+                foreach (\App\Support\NameSearch::variants($q) as $variant) {
+                    $w->orWhere('name', 'like', "%{$variant}%");
+                }
+                if (strlen($digits) >= 3) {
+                    $w->orWhere('phone', 'like', "%{$digits}%");
+                }
+            })
             ->whereNotIn('id', $existingCoachIds)
+            ->tap(fn ($w) => \App\Support\NameSearch::orderExactFirst($w, $q, ['name']))
             ->limit(10)
             ->get()
             ->map(fn ($user) => [

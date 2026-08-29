@@ -536,9 +536,22 @@ class MobileChallengeController extends Controller
      */
     public function searchPlayer(Request $request)
     {
-        $request->validate(['phone' => 'required|string|min:3']);
+        // Ключ остался 'phone' ради старых сборок, но принимаем и имя:
+        // соперника чаще помнят по имени, а не по номеру.
+        $request->validate(['phone' => 'required|string|min:2']);
 
-        $users = User::where('phone', 'like', '%' . $request->phone . '%')
+        $term = trim((string) $request->phone);
+        $digits = preg_replace('/\D/', '', $term);
+
+        $users = User::where(function ($w) use ($term, $digits) {
+                foreach (\App\Support\NameSearch::variants($term) as $variant) {
+                    $w->orWhere('name', 'like', "%{$variant}%");
+                }
+                if (strlen($digits) >= 3) {
+                    $w->orWhere('phone', 'like', "%{$digits}%");
+                }
+            })
+            ->tap(fn ($w) => \App\Support\NameSearch::orderExactFirst($w, $term, ['name']))
             ->limit(10)
             ->get();
 

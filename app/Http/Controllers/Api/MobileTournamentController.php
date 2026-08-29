@@ -614,14 +614,20 @@ class MobileTournamentController extends Controller
 
         $digits = preg_replace('/\D/', '', $term);
 
+        // Имя ищем во всех написаниях: «Денис» находит и Denis.
+        $variants = \App\Support\NameSearch::variants($term);
+
         $partners = User::human()
             ->where('id', '!=', $user->id)
-            ->where(function ($q) use ($term, $digits) {
-                $q->where('name', 'LIKE', "%{$term}%");
+            ->where(function ($q) use ($variants, $digits) {
+                foreach ($variants as $variant) {
+                    $q->orWhere('name', 'LIKE', "%{$variant}%");
+                }
                 if (strlen($digits) >= 3) {
                     $q->orWhere('phone', 'LIKE', "%{$digits}%");
                 }
             })
+            ->tap(fn ($q) => \App\Support\NameSearch::orderExactFirst($q, $term, ['name']))
             ->limit(10)
             ->get()
             ->map(fn($p) => [
