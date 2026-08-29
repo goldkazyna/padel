@@ -3,89 +3,117 @@
 @section('title', 'Лиги')
 
 @section('content')
-<div class="page-header">
-    <div>
-        <h2>Лиги {{ $club ? '— ' . $club->name : '' }}</h2>
-        <p>Серия турниров с общей таблицей</p>
+<div class="leagues-container">
+    <div class="leagues-header">
+        <div>
+            <div class="leagues-title">
+                Лиги
+                @if($club)<span class="leagues-title-club">— {{ $club->name }}</span>@endif
+            </div>
+            <div class="leagues-sub">Серия турниров с общим составом и одной таблицей</div>
+        </div>
+        <a href="{{ route('club.leagues.create') }}" class="btn-add">
+            <i class="bi bi-plus-lg"></i> Создать лигу
+        </a>
     </div>
-    <a href="{{ route('club.leagues.create') }}" class="btn-primary-custom">
-        <i class="bi bi-plus-circle"></i>
-        <span>Создать лигу</span>
-    </a>
-</div>
 
-@if($leagues->isEmpty())
-    <div class="card-dark">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-collection fs-1 text-secondary mb-3"></i>
-            <p class="text-secondary mb-2">Лиг пока нет</p>
-            <p class="text-secondary small mb-3">
+    @if(session('success'))
+        <div class="flash-message flash-success">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="flash-message flash-error">{{ session('error') }}</div>
+    @endif
+
+    @if($leagues->isEmpty())
+        <div class="empty-state">
+            <i class="bi bi-collection"></i>
+            <div class="empty-title">Лиг пока нет</div>
+            <div class="empty-text">
                 Лига — это несколько турниров подряд с общим составом и одной таблицей.
                 Например, «Сентябрь Кап» из восьми этапов Americano Flex.
-            </p>
-            <a href="{{ route('club.leagues.create') }}" class="btn-primary-custom">
-                <i class="bi bi-plus-circle"></i> Создать первую лигу
+            </div>
+            <a href="{{ route('club.leagues.create') }}" class="btn-add">
+                <i class="bi bi-plus-lg"></i> Создать первую лигу
             </a>
         </div>
-    </div>
-@else
-    <div class="leagues-grid">
-        @foreach($leagues as $league)
-            @php
-                $done = $league->finishedStagesCount();
-                $total = max($league->stages_planned, $league->stages_count);
-                $percent = $total > 0 ? round($done / $total * 100) : 0;
-            @endphp
-            <a href="{{ route('club.leagues.show', $league) }}" class="league-card">
-                <div class="league-card-top">
-                    <div>
-                        <div class="league-card-name">{{ $league->name }}</div>
-                        <div class="league-card-meta">
-                            @if($league->start_date)
-                                {{ $league->start_date->locale('ru')->translatedFormat('j M') }}
-                                @if($league->end_date)
-                                    — {{ $league->end_date->locale('ru')->translatedFormat('j M Y') }}
+    @else
+        <div class="leagues-grid">
+            @foreach($leagues as $league)
+                @php
+                    $done = $league->finishedStagesCount();
+                    $total = max($league->stages_planned, $league->stages_count);
+                    $percent = $total > 0 ? round($done / $total * 100) : 0;
+                @endphp
+                <a href="{{ route('club.leagues.show', $league) }}" class="lg-card">
+                    <div class="lg-top">
+                        <div>
+                            <div class="lg-name">{{ $league->name }}</div>
+                            <div class="lg-note">
+                                @if($league->start_date)
+                                    {{ $league->start_date->locale('ru')->translatedFormat('j M') }}
+                                    @if($league->end_date)
+                                        — {{ $league->end_date->locale('ru')->translatedFormat('j M Y') }}
+                                    @endif
+                                    ·
                                 @endif
-                                ·
-                            @endif
-                            {{ $league->players_count }} {{ trans_choice('участник|участника|участников', $league->players_count) }}
+                                {{ $league->players_count }}
+                                {{ trans_choice('участник|участника|участников', $league->players_count) }}
+                            </div>
                         </div>
+                        <span class="lg-status lg-{{ $league->status }}">
+                            @if($league->status === 'in_progress')<span class="lg-live"></span>@endif
+                            {{ $league->status_name }}
+                        </span>
                     </div>
-                    <span class="league-status league-status-{{ $league->status }}">{{ $league->status_name }}</span>
-                </div>
 
-                <div class="league-progress">
-                    <div class="league-progress-bar"><span style="width: {{ $percent }}%"></span></div>
-                    <div class="league-progress-text">Этапов сыграно: {{ $done }} из {{ $total }}</div>
-                </div>
-            </a>
-        @endforeach
-    </div>
-@endif
+                    <div class="lg-progress">
+                        <div class="lg-bar"><span style="width: {{ $percent }}%"></span></div>
+                        <div class="lg-progress-text">Этапов сыграно: {{ $done }} из {{ $total }}</div>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    @endif
+</div>
 
 <style>
-.leagues-grid { display: grid; gap: 12px; }
-.league-card {
-    display: block; text-decoration: none; color: inherit;
-    background: var(--card-bg, #16161a); border: 1px solid rgba(255,255,255,.06);
-    border-radius: 14px; padding: 16px 18px; transition: border-color .2s;
-}
-.league-card:hover { border-color: rgba(34,197,94,.35); }
-.league-card-top { display: flex; align-items: flex-start; gap: 12px; }
-.league-card-name { font-size: 16px; font-weight: 700; color: #fff; }
-.league-card-meta { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
-.league-status {
-    margin-left: auto; font-size: 11px; font-weight: 700; padding: 4px 10px;
-    border-radius: 20px; white-space: nowrap;
-    background: rgba(255,255,255,.06); color: var(--text-secondary);
-}
-.league-status-open { background: rgba(34,197,94,.14); color: #22c55e; }
-.league-status-in_progress { background: rgba(251,191,36,.14); color: #fbbf24; }
-.league-status-completed { background: rgba(255,255,255,.08); color: #a1a1aa; }
-.league-status-cancelled { background: rgba(248,113,113,.14); color: #f87171; }
-.league-progress { margin-top: 14px; }
-.league-progress-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,.07); overflow: hidden; }
-.league-progress-bar span { display: block; height: 100%; background: #22c55e; }
-.league-progress-text { margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+.leagues-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+.leagues-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+.leagues-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.leagues-title-club { color: #71717a; font-weight: 500; }
+.leagues-sub { color: #71717a; font-size: 13px; margin-top: 4px; }
+.btn-add { display: flex; align-items: center; gap: 8px; background: #22c55e; color: #0a0a0b; border: none; padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; text-decoration: none; }
+.btn-add:hover { background: #16a34a; color: #0a0a0b; }
+
+.flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+.flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+.leagues-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 900px) { .leagues-grid { grid-template-columns: 1fr; } }
+
+.lg-card { display: block; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 18px; text-decoration: none; transition: border-color 0.15s, background 0.15s; }
+.lg-card:hover { border-color: rgba(255,255,255,0.14); background: #171a1e; }
+.lg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lg-name { font-size: 17px; font-weight: 800; color: #f4f6f7; line-height: 1.25; overflow-wrap: anywhere; }
+.lg-note { font-size: 13px; color: #7c848a; margin-top: 5px; }
+.lg-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .3px; background: rgba(139,146,152,0.14); color: #8b9298; }
+.lg-open { background: rgba(34,197,94,0.14); color: #34d17f; }
+.lg-in_progress { background: rgba(251,191,36,0.14); color: #fbbf24; }
+.lg-cancelled { background: rgba(239,68,68,0.14); color: #ef4444; }
+.lg-live { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 0 0 rgba(251,191,36,0.45); animation: lgpulse 2s infinite; }
+@keyframes lgpulse { 0% { box-shadow: 0 0 0 0 rgba(251,191,36,0.45); } 70% { box-shadow: 0 0 0 6px rgba(251,191,36,0); } 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); } }
+@media (prefers-reduced-motion: reduce) { .lg-live { animation: none; } }
+
+.lg-progress { margin-top: 16px; }
+.lg-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.lg-bar span { display: block; height: 100%; background: #22c55e; }
+.lg-progress-text { margin-top: 7px; font-size: 12px; color: #7c848a; }
+
+.empty-state { background: #15181A; border: 1px dashed rgba(255,255,255,0.10); border-radius: 16px; padding: 56px 24px; text-align: center; }
+.empty-state i { font-size: 30px; color: #3f3f46; display: block; margin-bottom: 14px; }
+.empty-title { font-size: 16px; font-weight: 700; color: #f4f6f7; }
+.empty-text { font-size: 13.5px; color: #7c848a; margin: 8px auto 20px; max-width: 460px; line-height: 1.5; }
+.empty-state .btn-add { display: inline-flex; }
 </style>
 @endsection

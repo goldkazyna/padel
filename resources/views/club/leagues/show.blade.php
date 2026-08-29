@@ -9,139 +9,159 @@
     $percent = $total > 0 ? round($done / $total * 100) : 0;
 @endphp
 
-<div class="page-header">
-    <div>
-        <h2>{{ $league->name }}</h2>
-        <p>
-            Лига · {{ $done }} из {{ $total }} этапов сыграно ·
-            {{ $summary['players'] }} {{ trans_choice('участник|участника|участников', $summary['players']) }}
-        </p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('club.leagues.edit', $league) }}" class="btn-outline-custom">
-            <i class="bi bi-pencil"></i> Изменить
-        </a>
-        <a href="{{ route('club.leagues.index') }}" class="btn-outline-custom">
-            <i class="bi bi-arrow-left"></i> К списку
-        </a>
-    </div>
-</div>
-
-@if(session('success'))
-    <div class="alert-success-custom mb-4"><i class="bi bi-check2-circle me-2"></i>{{ session('success') }}</div>
-@endif
-@if(session('error'))
-    <div class="alert-danger-custom mb-4"><i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}</div>
-@endif
-
-<div class="league-tabs">
-    <button class="league-tab active" data-tab="standings">Таблица</button>
-    <button class="league-tab" data-tab="stages">Этапы <span class="tab-count">{{ $league->stages->count() }}</span></button>
-    <button class="league-tab" data-tab="players">Состав <span class="tab-count">{{ $summary['players'] }}</span></button>
-</div>
-
-{{-- ── Таблица ─────────────────────────────────────────────────────── --}}
-<div class="league-pane" id="pane-standings">
-    @if(empty($standings))
-        <div class="card-dark">
-            <div class="card-body text-center py-5 text-secondary">
-                <i class="bi bi-table fs-1 mb-3 d-block"></i>
-                Таблица появится, когда завершится первый этап.
+<div class="leagues-container">
+    <div class="leagues-header">
+        <div>
+            <div class="leagues-title">{{ $league->name }}</div>
+            <div class="leagues-sub">
+                Лига · {{ $done }} из {{ $total }} этапов сыграно ·
+                {{ $summary['players'] }} {{ trans_choice('участник|участника|участников', $summary['players']) }}
             </div>
         </div>
-    @else
-        <div class="card-dark">
-            <div class="card-body table-responsive">
-                <table class="table-dark-custom league-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Игрок</th>
-                            <th title="Этапов сыграно">Э</th>
-                            <th title="Побед">В</th>
-                            <th title="Поражений">П</th>
-                            <th title="Ничьих">Н</th>
-                            <th title="Забито">З</th>
-                            <th title="Пропущено">Пр</th>
-                            <th title="Разница">±</th>
-                            <th title="В среднем за матч">Ср</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($standings as $row)
-                            <tr>
-                                <td class="league-place">{{ $row['position'] }}</td>
-                                <td>
-                                    <div class="league-player">
-                                        @if($row['avatar'])
-                                            <img src="{{ $row['avatar'] }}" alt="" class="league-avatar">
-                                        @else
-                                            <div class="league-avatar league-avatar-empty">
-                                                {{ mb_strtoupper(mb_substr($row['name'], 0, 1)) }}
-                                            </div>
-                                        @endif
-                                        <div>
-                                            <div class="league-player-name">{{ $row['name'] }}</div>
-                                            @if($row['best_place'])
-                                                <div class="league-player-meta">лучшее место на этапе: {{ $row['best_place'] }}</div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>{{ $row['stages'] }}</td>
-                                <td>{{ $row['wins'] }}</td>
-                                <td>{{ $row['losses'] }}</td>
-                                <td>{{ $row['draws'] }}</td>
-                                <td class="league-points">{{ $row['points_for'] }}</td>
-                                <td>{{ $row['points_against'] }}</td>
-                                <td>{{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] }}</td>
-                                <td>{{ number_format($row['average'], 2, '.', '') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <div class="league-legend">
-                    Э — этапов сыграно, В — победы, П — поражения, Н — ничьи,
-                    З — забито, Пр — пропущено, ± — разница, Ср — в среднем за матч.
-                    Места распределяются по сумме забитых за все этапы; при равенстве —
-                    процент побед, затем личные встречи.
-                </div>
-            </div>
+        <div class="lg-actions">
+            <a href="{{ route('club.leagues.edit', $league) }}" class="btn-ghost">
+                <i class="bi bi-pencil"></i> Изменить
+            </a>
+            <a href="{{ route('club.leagues.index') }}" class="btn-ghost">
+                <i class="bi bi-arrow-left"></i> К списку
+            </a>
         </div>
+    </div>
+
+    @if(session('success'))
+        <div class="flash-message flash-success">{{ session('success') }}</div>
     @endif
-</div>
+    @if(session('error'))
+        <div class="flash-message flash-error">{{ session('error') }}</div>
+    @endif
 
-{{-- ── Этапы ───────────────────────────────────────────────────────── --}}
-<div class="league-pane d-none" id="pane-stages">
-    <div class="card-dark mb-3">
-        <div class="card-body">
-            <div class="league-progress mb-4">
-                <div class="league-progress-bar"><span style="width: {{ $percent }}%"></span></div>
-                <div class="league-progress-text">Сыграно {{ $done }} из {{ $total }}</div>
+    <div class="lg-progress-wide">
+        <div class="lg-bar"><span style="width: {{ $percent }}%"></span></div>
+    </div>
+
+    <div class="league-tabs">
+        <button class="tab-link tab-active" data-tab="standings">Таблица</button>
+        <button class="tab-link" data-tab="stages">
+            Этапы <span class="tab-count">{{ $league->stages->count() }}</span>
+        </button>
+        <button class="tab-link" data-tab="players">
+            Состав <span class="tab-count">{{ $summary['players'] }}</span>
+        </button>
+    </div>
+
+    {{-- ── Таблица ─────────────────────────────────────────────────────── --}}
+    <div class="league-pane" id="pane-standings">
+        @if(empty($standings))
+            <div class="empty-state">
+                <i class="bi bi-table"></i>
+                <div class="empty-title">Таблица пока пустая</div>
+                <div class="empty-text">Она появится, когда завершится первый этап лиги.</div>
             </div>
-
-            @if($league->stages->isEmpty())
-                <p class="text-secondary mb-3">Этапов ещё нет. Создайте первый — состав лиги запишется в него сам.</p>
-            @else
-                <div class="stage-list mb-4">
-                    @foreach($league->stages as $stage)
-                        <a href="{{ route('club.tournaments.show', $stage) }}" class="stage-row">
-                            <div class="stage-num">{{ $stage->league_stage }}</div>
-                            <div class="stage-main">
-                                <div class="stage-name">{{ $stage->name }}</div>
-                                <div class="stage-meta">
-                                    {{ $stage->start_date?->locale('ru')->translatedFormat('j MMM, HH:mm') }}
-                                    · {{ $stage->status_name }}
-                                </div>
-                            </div>
-                            <i class="bi bi-chevron-right text-secondary"></i>
-                        </a>
-                    @endforeach
+        @else
+            <div class="lg-panel">
+                <div class="leaderboard-table-wrapper">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th class="col-rank">#</th>
+                                <th class="col-player">Игрок</th>
+                                <th class="col-stat" title="Этапов сыграно">Этапов</th>
+                                <th class="col-stat" title="Побед">Побед</th>
+                                <th class="col-stat" title="Поражений">Пораж.</th>
+                                <th class="col-stat" title="Ничьих">Ничьих</th>
+                                <th class="col-stat" title="Пропущено очков">Пропущено</th>
+                                <th class="col-stat" title="Разница забито − пропущено">Разница</th>
+                                <th class="col-points" title="Сумма забитых очков за все этапы — первый критерий таблицы">Забито</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($standings as $row)
+                                @php
+                                    $rank = $row['position'];
+                                    $rankClass = $rank === 1 ? 'gold' : ($rank === 2 ? 'silver' : ($rank === 3 ? 'bronze' : ''));
+                                @endphp
+                                <tr class="{{ $rankClass }}">
+                                    <td class="col-rank">
+                                        <span class="rank-badge {{ $rankClass }}">{{ $rank }}</span>
+                                    </td>
+                                    <td class="col-player">
+                                        <div class="player-info">
+                                            @if($row['avatar'])
+                                                <img src="{{ $row['avatar'] }}" alt="" class="player-avatar-img">
+                                            @else
+                                                <div class="player-avatar">
+                                                    {{ mb_strtoupper(mb_substr($row['name'], 0, 1)) }}
+                                                </div>
+                                            @endif
+                                            <div class="player-details">
+                                                <div class="player-name">{{ $row['name'] }}</div>
+                                                <div class="player-rating">
+                                                    {{ $row['rating'] }}
+                                                    @if($row['best_place'])
+                                                        · лучшее место на этапе: {{ $row['best_place'] }}
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="col-stat">{{ $row['stages'] }}</td>
+                                    <td class="col-stat">{{ $row['wins'] }}</td>
+                                    <td class="col-stat">{{ $row['losses'] }}</td>
+                                    <td class="col-stat">{{ $row['draws'] }}</td>
+                                    <td class="col-stat points-against">{{ $row['points_against'] }}</td>
+                                    <td class="col-stat {{ $row['diff'] > 0 ? 'points-for' : ($row['diff'] < 0 ? 'points-against' : '') }}">
+                                        {{ $row['diff'] > 0 ? '+' : '' }}{{ $row['diff'] }}
+                                    </td>
+                                    <td class="col-points">{{ $row['points_for'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
-            @endif
 
-            <form method="POST" action="{{ route('club.leagues.stages.add', $league) }}" class="stage-form">
+                <div class="lg-legend">
+                    Места — по сумме забитых очков за все этапы. При равенстве выше тот,
+                    у кого больше процент побед, затем — личные встречи по всем этапам.
+                    Незавершённый этап в зачёт не идёт.
+                </div>
+            </div>
+        @endif
+    </div>
+
+    {{-- ── Этапы ───────────────────────────────────────────────────────── --}}
+    <div class="league-pane d-none" id="pane-stages">
+        @if($league->stages->isEmpty())
+            <div class="empty-state">
+                <i class="bi bi-calendar-plus"></i>
+                <div class="empty-title">Этапов ещё нет</div>
+                <div class="empty-text">Создайте первый — состав лиги запишется в него автоматически.</div>
+            </div>
+        @else
+            <div class="lg-list">
+                @foreach($league->stages as $stage)
+                    <a href="{{ route('club.tournaments.show', $stage) }}" class="lg-row">
+                        <div class="lg-num {{ $stage->status === 'completed' ? 'done' : '' }}">
+                            {{ $stage->league_stage }}
+                        </div>
+                        <div class="lg-row-main">
+                            <div class="lg-row-name">{{ $stage->name }}</div>
+                            <div class="lg-row-note">
+                                {{ $stage->start_date?->locale('ru')->translatedFormat('j MMMM, HH:mm') }}
+                                · {{ $stage->status_name }}
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right lg-chevron"></i>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="lg-panel mt-3">
+            <div class="lg-panel-title">Новый этап</div>
+            <div class="lg-panel-note">
+                Создастся турнир Americano Flex с настройками лиги, состав запишется в него сразу.
+            </div>
+            <form method="POST" action="{{ route('club.leagues.stages.add', $league) }}">
                 @csrf
                 <div class="row align-items-end">
                     <div class="col-md-4 mb-3">
@@ -163,145 +183,172 @@
                         <input type="number" name="courts_count" class="form-control-custom" min="1" max="16" value="2">
                     </div>
                     <div class="col-md-1 mb-3">
-                        <button type="submit" class="btn-primary-custom w-100">
+                        <button type="submit" class="btn-add w-100 justify-content-center">
                             <i class="bi bi-plus-lg"></i>
                         </button>
                     </div>
                 </div>
-                <small class="text-secondary">
-                    Создастся турнир Americano Flex, привязанный к лиге, а состав лиги запишется в него сразу.
-                </small>
             </form>
         </div>
     </div>
-</div>
 
-{{-- ── Состав ──────────────────────────────────────────────────────── --}}
-<div class="league-pane d-none" id="pane-players">
-    <div class="card-dark">
-        <div class="card-body">
-            <form method="POST" action="{{ route('club.leagues.players.add', $league) }}" class="mb-4 player-add">
+    {{-- ── Состав ──────────────────────────────────────────────────────── --}}
+    <div class="league-pane d-none" id="pane-players">
+        <div class="lg-panel mb-3">
+            <div class="lg-panel-title">Добавить игрока</div>
+            <form method="POST" action="{{ route('club.leagues.players.add', $league) }}">
                 @csrf
-                <label class="form-label">Добавить игрока</label>
                 <div class="player-search-wrap">
                     <input type="text" id="playerSearch" class="form-control-custom"
                            placeholder="Имя или телефон" autocomplete="off">
                     <input type="hidden" name="user_id" id="playerId">
                     <div class="search-results" id="playerResults"></div>
                 </div>
-                <button type="submit" class="btn-primary-custom mt-3" id="addPlayerBtn" disabled>
+                <button type="submit" class="btn-add mt-3" id="addPlayerBtn" disabled>
                     <i class="bi bi-person-plus"></i> Добавить в лигу
                 </button>
             </form>
-
-            @if($players->isEmpty())
-                <p class="text-secondary mb-0">В лиге пока никого нет.</p>
-            @else
-                <div class="player-list">
-                    @foreach($players as $row)
-                        <div class="player-row {{ $row->status === 'left' ? 'player-left' : '' }}">
-                            @if($row->user?->avatar)
-                                <img src="{{ $row->user->avatar }}" alt="" class="league-avatar">
-                            @else
-                                <div class="league-avatar league-avatar-empty">
-                                    {{ mb_strtoupper(mb_substr($row->user->name ?? '?', 0, 1)) }}
-                                </div>
-                            @endif
-                            <div class="player-main">
-                                <div class="league-player-name">{{ $row->user->name ?? 'Игрок' }}</div>
-                                <div class="league-player-meta">
-                                    @if($row->user?->level) L{{ number_format((float) $row->user->level, 2) }} · @endif
-                                    {{ $row->user->rating ?? 0 }}
-                                    @if($row->status === 'left') · выбыл @endif
-                                </div>
-                            </div>
-                            @if($row->status !== 'left')
-                                <form method="POST" action="{{ route('club.leagues.players.remove', [$league, $row->user_id]) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn-outline-custom btn-sm" title="Убрать из состава">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            @endif
         </div>
+
+        @if($players->isEmpty())
+            <div class="empty-state">
+                <i class="bi bi-people"></i>
+                <div class="empty-title">В лиге пока никого нет</div>
+                <div class="empty-text">Добавьте игроков — они попадут в состав всех этапов.</div>
+            </div>
+        @else
+            <div class="lg-list">
+                @foreach($players as $row)
+                    <div class="lg-row {{ $row->status === 'left' ? 'lg-left' : '' }}">
+                        @if($row->user?->avatar)
+                            <img src="{{ $row->user->avatar }}" alt="" class="player-avatar-img">
+                        @else
+                            <div class="player-avatar">
+                                {{ mb_strtoupper(mb_substr($row->user->name ?? '?', 0, 1)) }}
+                            </div>
+                        @endif
+                        <div class="lg-row-main">
+                            <div class="lg-row-name">{{ $row->user->name ?? 'Игрок' }}</div>
+                            <div class="lg-row-note">
+                                @if($row->user?->level) L{{ number_format((float) $row->user->level, 2) }} · @endif
+                                {{ $row->user->rating ?? 0 }}
+                                @if($row->status === 'left') · выбыл @endif
+                            </div>
+                        </div>
+                        @if($row->status !== 'left')
+                            <form method="POST" action="{{ route('club.leagues.players.remove', [$league, $row->user_id]) }}">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn-icon" title="Убрать из состава">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 </div>
 
 <style>
-.league-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.league-tab {
-    background: var(--card-bg, #16161a); border: 1px solid rgba(255,255,255,.06);
-    color: var(--text-secondary); border-radius: 10px; padding: 9px 16px; cursor: pointer; font-size: 14px;
-}
-.league-tab.active { background: rgba(34,197,94,.14); border-color: rgba(34,197,94,.35); color: #22c55e; font-weight: 600; }
-.tab-count { opacity: .7; margin-left: 4px; }
+.leagues-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+.leagues-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+.leagues-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.leagues-sub { color: #71717a; font-size: 13px; margin-top: 4px; }
+.lg-actions { display: flex; gap: 8px; }
+.btn-add { display: inline-flex; align-items: center; gap: 8px; background: #22c55e; color: #0a0a0b; border: none; padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+.btn-add:hover { background: #16a34a; color: #0a0a0b; }
+.btn-add:disabled { opacity: .5; cursor: not-allowed; }
+.btn-ghost { display: inline-flex; align-items: center; gap: 7px; background: #15181A; border: 1px solid rgba(255,255,255,0.08); color: #a1a1aa; padding: 11px 16px; border-radius: 10px; font-size: 13.5px; text-decoration: none; }
+.btn-ghost:hover { color: #f4f6f7; border-color: rgba(255,255,255,0.16); }
+.btn-icon { background: transparent; border: 1px solid rgba(255,255,255,0.08); color: #7c848a; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; }
+.btn-icon:hover { color: #ef4444; border-color: rgba(239,68,68,0.35); }
 
-.league-table th { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
-.league-table td { vertical-align: middle; }
-.league-place { font-weight: 700; }
-.league-points { font-weight: 700; color: #22c55e; }
-.league-player { display: flex; align-items: center; gap: 10px; }
-.league-avatar { width: 32px; height: 32px; border-radius: 10px; object-fit: cover; flex: 0 0 auto; }
-.league-avatar-empty {
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(34,197,94,.14); color: #22c55e; font-weight: 700; font-size: 13px;
-}
-.league-player-name { font-weight: 600; color: #fff; }
-.league-player-meta { font-size: 11.5px; color: var(--text-secondary); }
-.league-legend { margin-top: 14px; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+.flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 
-.league-progress-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,.07); overflow: hidden; }
-.league-progress-bar span { display: block; height: 100%; background: #22c55e; }
-.league-progress-text { margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+.lg-progress-wide { margin-bottom: 18px; }
+.lg-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.lg-bar span { display: block; height: 100%; background: #22c55e; }
 
-.stage-list { display: grid; gap: 8px; }
-.stage-row {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
-    background: rgba(255,255,255,.03); text-decoration: none; color: inherit;
-}
-.stage-row:hover { background: rgba(34,197,94,.08); }
-.stage-num {
-    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: rgba(34,197,94,.14); color: #22c55e; font-weight: 700; font-size: 13px; flex: 0 0 auto;
-}
-.stage-main { flex: 1; min-width: 0; }
-.stage-name { font-weight: 600; color: #fff; }
-.stage-meta { font-size: 12px; color: var(--text-secondary); }
+.league-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #27272a; }
+.tab-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: transparent; color: #71717a; border: none; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; margin-bottom: -1px; }
+.tab-link:hover { color: #a1a1aa; }
+.tab-link.tab-active { color: #22c55e; border-bottom-color: #22c55e; }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; background: #16161a; border: 1px solid #27272a; border-radius: 10px; font-size: 11px; font-weight: 700; color: #a1a1aa; }
+.tab-link.tab-active .tab-count { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.3); color: #22c55e; }
 
-.player-list { display: grid; gap: 8px; }
-.player-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.03); }
-.player-left { opacity: .45; }
-.player-main { flex: 1; min-width: 0; }
+.lg-panel { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 18px; }
+.lg-panel-title { font-size: 15px; font-weight: 700; color: #f4f6f7; margin-bottom: 4px; }
+.lg-panel-note { font-size: 13px; color: #7c848a; margin-bottom: 14px; }
+.lg-legend { margin-top: 14px; font-size: 12.5px; color: #7c848a; line-height: 1.5; }
+
+/* Таблица — как в турнирах Americano Flex */
+.leaderboard-table-wrapper { overflow-x: auto; }
+.leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.leaderboard-table thead { background: rgba(255,255,255,0.05); }
+.leaderboard-table th { padding: 12px 8px; text-align: center; font-weight: 600; color: #a1a1aa; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.leaderboard-table th.col-player { text-align: left; }
+.leaderboard-table td { padding: 12px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.leaderboard-table tr:hover { background: rgba(255,255,255,0.03); }
+.leaderboard-table tr.gold { background: rgba(255,215,0,0.08); }
+.leaderboard-table tr.silver { background: rgba(192,192,192,0.08); }
+.leaderboard-table tr.bronze { background: rgba(205,127,50,0.08); }
+.col-rank { width: 50px; }
+.col-player { text-align: left !important; min-width: 200px; }
+.col-stat { width: 84px; }
+.col-points { width: 90px; font-weight: 800; color: #22c55e; }
+.points-for { color: #22c55e; }
+.points-against { color: #a1a1aa; }
+.rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.06); font-size: 12px; font-weight: 800; color: #a1a1aa; }
+.rank-badge.gold { background: rgba(255,215,0,0.18); color: #ffd700; }
+.rank-badge.silver { background: rgba(192,192,192,0.18); color: #c0c0c0; }
+.rank-badge.bronze { background: rgba(205,127,50,0.18); color: #cd7f32; }
+.player-info { display: flex; align-items: center; gap: 10px; }
+.player-avatar, .player-avatar-img { width: 34px; height: 34px; border-radius: 10px; flex: 0 0 auto; }
+.player-avatar { display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.14); color: #22c55e; font-weight: 800; font-size: 13px; }
+.player-avatar-img { object-fit: cover; }
+.player-name { font-weight: 700; color: #f4f6f7; }
+.player-rating { font-size: 11.5px; color: #7c848a; }
+
+.lg-list { display: grid; gap: 8px; }
+.lg-row { display: flex; align-items: center; gap: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 14px; text-decoration: none; color: inherit; transition: border-color 0.15s; }
+a.lg-row:hover { border-color: rgba(34,197,94,0.35); }
+.lg-left { opacity: .45; }
+.lg-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); color: #a1a1aa; font-weight: 800; font-size: 13px; flex: 0 0 auto; }
+.lg-num.done { background: rgba(34,197,94,0.14); color: #22c55e; }
+.lg-row-main { flex: 1; min-width: 0; }
+.lg-row-name { font-weight: 700; color: #f4f6f7; }
+.lg-row-note { font-size: 12.5px; color: #7c848a; margin-top: 2px; }
+.lg-chevron { color: #52525b; }
+
+.empty-state { background: #15181A; border: 1px dashed rgba(255,255,255,0.10); border-radius: 16px; padding: 56px 24px; text-align: center; }
+.empty-state i { font-size: 30px; color: #3f3f46; display: block; margin-bottom: 14px; }
+.empty-title { font-size: 16px; font-weight: 700; color: #f4f6f7; }
+.empty-text { font-size: 13.5px; color: #7c848a; margin: 8px auto 0; max-width: 460px; line-height: 1.5; }
+
 .player-search-wrap { position: relative; }
-.search-results {
-    display: none; position: absolute; z-index: 20; left: 0; right: 0; top: 100%;
-    margin-top: 4px; background: #16161a; border: 1px solid rgba(255,255,255,.08);
-    border-radius: 12px; overflow: hidden; max-height: 280px; overflow-y: auto;
-}
+.search-results { display: none; position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 4px; background: #15181A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; max-height: 300px; overflow-y: auto; }
 .search-results.show { display: block; }
 .search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
-.search-result-item:hover { background: rgba(34,197,94,.1); }
-.search-result-meta { font-size: 12px; color: var(--text-secondary); }
+.search-result-item:hover { background: rgba(34,197,94,0.1); }
+.search-result-meta { font-size: 12px; color: #7c848a; }
 </style>
 
 <script>
 // Вкладки: таблица, этапы, состав.
-document.querySelectorAll('.league-tab').forEach(function (tab) {
+document.querySelectorAll('.tab-link').forEach(function (tab) {
     tab.addEventListener('click', function () {
-        document.querySelectorAll('.league-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('tab-active'));
         document.querySelectorAll('.league-pane').forEach(p => p.classList.add('d-none'));
-        tab.classList.add('active');
+        tab.classList.add('tab-active');
         document.getElementById('pane-' + tab.dataset.tab).classList.remove('d-none');
     });
 });
 
-// Поиск игрока для состава — тот же эндпоинт, что и в остальных местах,
-// он уже понимает и «Денис», и «Denis».
+// Поиск игрока для состава: тот же умный поиск, что и в остальных местах.
 (function () {
     const input = document.getElementById('playerSearch');
     const hidden = document.getElementById('playerId');
@@ -323,17 +370,17 @@ document.querySelectorAll('.league-tab').forEach(function (tab) {
             fetch(`{{ route('club.leagues.players.search', $league) }}?q=${encodeURIComponent(q)}`)
                 .then(r => r.json())
                 .then(data => {
-                    const players = data.players || data || [];
+                    const players = data.players || [];
                     if (!players.length) {
-                        results.innerHTML = '<div class="search-result-item text-secondary">Никого не нашли</div>';
+                        results.innerHTML = '<div class="search-result-item search-result-meta">Никого не нашли</div>';
                     } else {
                         results.innerHTML = players.map(p => `
                             <div class="search-result-item" data-id="${p.id}" data-name="${p.name}">
                                 ${p.avatar
-                                    ? `<img class="league-avatar" src="${p.avatar}" alt="">`
-                                    : `<div class="league-avatar league-avatar-empty">${(p.name || '?').charAt(0).toUpperCase()}</div>`}
+                                    ? `<img class="player-avatar-img" src="${p.avatar}" alt="">`
+                                    : `<div class="player-avatar">${(p.name || '?').charAt(0).toUpperCase()}</div>`}
                                 <div>
-                                    <div class="league-player-name">${p.name}</div>
+                                    <div class="player-name">${p.name}</div>
                                     <div class="search-result-meta">${p.phone || ''}</div>
                                 </div>
                             </div>`).join('');

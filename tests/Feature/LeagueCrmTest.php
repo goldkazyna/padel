@@ -180,6 +180,6 @@ class LeagueCrmTest extends TestCase
             ->assertSee('Сентябрь Кап')
             ->assertSee('Этап 1')
             ->assertSee('Ерлан Игрок')
-            ->assertSee('Таблица появится, когда завершится первый этап.');
+            ->assertSee('Она появится, когда завершится первый этап лиги.');
     }
 }
