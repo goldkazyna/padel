@@ -253,6 +253,10 @@ class PlayerMatchHistory
             'format' => $format,
             'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
+            // Числами, а не только строкой счёта: по ним считаются значки
+            // за забитые мячи, и разбирать «16:8» обратно не нужно.
+            'points_for' => (int) $myScore,
+            'points_against' => (int) $oppScore,
             'partner' => $partner ? [
                 'id' => $partner->id,
                 'name' => $partner->name,
@@ -297,6 +301,10 @@ class PlayerMatchHistory
             'format' => 'bali_koc',
             'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
+            // Числами, а не только строкой счёта: по ним считаются значки
+            // за забитые мячи, и разбирать «16:8» обратно не нужно.
+            'points_for' => (int) $myScore,
+            'points_against' => (int) $oppScore,
             'partner' => $partner ? [
                 'id' => $partner->id,
                 'name' => $partner->name,
@@ -336,6 +344,10 @@ class PlayerMatchHistory
             'format' => $format,
             'result' => $myScore > $oppScore ? 'win' : ($myScore < $oppScore ? 'loss' : 'draw'),
             'score' => "{$myScore}:{$oppScore}",
+            // Числами, а не только строкой счёта: по ним считаются значки
+            // за забитые мячи, и разбирать «16:8» обратно не нужно.
+            'points_for' => (int) $myScore,
+            'points_against' => (int) $oppScore,
             'partner' => $partner ? [
                 'id' => $partner->id,
                 'name' => $partner->name,

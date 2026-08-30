@@ -42,8 +42,8 @@ class AchievementApiTest extends TestCase
         $response = $this->getJson('/api/mobile/achievements')->assertOk();
 
         $this->assertTrue($response->json('success'));
-        $this->assertCount(15, $response->json('achievements'));
-        $this->assertSame(15, UserAchievement::where('user_id', $user->id)->count(),
+        $this->assertCount(18, $response->json('achievements'));
+        $this->assertSame(18, UserAchievement::where('user_id', $user->id)->count(),
             'открытие экрана пересчитывает значки');
 
         $jump = collect($response->json('achievements'))->firstWhere('code', 'jump_100');

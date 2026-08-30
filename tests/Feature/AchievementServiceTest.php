@@ -54,7 +54,7 @@ class AchievementServiceTest extends TestCase
         $service->sync($user);
 
         $this->assertSame([], $service->sync($user), 'второй проход не выдаёт те же значки заново');
-        $this->assertSame(15, UserAchievement::where('user_id', $user->id)->count(),
+        $this->assertSame(18, UserAchievement::where('user_id', $user->id)->count(),
             'по строке на каждый значок, дублей нет');
     }
 
@@ -98,7 +98,7 @@ class AchievementServiceTest extends TestCase
         $owner = $service->forOwner($user);
         $visitor = $service->forVisitor($user);
 
-        $this->assertCount(15, $owner, 'владелец видит и незакрытые значки');
+        $this->assertCount(18, $owner, 'владелец видит и незакрытые значки');
         $this->assertNotEmpty($visitor);
         foreach ($visitor as $item) {
             $this->assertNotNull($item['unlocked_at'], 'гостю показываем только полученное');

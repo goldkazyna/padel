@@ -150,6 +150,36 @@ class AchievementRulesTest extends TestCase
         $this->assertSame(8, $rule->progress($this->history($matches)));
     }
 
+    public function test_значки_за_мячи_считают_забитое(): void
+    {
+        $rule = new \App\Achievements\Rules\Points500();
+
+        $matches = [
+            $this->match(['points_for' => 300, 'points_against' => 100]),
+            $this->match(['points_for' => 150, 'points_against' => 200]),
+        ];
+
+        // Считаем только свои очки, независимо от результата матча.
+        $this->assertSame(450, $rule->progress($this->history($matches)));
+    }
+
+    public function test_пороги_за_мячи_растут_с_металлом(): void
+    {
+        // Пороги взяты из живого распределения: 500 — у 29% игроков,
+        // 1700 — у 10%, 5000 — у 1%.
+        $bronze = new \App\Achievements\Rules\Points500();
+        $silver = new \App\Achievements\Rules\Points1700();
+        $gold = new \App\Achievements\Rules\Points5000();
+
+        $this->assertSame([500, 1700, 5000], [$bronze->target(), $silver->target(), $gold->target()]);
+        $this->assertSame(['bronze', 'silver', 'gold'], [$bronze->tier(), $silver->tier(), $gold->tier()]);
+        $this->assertSame('Забить 1700 мячей', $silver->description());
+
+        // Значок не перепрыгивает свой потолок.
+        $many = [$this->match(['points_for' => 9000])];
+        $this->assertSame(500, $bronze->progress($this->history($many)));
+    }
+
     public function test_clubs_counted_by_id(): void
     {
         $rule = new Clubs3();
@@ -193,12 +223,12 @@ class AchievementRulesTest extends TestCase
         $this->assertSame(0, $rule->progress($this->history([], $flat)), '1100 — тот же уровень 1.0');
     }
 
-    public function test_registry_holds_fifteen_rules_with_unique_codes(): void
+    public function test_registry_holds_all_rules_with_unique_codes(): void
     {
         $rules = app(AchievementRegistry::class)->all();
         $codes = array_map(fn ($r) => $r->code(), $rules);
 
-        $this->assertCount(15, $rules);
+        $this->assertCount(18, $rules);
         $this->assertSame($codes, array_unique($codes), 'коды значков не должны повторяться');
         $this->assertInstanceOf(FirstWin::class, app(AchievementRegistry::class)->byCode('first_win'));
         $this->assertNull(app(AchievementRegistry::class)->byCode('нет такого'));

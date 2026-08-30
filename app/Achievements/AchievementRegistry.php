@@ -5,7 +5,7 @@ namespace App\Achievements;
 use App\Achievements\Rules;
 
 /**
- * Все значки в порядке показа: первые шаги, победы, рейтинг, кругозор, вместе.
+ * Все значки в порядке показа: первые шаги, победы, рейтинг, кругозор, вместе, мячи.
  * Добавить значок — добавить класс и строку сюда.
  */
 class AchievementRegistry
@@ -29,6 +29,9 @@ class AchievementRegistry
             new Rules\FormatsAll(),
             new Rules\Clubs3(),
             new Rules\Duo10(),
+            new Rules\Points500(),
+            new Rules\Points1700(),
+            new Rules\Points5000(),
         ];
     }
 
