@@ -122,9 +122,7 @@
                             </td>
                             <td class="col-player ttt">
                                 <div class="player-info">
-                                    <div class="player-avatar">
-                                        {{ mb_strtoupper(mb_substr($player->name, 0, 1)) }}
-                                    </div>
+                                    @include('club.tournaments.partials._player_avatar')
                                     <div class="player-details">
                                         <div class="player-name">{{ $player->name }}</div>
                                         <div class="player-rating">{{ $player->rating }}</div>
@@ -378,6 +376,15 @@
 .team-score { font-size: 40px; }
 .score-team-names { font-size: 22px; }
 .player-name { font-weight: 500; font-size: 24px; }
+
+/* Аватар игрока в таблице: фото, если есть, иначе инициалы. */
+.player-info { display: flex; align-items: center; gap: 12px; }
+.player-avatar { width: 36px; height: 36px; flex: none; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; background: var(--accent); color: #000;
+    font-weight: 600; font-size: 0.75rem; }
+.player-avatar-img { object-fit: cover; background: transparent; }
+.player-details { display: flex; flex-direction: column; }
+.player-rating { font-size: 0.75rem; color: var(--text-secondary); }
 .ttt { font-size: 24px; }
 </style>
 

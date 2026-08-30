@@ -216,9 +216,7 @@
                         </td>
                         <td class="col-player">
                             <div class="player-info">
-                                <div class="player-avatar">
-                                    {{ mb_strtoupper(mb_substr($u->first_name ?? $u->name, 0, 1) . mb_substr($u->last_name ?? '', 0, 1)) }}
-                                </div>
+                                @include('club.tournaments.partials._player_avatar', ['player' => $u])
                                 <div class="player-details">
                                     <div class="player-name">{{ $u->name }}</div>
                                     <div class="player-rating">
@@ -547,6 +545,12 @@
 }
 
 .player-details {
+
+/* Фото игрока вместо инициалов: тот же кружок, только с картинкой. */
+.player-avatar-img {
+    object-fit: cover;
+    background: transparent;
+}
     display: flex;
     flex-direction: column;
     text-align: left;
