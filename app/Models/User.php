@@ -1017,16 +1017,22 @@ class User extends Authenticatable
 		];
 
 		// Американо
-		$americanoCount = \App\Models\Tournament::where('type', 'americano')
+		$americanoTournaments = \App\Models\Tournament::where('type', 'americano')
 			->where('is_rated', true)
 			->where('status', 'completed')
 			->whereHas('groups.players', function($q) {
 				$q->where('users.id', $this->id);
-			})->count();
+			})->get();
 		
-		if ($americanoCount > 0) {
-			$stats['total'] += $americanoCount;
-			$stats['by_type']['americano'] = $americanoCount;
+		foreach ($americanoTournaments as $tournament) {
+			$stats['total']++;
+			$stats['by_type']['americano'] = ($stats['by_type']['americano'] ?? 0) + 1;
+		
+			// Победы Американо не считались вовсе: игрок с первым местом в
+			// профиле видел «Выиграть турнир 0/1».
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
+				$stats['wins']++;
+			}
 		}
 
 		// Мексикано
@@ -1041,9 +1047,9 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['mexicano'] = ($stats['by_type']['mexicano'] ?? 0) + 1;
 			
-			// Проверяем 1-е место
-			$winner = $tournament->mexicanoPlayers()->orderBy('total_points', 'desc')->first();
-			if ($winner && $winner->user_id === $this->id) {
+			// Тот же определитель, что и место в профиле: сыгран финал —
+			// решает он, иначе первая строка таблицы формата.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
@@ -1060,11 +1066,9 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['king_of_court'] = ($stats['by_type']['king_of_court'] ?? 0) + 1;
 
-			// 1-е место по total_points (как в лидерборде KOC)
-			$winner = $tournament->kingOfCourtPlayers()
-				->orderBy('total_points', 'desc')
-				->first();
-			if ($winner && $winner->user_id === $this->id) {
+			// Через общий определитель: у фикс-пар чемпион — верхняя пара,
+			// а порядок таблицы задаёт ранжирование формата.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
@@ -1185,9 +1189,9 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['americano_flex'] = ($stats['by_type']['americano_flex'] ?? 0) + 1;
 
-			// Чемпион — первая строка итоговой таблицы формата
-			// (среднее → % побед → личная встреча → рейтинг).
-			if (\App\Support\AmericanoFlexRanking::place($tournament, $this->id) === 1) {
+			// Чемпион — первая строка итоговой таблицы формата; у парного
+			// флекса это верхняя пара, поэтому спрашиваем общий определитель.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
