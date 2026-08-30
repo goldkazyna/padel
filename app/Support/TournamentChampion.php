@@ -96,8 +96,63 @@ class TournamentChampion
             $tournament->type === 'king_of_court'
                 => KingOfCourtRanking::place($tournament, $userId) === 1,
 
+            $tournament->isPairedJustPadelIt() => self::topPair(
+                app(\App\Services\JustPadelItService::class)->getPairStandings($tournament),
+                $userId
+            ),
+
+            $tournament->type === 'just_padel_it'
+                => self::topRow(self::jpiRows($tournament), $userId),
+
+            $tournament->type === 'bali_koc' => self::topPair(
+                array_map(
+                    fn ($pair) => ['pair' => $pair],
+                    array_values(app(\App\Services\BaliKocService::class)->getStandings($tournament))
+                ),
+                $userId
+            ),
+
+            $tournament->type === 'round_robin' => self::topRow(
+                app(\App\Services\RoundRobinService::class)->standings($tournament),
+                $userId
+            ),
+
+            $tournament->isEscalera() => self::topRow(
+                app(\App\Services\EscaleraService::class)->standings($tournament),
+                $userId
+            ),
+
+            // Групповой турнир без сыгранного финала чемпиона не имеет.
             default => false,
         };
+    }
+
+    /**
+     * Верхняя строка таблицы по ключу user_id — форматы, где зачёт личный.
+     *
+     * @param array<int, array<string, mixed>> $standings
+     */
+    private static function topRow(array $standings, int $userId): bool
+    {
+        $top = $standings[0] ?? null;
+
+        return $top !== null && (int) ($top['user_id'] ?? 0) === $userId;
+    }
+
+    /** Строки соло Just Padel It в порядке его собственного зачёта. */
+    private static function jpiRows(Tournament $tournament): array
+    {
+        $rows = $tournament->justPadelItPlayers->map(fn ($jp) => [
+            'user_id' => (int) $jp->user_id,
+            'total_points' => (int) $jp->total_points,
+            'wins' => (int) $jp->wins,
+            'diff' => (int) $jp->points_for - (int) $jp->points_against,
+        ])->all();
+
+        return \App\Services\JustPadelItScoring::sortStandings(
+            $rows,
+            (bool) $tournament->jpi_rank_by_wins
+        );
     }
 
     /**

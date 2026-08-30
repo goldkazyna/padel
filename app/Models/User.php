@@ -1085,10 +1085,8 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['escalera'] = ($stats['by_type']['escalera'] ?? 0) + 1;
 
-			// Победитель — первая строка итоговой таблицы формата: её порядок
-			// зависит от режима зачёта, поэтому спрашиваем сервис.
-			$standings = app(\App\Services\EscaleraService::class)->standings($tournament);
-			if (!empty($standings) && (int) $standings[0]['user_id'] === (int) $this->id) {
+			// Победителя во всех форматах определяет общий TournamentChampion.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
@@ -1105,30 +1103,8 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['just_padel_it'] = ($stats['by_type']['just_padel_it'] ?? 0) + 1;
 
-			// Порядок таблицы зависит от режима зачёта (по очкам либо по победам),
-			// поэтому сортируем тем же ключом, что и остальные экраны формата.
-			if ($tournament->isPairedJustPadelIt()) {
-				// Фиксированные пары: чемпион — верхняя пара, зачёт идёт по ней.
-				$standings = app(\App\Services\JustPadelItService::class)->getPairStandings($tournament);
-				$top = $standings[0]['pair'] ?? null;
-				if ($top && ((int) $top->player1_id === (int) $this->id
-					|| (int) $top->player2_id === (int) $this->id)) {
-					$stats['wins']++;
-				}
-				continue;
-			}
-
-			$rows = $tournament->justPadelItPlayers->map(fn($jp) => [
-				'user_id' => (int) $jp->user_id,
-				'total_points' => (int) $jp->total_points,
-				'wins' => (int) $jp->wins,
-				'diff' => (int) $jp->points_for - (int) $jp->points_against,
-			])->all();
-			$rows = \App\Services\JustPadelItScoring::sortStandings(
-				$rows,
-				(bool) $tournament->jpi_rank_by_wins
-			);
-			if (!empty($rows) && $rows[0]['user_id'] === (int) $this->id) {
+			// Победителя во всех форматах определяет общий TournamentChampion.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
@@ -1146,12 +1122,9 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['team'] = ($stats['by_type']['team'] ?? 0) + 1;
 
-			// Проверяем победителя финала
-			$finalMatch = $tournament->playoffMatches()->where('stage', 'final')->first();
-			if ($finalMatch && $finalMatch->winner) {
-				if ($finalMatch->winner->player1_id === $this->id || $finalMatch->winner->player2_id === $this->id) {
-					$stats['wins']++;
-				}
+			// Победителя во всех форматах определяет общий TournamentChampion.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
+				$stats['wins']++;
 			}
 		}
 
@@ -1168,11 +1141,8 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['bali_koc'] = ($stats['by_type']['bali_koc'] ?? 0) + 1;
 
-			// 1-е место по очкам (как в таблице Bali KOC)
-			$winner = $tournament->baliKocPairs()
-				->orderBy('points', 'desc')
-				->first();
-			if ($winner && ($winner->player1_id === $this->id || $winner->player2_id === $this->id)) {
+			// Победителя во всех форматах определяет общий TournamentChampion.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
@@ -1208,16 +1178,8 @@ class User extends Authenticatable
 			$stats['total']++;
 			$stats['by_type']['round_robin'] = ($stats['by_type']['round_robin'] ?? 0) + 1;
 
-			// Чемпион — больше побед, при равенстве — разница геймов (как в таблице RR)
-			$players = $tournament->roundRobinPlayers()->get()->all();
-			usort($players, function($a, $b) {
-				if ($a->wins !== $b->wins) return $b->wins <=> $a->wins;
-				$da = $a->points_for - $a->points_against;
-				$db = $b->points_for - $b->points_against;
-				return $db <=> $da;
-			});
-			$winner = $players[0] ?? null;
-			if ($winner && $winner->user_id === $this->id) {
+			// Победителя во всех форматах определяет общий TournamentChampion.
+			if (\App\Support\TournamentChampion::is($tournament, (int) $this->id)) {
 				$stats['wins']++;
 			}
 		}
