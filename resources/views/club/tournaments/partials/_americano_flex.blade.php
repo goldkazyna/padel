@@ -74,68 +74,9 @@
     @endif
 </div>
 
-{{-- Парный флекс: сбор пар до старта --}}
+{{-- Парный флекс: сбор пар до старта — клик по игроку, клик по партнёру. --}}
 @if($isPaired && $canManage && in_array($tournament->status, ['open', 'closed']))
-    @php
-        $pairedIds = $approvedTeams->flatMap(fn($t) => [$t->player1_id, $t->player2_id])->all();
-        $soloPlayers = $tournament->participants()
-            ->wherePivot('status', 'registered')->get()
-            ->reject(fn($u) => in_array($u->id, $pairedIds))
-            ->sortByDesc('rating')->values();
-        $maxPairs = (int) ($tournament->max_participants / 2);
-        $rosterReady = $tournament->approvedParticipantsCount() >= (int) $tournament->max_participants;
-    @endphp
-
-    <div class="admin-pairing mb-4" style="background:#18181b;border:1px solid #2a2a2a;border-radius:14px;padding:16px;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <strong style="color:#fff;"><i class="bi bi-people me-1"></i> Сбор пар — {{ $approvedTeams->count() }} / {{ $maxPairs }}</strong>
-            @if($soloPlayers->count() >= 2)
-                <form action="{{ route('club.tournaments.pairing.auto', $tournament) }}" method="POST" class="d-inline m-0">
-                    @csrf
-                    <button type="submit" class="btn-outline-custom"><i class="bi bi-magic"></i> Авто</button>
-                </form>
-            @endif
-        </div>
-
-        @if(!$rosterReady)
-            <p style="color:#a1a1aa;margin:0;">Собрать пары можно при полном составе. Подтверждено {{ $tournament->approvedParticipantsCount() }} из {{ $tournament->max_participants }} — сначала подтвердите всех участников.</p>
-        @elseif($soloPlayers->count() >= 2)
-            <form action="{{ route('club.tournaments.pairing.create', $tournament) }}" method="POST" class="row g-2 align-items-end">
-                @csrf
-                <div class="col">
-                    <select name="player1_id" class="form-control" required>
-                        <option value="">Игрок 1…</option>
-                        @foreach($soloPlayers as $sp)<option value="{{ $sp->id }}">{{ $sp->name }}</option>@endforeach
-                    </select>
-                </div>
-                <div class="col">
-                    <select name="player2_id" class="form-control" required>
-                        <option value="">Игрок 2…</option>
-                        @foreach($soloPlayers as $sp)<option value="{{ $sp->id }}">{{ $sp->name }}</option>@endforeach
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn-primary-custom"><i class="bi bi-plus-lg"></i> Создать пару</button>
-                </div>
-            </form>
-        @else
-            <p style="color:#22c55e;margin:0;">Все пары собраны — можно запускать турнир.</p>
-        @endif
-
-        @if($approvedTeams->count() > 0)
-            <div class="mt-3">
-                @foreach($approvedTeams as $i => $team)
-                    <div class="d-flex justify-content-between align-items-center" style="background:#111113;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;margin-bottom:8px;">
-                        <span style="color:#fff;">{{ $i + 1 }}. {{ $team->player1->name ?? '—' }} <span style="color:#71717a;">+</span> {{ $team->player2->name ?? '—' }}</span>
-                        <form action="{{ route('club.tournaments.removeTeam', [$tournament, $team]) }}" method="POST" onsubmit="return confirm('Удалить пару?')">
-                            @csrf @method('DELETE')
-                            <button type="submit" title="Удалить пару" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="bi bi-x-lg"></i></button>
-                        </form>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-    </div>
+    @include('club.tournaments.partials._pair_builder')
 @endif
 
 {{-- Сессионные сообщения --}}

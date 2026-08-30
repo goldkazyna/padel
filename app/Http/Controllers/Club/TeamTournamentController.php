@@ -383,6 +383,24 @@ class TeamTournamentController extends Controller
 		return back()->with($ok ? 'success' : 'error', $msg);
 	}
 
+	/** Сохранить весь расклад пар разом — с экрана сбора пар. */
+	public function savePairing(Request $request, Tournament $tournament, TeamTournamentService $service)
+	{
+		$data = $request->validate([
+			'pairs' => 'present|array',
+			'pairs.*' => 'array|size:2',
+			'pairs.*.*' => 'integer',
+		]);
+
+		[$ok, $msg] = $service->savePairs($tournament, $data['pairs']);
+
+		if ($request->wantsJson()) {
+			return response()->json(['success' => $ok, 'message' => $msg], $ok ? 200 : 422);
+		}
+
+		return back()->with($ok ? 'success' : 'error', $msg);
+	}
+
 	public function autoPairing(Tournament $tournament, TeamTournamentService $service)
 	{
 		[$ok, $msg] = $service->autoBalancePairs($tournament);

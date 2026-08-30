@@ -677,6 +677,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // Ручной сбор пар (pairing_mode=admin)
             Route::post('/tournaments/{tournament}/pairing/create', [TeamTournamentController::class, 'createPairing'])
                 ->name('tournaments.pairing.create');
+            Route::post('/tournaments/{tournament}/pairing/save', [TeamTournamentController::class, 'savePairing'])
+                ->name('tournaments.pairing.save');
             Route::post('/tournaments/{tournament}/pairing/auto', [TeamTournamentController::class, 'autoPairing'])
                 ->name('tournaments.pairing.auto');
             Route::post('/team/group-match/{match}/score', [TeamTournamentController::class, 'saveGroupMatchScore'])

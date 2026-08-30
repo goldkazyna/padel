@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Tournament;
+use App\Models\User;
 use App\Models\TournamentTeam;
 use App\Models\TournamentTeamGroup;
 use App\Models\TournamentTeamStanding;
 use App\Models\TournamentGroupMatch;
 use App\Models\TournamentPlayoffMatch;
+use Illuminate\Support\Facades\DB;
 
 class TeamTournamentService
 {
@@ -241,6 +243,84 @@ class TeamTournamentService
         ]);
 
         return [true, 'Пара создана.'];
+    }
+
+    /**
+     * Записать сразу весь расклад пар, заменив прежний.
+     *
+     * Экран сбора пар собирает расклад целиком в браузере и присылает его
+     * одним запросом: организатор кликает по игрокам, а не отправляет форму
+     * на каждую пару и не ждёт перезагрузку по восемь раз.
+     *
+     * @param array<int, array{0: int, 1: int}> $pairs
+     * @return array{0: bool, 1: string}
+     */
+    public function savePairs(Tournament $tournament, array $pairs): array
+    {
+        if (!$tournament->isAdminPairing()) {
+            return [false, 'Сбор пар недоступен для этого турнира.'];
+        }
+        if ($tournament->teamGroups()->count() > 0) {
+            return [false, 'Турнир уже стартовал — пары менять нельзя.'];
+        }
+        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
+            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
+        }
+
+        $maxPairs = (int) ($tournament->max_participants / 2);
+        if (count($pairs) > $maxPairs) {
+            return [false, "Пар больше, чем мест: максимум {$maxPairs}."];
+        }
+
+        $registeredIds = $tournament->participants()
+            ->wherePivot('status', 'registered')
+            ->pluck('users.id')->all();
+
+        $seen = [];
+        $clean = [];
+        foreach ($pairs as $pair) {
+            $a = (int) ($pair[0] ?? 0);
+            $b = (int) ($pair[1] ?? 0);
+
+            if ($a === $b) {
+                return [false, 'Нельзя поставить игрока в пару с самим собой.'];
+            }
+            foreach ([$a, $b] as $id) {
+                if (!in_array($id, $registeredIds, true)) {
+                    return [false, 'Оба игрока должны быть записаны на турнир.'];
+                }
+                // Браузер такого не пришлёт, но расклад приходит одним куском —
+                // без проверки один игрок мог бы оказаться в двух парах.
+                if (isset($seen[$id])) {
+                    return [false, 'Один из игроков попал сразу в две пары.'];
+                }
+                $seen[$id] = true;
+            }
+
+            $clean[] = [$a, $b];
+        }
+
+        $ratings = User::whereIn('id', array_keys($seen))->pluck('rating', 'id');
+
+        DB::transaction(function () use ($tournament, $clean, $ratings) {
+            // Расклад приходит целиком, поэтому прежний стираем: иначе
+            // разбитая в браузере пара осталась бы в базе.
+            $tournament->teams()->delete();
+
+            foreach ($clean as [$a, $b]) {
+                TournamentTeam::create([
+                    'tournament_id' => $tournament->id,
+                    'player1_id' => $a,
+                    'player2_id' => $b,
+                    'status' => 'approved',
+                    'rating_avg' => (int) round(((int) ($ratings[$a] ?? 0) + (int) ($ratings[$b] ?? 0)) / 2),
+                ]);
+            }
+        });
+
+        $count = count($clean);
+
+        return [true, $count ? "Сохранено пар: {$count}." : "Пары очищены."];
     }
 
     /**
