@@ -24,6 +24,11 @@
         ? $tournament->teams()->where('status', 'approved')->orderBy('rating_avg', 'desc')->get()
         : collect();
 
+    // Парный флекс стартует только собранными парами: роутер раскладывает по
+    // кортам пары, а не игроков, поэтому кнопку старта держим выключенной.
+    $pairsNeeded = (int) ($tournament->max_participants / 2);
+    $pairsReady = !$isPaired || $approvedTeams->count() >= $pairsNeeded;
+
     $canManage = auth()->user()->isSuperAdmin()
         || (method_exists(auth()->user(), 'hasTournamentsFullAccess')
             ? auth()->user()->hasTournamentsFullAccess($tournament->club)
@@ -38,14 +43,20 @@
     @if($canManage)
         <div class="flex-actions">
             @if($tournament->status === 'open' || $tournament->status === 'closed')
-                @if($registeredCount >= $minRequired)
+                @if($registeredCount >= $minRequired && $pairsReady)
                     <form action="{{ route('club.tournaments.flex.start', $tournament) }}" method="POST"
                           onsubmit="return confirm('Запустить турнир? Будет сгенерирован первый раунд.')">
                         @csrf
-                        <button type="submit" class="btn-primary-custom">
+                        <button type="submit" class="btn-primary-custom" id="flexStartBtn">
                             <i class="bi bi-play-fill"></i> Запустить турнир
                         </button>
                     </form>
+                @elseif($registeredCount >= $minRequired)
+                    <span class="btn-outline-custom disabled"
+                          title="Соберите пары и нажмите «Сохранить пары»">
+                        <i class="bi bi-people"></i>
+                        Сначала соберите пары: {{ $approvedTeams->count() }} из {{ $pairsNeeded }}
+                    </span>
                 @else
                     <span class="btn-outline-custom disabled"
                           title="Минимум {{ $minRequired }} игроков для {{ $tournament->courts_count ?? 1 }} корта/кортов">
@@ -95,11 +106,18 @@
     {{-- Турнир ещё не запущен --}}
     <div class="flex-empty">
         <i class="bi bi-hourglass"></i>
-        <p>Турнир ещё не запущен. Зарегистрируйте игроков и нажмите «Запустить турнир».</p>
+        @if($isPaired && !$pairsReady)
+            <p>Турнир ещё не запущен. Соберите пары выше и нажмите «Сохранить пары» — после этого появится кнопка запуска.</p>
+        @else
+            <p>Турнир ещё не запущен. Зарегистрируйте игроков и нажмите «Запустить турнир».</p>
+        @endif
         <p class="flex-empty-count">
             Зарегистрировано игроков: <strong>{{ $registeredCount }}</strong>
             @if($registeredCount < $minRequired)
                 <span class="text-warning">(нужно ≥ {{ $minRequired }})</span>
+            @endif
+            @if($isPaired)
+                · собрано пар: <strong>{{ $approvedTeams->count() }}</strong> из {{ $pairsNeeded }}
             @endif
         </p>
     </div>

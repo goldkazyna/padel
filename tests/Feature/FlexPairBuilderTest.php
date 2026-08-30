@@ -206,6 +206,31 @@ class FlexPairBuilderTest extends TestCase
         $this->assertSame(0, $tournament->teams()->count());
     }
 
+    public function test_старт_недоступен_пока_пары_не_собраны(): void
+    {
+        [$tournament, $users] = $this->tournament(8);
+
+        // Пар нет — вместо кнопки старта подсказка, что делать.
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('Сначала соберите пары: 0 из 4')
+            // Слова «Запустить турнир» есть и в подсказке — ищем саму кнопку.
+            ->assertDontSee('id="flexStartBtn"', false);
+
+        $this->save($tournament, [
+            [$users[0]->id, $users[1]->id],
+            [$users[2]->id, $users[3]->id],
+            [$users[4]->id, $users[5]->id],
+            [$users[6]->id, $users[7]->id],
+        ])->assertOk();
+
+        $this->actingAs($this->admin)
+            ->get(route('club.tournaments.show', $tournament))
+            ->assertOk()
+            ->assertSee('id="flexStartBtn"', false);
+    }
+
     public function test_экран_сбора_пар_отдаёт_состав(): void
     {
         [$tournament, $users] = $this->tournament(8);

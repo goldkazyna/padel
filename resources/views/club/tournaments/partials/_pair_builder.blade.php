@@ -173,7 +173,14 @@
     let picked = null;
     let saving = false;
 
+    // Слепок сохранённого расклада: пока текущий от него отличается, кнопка
+    // старта не должна работать — турнир ушёл бы со старыми парами.
+    let savedSnapshot = snapshot(pairs);
+    const startBtn = document.getElementById('flexStartBtn');
+
     const byId = id => PLAYERS.find(p => p.id === id);
+    // Порядок пар и игроков внутри пары значения не имеет — сравниваем по составу.
+    const snapshot = list => JSON.stringify(list.map(p => [p[0], p[1]].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0]));
     const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const initials = name => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
     const avg = (a, b) => Math.round((byId(a).rating + byId(b).rating) / 2);
@@ -235,13 +242,27 @@
             ? `${byId(picked).name} — выберите ему партнёра`
             : '';
 
+        const dirty = snapshot(pairs) !== savedSnapshot;
         const status = document.getElementById('pbStatus');
         if (!status.classList.contains('ok') && !status.classList.contains('err')) {
-            status.textContent = pool.length
-                ? `Без пары ещё ${pool.length} — турнир не стартует, пока кто-то без пары`
-                : 'Все пары собраны — можно сохранять';
+            if (dirty) {
+                status.textContent = pool.length
+                    ? `Без пары ещё ${pool.length}. Изменения не сохранены — нажмите «Сохранить пары»`
+                    : 'Все пары собраны. Нажмите «Сохранить пары», иначе турнир не запустится';
+            } else {
+                status.textContent = pool.length
+                    ? `Без пары ещё ${pool.length} — турнир не стартует, пока кто-то без пары`
+                    : 'Пары сохранены — можно запускать турнир';
+            }
         }
         document.getElementById('pbSave').disabled = saving;
+
+        if (startBtn) {
+            startBtn.disabled = dirty || pairs.length < MAX;
+            startBtn.title = dirty
+                ? 'Сначала нажмите «Сохранить пары»'
+                : (pairs.length < MAX ? 'Соберите все пары' : '');
+        }
 
         document.querySelectorAll('#pbPool [data-pick]').forEach(el => {
             el.onclick = () => {
@@ -304,6 +325,7 @@
             const data = await res.json().catch(() => ({}));
 
             if (res.ok && data.success) {
+                savedSnapshot = snapshot(pairs);
                 status.classList.add('ok');
                 status.textContent = data.message || 'Сохранено';
                 // Перезагружаем: ниже на странице есть состав и кнопка старта,
