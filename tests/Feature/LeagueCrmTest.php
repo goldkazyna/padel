@@ -106,6 +106,36 @@ class LeagueCrmTest extends TestCase
         $this->assertSame('in_progress', $league->fresh()->status, 'первый этап запускает лигу');
     }
 
+    public function test_парность_этапа_переопределяет_лигу(): void
+    {
+        // Обычно вся лига играется одинаково, но конкретный вечер можно
+        // собрать иначе — галочка в форме этапа решает.
+        $league = $this->league(['is_paired' => false]);
+
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 12,
+            'is_paired' => 1,
+        ])->assertRedirect();
+
+        $this->assertTrue((bool) Tournament::first()->is_paired);
+    }
+
+    public function test_снятая_галочка_делает_этап_одиночным(): void
+    {
+        $league = $this->league(['is_paired' => true]);
+
+        // В форме рядом с галочкой лежит скрытый ноль — иначе снятая галочка
+        // не отличалась бы от «поле не пришло» и этап остался бы парным.
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 12,
+            'is_paired' => 0,
+        ])->assertRedirect();
+
+        $this->assertFalse((bool) Tournament::first()->is_paired);
+    }
+
     public function test_несыгранный_этап_удаляется_и_номера_сдвигаются(): void
     {
         $league = $this->league();

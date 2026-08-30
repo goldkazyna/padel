@@ -198,7 +198,13 @@ class MobileAdminLeagueController extends Controller
             'max_participants' => 'required|integer|min:4|max:64',
             'price' => 'nullable|numeric|min:0',
             'courts_count' => 'nullable|integer|min:1|max:16',
+            'is_paired' => 'nullable|boolean',
         ]);
+
+        // Не передан вовсе — берём парность лиги; передан — решает этап.
+        if ($request->has('is_paired')) {
+            $validated['is_paired'] = $request->boolean('is_paired');
+        }
 
         $tournament = $service->createStage($league, $validated, $request->user()->id);
 

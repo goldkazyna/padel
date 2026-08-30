@@ -90,6 +90,29 @@ class MobileAdminLeagueTest extends TestCase
         $this->assertSame('in_progress', $league->fresh()->status);
     }
 
+    public function test_парность_этапа_задаётся_с_телефона(): void
+    {
+        $league = $this->league(['is_paired' => true]);
+
+        $id = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/mobile/admin/leagues/{$league->id}/stages", [
+                'start_date' => '2026-09-05 19:00',
+                'max_participants' => 12,
+                'is_paired' => false,
+            ])->json('tournament_id');
+
+        $this->assertFalse((bool) Tournament::find($id)->is_paired, 'этап решает сам');
+
+        // Без поля остаётся настройка лиги.
+        $second = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/mobile/admin/leagues/{$league->id}/stages", [
+                'start_date' => '2026-09-12 19:00',
+                'max_participants' => 12,
+            ])->json('tournament_id');
+
+        $this->assertTrue((bool) Tournament::find($second)->is_paired);
+    }
+
     public function test_несыгранный_этап_удаляется_с_телефона(): void
     {
         $league = $this->league();

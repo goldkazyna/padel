@@ -146,6 +146,13 @@ class LeagueController extends Controller
             'courts_count' => 'nullable|integer|min:1|max:16',
         ]);
 
+        // Поле не пришло вовсе — берём парность лиги; пришло — решает этап.
+        // В форме рядом с галочкой лежит скрытый ноль, поэтому снятая
+        // галочка доезжает, а не выглядит как «поля не было».
+        if ($request->has('is_paired')) {
+            $validated['is_paired'] = $request->boolean('is_paired');
+        }
+
         $tournament = $service->createStage($league, $validated, auth()->id());
 
         return redirect()->route('club.tournaments.show', $tournament)

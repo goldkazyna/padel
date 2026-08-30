@@ -18,7 +18,7 @@ class LeagueService
      * Создать этап — обычный турнир Americano Flex с настройками лиги.
      *
      * @param array{name?: ?string, start_date: string, max_participants: int,
-     *              price?: ?int, courts_count?: ?int} $data
+     *              price?: ?int, courts_count?: ?int, is_paired?: ?bool} $data
      */
     public function createStage(League $league, array $data, ?int $creatorId = null): Tournament
     {
@@ -40,7 +40,9 @@ class LeagueService
             'price' => $data['price'] ?? $league->price ?? 0,
             // Формат этапов задаётся один раз в лиге: все восемь вечеров
             'courts_count' => $data['courts_count'] ?? $league->courts_count ?? 2,
-            'is_paired' => (bool) $league->is_paired,
+            // Парность обычно одна на всю лигу, но конкретный вечер можно
+            // сыграть иначе — например, один этап парами, остальные соло.
+            'is_paired' => (bool) ($data['is_paired'] ?? $league->is_paired),
             'duration_hours' => $league->duration_hours,
             // В турнире у points_to_win есть значение по умолчанию и NOT NULL,
             // поэтому пустую настройку лиги не передаём вовсе.

@@ -219,6 +219,18 @@
                         </button>
                     </div>
                 </div>
+                <div class="form-check">
+                    {{-- По умолчанию — как в лиге, но конкретный вечер можно сыграть иначе.
+                         Скрытый ноль нужен, чтобы снятая галочка доехала до сервера. --}}
+                    <input type="hidden" name="is_paired" value="0">
+                    <input type="checkbox" name="is_paired" value="1" id="stageIsPaired"
+                           class="form-check-input" {{ $league->is_paired ? 'checked' : '' }}>
+                    <label for="stageIsPaired" class="form-check-label">
+                        <strong>Парный этап</strong>
+                        <span class="lg-check-note">— фиксированные пары, партнёр не меняется весь вечер.
+                        Игроки записываются по одному, пары собирает админ.</span>
+                    </label>
+                </div>
             </form>
         </div>
     </div>
@@ -325,6 +337,7 @@
 .lg-panel { background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 18px; }
 .lg-panel-title { font-size: 15px; font-weight: 700; color: #f4f6f7; margin-bottom: 4px; }
 .lg-panel-note { font-size: 13px; color: #7c848a; margin-bottom: 14px; }
+.lg-check-note { color: #7c848a; font-size: 12.5px; }
 .lg-legend { margin-top: 14px; font-size: 12.5px; color: #7c848a; line-height: 1.5; }
 .lg-inline-link { color: #22c55e; text-decoration: none; }
 
