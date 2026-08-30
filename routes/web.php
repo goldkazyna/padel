@@ -300,6 +300,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::post('/leagues/{league}/stages', [App\Http\Controllers\Club\LeagueController::class, 'addStage'])->name('leagues.stages.add');
             Route::get('/leagues/{league}/players/search', [App\Http\Controllers\Club\LeagueController::class, 'searchPlayers'])->name('leagues.players.search');
             Route::post('/leagues/{league}/players', [App\Http\Controllers\Club\LeagueController::class, 'addPlayer'])->name('leagues.players.add');
+            Route::post('/leagues/{league}/players/test', [App\Http\Controllers\Club\LeagueController::class, 'addTestPlayers'])->name('leagues.players.test');
             Route::delete('/leagues/{league}/players/{user}', [App\Http\Controllers\Club\LeagueController::class, 'removePlayer'])->name('leagues.players.remove');
             Route::get('/whatsapp', [App\Http\Controllers\Club\WhatsappController::class, 'index'])->name('whatsapp.index');
             // Опрос новых сообщений: адреса объявлены до /whatsapp/{phone},

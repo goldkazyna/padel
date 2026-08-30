@@ -181,6 +181,47 @@ class LeagueCrmTest extends TestCase
             'латиница находится по кириллице, а тот, кто уже в составе, не предлагается');
     }
 
+    public function test_состав_заполняется_тестовыми_игроками(): void
+    {
+        $league = $this->league(['max_players' => 4]);
+
+        // Тестовые аккаунты — 1@gmail.com … 32@gmail.com, как в турнирах.
+        foreach ([1, 2, 3, 4, 5] as $n) {
+            User::factory()->create([
+                'role' => 'player', 'email' => "{$n}@gmail.com", 'level' => 3.0,
+            ]);
+        }
+        // Живой игрок с «числовым» телефоном в почте — в тестовые не попадает.
+        User::factory()->create([
+            'role' => 'player', 'email' => '77771112233@gmail.com', 'level' => 3.0,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('club.leagues.players.test', $league))
+            ->assertRedirect();
+
+        $this->assertSame(4, $league->activePlayers()->count(), 'заполнили ровно до лимита');
+
+        $emails = User::whereIn('id', $league->activePlayers()->pluck('user_id'))
+            ->pluck('email')->sort()->values()->all();
+        $this->assertSame(['1@gmail.com', '2@gmail.com', '3@gmail.com', '4@gmail.com'], $emails);
+    }
+
+    public function test_повторное_заполнение_упирается_в_лимит(): void
+    {
+        $league = $this->league(['max_players' => 2]);
+        foreach ([1, 2] as $n) {
+            User::factory()->create(['role' => 'player', 'email' => "{$n}@gmail.com", 'level' => 3.0]);
+        }
+
+        $this->actingAs($this->admin)->post(route('club.leagues.players.test', $league));
+        $this->actingAs($this->admin)
+            ->post(route('club.leagues.players.test', $league))
+            ->assertSessionHas('error');
+
+        $this->assertSame(2, $league->activePlayers()->count());
+    }
+
     public function test_чужая_лига_недоступна(): void
     {
         $otherClub = Club::create(['name' => 'Другой', 'address' => 'Б', 'city' => 'Астана']);

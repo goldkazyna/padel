@@ -208,6 +208,17 @@
                     <i class="bi bi-person-plus"></i> Добавить в лигу
                 </button>
             </form>
+
+            {{-- Тестовые игроки: заполнить состав для проверки, как в турнире --}}
+            <form method="POST" action="{{ route('club.leagues.players.test', $league) }}" class="lg-test-form">
+                @csrf
+                <button type="submit" class="btn-ghost">
+                    <i class="bi bi-people"></i> Добавить тестовых игроков
+                </button>
+                <span class="lg-test-note">
+                    Заполнит состав аккаунтами 1@gmail.com … 32@gmail.com — для проверки лиги.
+                </span>
+            </form>
         </div>
 
         @if($players->isEmpty())
@@ -329,6 +340,8 @@ a.lg-row:hover { border-color: rgba(34,197,94,0.35); }
 .empty-title { font-size: 16px; font-weight: 700; color: #f4f6f7; }
 .empty-text { font-size: 13.5px; color: #7c848a; margin: 8px auto 0; max-width: 460px; line-height: 1.5; }
 
+.lg-test-form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+.lg-test-note { font-size: 12.5px; color: #7c848a; }
 .player-search-wrap { position: relative; }
 .search-results { display: none; position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin-top: 4px; background: #15181A; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; max-height: 300px; overflow-y: auto; }
 .search-results.show { display: block; }

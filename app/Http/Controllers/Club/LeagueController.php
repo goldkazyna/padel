@@ -206,6 +206,47 @@ class LeagueController extends Controller
      * они никуда не деваются — иначе история лиги переписывалась бы задним
      * числом.
      */
+    /**
+     * Заполнить состав тестовыми игроками — как кнопка в турнире.
+     *
+     * Тестовые аккаунты — 1@gmail.com … 32@gmail.com. Реальные игроки
+     * регистрируются с email вида «телефон@gmail.com», в этот диапазон они
+     * не попадают, поэтому берём строго список, а не «числовой email».
+     */
+    public function addTestPlayers(League $league, LeagueService $service)
+    {
+        $this->guard($league);
+
+        $inLeague = $league->players()->pluck('user_id')->all();
+        $needed = $league->max_players
+            ? $league->max_players - $league->activePlayers()->count()
+            : 12;
+
+        if ($needed <= 0) {
+            return back()->with('error', 'В лиге нет свободных мест');
+        }
+
+        $testEmails = array_map(fn ($n) => "{$n}@gmail.com", range(1, 32));
+
+        $players = User::where('role', 'player')
+            ->whereNotIn('id', $inLeague)
+            ->whereIn('email', $testEmails)
+            ->get()
+            ->sortBy(fn ($u) => (int) $u->email)
+            ->take($needed)
+            ->values();
+
+        if ($players->isEmpty()) {
+            return back()->with('error', 'Свободных тестовых игроков не осталось');
+        }
+
+        foreach ($players as $player) {
+            $service->addPlayer($league, $player->id);
+        }
+
+        return back()->with('success', 'Добавлено ' . $players->count() . ' тестовых игроков');
+    }
+
     public function removePlayer(League $league, User $user)
     {
         $this->guard($league);
