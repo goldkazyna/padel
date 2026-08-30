@@ -244,6 +244,33 @@ class MobileLeagueApiTest extends TestCase
         $this->assertSame(2, $league['my_stages']);
     }
 
+    public function test_подмена_видит_лигу_в_моих_лигах(): void
+    {
+        // Человек сыграл этап на замене: в составе лиги его нет, но в её
+        // таблице он стоит со своими очками — лига его касается.
+        $stage = $this->stage(1);
+        $stage->participants()->attach($this->me->id, ['status' => 'registered']);
+        $this->playMatch($stage, 21, 12);
+
+        $response = $this->actingAs($this->me, 'sanctum')
+            ->getJson('/api/mobile/leagues/my')->assertOk();
+
+        $card = $response->json('leagues.0');
+        $this->assertSame($this->league->id, $card['id']);
+        $this->assertSame(1, $card['my_place']);
+        $this->assertFalse($card['is_registered'], 'в составе лиги её нет — отменять нечего');
+    }
+
+    public function test_в_моих_лигах_нет_чужих_лиг(): void
+    {
+        // Ни в составе, ни в этапах — лига не моя.
+        $this->stage(1);
+
+        $this->actingAs($this->me, 'sanctum')
+            ->getJson('/api/mobile/leagues/my')->assertOk()
+            ->assertJsonCount(0, 'leagues');
+    }
+
     public function test_турнир_этапа_знает_свою_лигу(): void
     {
         $stage = $this->stage(3, 'open');

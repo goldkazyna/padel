@@ -45,19 +45,27 @@ class MobileLeagueController extends Controller
     {
         $user = $request->user();
 
-        $leagueIds = LeaguePlayer::where('user_id', $user->id)
+        $rosterIds = LeaguePlayer::where('user_id', $user->id)
             ->whereIn('status', ['registered', 'left'])
             ->pluck('league_id');
 
-        $leagues = League::whereIn('id', $leagueIds)
+        // Замена, сыгравшая один вечер, в состав лиги не записана, но в её
+        // таблице стоит со своими очками — значит лига её тоже касается.
+        $playedIds = Tournament::whereNotNull('league_id')
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+            ->pluck('league_id');
+
+        $leagues = League::whereIn('id', $rosterIds->merge($playedIds)->unique())
             ->with('club:id,name,city,logo')
             ->orderByDesc('start_date')
             ->get();
 
         return response()->json([
             'success' => true,
-            'leagues' => $leagues->map(function ($league) use ($user) {
-                $card = $this->card($league, true);
+            'leagues' => $leagues->map(function ($league) use ($user, $rosterIds) {
+                // В составе — только записанные: подмене не предлагаем
+                // «отменить запись», которой у неё нет.
+                $card = $this->card($league, $rosterIds->contains($league->id));
                 $standings = LeagueStandings::build($league);
 
                 foreach ($standings as $row) {
