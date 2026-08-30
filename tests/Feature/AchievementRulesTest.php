@@ -122,6 +122,34 @@ class AchievementRulesTest extends TestCase
         $this->assertSame(2, $rule->progress($this->history($matches)));
     }
 
+    public function test_знаток_форматов_не_считает_bali_и_классический(): void
+    {
+        $rule = new \App\Achievements\Rules\FormatsAll();
+
+        // Клубы их не проводят: с ними значок был недостижим.
+        $this->assertSame(8, $rule->target());
+
+        $matches = [
+            $this->match(['tournament_type' => 'bali_koc', 'tournament_id' => 1]),
+            $this->match(['tournament_type' => 'classic', 'tournament_id' => 2]),
+            $this->match(['tournament_type' => 'americano', 'tournament_id' => 3]),
+        ];
+
+        $this->assertSame(1, $rule->progress($this->history($matches)));
+    }
+
+    public function test_знаток_форматов_закрывается_восемью(): void
+    {
+        $rule = new \App\Achievements\Rules\FormatsAll();
+
+        $matches = [];
+        foreach (\App\Achievements\Rules\FormatsAll::COUNTED as $i => $type) {
+            $matches[] = $this->match(['tournament_type' => $type, 'tournament_id' => $i + 1]);
+        }
+
+        $this->assertSame(8, $rule->progress($this->history($matches)));
+    }
+
     public function test_clubs_counted_by_id(): void
     {
         $rule = new Clubs3();
