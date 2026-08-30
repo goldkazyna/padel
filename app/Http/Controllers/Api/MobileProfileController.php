@@ -186,6 +186,27 @@ class MobileProfileController extends Controller
     }
 
     /**
+     * С кем игрок играет: лучший партнёр и остальные.
+     * GET /api/mobile/profile/partners
+     *
+     * Отдельной ручкой, а не внутри /profile: расчёт поднимает всю историю
+     * матчей, и профиль из-за него открывался бы заметно дольше.
+     */
+    public function partners(Request $request)
+    {
+        $user = $request->user();
+        $rows = \App\Support\PlayerPartners::all($user);
+
+        return response()->json([
+            'success' => true,
+            'partners_count' => count($rows),
+            'min_games' => \App\Support\PlayerPartners::MIN_GAMES,
+            'best' => $rows[0] ?? null,
+            'top' => array_slice($rows, 0, 5),
+        ]);
+    }
+
+    /**
      * Обновление профиля
      * PUT /api/mobile/profile
      */
