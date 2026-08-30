@@ -27,7 +27,7 @@ class MobileTournamentInvitationController extends Controller
         $invitations = TournamentInvitation::where('user_id', $request->user()->id)
             ->where('status', 'pending')
             ->with(['tournament.club', 'inviter:id,name'])
-            ->whereHas('tournament')
+            ->whereHas('tournament', fn ($q) => $this->answerable($q))
             ->orderByDesc('created_at')
             ->get()
             ->map(fn($inv) => $this->format($inv))
@@ -48,7 +48,7 @@ class MobileTournamentInvitationController extends Controller
     {
         $count = TournamentInvitation::where('user_id', $request->user()->id)
             ->where('status', 'pending')
-            ->whereHas('tournament')
+            ->whereHas('tournament', fn ($q) => $this->answerable($q))
             ->count();
 
         return response()->json(['success' => true, 'count' => $count]);
@@ -69,6 +69,15 @@ class MobileTournamentInvitationController extends Controller
         $tournament = $invitation->tournament;
         if (!$tournament) {
             return response()->json(['success' => false, 'message' => 'Турнир недоступен'], 404);
+        }
+
+        // Приглашение могло висеть с прошлой недели — принимать нечего.
+        if (in_array($tournament->status, ['completed', 'cancelled'], true)
+            || ($tournament->start_date && $tournament->start_date->isPast())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир уже прошёл',
+            ], 422);
         }
 
         $userId = $request->user()->id;
@@ -245,6 +254,18 @@ class MobileTournamentInvitationController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Приглашение отправлено']);
+    }
+
+    /**
+     * Турниры, на которые приглашение ещё имеет смысл.
+     *
+     * Прошедший или отменённый турнир висел в списке с кнопкой «Принять»,
+     * которая ничего не даёт: играть уже негде.
+     */
+    private function answerable($query)
+    {
+        return $query->whereNotIn('status', ['completed', 'cancelled'])
+            ->where('start_date', '>', now());
     }
 
     private function format(TournamentInvitation $inv): ?array

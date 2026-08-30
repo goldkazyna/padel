@@ -47,6 +47,71 @@ class TournamentInvitationTest extends TestCase
         ]);
     }
 
+    public function test_прошедшие_турниры_не_висят_в_приглашениях(): void
+    {
+        [$club, $admin, $tournament, $player] = $this->setup3();
+
+        // Приглашение на будущий турнир — живое.
+        TournamentInvitation::create([
+            'tournament_id' => $tournament->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+
+        // Турнир уже сыгран — принимать нечего.
+        $past = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Прошлый', 'type' => 'americano',
+            'status' => 'completed', 'max_participants' => 4,
+            'start_date' => now()->subWeek(),
+        ]);
+        TournamentInvitation::create([
+            'tournament_id' => $past->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+
+        // Дата прошла, а статус остался open — тоже мимо.
+        $stale = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Вчерашний', 'type' => 'americano',
+            'status' => 'open', 'max_participants' => 4,
+            'start_date' => now()->subDay(),
+        ]);
+        TournamentInvitation::create([
+            'tournament_id' => $stale->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+
+        Sanctum::actingAs($player);
+
+        $response = $this->getJson('/api/mobile/tournaments/invitations')->assertOk();
+        $ids = collect($response->json('invitations'))->pluck('tournament.id')->all();
+
+        $this->assertSame([$tournament->id], $ids);
+
+        // Бейдж считает то же самое, иначе на иконке висит несуществующее.
+        $this->getJson('/api/mobile/tournaments/invitations/count')
+            ->assertOk()->assertJsonPath('count', 1);
+    }
+
+    public function test_приглашение_на_прошедший_турнир_не_принять(): void
+    {
+        [$club, $admin, , $player] = $this->setup3();
+        $past = Tournament::create([
+            'club_id' => $club->id, 'name' => 'Прошлый', 'type' => 'americano',
+            'status' => 'open', 'max_participants' => 4,
+            'start_date' => now()->subDay(),
+        ]);
+        $invitation = TournamentInvitation::create([
+            'tournament_id' => $past->id, 'user_id' => $player->id,
+            'invited_by' => $admin->id, 'status' => 'pending',
+        ]);
+
+        Sanctum::actingAs($player);
+
+        $this->postJson("/api/mobile/tournaments/invitations/{$invitation->id}/accept")
+            ->assertStatus(422);
+
+        $this->assertSame(0, $past->participants()->count());
+    }
+
     public function test_invite_blocked_for_team_tournament(): void
     {
         [$club, $admin, , $player] = $this->setup3();
