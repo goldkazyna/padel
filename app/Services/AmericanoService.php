@@ -418,19 +418,38 @@ protected function updateHistory(array &$history, int $player1, int $player2): v
     {
         $allCompleted = $round->matches()->where('status', 'pending')->count() === 0;
 
-        if ($allCompleted) {
-            $round->update(['status' => 'completed']);
-
-            // Следующий раунд ЭТОЙ ЖЕ группы открываем автоматически — каждая
-            // группа идёт независимо (не ждёт другие группы).
-            $nextRound = AmericanoRound::where('tournament_group_id', $round->tournament_group_id)
-                ->where('round_number', $round->round_number + 1)
-                ->first();
-
-            if ($nextRound) {
-                $nextRound->update(['status' => 'in_progress']);
-            }
+        if (!$allCompleted) {
+            return;
         }
+
+        $round->update(['status' => 'completed']);
+
+        // Следующий раунд ЭТОЙ ЖЕ группы открываем автоматически — каждая
+        // группа идёт независимо (не ждёт другие группы).
+        $nextRound = AmericanoRound::where('tournament_group_id', $round->tournament_group_id)
+            ->where('round_number', $round->round_number + 1)
+            ->first();
+
+        if (!$nextRound) {
+            return;
+        }
+
+        // Счёт вносят в том порядке, в каком его приносят с кортов, поэтому
+        // следующий раунд мог быть доигран раньше этого. Открывать его
+        // заново нельзя: раунд навсегда оставался бы «идёт», и кнопка
+        // «Завершить турнир» не появлялась (турнир 1278).
+        $nextPlayed = $nextRound->matches()->exists()
+            && $nextRound->matches()->where('status', 'pending')->count() === 0;
+
+        if ($nextPlayed) {
+            // Закрываем его и идём дальше по цепочке: доиграть «вперёд»
+            // могли не один раунд.
+            $this->checkRoundCompletion($nextRound);
+
+            return;
+        }
+
+        $nextRound->update(['status' => 'in_progress']);
     }
 
 	/**
