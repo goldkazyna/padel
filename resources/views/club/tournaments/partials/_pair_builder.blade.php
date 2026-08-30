@@ -175,12 +175,18 @@
 
     // Слепок сохранённого расклада: пока текущий от него отличается, кнопка
     // старта не должна работать — турнир ушёл бы со старыми парами.
+    // Порядок пар и игроков внутри пары значения не имеет — сравниваем состав.
+    // Объявляем function, а не const: слепок берём здесь же, выше по коду.
+    function snapshot(list) {
+        return JSON.stringify(
+            list.map(p => [p[0], p[1]].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0])
+        );
+    }
+
     let savedSnapshot = snapshot(pairs);
     const startBtn = document.getElementById('flexStartBtn');
 
     const byId = id => PLAYERS.find(p => p.id === id);
-    // Порядок пар и игроков внутри пары значения не имеет — сравниваем по составу.
-    const snapshot = list => JSON.stringify(list.map(p => [p[0], p[1]].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0]));
     const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const initials = name => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
     const avg = (a, b) => Math.round((byId(a).rating + byId(b).rating) / 2);
