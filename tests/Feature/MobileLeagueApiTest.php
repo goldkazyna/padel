@@ -161,6 +161,25 @@ class MobileLeagueApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_карточка_несёт_формат_и_ссылку_на_логотип(): void
+    {
+        // В колонке лежит путь «/logos/x.png» — приложению нужна готовая
+        // ссылка, иначе вместо логотипа рисуются инициалы клуба.
+        $this->club->update(['logo' => '/logos/padel-hills.png']);
+        $this->stage(1, 'open');
+
+        $card = $this->actingAs($this->me, 'sanctum')
+            ->getJson('/api/mobile/leagues')->assertOk()->json('leagues.0');
+
+        $this->assertSame('Americano Flex', $card['format_name']);
+        $this->assertStringStartsWith('http', $card['club']['logo']);
+
+        $this->league->update(['is_paired' => true]);
+        $paired = $this->actingAs($this->me, 'sanctum')
+            ->getJson('/api/mobile/leagues')->assertOk()->json('leagues.0');
+        $this->assertSame('Americano Flex, парный', $paired['format_name']);
+    }
+
     public function test_этап_несёт_моё_место_и_очки(): void
     {
         // Медальку за этап показывает сама лига — в общей истории турниров

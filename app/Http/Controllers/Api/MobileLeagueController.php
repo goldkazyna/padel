@@ -238,7 +238,9 @@ class MobileLeagueController extends Controller
                 'id' => $league->club->id,
                 'name' => $league->club->name,
                 'city' => $league->club->city,
-                'logo' => $league->club->logo,
+                // В колонке лежит путь вида «/logos/x.png» — приложению нужна
+                // готовая ссылка, иначе вместо логотипа рисуются инициалы.
+                'logo' => $league->club->logo_url,
             ] : null,
             'start_date' => $league->start_date?->toIso8601String(),
             'end_date' => $league->end_date?->toIso8601String(),
