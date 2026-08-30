@@ -52,6 +52,7 @@ class WhatsappDayReport
 
             $requests = self::requests($chat, $start, $end);
             $answered = collect($requests)->pluck('minutes')->filter(fn ($m) => $m !== null);
+            $unansweredIds = collect($requests)->whereNull('minutes')->pluck('id')->all();
 
             foreach ($requests as $request) {
                 if ($request['minutes'] === null) {
@@ -73,9 +74,13 @@ class WhatsappDayReport
                     ->where('sent_at', '<', $start->copy()->utc())
                     ->exists(),
                 'requests' => count($requests),
-                'unanswered' => collect($requests)->whereNull('minutes')->count(),
+                'unanswered' => count($unansweredIds),
                 'worst' => $answered->max(),
-                'lines' => self::lines($ownDay, $tz),
+                // Раньше в разбор уходило только «остался без ответа» на весь
+                // диалог, и модель приписывала это не той реплике: вопрос,
+                // на который ответили через полминуты, попадал в «где не продали».
+                'unanswered_lines' => self::unansweredLines($ownDay, $unansweredIds, $tz),
+                'lines' => self::lines($ownDay, $tz, $unansweredIds),
             ];
         }
 
@@ -121,45 +126,72 @@ class WhatsappDayReport
     private static function requests(Collection $chat, CarbonInterface $start, CarbonInterface $end): array
     {
         $requests = [];
-        $openedAt = null;
+        $opened = null;
         $from = $start->copy()->utc();
         $to = $end->copy()->utc();
 
         foreach ($chat as $message) {
             if (!$message->from_me) {
-                $openedAt ??= $message->sent_at;
+                // Первое сообщение серии: с него начинается ожидание,
+                // и именно его показываем, если ответа так и не было.
+                $opened ??= $message;
                 continue;
             }
 
-            if ($openedAt) {
-                if ($openedAt->between($from, $to)) {
+            if ($opened) {
+                if ($opened->sent_at->between($from, $to)) {
                     $requests[] = [
-                        'at' => $openedAt,
-                        'minutes' => WhatsappSla::businessMinutes($openedAt, $message->sent_at),
+                        'id' => $opened->id,
+                        'at' => $opened->sent_at,
+                        'minutes' => WhatsappSla::businessMinutes($opened->sent_at, $message->sent_at),
                     ];
                 }
-                $openedAt = null;
+                $opened = null;
             }
         }
 
         // Осталось висеть без ответа.
-        if ($openedAt && $openedAt->between($from, $to)) {
-            $requests[] = ['at' => $openedAt, 'minutes' => null];
+        if ($opened && $opened->sent_at->between($from, $to)) {
+            $requests[] = ['id' => $opened->id, 'at' => $opened->sent_at, 'minutes' => null];
         }
 
         return $requests;
     }
 
     /** Реплики диалога в виде «10:42 клиент: текст». */
-    private static function lines(Collection $messages, string $tz): array
+    private static function lines(Collection $messages, string $tz, array $unansweredIds = []): array
     {
-        return $messages->map(function ($m) use ($tz) {
+        return $messages->map(function ($m) use ($tz, $unansweredIds) {
             $text = trim(preg_replace('/\s+/u', ' ', (string) ($m->body ?: $m->preview())));
 
             return $m->sent_at->timezone($tz)->format('H:i')
                 . ($m->from_me ? ' клуб: ' : ' клиент: ')
-                . mb_substr($text, 0, self::MAX_LINE);
+                . mb_substr($text, 0, self::MAX_LINE)
+                . (in_array($m->id, $unansweredIds, true) ? '   ← ОСТАЛОСЬ БЕЗ ОТВЕТА' : '');
         })->all();
+    }
+
+    /**
+     * Реплики, на которые клуб так и не ответил, — коротким списком.
+     *
+     * @return array<int, string>
+     */
+    private static function unansweredLines(Collection $messages, array $ids, string $tz): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $messages
+            ->filter(fn ($m) => in_array($m->id, $ids, true))
+            ->map(function ($m) use ($tz) {
+                $text = trim(preg_replace('/\s+/u', ' ', (string) ($m->body ?: $m->preview())));
+
+                return $m->sent_at->timezone($tz)->format('H:i')
+                    . ' «' . mb_substr($text, 0, 160) . '»';
+            })
+            ->values()
+            ->all();
     }
 
     /**

@@ -220,13 +220,37 @@ class WhatsappAnalysisTest extends TestCase
             $content = $body['messages'][0]['content'];
 
             return str_contains($content, 'нужен корт в субботу')
-                && str_contains($content, 'остался без ответа')
+                && str_contains($content, 'без ответа: ')
                 && str_contains($content, '"unanswered": 1')
                 && str_contains($body['system'], 'automation')
                 && $body['model'] === 'claude-sonnet-5'
                 // Размышление у Sonnet включено по умолчанию и съедало весь
                 // лимит: ответ приходил без единого текстового блока.
                 && ($body['thinking']['type'] ?? '') === 'disabled';
+        });
+    }
+
+    public function test_модели_видно_какая_именно_реплика_без_ответа(): void
+    {
+        // Клиент спросил, ему ответили через минуту, потом он написал ещё —
+        // и вот это уже осталось без ответа. Раньше в промпте стояло просто
+        // «остался без ответа», и модель приписывала это отвеченному вопросу.
+        $this->message('77770000010', false, '2026-08-20 22:21', 'шестой корт свободен завтра?');
+        $this->message('77770000010', true, '2026-08-20 22:21', 'да пока свободен');
+        $this->message('77770000010', false, '2026-08-20 22:22', 'тогда ставьте бронь');
+
+        $this->fakeClaude(['verdict' => 'ок', 'lost_sales' => [], 'slow' => [], 'quality' => [], 'good' => [], 'actions' => []]);
+
+        app(WhatsappAnalysisService::class)
+            ->analyze($this->club->id, Carbon::parse('2026-08-20', 'Asia/Almaty'));
+
+        Http::assertSent(function ($request) {
+            $content = $request->data()['messages'][0]['content'];
+
+            return str_contains($content, 'без ответа: 22:22 «тогда ставьте бронь»')
+                && str_contains($content, 'тогда ставьте бронь   ← ОСТАЛОСЬ БЕЗ ОТВЕТА')
+                // На отвеченный вопрос метки нет.
+                && !str_contains($content, 'шестой корт свободен завтра?   ← ОСТАЛОСЬ БЕЗ ОТВЕТА');
         });
     }
 
