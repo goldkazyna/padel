@@ -161,6 +161,51 @@ class MobileLeagueApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_этап_несёт_моё_место_и_очки(): void
+    {
+        // Медальку за этап показывает сама лига — в общей истории турниров
+        // этапов больше нет.
+        $stage = $this->stage(1);
+        $this->playMatch($stage, 21, 12);
+        $pending = $this->stage(2, 'open');
+
+        $response = $this->actingAs($this->me, 'sanctum')
+            ->getJson("/api/mobile/leagues/{$this->league->id}")
+            ->assertOk();
+
+        $first = $response->json('league.stages.0');
+        $this->assertSame(1, $first['my_place']);
+        $this->assertSame(21, $first['my_points']);
+
+        $second = $response->json('league.stages.1');
+        $this->assertNull($second['my_place'], 'у несыгранного этапа места нет');
+        $this->assertNull($second['my_points']);
+    }
+
+    public function test_этапы_лиги_не_попадают_в_историю_турниров(): void
+    {
+        $stage = $this->stage(1);
+        $stage->participants()->attach($this->me->id, ['status' => 'registered']);
+
+        $plain = Tournament::create([
+            'club_id' => $this->club->id,
+            'name' => 'Обычный турнир',
+            'type' => 'americano_flex',
+            'status' => 'completed',
+            'start_date' => '2026-09-10 19:00:00',
+            'min_level' => 1, 'max_level' => 5, 'max_participants' => 12, 'price' => 0,
+        ]);
+        $plain->participants()->attach($this->me->id, ['status' => 'registered']);
+
+        $response = $this->actingAs($this->me, 'sanctum')
+            ->getJson('/api/mobile/tournaments/archive')
+            ->assertOk();
+
+        $ids = collect($response->json('tournaments'))->pluck('id')->all();
+        $this->assertContains($plain->id, $ids);
+        $this->assertNotContains($stage->id, $ids, 'этап смотрим в лиге, а не в истории');
+    }
+
     public function test_мои_лиги_показывают_место_и_очки(): void
     {
         LeaguePlayer::create([

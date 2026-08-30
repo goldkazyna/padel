@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\League;
 use App\Models\LeaguePlayer;
+use App\Models\Tournament;
+use App\Support\AmericanoFlexRanking;
 use App\Support\LeagueStandings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -107,6 +109,9 @@ class MobileLeagueController extends Controller
                     'start_date' => $stage->start_date?->toIso8601String(),
                     'participants' => $stage->participants()->count(),
                     'max_participants' => $stage->max_participants,
+                    // Место на этапе — вместо медальки в общей истории турниров.
+                    'my_place' => $this->stagePlace($stage, (int) $user->id),
+                    'my_points' => $this->stagePoints($stage, (int) $user->id),
                 ])->values(),
                 'standings' => collect($standings)->map(fn ($row) => [
                     'position' => $row['position'],
@@ -180,6 +185,46 @@ class MobileLeagueController extends Controller
     }
 
     /** Одинаковая карточка лиги для списка, профиля и шапки экрана. */
+    /**
+     * Место игрока на этапе — то самое, что раньше показывала история турниров.
+     *
+     * Считаем только по сыгранным: у идущего этапа место скакало бы после
+     * каждого матча. Этап лиги всегда Americano Flex, поэтому порядок берём
+     * из общего ранжирования формата, а не считаем заново.
+     */
+    private function stagePlace(Tournament $stage, int $userId): ?int
+    {
+        if ($stage->status !== 'completed') {
+            return null;
+        }
+
+        if ($stage->isPairedFlex()) {
+            $rows = app(\App\Services\AmericanoFlexService::class)->getPairedLeaderboard($stage);
+            foreach ($rows as $i => $row) {
+                $ids = [$row['player1']->id ?? null, $row['player2']->id ?? null];
+                if (in_array($userId, $ids, true)) {
+                    return $i + 1;
+                }
+            }
+
+            return null;
+        }
+
+        return AmericanoFlexRanking::place($stage, $userId);
+    }
+
+    /** Очки игрока на этапе — они же идут в сводную таблицу лиги. */
+    private function stagePoints(Tournament $stage, int $userId): ?int
+    {
+        if ($stage->status !== 'completed') {
+            return null;
+        }
+
+        $stats = AmericanoFlexRanking::stats($stage);
+
+        return isset($stats[$userId]) ? (int) $stats[$userId]['points_for'] : null;
+    }
+
     private function card(League $league, bool $registered): array
     {
         $summary = LeagueStandings::summary($league);

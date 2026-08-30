@@ -152,6 +152,9 @@ class MobileTournamentController extends Controller
 
         $tournaments = Tournament::whereIn('id', $allIds)
             ->where('status', 'completed')
+            // Этапы лиги живут в своей лиге: место и название там про лигу,
+            // и в общей истории они только путали. Смотреть их — в «Мои лиги».
+            ->whereNull('league_id')
             ->orderBy('start_date', 'desc')
             ->with(['club', 'venueClub'])
             ->get()
