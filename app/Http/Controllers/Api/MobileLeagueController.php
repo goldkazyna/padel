@@ -118,6 +118,8 @@ class MobileLeagueController extends Controller
                     'user_id' => $row['id'],
                     'name' => $row['name'],
                     'avatar' => $row['avatar'],
+                    // Галочка подтверждённого уровня — как в таблице этапа.
+                    'verified' => $row['verified'],
                     'level' => $row['level'],
                     'rating' => $row['rating'],
                     'stages' => $row['stages'],

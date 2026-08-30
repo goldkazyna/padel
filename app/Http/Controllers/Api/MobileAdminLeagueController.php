@@ -142,6 +142,7 @@ class MobileAdminLeagueController extends Controller
                     'user_id' => $row['id'],
                     'name' => $row['name'],
                     'avatar' => $row['avatar'],
+                    'verified' => $row['verified'],
                     'stages' => $row['stages'],
                     'wins' => $row['wins'],
                     'losses' => $row['losses'],

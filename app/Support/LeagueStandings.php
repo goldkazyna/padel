@@ -62,7 +62,7 @@ class LeagueStandings
         }
 
         $users = User::whereIn('id', array_keys($totals))
-            ->get(['id', 'name', 'avatar', 'level', 'rating'])
+            ->get(['id', 'name', 'avatar', 'level', 'rating', 'level_verified'])
             ->keyBy('id');
 
         $rows = [];
@@ -76,6 +76,8 @@ class LeagueStandings
                 'avatar' => $user->avatar ?? null,
                 'level' => $user->level ?? null,
                 'rating' => (int) ($user->rating ?? 0),
+                // Галочка подтверждённого уровня — как в таблице этапа.
+                'verified' => (bool) ($user->level_verified ?? false),
                 'points_for' => $s['points_for'],
                 'points_against' => $s['points_against'],
                 'diff' => $s['points_for'] - $s['points_against'],
