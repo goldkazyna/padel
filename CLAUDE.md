@@ -82,6 +82,13 @@ SQLite by default. 18 Eloquent models in `app/Models/`. Key entities:
 
 ## Frontend
 
+**Design system:** правила вёрстки веб-CRM — в `docs/CRM_DESIGN_SYSTEM.md`.
+Кратко: классы берём из `resources/views/layouts/app.blade.php` (`page-header`,
+`card-dark`, `btn-primary-custom`, `form-control`, `table-dark-custom`,
+`badge-*-custom`), придуманных классов не изобретаем, ширина страницы 1200px,
+иконки только `bi-*`, сложные условия — блочным `@php`, не инлайновым `@if`.
+Новый общий класс кладём в layout и описываем в том же документе.
+
 - Blade templates in `resources/views/` organized by feature
 - Tailwind CSS for styling
 - Alpine.js for interactivity
