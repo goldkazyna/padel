@@ -81,7 +81,12 @@ class WhatsappAnalysisService
             'content-type' => 'application/json',
         ])->connectTimeout(15)->timeout(180)->post(self::ENDPOINT, [
             'model' => $model,
-            'max_tokens' => 4000,
+            'max_tokens' => 8000,
+            // Размышление выключено намеренно: у Sonnet оно включено по
+            // умолчанию и на разборе дня съедало весь лимит токенов —
+            // ответ приходил без единого текстового блока («Claude вернул
+            // пустой ответ»). Без него разбор ещё и втрое дешевле.
+            'thinking' => ['type' => 'disabled'],
             'system' => $this->systemPrompt($report['metrics']),
             'messages' => [[
                 'role' => 'user',
@@ -107,11 +112,17 @@ class WhatsappAnalysisService
             ->implode('');
 
         if ($text === '') {
+            $stop = (string) $response->json('stop_reason');
+
             Log::warning('Claude: в ответе нет текстовых блоков', [
+                'stop_reason' => $stop,
+                'usage' => $response->json('usage'),
                 'body' => mb_substr((string) $response->body(), 0, 500),
             ]);
 
-            throw new RuntimeException('Claude вернул пустой ответ');
+            throw new RuntimeException($stop === 'max_tokens'
+                ? 'Модель не уложилась в лимит ответа — попробуйте ещё раз'
+                : 'Claude вернул пустой ответ');
         }
 
         return ['model' => $model, 'report' => $this->parse($text)];

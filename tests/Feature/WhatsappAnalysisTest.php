@@ -223,8 +223,28 @@ class WhatsappAnalysisTest extends TestCase
                 && str_contains($content, 'остался без ответа')
                 && str_contains($content, '"unanswered": 1')
                 && str_contains($body['system'], 'automation')
-                && $body['model'] === 'claude-sonnet-5';
+                && $body['model'] === 'claude-sonnet-5'
+                // Размышление у Sonnet включено по умолчанию и съедало весь
+                // лимит: ответ приходил без единого текстового блока.
+                && ($body['thinking']['type'] ?? '') === 'disabled';
         });
+    }
+
+    public function test_упёршийся_в_лимит_ответ_объясняется_человеку(): void
+    {
+        $this->message('77770000009', false, '2026-08-20 12:00', 'есть корт вечером?');
+
+        // Модель отдала только размышление и упёрлась в max_tokens.
+        Http::fake(['api.anthropic.com/*' => Http::response([
+            'stop_reason' => 'max_tokens',
+            'usage' => ['output_tokens' => 8000],
+            'content' => [['type' => 'thinking', 'thinking' => '']],
+        ])]);
+
+        $this->expectExceptionMessage('Модель не уложилась в лимит ответа');
+
+        app(WhatsappAnalysisService::class)
+            ->analyze($this->club->id, Carbon::parse('2026-08-20', 'Asia/Almaty'));
     }
 
     protected function tearDown(): void
