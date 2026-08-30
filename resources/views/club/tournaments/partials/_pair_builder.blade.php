@@ -107,7 +107,7 @@
     width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 50%;
     background: rgba(255, 255, 255, .06); color: #a1a1aa; font-size: 12px; font-weight: 700;
 }
-.pb-pair-names { flex: 1; min-width: 0; color: #fff; font-size: 14px; font-weight: 600; }
+.pb-pair-names { flex: 1; min-width: 0; color: #fff; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .pb-pair-names em { color: #71717a; font-style: normal; margin: 0 6px; }
 .pb-avg { color: #71717a; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pb-x {
@@ -119,7 +119,7 @@
 
 .pb-sub { display: flex; align-items: center; gap: 10px; color: #a1a1aa; font-size: 13px; margin-bottom: 10px; }
 .pb-hint { color: #22c55e; font-weight: 600; }
-.pb-pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.pb-pool { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
 .pb-chip {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
     padding: 8px 10px; background: #111113; border: 1px solid #2a2a2a; border-radius: 12px;
@@ -127,7 +127,8 @@
 }
 .pb-chip:hover { border-color: #3f4548; background: #16161a; }
 .pb-chip.on { border-color: #22c55e; background: rgba(34, 197, 94, .1); box-shadow: inset 0 0 0 1px #22c55e; }
-.pb-chip-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Имя показываем целиком: «Тестовый1…» не даёт понять, кого ставишь в пару. */
+.pb-chip-name { flex: 1; min-width: 0; font-weight: 600; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 .pb-ava {
     width: 32px; height: 32px; flex: none; border-radius: 50%; object-fit: cover;
     display: grid; place-items: center; background: #26262b; color: #b9c2c6; font-size: 12px; font-weight: 700;
