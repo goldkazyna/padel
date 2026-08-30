@@ -64,13 +64,27 @@
                     <div class="row">
                         <div class="col-md-3 mb-4">
                             <label class="form-label">Уровень от</label>
-                            <input type="number" step="0.25" min="1" max="7" name="min_level"
-                                   class="form-control" value="{{ old('min_level') }}">
+                            <select name="min_level" class="form-select">
+                                <option value="">Не важно</option>
+                                @for($i = 1; $i <= 5.75; $i += 0.25)
+                                    <option value="{{ number_format($i, 2) }}"
+                                        {{ old('min_level') == number_format($i, 2) ? 'selected' : '' }}>
+                                        {{ number_format($i, 2) }}
+                                    </option>
+                                @endfor
+                            </select>
                         </div>
                         <div class="col-md-3 mb-4">
                             <label class="form-label">Уровень до</label>
-                            <input type="number" step="0.25" min="1" max="7" name="max_level"
-                                   class="form-control" value="{{ old('max_level') }}">
+                            <select name="max_level" class="form-select">
+                                <option value="">Не важно</option>
+                                @for($i = 1; $i <= 5.75; $i += 0.25)
+                                    <option value="{{ number_format($i, 2) }}"
+                                        {{ old('max_level') == number_format($i, 2) ? 'selected' : '' }}>
+                                        {{ number_format($i, 2) }}
+                                    </option>
+                                @endfor
+                            </select>
                         </div>
                         <div class="col-md-3 mb-4">
                             <label class="form-label">Мест в лиге</label>

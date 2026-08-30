@@ -60,6 +60,35 @@ class LeagueCrmTest extends TestCase
         $this->assertSame($this->club->id, $league->club_id);
     }
 
+    public function test_уровень_можно_не_указывать(): void
+    {
+        // В форме уровень выбирают из списка, и «Не важно» приходит пустым.
+        $this->actingAs($this->admin)->post(route('club.leagues.store'), [
+            'name' => 'Открытая лига',
+            'stages_planned' => 8,
+            'min_level' => '',
+            'max_level' => '',
+        ])->assertRedirect();
+
+        $league = League::first();
+        $this->assertNull($league->min_level);
+        $this->assertNull($league->max_level);
+    }
+
+    public function test_уровень_сохраняется_из_списка(): void
+    {
+        $this->actingAs($this->admin)->post(route('club.leagues.store'), [
+            'name' => 'Лига 3.0–4.0',
+            'stages_planned' => 8,
+            'min_level' => '3.00',
+            'max_level' => '4.00',
+        ])->assertRedirect();
+
+        $league = League::first();
+        $this->assertSame('3.00', (string) $league->min_level);
+        $this->assertSame('4.00', (string) $league->max_level);
+    }
+
     public function test_этап_создаётся_турниром_americano_flex(): void
     {
         $league = $this->league();
