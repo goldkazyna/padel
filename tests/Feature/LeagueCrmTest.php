@@ -106,6 +106,70 @@ class LeagueCrmTest extends TestCase
         $this->assertSame('in_progress', $league->fresh()->status, 'первый этап запускает лигу');
     }
 
+    public function test_несыгранный_этап_удаляется_и_номера_сдвигаются(): void
+    {
+        $league = $this->league();
+
+        foreach (['2026-09-05 19:00', '2026-09-12 19:00', '2026-09-19 19:00'] as $date) {
+            $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+                'start_date' => $date,
+                'max_participants' => 12,
+            ]);
+        }
+
+        $second = Tournament::where('league_stage', 2)->first();
+
+        $this->actingAs($this->admin)
+            ->delete(route('club.leagues.stages.remove', [$league, $second]))
+            ->assertRedirect();
+
+        $this->assertNull(Tournament::find($second->id), 'этап удалён');
+
+        // Иначе остались бы этапы 1 и 3, и «этап 3 из 8» не совпал бы со списком.
+        $stages = Tournament::orderBy('league_stage')->get();
+        $this->assertSame([1, 2], $stages->pluck('league_stage')->map(fn ($n) => (int) $n)->all());
+        $this->assertSame('Сентябрь Кап — этап 2', $stages->last()->name, 'название переехало вместе с номером');
+    }
+
+    public function test_завершённый_этап_удалить_нельзя(): void
+    {
+        $league = $this->league();
+
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 12,
+        ]);
+
+        $stage = Tournament::first();
+        $stage->update(['status' => 'completed']);
+
+        // Очки сыгранного этапа уже стоят в таблице лиги — удаление переписало бы историю.
+        $this->actingAs($this->admin)
+            ->delete(route('club.leagues.stages.remove', [$league, $stage]))
+            ->assertSessionHas('error');
+
+        $this->assertNotNull(Tournament::find($stage->id));
+    }
+
+    public function test_чужой_этап_не_удаляется_через_лигу(): void
+    {
+        $league = $this->league();
+        $other = $this->league(['name' => 'Другая лига']);
+
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $other), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 12,
+        ]);
+
+        $stage = Tournament::first();
+
+        $this->actingAs($this->admin)
+            ->delete(route('club.leagues.stages.remove', [$league, $stage]))
+            ->assertNotFound();
+
+        $this->assertNotNull(Tournament::find($stage->id));
+    }
+
     public function test_формат_этапов_берётся_из_настроек_лиги(): void
     {
         // Все этапы играются одинаково, поэтому формат задаётся один раз.

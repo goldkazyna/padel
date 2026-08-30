@@ -84,6 +84,51 @@ class LeagueService
         $tournament->participants()->syncWithoutDetaching($rows);
     }
 
+    /**
+     * Удалить этап лиги.
+     *
+     * Завершённый этап удалять нельзя: его очки уже в сводной таблице, и
+     * удаление переписало бы историю лиги задним числом. Незавершённый
+     * уносит с собой раунды и матчи — они каскадные.
+     *
+     * @return bool false, если этап завершён
+     */
+    public function deleteStage(League $league, Tournament $stage): bool
+    {
+        if ($stage->status === 'completed') {
+            return false;
+        }
+
+        $stage->delete();
+        $this->renumberStages($league);
+
+        return true;
+    }
+
+    /**
+     * Пересчитать номера этапов подряд.
+     *
+     * Иначе после удаления второго из трёх остаются этапы 1 и 3, и
+     * «этап 3 из 8» перестаёт совпадать со списком. Переименовываем только
+     * названия, которые сгенерировали сами: свои названия организатора
+     * трогать нельзя.
+     */
+    public function renumberStages(League $league): void
+    {
+        $number = 1;
+
+        foreach ($league->stages()->orderBy('league_stage')->orderBy('id')->get() as $stage) {
+            $wasGenerated = $stage->name === "{$league->name} — этап {$stage->league_stage}";
+
+            $stage->update([
+                'league_stage' => $number,
+                'name' => $wasGenerated ? "{$league->name} — этап {$number}" : $stage->name,
+            ]);
+
+            $number++;
+        }
+    }
+
     public function addPlayer(League $league, int $userId): LeaguePlayer
     {
         return LeaguePlayer::updateOrCreate(

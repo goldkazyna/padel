@@ -90,6 +90,46 @@ class MobileAdminLeagueTest extends TestCase
         $this->assertSame('in_progress', $league->fresh()->status);
     }
 
+    public function test_несыгранный_этап_удаляется_с_телефона(): void
+    {
+        $league = $this->league();
+
+        $first = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/mobile/admin/leagues/{$league->id}/stages", [
+                'start_date' => '2026-09-05 19:00', 'max_participants' => 12,
+            ])->json('tournament_id');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/mobile/admin/leagues/{$league->id}/stages", [
+                'start_date' => '2026-09-12 19:00', 'max_participants' => 12,
+            ]);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/mobile/admin/leagues/{$league->id}/stages/{$first}")
+            ->assertOk();
+
+        $this->assertNull(Tournament::find($first));
+        $this->assertSame(1, (int) Tournament::first()->league_stage, 'оставшийся стал первым');
+    }
+
+    public function test_завершённый_этап_с_телефона_не_удаляется(): void
+    {
+        $league = $this->league();
+
+        $id = $this->actingAs($this->admin, 'sanctum')
+            ->postJson("/api/mobile/admin/leagues/{$league->id}/stages", [
+                'start_date' => '2026-09-05 19:00', 'max_participants' => 12,
+            ])->json('tournament_id');
+
+        Tournament::find($id)->update(['status' => 'completed']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->deleteJson("/api/mobile/admin/leagues/{$league->id}/stages/{$id}")
+            ->assertStatus(422);
+
+        $this->assertNotNull(Tournament::find($id));
+    }
+
     public function test_состав_ведётся_с_телефона(): void
     {
         $league = $this->league();

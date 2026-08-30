@@ -298,6 +298,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::put('/leagues/{league}', [App\Http\Controllers\Club\LeagueController::class, 'update'])->name('leagues.update');
             Route::post('/leagues/{league}/status', [App\Http\Controllers\Club\LeagueController::class, 'status'])->name('leagues.status');
             Route::post('/leagues/{league}/stages', [App\Http\Controllers\Club\LeagueController::class, 'addStage'])->name('leagues.stages.add');
+            Route::delete('/leagues/{league}/stages/{stage}', [App\Http\Controllers\Club\LeagueController::class, 'removeStage'])->name('leagues.stages.remove');
             Route::get('/leagues/{league}/players/search', [App\Http\Controllers\Club\LeagueController::class, 'searchPlayers'])->name('leagues.players.search');
             Route::post('/leagues/{league}/players', [App\Http\Controllers\Club\LeagueController::class, 'addPlayer'])->name('leagues.players.add');
             Route::post('/leagues/{league}/players/test', [App\Http\Controllers\Club\LeagueController::class, 'addTestPlayers'])->name('leagues.players.test');

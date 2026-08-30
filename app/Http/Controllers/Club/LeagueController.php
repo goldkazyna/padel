@@ -157,6 +157,22 @@ class LeagueController extends Controller
      * Свой эндпоинт, а не админский: тот доступен только супер-админу, а
      * лигу собирает клуб. Поиск умный — «Денис» находит и Denis.
      */
+    /** Удалить этап, пока он не сыгран. */
+    public function removeStage(League $league, Tournament $stage, LeagueService $service)
+    {
+        $this->guard($league);
+
+        if ((int) $stage->league_id !== (int) $league->id) {
+            abort(404);
+        }
+
+        if (!$service->deleteStage($league, $stage)) {
+            return back()->with('error', 'Завершённый этап удалить нельзя — его очки уже в таблице лиги');
+        }
+
+        return back()->with('success', 'Этап удалён');
+    }
+
     public function searchPlayers(Request $request, League $league)
     {
         $this->guard($league);

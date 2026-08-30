@@ -159,6 +159,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/admin/leagues/{league}', [MobileAdminLeagueController::class, 'show']);
         Route::put('/admin/leagues/{league}', [MobileAdminLeagueController::class, 'update']);
         Route::post('/admin/leagues/{league}/stages', [MobileAdminLeagueController::class, 'addStage']);
+        Route::delete('/admin/leagues/{league}/stages/{stage}', [MobileAdminLeagueController::class, 'removeStage']);
         Route::get('/admin/leagues/{league}/players/search', [MobileAdminLeagueController::class, 'searchPlayers']);
         Route::post('/admin/leagues/{league}/players', [MobileAdminLeagueController::class, 'addPlayer']);
         Route::delete('/admin/leagues/{league}/players/{user}', [MobileAdminLeagueController::class, 'removePlayer']);

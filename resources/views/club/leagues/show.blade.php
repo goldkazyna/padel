@@ -139,7 +139,8 @@
         @else
             <div class="lg-list">
                 @foreach($league->stages as $stage)
-                    <a href="{{ route('club.tournaments.show', $stage) }}" class="lg-row">
+                    <div class="lg-row lg-row-stage">
+                        <a href="{{ route('club.tournaments.show', $stage) }}" class="lg-row-link">
                         <div class="lg-num {{ $stage->status === 'completed' ? 'done' : '' }}">
                             {{ $stage->league_stage }}
                         </div>
@@ -151,7 +152,19 @@
                             </div>
                         </div>
                         <i class="bi bi-chevron-right lg-chevron"></i>
-                    </a>
+                        </a>
+                        @if($stage->status !== 'completed')
+                            {{-- Завершённый этап не удаляем: его очки уже в таблице лиги --}}
+                            <form method="POST" action="{{ route('club.leagues.stages.remove', [$league, $stage]) }}"
+                                  onsubmit="return confirm('Удалить этап «{{ $stage->name }}»? Записи и сыгранные матчи этапа удалятся.')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn-icon" title="Удалить этап">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        @endif
+                    </div>
                 @endforeach
             </div>
         @endif
@@ -345,7 +358,9 @@
 
 .lg-list { display: grid; gap: 8px; }
 .lg-row { display: flex; align-items: center; gap: 12px; background: #15181A; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 14px; text-decoration: none; color: inherit; transition: border-color 0.15s; }
-a.lg-row:hover { border-color: rgba(34,197,94,0.35); }
+a.lg-row:hover, .lg-row-stage:hover { border-color: rgba(34,197,94,0.35); }
+.lg-row-stage { gap: 8px; }
+.lg-row-link { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; text-decoration: none; color: inherit; }
 .lg-left { opacity: .45; }
 .lg-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); color: #a1a1aa; font-weight: 800; font-size: 13px; flex: 0 0 auto; }
 .lg-num.done { background: rgba(34,197,94,0.14); color: #22c55e; }

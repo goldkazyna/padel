@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\League;
+use App\Models\Tournament;
 use App\Models\User;
 use App\Services\LeagueService;
 use App\Support\LeagueStandings;
@@ -206,6 +207,24 @@ class MobileAdminLeagueController extends Controller
             'message' => "Этап {$tournament->league_stage} создан, состав лиги записан",
             'tournament_id' => $tournament->id,
         ]);
+    }
+
+    public function removeStage(Request $request, League $league, Tournament $stage, LeagueService $service): JsonResponse
+    {
+        if ($denied = $this->guard($request, $league)) return $denied;
+
+        if ((int) $stage->league_id !== (int) $league->id) {
+            return response()->json(['success' => false, 'message' => 'Этап не из этой лиги'], 404);
+        }
+
+        if (!$service->deleteStage($league, $stage)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Завершённый этап удалить нельзя — его очки уже в таблице лиги',
+            ], 422);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Этап удалён']);
     }
 
     public function addPlayer(Request $request, League $league, LeagueService $service): JsonResponse
