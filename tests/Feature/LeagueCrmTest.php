@@ -356,6 +356,31 @@ class LeagueCrmTest extends TestCase
             ->assertSee('Сентябрь Кап')
             ->assertSee('Этап 1')
             ->assertSee('Ерлан Игрок')
+            // Буквы формата — из date(): MMMM повторял бы месяц трижды, HH:mm — часы и минуты.
+            ->assertSee('5 сентября, 19:00')
             ->assertSee('Она появится, когда завершится первый этап лиги.');
+    }
+
+    public function test_у_несыгранного_этапа_есть_кнопка_удаления(): void
+    {
+        $league = $this->league();
+        $stage = Tournament::create([
+            'club_id' => $this->club->id, 'league_id' => $league->id, 'league_stage' => 1,
+            'name' => 'Этап 1', 'type' => 'americano_flex', 'status' => 'open',
+            'start_date' => '2026-09-05 19:00:00',
+            'min_level' => 1, 'max_level' => 5, 'max_participants' => 12,
+        ]);
+
+        $url = route('club.leagues.stages.remove', [$league, $stage], false);
+
+        $this->actingAs($this->admin)->get(route('club.leagues.show', $league))
+            ->assertOk()
+            ->assertSee($url);
+
+        $stage->update(['status' => 'completed']);
+
+        $this->actingAs($this->admin)->get(route('club.leagues.show', $league))
+            ->assertOk()
+            ->assertDontSee($url, 'у сыгранного этапа удалять нечего — очки уже в таблице');
     }
 }

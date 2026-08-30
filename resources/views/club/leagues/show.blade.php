@@ -147,7 +147,7 @@
                         <div class="lg-row-main">
                             <div class="lg-row-name">{{ $stage->name }}</div>
                             <div class="lg-row-note">
-                                {{ $stage->start_date?->locale('ru')->translatedFormat('j MMMM, HH:mm') }}
+                                {{ $stage->start_date?->locale('ru')->translatedFormat('j F, H:i') }}
                                 · {{ $stage->status_name }}
                             </div>
                         </div>
