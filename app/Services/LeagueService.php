@@ -48,8 +48,10 @@ class LeagueService
             // поэтому пустую настройку лиги не передаём вовсе.
             ...($league->points_to_win ? ['points_to_win' => $league->points_to_win] : []),
             'verified_only' => (bool) $league->verified_only,
-            'chat_enabled' => (bool) $league->chat_enabled,
-            'is_rated' => $league->is_rated,
+            // Умолчания колонок — true, но у только что созданной модели
+            // они ещё null: без ?? этап молча уехал бы без чата и рейтинга.
+            'chat_enabled' => (bool) ($league->chat_enabled ?? true),
+            'is_rated' => (bool) ($league->is_rated ?? true),
         ]);
 
         $this->fillFromLeague($league, $tournament);
@@ -84,6 +86,45 @@ class LeagueService
             ->all();
 
         $tournament->participants()->syncWithoutDetaching($rows);
+    }
+
+    /**
+     * Досыпать в этап тех, кто есть в лиге, но не в этапе.
+     *
+     * Состав копируется в этап один раз, при его создании: дальше организатор
+     * правит его руками — кто-то не смог прийти, вместо него пришёл другой.
+     * Поэтому только добавляем и только в пределах мест: ручные замены
+     * затирать нельзя.
+     *
+     * @return int сколько игроков добавили
+     */
+    public function refillStage(League $league, Tournament $stage): int
+    {
+        $present = $stage->participants()->pluck('users.id')->all();
+        $free = max(0, (int) $stage->max_participants - count($present));
+
+        if ($free === 0) {
+            return 0;
+        }
+
+        $missing = $league->activePlayers()
+            ->pluck('user_id')
+            ->reject(fn ($id) => in_array((int) $id, array_map('intval', $present), true))
+            ->take($free);
+
+        if ($missing->isEmpty()) {
+            return 0;
+        }
+
+        $stage->participants()->syncWithoutDetaching(
+            $missing->mapWithKeys(fn ($id) => [$id => [
+                'status' => 'registered',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]])->all()
+        );
+
+        return $missing->count();
     }
 
     /**

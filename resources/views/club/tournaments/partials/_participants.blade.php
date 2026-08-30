@@ -34,6 +34,29 @@
 <div class="participants-content" id="participantsContent" 
      style="{{ (in_array($tournament->status, ['in_progress', 'completed']) || $hasGroups) ? 'display: none;' : '' }}">
 
+    {{-- Этап лиги: состав копируется из лиги один раз, при создании этапа.
+         Кого добавили в лигу позже — досыпаем этой кнопкой. --}}
+    @if($tournament->league)
+        <div class="stage-league mb-3">
+            <div class="stage-league-text">
+                <i class="bi bi-trophy"></i>
+                <span>
+                    Этап {{ $tournament->league_stage }} лиги
+                    <a href="{{ route('club.leagues.show', $tournament->league) }}">{{ $tournament->league->name }}</a>
+                </span>
+            </div>
+            @if($tournament->status === 'open')
+                <form method="POST" action="{{ route('club.tournaments.league.refill', $tournament) }}">
+                    @csrf
+                    <button class="btn-outline-custom btn-sm"
+                            title="Добавить тех, кто есть в лиге, но не в этом этапе">
+                        <i class="bi bi-arrow-repeat"></i> Обновить состав из лиги
+                    </button>
+                </form>
+            @endif
+        </div>
+    @endif
+
     {{-- Предупреждение о блокировке --}}
 	@if($hasGroups && $tournament->status === 'open')
 		<div class="ge-alert ge-alert-success mb-3">
@@ -931,3 +954,15 @@ function toggleParticipants() {
     setInterval(tick, 1000);
 })();
 </script>
+
+<style>
+.stage-league {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: rgba(34, 197, 94, .07); border: 1px solid rgba(34, 197, 94, .22);
+    border-radius: 12px; padding: 10px 14px;
+}
+.stage-league-text { display: flex; align-items: center; gap: 8px; color: #a1a1aa; font-size: 13.5px; }
+.stage-league-text i { color: #22c55e; }
+.stage-league-text a { color: #22c55e; text-decoration: none; font-weight: 600; }
+.stage-league-text a:hover { text-decoration: underline; }
+</style>

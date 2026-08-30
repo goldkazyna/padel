@@ -184,6 +184,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/admin/tournaments/{tournament}/participants/{user}/to-moderation', [MobileAdminTournamentDetailController::class, 'moveToModeration']);
         Route::post('/admin/tournaments/{tournament}/participants/{user}/move', [MobileAdminTournamentDetailController::class, 'moveParticipant']);
         Route::put('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'replaceParticipant']);
+        Route::post('/admin/tournaments/{tournament}/league/refill', [MobileAdminTournamentDetailController::class, 'refillFromLeague']);
         Route::delete('/admin/tournaments/{tournament}/participants/{user}', [MobileAdminTournamentDetailController::class, 'removeParticipant']);
         Route::get('/admin/tournaments/{tournament}/players/search', [MobileAdminTournamentDetailController::class, 'searchPlayers']);
         Route::post('/admin/tournaments/{tournament}/invite', [MobileAdminTournamentDetailController::class, 'invite']);

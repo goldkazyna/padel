@@ -324,6 +324,39 @@ class TeamTournamentService
     }
 
     /**
+     * Подменить игрока в уже собранной паре.
+     *
+     * Замена участника (кто-то не смог прийти) правит состав турнира, но
+     * пары живут отдельной таблицей: без этого ушедший остался бы в паре, а
+     * пришедший — вне пар, и турнир не стартовал бы.
+     *
+     * @return bool true, если пара нашлась и была переписана
+     */
+    public function replaceInPairs(Tournament $tournament, int $oldId, int $newId): bool
+    {
+        if ($tournament->teamGroups()->count() > 0) {
+            return false;
+        }
+
+        $team = $tournament->teams()
+            ->where(fn ($q) => $q->where('player1_id', $oldId)->orWhere('player2_id', $oldId))
+            ->first();
+
+        if (!$team) {
+            return false;
+        }
+
+        $field = (int) $team->player1_id === $oldId ? 'player1_id' : 'player2_id';
+        $team->update([$field => $newId]);
+
+        $r1 = (int) (User::find($team->player1_id)?->rating ?? 0);
+        $r2 = (int) (User::find($team->player2_id)?->rating ?? 0);
+        $team->update(['rating_avg' => (int) round(($r1 + $r2) / 2)]);
+
+        return true;
+    }
+
+    /**
      * Удалить пару (только до старта турнира).
      * @return array{0: bool, 1: string}
      */

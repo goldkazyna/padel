@@ -531,6 +531,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 ->name('tournaments.invite');
             Route::delete('/tournaments/{tournament}/invitations/{invitation}', [ClubTournamentController::class, 'cancelInvitation'])
                 ->name('tournaments.invitations.cancel');
+            Route::post('/tournaments/{tournament}/league/refill', [ClubTournamentController::class, 'refillFromLeague'])
+                ->name('tournaments.league.refill');
             Route::put('/tournaments/{tournament}/participants/{userId}/replace', [ClubTournamentController::class, 'replaceParticipant'])
                 ->name('tournaments.participants.replace');
             Route::post('/tournaments/{tournament}/cancel', [ClubTournamentController::class, 'cancel'])

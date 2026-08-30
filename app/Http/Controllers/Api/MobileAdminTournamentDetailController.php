@@ -840,6 +840,12 @@ class MobileAdminTournamentDetailController extends Controller
             'status_name' => $t->status_name,
             'pairing_mode' => $t->pairing_mode ?? 'self',
             'is_admin_pairing' => $t->isAdminPairing(),
+            // Этап лиги: состав приехал из лиги, и его можно досыпать.
+            'league' => $t->league ? [
+                'id' => $t->league->id,
+                'name' => $t->league->name,
+                'stage' => (int) $t->league_stage,
+            ] : null,
             // Можно ли заводить пары целиком. Правило одно на веб и приложение,
             // поэтому считаем на сервере, а не повторяем в Dart.
             'supports_pair_registration' => $t->status === 'open'
@@ -1410,9 +1416,40 @@ class MobileAdminTournamentDetailController extends Controller
         DB::transaction(function () use ($tournament, $user, $newId) {
             $tournament->participants()->detach($user->id);
             $tournament->participants()->attach($newId, ['status' => 'registered']);
+
+            // Пары живут отдельной таблицей: иначе ушедший остался бы в паре,
+            // а пришедший — вне пар, и турнир не стартовал бы.
+            app(\App\Services\TeamTournamentService::class)
+                ->replaceInPairs($tournament, (int) $user->id, $newId);
         });
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/league/refill
+     * Досыпать в этап тех, кого добавили в лигу после его создания.
+     */
+    public function refillFromLeague(Request $request, Tournament $tournament): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        if (!$tournament->league) {
+            return $this->error('Этот турнир не этап лиги');
+        }
+
+        $added = app(\App\Services\LeagueService::class)
+            ->refillStage($tournament->league, $tournament);
+
+        return response()->json([
+            'success' => true,
+            'added' => $added,
+            'message' => $added
+                ? "Добавлено из состава лиги: {$added}"
+                : 'Все игроки лиги уже в этапе',
+        ]);
     }
 
     /**

@@ -1531,9 +1531,37 @@ class TournamentController extends Controller
 			'status' => 'registered',
 		]);
 		
+		// Пары живут отдельной таблицей: без этого ушедший остался бы в паре,
+		// а пришедший — вне пар, и турнир не стартовал бы.
+		app(\App\Services\TeamTournamentService::class)
+			->replaceInPairs($tournament, (int) $userId, (int) $validated['new_user_id']);
+
 		$newUser = \App\Models\User::find($validated['new_user_id']);
 		
 		return back()->with('success', "Участник заменён на {$newUser->full_name}!");
+	}
+
+	/**
+	 * Досыпать в этап лиги тех, кого добавили в лигу после его создания.
+	 */
+	public function refillFromLeague(Tournament $tournament)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		if (!$tournament->league) {
+			return back()->with('error', 'Этот турнир не этап лиги');
+		}
+
+		$added = app(\App\Services\LeagueService::class)
+			->refillStage($tournament->league, $tournament);
+
+		return back()->with(
+			'success',
+			$added ? "Добавлено из состава лиги: {$added}" : 'Все игроки лиги уже в этапе'
+		);
 	}
 	/**
 	 * Отправить push-уведомление о турнире
