@@ -245,6 +245,11 @@ class MobileLeagueController extends Controller
             'min_level' => $league->min_level !== null ? (float) $league->min_level : null,
             'max_level' => $league->max_level !== null ? (float) $league->max_level : null,
             'price' => $league->price,
+            // Формат этапов один на всю лигу — показываем его в карточке,
+            // как тип у обычного турнира.
+            'format' => 'americano_flex',
+            'format_name' => $league->is_paired ? 'Americano Flex, парный' : 'Americano Flex',
+            'is_paired' => (bool) $league->is_paired,
             'stages_total' => $summary['stages_total'],
             'stages_done' => $summary['stages_done'],
             'players' => $summary['players'],
