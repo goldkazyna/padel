@@ -15,6 +15,8 @@ class League extends Model
     protected $fillable = [
         'club_id', 'creator_id', 'name', 'description', 'cover',
         'status', 'format', 'stages_planned',
+        'is_paired', 'courts_count', 'duration_hours', 'points_to_win',
+        'verified_only', 'chat_enabled',
         'start_date', 'end_date',
         'min_level', 'max_level', 'max_players', 'price', 'is_rated',
     ];
@@ -25,6 +27,9 @@ class League extends Model
         'min_level' => 'decimal:2',
         'max_level' => 'decimal:2',
         'is_rated' => 'boolean',
+        'is_paired' => 'boolean',
+        'verified_only' => 'boolean',
+        'chat_enabled' => 'boolean',
     ];
 
     public const STATUSES = [

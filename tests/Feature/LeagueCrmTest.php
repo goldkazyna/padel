@@ -106,6 +106,48 @@ class LeagueCrmTest extends TestCase
         $this->assertSame('in_progress', $league->fresh()->status, 'первый этап запускает лигу');
     }
 
+    public function test_формат_этапов_берётся_из_настроек_лиги(): void
+    {
+        // Все этапы играются одинаково, поэтому формат задаётся один раз.
+        $league = $this->league([
+            'is_paired' => true,
+            'courts_count' => 3,
+            'duration_hours' => 2,
+            'points_to_win' => 24,
+            'verified_only' => true,
+            'chat_enabled' => false,
+            'is_rated' => false,
+        ]);
+
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 12,
+        ])->assertRedirect();
+
+        $stage = Tournament::first();
+        $this->assertTrue((bool) $stage->is_paired, 'парная лига — парные этапы');
+        $this->assertSame(3, (int) $stage->courts_count);
+        $this->assertSame(2, (int) $stage->duration_hours);
+        $this->assertSame(24, (int) $stage->points_to_win);
+        $this->assertTrue((bool) $stage->verified_only);
+        $this->assertFalse((bool) $stage->chat_enabled);
+        $this->assertFalse((bool) $stage->is_rated);
+    }
+
+    public function test_кортов_можно_переопределить_на_этапе(): void
+    {
+        $league = $this->league(['courts_count' => 2]);
+
+        $this->actingAs($this->admin)->post(route('club.leagues.stages.add', $league), [
+            'start_date' => '2026-09-05 19:00',
+            'max_participants' => 16,
+            'courts_count' => 4,
+        ])->assertRedirect();
+
+        $this->assertSame(4, (int) Tournament::first()->courts_count,
+            'на конкретный вечер кортов может быть больше');
+    }
+
     public function test_состав_лиги_попадает_в_новый_этап(): void
     {
         $league = $this->league();

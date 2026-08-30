@@ -38,7 +38,15 @@ class LeagueService
             'max_participants' => $data['max_participants'],
             // Цена в турнире обязательна: берём из этапа, потом из лиги.
             'price' => $data['price'] ?? $league->price ?? 0,
-            'courts_count' => $data['courts_count'] ?? 2,
+            // Формат этапов задаётся один раз в лиге: все восемь вечеров
+            'courts_count' => $data['courts_count'] ?? $league->courts_count ?? 2,
+            'is_paired' => (bool) $league->is_paired,
+            'duration_hours' => $league->duration_hours,
+            // В турнире у points_to_win есть значение по умолчанию и NOT NULL,
+            // поэтому пустую настройку лиги не передаём вовсе.
+            ...($league->points_to_win ? ['points_to_win' => $league->points_to_win] : []),
+            'verified_only' => (bool) $league->verified_only,
+            'chat_enabled' => (bool) $league->chat_enabled,
             'is_rated' => $league->is_rated,
         ]);
 

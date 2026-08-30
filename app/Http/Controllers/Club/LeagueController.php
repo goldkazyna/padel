@@ -268,7 +268,17 @@ class LeagueController extends Controller
             'max_level' => 'nullable|numeric|min:1|max:7|gte:min_level',
             'max_players' => 'nullable|integer|min:4|max:200',
             'price' => 'nullable|integer|min:0',
-            'is_rated' => 'nullable|boolean',
-        ]) + ['is_rated' => $request->boolean('is_rated')];
+            // Настройки этапов: одинаковы для всех вечеров лиги.
+            'courts_count' => 'nullable|integer|min:1|max:8',
+            'duration_hours' => 'nullable|integer|min:1|max:8',
+            'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+        ]) + [
+            // Кортов по умолчанию два: столько же ставит форма турнира.
+            'courts_count' => $request->integer('courts_count') ?: 2,
+            'is_rated' => $request->boolean('is_rated'),
+            'is_paired' => $request->boolean('is_paired'),
+            'verified_only' => $request->boolean('verified_only'),
+            'chat_enabled' => $request->boolean('chat_enabled'),
+        ];
     }
 }

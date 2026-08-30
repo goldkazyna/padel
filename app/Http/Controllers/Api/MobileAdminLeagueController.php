@@ -77,6 +77,13 @@ class MobileAdminLeagueController extends Controller
             'max_players' => 'nullable|integer|min:4|max:200',
             'price' => 'nullable|integer|min:0',
             'is_rated' => 'nullable|boolean',
+            // Настройки этапов — те же, что в веб-CRM.
+            'courts_count' => 'nullable|integer|min:1|max:8',
+            'duration_hours' => 'nullable|integer|min:1|max:8',
+            'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+            'is_paired' => 'nullable|boolean',
+            'verified_only' => 'nullable|boolean',
+            'chat_enabled' => 'nullable|boolean',
         ]);
 
         $league = League::create($validated + [
@@ -84,6 +91,9 @@ class MobileAdminLeagueController extends Controller
             'creator_id' => $request->user()->id,
             'status' => 'open',
             'is_rated' => $request->boolean('is_rated', true),
+            'is_paired' => $request->boolean('is_paired'),
+            'verified_only' => $request->boolean('verified_only'),
+            'chat_enabled' => $request->boolean('chat_enabled', true),
         ]);
 
         return response()->json([
@@ -160,6 +170,12 @@ class MobileAdminLeagueController extends Controller
             'max_players' => 'nullable|integer|min:4|max:200',
             'price' => 'nullable|integer|min:0',
             'status' => 'sometimes|in:draft,open,in_progress,completed,cancelled',
+            'courts_count' => 'sometimes|integer|min:1|max:8',
+            'duration_hours' => 'nullable|integer|min:1|max:8',
+            'points_to_win' => 'nullable|integer|in:16,21,24,32,42',
+            'is_paired' => 'sometimes|boolean',
+            'verified_only' => 'sometimes|boolean',
+            'chat_enabled' => 'sometimes|boolean',
         ]);
 
         $league->update($validated);
@@ -257,6 +273,12 @@ class MobileAdminLeagueController extends Controller
             'price' => $league->price,
             'max_players' => $league->max_players,
             'stages_planned' => $league->stages_planned,
+            'is_paired' => (bool) $league->is_paired,
+            'courts_count' => (int) ($league->courts_count ?? 2),
+            'duration_hours' => $league->duration_hours,
+            'points_to_win' => $league->points_to_win,
+            'verified_only' => (bool) $league->verified_only,
+            'chat_enabled' => (bool) $league->chat_enabled,
             'stages_total' => $summary['stages_total'],
             'stages_done' => $summary['stages_done'],
             'players' => $summary['players'],

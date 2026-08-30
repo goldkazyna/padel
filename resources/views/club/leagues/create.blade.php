@@ -99,6 +99,60 @@
                         </div>
                     </div>
 
+                    <div class="lg-section-title">Как играются этапы</div>
+                    <div class="lg-section-note">
+                        Все этапы лиги играются одинаково — задайте формат один раз,
+                        и он подставится в каждый турнир.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label">Кортов на этапе *</label>
+                            <input type="number" name="courts_count" class="form-control" required
+                                   min="1" max="8" value="{{ old('courts_count', 2) }}">
+                            <div class="form-hint">Игроков нужно минимум кортов x 4.</div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label">Длительность, ч</label>
+                            <select name="duration_hours" class="form-select">
+                                <option value="">Не указывать</option>
+                                @for($h = 1; $h <= 8; $h++)
+                                    <option value="{{ $h }}" {{ old('duration_hours') == $h ? 'selected' : '' }}>{{ $h }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label">Игра до скольки очков</label>
+                            <select name="points_to_win" class="form-select">
+                                <option value="">Не указывать</option>
+                                @foreach([16, 21, 24, 32, 42] as $pts)
+                                    <option value="{{ $pts }}" {{ old('points_to_win') == $pts ? 'selected' : '' }}>{{ $pts }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" name="is_paired" id="isPaired"
+                               value="1" {{ old('is_paired') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="isPaired">
+                            <b>Парная лига</b> — фиксированные пары, партнёр не меняется весь этап.
+                            Пары на каждом этапе собирает организатор.
+                        </label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" name="verified_only" id="verifiedOnly"
+                               value="1" {{ old('verified_only') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="verifiedOnly">Только игроки с подтверждённым уровнем</label>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input type="checkbox" class="form-check-input" name="chat_enabled" id="chatEnabled"
+                               value="1" {{ old('chat_enabled', true) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="chatEnabled">Чат на этапах включён</label>
+                    </div>
+
                     <div class="form-check mb-4">
                         <input type="checkbox" class="form-check-input" name="is_rated" id="isRated"
                                value="1" {{ old('is_rated', true) ? 'checked' : '' }}>
@@ -155,6 +209,8 @@
 </div>
 
 <style>
+.lg-section-title { font-size: 15px; font-weight: 700; color: var(--text-primary, #f4f6f7); margin: 8px 0 4px; }
+.lg-section-note { font-size: 12.5px; color: var(--text-muted, #71717a); margin-bottom: 16px; line-height: 1.5; }
 .form-hint { margin-top: 6px; font-size: 12px; color: var(--text-muted, #71717a); }
 .lg-hint { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; }
 .lg-hint + .lg-hint { margin-top: 16px; }

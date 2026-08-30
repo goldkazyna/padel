@@ -158,8 +158,25 @@
 
         <div class="lg-panel mt-3">
             <div class="lg-panel-title">Новый этап</div>
+            @php
+                // Формат этапа собираем строкой заранее: инлайновые @if со
+                // скобками внутри ломают Blade (проверено на проде).
+                $courts = (int) ($league->courts_count ?? 2);
+                $stageFormat = [
+                    $league->is_paired ? 'Americano Flex (парный)' : 'Americano Flex',
+                    $courts . ' ' . trans_choice('корт|корта|кортов', $courts),
+                ];
+                if ($league->points_to_win) {
+                    $stageFormat[] = 'игра до ' . $league->points_to_win;
+                }
+                if ($league->duration_hours) {
+                    $stageFormat[] = $league->duration_hours . ' ч';
+                }
+            @endphp
             <div class="lg-panel-note">
-                Создастся турнир Americano Flex с настройками лиги, состав запишется в него сразу.
+                Создастся турнир: {{ implode(' · ', $stageFormat) }}. Состав лиги
+                запишется сразу. Формат меняется в
+                <a href="{{ route('club.leagues.edit', $league) }}" class="lg-inline-link">настройках лиги</a>.
             </div>
             <form method="POST" action="{{ route('club.leagues.stages.add', $league) }}">
                 @csrf
@@ -180,7 +197,8 @@
                     </div>
                     <div class="col-md-2 mb-3">
                         <label class="form-label">Кортов</label>
-                        <input type="number" name="courts_count" class="form-control" min="1" max="16" value="2">
+                        <input type="number" name="courts_count" class="form-control" min="1" max="16"
+                               value="{{ $league->courts_count ?? 2 }}">
                     </div>
                     <div class="col-md-1 mb-3">
                         <button type="submit" class="btn-add w-100 justify-content-center">
@@ -295,6 +313,7 @@
 .lg-panel-title { font-size: 15px; font-weight: 700; color: #f4f6f7; margin-bottom: 4px; }
 .lg-panel-note { font-size: 13px; color: #7c848a; margin-bottom: 14px; }
 .lg-legend { margin-top: 14px; font-size: 12.5px; color: #7c848a; line-height: 1.5; }
+.lg-inline-link { color: #22c55e; text-decoration: none; }
 
 /* Таблица — как в турнирах Americano Flex */
 .leaderboard-table-wrapper { overflow-x: auto; }
