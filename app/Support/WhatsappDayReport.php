@@ -117,6 +117,8 @@ class WhatsappDayReport
                 'work_hours' => WhatsappSla::workFrom() . '-' . WhatsappSla::workTo(),
             ],
             'hours' => self::hours($timeline, $tz, $threshold),
+            // Ночные обращения за краем шкалы — их не рисуем, но и не прячем.
+            'hours_outside' => self::outsideHours($timeline, $tz),
             'dialogs' => $dialogs->take(self::MAX_DIALOGS)->map(function ($d) use ($booked) {
                 $d['booked'] = in_array(substr($d['phone'], -10), $booked, true);
 
@@ -150,13 +152,22 @@ class WhatsappDayReport
             }
         }
 
-        // Окно — рабочие часы клуба, но если писали раньше или позже,
-        // час не прячем: молчание в 07:30 тоже стоит денег.
+        // Окно — рабочие часы клуба плюс соседние часы, в которые писали:
+        // сообщение в 08:40 показать надо, а тянуть шкалу до одинокого
+        // ночного вопроса в 01:00 значит нарисовать шесть пустых столбиков.
         $open = (int) substr(WhatsappSla::workFrom(), 0, 2);
         $close = (int) substr(WhatsappSla::workTo(), 0, 2);
-        $hours = array_keys($byHour);
-        $from = min([$open, ...($hours ?: [$open])]);
-        $to = max([$close, ...($hours ?: [$close])]);
+        $busy = fn (int $hour) => ($byHour[$hour]['requests'] ?? 0) > 0;
+
+        $from = $open;
+        while ($from > 0 && $busy($from - 1)) {
+            $from--;
+        }
+
+        $to = $close;
+        while ($to < 23 && $busy($to + 1)) {
+            $to++;
+        }
 
         $out = [];
         for ($hour = $from; $hour <= $to; $hour++) {
@@ -169,7 +180,10 @@ class WhatsappDayReport
                 'work' => $hour >= $open && $hour < $close,
                 'state' => match (true) {
                     $cell['requests'] === 0 => 'empty',
-                    $cell['unanswered'] > 0, $worst !== null && $worst > 60 => 'bad',
+                    // Оставленное без ответа красит час в красный только в
+                    // рабочее время: на ночное сообщение отвечают на открытии.
+                    $worst !== null && $worst > 60 => 'bad',
+                    $cell['unanswered'] > 0 => $hour >= $open && $hour < $close ? 'bad' : 'slow',
                     $worst !== null && $worst > $threshold => 'slow',
                     default => 'ok',
                 },
@@ -177,6 +191,16 @@ class WhatsappDayReport
         }
 
         return $out;
+    }
+
+    /** Сколько обращений не поместилось на шкалу — ночные, вне окна. */
+    private static function outsideHours(array $requests, string $tz): int
+    {
+        $shown = collect(self::hours($requests, $tz, WhatsappSla::threshold()))->pluck('hour')->all();
+
+        return collect($requests)
+            ->reject(fn ($r) => in_array((int) $r['at']->copy()->timezone($tz)->format('G'), $shown, true))
+            ->count();
     }
 
     /**

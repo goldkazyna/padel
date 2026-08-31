@@ -261,6 +261,16 @@ class WhatsappAnalysisTest extends TestCase
         $this->assertSame(1, $hours[14]['unanswered']);
         $this->assertTrue($hours[10]['work'], '10:00 — рабочий час клуба');
 
+        // Одинокий ночной вопрос не растягивает шкалу на шесть пустых часов —
+        // он уходит в подпись «ещё N обращений ночью».
+        $this->message('77770000019', false, '2026-08-20 01:30', 'а вы работаете?');
+        $report = \App\Support\WhatsappDayReport::build(
+            $this->club->id, Carbon::parse('2026-08-20', 'Asia/Almaty')
+        );
+
+        $this->assertSame(9, collect($report['hours'])->min('hour'), 'шкала начинается с открытия');
+        $this->assertSame(1, $report['hours_outside'], 'ночное обращение посчитано отдельно');
+
         $this->actingAs($this->admin)
             ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
             ->assertOk()

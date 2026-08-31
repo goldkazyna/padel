@@ -245,6 +245,7 @@ class WhatsappController extends Controller
             'date' => $date,
             'metrics' => $report['metrics'],
             'hours' => $report['hours'],
+            'outside' => $report['hours_outside'],
             'dialogs' => $report['dialogs'],
             'analysis' => $analysis,
             'days' => $this->recentDays($club->id, $tz),

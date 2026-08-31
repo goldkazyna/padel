@@ -192,6 +192,10 @@
                     {{ $metrics['new_contacts'] }} новых ·
                     {{ $metrics['incoming'] }} входящих, {{ $metrics['outgoing'] }} наших ·
                     рабочие часы {{ $metrics['work_hours'] }}
+                    @if($outside)
+                        · ещё {{ $outside }}
+                        {{ trans_choice('обращение|обращения|обращений', $outside) }} ночью, вне шкалы
+                    @endif
                 </div>
             </div>
         </div>
