@@ -31,7 +31,8 @@ class FinanceReportServiceTest extends TestCase
     {
         $sheet = (new FinanceReportService())->sales($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $this->assertCount(2, $sheet->rows);
-        $this->assertEquals(10000, $sheet->totals[5]); // amount total (5000 + 5000)
+        // 5000 + 6000: price уже итоговый, скидка показана отдельной колонкой.
+        $this->assertEquals(11000, $sheet->totals[5]);
     }
 
     public function test_by_days_aggregates(): void
@@ -39,7 +40,8 @@ class FinanceReportServiceTest extends TestCase
         $sheet = (new FinanceReportService())->byDays($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $row = collect($sheet->rows)->firstWhere(0, '04.05.2026');
         $this->assertEquals(2, $row[1]);      // count
-        $this->assertEquals(10000, $row[2]);  // sum
+        // price уже за вычетом скидки: 5000 + 6000.
+        $this->assertEquals(11000, $row[2]);
     }
 
     public function test_debts_only_unpaid(): void
@@ -47,7 +49,7 @@ class FinanceReportServiceTest extends TestCase
         $sheet = (new FinanceReportService())->debts($this->club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $this->assertCount(1, $sheet->rows);
         // Колонки: Дата, Время, Корт, Клиент, Телефон, Сумма, Менеджер.
-        $this->assertEquals(5000, $sheet->totals[5], 'долг = 6000 − 1000');
+        $this->assertEquals(6000, $sheet->totals[5], 'должен ровно столько, сколько стоит бронь');
         $this->assertMatchesRegularExpression('/^\d\d:\d\d–\d\d:\d\d$/u', $sheet->rows[0][1],
             'во второй колонке должно быть время брони');
     }

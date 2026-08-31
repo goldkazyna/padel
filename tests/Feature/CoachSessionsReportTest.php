@@ -164,19 +164,20 @@ class CoachSessionsReportTest extends TestCase
         $this->assertEqualsWithDelta(4500, $row[7], 0.01);
     }
 
-    public function test_минусовая_оплата_показывается_как_есть(): void
+    public function test_скидка_не_вычитается_второй_раз(): void
     {
-        // Скидка больше цены — ошибка ввода в брони. Отчёт её не прячет:
-        // иначе клуб не узнает, что данные надо поправить.
+        // В брони price уже за вычетом скидки: цена по прайсу 22 000,
+        // скидка 12 000, клиент платит 10 000. Отчёт вычитал скидку ещё раз
+        // и показывал «-2000».
         $anna = $this->coach('Анна Тренер');
         $b = $this->booking($anna, 'individual', '2026-08-10', 10000, coachPrice: 5000);
         $b->update(['discount' => 12000]);
 
-        $rows = collect($this->sheet()->rows);
-        $line = $rows->firstWhere(6, -2000.0);
+        $sheet = $this->sheet();
+        $row = collect($sheet->rows)->firstWhere(3, 'Клиент');
 
-        $this->assertNotNull($line, 'минус виден в строке');
-        $this->assertEqualsWithDelta(-2000, $this->sheet()->totals[6], 0.01);
+        $this->assertEqualsWithDelta(10000, $row[6], 0.01, 'оплата клиента — то, что он платит');
+        $this->assertEqualsWithDelta(10000, $sheet->totals[6], 0.01);
     }
 
     public function test_заголовки_и_выделение_строк(): void

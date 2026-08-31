@@ -41,8 +41,12 @@ class CoachesReportServiceTest extends TestCase
         $this->assertEquals(1, $u[1]);      // sessions
         $this->assertEquals(7000, $u[3]);   // club income
 
+        // Отчёт блочный: имя тренера, заголовок раздела, занятие, итоги.
         $sessions = $svc->sessions($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
-        $this->assertCount(1, $sessions->rows);
+        $first = array_map(fn ($r) => (string) $r[0], $sessions->rows);
+        $this->assertSame('Тренер Один', $first[0]);
+        $this->assertContains('Итого Тренер Один', $first);
+        $this->assertEquals(7000, $sessions->totals[6], 'оплата клиента');
     }
 
     public function test_income_by_type_splits_by_booking_type(): void

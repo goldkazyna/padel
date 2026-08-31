@@ -47,7 +47,8 @@ class ClubIncomeReportService
             ->whereDate('date', '<=', $toD)
             ->get(['payment_method', 'price', 'discount']);
         foreach ($paid as $b) {
-            $sums[$b->payment_method] += (float) $b->price - (float) $b->discount;
+            // price уже за вычетом скидки — вычитать её второй раз нельзя.
+            $sums[$b->payment_method] += (float) $b->price;
         }
 
         // 2) Клубная карта — списанные часы × (цена карты / номинал).

@@ -87,7 +87,8 @@ class CoachesReportService
             $agg[$id] ??= [0, 0.0, 0.0];
             $agg[$id][0]++;
             $agg[$id][1] += $this->hours($b->start_time, $b->end_time);
-            $agg[$id][2] += (float) $b->price - (float) $b->discount;
+            // price уже за вычетом скидки: второе вычитание занижало доход.
+            $agg[$id][2] += (float) $b->price;
         }
         $rows = [];
         $tS = 0;
@@ -138,7 +139,9 @@ class CoachesReportService
 
         foreach ($bookings as $b) {
             $hours = $this->hours($b->start_time, $b->end_time);
-            $amount = (float) $b->price - (float) $b->discount;
+            // price уже за вычетом скидки — иначе бронь со скидкой больше
+            // остатка показывала минус («-2000»).
+            $amount = (float) $b->price;
 
             foreach ($this->coachLegs($b) as $leg) {
                 $id = $leg['coach_id'];

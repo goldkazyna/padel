@@ -30,7 +30,8 @@ class ClientsReportServiceTest extends TestCase
         $sheet = (new ClientsReportService())->visits($club, Carbon::parse('2026-05-01'), Carbon::parse('2026-05-31'));
         $row = collect($sheet->rows)->firstWhere(0, 'Иван');
         $this->assertEquals(2, $row[2]);          // visits
-        $this->assertEquals(9000, $row[3]);       // amount (5000 + (5000-1000))
+        // price в брони уже за вычетом скидки: клиент платит по 5000.
+        $this->assertEquals(10000, $row[3]);
         $this->assertEquals('05.05.2026', $row[4]); // last visit
     }
 }
