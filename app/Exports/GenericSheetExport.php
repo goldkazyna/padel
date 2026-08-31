@@ -48,6 +48,13 @@ class GenericSheetExport implements FromArray, WithHeadings, WithTitle, WithStyl
     public function styles(Worksheet $sheet): array
     {
         $styles = [1 => ['font' => ['bold' => true]]]; // header row
+
+        // Имена тренеров и итоги разделов: без выделения отчёт читается
+        // как сплошная простыня строк.
+        foreach (($this->sheet->boldRows ?? []) as $index) {
+            $styles[$index + 2] = ['font' => ['bold' => true]];
+        }
+
         if ($this->sheet->totals !== null) {
             $lastRow = count($this->sheet->rows) + 2; // +1 header, +1 totals
             $styles[$lastRow] = ['font' => ['bold' => true]];

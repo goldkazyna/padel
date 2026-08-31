@@ -108,39 +108,154 @@ class CoachesReportService
         );
     }
 
+    /**
+     * Проведённые тренировки — по тренерам.
+     *
+     * Сплошной список по датам не отвечал на главный вопрос «сколько
+     * провёл и заработал вот этот тренер»: приходилось фильтровать руками.
+     * Теперь блоками: тренер → групповые с итогом → остальные с итогом →
+     * итог по тренеру. В конце общий итог по клубу.
+     *
+     * Спарринг с несколькими тренерами разворачивается по «ногам»: каждый
+     * тренер видит свою тренировку и свою сумму.
+     */
     public function sessions(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
         $bookings = $this->coachBookings($club, $from, $to);
         $names = [];
+        $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
         $typeLabels = [
-            'soft'         => 'Мягкая',
-            'group'        => 'Групповая',
-            'individual'   => 'Индивид.',
-            'tournament'   => 'Турнир',
+            'soft' => 'Мягкая',
+            'group' => 'Групповая',
+            'individual' => 'Индивид.',
+            'tournament' => 'Турнир',
         ];
-        $rows = [];
-        $tAmount = 0.0;
+
+        // coach_id => ['group' => [...], 'other' => [...]]
+        $byCoach = [];
+
         foreach ($bookings as $b) {
+            $hours = $this->hours($b->start_time, $b->end_time);
             $amount = (float) $b->price - (float) $b->discount;
-            $rows[] = [
-                $this->formatDate($b->date),
-                Carbon::parse($b->start_time)->format('H:i') . '–' . Carbon::parse($b->end_time)->format('H:i'),
-                $b->court->name ?? '',
-                $this->coachName($b->coach_id, $names),
-                $b->client_name ?? '',
-                $this->hours($b->start_time, $b->end_time),
-                $typeLabels[$b->booking_type] ?? '',
-                round($amount, 2),
-            ];
-            $tAmount += $amount;
+
+            foreach ($this->coachLegs($b) as $leg) {
+                $id = $leg['coach_id'];
+                $section = $b->booking_type === 'group' ? 'group' : 'other';
+                $byCoach[$id][$section][] = [
+                    'date' => $this->formatDate($b->date),
+                    'time' => Carbon::parse($b->start_time)->format('H:i')
+                        . '–' . Carbon::parse($b->end_time)->format('H:i'),
+                    'court' => $b->court->name ?? '',
+                    'client' => $b->client_name ?? '',
+                    'hours' => $hours,
+                    'type' => $typeLabels[$b->booking_type] ?? 'Другое',
+                    'amount' => $amount,
+                    'earned' => $this->legEarning($leg, $b, $profiles->get($id), $hours),
+                ];
+            }
         }
+
+        // Тренеры по алфавиту: отчёт открывают, чтобы найти конкретного.
+        uksort($byCoach, fn ($a, $b) => strcmp(
+            $this->coachName($a, $names),
+            $this->coachName($b, $names)
+        ));
+
+        $rows = [];
+        $bold = [];
+        $totalHours = 0.0;
+        $totalAmount = 0.0;
+        $totalEarned = 0.0;
+
+        foreach ($byCoach as $id => $sections) {
+            $coachHours = 0.0;
+            $coachAmount = 0.0;
+            $coachEarned = 0.0;
+
+            $bold[] = count($rows);
+            $rows[] = [$this->coachName($id, $names), '', '', '', '', '', '', ''];
+
+            foreach ([['group', 'Групповые'], ['other', 'Индивидуальные и прочие']] as [$key, $label]) {
+                $list = $sections[$key] ?? [];
+                if ($list === []) {
+                    continue;
+                }
+
+                $bold[] = count($rows);
+                $rows[] = ['  ' . $label, '', '', '', '', '', '', ''];
+
+                $hours = 0.0;
+                $amount = 0.0;
+                $earned = 0.0;
+
+                foreach ($list as $item) {
+                    $rows[] = [
+                        '  ' . $item['date'],
+                        $item['time'],
+                        $item['court'],
+                        $item['client'],
+                        round($item['hours'], 2),
+                        $item['type'],
+                        round($item['amount'], 2),
+                        round($item['earned'], 2),
+                    ];
+                    $hours += $item['hours'];
+                    $amount += $item['amount'];
+                    $earned += $item['earned'];
+                }
+
+                $bold[] = count($rows);
+                $rows[] = [
+                    '  Итого ' . mb_strtolower($label),
+                    count($list) . ' шт.', '', '',
+                    round($hours, 2), '', round($amount, 2), round($earned, 2),
+                ];
+
+                $coachHours += $hours;
+                $coachAmount += $amount;
+                $coachEarned += $earned;
+            }
+
+            $bold[] = count($rows);
+            $rows[] = [
+                'Итого ' . $this->coachName($id, $names),
+                '', '', '',
+                round($coachHours, 2), '', round($coachAmount, 2), round($coachEarned, 2),
+            ];
+            $rows[] = ['', '', '', '', '', '', '', ''];
+
+            $totalHours += $coachHours;
+            $totalAmount += $coachAmount;
+            $totalEarned += $coachEarned;
+        }
+
         return new ReportSheet(
             title: 'Проведённые тренировки',
-            headings: ['Дата', 'Время', 'Корт', 'Тренер', 'Клиент', 'Часов', 'Тип', 'Сумма'],
+            headings: ['Дата / тренер', 'Время', 'Корт', 'Клиент', 'Часов', 'Тип', 'Оплата клиента', 'Тренеру'],
             rows: $rows,
-            totals: ['Итого', '', '', '', '', '', '', round($tAmount, 2)],
-            columnFormats: [5 => '#,##0.0', 7 => '#,##0'],
+            totals: ['ВСЕГО', '', '', '', round($totalHours, 2), '', round($totalAmount, 2), round($totalEarned, 2)],
+            columnFormats: [4 => '#,##0.0', 6 => '#,##0', 7 => '#,##0'],
+            boldRows: $bold,
         );
+    }
+
+    /**
+     * Сколько получает тренер за эту «ногу» брони.
+     *
+     * Порядок тот же, что в отчёте по типам дохода: зафиксированная сумма →
+     * групповая ставка × часы → ставка за длительность.
+     */
+    private function legEarning(array $leg, CourtBooking $booking, ?ClubCoach $profile, float $hours): float
+    {
+        if ($leg['coach_price'] !== null) {
+            return (float) $leg['coach_price'];
+        }
+
+        if ($booking->booking_type === 'group' && $profile && $profile->rate_group !== null) {
+            return (float) $profile->rate_group * $hours;
+        }
+
+        return $profile?->getRateForHours((int) floor($hours)) ?? 0.0;
     }
 
     /**

@@ -10,6 +10,8 @@ class ReportSheet
      * @param array[] $rows        Data rows (each an ordered array of cell values).
      * @param array|null $totals   Optional totals row (ordered like headings); bolded.
      * @param array<int,string>|null $columnFormats  index => Excel number format (e.g. '#,##0', '0%').
+     * @param array<int,int>|null $boldRows  Индексы строк (от нуля), которые нужно выделить:
+     *        имена тренеров и итоги разделов, иначе группировка не читается.
      */
     public function __construct(
         public string $title,
@@ -17,5 +19,6 @@ class ReportSheet
         public array $rows,
         public ?array $totals = null,
         public ?array $columnFormats = null,
+        public ?array $boldRows = null,
     ) {}
 }
