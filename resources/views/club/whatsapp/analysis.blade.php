@@ -147,7 +147,7 @@
 
             <div class="an-card an-big">
                 <div class="an-lbl">Дошли до брони</div>
-                <div class="an-num ok">{{ $metrics['booked'] }}</div>
+                <div class="an-num {{ $metrics['booked'] ? 'ok' : '' }}">{{ $metrics['booked'] }}</div>
                 <div class="an-cap">
                     {{ $conversion }}% написавших. Обычный ответ — {{ $human($metrics['median']) }},
                     худший — {{ $human($metrics['worst']) }}.
@@ -322,18 +322,18 @@
 
     {{-- Разбор идёт одним запросом и занимает до минуты: без этой шторки
          человек смотрит в застывшую страницу и жмёт кнопку второй раз. --}}
-    <div class="an-wait" id="anWait" hidden data-estimate="{{ $estimate }}">
-        <div class="an-wait-card">
-            <div class="an-wait-spin"></div>
-            <div class="an-wait-title" id="anWaitTitle">Разбираем день</div>
-            <div class="an-wait-sub" id="anWaitSub">
+    <div class="an-loader" id="anWait" hidden data-estimate="{{ $estimate }}">
+        <div class="an-loader-card">
+            <div class="an-loader-spin"></div>
+            <div class="an-loader-title" id="anWaitTitle">Разбираем день</div>
+            <div class="an-loader-sub" id="anWaitSub">
                 Claude читает {{ $metrics['dialogs'] }}
                 {{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }}
                 за {{ $date->locale('ru')->translatedFormat('j F') }}
             </div>
-            <div class="an-wait-bar"><div id="anWaitFill"></div></div>
-            <div class="an-wait-time" id="anWaitTime"></div>
-            <div class="an-wait-note" id="anWaitNote">
+            <div class="an-loader-bar"><div id="anWaitFill"></div></div>
+            <div class="an-loader-time" id="anWaitTime"></div>
+            <div class="an-loader-note" id="anWaitNote">
                 Не закрывайте вкладку — страница обновится сама.
             </div>
             <button type="button" class="an-btn" id="anWaitClose" hidden>Закрыть</button>
@@ -492,25 +492,27 @@
 .an-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
 .an-empty span{font-size:13px;}
 
-/* ── шторка ожидания ───────────────────────────────────────────────── */
-.an-wait{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;
+/* ── шторка ожидания ───────────────────────────────────────────────
+   Класс свой, не an-wait: так зовётся бейдж ожидания в находке, и
+   заливка шторки однажды растеклась на всю страницу поверх контента. */
+.an-loader{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;
   background:rgba(8,8,10,.82);backdrop-filter:blur(3px);padding:20px;}
-.an-wait[hidden]{display:none;}
-.an-wait-card{width:100%;max-width:420px;text-align:center;padding:30px 28px 26px;
+.an-loader[hidden]{display:none;}
+.an-loader-card{width:100%;max-width:420px;text-align:center;padding:30px 28px 26px;
   background:var(--card);border:1px solid var(--line);border-radius:18px;}
-.an-wait-spin{width:38px;height:38px;margin:0 auto 16px;border-radius:50%;
+.an-loader-spin{width:38px;height:38px;margin:0 auto 16px;border-radius:50%;
   border:3px solid rgba(37,211,102,.18);border-top-color:var(--wa);animation:an-spin .9s linear infinite;}
 @keyframes an-spin{to{transform:rotate(360deg);}}
-.an-wait-title{font-size:17px;font-weight:800;}
-.an-wait-sub{font-size:13px;color:var(--t2);margin-top:6px;line-height:1.5;}
-.an-wait-bar{height:6px;border-radius:6px;background:#202024;overflow:hidden;margin:18px 0 10px;}
-.an-wait-bar > div{height:100%;width:0;border-radius:6px;
+.an-loader-title{font-size:17px;font-weight:800;}
+.an-loader-sub{font-size:13px;color:var(--t2);margin-top:6px;line-height:1.5;}
+.an-loader-bar{height:6px;border-radius:6px;background:#202024;overflow:hidden;margin:18px 0 10px;}
+.an-loader-bar > div{height:100%;width:0;border-radius:6px;
   background:linear-gradient(90deg,#1a9c4c,#25d366);transition:width .5s linear;}
-.an-wait-time{font-size:13px;font-weight:700;color:var(--wa);font-variant-numeric:tabular-nums;}
-.an-wait-note{font-size:11.5px;color:var(--t3);margin-top:8px;line-height:1.5;}
-.an-wait.bad .an-wait-spin{border-color:rgba(248,113,113,.2);border-top-color:var(--red);animation:none;}
-.an-wait.bad .an-wait-time{color:var(--red);}
-.an-wait.bad .an-wait-bar > div{background:var(--red);}
+.an-loader-time{font-size:13px;font-weight:700;color:var(--wa);font-variant-numeric:tabular-nums;}
+.an-loader-note{font-size:11.5px;color:var(--t3);margin-top:8px;line-height:1.5;}
+.an-loader.bad .an-loader-spin{border-color:rgba(248,113,113,.2);border-top-color:var(--red);animation:none;}
+.an-loader.bad .an-loader-time{color:var(--red);}
+.an-loader.bad .an-loader-bar > div{background:var(--red);}
 #anWaitClose{margin-top:16px;}
 
 @media (max-width: 1100px){
