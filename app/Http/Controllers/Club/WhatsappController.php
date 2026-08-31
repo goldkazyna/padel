@@ -296,7 +296,10 @@ class WhatsappController extends Controller
      * иначе разбор занял бы полконтекста. Здесь возвращаем этим хвостам
      * имя и полный номер, чтобы из находки можно было перейти в переписку.
      *
-     * @return array<string, array{phone:string, name:string, is_client:bool}>
+     * Заодно отдаём цифры дня по этому диалогу: в находке они превращают
+     * оценку модели в проверяемый факт.
+     *
+     * @return array<string, array>
      */
     private function peopleByTail(Club $club, array $dialogs): array
     {
@@ -322,6 +325,11 @@ class WhatsappController extends Controller
                 'phone' => (string) $dialog['phone'],
                 'name' => $client->name ?? $dialog['name'] ?? '',
                 'is_client' => (bool) $client,
+                'requests' => (int) ($dialog['requests'] ?? 0),
+                'unanswered' => (int) ($dialog['unanswered'] ?? 0),
+                'worst' => $dialog['worst'] ?? null,
+                'is_new' => (bool) ($dialog['is_new'] ?? false),
+                'booked' => (bool) ($dialog['booked'] ?? false),
             ];
         }
 

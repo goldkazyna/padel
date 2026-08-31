@@ -232,7 +232,27 @@
                                 $who = '…' . $find['phone'];
                             }
                             $letter = $who !== '' ? mb_strtoupper(mb_substr($who, 0, 1)) : '';
-                            $hasBody = $find['text'] || $find['quote'] || $find['fix'];
+
+                            // Цифры дня по этому диалогу: оценку модели видно
+                            // рядом с проверяемым фактом, и раскрывается каждая
+                            // находка с человеком, а не только «потеря».
+                            $facts = [];
+                            if ($person) {
+                                $facts[] = $person['requests'] . ' '
+                                    . trans_choice('обращение|обращения|обращений', $person['requests']) . ' за день';
+                                if ($person['worst'] !== null) {
+                                    $facts[] = 'худший ответ ' . $human($person['worst']);
+                                }
+                                if ($person['unanswered']) {
+                                    $facts[] = $person['unanswered'] . ' без ответа';
+                                }
+                                $facts[] = $person['booked'] ? 'бронь в этот день есть' : 'брони в этот день нет';
+                                if ($person['is_new']) {
+                                    $facts[] = 'написал впервые';
+                                }
+                            }
+
+                            $hasBody = $find['text'] || $find['quote'] || $find['fix'] || $facts;
                         @endphp
                         <details class="an-find" {{ $i === 0 && $hasBody ? 'open' : '' }}>
                             <summary>
@@ -241,6 +261,9 @@
                                 @if($who !== '')
                                     <span class="an-ava">{{ $letter ?: '?' }}</span>
                                     <span class="an-who">{{ $who }}</span>
+                                    @if($person)
+                                        <span class="an-num-phone">@phoneFmt($person['phone'])</span>
+                                    @endif
                                 @endif
 
                                 <span class="an-what">{{ $find['title'] }}</span>
@@ -265,6 +288,14 @@
                                     @if($find['quote'])<div class="an-quote">«{{ $find['quote'] }}»</div>@endif
                                     @if($find['fix'])
                                         <div class="an-fix"><i class="bi bi-arrow-return-right"></i> {{ $find['fix'] }}</div>
+                                    @endif
+                                    @if($facts)
+                                        <div class="an-facts">
+                                            {{ implode(' · ', $facts) }}
+                                            <a href="{{ route('club.whatsapp.show', $person['phone']) }}">
+                                                открыть переписку <i class="bi bi-arrow-right-short"></i>
+                                            </a>
+                                        </div>
                                     @endif
                                 </div>
                             @endif
@@ -451,6 +482,8 @@
 .an-ava{width:30px;height:30px;border-radius:50%;flex:0 0 auto;background:rgba(37,211,102,.14);
   color:var(--wa);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
 .an-who{font-size:13.5px;font-weight:700;white-space:nowrap;}
+.an-num-phone{font-size:11.5px;color:var(--t3);white-space:nowrap;
+  font-variant-numeric:tabular-nums;}
 .an-what{flex:1;min-width:0;font-size:13px;color:var(--t2);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .an-wait{font-size:11.5px;font-weight:700;color:var(--amber);white-space:nowrap;
@@ -466,6 +499,12 @@
 .an-quote{margin-top:9px;padding:9px 12px;border-radius:0 8px 8px 0;background:#111114;
   border-left:2px solid var(--line);font-size:12.5px;color:var(--t2);font-style:italic;}
 .an-fix{display:flex;gap:8px;margin-top:9px;font-size:12.5px;color:var(--wa);line-height:1.5;}
+/* Цифры CRM по этому диалогу — под словами модели, мелким шрифтом. */
+.an-facts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;
+  padding-top:9px;border-top:1px solid #202024;font-size:11.5px;color:var(--t3);}
+.an-facts a{display:inline-flex;align-items:center;color:var(--wa);text-decoration:none;
+  font-weight:700;margin-left:auto;}
+.an-facts a:hover{text-decoration:underline;}
 
 /* ── что делать ────────────────────────────────────────────────────── */
 .an-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start;}
@@ -522,6 +561,7 @@
 }
 @media (max-width: 700px){
   .an-what{display:none;}
+  .an-num-phone{display:none;}
   .an-body{padding-left:18px;}
   .an-bar-val{display:none;}
 }

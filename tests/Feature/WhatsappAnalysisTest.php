@@ -217,7 +217,34 @@ class WhatsappAnalysisTest extends TestCase
             ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
             ->assertOk()
             ->assertSee('Айгуль Сериковна')
+            // Номер рядом с именем: по имени в WhatsApp человека не найдёшь.
+            ->assertSee(\App\Support\PhoneVisibility::display('77770000016', true))
             ->assertSee(route('club.whatsapp.show', '77770000016'), false);
+    }
+
+    public function test_долгий_ответ_тоже_раскрывается_и_ведёт_в_чат(): void
+    {
+        // Раньше подробности были только у «потери»: у остальных находок
+        // строка не раскрывалась и перейти в переписку было некуда.
+        $this->message('77770000022', false, '2026-08-20 10:00', 'запишите на пробное');
+        $this->message('77770000022', true, '2026-08-20 12:00', 'извините за задержку');
+
+        $this->fakeClaude([
+            'verdict' => 'Долго отвечали.',
+            'lost_sales' => [],
+            'slow' => [['phone' => '0022', 'waited' => '2 часа', 'what' => 'запись на пробное занятие']],
+            'quality' => [], 'good' => [], 'actions' => [], 'automation' => [],
+        ]);
+
+        $this->actingAs($this->admin)->post(route('club.whatsapp.analysis.run'), ['date' => '2026-08-20']);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
+            ->assertOk()
+            ->assertSee(route('club.whatsapp.show', '77770000022'), false)
+            // Цифры CRM по этому диалогу — рядом со словами модели.
+            ->assertSee('худший ответ 2 ч')
+            ->assertSee('брони в этот день нет');
     }
 
     public function test_одинаковый_хвост_номера_никуда_не_ведёт(): void
