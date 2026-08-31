@@ -52,12 +52,17 @@ class WhatsappController extends Controller
             });
         }
 
+        // Кто ждёт ответа и сколько — считает тот же код, что и экран
+        // «Ждут ответа»: в списке это главный признак, а не сноска.
+        $waiting = WhatsappSla::waitingChats($club->id)->keyBy('phone');
+
         // Диалоги собираем в PHP: переписки пока немного, а группировка
         // с «последним сообщением» в SQL читается куда хуже.
         $chats = $query->orderByDesc('sent_at')->limit(2000)->get()
             ->groupBy('phone')
-            ->map(function ($messages, $phone) {
+            ->map(function ($messages, $phone) use ($waiting) {
                 $last = $messages->first();
+                $wait = $waiting[$phone] ?? null;
 
                 return [
                     'phone' => $phone,
@@ -65,10 +70,40 @@ class WhatsappController extends Controller
                     'last' => $last,
                     'total' => $messages->count(),
                     'incoming' => $messages->where('from_me', false)->count(),
+                    // Минуты рабочего времени; null — на последнее слово
+                    // ответили, ждать нечего.
+                    'waited' => $wait['waited'] ?? null,
+                    'overdue' => (bool) ($wait['overdue'] ?? false),
+                    'ever_answered' => (bool) ($wait['ever_answered'] ?? true),
                 ];
             })
             ->sortByDesc(fn ($chat) => $chat['last']->sent_at)
             ->values();
+
+        $today = now()->timezone(WhatsappSla::timezone())->startOfDay();
+        $counts = [
+            'all' => $chats->count(),
+            'waiting' => $chats->whereNotNull('waited')->count(),
+            'today' => $chats->filter(
+                fn ($chat) => $chat['last']->sent_at->timezone(WhatsappSla::timezone())->greaterThanOrEqualTo($today)
+            )->count(),
+            'new' => $chats->where('ever_answered', false)->count(),
+        ];
+
+        // Фильтр — вкладками над списком: «все подряд» отвечает не на тот
+        // вопрос, с которого открывают экран.
+        $filter = in_array($request->get('filter'), ['waiting', 'today', 'new'], true)
+            ? $request->get('filter')
+            : 'all';
+
+        $chats = match ($filter) {
+            'waiting' => $chats->whereNotNull('waited')->sortByDesc('waited')->values(),
+            'today' => $chats->filter(
+                fn ($chat) => $chat['last']->sent_at->timezone(WhatsappSla::timezone())->greaterThanOrEqualTo($today)
+            )->values(),
+            'new' => $chats->where('ever_answered', false)->values(),
+            default => $chats,
+        };
 
         // Имена клиентов подтягиваем одним запросом: у каждого сообщения
         // спрашивать базу — верный способ получить сотню запросов на экран.
@@ -82,7 +117,41 @@ class WhatsappController extends Controller
             'total' => WhatsappMessage::where('club_id', $club->id)->count(),
             // Точка отсчёта для опроса: с чем сравнивать «пришло ли новое».
             'lastId' => (int) WhatsappMessage::where('club_id', $club->id)->max('id'),
-            'waitingCount' => WhatsappSla::waitingChats($club->id)->count(),
+            'waitingCount' => $counts['waiting'],
+            'counts' => $counts,
+            'filter' => $filter,
+            'threshold' => WhatsappSla::threshold(),
+        ]);
+    }
+
+    /**
+     * Переписка для правой колонки списка.
+     *
+     * Отдаём кусок разметки, а не JSON: сообщения рисует тот же партиал,
+     * что и отдельная страница диалога, и расходиться им незачем.
+     */
+    public function panel(Request $request, string $phone)
+    {
+        $club = $this->getClub();
+        if (!$club) abort(403);
+
+        $digits = preg_replace('/\D/', '', $phone);
+        $messages = WhatsappMessage::where('club_id', $club->id)
+            ->where('phone', $digits)
+            ->orderBy('sent_at')
+            ->get();
+
+        if ($messages->isEmpty()) abort(404);
+
+        $tz = config('app.schedule_timezone', 'Asia/Almaty');
+
+        return view('club.whatsapp.partials._panel', [
+            'phone' => $digits,
+            'name' => $messages->firstWhere('from_me', false)?->author_name,
+            'client' => $this->clientsByPhone($club, [$digits])[substr($digits, -10)] ?? null,
+            'days' => $messages->groupBy(fn ($m) => $m->sent_at->timezone($tz)->toDateString()),
+            'total' => $messages->count(),
+            'waited' => WhatsappSla::waitingChats($club->id)->firstWhere('phone', $digits)['waited'] ?? null,
         ]);
     }
 

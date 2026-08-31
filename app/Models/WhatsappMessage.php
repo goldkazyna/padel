@@ -60,6 +60,11 @@ class WhatsappMessage extends Model
             'sticker' => 'стикер',
             'location' => 'геометка',
             'contact', 'contacts' => 'контакт',
+            // Служебные события WhatsApp (добавили в группу, удалили
+            // сообщение) в списке выглядели как текст «action».
+            'action' => 'служебное событие',
+            'system' => 'системное сообщение',
+            'notification' => 'уведомление WhatsApp',
             default => $this->type,
         };
     }
