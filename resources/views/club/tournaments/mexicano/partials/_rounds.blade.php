@@ -24,6 +24,7 @@
                         <span class="round-status {{ $statusClass }}">
                             {{ $isCompleted ? 'Завершён' : ($isActive ? 'Идёт' : 'Ожидание') }}
                         </span>
+                        @include('club.tournaments.partials._round_delete')
                         <i class="bi bi-chevron-down collapse-icon {{ $isActive ? '' : 'collapsed' }}" id="icon-mexicano-round-{{ $round->id }}"></i>
                     </div>
                 </div>

@@ -281,6 +281,7 @@
                         <span class="round-status {{ $round->isCompleted() ? 'completed' : ($round->status === 'in_progress' ? 'active' : 'pending') }}">
                             {{ $round->isCompleted() ? 'Завершён' : ($round->status === 'in_progress' ? 'Идёт' : 'Ожидает') }}
                         </span>
+                        @include('club.tournaments.partials._round_delete')
                     </div>
 
                     <div class="round-matches">

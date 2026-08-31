@@ -1542,6 +1542,29 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Удалить лишний раунд.
+	 *
+	 * «Следующий раунд» жмут на один раз больше, чем нужно, и в турнире
+	 * висит пустой раунд, из-за которого его нельзя завершить.
+	 */
+	public function removeRound(Tournament $tournament, int $round, \App\Services\RoundRemovalService $service)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$model = $service->findRound($tournament, $round);
+		if (!$model) {
+			return back()->with('error', 'Раунд не найден');
+		}
+
+		[$ok, $message] = $service->remove($tournament, $model);
+
+		return back()->with($ok ? 'success' : 'error', $message);
+	}
+
+	/**
 	 * Досыпать в этап лиги тех, кого добавили в лигу после его создания.
 	 */
 	public function refillFromLeague(Tournament $tournament)

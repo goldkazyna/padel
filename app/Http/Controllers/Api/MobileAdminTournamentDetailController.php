@@ -1427,6 +1427,32 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * DELETE /api/mobile/admin/tournaments/{tournament}/rounds/{round}
+     * Удалить лишний раунд — последний и пока без счёта.
+     */
+    public function removeRound(
+        Request $request,
+        Tournament $tournament,
+        int $round,
+        \App\Services\RoundRemovalService $service
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $model = $service->findRound($tournament, $round);
+        if (!$model) {
+            return $this->error('Раунд не найден', 404);
+        }
+
+        [$ok, $message] = $service->remove($tournament, $model);
+
+        return $ok
+            ? response()->json(['success' => true, 'message' => $message])
+            : $this->error($message);
+    }
+
+    /**
      * POST /api/mobile/admin/tournaments/{tournament}/league/refill
      * Досыпать в этап тех, кого добавили в лигу после его создания.
      */
