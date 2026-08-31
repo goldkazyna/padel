@@ -250,6 +250,8 @@ class WhatsappController extends Controller
             'analysis' => $analysis,
             'days' => $this->recentDays($club->id, $tz),
             'people' => $this->peopleByTail($club, $report['dialogs']),
+            // Сколько обычно ждать — для обратного отсчёта на экране.
+            'estimate' => WhatsappAnalysisService::typicalSeconds($club->id),
         ]);
     }
 
@@ -262,11 +264,24 @@ class WhatsappController extends Controller
         $date = $this->analysisDate($request, WhatsappSla::timezone());
 
         try {
-            $service->analyze($club->id, $date, $request->boolean('force'), auth()->id());
+            $analysis = $service->analyze($club->id, $date, $request->boolean('force'), auth()->id());
         } catch (\Throwable $e) {
+            // Экран ждёт ответа через fetch и сам покажет ошибку в шторке
+            // ожидания: перезагружать страницу ради строчки незачем.
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+            }
+
             return redirect()
                 ->route('club.whatsapp.analysis', ['date' => $date->toDateString()])
                 ->with('error', $e->getMessage());
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'seconds' => (int) round(($analysis->duration_ms ?? 0) / 1000),
+            ]);
         }
 
         return redirect()

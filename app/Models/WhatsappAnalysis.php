@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class WhatsappAnalysis extends Model
 {
     protected $fillable = [
-        'club_id', 'date', 'metrics', 'report', 'model', 'generated_by', 'generated_at',
+        'club_id', 'date', 'metrics', 'report', 'model', 'duration_ms', 'generated_by', 'generated_at',
     ];
 
     protected $casts = [

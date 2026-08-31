@@ -87,7 +87,7 @@
         </form>
 
         @if($metrics['dialogs'] > 0)
-            <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}">
+            <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}" class="an-run">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date->toDateString() }}">
                 @if($analysis)
@@ -206,7 +206,7 @@
                     <b>Разбора за этот день ещё нет</b>
                     <span>Claude прочитает {{ $metrics['dialogs'] }} {{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }} и покажет, где потеряли клиента.</span>
                 </div>
-                <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}">
+                <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}" class="an-run">
                     @csrf
                     <input type="hidden" name="date" value="{{ $date->toDateString() }}">
                     <button type="submit" class="an-btn pri"><i class="bi bi-stars"></i> Разобрать день</button>
@@ -319,6 +319,26 @@
             </div>
         @endif
     @endif
+
+    {{-- Разбор идёт одним запросом и занимает до минуты: без этой шторки
+         человек смотрит в застывшую страницу и жмёт кнопку второй раз. --}}
+    <div class="an-wait" id="anWait" hidden data-estimate="{{ $estimate }}">
+        <div class="an-wait-card">
+            <div class="an-wait-spin"></div>
+            <div class="an-wait-title" id="anWaitTitle">Разбираем день</div>
+            <div class="an-wait-sub" id="anWaitSub">
+                Claude читает {{ $metrics['dialogs'] }}
+                {{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }}
+                за {{ $date->locale('ru')->translatedFormat('j F') }}
+            </div>
+            <div class="an-wait-bar"><div id="anWaitFill"></div></div>
+            <div class="an-wait-time" id="anWaitTime"></div>
+            <div class="an-wait-note" id="anWaitNote">
+                Не закрывайте вкладку — страница обновится сама.
+            </div>
+            <button type="button" class="an-btn" id="anWaitClose" hidden>Закрыть</button>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -472,6 +492,27 @@
 .an-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
 .an-empty span{font-size:13px;}
 
+/* ── шторка ожидания ───────────────────────────────────────────────── */
+.an-wait{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;
+  background:rgba(8,8,10,.82);backdrop-filter:blur(3px);padding:20px;}
+.an-wait[hidden]{display:none;}
+.an-wait-card{width:100%;max-width:420px;text-align:center;padding:30px 28px 26px;
+  background:var(--card);border:1px solid var(--line);border-radius:18px;}
+.an-wait-spin{width:38px;height:38px;margin:0 auto 16px;border-radius:50%;
+  border:3px solid rgba(37,211,102,.18);border-top-color:var(--wa);animation:an-spin .9s linear infinite;}
+@keyframes an-spin{to{transform:rotate(360deg);}}
+.an-wait-title{font-size:17px;font-weight:800;}
+.an-wait-sub{font-size:13px;color:var(--t2);margin-top:6px;line-height:1.5;}
+.an-wait-bar{height:6px;border-radius:6px;background:#202024;overflow:hidden;margin:18px 0 10px;}
+.an-wait-bar > div{height:100%;width:0;border-radius:6px;
+  background:linear-gradient(90deg,#1a9c4c,#25d366);transition:width .5s linear;}
+.an-wait-time{font-size:13px;font-weight:700;color:var(--wa);font-variant-numeric:tabular-nums;}
+.an-wait-note{font-size:11.5px;color:var(--t3);margin-top:8px;line-height:1.5;}
+.an-wait.bad .an-wait-spin{border-color:rgba(248,113,113,.2);border-top-color:var(--red);animation:none;}
+.an-wait.bad .an-wait-time{color:var(--red);}
+.an-wait.bad .an-wait-bar > div{background:var(--red);}
+#anWaitClose{margin-top:16px;}
+
 @media (max-width: 1100px){
   .an-top{grid-template-columns:1fr;}
   .an-bottom{grid-template-columns:1fr;}
@@ -490,5 +531,92 @@
 document.querySelectorAll('.an-find .an-open').forEach(function (link) {
     link.addEventListener('click', function (e) { e.stopPropagation(); });
 });
+
+// Разбор — один долгий запрос к модели. Отправляем его сами и держим
+// человека в курсе: сколько прошло, сколько обычно занимает, что дальше.
+(function () {
+    var box = document.getElementById('anWait');
+    if (!box) return;
+
+    var fill = document.getElementById('anWaitFill');
+    var time = document.getElementById('anWaitTime');
+    var note = document.getElementById('anWaitNote');
+    var title = document.getElementById('anWaitTitle');
+    var close = document.getElementById('anWaitClose');
+    var estimate = parseInt(box.dataset.estimate, 10) || 60;
+    var timer = null;
+
+    // «85 сек» читается хуже, чем «1 мин 25 сек».
+    function human(sec) {
+        if (sec < 60) return sec + ' сек';
+        var m = Math.floor(sec / 60), s = sec % 60;
+        return s ? m + ' мин ' + s + ' сек' : m + ' мин';
+    }
+
+    function tick(started) {
+        var passed = Math.round((Date.now() - started) / 1000);
+        var left = estimate - passed;
+
+        if (left > 0) {
+            // До обещанного срока полоса доходит только до 92%: последний
+            // процент рисовать нечестно, ответа ещё нет.
+            fill.style.width = Math.min(92, Math.round(passed / estimate * 92)) + '%';
+            time.textContent = 'осталось около ' + human(left);
+        } else {
+            fill.style.width = '96%';
+            time.textContent = 'идёт дольше обычного — ' + human(passed) + ' из ~' + human(estimate);
+            note.textContent = 'Модель ещё думает. Прервать нельзя — дождитесь ответа.';
+        }
+    }
+
+    function fail(message) {
+        clearInterval(timer);
+        box.classList.add('bad');
+        title.textContent = 'Разбор не получился';
+        fill.style.width = '100%';
+        time.textContent = message;
+        note.textContent = 'Можно попробовать ещё раз — день и переписка на месте.';
+        close.hidden = false;
+    }
+
+    close.addEventListener('click', function () {
+        box.hidden = true;
+        box.classList.remove('bad');
+        close.hidden = true;
+    });
+
+    document.querySelectorAll('form.an-run').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            title.textContent = form.querySelector('[name=force]') ? 'Пересобираем разбор' : 'Разбираем день';
+            box.hidden = false;
+            var started = Date.now();
+            tick(started);
+            timer = setInterval(function () { tick(started); }, 1000);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            }).then(function (res) {
+                return res.json().catch(function () { return { ok: res.ok }; });
+            }).then(function (data) {
+                if (!data || !data.ok) {
+                    fail((data && data.error) || 'Модель не ответила');
+                    return;
+                }
+
+                clearInterval(timer);
+                fill.style.width = '100%';
+                time.textContent = 'готово' + (data.seconds ? ' за ' + human(data.seconds) : '');
+                note.textContent = 'Открываем разбор…';
+                location.href = location.href.split('#')[0];
+            }).catch(function () {
+                fail('Связь с сервером оборвалась');
+            });
+        });
+    });
+})();
 </script>
 @endsection

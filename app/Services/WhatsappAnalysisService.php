@@ -45,12 +45,15 @@ class WhatsappAnalysisService
             throw new RuntimeException('За этот день переписки нет — разбирать нечего.');
         }
 
+        // Засекаем: по прошлым разборам экран показывает, сколько ещё ждать.
+        $startedAt = microtime(true);
         $answer = $this->ask($report);
 
         $fields = [
             'metrics' => $report['metrics'],
             'report' => $answer['report'],
             'model' => $answer['model'],
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             'generated_by' => $userId,
             'generated_at' => now(),
         ];
@@ -62,6 +65,28 @@ class WhatsappAnalysisService
         }
 
         return WhatsappAnalysis::create($fields + ['club_id' => $clubId, 'date' => $date]);
+    }
+
+    /**
+     * Сколько обычно занимает разбор у этого клуба, в секундах.
+     *
+     * Берём медиану последних разборов: одна аномально долгая попытка не
+     * должна навсегда испортить обещание на экране. Пока истории нет —
+     * честная средняя оценка по опыту.
+     */
+    public static function typicalSeconds(int $clubId): int
+    {
+        $past = WhatsappAnalysis::where('club_id', $clubId)
+            ->whereNotNull('duration_ms')
+            ->orderByDesc('generated_at')
+            ->limit(10)
+            ->pluck('duration_ms');
+
+        if ($past->isEmpty()) {
+            return 60;
+        }
+
+        return max(15, (int) round($past->median() / 1000));
     }
 
     /** @return array{model:string, report:array} */

@@ -279,6 +279,41 @@ class WhatsappAnalysisTest extends TestCase
 
         Carbon::setTestNow();
     }
+    public function test_разбор_через_fetch_отвечает_json_и_запоминает_длительность(): void
+    {
+        $this->message('77770000020', false, '2026-08-20 12:00', 'сколько стоит?');
+        $this->message('77770000020', true, '2026-08-20 12:01', '12 000');
+
+        $this->fakeClaude([
+            'verdict' => 'Ровный день.', 'lost_sales' => [], 'slow' => [],
+            'quality' => [], 'good' => [], 'actions' => [], 'automation' => [],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson(route('club.whatsapp.analysis.run'), ['date' => '2026-08-20'])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $analysis = \App\Models\WhatsappAnalysis::first();
+        $this->assertNotNull($analysis->duration_ms, 'сколько шёл разбор — записали');
+
+        // По этой длительности экран обещает время следующего ожидания.
+        $this->assertGreaterThanOrEqual(
+            15,
+            \App\Services\WhatsappAnalysisService::typicalSeconds($this->club->id)
+        );
+    }
+
+    public function test_ошибка_разбора_возвращается_шторке_ожидания(): void
+    {
+        $this->message('77770000021', false, '2026-08-20 12:00', 'привет');
+        Http::fake(['api.anthropic.com/*' => Http::response(['error' => 'nope'], 500)]);
+
+        $this->actingAs($this->admin)
+            ->postJson(route('club.whatsapp.analysis.run'), ['date' => '2026-08-20'])
+            ->assertStatus(422)
+            ->assertJson(['ok' => false]);
+    }
     public function test_ошибка_модели_показывается_человеку(): void
     {
         $this->message('77770000007', false, '2026-08-20 12:00', 'привет');
