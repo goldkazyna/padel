@@ -123,6 +123,47 @@ class CoachSessionsReportTest extends TestCase
         $this->assertEqualsWithDelta(8000, $sheet->totals[7], 0.01);
     }
 
+    public function test_группа_со_ставкой_за_клиента_считается_по_людям(): void
+    {
+        // У пробных и разовых групп тренеру платят за пришедшего человека,
+        // а не за час. Раньше отчёт этого не знал и брал часовую ставку:
+        // занятие за 4 500 показывалось как 12 000.
+        $anna = $this->coach('Анна Тренер', rateGroup: 12000);
+        $booking = $this->booking($anna, 'group', '2026-08-10', 4500);
+
+        $group = \App\Models\ClubGroup::create([
+            'club_id' => $this->club->id,
+            'name' => 'Пробная',
+            'type' => \App\Models\ClubGroup::TYPE_TRIAL,
+            'coach_id' => $anna->id,
+            'coach_price_per_client' => 2250,
+        ]);
+
+        $session = \App\Models\ClubGroupSession::create([
+            'group_id' => $group->id,
+            'court_id' => $this->court->id,
+            'court_booking_id' => $booking->id,
+            'coach_id' => $anna->id,
+            'date' => '2026-08-10',
+            'start_time' => '10:00',
+            'end_time' => '11:00',
+            'status' => 'held',
+        ]);
+
+        foreach (['Первый', 'Второй'] as $name) {
+            \App\Models\ClubGroupAttendance::create([
+                'session_id' => $session->id,
+                'client_name' => $name,
+                'attended' => true,
+            ]);
+        }
+
+        $row = collect($this->sheet()->rows)->firstWhere(0, '  Итого групповые');
+
+        // 2250 × 2 пришедших, а не 12 000 × 1 час.
+        $this->assertEqualsWithDelta(4500, $row[7], 0.01);
+    }
+
     public function test_минусовая_оплата_показывается_как_есть(): void
     {
         // Скидка больше цены — ошибка ввода в брони. Отчёт её не прячет:

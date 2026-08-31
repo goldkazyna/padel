@@ -4,6 +4,7 @@ namespace App\Reports;
 
 use App\Models\Club;
 use App\Models\ClubCoach;
+use App\Models\ClubGroupAttendance;
 use App\Models\ClubGroupSession;
 use App\Models\CourtBooking;
 use App\Models\User;
@@ -124,6 +125,7 @@ class CoachesReportService
         $bookings = $this->coachBookings($club, $from, $to);
         $names = [];
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $perClient = $this->groupPerClient($club, $from, $to);
         $typeLabels = [
             'soft' => 'Мягкая',
             'group' => 'Групповая',
@@ -150,7 +152,7 @@ class CoachesReportService
                     'hours' => $hours,
                     'type' => $typeLabels[$b->booking_type] ?? 'Другое',
                     'amount' => $amount,
-                    'earned' => $this->legEarning($leg, $b, $profiles->get($id), $hours),
+                    'earned' => $this->legEarning($leg, $b, $profiles->get($id), $hours, $perClient),
                 ];
             }
         }
@@ -240,15 +242,81 @@ class CoachesReportService
     }
 
     /**
+     * Ставка группы «за клиента» по броням периода.
+     *
+     * У части групп тренеру платят не за час, а за пришедшего человека
+     * (пробные, разовые). В расписании эта ступень есть, а отчёты её не
+     * знали и считали по часовой ставке — тренировка за 4 500 показывалась
+     * как 12 000.
+     *
+     * @return array<int, array{rate: float, people: int}> ключ — id брони
+     */
+    private function groupPerClient(Club $club, Carbon $from, Carbon $to): array
+    {
+        $sessions = ClubGroupSession::whereIn('court_id', $club->courts()->pluck('id'))
+            ->whereNotNull('court_booking_id')
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->with(['group.members'])
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return [];
+        }
+
+        // Пришедшие по всем занятиям разом: иначе запрос на каждое занятие.
+        $attended = ClubGroupAttendance::whereIn('session_id', $sessions->pluck('id'))
+            ->where('attended', true)
+            ->selectRaw('session_id, COUNT(*) as people')
+            ->groupBy('session_id')
+            ->pluck('people', 'session_id');
+
+        $map = [];
+        foreach ($sessions as $session) {
+            $rate = $session->group?->coach_price_per_client;
+            if ($rate === null) {
+                continue;
+            }
+
+            // Проведённое занятие считаем по факту прихода, будущее —
+            // по составу группы: это прикидка, как в расписании.
+            $people = $session->status === 'held'
+                ? (int) ($attended[$session->id] ?? 0)
+                : $session->group->members->count();
+
+            $map[(int) $session->court_booking_id] = [
+                'rate' => (float) $rate,
+                'people' => $people,
+            ];
+        }
+
+        return $map;
+    }
+
+    /**
      * Сколько получает тренер за эту «ногу» брони.
      *
-     * Порядок тот же, что в отчёте по типам дохода: зафиксированная сумма →
+     * Порядок один на все отчёты и совпадает с расписанием:
+     * зафиксированная сумма → ставка группы за клиента × люди →
      * групповая ставка × часы → ставка за длительность.
+     *
+     * @param array<int, array{rate: float, people: int}> $perClient
      */
-    private function legEarning(array $leg, CourtBooking $booking, ?ClubCoach $profile, float $hours): float
-    {
+    private function legEarning(
+        array $leg,
+        CourtBooking $booking,
+        ?ClubCoach $profile,
+        float $hours,
+        array $perClient = []
+    ): float {
         if ($leg['coach_price'] !== null) {
             return (float) $leg['coach_price'];
+        }
+
+        if ($booking->booking_type === 'group' && isset($perClient[$booking->id])) {
+            $group = $perClient[$booking->id];
+
+            return $group['rate'] * $group['people'];
         }
 
         if ($booking->booking_type === 'group' && $profile && $profile->rate_group !== null) {
@@ -267,6 +335,7 @@ class CoachesReportService
         $bookings = $this->coachBookings($club, $from, $to);
         $names = [];
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $perClient = $this->groupPerClient($club, $from, $to);
 
         $cols = ['group', 'individual', 'soft', 'tournament', 'other'];
         $blank = array_fill_keys($cols, 0.0);
@@ -279,17 +348,7 @@ class CoachesReportService
             foreach ($this->coachLegs($b) as $leg) {
                 $id = $leg['coach_id'];
                 $agg[$id] ??= $blank;
-                $prof = $profiles->get($id);
-                if ($leg['coach_price'] !== null) {
-                    // Зафиксированная сумма (замороженная при проведении / ручная).
-                    $earn = (float) $leg['coach_price'];
-                } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                    // Группа ещё не проведена — прикидка по текущей групповой ставке.
-                    $earn = (float) $prof->rate_group * $h;
-                } else {
-                    $earn = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
-                }
-                $agg[$id][$type] += $earn;
+                $agg[$id][$type] += $this->legEarning($leg, $b, $profiles->get($id), $h, $perClient);
             }
         }
 
@@ -329,6 +388,7 @@ class CoachesReportService
     public function payoutTotals(Club $club, Carbon $from, Carbon $to): array
     {
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $perClient = $this->groupPerClient($club, $from, $to);
         $courtIds = $club->courts()->pluck('id');
         $fromD = $from->toDateString();
         $toD = $to->toDateString();
@@ -345,9 +405,13 @@ class CoachesReportService
             ->with('courtBooking')
             ->get();
         foreach ($sessions as $s) {
-            // Замороженная при проведении сумма имеет приоритет; иначе — по текущей ставке.
+            // Замороженная при проведении сумма имеет приоритет, затем ставка
+            // группы за клиента, и только потом почасовая.
             if ($s->courtBooking && $s->courtBooking->coach_price !== null) {
                 $group += (float) $s->courtBooking->coach_price;
+            } elseif (isset($perClient[(int) $s->court_booking_id])) {
+                $byClient = $perClient[(int) $s->court_booking_id];
+                $group += $byClient['rate'] * $byClient['people'];
             } else {
                 $rate = (float) ($profiles->get($s->coach_id)?->rate_group ?? 0);
                 $group += $rate * $this->hours($s->start_time, $s->end_time);
@@ -395,6 +459,7 @@ class CoachesReportService
 
         $names = [];
         $profiles = ClubCoach::where('club_id', $club->id)->get()->keyBy('user_id');
+        $perClient = $this->groupPerClient($club, $from, $to);
         $typeLabels = [
             'soft'       => 'Мягкая',
             'group'      => 'Групповая',
@@ -409,15 +474,7 @@ class CoachesReportService
             foreach ($this->coachLegs($b) as $leg) {
                 if ($leg['coach_paid']) continue; // оплаченных не показываем
                 $prof = $profiles->get($leg['coach_id']);
-                if ($leg['coach_price'] !== null) {
-                    // Зафиксированная сумма (замороженная при проведении / ручная).
-                    $amount = (float) $leg['coach_price'];
-                } elseif ($b->booking_type === 'group' && $prof && $prof->rate_group !== null) {
-                    // Группа ещё не проведена — прикидка по текущей групповой ставке.
-                    $amount = (float) $prof->rate_group * $h;
-                } else {
-                    $amount = $prof?->getRateForHours((int) floor($h)) ?? 0.0;
-                }
+                $amount = $this->legEarning($leg, $b, $prof, $h, $perClient);
 
                 $rows[] = [
                     $this->formatDate($b->date),
