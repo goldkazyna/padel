@@ -45,8 +45,12 @@ class WhatsappSla
         'замечательно', 'здорово', 'ладно', 'добро', 'принял', 'приняла', 'принято',
         'понял', 'поняла', 'понятно', 'ясно', 'договорились', 'учту', 'учтём', 'да',
         'ага', 'угу', 'конечно', 'буду', 'знать', 'очень', 'ещё', 'еще', 'раз', 'всё', 'все',
+        'а', 'ну', 'о', 'как', 'скажете', 'хотите', 'удобно', 'угодно', 'то', 'и',
+        // «Напишу», «наберу» — обещание вернуться, ответа оно не ждёт
+        'напишу', 'отпишусь', 'наберу', 'позвоню', 'сообщу', 'подойдём', 'подойду',
         // Прощание
         'пока', 'всего', 'доброго', 'хорошего', 'дня', 'вечера', 'ночи', 'свидания', 'до',
+        'встречи', 'связи', 'увидимся', 'спишемся', 'созвонимся',
         // То же по-английски: клуб отвечает иностранцам
         'thanks', 'thank', 'thx', 'ty', 'you', 'much', 'appreciate', 'appreciated',
         'ok', 'okay', 'okey', 'great', 'perfect', 'good', 'nice', 'cool', 'awesome',
@@ -132,7 +136,7 @@ class WhatsappSla
             $windowEnd = $end->lessThan($close) ? $end : $close;
 
             if ($windowEnd->greaterThan($windowStart)) {
-                $minutes += $windowStart->diffInMinutes($windowEnd);
+                $minutes += (int) round($windowStart->diffInMinutes($windowEnd));
             }
 
             $day = $day->copy()->addDay()->startOfDay();
@@ -159,8 +163,10 @@ class WhatsappSla
             ->where('chat_id', 'not like', '%@g.us')
             ->where('phone', '<>', '')
             // action — служебные события WhatsApp (добавили в группу, удалили
-            // сообщение), их клиент не писал.
-            ->whereNotIn('type', ['action', 'system', 'notification'])
+            // сообщение), их клиент не писал. list/buttons/template — меню
+            // и кнопки бизнес-ботов вроде «Был ли решён ваш вопрос?»:
+            // отвечать роботу некому.
+            ->whereNotIn('type', ['action', 'system', 'notification', 'list', 'buttons', 'template', 'interactive'])
             ->orderBy('sent_at')
             ->get(['id', 'phone', 'chat_id', 'from_me', 'sent_at', 'body', 'type', 'author_name']);
 

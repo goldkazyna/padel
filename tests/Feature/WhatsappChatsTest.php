@@ -179,7 +179,8 @@ class WhatsappChatsTest extends TestCase
     public function test_что_считается_точкой_в_разговоре(): void
     {
         foreach (['Спасибо!', 'спс', 'Ок 👌', 'Хорошо, благодарю', 'Great.', 'thank you very much',
-                  '👍', 'Понял, спасибо', 'ok'] as $body) {
+                  '👍', 'Понял, спасибо', 'ok', 'А, принято', 'До встречи!', 'Супер, напишу, спасибо 🙏',
+                  'как скажете)'] as $body) {
             $this->assertTrue(WhatsappSla::isClosing($body), "«{$body}» — это точка");
         }
 
@@ -197,6 +198,16 @@ class WhatsappChatsTest extends TestCase
         $this->actingAs($this->admin)->get(route('club.whatsapp.index'))
             ->assertOk()
             ->assertSee('а можно ракетку?');
+    }
+    public function test_меню_бизнес_бота_не_считается_обращением(): void
+    {
+        // Автоответчик магазина шлёт кнопки «Был ли решён ваш вопрос?» —
+        // отвечать там некому.
+        $this->message('77770000013', true, '2026-08-20 09:30', 'как сделать заказ?');
+        $this->message('77770000013', false, '2026-08-20 09:31', 'Выберите раздел', ['type' => 'list']);
+        $this->message('77770000013', false, '2026-08-20 09:31', 'Был ли решён ваш вопрос?', ['type' => 'buttons']);
+
+        $this->assertCount(0, WhatsappSla::waitingChats($this->club->id));
     }
     protected function tearDown(): void
     {
