@@ -180,7 +180,7 @@ class WhatsappChatsTest extends TestCase
     {
         foreach (['Спасибо!', 'спс', 'Ок 👌', 'Хорошо, благодарю', 'Great.', 'thank you very much',
                   '👍', 'Понял, спасибо', 'ok', 'А, принято', 'До встречи!', 'Супер, напишу, спасибо 🙏',
-                  'как скажете)'] as $body) {
+                  'как скажете)', 'Благодарим вас за обращение🙏.'] as $body) {
             $this->assertTrue(WhatsappSla::isClosing($body), "«{$body}» — это точка");
         }
 
