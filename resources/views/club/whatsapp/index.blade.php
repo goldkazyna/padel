@@ -11,10 +11,10 @@
     // Вкладки над списком: экран открывают с вопросом «кому ответить»,
     // а не «покажи все переписки подряд».
     $tabs = [
-        'waiting' => ['Ждут ответа', $counts['waiting']],
-        'all'     => ['Все диалоги', $counts['all']],
-        'today'   => ['Сегодня', $counts['today']],
-        'new'     => ['Новые люди', $counts['new']],
+        'waiting' => ['Ждут ответа', 'Написали и до сих пор без ответа', $counts['waiting']],
+        'all'     => ['Все', 'Все диалоги', $counts['all']],
+        'today'   => ['Сегодня', 'Писали сегодня', $counts['today']],
+        'new'     => ['Новые', 'Люди, которым ни разу не отвечали', $counts['new']],
     ];
 @endphp
 
@@ -36,9 +36,9 @@
     <div class="wa-split">
         <div class="wa-side">
             <div class="wa-tabs">
-                @foreach($tabs as $key => [$label, $count])
+                @foreach($tabs as $key => [$label, $hint, $count])
                     <a href="{{ route('club.whatsapp.index', array_filter(['filter' => $key === 'all' ? null : $key, 'search' => $search ?: null])) }}"
-                       class="wa-tab {{ $filter === $key ? 'on' : '' }}">
+                       class="wa-tab {{ $filter === $key ? 'on' : '' }}" title="{{ $hint }}">
                         {{ $label }}
                         <span class="wa-tab-count {{ $key === 'waiting' && $count ? 'hot' : '' }}">{{ $count }}</span>
                     </a>
@@ -94,8 +94,8 @@
                                     </div>
 
                                     <div class="wa-preview">
-                                        @if($last->from_me)<span class="wa-me">Вы:</span>@endif
-                                        {{ \Illuminate\Support\Str::limit($last->preview(), 80) }}
+                                        @if($chat['preview']->from_me)<span class="wa-me">Вы:</span>@endif
+                                        {{ \Illuminate\Support\Str::limit($chat['preview']->preview(), 80) }}
                                     </div>
 
                                     <div class="wa-phone">@phoneFmt($chat['phone'])</div>
@@ -129,8 +129,20 @@
 </div>
 
 <style>
-.wa-wrap{max-width:1200px;margin:0 auto;padding:20px 16px 40px;color:#f4f4f5;
-  --card:#16161a;--card2:#1e1e24;--line:#27272a;--wa:#25d366;--t2:#a1a1aa;--t3:#71717a;}
+/* Экран рабочий, а не читальный: две колонки шире обычной страницы в
+   1200px, иначе список жмётся, а переписка идёт узкой лентой. */
+.wa-wrap{max-width:1560px;margin:0 auto;padding:20px 16px 28px;color:#f4f4f5;
+  --card:#16161a;--card2:#1e1e24;--line:#27272a;--wa:#25d366;--t2:#a1a1aa;--t3:#71717a;
+  --col:clamp(460px, calc(100vh - 210px), 940px);}
+
+/* Тонкая полоса вместо системной: прокрутка тут сразу в трёх местах. */
+.wa-wrap *{scrollbar-width:thin;scrollbar-color:#33333c transparent;}
+.wa-wrap ::-webkit-scrollbar{width:9px;height:9px;}
+.wa-wrap ::-webkit-scrollbar-track{background:transparent;}
+.wa-wrap ::-webkit-scrollbar-thumb{background:#33333c;border-radius:20px;
+  border:2px solid transparent;background-clip:content-box;}
+.wa-wrap ::-webkit-scrollbar-thumb:hover{background:#4a4a55;background-clip:content-box;}
+.wa-wrap ::-webkit-scrollbar-corner{background:transparent;}
 .wa-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
 .wa-head h1{font-size:22px;font-weight:800;margin:0;}
 .wa-icon{font-size:26px;color:var(--wa);}
@@ -141,11 +153,13 @@
 .wa-btn:hover{border-color:#3d3d3d;color:#fff;}
 
 /* ── две колонки: список и переписка ─────────────────────────────────── */
-.wa-split{display:grid;grid-template-columns:minmax(330px,420px) 1fr;gap:14px;align-items:start;}
-.wa-side{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.wa-split{display:grid;grid-template-columns:minmax(360px,430px) 1fr;gap:14px;align-items:start;}
+.wa-side{display:flex;flex-direction:column;height:var(--col);
+  background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
 
-.wa-tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);overflow-x:auto;}
-.wa-tab{display:flex;align-items:center;gap:6px;padding:9px 12px;border-bottom:2px solid transparent;
+.wa-tabs{display:flex;padding:6px 6px 0;border-bottom:1px solid var(--line);}
+.wa-tab{display:flex;align-items:center;justify-content:center;gap:5px;flex:1;
+  padding:9px 6px;border-bottom:2px solid transparent;
   color:var(--t3);font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap;}
 .wa-tab.on{color:var(--wa);border-bottom-color:var(--wa);}
 .wa-tab-count{font-size:11px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.06);}
@@ -158,7 +172,7 @@
 .wa-search input[type=text]{flex:1;background:none;border:none;color:#f3f3f5;font-size:13.5px;outline:none;}
 .wa-clear{color:var(--t2);font-size:12px;text-decoration:none;white-space:nowrap;}
 
-.wa-body{max-height:70vh;overflow-y:auto;}
+.wa-body{flex:1;overflow-y:auto;overscroll-behavior:contain;}
 .wa-list{padding:0 6px 8px;}
 .wa-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
   padding:9px 10px;border:0;border-left:3px solid transparent;border-radius:10px;
@@ -189,7 +203,7 @@
 
 /* ── правая колонка ──────────────────────────────────────────────────── */
 .wa-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
-  min-height:520px;display:flex;flex-direction:column;overflow:hidden;}
+  height:var(--col);display:flex;flex-direction:column;overflow:hidden;}
 .wa-panel-empty{margin:auto;text-align:center;color:var(--t3);padding:40px 20px;}
 .wa-panel-empty i{font-size:30px;display:block;margin-bottom:12px;opacity:.5;}
 .wa-panel-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
@@ -206,14 +220,14 @@
 .wap-open{color:var(--t3);text-decoration:none;padding:6px;border-radius:8px;}
 .wap-open:hover{color:#fff;background:var(--card2);}
 
-.wap-chat{flex:1;overflow-y:auto;max-height:60vh;padding:16px;background:#111114;}
+.wap-chat{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px 20px;background:#111114;}
 .wap-day{display:flex;justify-content:center;margin:12px 0 10px;}
 .wap-day:first-child{margin-top:0;}
 .wap-day span{font-size:11px;font-weight:700;color:var(--t3);background:var(--card2);
   border-radius:20px;padding:4px 12px;}
 .wap-msg{display:flex;margin-bottom:7px;}
 .wap-msg.out{justify-content:flex-end;}
-.wap-bubble{max-width:76%;padding:8px 11px;border-radius:12px;background:var(--card2);}
+.wap-bubble{max-width:min(76%, 720px);padding:8px 11px;border-radius:12px;background:var(--card2);}
 .wap-msg.out .wap-bubble{background:rgba(37,211,102,.14);border-top-right-radius:4px;}
 .wap-msg.in .wap-bubble{border-top-left-radius:4px;}
 .wap-text{font-size:13.5px;line-height:1.4;white-space:pre-wrap;word-break:break-word;}
@@ -233,8 +247,9 @@
 
 @media (max-width: 900px){
   .wa-split{grid-template-columns:1fr;}
-  .wa-panel{min-height:auto;}
-  .wa-body{max-height:none;}
+  .wa-side{height:auto;}
+  .wa-panel{height:auto;min-height:420px;}
+  .wa-body{max-height:60vh;}
 }
 </style>
 

@@ -30,6 +30,75 @@ class WhatsappSla
         return (string) config('services.whapi.work_to', '23:00');
     }
 
+    /**
+     * Слова, из которых состоит вежливая точка в конце разговора.
+     *
+     * «Спасибо», «ок», «great» — это не вопрос, а благодарность за уже
+     * полученный ответ. Держать такие диалоги в списке «ждут ответа»
+     * значит утопить в них настоящие обращения.
+     */
+    private const CLOSING_WORDS = [
+        // Благодарность и согласие
+        'спасибо', 'спс', 'благодарю', 'благодарим', 'благодарствую', 'пасиб', 'пасибо',
+        'большое', 'огромное', 'вам', 'тебе', 'за', 'обращение', 'обратную', 'связь',
+        'ок', 'окей', 'оке', 'хорошо', 'хор', 'отлично', 'супер', 'класс', 'круто',
+        'замечательно', 'здорово', 'ладно', 'добро', 'принял', 'приняла', 'принято',
+        'понял', 'поняла', 'понятно', 'ясно', 'договорились', 'учту', 'учтём', 'да',
+        'ага', 'угу', 'конечно', 'буду', 'знать', 'очень', 'ещё', 'еще', 'раз', 'всё', 'все',
+        // Прощание
+        'пока', 'всего', 'доброго', 'хорошего', 'дня', 'вечера', 'ночи', 'свидания', 'до',
+        // То же по-английски: клуб отвечает иностранцам
+        'thanks', 'thank', 'thx', 'ty', 'you', 'much', 'appreciate', 'appreciated',
+        'ok', 'okay', 'okey', 'great', 'perfect', 'good', 'nice', 'cool', 'awesome',
+        'super', 'excellent', 'sure', 'alright', 'fine', 'noted', 'understood',
+        'got', 'it', 'bye', 'cheers', 'welcome', 'clear', 'very', 'so', 'a', 'lot', 'lots', 'again',
+    ];
+
+    /**
+     * Ставит ли сообщение точку в разговоре.
+     *
+     * Смотрим на всё сообщение целиком: «спасибо» — точка, а «спасибо,
+     * а на завтра есть?» — вопрос, на который ещё не ответили.
+     */
+    public static function isClosing(?string $body): bool
+    {
+        $text = mb_strtolower(trim((string) $body));
+
+        // Пустое сообщение — картинка или голосовое: решать за человека,
+        // что там, мы не станем.
+        if ($text === '') {
+            return false;
+        }
+
+        // Вопрос закрытием разговора не бывает, чем бы он ни начинался.
+        if (str_contains($text, '?')) {
+            return false;
+        }
+
+        // Эмодзи и знаки препинания на смысл «спасибо, всё понятно» не
+        // влияют — оставляем только слова.
+        $clean = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text);
+        $words = preg_split('/\s+/u', trim((string) $clean), -1, PREG_SPLIT_NO_EMPTY);
+
+        // Один смайлик в ответ — это тоже «спасибо, понял».
+        if ($words === []) {
+            return true;
+        }
+
+        // Длинное сообщение вежливой точкой не бывает.
+        if (count($words) > 5) {
+            return false;
+        }
+
+        foreach ($words as $word) {
+            if (!in_array($word, self::CLOSING_WORDS, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** Через сколько рабочих минут ожидание считается просроченным. */
     public static function threshold(): int
     {
@@ -113,6 +182,15 @@ class WhatsappSla
                 }
                 $first = end($streak);
 
+                $everAnswered = $chat->contains('from_me', true);
+
+                // Клиенту ответили, а он написал «спасибо» — разговор
+                // закончен. Такой диалог в очереди только мешает видеть те,
+                // где человек правда ждёт.
+                if ($everAnswered && collect($streak)->every(fn ($m) => self::isClosing($m->body))) {
+                    return null;
+                }
+
                 $waitedMinutes = self::businessMinutes($first->sent_at, now());
 
                 return [
@@ -128,7 +206,7 @@ class WhatsappSla
                     'overdue' => $waitedMinutes > self::threshold(),
                     // Отвечали ли вообще когда-нибудь: новый клиент, которому
                     // не ответили ни разу, — потеря куда обиднее.
-                    'ever_answered' => $chat->contains('from_me', true),
+                    'ever_answered' => $everAnswered,
                 ];
             })
             ->filter()

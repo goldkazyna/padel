@@ -6,6 +6,7 @@ use App\Models\Club;
 use App\Models\ClubClient;
 use App\Models\User;
 use App\Models\WhatsappMessage;
+use App\Support\WhatsappSla;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -143,6 +144,60 @@ class WhatsappChatsTest extends TestCase
             ->assertSee('служебное событие');
     }
 
+    public function test_спасибо_после_ответа_закрывает_диалог(): void
+    {
+        $this->message('77770000009', false, '2026-08-20 10:00', 'а корт свободен?');
+        $this->message('77770000009', true, '2026-08-20 10:05', 'да, свободен');
+        $this->message('77770000009', false, '2026-08-20 10:07', 'Спасибо!');
+
+        $this->assertCount(0, WhatsappSla::waitingChats($this->club->id),
+            'благодарность — точка в разговоре, а не новый вопрос');
+
+        $this->actingAs($this->admin)->get(route('club.whatsapp.index', ['filter' => 'waiting']))
+            ->assertOk()
+            ->assertDontSee('Спасибо!');
+    }
+
+    public function test_благодарность_с_вопросом_остаётся_в_ожидании(): void
+    {
+        $this->message('77770000010', false, '2026-08-20 10:00', 'а корт свободен?');
+        $this->message('77770000010', true, '2026-08-20 10:05', 'да, свободен');
+        $this->message('77770000010', false, '2026-08-20 10:07', 'Спасибо, а на завтра есть?');
+
+        $this->assertCount(1, WhatsappSla::waitingChats($this->club->id));
+    }
+
+    public function test_благодарность_без_единого_ответа_остаётся(): void
+    {
+        // Клубу написали «спасибо» первым же сообщением и никто не ответил:
+        // человека всё равно нельзя терять из виду.
+        $this->message('77770000011', false, '2026-08-20 10:00', 'спасибо');
+
+        $this->assertCount(1, WhatsappSla::waitingChats($this->club->id));
+    }
+
+    public function test_что_считается_точкой_в_разговоре(): void
+    {
+        foreach (['Спасибо!', 'спс', 'Ок 👌', 'Хорошо, благодарю', 'Great.', 'thank you very much',
+                  '👍', 'Понял, спасибо', 'ok'] as $body) {
+            $this->assertTrue(WhatsappSla::isClosing($body), "«{$body}» — это точка");
+        }
+
+        foreach (['Спасибо, а во сколько?', 'ок, тогда бронируйте на 19:00', 'Great, can I book it?',
+                  'спасибо за вчера, хочу записаться ещё раз на среду', '', 'да?'] as $body) {
+            $this->assertFalse(WhatsappSla::isClosing($body), "«{$body}» — не точка");
+        }
+    }
+
+    public function test_в_превью_видно_последнее_живое_сообщение(): void
+    {
+        $this->message('77770000012', false, '2026-08-20 10:00', 'а можно ракетку?');
+        $this->message('77770000012', false, '2026-08-20 10:01', '', ['type' => 'action']);
+
+        $this->actingAs($this->admin)->get(route('club.whatsapp.index'))
+            ->assertOk()
+            ->assertSee('а можно ракетку?');
+    }
     protected function tearDown(): void
     {
         Carbon::setTestNow();

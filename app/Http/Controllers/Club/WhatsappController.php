@@ -68,6 +68,11 @@ class WhatsappController extends Controller
                     'phone' => $phone,
                     'name' => $messages->firstWhere('from_me', false)?->author_name,
                     'last' => $last,
+                    // В превью — последнее живое сообщение: строка
+                    // «служебное событие» о диалоге не говорит ничего.
+                    'preview' => $messages->first(
+                        fn ($m) => !in_array($m->type, ['action', 'system', 'notification'], true)
+                    ) ?? $last,
                     'total' => $messages->count(),
                     'incoming' => $messages->where('from_me', false)->count(),
                     // Минуты рабочего времени; null — на последнее слово
