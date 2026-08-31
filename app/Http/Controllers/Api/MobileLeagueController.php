@@ -19,6 +19,10 @@ use Illuminate\Http\Request;
  */
 class MobileLeagueController extends Controller
 {
+    // Этап лиги — обычный турнир, и в приложении он рисуется той же
+    // карточкой. Значит и поля ему нужны те же, что в списке турниров.
+    use \App\Http\Controllers\Api\Concerns\FormatsTournaments;
+
     /** Открытые и идущие лиги — те, куда ещё имеет смысл смотреть. */
     public function index(Request $request): JsonResponse
     {
@@ -108,19 +112,18 @@ class MobileLeagueController extends Controller
             'league' => array_merge($this->card($league, $registered), [
                 'description' => $league->description,
                 'my_place' => $myPlace,
-                'stages' => $league->stages->map(fn ($stage) => [
-                    'id' => $stage->id,
-                    'stage' => (int) $stage->league_stage,
-                    'name' => $stage->name,
-                    'status' => $stage->status,
-                    'status_name' => $stage->status_name,
-                    'start_date' => $stage->start_date?->toIso8601String(),
-                    'participants' => $stage->participants()->count(),
-                    'max_participants' => $stage->max_participants,
-                    // Место на этапе — вместо медальки в общей истории турниров.
-                    'my_place' => $this->stagePlace($stage, (int) $user->id),
-                    'my_points' => $this->stagePoints($stage, (int) $user->id),
-                ])->values(),
+                'stages' => $league->stages->map(fn ($stage) => array_merge(
+                    // Полный формат турнира: дата, формат, цена, места,
+                    // состояние записи — карточка этапа рисуется как турнир.
+                    $this->formatTournament($stage, $user, true),
+                    [
+                        'stage' => (int) $stage->league_stage,
+                        'participants' => $stage->participants()->count(),
+                        // Место на этапе — вместо медальки в общей истории турниров.
+                        'my_place' => $this->stagePlace($stage, (int) $user->id),
+                        'my_points' => $this->stagePoints($stage, (int) $user->id),
+                    ]
+                ))->values(),
                 'standings' => collect($standings)->map(fn ($row) => [
                     'position' => $row['position'],
                     'user_id' => $row['id'],
