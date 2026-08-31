@@ -8,273 +8,483 @@
     $tz = config('app.schedule_timezone', 'Asia/Almaty');
     $human = fn ($m) => $m === null ? '—' : \App\Support\WhatsappSla::humanMinutes((int) $m);
     $report = $analysis?->report ?? [];
-@endphp
-<div class="wa-wrap">
 
-    <div class="wa-head">
-        <a href="{{ route('club.whatsapp.index') }}" class="wa-back"><i class="bi bi-arrow-left"></i></a>
+    // Модель пишет хвост номера как придётся: «0016», «…0016», «+7…16».
+    // Приводим к четырём цифрам — по ним ищем человека.
+    $tail = function ($raw) {
+        $digits = preg_replace('/\D/', '', (string) $raw);
+
+        return strlen((string) $digits) >= 4 ? substr((string) $digits, -4) : '';
+    };
+
+    // Находки всех видов в одной ленте: разбирают их подряд, а не по
+    // разделам, и важность важнее рубрики.
+    $findings = [];
+
+    foreach ($report['lost_sales'] ?? [] as $item) {
+        $findings[] = [
+            'kind' => 'lost', 'label' => 'Потеря', 'phone' => $tail($item['phone']),
+            'title' => $item['what'], 'text' => $item['why'], 'quote' => $item['quote'],
+            'fix' => '', 'meta' => '',
+        ];
+    }
+
+    foreach ($report['slow'] ?? [] as $item) {
+        $findings[] = [
+            'kind' => 'slow', 'label' => 'Долго', 'phone' => $tail($item['phone']),
+            'title' => $item['what'], 'text' => '', 'quote' => '',
+            'fix' => '', 'meta' => $item['waited'],
+        ];
+    }
+
+    foreach ($report['quality'] ?? [] as $item) {
+        $findings[] = [
+            'kind' => 'quality', 'label' => 'Качество', 'phone' => '',
+            'title' => $item['issue'], 'text' => '', 'quote' => $item['example'],
+            'fix' => $item['fix'], 'meta' => '',
+        ];
+    }
+
+    foreach ($report['good'] ?? [] as $item) {
+        $findings[] = [
+            'kind' => 'good', 'label' => 'Хорошо', 'phone' => '',
+            'title' => $item, 'text' => '', 'quote' => '', 'fix' => '', 'meta' => '',
+        ];
+    }
+
+    // Высота столбика — доля обращений этого часа от самого занятого.
+    $peak = collect($hours)->max('requests') ?: 1;
+    $conversion = $metrics['dialogs'] ? round($metrics['booked'] / $metrics['dialogs'] * 100) : 0;
+@endphp
+
+<div class="an-wrap">
+
+    <div class="an-head">
+        <a href="{{ route('club.whatsapp.index') }}" class="an-back"><i class="bi bi-chevron-left"></i></a>
         <div>
             <h1>Разбор дня</h1>
-            <div class="wa-sub">
+            <div class="an-sub">
                 {{ $club->name }} · {{ $date->locale('ru')->translatedFormat('j F Y, l') }}
+                @if($analysis)
+                    · разобрано {{ $analysis->generated_at?->timezone($tz)->locale('ru')->translatedFormat('j M, H:i') }}
+                @endif
             </div>
         </div>
-    </div>
 
-    <form method="GET" class="wa-picker">
-        <input type="date" name="date" value="{{ $date->toDateString() }}"
-               max="{{ now($tz)->toDateString() }}">
-        <button type="submit" class="wa-btn ghost">Показать</button>
-        <div class="wa-quick">
+        <div class="an-days">
             @foreach($days as $day)
                 @php $d = \Carbon\Carbon::parse($day, $tz); @endphp
                 <a href="{{ route('club.whatsapp.analysis', ['date' => $day]) }}"
-                   class="{{ $day === $date->toDateString() ? 'on' : '' }}">
+                   class="an-day {{ $day === $date->toDateString() ? 'on' : '' }}">
                     {{ $d->locale('ru')->translatedFormat('j M') }}
                 </a>
             @endforeach
         </div>
-    </form>
 
-    @if(session('error'))
-        <div class="wa-flash bad"><i class="bi bi-exclamation-triangle"></i> {{ session('error') }}</div>
-    @endif
-    @if(session('success'))
-        <div class="wa-flash ok"><i class="bi bi-check2-circle"></i> {{ session('success') }}</div>
-    @endif
+        <form method="GET" class="an-picker">
+            <input type="date" name="date" value="{{ $date->toDateString() }}"
+                   max="{{ now($tz)->toDateString() }}" onchange="this.form.submit()">
+        </form>
 
-    <div class="wa-stats">
-        <div class="wa-stat">
-            <b>{{ $metrics['dialogs'] }}</b>
-            <span>{{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }},
-                из них новых {{ $metrics['new_contacts'] }}</span>
-        </div>
-        <div class="wa-stat">
-            <b>{{ $human($metrics['median']) }}</b>
-            <span>обычный ответ (медиана), худший — {{ $human($metrics['worst']) }}</span>
-        </div>
-        <div class="wa-stat {{ $metrics['slow'] ? 'bad' : '' }}">
-            <b>{{ $metrics['slow'] }}</b>
-            <span>ответов дольше {{ $metrics['threshold'] }} мин</span>
-        </div>
-        <div class="wa-stat {{ $metrics['unanswered'] ? 'bad' : '' }}">
-            <b>{{ $metrics['unanswered'] }}</b>
-            <span>обращений без ответа</span>
-        </div>
-        <div class="wa-stat">
-            <b>{{ $metrics['booked'] }}</b>
-            <span>из написавших оформили бронь в этот день</span>
-        </div>
-        <div class="wa-stat">
-            <b>{{ $metrics['incoming'] }}</b>
-            <span>входящих сообщений, {{ $metrics['outgoing'] }} наших</span>
-        </div>
+        @if($metrics['dialogs'] > 0)
+            <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}">
+                @csrf
+                <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+                @if($analysis)
+                    <input type="hidden" name="force" value="1">
+                    <button type="submit" class="an-btn" title="Модель перечитает диалоги заново">
+                        <i class="bi bi-arrow-clockwise"></i> Пересобрать
+                    </button>
+                @else
+                    <button type="submit" class="an-btn pri">
+                        <i class="bi bi-stars"></i> Разобрать день
+                    </button>
+                @endif
+            </form>
+        @endif
     </div>
 
+    @if(session('error'))
+        <div class="an-flash bad"><i class="bi bi-exclamation-triangle"></i> {{ session('error') }}</div>
+    @endif
+    @if(session('success'))
+        <div class="an-flash ok"><i class="bi bi-check2-circle"></i> {{ session('success') }}</div>
+    @endif
+
     @if($metrics['dialogs'] === 0)
-        <div class="wa-empty">
+        <div class="an-empty">
             <i class="bi bi-calendar-x"></i>
             <p>За этот день переписки нет</p>
             <span>Выберите другую дату.</span>
         </div>
     @else
-        <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}" class="wa-run">
-            @csrf
-            <input type="hidden" name="date" value="{{ $date->toDateString() }}">
-            @if($analysis)
-                <input type="hidden" name="force" value="1">
-                <button type="submit" class="wa-btn ghost">
-                    <i class="bi bi-arrow-clockwise"></i> Пересобрать разбор
-                </button>
-                <span class="wa-when">
-                    разобрано {{ $analysis->generated_at?->timezone($tz)->locale('ru')->translatedFormat('j M, H:i') }},
-                    модель {{ $analysis->model }}
-                </span>
-            @else
-                <button type="submit" class="wa-btn">
-                    <i class="bi bi-stars"></i> Сделать анализ
-                </button>
-                <span class="wa-when">Claude прочитает все диалоги дня — это занимает до минуты</span>
-            @endif
-        </form>
-    @endif
 
-    @if($analysis)
-        @if(!empty($report['verdict']))
-            <div class="wa-card verdict">
-                <div class="wa-card-head"><i class="bi bi-flag"></i> Вердикт</div>
-                <p>{{ $report['verdict'] }}</p>
+        {{-- ── Главное: вывод словами и две цифры, которые решают ──────── --}}
+        <div class="an-top">
+            <div class="an-card an-verdict">
+                <div class="an-lbl"><i class="bi bi-flag"></i> Главное за день</div>
+                @if(!empty($report['verdict']))
+                    <p>{{ $report['verdict'] }}</p>
+                @else
+                    <p class="an-muted">
+                        Цифры дня посчитаны, но словами день ещё не разобран.
+                        Claude прочитает все диалоги и покажет, где упустили продажу,
+                        где ответили формально и что поправить завтра — это занимает до минуты.
+                    </p>
+                @endif
             </div>
-        @endif
 
-        @if(!empty($report['lost_sales']))
-            <div class="wa-card">
-                <div class="wa-card-head bad"><i class="bi bi-cash-stack"></i> Где не продали</div>
-                @foreach($report['lost_sales'] as $item)
-                    <div class="wa-row">
-                        <div class="wa-row-top">
-                            <span class="wa-chip">…{{ $item['phone'] }}</span>
-                            <b>{{ $item['what'] }}</b>
+            <div class="an-card an-big">
+                <div class="an-lbl">Остались без ответа</div>
+                <div class="an-num {{ $metrics['unanswered'] ? 'bad' : 'ok' }}">{{ $metrics['unanswered'] }}</div>
+                <div class="an-cap">
+                    {{ trans_choice('обращение|обращения|обращений', $metrics['unanswered']) }}
+                    из {{ $metrics['requests'] }} за день@if($metrics['slow']), ещё {{ $metrics['slow'] }}
+                    {{ trans_choice('ответ|ответа|ответов', $metrics['slow']) }}
+                    дольше {{ $metrics['threshold'] }} мин@endif.
+                </div>
+            </div>
+
+            <div class="an-card an-big">
+                <div class="an-lbl">Дошли до брони</div>
+                <div class="an-num ok">{{ $metrics['booked'] }}</div>
+                <div class="an-cap">
+                    {{ $conversion }}% написавших. Обычный ответ — {{ $human($metrics['median']) }},
+                    худший — {{ $human($metrics['worst']) }}.
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Шкала дня: медиана прячет провалы, часы их показывают ──── --}}
+        <div class="an-card an-tl">
+            <div class="an-lbl"><i class="bi bi-clock-history"></i> Где день просел</div>
+
+            <div class="an-bars">
+                @foreach($hours as $h)
+                    @php
+                        $height = $h['requests'] ? max(12, round($h['requests'] / $peak * 100)) : 4;
+                        $hint = $h['requests'] === 0
+                            ? $h['label'] . ':00 — обращений не было'
+                            : $h['label'] . ':00 — ' . $h['requests'] . ' '
+                                . trans_choice('обращение|обращения|обращений', $h['requests'])
+                                . ($h['worst'] !== null ? ', худший ответ ' . $human($h['worst']) : '')
+                                . ($h['unanswered'] ? ', без ответа ' . $h['unanswered'] : '');
+                    @endphp
+                    <div class="an-bar {{ $h['state'] }} {{ $h['work'] ? '' : 'off' }}" title="{{ $hint }}">
+                        <div class="an-bar-val">{{ $h['requests'] ?: '' }}</div>
+                        <div class="an-bar-track">
+                            <div class="an-bar-fill" style="height:{{ $height }}%"></div>
                         </div>
-                        <p>{{ $item['why'] }}</p>
-                        @if($item['quote'])
-                            <blockquote>«{{ $item['quote'] }}»</blockquote>
-                        @endif
+                        <div class="an-bar-hour">{{ $h['label'] }}</div>
                     </div>
                 @endforeach
             </div>
-        @endif
 
-        @if(!empty($report['slow']))
-            <div class="wa-card">
-                <div class="wa-card-head warn"><i class="bi bi-hourglass-split"></i> Долго отвечали</div>
-                @foreach($report['slow'] as $item)
-                    <div class="wa-row compact">
-                        <span class="wa-chip">…{{ $item['phone'] }}</span>
-                        <b>{{ $item['waited'] }}</b>
-                        <span>{{ $item['what'] }}</span>
-                    </div>
-                @endforeach
+            <div class="an-tl-foot">
+                <div class="an-legend">
+                    <span><i class="an-dot ok"></i> уложились в {{ $metrics['threshold'] }} мин</span>
+                    <span><i class="an-dot slow"></i> отвечали дольше</span>
+                    <span><i class="an-dot bad"></i> ждали больше часа или не ответили</span>
+                    <span><i class="an-dot off"></i> клуб закрыт</span>
+                </div>
+                <div class="an-meta">
+                    {{ $metrics['dialogs'] }} {{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }},
+                    {{ $metrics['new_contacts'] }} новых ·
+                    {{ $metrics['incoming'] }} входящих, {{ $metrics['outgoing'] }} наших ·
+                    рабочие часы {{ $metrics['work_hours'] }}
+                </div>
             </div>
-        @endif
+        </div>
 
-        @if(!empty($report['quality']))
-            <div class="wa-card">
-                <div class="wa-card-head"><i class="bi bi-chat-quote"></i> Качество общения</div>
-                @foreach($report['quality'] as $item)
-                    <div class="wa-row">
-                        <div class="wa-row-top"><b>{{ $item['issue'] }}</b></div>
-                        @if($item['example'])
-                            <blockquote>«{{ $item['example'] }}»</blockquote>
-                        @endif
-                        @if($item['fix'])
-                            <p class="fix"><i class="bi bi-arrow-return-right"></i> {{ $item['fix'] }}</p>
-                        @endif
-                    </div>
-                @endforeach
+        @if(!$analysis)
+            <div class="an-cta">
+                <div>
+                    <b>Разбора за этот день ещё нет</b>
+                    <span>Claude прочитает {{ $metrics['dialogs'] }} {{ trans_choice('диалог|диалога|диалогов', $metrics['dialogs']) }} и покажет, где потеряли клиента.</span>
+                </div>
+                <form method="POST" action="{{ route('club.whatsapp.analysis.run') }}">
+                    @csrf
+                    <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+                    <button type="submit" class="an-btn pri"><i class="bi bi-stars"></i> Разобрать день</button>
+                </form>
             </div>
-        @endif
+        @else
 
-        @if(!empty($report['automation']))
-            <div class="wa-card">
-                <div class="wa-card-head"><i class="bi bi-robot"></i> Что можно отвечать автоматически</div>
-                <p class="wa-card-note">
-                    Повторяющиеся вопросы с однозначным ответом. Готовый текст можно отдать боту —
-                    остальное по-прежнему за менеджером.
-                </p>
-                @foreach($report['automation'] as $item)
-                    <div class="wa-row">
-                        <div class="wa-row-top">
-                            <b>{{ $item['question'] }}</b>
-                            @if($item['times'])
-                                <span class="wa-chip">{{ $item['times'] }} раз за день</span>
+            {{-- ── Находки: свёрнуты в строки, подробности по клику ───── --}}
+            @if($findings)
+                <div class="an-card">
+                    <div class="an-sec">
+                        <i class="bi bi-list-check"></i>
+                        <h2>Находки дня</h2>
+                        <span class="an-cnt">{{ count($findings) }}</span>
+                    </div>
+
+                    @foreach($findings as $i => $find)
+                        @php
+                            $person = $find['phone'] ? ($people[$find['phone']] ?? null) : null;
+                            // Хвост номера без имени — это лучше, чем увести не в тот диалог.
+                            $who = $person['name'] ?? '';
+                            if ($who === '' && $find['phone']) {
+                                $who = '…' . $find['phone'];
+                            }
+                            $letter = $who !== '' ? mb_strtoupper(mb_substr($who, 0, 1)) : '';
+                            $hasBody = $find['text'] || $find['quote'] || $find['fix'];
+                        @endphp
+                        <details class="an-find" {{ $i === 0 && $hasBody ? 'open' : '' }}>
+                            <summary>
+                                <span class="an-pill {{ $find['kind'] }}">{{ $find['label'] }}</span>
+
+                                @if($who !== '')
+                                    <span class="an-ava">{{ $letter ?: '?' }}</span>
+                                    <span class="an-who">{{ $who }}</span>
+                                @endif
+
+                                <span class="an-what">{{ $find['title'] }}</span>
+
+                                @if($find['meta'])
+                                    <span class="an-wait">{{ $find['meta'] }}</span>
+                                @endif
+
+                                @if($person)
+                                    <a class="an-open" href="{{ route('club.whatsapp.show', $person['phone']) }}"
+                                       title="Открыть переписку">
+                                        <i class="bi bi-whatsapp"></i> Чат
+                                    </a>
+                                @endif
+
+                                <i class="bi bi-chevron-down an-caret {{ $hasBody ? '' : 'hide' }}"></i>
+                            </summary>
+
+                            @if($hasBody)
+                                <div class="an-body">
+                                    @if($find['text'])<p>{{ $find['text'] }}</p>@endif
+                                    @if($find['quote'])<div class="an-quote">«{{ $find['quote'] }}»</div>@endif
+                                    @if($find['fix'])
+                                        <div class="an-fix"><i class="bi bi-arrow-return-right"></i> {{ $find['fix'] }}</div>
+                                    @endif
+                                </div>
                             @endif
+                        </details>
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- ── Что делать: завтра руками и что можно отдать роботу ── --}}
+            <div class="an-bottom">
+                @if(!empty($report['actions']))
+                    <div class="an-card">
+                        <div class="an-sec">
+                            <i class="bi bi-check2-square" style="color:var(--wa)"></i>
+                            <h2>Что изменить завтра</h2>
                         </div>
-                        @if($item['answer'])
-                            <blockquote class="answer">{{ $item['answer'] }}</blockquote>
-                        @endif
-                        @if($item['caution'])
-                            <p class="caution"><i class="bi bi-exclamation-triangle"></i> {{ $item['caution'] }}</p>
-                        @endif
+                        <ol class="an-todo">
+                            @foreach($report['actions'] as $action)
+                                <li>{{ $action }}</li>
+                            @endforeach
+                        </ol>
                     </div>
-                @endforeach
-            </div>
-        @endif
+                @endif
 
-        @if(!empty($report['actions']))
-            <div class="wa-card">
-                <div class="wa-card-head ok"><i class="bi bi-list-check"></i> Что сделать завтра</div>
-                <ol class="wa-actions">
-                    @foreach($report['actions'] as $action)
-                        <li>{{ $action }}</li>
-                    @endforeach
-                </ol>
+                @if(!empty($report['automation']))
+                    <div class="an-card">
+                        <div class="an-sec">
+                            <i class="bi bi-robot" style="color:#a97bff"></i>
+                            <h2>Можно отдать роботу</h2>
+                            <span class="an-cnt">{{ count($report['automation']) }}</span>
+                        </div>
+                        @foreach($report['automation'] as $item)
+                            <div class="an-auto">
+                                <div class="an-auto-q">
+                                    {{ $item['question'] }}
+                                    @if($item['times'])<span class="an-times">{{ $item['times'] }}</span>@endif
+                                </div>
+                                @if($item['answer'])<div class="an-auto-a">{{ $item['answer'] }}</div>@endif
+                                @if($item['caution'])
+                                    <div class="an-auto-c"><i class="bi bi-exclamation-triangle"></i> {{ $item['caution'] }}</div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
-        @endif
 
-        @if(!empty($report['good']))
-            <div class="wa-card">
-                <div class="wa-card-head ok"><i class="bi bi-hand-thumbs-up"></i> Что было хорошо</div>
-                <ul class="wa-actions">
-                    @foreach($report['good'] as $good)
-                        <li>{{ $good }}</li>
-                    @endforeach
-                </ul>
+            <div class="an-model">
+                Разбор сделан моделью {{ $analysis->model }} по {{ $metrics['dialogs'] }}
+                {{ trans_choice('диалогу|диалогам|диалогам', $metrics['dialogs']) }} этого дня.
+                Цифры считает CRM, модель их не меняет.
             </div>
         @endif
     @endif
 </div>
 
 <style>
-.wa-wrap{max-width:900px;margin:0 auto;padding:20px 16px 40px;color:#f4f4f5;
-  --card:#16161a;--card2:#1e1e24;--line:#27272a;--wa:#25d366;--bad:#f87171;--warn:#fbbf24;--t2:#a1a1aa;--t3:#71717a;}
-.wa-head{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
-.wa-head h1{font-size:22px;font-weight:800;margin:0;}
-.wa-back{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
-  background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--t2);text-decoration:none;}
-.wa-sub{color:var(--t3);font-size:13px;margin-top:2px;}
+.an-wrap{max-width:1560px;margin:0 auto;padding:20px 16px 40px;color:#f4f4f5;
+  --card:#16161a;--card2:#1e1e24;--line:#27272a;--wa:#25d366;--t2:#a1a1aa;--t3:#71717a;
+  --red:#f87171;--amber:#eab308;--blue:#7fb0ff;--violet:#a97bff;}
+.an-wrap *{scrollbar-width:thin;scrollbar-color:#33333c transparent;}
+.an-wrap ::-webkit-scrollbar{width:9px;height:9px;}
+.an-wrap ::-webkit-scrollbar-track{background:transparent;}
+.an-wrap ::-webkit-scrollbar-thumb{background:#33333c;border-radius:20px;
+  border:2px solid transparent;background-clip:content-box;}
+.an-wrap ::-webkit-scrollbar-thumb:hover{background:#4a4a55;background-clip:content-box;}
 
-.wa-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-.wa-picker input[type=date]{background:var(--card);border:1px solid var(--line);border-radius:10px;
-  padding:9px 12px;color:#f3f3f5;font-size:13px;color-scheme:dark;}
-.wa-quick{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;}
-.wa-quick a{padding:7px 11px;border-radius:9px;background:var(--card);border:1px solid var(--line);
-  color:var(--t2);text-decoration:none;font-size:12px;}
-.wa-quick a.on{background:rgba(37,211,102,.14);border-color:rgba(37,211,102,.35);color:var(--wa);font-weight:700;}
+/* ── шапка ─────────────────────────────────────────────────────────── */
+.an-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.an-back{width:34px;height:34px;border-radius:50%;flex:0 0 auto;text-decoration:none;
+  background:var(--card);border:1px solid var(--line);color:var(--t2);
+  display:flex;align-items:center;justify-content:center;}
+.an-back:hover{color:#fff;border-color:#3f3f46;}
+.an-head h1{margin:0;font-size:21px;font-weight:800;}
+.an-sub{font-size:12.5px;color:var(--t3);margin-top:2px;}
+.an-days{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
+.an-day{padding:6px 11px;border-radius:9px;background:var(--card);border:1px solid var(--line);
+  color:var(--t2);font-size:12px;text-decoration:none;}
+.an-day:hover{color:#fff;border-color:#3f3f46;}
+.an-day.on{background:rgba(37,211,102,.16);border-color:rgba(37,211,102,.4);color:var(--wa);font-weight:700;}
+.an-picker input{background:var(--card);border:1px solid var(--line);border-radius:9px;
+  padding:7px 10px;color:var(--t2);font-size:12.5px;color-scheme:dark;}
+.an-btn{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:8px 14px;color:var(--t2);font-size:12.5px;font-weight:600;cursor:pointer;}
+.an-btn:hover{color:#fff;border-color:#3f3f46;}
+.an-btn.pri{background:var(--wa);border-color:var(--wa);color:#04240f;}
+.an-btn.pri:hover{filter:brightness(1.06);color:#04240f;}
 
-.wa-btn{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;
-  background:var(--wa);color:#07120a;font-weight:800;font-size:13.5px;padding:11px 18px;border-radius:11px;}
-.wa-btn.ghost{background:var(--card);border:1px solid var(--line);color:var(--t2);font-weight:600;}
-.wa-run{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0;}
-.wa-when{font-size:12px;color:var(--t3);}
+.an-flash{display:flex;align-items:center;gap:9px;padding:11px 15px;border-radius:12px;
+  font-size:13.5px;margin-bottom:14px;}
+.an-flash.bad{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#fca5a5;}
+.an-flash.ok{background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:var(--wa);}
 
-.wa-flash{display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:11px;
-  font-size:13px;margin-bottom:14px;}
-.wa-flash.ok{background:rgba(37,211,102,.12);color:var(--wa);}
-.wa-flash.bad{background:rgba(248,113,113,.12);color:var(--bad);}
+.an-card{background:var(--card);border:1px solid var(--line);border-radius:14px;}
 
-.wa-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;}
-.wa-stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
-.wa-stat b{display:block;font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
-.wa-stat span{font-size:12px;color:var(--t3);line-height:1.4;display:block;margin-top:2px;}
-.wa-stat.bad b{color:var(--bad);}
+/* ── верх: вывод и две цифры ───────────────────────────────────────── */
+.an-top{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+.an-lbl{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;
+  letter-spacing:.7px;text-transform:uppercase;color:var(--t3);}
+.an-verdict{padding:18px 20px;}
+.an-verdict p{margin:11px 0 0;font-size:14px;line-height:1.6;color:#e4e4e7;}
+.an-verdict p.an-muted{color:var(--t2);font-size:13.5px;}
+.an-big{padding:18px 20px;}
+.an-num{font-size:36px;font-weight:800;line-height:1.1;margin:8px 0 6px;font-variant-numeric:tabular-nums;}
+.an-num.bad{color:var(--red);}
+.an-num.ok{color:var(--wa);}
+.an-cap{font-size:12.5px;color:var(--t2);line-height:1.5;}
 
-.wa-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:14px;}
-.wa-card-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;
-  letter-spacing:.5px;text-transform:uppercase;color:var(--t2);margin-bottom:12px;}
-.wa-card-head.bad{color:var(--bad);}
-.wa-card-head.warn{color:var(--warn);}
-.wa-card-head.ok{color:var(--wa);}
-.wa-card.verdict p{margin:0;font-size:14.5px;line-height:1.6;}
-.wa-row{padding:12px 0;border-top:1px solid var(--line);}
-.wa-card .wa-row:first-of-type{border-top:none;padding-top:0;}
-.wa-row.compact{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13.5px;}
-.wa-row-top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;}
-.wa-row-top b{font-size:14px;}
-.wa-row p{margin:6px 0 0;font-size:13.5px;color:var(--t2);line-height:1.55;}
-.wa-row p.fix{color:var(--wa);}
-.wa-chip{font-size:11px;font-weight:800;padding:3px 8px;border-radius:7px;
-  background:var(--card2);color:var(--t2);font-variant-numeric:tabular-nums;}
-blockquote{margin:8px 0 0;padding:8px 12px;border-left:2px solid var(--line);
-  background:var(--card2);border-radius:0 8px 8px 0;font-size:13px;color:var(--t2);font-style:italic;}
-.wa-card-note{margin:-4px 0 12px;font-size:12.5px;color:var(--t3);line-height:1.5;}
-blockquote.answer{border-left-color:var(--wa);font-style:normal;color:#e7e7ea;}
-.wa-row p.caution{color:var(--warn);}
-.wa-actions{margin:0;padding-left:20px;}
-.wa-actions li{font-size:13.5px;line-height:1.6;margin-bottom:6px;}
+/* ── шкала дня ─────────────────────────────────────────────────────── */
+.an-tl{padding:16px 20px 14px;margin-bottom:14px;}
+.an-bars{display:flex;align-items:stretch;gap:6px;height:148px;margin:16px 0 0;}
+.an-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.an-bar-val{font-size:10.5px;color:var(--t3);font-variant-numeric:tabular-nums;
+  height:14px;line-height:14px;}
+/* Дорожка держит высоту, заливка растёт от низа: так столбики стоят на
+   одной линии, а подписи не съезжают. */
+.an-bar-track{position:relative;flex:1;width:100%;min-height:0;
+  border-radius:6px;background:#151519;}
+.an-bar-fill{position:absolute;left:0;right:0;bottom:0;min-height:4px;
+  border-radius:5px;background:#26262c;transition:filter .15s;}
+.an-bar-hour{font-size:10px;color:#52525b;font-variant-numeric:tabular-nums;}
+.an-bar.ok .an-bar-fill{background:linear-gradient(180deg,#25d366,#1a9c4c);}
+.an-bar.slow .an-bar-fill{background:linear-gradient(180deg,#eab308,#a67c06);}
+.an-bar.bad .an-bar-fill{background:linear-gradient(180deg,#f87171,#b53f3f);}
+.an-bar.off .an-bar-fill{opacity:.5;}
+.an-bar.off .an-bar-hour{color:#3f3f46;}
+.an-bar:hover .an-bar-fill{filter:brightness(1.15);}
+.an-tl-foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+.an-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--t3);}
+.an-legend span{display:inline-flex;align-items:center;gap:6px;}
+.an-dot{width:9px;height:9px;border-radius:3px;display:inline-block;}
+.an-dot.ok{background:#25d366;}
+.an-dot.slow{background:#eab308;}
+.an-dot.bad{background:#f87171;}
+.an-dot.off{background:#26262c;}
+.an-meta{margin-left:auto;font-size:11.5px;color:var(--t3);}
 
-.wa-empty{text-align:center;padding:50px 20px;background:var(--card);
-  border:1px dashed var(--line);border-radius:14px;color:var(--t3);margin-top:14px;}
-.wa-empty i{font-size:28px;display:block;margin-bottom:10px;opacity:.6;}
-.wa-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
+/* ── призыв разобрать день ─────────────────────────────────────────── */
+.an-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:20px 22px;}
+.an-cta b{display:block;font-size:15px;margin-bottom:4px;}
+.an-cta span{font-size:13px;color:var(--t2);}
+.an-cta form{margin-left:auto;}
+
+/* ── находки ───────────────────────────────────────────────────────── */
+.an-sec{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);}
+.an-sec h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;}
+.an-cnt{margin-left:auto;font-size:12px;font-weight:700;color:var(--t3);
+  background:var(--card2);border-radius:20px;padding:2px 10px;}
+
+.an-find{border-bottom:1px solid #202024;}
+.an-find:last-child{border-bottom:0;}
+.an-find > summary{display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;
+  list-style:none;}
+.an-find > summary::-webkit-details-marker{display:none;}
+.an-find > summary:hover{background:var(--card2);}
+.an-pill{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;white-space:nowrap;flex:0 0 auto;width:78px;text-align:center;}
+.an-pill.lost{background:rgba(248,113,113,.15);color:var(--red);}
+.an-pill.slow{background:rgba(234,179,8,.15);color:var(--amber);}
+.an-pill.quality{background:rgba(127,176,255,.15);color:var(--blue);}
+.an-pill.good{background:rgba(37,211,102,.14);color:var(--wa);}
+.an-ava{width:30px;height:30px;border-radius:50%;flex:0 0 auto;background:rgba(37,211,102,.14);
+  color:var(--wa);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+.an-who{font-size:13.5px;font-weight:700;white-space:nowrap;}
+.an-what{flex:1;min-width:0;font-size:13px;color:var(--t2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.an-wait{font-size:11.5px;font-weight:700;color:var(--amber);white-space:nowrap;
+  background:rgba(234,179,8,.13);border-radius:20px;padding:3px 9px;}
+.an-open{display:inline-flex;align-items:center;gap:6px;color:var(--wa);font-size:12px;
+  font-weight:700;text-decoration:none;white-space:nowrap;padding:4px 8px;border-radius:8px;}
+.an-open:hover{background:rgba(37,211,102,.1);color:var(--wa);}
+.an-caret{color:var(--t3);font-size:12px;transition:transform .15s;}
+.an-caret.hide{visibility:hidden;}
+.an-find[open] > summary .an-caret{transform:rotate(180deg);}
+.an-body{padding:0 18px 15px 106px;}
+.an-body p{margin:0;font-size:13px;line-height:1.55;color:var(--t2);}
+.an-quote{margin-top:9px;padding:9px 12px;border-radius:0 8px 8px 0;background:#111114;
+  border-left:2px solid var(--line);font-size:12.5px;color:var(--t2);font-style:italic;}
+.an-fix{display:flex;gap:8px;margin-top:9px;font-size:12.5px;color:var(--wa);line-height:1.5;}
+
+/* ── что делать ────────────────────────────────────────────────────── */
+.an-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start;}
+.an-todo{margin:0;padding:12px 18px 16px 38px;}
+.an-todo li{font-size:13.5px;line-height:1.55;color:#e4e4e7;padding:7px 0;
+  border-bottom:1px solid #202024;}
+.an-todo li:last-child{border-bottom:0;}
+.an-todo li::marker{color:var(--t3);font-weight:800;font-size:12px;}
+.an-auto{padding:14px 18px;border-bottom:1px solid #202024;}
+.an-auto:last-child{border-bottom:0;}
+.an-auto-q{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;}
+.an-times{font-size:11px;font-weight:800;color:var(--t3);background:var(--card2);
+  border-radius:20px;padding:2px 9px;white-space:nowrap;}
+.an-auto-a{margin-top:9px;padding:10px 12px;border-radius:10px;line-height:1.55;
+  background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.18);
+  font-size:12.5px;color:#d4f7e0;}
+.an-auto-c{display:flex;gap:7px;margin-top:8px;font-size:12px;color:var(--t3);line-height:1.5;}
+
+.an-model{margin-top:16px;text-align:center;font-size:11.5px;color:#3f3f46;}
+
+.an-empty{text-align:center;padding:60px 20px;background:var(--card);
+  border:1px dashed var(--line);border-radius:14px;color:var(--t3);}
+.an-empty i{font-size:30px;display:block;margin-bottom:12px;opacity:.5;}
+.an-empty p{margin:0 0 6px;font-size:15px;font-weight:600;color:#f3f3f5;}
+.an-empty span{font-size:13px;}
+
+@media (max-width: 1100px){
+  .an-top{grid-template-columns:1fr;}
+  .an-bottom{grid-template-columns:1fr;}
+  .an-meta{margin-left:0;}
+}
+@media (max-width: 700px){
+  .an-what{display:none;}
+  .an-body{padding-left:18px;}
+  .an-bar-val{display:none;}
+}
 </style>
 
 <script>
-// Запрос к модели идёт до минуты — показываем, что кнопка сработала.
-document.querySelector('.wa-run')?.addEventListener('submit', (e) => {
-    const button = e.target.querySelector('button');
-    button.disabled = true;
-    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Читаю переписку…';
+// Клик по «Чат» внутри свёрнутой находки должен вести в переписку,
+// а не складывать карточку.
+document.querySelectorAll('.an-find .an-open').forEach(function (link) {
+    link.addEventListener('click', function (e) { e.stopPropagation(); });
 });
 </script>
 @endsection

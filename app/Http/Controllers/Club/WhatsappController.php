@@ -244,9 +244,11 @@ class WhatsappController extends Controller
             'club' => $club,
             'date' => $date,
             'metrics' => $report['metrics'],
+            'hours' => $report['hours'],
             'dialogs' => $report['dialogs'],
             'analysis' => $analysis,
             'days' => $this->recentDays($club->id, $tz),
+            'people' => $this->peopleByTail($club, $report['dialogs']),
         ]);
     }
 
@@ -269,6 +271,45 @@ class WhatsappController extends Controller
         return redirect()
             ->route('club.whatsapp.analysis', ['date' => $date->toDateString()])
             ->with('success', 'Разбор готов');
+    }
+
+    /**
+     * Кто скрывается за «…2677» в разборе.
+     *
+     * Модель ссылается на диалоги последними четырьмя цифрами номера —
+     * иначе разбор занял бы полконтекста. Здесь возвращаем этим хвостам
+     * имя и полный номер, чтобы из находки можно было перейти в переписку.
+     *
+     * @return array<string, array{phone:string, name:string, is_client:bool}>
+     */
+    private function peopleByTail(Club $club, array $dialogs): array
+    {
+        $clients = $this->clientsByPhone($club, array_column($dialogs, 'phone'));
+
+        $map = [];
+        foreach ($dialogs as $dialog) {
+            $tail = substr((string) $dialog['phone'], -4);
+            if (strlen($tail) < 4) {
+                continue;
+            }
+
+            // Два номера с одним хвостом — угадывать нельзя: лучше
+            // показать хвост без имени, чем увести не в тот диалог.
+            if (array_key_exists($tail, $map)) {
+                $map[$tail] = null;
+                continue;
+            }
+
+            $client = $clients[substr((string) $dialog['phone'], -10)] ?? null;
+
+            $map[$tail] = [
+                'phone' => (string) $dialog['phone'],
+                'name' => $client->name ?? $dialog['name'] ?? '',
+                'is_client' => (bool) $client,
+            ];
+        }
+
+        return array_filter($map);
     }
 
     /** Выбранный день или вчерашний: сегодняшний ещё не закончился. */

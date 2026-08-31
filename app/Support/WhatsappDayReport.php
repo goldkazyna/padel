@@ -41,6 +41,9 @@ class WhatsappDayReport
         $threshold = WhatsappSla::threshold();
         $dialogs = [];
         $responses = [];
+        // Все обращения дня со временем: из них строится шкала «когда
+        // клуб проваливался» — по часам видно то, чего не видно в медиане.
+        $timeline = [];
         $unanswered = 0;
         $slow = 0;
 
@@ -55,6 +58,8 @@ class WhatsappDayReport
             $unansweredIds = collect($requests)->whereNull('minutes')->pluck('id')->all();
 
             foreach ($requests as $request) {
+                $timeline[] = $request;
+
                 if ($request['minutes'] === null) {
                     $unanswered++;
                 } else {
@@ -111,12 +116,67 @@ class WhatsappDayReport
                 'without_booking' => $dialogs->count() - count($booked),
                 'work_hours' => WhatsappSla::workFrom() . '-' . WhatsappSla::workTo(),
             ],
+            'hours' => self::hours($timeline, $tz, $threshold),
             'dialogs' => $dialogs->take(self::MAX_DIALOGS)->map(function ($d) use ($booked) {
                 $d['booked'] = in_array(substr($d['phone'], -10), $booked, true);
 
                 return $d;
             })->values()->all(),
         ];
+    }
+
+    /**
+     * Обращения дня по часам — шкала «когда клуб проваливался».
+     *
+     * Медиана в 1 минуту прячет вечер, когда никто не отвечал два часа:
+     * по часам это видно сразу. Час красный, если в нём остались
+     * обращения без ответа или ждали дольше часа.
+     *
+     * @param array<int, array{at: CarbonInterface, minutes: int|null}> $requests
+     * @return array<int, array>
+     */
+    private static function hours(array $requests, string $tz, int $threshold): array
+    {
+        $byHour = [];
+        foreach ($requests as $request) {
+            $hour = (int) $request['at']->copy()->timezone($tz)->format('G');
+            $byHour[$hour] ??= ['requests' => 0, 'unanswered' => 0, 'worst' => null];
+            $byHour[$hour]['requests']++;
+
+            if ($request['minutes'] === null) {
+                $byHour[$hour]['unanswered']++;
+            } else {
+                $byHour[$hour]['worst'] = max($byHour[$hour]['worst'] ?? 0, (int) $request['minutes']);
+            }
+        }
+
+        // Окно — рабочие часы клуба, но если писали раньше или позже,
+        // час не прячем: молчание в 07:30 тоже стоит денег.
+        $open = (int) substr(WhatsappSla::workFrom(), 0, 2);
+        $close = (int) substr(WhatsappSla::workTo(), 0, 2);
+        $hours = array_keys($byHour);
+        $from = min([$open, ...($hours ?: [$open])]);
+        $to = max([$close, ...($hours ?: [$close])]);
+
+        $out = [];
+        for ($hour = $from; $hour <= $to; $hour++) {
+            $cell = $byHour[$hour] ?? ['requests' => 0, 'unanswered' => 0, 'worst' => null];
+            $worst = $cell['worst'];
+
+            $out[] = $cell + [
+                'hour' => $hour,
+                'label' => str_pad((string) $hour, 2, '0', STR_PAD_LEFT),
+                'work' => $hour >= $open && $hour < $close,
+                'state' => match (true) {
+                    $cell['requests'] === 0 => 'empty',
+                    $cell['unanswered'] > 0, $worst !== null && $worst > 60 => 'bad',
+                    $worst !== null && $worst > $threshold => 'slow',
+                    default => 'ok',
+                },
+            ];
+        }
+
+        return $out;
     }
 
     /**

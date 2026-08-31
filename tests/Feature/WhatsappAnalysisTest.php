@@ -189,12 +189,86 @@ class WhatsappAnalysisTest extends TestCase
             ->assertSee('Отвечали медленно, но продали.')
             ->assertSee('Сухой ответ ценой')
             ->assertSee('Не отвечать одной цифрой')
-            ->assertSee('Что можно отвечать автоматически')
+            ->assertSee('Можно отдать роботу')
             ->assertSee('Аренда корта — 12 000 тенге в час. Подскажите день и время, проверю свободные корты.')
             ->assertSee('Скидки и абонементы обсуждает менеджер')
             ->assertSee('40 мин');            // наша цифра, не модельная
     }
 
+    public function test_находка_ведёт_в_переписку_и_называет_человека(): void
+    {
+        // Модель ссылается на диалог хвостом номера. Экран обязан превратить
+        // «…0016» в живого человека, иначе с находкой нечего делать.
+        \App\Models\ClubClient::create([
+            'club_id' => $this->club->id, 'name' => 'Айгуль Сериковна',
+            'phone' => '+7 (777) 000-00-16',
+        ]);
+        $this->message('77770000016', false, '2026-08-20 12:00', 'хочу записаться');
+
+        $this->fakeClaude([
+            'verdict' => 'День слит.',
+            'lost_sales' => [['phone' => '0016', 'what' => 'хотела записаться', 'why' => 'никто не ответил', 'quote' => 'хочу записаться']],
+            'slow' => [], 'quality' => [], 'good' => [], 'actions' => [], 'automation' => [],
+        ]);
+
+        $this->actingAs($this->admin)->post(route('club.whatsapp.analysis.run'), ['date' => '2026-08-20']);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
+            ->assertOk()
+            ->assertSee('Айгуль Сериковна')
+            ->assertSee(route('club.whatsapp.show', '77770000016'), false);
+    }
+
+    public function test_одинаковый_хвост_номера_никуда_не_ведёт(): void
+    {
+        // Два разных номера с хвостом 0016: угадывать нельзя — показываем
+        // хвост как есть, без имени и без ссылки.
+        $this->message('77770000016', false, '2026-08-20 12:00', 'первый');
+        $this->message('77010000016', false, '2026-08-20 12:10', 'второй');
+
+        $this->fakeClaude([
+            'verdict' => 'День слит.',
+            'lost_sales' => [['phone' => '0016', 'what' => 'хотела записаться', 'why' => 'никто не ответил', 'quote' => '']],
+            'slow' => [], 'quality' => [], 'good' => [], 'actions' => [], 'automation' => [],
+        ]);
+
+        $this->actingAs($this->admin)->post(route('club.whatsapp.analysis.run'), ['date' => '2026-08-20']);
+
+        $this->actingAs($this->admin)
+            ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
+            ->assertOk()
+            ->assertSee('…0016')
+            ->assertDontSee(route('club.whatsapp.show', '77770000016'), false);
+    }
+
+    public function test_шкала_дня_показывает_в_какие_часы_просели(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-21 12:00', 'Asia/Almaty')->utc());
+
+        // 10:00 — ответили за две минуты, 14:00 — не ответили вовсе.
+        $this->message('77770000017', false, '2026-08-20 10:00', 'есть корт?');
+        $this->message('77770000017', true, '2026-08-20 10:02', 'есть');
+        $this->message('77770000018', false, '2026-08-20 14:00', 'а на вечер?');
+
+        $hours = collect(\App\Support\WhatsappDayReport::build(
+            $this->club->id, Carbon::parse('2026-08-20', 'Asia/Almaty')
+        )['hours'])->keyBy('hour');
+
+        $this->assertSame('ok', $hours[10]['state'], 'ответили за 2 минуты — час зелёный');
+        $this->assertSame('bad', $hours[14]['state'], 'обращение без ответа — час красный');
+        $this->assertSame('empty', $hours[11]['state'], 'в 11 никто не писал');
+        $this->assertSame(1, $hours[14]['unanswered']);
+        $this->assertTrue($hours[10]['work'], '10:00 — рабочий час клуба');
+
+        $this->actingAs($this->admin)
+            ->get(route('club.whatsapp.analysis', ['date' => '2026-08-20']))
+            ->assertOk()
+            ->assertSee('Где день просел')
+            ->assertSee('Разобрать день');   // разбора ещё нет — зовём его
+
+        Carbon::setTestNow();
+    }
     public function test_ошибка_модели_показывается_человеку(): void
     {
         $this->message('77770000007', false, '2026-08-20 12:00', 'привет');
