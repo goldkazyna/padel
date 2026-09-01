@@ -36,6 +36,7 @@ class Club extends Model
         'goods_description',
         'card_payment_description',
         'online_payment_enabled',
+        'whatsapp_phone',
         'allow_booking_without_payment',
         'tournament_payment_enabled',
         'auto_conduct_group_sessions',
@@ -74,6 +75,19 @@ class Club extends Model
     public function plexyWebhookSecret(): ?string
     {
         return $this->plexy_webhook_secret ?: config('services.plexy.webhook_secret');
+    }
+
+    /**
+     * Ссылка «написать в WhatsApp» — или null, если номер не задан.
+     *
+     * Номер берём только явно указанный: обычный телефон клуба может быть
+     * городским, и кнопка «написать» вела бы в никуда.
+     */
+    public function whatsappUrl(): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $this->whatsapp_phone);
+
+        return strlen((string) $digits) >= 10 ? 'https://wa.me/' . $digits : null;
     }
 
     /** Готов ли клуб принимать онлайн-оплату через Plexy. */

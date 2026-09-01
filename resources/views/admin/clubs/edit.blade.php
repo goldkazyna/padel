@@ -149,6 +149,20 @@
                         @enderror
                     </div>
 
+                    {{-- Номер WhatsApp — отдельно: на общий телефон звонят,
+                         а переписываются часто с другого. Пусто — кнопки
+                         «написать» в приложении не будет. --}}
+                    <div class="mb-4">
+                        <label class="form-label">WhatsApp</label>
+                        <input type="text" name="whatsapp_phone" class="form-control @error('whatsapp_phone') is-invalid @enderror"
+                               value="{{ old('whatsapp_phone', $club->whatsapp_phone) }}"
+                               placeholder="+7 707 000 00 00">
+                        <div class="form-text">Появится кнопкой «Написать» в приложении, рядом со звонком. Оставьте пустым, если WhatsApp у клуба нет.</div>
+                        @error('whatsapp_phone')
+                            <div class="text-danger mt-2 small">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label">Email</label>
                         <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" 

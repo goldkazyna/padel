@@ -34,6 +34,9 @@ trait FormatsTournaments
                 'id' => $club?->id ?? 0,
                 'name' => $club?->name ?? ($creator?->name ?? 'Личный турнир'),
                 'phone' => $club?->phone,
+                // Готовая ссылка на переписку: приложению не нужно знать,
+                // как из номера собирается адрес wa.me.
+                'whatsapp_url' => $club?->whatsappUrl(),
                 'address' => $club?->address,
                 'city' => $club?->city,
                 'payment_url' => $club?->payment_url,
