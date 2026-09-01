@@ -806,7 +806,11 @@ class TeamTournamentService
 		
 		// Создаём матчи плей-офф
 		$this->createPlayoffMatches($tournament, $playoffTeams, $stage);
-		
+
+		// Нижняя сетка — для тех, кто не вышел: раньше она была только у
+		// формата на 3 группы, и галочка при 2 группах молча ничего не делала.
+		$this->createLowerBracket($tournament);
+
 		return true;
 	}
 
@@ -1021,6 +1025,135 @@ class TeamTournamentService
 	/**
 	 * Буква группы по её id внутри турнира (A, B, C, ...).
 	 */
+	/**
+	 * Нижняя (утешительная) сетка для тех, кто не вышел из группы.
+	 *
+	 * Берём следующий эшелон: столько же команд с каждой группы, сколько
+	 * выходит наверх. Ранжируем их между группами так же, как места в
+	 * плей-офф, и играем ту же сетку — с финалом за 5-е место.
+	 *
+	 * У формата на 3 группы своя, более хитрая нижняя сетка — там этот
+	 * метод не зовётся.
+	 */
+	public function createLowerBracket(Tournament $tournament, ?int $used = null): bool
+	{
+		if (!$tournament->has_lower_bracket) {
+			return false;
+		}
+
+		// Уже построена — второй раз не создаём.
+		if ($tournament->playoffMatches()->where('bracket', 'lower')->exists()) {
+			return false;
+		}
+
+		// Сколько мест в группе уже занято верхней сеткой. Обычно это
+		// «сколько выходит», но в формате «финал первых мест» вторые места
+		// играют за бронзу наверху — и нижняя начинается с третьих.
+		$used = max(1, $used ?? (int) $tournament->teams_advance);
+
+		$tier = [];
+		foreach ($tournament->teamGroups as $group) {
+			$sorted = $this->getSortedStandings($group);
+			foreach (array_slice($sorted, $used, $used) as $offset => $standing) {
+				$tier[] = array_merge($standing, [
+					'group_id' => $group->id,
+					'position' => $used + $offset + 1,
+				]);
+			}
+		}
+
+		// Между группами — очки, затем разница геймов, затем забитые.
+		usort($tier, function ($a, $b) {
+			if ($a['points'] !== $b['points']) return $b['points'] - $a['points'];
+			$diffA = $a['points_for'] - $a['points_against'];
+			$diffB = $b['points_for'] - $b['points_against'];
+			if ($diffA !== $diffB) return $diffB - $diffA;
+			return $b['points_for'] - $a['points_for'];
+		});
+
+		$label = fn (array $row) => $row['position'] . $this->groupLetter($row['group_id'], $tournament);
+
+		// Номера матчей нижней сетки идут со 101: продвижение победителей
+		// ищет соперника по 'W'.match_number, и пересекаться с верхней нельзя.
+		$number = 100;
+
+		if (count($tier) >= 4) {
+			// Классическая разводка: сильнейший со слабейшим.
+			$sf1 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'semi',
+				'bracket' => 'lower',
+				'match_number' => ++$number,
+				'team1_id' => $tier[0]['team_id'],
+				'team2_id' => $tier[3]['team_id'],
+				'team1_source' => $label($tier[0]),
+				'team2_source' => $label($tier[3]),
+				'status' => 'in_progress',
+			]);
+
+			$sf2 = TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 2,
+				'stage' => 'semi',
+				'bracket' => 'lower',
+				'match_number' => ++$number,
+				'team1_id' => $tier[1]['team_id'],
+				'team2_id' => $tier[2]['team_id'],
+				'team1_source' => $label($tier[1]),
+				'team2_source' => $label($tier[2]),
+				'status' => 'in_progress',
+			]);
+
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'bracket' => 'lower',
+				'match_number' => ++$number,
+				'team1_source' => 'W' . $sf1->match_number,
+				'team2_source' => 'W' . $sf2->match_number,
+				'status' => 'pending',
+			]);
+
+			if ($tournament->has_bronze_match) {
+				TournamentPlayoffMatch::create([
+					'tournament_id' => $tournament->id,
+					'court_number' => 2,
+					'stage' => 'final',
+					'bracket' => 'lower',
+					'is_bronze' => true,
+					'match_number' => ++$number,
+					'team1_source' => 'L' . $sf1->match_number,
+					'team2_source' => 'L' . $sf2->match_number,
+					'status' => 'pending',
+				]);
+			}
+
+			return true;
+		}
+
+		// Всего две команды — один матч за 5-е место, сетку строить не из чего.
+		if (count($tier) === 2) {
+			TournamentPlayoffMatch::create([
+				'tournament_id' => $tournament->id,
+				'court_number' => 1,
+				'stage' => 'final',
+				'bracket' => 'lower',
+				'match_number' => ++$number,
+				'team1_id' => $tier[0]['team_id'],
+				'team2_id' => $tier[1]['team_id'],
+				'team1_source' => $label($tier[0]),
+				'team2_source' => $label($tier[1]),
+				'status' => 'in_progress',
+			]);
+
+			return true;
+		}
+
+		return false;
+	}
+
 	protected function groupLetter(int $groupId, Tournament $tournament): string
 	{
 		$ids = $tournament->teamGroups()->orderBy('id')->pluck('id')->toArray();
@@ -1243,6 +1376,10 @@ class TeamTournamentService
 			'team2_source' => $runnersUp[1]['source'],
 			'status' => 'in_progress',
 		]);
+
+		// Наверху заняты первые два места каждой группы (финал и бронза) —
+		// нижняя сетка начинается с третьих.
+		$this->createLowerBracket($tournament, 2);
 	}
 
     /**

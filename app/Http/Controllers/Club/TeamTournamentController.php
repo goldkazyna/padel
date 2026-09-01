@@ -314,6 +314,26 @@ class TeamTournamentController extends Controller
 
 		return back()->with('error', 'Ошибка генерации плей-офф');
 	}
+
+	/**
+	 * Достроить нижнюю сетку турниру, где её не создалось.
+	 *
+	 * Нижняя сетка была только у формата на 3 группы: галочку ставили, а
+	 * при 2 группах она молча ничего не делала. Кнопка чинит такие турниры
+	 * без пересоздания уже сыгранного плей-офф.
+	 */
+	public function generateLowerBracket(Tournament $tournament, TeamTournamentService $service)
+	{
+		if (!$service->isGroupStageCompleted($tournament)) {
+			return back()->with('error', 'Групповой этап не завершён');
+		}
+
+		if ($service->createLowerBracket($tournament)) {
+			return back()->with('success', 'Нижняя сетка создана');
+		}
+
+		return back()->with('error', 'Нижнюю сетку строить не из кого: не хватает пар, не вышедших из групп');
+	}
 	/**
 	 * Сохранить счёт матча плей-офф
 	 */

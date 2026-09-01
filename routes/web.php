@@ -693,6 +693,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 ->name('team.updateGroupMatchScore');
             Route::post('/tournaments/{tournament}/generate-playoff', [TeamTournamentController::class, 'generatePlayoff'])
                 ->name('team.generatePlayoff');
+            Route::post('/tournaments/{tournament}/generate-lower-bracket', [TeamTournamentController::class, 'generateLowerBracket'])
+                ->name('team.generateLowerBracket');
             Route::post('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'savePlayoffScore'])
                 ->name('team.savePlayoffScore');
             Route::put('/team/playoff-match/{match}/score', [TeamTournamentController::class, 'updatePlayoffScore'])

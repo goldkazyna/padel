@@ -413,7 +413,7 @@
 									<input type="checkbox" name="has_lower_bracket" value="1" id="hasLowerBracket" class="form-check-input"
 										{{ old('has_lower_bracket') ? 'checked' : '' }}>
 									<label for="hasLowerBracket" class="form-check-label">
-										Нижняя сетка <small class="text-muted">(для проигравших в QF)</small>
+										Нижняя сетка <small class="text-muted">(утешительная — для пар, не вышедших из групп)</small>
 									</label>
 								</div>
 							</div>

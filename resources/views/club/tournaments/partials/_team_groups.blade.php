@@ -230,4 +230,23 @@
             <span class="text-secondary"><i class="bi bi-hourglass-split me-1"></i> Завершите все матчи группового этапа</span>
         </div>
     @endif
+
+    {{-- Нижняя сетка была отмечена, но не создалась: у турниров, сделанных
+         до правки, она строилась только при 3 группах. Достраиваем кнопкой,
+         не трогая уже сыгранный плей-офф. --}}
+    @php
+        $hasLower = $tournament->playoffMatches->contains(fn ($m) => ($m->bracket ?? 'upper') === 'lower');
+    @endphp
+    @if($tournament->has_lower_bracket && $groupStageCompleted && $tournament->playoffMatches->count() > 0 && !$hasLower)
+        <div class="text-center mt-3">
+            <form action="{{ route('club.team.generateLowerBracket', $tournament) }}" method="POST"
+                  onsubmit="return confirm('Создать нижнюю сетку для пар, не вышедших из групп?')">
+                @csrf
+                <button type="submit" class="btn-outline-custom">
+                    <i class="bi bi-diagram-2 me-2"></i> Создать нижнюю сетку
+                </button>
+            </form>
+            <small class="text-secondary d-block mt-2">Нижняя сетка отмечена в настройках, но матчей в ней нет</small>
+        </div>
+    @endif
 </div>
