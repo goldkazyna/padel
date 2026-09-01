@@ -266,8 +266,12 @@ class MobileGameController extends Controller
             $query->where('starts_at', '<=', $filters['date_to']);
         }
 
-        // Диапазон рейтинга — фильтр «самотёка» (S3).
-        if (!$request->boolean('show_out_of_level')) {
+        // Лента показывает все публичные игры, включая чужой уровень:
+        // раньше игра со своим диапазоном была видна слишком узкому кругу и
+        // так и стояла пустой. Уровень теперь не прячет игру, а помечает её
+        // («не ваш уровень») — решает организатор, одобряя заявку.
+        // Кому нужен старый режим, передаёт only_my_level=1.
+        if ($request->boolean('only_my_level')) {
             $level = (float) $user->level;
             $query->where(function ($q) use ($level) {
                 $q->whereNull('rating_min')->orWhere('rating_min', '<=', $level);
@@ -515,6 +519,9 @@ class MobileGameController extends Controller
             'format_meta' => $game->format_meta,
             'rating_min' => $game->rating_min !== null ? (float) $game->rating_min : null,
             'rating_max' => $game->rating_max !== null ? (float) $game->rating_max : null,
+            // Игру видно всем, но честно говорим, подходит ли ей мой уровень:
+            // заявку примут, только если организатор не против.
+            'level_matches' => $user ? $this->userInRange($game, $user) : true,
             'capacity' => (int) $game->capacity,
             'price' => $game->price,
             'description' => $game->description,
