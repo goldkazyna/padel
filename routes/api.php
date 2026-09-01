@@ -310,6 +310,10 @@ Route::prefix('mobile')->group(function () {
         Route::get('/tournaments/{tournament}/stats', [MobileTournamentController::class, 'stats']);
         Route::get('/tournaments/{tournament}/live', [MobileTournamentController::class, 'live']);
         Route::post('/tournaments/{tournament}/register', [MobileTournamentController::class, 'register']);
+        // Оплата участия: ссылка Plexy и опрос статуса. Приложение не ждёт
+        // вебхук — спрашивает статус само.
+        Route::post('/tournaments/{tournament}/pay', [MobileTournamentController::class, 'pay']);
+        Route::get('/tournaments/{tournament}/payment-status', [MobileTournamentController::class, 'paymentStatus']);
         Route::post('/tournaments/{tournament}/cancel', [MobileTournamentController::class, 'cancel']);
         Route::post('/tournaments/{tournament}/search-partner', [MobileTournamentController::class, 'searchPartner']);
         Route::post('/tournaments/{tournament}/register-team', [MobileTournamentController::class, 'registerTeam']);

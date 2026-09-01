@@ -193,6 +193,14 @@
                                    style="background-color: var(--bg-secondary); border-color: var(--border);">
                             <span class="form-check-label">Показывать кнопку «Записаться без оплаты»</span>
                         </label>
+                        <label class="form-check mt-2">
+                            <input type="hidden" name="tournament_payment_enabled" value="0">
+                            <input type="checkbox" name="tournament_payment_enabled" value="1" class="form-check-input"
+                                   {{ old('tournament_payment_enabled', $club->tournament_payment_enabled ?? false) ? 'checked' : '' }}
+                                   style="background-color: var(--bg-secondary); border-color: var(--border);">
+                            <span class="form-check-label">Онлайн-оплата участия в турнире</span>
+                        </label>
+                        <div class="form-text">Оплатил — попал в турнир без модерации. Только одиночная запись и ненулевая стоимость.</div>
                     </div>
 
                     {{-- Ключи платёжного шлюза Plexy (у каждого клуба свои) --}}

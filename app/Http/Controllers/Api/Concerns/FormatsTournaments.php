@@ -86,6 +86,15 @@ trait FormatsTournaments
             'waitlist_size' => (int) ($t->waitlist_size ?? 0),
             'waitlist_count' => $t->waitlistCount(),
             'waitlist_available' => $t->hasWaitlistSlot(),
+            // Участие платное и оплачивается онлайн: приложение вместо
+            // «Записаться» показывает кнопку оплаты. Способы перечисляем
+            // явно — их рисует экран оплаты.
+            'payment' => $t->requiresOnlinePayment() ? [
+                'required' => true,
+                'amount' => (float) $t->price,
+                'methods' => ['card', 'apple_pay', 'google_pay'],
+                'provider' => 'plexy',
+            ] : null,
         ];
 
         if ($user && $includeRegistration) {

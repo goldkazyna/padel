@@ -321,7 +321,24 @@ class Tournament extends Model
 		if (!$this->usesSoloRegistration()) {
 			return $this->teams()->whereIn('status', ['approved', 'pending'])->count() * 2;
 		}
-		return $this->participants()->wherePivotIn('status', ['registered', 'pending'])->count();
+
+		// Место, за которое прямо сейчас платят, считается занятым: иначе
+		// человек уйдёт на checkout, вернётся с оплатой — а мест уже нет.
+		return $this->participants()->wherePivotIn('status', ['registered', 'pending'])->count()
+			+ \App\Models\TournamentPayment::heldSlots($this->id);
+	}
+
+	/**
+	 * Нужна ли онлайн-оплата, чтобы попасть в этот турнир.
+	 *
+	 * Только у клубов, включивших оплату турниров, только там, где
+	 * записываются поодиночке, и только если участие не бесплатное.
+	 */
+	public function requiresOnlinePayment(): bool
+	{
+		return (float) $this->price > 0
+			&& $this->usesSoloRegistration()
+			&& (bool) $this->club?->chargesForTournaments();
 	}
 
 	/**

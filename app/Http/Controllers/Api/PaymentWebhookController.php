@@ -47,6 +47,12 @@ class PaymentWebhookController extends Controller
             return $this->handlePaymentLink((int) $m[1], $request, $name, $isPaid, $isFailed);
         }
 
+        // Участие в турнире («tourpay-{id}») — своя таблица и своя посадка
+        // игрока в основной список.
+        if (preg_match('/tourpay-(\d+)/', $reference, $m)) {
+            return $this->handleTournamentPayment((int) $m[1], $request, $name, $isPaid, $isFailed);
+        }
+
         // Находим бронь по ссылке "booking-{id}".
         $bookingId = null;
         if (preg_match('/booking-(\d+)/', $reference, $m)) {
@@ -84,6 +90,45 @@ class PaymentWebhookController extends Controller
         } elseif ($isFailed && !$booking->is_paid) {
             $booking->update(['payment_status' => 'failed']);
             Log::info('Plexy webhook: оплата не прошла', ['booking' => $booking->id, 'event' => $name]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Оплата участия в турнире: деньги есть — игрок в основном списке,
+     * без модерации.
+     */
+    private function handleTournamentPayment(
+        int $id,
+        Request $request,
+        string $event,
+        bool $isPaid,
+        bool $isFailed
+    ) {
+        $payment = \App\Models\TournamentPayment::with('tournament.club')->find($id);
+
+        if (!$payment) {
+            Log::warning('Plexy webhook: платёж за турнир не найден', ['tourpay' => $id, 'name' => $event]);
+            // 200 — чтобы Plexy не ретраил по устаревшей ссылке.
+            return response()->json(['success' => true, 'ignored' => true]);
+        }
+
+        $secret = $payment->tournament?->club?->plexyWebhookSecret();
+        if (!empty($secret)) {
+            $provided = $request->bearerToken() ?: (string) $request->header('Authorization');
+            $provided = trim(preg_replace('/^Bearer\s+/i', '', $provided));
+            if (!hash_equals($secret, $provided)) {
+                Log::warning('Plexy webhook: неверный секрет (турнир)', ['tourpay' => $payment->id]);
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+        }
+
+        if ($isPaid) {
+            app(\App\Services\TournamentPaymentService::class)->complete($payment);
+        } elseif ($isFailed && $payment->status === \App\Models\TournamentPayment::STATUS_PENDING) {
+            $payment->update(['status' => \App\Models\TournamentPayment::STATUS_FAILED]);
+            Log::info('Plexy webhook: оплата турнира не прошла', ['tourpay' => $payment->id, 'event' => $event]);
         }
 
         return response()->json(['success' => true]);

@@ -60,6 +60,23 @@
             </span>
         </label>
 
+        {{-- Оплата турниров онлайн. По умолчанию выключено: клуб включает её,
+             только когда готов принимать деньги за участие. --}}
+        <label class="settings-toggle-row">
+            <input type="hidden" name="tournament_payment_enabled" value="0">
+            <input type="checkbox" name="tournament_payment_enabled" value="1"
+                   {{ ($club->tournament_payment_enabled ?? false) ? 'checked' : '' }}
+                   @disabled(!$club->hasPlexyConfigured())>
+            <span class="settings-toggle-text">
+                <span class="settings-toggle-title">Онлайн-оплата участия в турнире</span>
+                @if($club->hasPlexyConfigured())
+                    <small class="form-hint">Если включено — в приложении вместо «Записаться» игрок видит кнопку оплаты (карта, Apple Pay, Google Pay) и после оплаты сразу попадает в основной список, без модерации. Работает в турнирах с одиночной записью и ненулевой стоимостью.</small>
+                @else
+                    <small class="form-hint">Недоступно: у клуба не настроена онлайн-оплата (Plexy). Обратитесь к администратору системы.</small>
+                @endif
+            </span>
+        </label>
+
         <label class="settings-toggle-row">
             <input type="hidden" name="auto_conduct_group_sessions" value="0">
             <input type="checkbox" name="auto_conduct_group_sessions" value="1"

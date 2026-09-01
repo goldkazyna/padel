@@ -37,6 +37,7 @@ class Club extends Model
         'card_payment_description',
         'online_payment_enabled',
         'allow_booking_without_payment',
+        'tournament_payment_enabled',
         'auto_conduct_group_sessions',
         'plexy_api_key',
         'plexy_merchant_id',
@@ -81,6 +82,18 @@ class Club extends Model
         return $this->online_payment_enabled && !empty($this->plexyApiKey());
     }
 
+    /**
+     * Берёт ли клуб деньги за турнир онлайн.
+     *
+     * Отдельная галочка от оплаты кортов: клуб может принимать оплату брони,
+     * но турниры собирать по-старому. Без настроенного Plexy галочка ничего
+     * не значит.
+     */
+    public function chargesForTournaments(): bool
+    {
+        return (bool) $this->tournament_payment_enabled && $this->hasPlexyConfigured();
+    }
+
     protected $casts = [
         'is_active' => 'boolean',
         'is_test' => 'boolean',
@@ -90,6 +103,7 @@ class Club extends Model
         'hide_phones' => 'boolean',
         'online_payment_enabled' => 'boolean',
         'allow_booking_without_payment' => 'boolean',
+        'tournament_payment_enabled' => 'boolean',
         'auto_conduct_group_sessions' => 'boolean',
         'telegram_notify_enabled' => 'boolean',
         'features' => 'array',

@@ -1,5 +1,24 @@
 @php
     $hasGroups = $tournament->isAmericano() && $tournament->groups()->count() > 0;
+
+    // Кто оплатил участие онлайн. Один платёж может закрывать двоих —
+    // тот, кто платил, и записанный им друг.
+    $paidOnline = [];
+    foreach (\App\Models\TournamentPayment::where('tournament_id', $tournament->id)
+        ->where('status', \App\Models\TournamentPayment::STATUS_PAID)->get() as $payment) {
+        $perPlayer = $payment->players_count > 0 ? $payment->amount / $payment->players_count : $payment->amount;
+        $paidOnline[$payment->user_id] = $perPlayer;
+        if ($payment->friend_user_id) {
+            $paidOnline[$payment->friend_user_id] = $perPlayer;
+        }
+    }
+
+    // Оплатил и всё же отменился — клубу нужно вернуть деньги руками.
+    $refundOwed = $paidOnline
+        ? $tournament->participants()->wherePivot('status', 'cancelled')
+            ->whereIn('users.id', array_keys($paidOnline))->get()
+        : collect();
+
     $waitlistParticipants = $tournament->participants()
         ->wherePivot('status', 'waiting')
         ->orderBy('tournament_participants.created_at')
@@ -54,6 +73,24 @@
                     </button>
                 </form>
             @endif
+        </div>
+    @endif
+
+    {{-- Оплатили онлайн и отменились: деньги вернуть может только клуб,
+         поэтому такие записи не должны потеряться из виду. --}}
+    @if($refundOwed->isNotEmpty())
+        <div class="refund-alert mb-3">
+            <i class="bi bi-arrow-counterclockwise"></i>
+            <div>
+                <b>Оплатили онлайн, но отменили запись — нужен возврат</b>
+                <div class="refund-list">
+                    @foreach($refundOwed as $player)
+                        <span>{{ $player->name }} · @phoneFmt($player->phone) ·
+                            {{ number_format($paidOnline[$player->id], 0, ',', ' ') }} ₸</span>
+                    @endforeach
+                </div>
+                <small>Возврат делается в личном кабинете Plexy — CRM деньгами не распоряжается.</small>
+            </div>
         </div>
     @endif
 
@@ -321,6 +358,12 @@
                     <div class="participant-meta">
                         <span class="level-badge">{{ $participant->level }}</span>
                         <span class="text-success">Одобрен</span>
+                        @isset($paidOnline[$participant->id])
+                            <span class="paid-badge" title="Участие оплачено онлайн через Plexy">
+                                <i class="bi bi-credit-card-2-front"></i>
+                                оплачено {{ number_format($paidOnline[$participant->id], 0, ',', ' ') }} ₸
+                            </span>
+                        @endisset
                     </div>
                 </div>
                 <div class="participant-rating">{{ $participant->rating }}</div>
@@ -535,6 +578,41 @@
 
 .participants-content {
     transition: all 0.3s ease;
+}
+
+/* Оплата участия онлайн: пометка у игрока и напоминание о возврате. */
+.paid-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(37, 211, 102, 0.14);
+    color: #25d366;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 20px;
+}
+
+.refund-alert {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(234, 179, 8, 0.08);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: #e4e4e7;
+    font-size: 0.9rem;
+}
+.refund-alert > i { color: #eab308; font-size: 1.15rem; }
+.refund-alert b { display: block; margin-bottom: 6px; }
+.refund-alert small { color: #a1a1aa; font-size: 0.78rem; }
+.refund-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 6px;
+    color: #a1a1aa;
+    font-size: 0.85rem;
 }
 
 .pending-badge {

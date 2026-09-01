@@ -32,6 +32,10 @@ class AccountController extends Controller
 
         $update = [
             'allow_booking_without_payment' => $request->boolean('allow_booking_without_payment'),
+            // Оплата турниров имеет смысл только с настроенным Plexy:
+            // галочку в форме мы гасим, но подстрахуемся и здесь.
+            'tournament_payment_enabled' => $club->hasPlexyConfigured()
+                && $request->boolean('tournament_payment_enabled'),
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
             'booking_cancel_hours' => $cancelHours,
             'card_bg_color' => $this->hexOrNull($request->input('card_bg_color')),

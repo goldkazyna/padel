@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\FormatsTournaments;
 use App\Models\Tournament;
+use App\Models\TournamentPayment;
 use App\Models\TournamentSubscription;
 use App\Models\TournamentTeam;
 use App\Models\User;
 use App\Models\RatingHistory;
 use App\Models\TournamentAiAnalysis;
 use App\Services\TournamentAiAnalysisService;
+use App\Services\TournamentPaymentService;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -308,12 +310,77 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Оплатить участие: создаём ссылку Plexy и отдаём её приложению.
+     * POST /api/mobile/tournaments/{id}/pay
+     */
+    public function pay(Request $request, Tournament $tournament, TournamentPaymentService $service)
+    {
+        $request->validate(['friend_user_id' => 'nullable|integer|exists:users,id']);
+
+        $friend = $request->filled('friend_user_id')
+            ? User::find($request->input('friend_user_id'))
+            : null;
+
+        try {
+            $payment = $service->start($tournament, $request->user(), $friend);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'payment_id' => $payment->id,
+            'payment_url' => $payment->plexy_url,
+            'amount' => (float) $payment->amount,
+            'players_count' => $payment->players_count,
+            'expires_at' => $payment->expires_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Оплатили или нет: приложение спрашивает после возврата с checkout.
+     * GET /api/mobile/tournaments/{id}/payment-status?payment_id=123
+     */
+    public function paymentStatus(Request $request, Tournament $tournament, TournamentPaymentService $service)
+    {
+        $request->validate(['payment_id' => 'required|integer']);
+
+        $payment = TournamentPayment::where('tournament_id', $tournament->id)
+            ->where('user_id', $request->user()->id)
+            ->find($request->input('payment_id'));
+
+        if (!$payment) {
+            return response()->json(['success' => false, 'message' => 'Платёж не найден'], 404);
+        }
+
+        // Не ждём вебхук: спрашиваем шлюз сами и сажаем в турнир сразу.
+        $paid = $service->sync($payment);
+
+        return response()->json([
+            'success' => true,
+            'status' => $payment->fresh()->status,
+            'paid' => $paid,
+            'registered' => $paid,
+        ]);
+    }
+
+    /**
      * Записаться на турнир
      * POST /api/mobile/tournaments/{id}/register
      */
     public function register(Request $request, Tournament $tournament)
     {
         $user = $request->user();
+
+        // Платный турнир записывают только деньги: иначе «Записаться» стало бы
+        // обходным путём мимо оплаты.
+        if ($tournament->requiresOnlinePayment()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Участие в этом турнире оплачивается онлайн',
+                'payment_required' => true,
+            ], 400);
+        }
 
         $request->validate([
             'friend_user_id' => 'nullable|integer|exists:users,id',
