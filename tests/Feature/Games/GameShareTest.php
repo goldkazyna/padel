@@ -33,9 +33,28 @@ class GameShareTest extends TestCase
         $game = Game::factory()->create(['creator_id' => $organizer->id, 'share_token' => 'tok']);
         Sanctum::actingAs($organizer);
 
-        $this->postJson("/api/mobile/games/{$game->id}/share/revoke")->assertOk();
+        $res = $this->postJson("/api/mobile/games/{$game->id}/share/revoke")->assertOk();
         $this->assertNotNull($game->fresh()->share_revoked_at);
         $this->getJson('/api/mobile/games/by-share/tok')->assertStatus(410);
+
+        // Приложение ждёт карточку игры, как от любого другого действия:
+        // раньше отзыв возвращал голый «успех» и экран падал.
+        $res->assertJsonPath('data.id', $game->id)
+            ->assertJsonPath('data.share_active', false);
+    }
+
+    public function test_rotate_returns_whole_game(): void
+    {
+        $organizer = User::factory()->create();
+        $game = Game::factory()->create(['creator_id' => $organizer->id, 'share_token' => 'oldtoken']);
+        Sanctum::actingAs($organizer);
+
+        $this->postJson("/api/mobile/games/{$game->id}/share/rotate")
+            ->assertOk()
+            ->assertJsonPath('data.id', $game->id)
+            ->assertJsonPath('data.share_active', true)
+            // Карточка целиком: экран рисует её сразу, без второго запроса.
+            ->assertJsonStructure(['data' => ['id', 'status', 'format', 'players', 'share_token']]);
     }
 
     public function test_non_organizer_cannot_rotate(): void

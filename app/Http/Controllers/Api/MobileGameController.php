@@ -443,9 +443,12 @@ class MobileGameController extends Controller
             'share_revoked_at' => null,
             'share_uses' => 0,
         ]);
+
+        // Отдаём игру целиком, как все остальные действия: приложение
+        // ждёт карточку и на куске ответа падало.
         return response()->json([
             'success' => true,
-            'data' => ['share_token' => $game->share_token, 'share_active' => $game->shareLinkActive()],
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $request->user()),
         ]);
     }
 
@@ -456,7 +459,11 @@ class MobileGameController extends Controller
             return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
         }
         $game->update(['share_revoked_at' => now()]);
-        return response()->json(['success' => true]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $request->user()),
+        ]);
     }
 
     /** Публичный переход по ссылке-приглашению → карточка игры. */
