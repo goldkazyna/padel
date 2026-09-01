@@ -14,6 +14,7 @@ class GameActionLog extends Model
     const ACTION_ROUND_DELETE = 'round_delete';
     const ACTION_PLAYER_REMOVE = 'player_remove';
     const ACTION_SCHEDULE_REGENERATE = 'schedule_regenerate';
+    const ACTION_CANCEL = 'cancel';
 
     protected $fillable = ['game_id', 'user_id', 'action', 'payload'];
 

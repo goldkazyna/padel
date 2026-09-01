@@ -322,6 +322,10 @@ class MobileGameController extends Controller
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
+        } else {
+            // Отменённую игру в списке держать незачем — она только мешает.
+            // Кому нужна история, просит её статусом явно.
+            $query->where('status', '<>', Game::STATUS_CANCELLED);
         }
 
         $perPage = (int) ($filters['per_page'] ?? 20);
@@ -1018,6 +1022,56 @@ class MobileGameController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
+    }
+
+    /**
+     * Отменить игру целиком (только организатор).
+     *
+     * Игра не удаляется: у неё есть участники, журнал и, возможно, сыгранные
+     * раунды. Она уходит из лент и из «моих игр», но остаётся в базе.
+     * Завершённую и ту, где уже утверждают счёт, отменять нельзя — там
+     * посчитан рейтинг.
+     */
+    public function cancel(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Отменить игру может только организатор'], 403);
+        }
+
+        if ($game->status === Game::STATUS_CANCELLED) {
+            return response()->json(['success' => false, 'message' => 'Игра уже отменена'], 422);
+        }
+
+        if ($game->status === Game::STATUS_FINISHED || $game->score_locked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Игра доиграна — отменить её уже нельзя',
+            ], 422);
+        }
+
+        $game->update(['status' => Game::STATUS_CANCELLED]);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_CANCEL);
+
+        // Предупреждаем всех, кто был в составе: люди держали это время.
+        $when = $game->starts_at?->format('d.m.Y H:i');
+        foreach ($game->players()->where('status', GamePlayer::STATUS_ACCEPTED)->with('user')->get() as $player) {
+            if (!$player->user || $player->user_id === $user->id) {
+                continue;
+            }
+            $this->notifyGame(
+                $player->user,
+                'Игра отменена',
+                "{$user->name} отменил(а) игру" . ($when ? " {$when}" : ''),
+                'game_cancelled',
+                $game->id,
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
         ]);
     }
 

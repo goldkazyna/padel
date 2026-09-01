@@ -410,6 +410,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/transfer/cancel', [MobileGameController::class, 'transferCancel']);
         Route::post('/games/{game}/transfer/accept', [MobileGameController::class, 'transferAccept']);
         Route::post('/games/{game}/transfer/decline', [MobileGameController::class, 'transferDecline']);
+        Route::post('/games/{game}/cancel', [MobileGameController::class, 'cancel']);
         Route::post('/games/{game}/start', [MobileGameController::class, 'start']);
         Route::post('/games/{game}/start/cancel', [MobileGameController::class, 'startCancel']);
         Route::post('/games/{game}/finish', [MobileGameController::class, 'finish']);
