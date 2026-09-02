@@ -1094,6 +1094,12 @@
 					</li>
 					@endif
 						<li class="nav-item">
+							<a href="{{ route('club.instructions.index') }}" class="nav-link {{ request()->routeIs('club.instructions.*') ? 'active' : '' }}">
+								<i class="bi bi-journal-text"></i>
+								<span>Должностные инструкции</span>
+							</a>
+						</li>
+						<li class="nav-item">
 							<a href="{{ route('club.help.index') }}" class="nav-link {{ request()->routeIs('club.help.*') ? 'active' : '' }}">
 								<i class="bi bi-question-circle"></i>
 								<span>Помощь</span>
@@ -1257,6 +1263,12 @@
 						</a>
 					</li>
 					@endif
+						<li class="nav-item">
+							<a href="{{ route('club.instructions.index') }}" class="nav-link {{ request()->routeIs('club.instructions.*') ? 'active' : '' }}">
+								<i class="bi bi-journal-text"></i>
+								<span>Должностные инструкции</span>
+							</a>
+						</li>
 						<li class="nav-item">
 							<a href="{{ route('club.help.index') }}" class="nav-link {{ request()->routeIs('club.help.*') ? 'active' : '' }}">
 								<i class="bi bi-question-circle"></i>

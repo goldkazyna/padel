@@ -245,6 +245,20 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         Route::put('/settings/club', [App\Http\Controllers\Club\AccountController::class, 'updateClubSettings'])->name('settings.club');
         Route::post('/settings/club/telegram-test', [App\Http\Controllers\Club\AccountController::class, 'testTelegram'])->name('settings.club.telegramTest');
 
+        // Должностные инструкции клуба: пишет админ, читают и менеджеры.
+        Route::get('/instructions', [App\Http\Controllers\Club\InstructionController::class, 'index'])->name('instructions.index');
+        Route::get('/instructions/create', [App\Http\Controllers\Club\InstructionController::class, 'create'])->name('instructions.create');
+        Route::post('/instructions', [App\Http\Controllers\Club\InstructionController::class, 'store'])->name('instructions.store');
+        Route::post('/instructions/sections', [App\Http\Controllers\Club\InstructionController::class, 'storeSection'])->name('instructions.sections.store');
+        Route::put('/instructions/sections/{section}', [App\Http\Controllers\Club\InstructionController::class, 'updateSection'])->name('instructions.sections.update');
+        Route::delete('/instructions/sections/{section}', [App\Http\Controllers\Club\InstructionController::class, 'destroySection'])->name('instructions.sections.destroy');
+        Route::get('/instructions/{instruction}', [App\Http\Controllers\Club\InstructionController::class, 'show'])->name('instructions.show');
+        Route::get('/instructions/{instruction}/edit', [App\Http\Controllers\Club\InstructionController::class, 'edit'])->name('instructions.edit');
+        Route::put('/instructions/{instruction}', [App\Http\Controllers\Club\InstructionController::class, 'update'])->name('instructions.update');
+        Route::delete('/instructions/{instruction}', [App\Http\Controllers\Club\InstructionController::class, 'destroy'])->name('instructions.destroy');
+        Route::post('/instructions/{instruction}/move', [App\Http\Controllers\Club\InstructionController::class, 'move'])->name('instructions.move');
+        Route::delete('/instructions/files/{file}', [App\Http\Controllers\Club\InstructionController::class, 'destroyFile'])->name('instructions.files.destroy');
+
         // Помощь / инструкции (доступны всем ролям клуба)
         Route::get('/help', [App\Http\Controllers\Club\HelpController::class, 'index'])->name('help.index');
         Route::get('/help/{slug}', [App\Http\Controllers\Club\HelpController::class, 'show'])->name('help.show');
