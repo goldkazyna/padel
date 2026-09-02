@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Padel Platform — архитектура и структура данных</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+
+  :root{
+    --ink:#14171a;
+    --muted:#5b6570;
+    --line:#dfe3e7;
+    --line-soft:#eef1f4;
+    --accent:#12864b;
+    --accent-soft:#eaf5ef;
+    --paper:#ffffff;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    font-size:10.2pt;
+    line-height:1.5;
+  }
+
+  h1,h2,h3{ margin:0; font-weight:700; letter-spacing:-0.2px; }
+
+  /* ── титул ───────────────────────────────────────────── */
+  .cover{ padding:38mm 0 0; page-break-after:always; }
+  .cover .kicker{
+    font-size:9pt; font-weight:800; letter-spacing:2.4px; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .cover h1{ font-size:30pt; line-height:1.12; margin:10px 0 14px; }
+  .cover .lead{ font-size:12pt; color:var(--muted); max-width:135mm; }
+  .cover .rule{ height:3px; width:64px; background:var(--accent); margin:22px 0 24px; }
+  .cover dl{ display:grid; grid-template-columns:38mm 1fr; gap:7px 16px; margin:0; font-size:10pt; }
+  .cover dt{ color:var(--muted); }
+  .cover dd{ margin:0; font-weight:600; }
+
+  /* ── разделы ─────────────────────────────────────────── */
+  section{ page-break-inside:auto; }
+  h2{
+    font-size:15pt; margin:0 0 4px;
+    padding-top:14px; border-top:2px solid var(--ink);
+  }
+  h2 .num{ color:var(--accent); margin-right:9px; }
+  h2 + .sub{ color:var(--muted); font-size:9.6pt; margin:0 0 14px; }
+  h3{ font-size:11pt; margin:18px 0 7px; }
+  p{ margin:0 0 9px; }
+  ul{ margin:0 0 10px; padding-left:18px; }
+  li{ margin-bottom:4px; }
+  b, strong{ font-weight:700; }
+  code{
+    font-family:'Cascadia Mono', Consolas, monospace; font-size:9pt;
+    background:var(--line-soft); padding:1px 5px; border-radius:4px;
+  }
+
+  /* ── таблицы ─────────────────────────────────────────── */
+  table{ width:100%; border-collapse:collapse; margin:6px 0 16px; font-size:9.4pt; }
+  th{
+    text-align:left; font-size:8pt; text-transform:uppercase; letter-spacing:0.7px;
+    color:var(--muted); font-weight:700;
+    border-bottom:1.5px solid var(--line); padding:6px 8px 5px;
+  }
+  td{ padding:6px 8px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  tr{ page-break-inside:avoid; }
+  td.name{ font-family:'Cascadia Mono', Consolas, monospace; font-size:8.8pt; white-space:nowrap; }
+  td.num{ text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
+
+  /* ── цифры ───────────────────────────────────────────── */
+  .facts{ display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin:4px 0 18px; }
+  .fact{ border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .fact b{ display:block; font-size:17pt; line-height:1.1; color:var(--accent); }
+  .fact span{ font-size:8.6pt; color:var(--muted); }
+
+  /* ── схема ───────────────────────────────────────────── */
+  .diagram{ border:1px solid var(--line); border-radius:10px; padding:14px; margin:8px 0 16px; }
+  .tier{ display:grid; gap:9px; margin-bottom:9px; }
+  .tier.two{ grid-template-columns:1fr 1fr; }
+  .tier.three{ grid-template-columns:1fr 1fr 1fr; }
+  .box{ border:1px solid var(--line); border-radius:8px; padding:9px 11px; background:#fbfcfd; }
+  .box.core{ border-color:var(--accent); background:var(--accent-soft); }
+  .box h4{ margin:0 0 3px; font-size:9.6pt; font-weight:700; }
+  .box p{ margin:0; font-size:8.6pt; color:var(--muted); line-height:1.4; }
+  .arrow{ text-align:center; color:var(--muted); font-size:9pt; margin:2px 0 7px; }
+
+  .note{
+    border-left:3px solid var(--accent); background:var(--accent-soft);
+    padding:9px 12px; border-radius:0 6px 6px 0; margin:10px 0 14px; font-size:9.4pt;
+  }
+  .note b{ color:var(--accent); }
+
+  .footer-note{ color:var(--muted); font-size:8.6pt; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">Техническое описание</div>
+  <h1>Padel&nbsp;Platform<br>архитектура и структура данных</h1>
+  <div class="rule"></div>
+  <p class="lead">
+    Платформа для падел-клубов: мобильное приложение для игроков, веб-CRM для клубов
+    и один общий бэкенд, который считает турниры, рейтинг, брони и деньги.
+  </p>
+
+  <dl>
+    <dt>Документ</dt><dd>Описание для партнёра</dd>
+    <dt>Дата</dt><dd>2 сентября 2026</dd>
+    <dt>Прод</dt><dd>padel-p.kz</dd>
+    <dt>Стек</dt><dd>Laravel 12.52 · PHP 8.3 · MySQL 8.0 · Flutter</dd>
+    <dt>База</dt><dd>120 таблиц, 406 МБ</dd>
+  </dl>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="num">01</span>Что это такое</h2>
+  <p class="sub">Три части, один бэкенд</p>
+
+  <p>
+    Платформа закрывает жизнь падел-клуба целиком: клуб ведёт корты, брони, клиентов,
+    абонементы, группы и тренеров; проводит турниры девяти форматов и лиги из нескольких
+    этапов; игрок в приложении записывается на турниры, бронирует корт, платит картой,
+    видит свой рейтинг и историю матчей.
+  </p>
+
+  <div class="facts">
+    <div class="fact"><b>120</b><span>таблиц в базе</span></div>
+    <div class="fact"><b>627</b><span>маршрутов, из них 256 мобильных</span></div>
+    <div class="fact"><b>240</b><span>автотестов бэкенда</span></div>
+    <div class="fact"><b>29</b><span>клубов на платформе</span></div>
+    <div class="fact"><b>2 968</b><span>игроков</span></div>
+    <div class="fact"><b>10 369</b><span>броней кортов</span></div>
+    <div class="fact"><b>830</b><span>турниров</span></div>
+    <div class="fact"><b>406 МБ</b><span>данных</span></div>
+  </div>
+
+  <table>
+    <tr><th style="width:34mm">Часть</th><th>Что это</th><th style="width:44mm">Технологии</th></tr>
+    <tr>
+      <td><b>Мобильное приложение</b></td>
+      <td>Игрок: турниры, лиги, игры, бронь корта, рейтинг, профиль, клубные карты, чат турнира. Плюс «мобильная админка» — клуб может провести турнир с телефона.</td>
+      <td>Flutter (Dart), ~108 000 строк, 95 экранов, Provider, FCM</td>
+    </tr>
+    <tr>
+      <td><b>Веб-CRM клуба</b></td>
+      <td>Расписание кортов, клиенты, карты и сертификаты, группы и посещаемость, тренеры и выплаты, инвентарь, отчёты, проведение турниров и лиг, WhatsApp-переписка.</td>
+      <td>Laravel Blade, 199 шаблонов, 319 маршрутов</td>
+    </tr>
+    <tr>
+      <td><b>Бэкенд</b></td>
+      <td>Один код на оба клиента: REST API для приложения и серверный рендер для CRM. Здесь же расчёт рейтинга, движки форматов турниров, интеграции и крон-задачи.</td>
+      <td>Laravel 12.52, PHP 8.3, MySQL 8.0, Sanctum</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section style="page-break-before:always">
+  <h2><span class="num">02</span>Архитектура</h2>
+  <p class="sub">Монолит с двумя лицами — так дешевле держать правила в одном месте</p>
+
+  <div class="diagram">
+    <div class="tier two">
+      <div class="box">
+        <h4>Мобильное приложение (Flutter)</h4>
+        <p>iOS и Android. Токен Sanctum, пуши Firebase, оплата в WebView.</p>
+      </div>
+      <div class="box">
+        <h4>Веб-CRM клуба (браузер)</h4>
+        <p>Сессия Laravel, роли: супер-админ, админ клуба, модератор.</p>
+      </div>
+    </div>
+
+    <div class="arrow">↓ REST /api/mobile · ↓ /club/*</div>
+
+    <div class="tier">
+      <div class="box core">
+        <h4>Laravel 12 — приложение</h4>
+        <p>
+          100 контроллеров (мобильный API и CRM разделены) · 44 сервиса с бизнес-логикой ·
+          18 «чистых» классов расчёта в <code>app/Support</code> · 107 моделей Eloquent ·
+          25 консольных команд.
+        </p>
+      </div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <div class="tier three">
+      <div class="box">
+        <h4>MySQL 8</h4>
+        <p>120 таблиц, 406 МБ. Единственное хранилище состояния.</p>
+      </div>
+      <div class="box">
+        <h4>Планировщик</h4>
+        <p>Напоминания, модерация заявок, синхронизация достижений, бэкапы.</p>
+      </div>
+      <div class="box">
+        <h4>Внешние сервисы</h4>
+        <p>Plexy, Whapi (WhatsApp), Firebase, Telegram, Anthropic.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Как разложен код</h3>
+  <table>
+    <tr><th style="width:52mm">Слой</th><th>Ответственность</th></tr>
+    <tr><td class="name">Http/Controllers/Api</td><td>Мобильный API: чтение и действия игрока, отдельный набор контроллеров для админки в телефоне.</td></tr>
+    <tr><td class="name">Http/Controllers/Club</td><td>Веб-CRM клуба: расписание, клиенты, турниры, отчёты.</td></tr>
+    <tr><td class="name">Services/*</td><td>Движки форматов (Американо, Flex, Мексикано, Король корта, Just Padel It, командные сетки), лиги, клубные карты, платежи, разбор WhatsApp.</td></tr>
+    <tr><td class="name">Support/*</td><td>Чистые расчёты без побочных эффектов: ранжирование, таблицы лиги, SLA ответов, поиск по именам. Их удобно тестировать и переиспользовать.</td></tr>
+    <tr><td class="name">Traits/RatingCalculator</td><td>Единственная формула ELO на всю платформу: турниры, игры и поединки считают рейтинг одним и тем же кодом.</td></tr>
+    <tr><td class="name">Console/Commands</td><td>25 команд: напоминания о турнирах и бронях, таймеры модерации, начисление достижений, бэкапы, сверка платежей.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Принцип:</b> правило живёт в одном месте. Полнота турнира, расчёт рейтинга,
+    ранжирование в формате — по одной реализации на всё приложение; мобильный API и CRM
+    зовут её, а не повторяют. Свод правил ведётся текстом в <code>docs/SYSTEM_RULES.md</code>.
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section style="page-break-before:always">
+  <h2><span class="num">03</span>База данных по доменам</h2>
+  <p class="sub">120 таблиц; ниже — назначение и объём на 2 сентября 2026</p>
+
+  <h3>Игроки и рейтинг</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">users</td><td>Игроки, админы клубов, тренеры. Роль, уровень (1.0–5.75), рейтинг, город, аватар.</td><td class="num">2 968</td></tr>
+    <tr><td class="name">rating_history</td><td>Каждое изменение рейтинга с причиной: турнир, игра, поединок, ручная правка.</td><td class="num">7 874</td></tr>
+    <tr><td class="name">user_level_history</td><td>История уровней — уровень меняется вслед за рейтингом.</td><td class="num">999</td></tr>
+    <tr><td class="name">user_achievements</td><td>Начисленные достижения игроков.</td><td class="num">46 709</td></tr>
+    <tr><td class="name">device_tokens</td><td>Токены устройств для пушей.</td><td class="num">2 200</td></tr>
+    <tr><td class="name">login_logs · sessions · personal_access_tokens</td><td>Входы, веб-сессии, токены мобильного API.</td><td class="num">13 007</td></tr>
+  </table>
+
+  <h3>Клубы, корты, брони</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">clubs</td><td>Клуб: контакты, документы, ключи платёжного шлюза, флаги функций, дизайн клубной карты.</td><td class="num">29</td></tr>
+    <tr><td class="name">club_admins · club_moderators</td><td>Кто управляет клубом и с какими правами.</td><td class="num">57</td></tr>
+    <tr><td class="name">courts · court_price_ranges · court_blocks</td><td>Корты, прайс по времени суток, блокировки (ремонт, аренда).</td><td class="num">518</td></tr>
+    <tr><td class="name">court_bookings</td><td>Брони: время, клиент, цена, способ оплаты, тренер, карта, статус.</td><td class="num">10 369</td></tr>
+    <tr><td class="name">court_booking_coaches</td><td>Спарринг с несколькими тренерами на одной брони.</td><td class="num">1 177</td></tr>
+    <tr><td class="name">court_booking_inventory_items</td><td>Выданный на бронь инвентарь.</td><td class="num">48</td></tr>
+  </table>
+
+  <h3>Клиенты клуба, абонементы, группы</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">club_clients</td><td>Клиентская база клуба; связывается с игроком приложения по телефону.</td><td class="num">2 357</td></tr>
+    <tr><td class="name">club_card_types · club_cards · club_card_transactions</td><td>Абонементы: типы (часы или скидка), выданные карты, списания и возвраты часов.</td><td class="num">1 453</td></tr>
+    <tr><td class="name">certificates · certificate_templates</td><td>Подарочные сертификаты и их шаблоны.</td><td class="num">54</td></tr>
+    <tr><td class="name">club_groups · club_group_sessions · club_group_members · club_group_attendance</td><td>Группы: расписание занятий, состав, посещаемость, заморозки, зачисления.</td><td class="num">5 558</td></tr>
+    <tr><td class="name">club_coaches · coach_rates · coach_schedules · coach_blocks</td><td>Тренеры: ставки, расписание, недоступность.</td><td class="num">202</td></tr>
+    <tr><td class="name">club_inventory_items · club_inventory_issues</td><td>Инвентарь и выдачи.</td><td class="num">63</td></tr>
+    <tr><td class="name">shifts · shift_checklist_items · shift_checklist_results</td><td>Смены администраторов и чек-листы.</td><td class="num">749</td></tr>
+  </table>
+
+  <h3>Турниры — ядро</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">tournaments</td><td>Турнир: клуб, формат, дата, уровни, стоимость, лимит, плей-офф, лига, статус.</td><td class="num">830</td></tr>
+    <tr><td class="name">tournament_participants</td><td>Записи игроков: статус (записан, на модерации, лист ожидания, отменён), присутствие, место.</td><td class="num">8 828</td></tr>
+    <tr><td class="name">tournament_teams · tournament_team_groups · tournament_team_standings</td><td>Парные турниры: команды, группы, таблицы групп.</td><td class="num">1 128</td></tr>
+    <tr><td class="name">tournament_groups · tournament_group_players · tournament_group_matches</td><td>Групповой этап: составы и матчи.</td><td class="num">6 103</td></tr>
+    <tr><td class="name">tournament_playoff_matches</td><td>Плей-офф: верхняя и нижняя сетки, матчи за 3-е место.</td><td class="num">973</td></tr>
+    <tr><td class="name">tournament_registration_logs</td><td>Журнал записей и отписок — кто когда пришёл и ушёл.</td><td class="num">5 951</td></tr>
+    <tr><td class="name">tournament_invitations · tournament_subscriptions</td><td>Приглашения на турнир и подписка на освободившееся место.</td><td class="num">1 891</td></tr>
+    <tr><td class="name">tournament_chat_messages · tournament_chat_reads</td><td>Чат участников турнира и отметки прочтения.</td><td class="num">795</td></tr>
+    <tr><td class="name">tournament_ai_analyses</td><td>Разбор турнира моделью: объяснение рейтинга и советы игроку.</td><td class="num">409</td></tr>
+    <tr><td class="name">tournament_payments</td><td>Оплата участия картой: сумма, ссылка шлюза, удержание места.</td><td class="num">4</td></tr>
+  </table>
+
+  <h3>Форматы турниров — каждый со своим движком</h3>
+  <p>
+    Формат определяет, как составляются пары, как считается таблица и как начисляется рейтинг.
+    У каждого свои таблицы раундов и матчей — правила слишком разные, чтобы держать их в одной.
+  </p>
+  <table>
+    <tr><th style="width:52mm">Формат</th><th>Таблицы</th><th style="width:20mm">Строк</th></tr>
+    <tr><td><b>Американо</b></td><td class="name">americano_rounds, americano_matches</td><td class="num">12 610</td></tr>
+    <tr><td><b>Американо Flex</b></td><td class="name">americano_flex_rounds, _matches, _players, _byes, _pair_history</td><td class="num">9 524</td></tr>
+    <tr><td><b>Мексикано</b></td><td class="name">mexicano_rounds, _matches, _players, _pair_history</td><td class="num">1 410</td></tr>
+    <tr><td><b>Король корта</b></td><td class="name">kingofcourt_rounds, _matches, _players, _pairs</td><td class="num">1 407</td></tr>
+    <tr><td><b>Just Padel It</b></td><td class="name">just_padel_it_rounds, _matches, _players, _pairs</td><td class="num">2 165</td></tr>
+    <tr><td><b>Round Robin</b></td><td class="name">round_robin_rounds, _matches, _players</td><td class="num">256</td></tr>
+    <tr><td><b>Эскалера</b></td><td class="name">escalera_rounds, _matches, _players, _round_courts, _round_results</td><td class="num">316</td></tr>
+    <tr><td><b>Bali KOC</b></td><td class="name">bali_koc_rounds, _matches, _pairs</td><td class="num">0</td></tr>
+  </table>
+
+  <h3>Лиги</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">leagues</td><td>Серия турниров с общей таблицей: число этапов, правила зачёта, статус.</td><td class="num">2</td></tr>
+    <tr><td class="name">league_players</td><td>Состав лиги: записываются один раз на всю серию.</td><td class="num">20</td></tr>
+    <tr><td colspan="3" class="footer-note">Этап лиги — обычная запись в <code>tournaments</code> с <code>league_id</code> и номером этапа. Сводная таблица не хранится: она пересчитывается по доигранным этапам, потому что счёт правят задним числом.</td></tr>
+  </table>
+
+  <h3>Игры и поединки</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">games · game_players · game_rounds</td><td>Игра 2×2, которую организует сам игрок: формат, приватность, состав, счёт по раундам.</td><td class="num">62</td></tr>
+    <tr><td class="name">game_action_logs · game_transfers · invitations</td><td>Журнал действий, передача прав организатора, приглашения.</td><td class="num">0</td></tr>
+    <tr><td class="name">challenges · challenge_players</td><td>Прежний модуль «Поединки» — оставлен рядом, из интерфейса не вызывается.</td><td class="num">218</td></tr>
+  </table>
+
+  <h3>Деньги и коммуникации</h3>
+  <table>
+    <tr><th style="width:52mm">Таблица</th><th>Назначение</th><th style="width:20mm">Строк</th></tr>
+    <tr><td class="name">payment_links</td><td>Счета клиентам: произвольная сумма, ссылка на оплату, статус.</td><td class="num">19</td></tr>
+    <tr><td class="name">notifications</td><td>Внутренние уведомления («колокольчик»), они же основа пушей.</td><td class="num">1 500 601</td></tr>
+    <tr><td class="name">whatsapp_messages · whatsapp_analyses</td><td>Входящая и исходящая переписка клуба и её ежедневный разбор моделью.</td><td class="num">2 947</td></tr>
+    <tr><td class="name">support_tickets · _messages · _attachments</td><td>Обращения в поддержку из приложения.</td><td class="num">270</td></tr>
+    <tr><td class="name">telegram_auth_tokens</td><td>Одноразовые токены входа через Telegram-бот.</td><td class="num">322</td></tr>
+    <tr><td class="name">contacts · contact_groups · banners</td><td>Рассылки и баннеры на главной.</td><td class="num">10</td></tr>
+    <tr><td class="name">activity_logs</td><td>Журнал действий в CRM: кто что изменил.</td><td class="num">26 084</td></tr>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section style="page-break-before:always">
+  <h2><span class="num">04</span>Сквозные механики</h2>
+  <p class="sub">Правила, которые действуют поверх всех форматов</p>
+
+  <h3>Рейтинг</h3>
+  <p>
+    Единая формула ELO в <code>RatingCalculator</code>. Рейтинг меняют только рейтинговые
+    события: турнир при завершении, игра после подтверждения счёта всеми участниками.
+    Каждое изменение попадает в <code>rating_history</code> с причиной, минимальный
+    рейтинг — 1000. Уровень игрока (1.0–5.75) пересчитывается из рейтинга и ведётся
+    отдельной историей. Матч со счётом 0:0 на рейтинг не влияет.
+  </p>
+
+  <h3>Запись на турнир</h3>
+  <p>
+    Полнота турнира считается как «записанные + на модерации», и этот счёт сравнивается
+    с лимитом во всех точках записи. Когда место освобождается, первый из листа ожидания
+    автоматически поднимается на модерацию. Просроченная заявка уходит в конец очереди.
+    При включённой онлайн-оплате обычная запись закрыта: место резервируется на 20 минут,
+    пока человек платит, а оплата сразу ставит его в основной состав.
+  </p>
+
+  <h3>Деньги</h3>
+  <p>
+    Оплата идёт через шлюз Plexy: платёжная ссылка создаётся на нашей стороне, клиент
+    платит на странице шлюза, о результате мы узнаём вебхуком и дополнительно
+    опрашиваем шлюз сами — чтобы не зависеть от одного канала. Возвраты делает клуб
+    в кабинете шлюза: CRM деньгами не распоряжается.
+  </p>
+
+  <h3>Доступ</h3>
+  <p>
+    Мобильный API — токены Sanctum, вход по SMS-коду или через Telegram-бот. CRM —
+    сессии и роли: супер-админ видит все клубы, админ клуба и модератор — только свой,
+    причём набор разделов клуба включается флагами функций в самом клубе.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="num">05</span>Интеграции</h2>
+  <p class="sub">Всё внешнее заведено так, чтобы отказ сервиса не ронял платформу</p>
+
+  <table>
+    <tr><th style="width:40mm">Сервис</th><th>Зачем</th><th style="width:38mm">Как связано</th></tr>
+    <tr><td><b>Plexy</b></td><td>Онлайн-оплата брони, участия в турнире и счетов клиенту. Карта, Apple Pay, Google Pay.</td><td>Ключи у каждого клуба свои; вебхук + опрос статуса</td></tr>
+    <tr><td><b>Firebase Cloud Messaging</b></td><td>Пуш-уведомления игрокам: приглашения, напоминания, результаты.</td><td>Токены устройств в базе</td></tr>
+    <tr><td><b>Whapi.Cloud</b></td><td>WhatsApp клуба: вся переписка собирается в CRM, есть разбор дня и очередь «ждут ответа». Только чтение — автоответов нет.</td><td>Вебхук входящих и исходящих</td></tr>
+    <tr><td><b>Telegram</b></td><td>Вход в приложение через бота и уведомления клубу о новых бронях.</td><td>Бот-токен у клуба</td></tr>
+    <tr><td><b>Anthropic (Claude)</b></td><td>Разбор турнира для игрока и ежедневный разбор переписки клуба.</td><td>Ответ кэшируется в базе</td></tr>
+    <tr><td><b>Yandex Object Storage</b></td><td>Хранение резервных копий вне сервера.</td><td>Ночная выгрузка</td></tr>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="num">06</span>Эксплуатация</h2>
+  <p class="sub">Один сервер, предсказуемый деплой, тесты как страховка</p>
+
+  <table>
+    <tr><th style="width:40mm">Что</th><th>Как устроено</th></tr>
+    <tr><td><b>Сервер</b></td><td>Ubuntu 24.04, PHP 8.3, MySQL 8.0, nginx. Приложение и база на одной машине.</td></tr>
+    <tr><td><b>Деплой</b></td><td>Скрипт: подтянуть код, зависимости, собрать кэши, перезапустить очереди. Миграции применяются отдельно и поимённо — чтобы случайная миграция не уехала на прод вместе с кодом.</td></tr>
+    <tr><td><b>Планировщик</b></td><td>Каждую минуту: напоминания о турнирах, бронях, играх и тренировках, таймеры модерации. Каждые 10 минут — достижения. Ночью — резервная копия.</td></tr>
+    <tr><td><b>Резервные копии</b></td><td>Ежедневно в 03:30: база и файлы. Семь копий на сервере плюс выгрузка в объектное хранилище.</td></tr>
+    <tr><td><b>Тесты</b></td><td>240 автотестов на бэкенде (движки форматов, рейтинг, платежи, доступ) и 21 набор в приложении. Гоняются перед каждым деплоем.</td></tr>
+    <tr><td><b>Документация</b></td><td>Свод правил системы, дизайн-система приложения и CRM, журнал изменений CRM и релиз-ноуты приложения ведутся в репозиториях вместе с кодом.</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Честно о границах:</b> платформа — монолит на одном сервере. Это осознанный выбор
+    для текущего масштаба: 29 клубов, 3 тысячи игроков, 400 МБ данных. Узкие места
+    известны заранее — таблица уведомлений (1,5 млн строк) и хранение файлов на диске
+    сервера; и то, и другое выносится без переписывания остального.
+  </div>
+</section>
+
+</body>
+</html>
