@@ -1657,6 +1657,58 @@ class MobileAdminTournamentDetailController extends Controller
     }
 
     /**
+     * POST /api/mobile/admin/tournaments/{tournament}/teams/{team}/move
+     *
+     * Перевести пару между списками: основной состав, модерация, лист
+     * ожидания. В одиночных турнирах это давно есть, а в парных админ мог
+     * только одобрить или удалить — вернуть пару в очередь было нечем.
+     */
+    public function moveTeam(Request $request, Tournament $tournament, TournamentTeam $team): JsonResponse
+    {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+        if ($team->tournament_id !== $tournament->id) {
+            return $this->error('Пара не принадлежит этому турниру', 404);
+        }
+        if ($tournament->status !== 'open') {
+            return $this->error('Турнир не открыт');
+        }
+
+        $data = $request->validate(['to' => 'required|in:approved,pending,waiting']);
+        $to = $data['to'];
+
+        if ($team->status === $to) {
+            return response()->json(['success' => true, 'message' => 'Пара уже в этом списке']);
+        }
+
+        // Основной состав и модерация занимают места, лист ожидания — нет.
+        if (in_array($to, ['approved', 'pending'], true)) {
+            $maxTeams = (int) floor($tournament->max_participants / 2);
+            $taken = $tournament->teams()->whereIn('status', ['approved', 'pending'])->count();
+            if ($taken >= $maxTeams) {
+                return $this->error("Мест нет: в турнире {$maxTeams} " . trans_choice('пара|пары|пар', $maxTeams));
+            }
+        }
+
+        $team->update([
+            'status' => $to,
+            // Таймер модерации осмыслен только в модерации.
+            'moderation_deadline' => $to === 'pending' ? $tournament->moderationDeadline() : null,
+            'reminder_sent_at' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => match ($to) {
+                'approved' => 'Пара в основном составе',
+                'pending' => 'Пара отправлена на модерацию',
+                default => 'Пара в листе ожидания',
+            },
+        ]);
+    }
+
+    /**
      * POST /api/mobile/admin/tournaments/{tournament}/teams/{team}/reject
      */
     public function rejectTeam(Request $request, Tournament $tournament, TournamentTeam $team): JsonResponse
