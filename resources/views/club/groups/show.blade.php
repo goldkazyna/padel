@@ -257,6 +257,13 @@
                     $used = (int) $m->attendance->where('charged', true)->count();
                     $rem = $bought - $used;
                     $frozenNow = $isFrozenOn($m, $today);
+
+                    // Деньги участника: сколько уже оплачено и сколько ещё
+                    // должен. Клубу это нужно видеть в списке, а не открывая
+                    // карточку каждого.
+                    $paid = (float) $m->enrollments->where('is_paid', true)->sum('amount');
+                    $owed = (float) $m->enrollments->where('is_paid', false)->sum('amount');
+                    $money = fn ($v) => number_format($v, 0, '', ' ') . ' ₸';
                 @endphp
                 <div class="gsch-mrow">
                     <span class="gsch-dot {{ $rem <= 0 ? 'dot-rem-zero' : ($rem <= 2 ? 'dot-rem-low' : 'dot-rem-ok') }}"></span>
@@ -264,6 +271,17 @@
                         <span>{{ optional($m->client)->name ?? '—' }}</span>
                         @if($m->subscription_ends_at)
                             <span class="msub" style="color:{{ $m->subscription_ends_at->lt($today) ? '#ef7a73' : '#6b7278' }};">Абонемент до {{ $m->subscription_ends_at->format('d.m.Y') }}{{ $m->subscription_ends_at->lt($today) ? ' · истёк' : '' }}</span>
+                        @endif
+                        @if($paid > 0 || $owed > 0)
+                            <span class="msub">
+                                @if($paid > 0)
+                                    <span style="color:#22c55e;">Оплачено {{ $money($paid) }}</span>
+                                @endif
+                                @if($owed > 0)
+                                    @if($paid > 0)<span style="color:#3f4448;"> · </span>@endif
+                                    <span style="color:#f97316;">Долг {{ $money($owed) }}</span>
+                                @endif
+                            </span>
                         @endif
                         @if($m->note)
                             <span class="msub" style="color:#8b9298;"><i class="bi bi-chat-square-text" style="font-size:11px;"></i> {{ $m->note }}</span>
