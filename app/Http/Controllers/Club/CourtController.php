@@ -151,6 +151,15 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
+        // Сколько человек реально пришло на уже проведённое занятие.
+        // Выплата тренеру по ставке «за клиента» считается по пришедшим, а не
+        // по составу группы: иначе расписание обещает одно, а отчёт платит другое.
+        $heldAttendance = \App\Models\ClubGroupSession::whereNotNull('court_booking_id')
+            ->where('status', 'held')
+            ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
+            ->withCount(['attendance as attended_count' => fn ($q) => $q->where('attended', true)])
+            ->pluck('attended_count', 'court_booking_id');
+
         // Карта court_booking_id => tournament_id — чтобы окно редактирования
         // подставило турнир в селект. Только видимые брони этого дня: без
         // ограничения карта росла бы неограниченно и целиком уезжала в разметку.
@@ -195,7 +204,7 @@ class CourtController extends Controller
         return view('club.courts.schedule', compact(
             'club', 'courts', 'schedules', 'timeSlots', 'date',
             'weekDays', 'prevWeek', 'nextWeek', 'clubCoaches', 'coachAvailability',
-            'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
+            'unprocessedBookings', 'activeGroups', 'bookingGroupIds', 'heldAttendance',
             'bookingTournaments', 'bookingTournamentIds',
             'inventoryItems', 'bookingInventory', 'issuedByPhone',
             'clientNotesByPhone'
@@ -402,6 +411,15 @@ class CourtController extends Controller
             ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
             ->pluck('group_id', 'court_booking_id');
 
+        // Сколько человек реально пришло на уже проведённое занятие.
+        // Выплата тренеру по ставке «за клиента» считается по пришедшим, а не
+        // по составу группы: иначе расписание обещает одно, а отчёт платит другое.
+        $heldAttendance = \App\Models\ClubGroupSession::whereNotNull('court_booking_id')
+            ->where('status', 'held')
+            ->whereIn('group_id', \App\Models\ClubGroup::where('club_id', $club->id)->pluck('id'))
+            ->withCount(['attendance as attended_count' => fn ($q) => $q->where('attended', true)])
+            ->pluck('attended_count', 'court_booking_id');
+
         // Карта court_booking_id => tournament_id — только по видимой неделе
         // и только подтверждённые брони (иначе карта растёт неограниченно).
         // Сравнение через whereDate: дата в БД может лежать со временем 00:00:00,
@@ -450,7 +468,7 @@ class CourtController extends Controller
         return view('club.courts.schedule_week', compact(
             'club', 'courts', 'timeSlots', 'date', 'weekDays', 'prevWeek', 'nextWeek',
             'weekRangeLabel', 'freePrices', 'freeSlotsByDate', 'coachAvailability', 'clubCoaches',
-            'unprocessedBookings', 'activeGroups', 'bookingGroupIds',
+            'unprocessedBookings', 'activeGroups', 'bookingGroupIds', 'heldAttendance',
             'bookingTournaments', 'bookingTournamentIds',
             'inventoryItems', 'bookingInventory', 'issuedByPhone',
             'clientNotesByPhone'

@@ -394,8 +394,11 @@
                                                 && ($gcpc = $groupCoachPerClient[$gcpcId] ?? null)
                                                 && $gcpc['rate'] !== null) {
                                                 // У группы своя ставка за клиента — считаем по людям, а не по часам.
-                                                // При проведении сумма пересчитается по фактически пришедшим.
-                                                $coachTotal = (float) $gcpc['rate'] * $gcpc['members'];
+                                                // Занятие уже провели — берём фактически пришедших: по ним
+                                                // платит отчёт, и расписание не должно обещать другое.
+                                                // Ещё не провели — прикидка по составу группы.
+                                                $people = $heldAttendance[$booking->id] ?? $gcpc['members'];
+                                                $coachTotal = (float) $gcpc['rate'] * $people;
                                             } elseif ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
                                                 // Группа ещё не проведена — прикидка по текущей групповой ставке (₸/час × часы).
                                                 $coachTotal = (float) $ccObj->rate_group * $bkHours;
