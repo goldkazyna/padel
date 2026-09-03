@@ -41,36 +41,66 @@ class ClubGroupMembersTest extends TestCase
         $this->assertSame(8000.0, (float) $member->enrollments()->sum('amount'));
     }
 
-    public function test_правка_участника_меняет_последний_пакет(): void
+    public function test_правка_ставит_остаток_а_не_добавляет_занятия(): void
+    {
+        [, $admin, $group, $client] = $this->setup3();
+
+        // Два пакета: 8 + 4 = 12 куплено. Одно занятие уже проведено —
+        // остаток 11, и именно его админ видит в списке и в форме.
+        $this->actingAs($admin)->post(route('club.groups.members.store', $group), [
+            'client_id' => $client->id, 'sessions' => 8, 'amount' => 32000, 'is_paid' => 1,
+        ])->assertRedirect();
+
+        $member = ClubGroupMember::where('group_id', $group->id)->firstOrFail();
+        $this->actingAs($admin)->post(route('club.groups.members.enroll', [$group, $member]), [
+            'sessions' => 4, 'amount' => 16000, 'is_paid' => 1,
+        ])->assertRedirect();
+
+        $session = \App\Models\ClubGroupSession::create([
+            'group_id' => $group->id, 'date' => now()->subDay()->toDateString(),
+            'court_id' => \App\Models\Court::create([
+                'club_id' => $group->club_id, 'name' => 'Корт 1',
+                'open_time' => '08:00:00', 'close_time' => '22:00:00', 'slot_duration' => 60,
+            ])->id,
+            'start_time' => '10:00:00', 'end_time' => '11:00:00', 'status' => 'held',
+        ]);
+        \App\Models\ClubGroupAttendance::create([
+            'session_id' => $session->id, 'group_member_id' => $member->id,
+            'attended' => true, 'charged' => true,
+        ]);
+
+        $this->assertSame(11, $member->fresh()->remaining);
+
+        // Ставим в форме 12 — это остаток, а не «добавить 12 занятий».
+        $this->actingAs($admin)->put(route('club.groups.members.update', [$group, $member]), [
+            'sessions' => 12, 'amount' => 45600, 'is_paid' => 1, 'payment_method' => 'kaspi',
+        ])->assertRedirect();
+
+        $this->assertSame(12, $member->fresh()->remaining, 'остаток стал ровно таким, как ввели');
+
+        $enrollment = $member->enrollments()->latest('id')->firstOrFail();
+        $this->assertSame(45600.0, (float) $enrollment->amount);
+        $this->assertSame('kaspi', $enrollment->payment_method);
+    }
+
+    public function test_правка_только_суммы_остаток_не_трогает(): void
     {
         [, $admin, $group, $client] = $this->setup3();
 
         $this->actingAs($admin)->post(route('club.groups.members.store', $group), [
-            'client_id' => $client->id,
-            'sessions' => 8,
-            'amount' => 8000,
-            'is_paid' => 1,
+            'client_id' => $client->id, 'sessions' => 8, 'amount' => 32000, 'is_paid' => 1,
         ])->assertRedirect();
 
         $member = ClubGroupMember::where('group_id', $group->id)->firstOrFail();
 
-        // Ошиблись при добавлении: занятий 12, денег меньше и ещё не оплачено.
+        // Пришли поправить сумму — занятия остаются как были.
         $this->actingAs($admin)->put(route('club.groups.members.update', [$group, $member]), [
-            'sessions' => 12,
-            'amount' => 10000,
-            'payment_method' => 'kaspi',
+            'sessions' => 8, 'amount' => 45600, 'is_paid' => 1,
         ])->assertRedirect();
 
-        $enrollment = $member->enrollments()->latest('id')->firstOrFail();
-        $this->assertSame(12, $enrollment->sessions);
-        $this->assertSame(10000.0, (float) $enrollment->amount);
-        $this->assertFalse((bool) $enrollment->is_paid, 'галку сняли — значит не оплачено');
-        $this->assertSame('kaspi', $enrollment->payment_method);
-
-        // Остаток пересчитывается: занятий стало больше.
-        $this->assertSame(12, $member->fresh()->remaining);
+        $this->assertSame(8, $member->fresh()->remaining);
+        $this->assertSame(45600.0, (float) $member->enrollments()->latest('id')->first()->amount);
     }
-
     public function test_правка_без_полей_пакета_его_не_ломает(): void
     {
         [, $admin, $group, $client] = $this->setup3();

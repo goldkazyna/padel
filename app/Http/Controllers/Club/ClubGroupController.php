@@ -452,7 +452,8 @@ class ClubGroupController extends Controller
             'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
             // Пакет участника: при добавлении их спрашивают, значит и править
             // их надо здесь же — иначе опечатку в числе занятий не исправить.
-            'sessions' => 'nullable|integer|min:1|max:200',
+            // sessions здесь — ОСТАТОК занятий, тот самый, что виден в списке.
+            'sessions' => 'nullable|integer|min:0|max:200',
             'amount' => 'nullable|numeric|min:0',
             'is_paid' => 'nullable|boolean',
         ]);
@@ -479,14 +480,23 @@ class ClubGroupController extends Controller
         // именно к нему, а не к участнику.
         $lastEnrollment = $member->enrollments()->latest('id')->first();
         if ($lastEnrollment) {
-            $sessions = $validated['sessions'] ?? $lastEnrollment->sessions;
+            // В форме стоит остаток занятий — то число, что видно в списке.
+            // Приводим к нему, поправляя последний пакет: админ правит
+            // «сколько осталось», а не «сколько было в пакете». Иначе, как
+            // выяснилось на живом клубе, 11 занятий превращались в 19.
+            $remainingNow = (int) $member->remaining;
+            $desired = array_key_exists('sessions', $validated) && $validated['sessions'] !== null
+                ? (int) $validated['sessions']
+                : $remainingNow;
+            $sessions = (int) $lastEnrollment->sessions + ($desired - $remainingNow);
+
             $amount = array_key_exists('amount', $validated) && $validated['amount'] !== null
                 ? (float) $validated['amount']
                 : (float) $lastEnrollment->amount;
             $isPaid = (bool) ($validated['is_paid'] ?? false);
 
-            if ((int) $lastEnrollment->sessions !== (int) $sessions) {
-                $changes['Занятий в пакете'] = ['old' => $lastEnrollment->sessions, 'new' => $sessions];
+            if ($desired !== $remainingNow) {
+                $changes['Остаток занятий'] = ['old' => $remainingNow, 'new' => $desired];
             }
             if ((float) $lastEnrollment->amount !== $amount) {
                 $changes['Сумма'] = [

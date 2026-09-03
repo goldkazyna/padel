@@ -552,12 +552,14 @@
                     <small style="color:#71717a;font-size:12px;">Необязательно. Оставьте пустым, чтобы убрать дату.</small>
                 </div>
                 {{-- Пакет: те же поля, что при добавлении участника, иначе
-                     опечатку в числе занятий или сумме нечем исправить. --}}
+                     опечатку в числе занятий или сумме нечем исправить.
+                     В поле — ОСТАТОК занятий, тот же, что в списке: админ
+                     правит «сколько осталось», а не размер пакета. --}}
                 <div class="form-row-2">
                     <div class="form-group">
-                        <label class="form-label">Занятий в пакете</label>
+                        <label class="form-label">Остаток занятий</label>
                         <input type="number" name="sessions" id="editMemberSessions"
-                               class="form-input" min="1" max="200">
+                               class="form-input" min="0" max="200">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Сумма (₸)</label>
@@ -579,7 +581,7 @@
                         </button>
                         @endforeach
                     </div>
-                    <small style="color:#71717a;font-size:12px;">Занятия, сумма и способ — у последнего пакета участника.</small>
+                    <small style="color:#71717a;font-size:12px;">Остаток — то же число, что в списке. Сумма и способ — у последнего пакета участника.</small>
                 </div>
             </div>
             <div class="modal-footer-row">
@@ -740,7 +742,7 @@
             starts: "{{ $member->starts_at ? $member->starts_at->format('Y-m-d') : '' }}",
             note: @json($member->note ?? ''),
             pm: "{{ optional($member->enrollments->sortByDesc('id')->first())->payment_method ?? '' }}",
-            sessions: {{ (int) optional($member->enrollments->sortByDesc('id')->first())->sessions }},
+            sessions: {{ (int) $member->remaining }},
             amount: {{ (float) optional($member->enrollments->sortByDesc('id')->first())->amount }},
             isPaid: {{ optional($member->enrollments->sortByDesc('id')->first())->is_paid ? 'true' : 'false' }}
         },
