@@ -450,6 +450,11 @@ class ClubGroupController extends Controller
             'starts_at' => 'nullable|date',
             'note' => 'nullable|string|max:1000',
             'payment_method' => 'nullable|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free',
+            // Пакет участника: при добавлении их спрашивают, значит и править
+            // их надо здесь же — иначе опечатку в числе занятий не исправить.
+            'sessions' => 'nullable|integer|min:1|max:200',
+            'amount' => 'nullable|numeric|min:0',
+            'is_paid' => 'nullable|boolean',
         ]);
         // Фиксируем изменения абонемента для журнала.
         $fmtDate = fn($v) => $v ? \Carbon\Carbon::parse($v)->format('d.m.Y') : '—';
@@ -470,10 +475,38 @@ class ClubGroupController extends Controller
             'note' => $validated['note'] ?? null,
         ]);
 
-        // Способ оплаты правим у последнего пакета участника (он привязан к пакету).
+        // Пакет правим последний: занятия, сумма, оплата и способ привязаны
+        // именно к нему, а не к участнику.
         $lastEnrollment = $member->enrollments()->latest('id')->first();
         if ($lastEnrollment) {
-            $lastEnrollment->update(['payment_method' => $validated['payment_method'] ?? null]);
+            $sessions = $validated['sessions'] ?? $lastEnrollment->sessions;
+            $amount = array_key_exists('amount', $validated) && $validated['amount'] !== null
+                ? (float) $validated['amount']
+                : (float) $lastEnrollment->amount;
+            $isPaid = (bool) ($validated['is_paid'] ?? false);
+
+            if ((int) $lastEnrollment->sessions !== (int) $sessions) {
+                $changes['Занятий в пакете'] = ['old' => $lastEnrollment->sessions, 'new' => $sessions];
+            }
+            if ((float) $lastEnrollment->amount !== $amount) {
+                $changes['Сумма'] = [
+                    'old' => number_format((float) $lastEnrollment->amount, 0, '', ' ') . ' ₸',
+                    'new' => number_format($amount, 0, '', ' ') . ' ₸',
+                ];
+            }
+            if ((bool) $lastEnrollment->is_paid !== $isPaid) {
+                $changes['Оплата'] = [
+                    'old' => $lastEnrollment->is_paid ? 'оплачено' : 'не оплачено',
+                    'new' => $isPaid ? 'оплачено' : 'не оплачено',
+                ];
+            }
+
+            $lastEnrollment->update([
+                'payment_method' => $validated['payment_method'] ?? null,
+                'sessions' => $sessions,
+                'amount' => $amount,
+                'is_paid' => $isPaid,
+            ]);
         }
 
         \App\Models\ActivityLog::logGroup($group->id, 'updated', 'ClubGroupMember', $member->id,

@@ -538,6 +538,24 @@
                     <textarea name="note" id="editMemberNote" class="form-input" rows="2" placeholder="Заметка по участнику"></textarea>
                     <small style="color:#71717a;font-size:12px;">Необязательно. Оставьте пустым, чтобы убрать дату.</small>
                 </div>
+                {{-- Пакет: те же поля, что при добавлении участника, иначе
+                     опечатку в числе занятий или сумме нечем исправить. --}}
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">Занятий в пакете</label>
+                        <input type="number" name="sessions" id="editMemberSessions"
+                               class="form-input" min="1" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Сумма (₸)</label>
+                        <input type="number" name="amount" id="editMemberAmount"
+                               class="form-input" min="0" step="100">
+                    </div>
+                </div>
+                <div class="form-check-row">
+                    <input type="checkbox" name="is_paid" value="1" id="editMemberIsPaid" class="form-check-box">
+                    <label class="form-check-label" for="editMemberIsPaid">Оплачено</label>
+                </div>
                 <div class="form-group">
                     <label class="form-label">Способ оплаты</label>
                     <input type="hidden" name="payment_method" id="editMemberPayMethod" value="">
@@ -548,7 +566,7 @@
                         </button>
                         @endforeach
                     </div>
-                    <small style="color:#71717a;font-size:12px;">Метод последнего пакета участника.</small>
+                    <small style="color:#71717a;font-size:12px;">Занятия, сумма и способ — у последнего пакета участника.</small>
                 </div>
             </div>
             <div class="modal-footer-row">
@@ -708,7 +726,10 @@
             date: "{{ $member->subscription_ends_at ? $member->subscription_ends_at->format('Y-m-d') : '' }}",
             starts: "{{ $member->starts_at ? $member->starts_at->format('Y-m-d') : '' }}",
             note: @json($member->note ?? ''),
-            pm: "{{ optional($member->enrollments->sortByDesc('id')->first())->payment_method ?? '' }}"
+            pm: "{{ optional($member->enrollments->sortByDesc('id')->first())->payment_method ?? '' }}",
+            sessions: {{ (int) optional($member->enrollments->sortByDesc('id')->first())->sessions }},
+            amount: {{ (float) optional($member->enrollments->sortByDesc('id')->first())->amount }},
+            isPaid: {{ optional($member->enrollments->sortByDesc('id')->first())->is_paid ? 'true' : 'false' }}
         },
         @endforeach
     };
@@ -718,6 +739,9 @@
         document.getElementById('editMemberEndsAt').value = d.date || '';
         document.getElementById('editMemberStartsAt').value = d.starts || '';
         document.getElementById('editMemberNote').value = d.note || '';
+        document.getElementById('editMemberSessions').value = d.sessions || '';
+        document.getElementById('editMemberAmount').value = d.amount || 0;
+        document.getElementById('editMemberIsPaid').checked = !!d.isPaid;
         pmSet('editMember', d.pm || '');
         document.getElementById('editMemberModal').style.display = 'flex';
     }
