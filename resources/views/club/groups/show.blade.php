@@ -258,11 +258,12 @@
                     $rem = $bought - $used;
                     $frozenNow = $isFrozenOn($m, $today);
 
-                    // Деньги участника: сколько уже оплачено и сколько ещё
-                    // должен. Клубу это нужно видеть в списке, а не открывая
-                    // карточку каждого.
-                    $paid = (float) $m->enrollments->where('is_paid', true)->sum('amount');
-                    $owed = (float) $m->enrollments->where('is_paid', false)->sum('amount');
+                    // Деньги за текущий абонемент — по последнему пакету, а не
+                    // суммой за всё время: пакеты переписывают и обнуляют, и
+                    // сумма истории превращается в двойной счёт.
+                    // Записи с нулевой суммой пропускаем: это компенсации
+                    // остатка, а не оплата.
+                    $lastPack = $m->enrollments->where('amount', '>', 0)->sortByDesc('id')->first();
                     $money = fn ($v) => number_format($v, 0, '', ' ') . ' ₸';
                 @endphp
                 <div class="gsch-mrow">
@@ -272,15 +273,9 @@
                         @if($m->subscription_ends_at)
                             <span class="msub" style="color:{{ $m->subscription_ends_at->lt($today) ? '#ef7a73' : '#6b7278' }};">Абонемент до {{ $m->subscription_ends_at->format('d.m.Y') }}{{ $m->subscription_ends_at->lt($today) ? ' · истёк' : '' }}</span>
                         @endif
-                        @if($paid > 0 || $owed > 0)
-                            <span class="msub">
-                                @if($paid > 0)
-                                    <span style="color:#22c55e;">Оплачено {{ $money($paid) }}</span>
-                                @endif
-                                @if($owed > 0)
-                                    @if($paid > 0)<span style="color:#3f4448;"> · </span>@endif
-                                    <span style="color:#f97316;">Долг {{ $money($owed) }}</span>
-                                @endif
+                        @if($lastPack)
+                            <span class="msub" style="color:{{ $lastPack->is_paid ? '#22c55e' : '#f97316' }};">
+                                {{ $lastPack->is_paid ? 'Оплачено' : 'Не оплачено' }} {{ $money($lastPack->amount) }}
                             </span>
                         @endif
                         @if($m->note)

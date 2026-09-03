@@ -97,24 +97,39 @@ class ClubGroupMembersTest extends TestCase
         $this->assertSame(8, $member->fresh()->remaining);
     }
 
-    public function test_в_списке_видно_оплату_и_долг(): void
+    public function test_в_списке_видно_оплату_по_последнему_пакету(): void
     {
-        [$club, $admin, $group, $client] = $this->setup3();
+        [, $admin, $group, $client] = $this->setup3();
 
-        // Один пакет оплачен, второй нет — в строке участника видно оба числа.
+        // Первый пакет оплачен, потом абонемент переоформили — в строке
+        // должна стоять сумма последнего пакета, а не сумма за всё время:
+        // пакеты переписывают, и история превращается в двойной счёт.
         $this->actingAs($admin)->post(route('club.groups.members.store', $group), [
-            'client_id' => $client->id, 'sessions' => 8, 'amount' => 18000, 'is_paid' => 1,
+            'client_id' => $client->id, 'sessions' => 8, 'amount' => 70000, 'is_paid' => 1,
         ])->assertRedirect();
 
         $member = ClubGroupMember::where('group_id', $group->id)->firstOrFail();
         $this->actingAs($admin)->post(route('club.groups.members.enroll', [$group, $member]), [
-            'sessions' => 8, 'amount' => 20000,
+            'sessions' => 8, 'amount' => 70000, 'is_paid' => 1,
         ])->assertRedirect();
 
         $this->actingAs($admin)->get(route('club.groups.show', $group))
             ->assertOk()
-            ->assertSee('Оплачено 18 000')
-            ->assertSee('Долг 20 000');
+            ->assertSee('Оплачено 70 000')
+            ->assertDontSee('140 000');
+    }
+
+    public function test_неоплаченный_пакет_помечен(): void
+    {
+        [, $admin, $group, $client] = $this->setup3();
+
+        $this->actingAs($admin)->post(route('club.groups.members.store', $group), [
+            'client_id' => $client->id, 'sessions' => 8, 'amount' => 18000,
+        ])->assertRedirect();
+
+        $this->actingAs($admin)->get(route('club.groups.show', $group))
+            ->assertOk()
+            ->assertSee('Не оплачено 18 000');
     }
 
     public function test_enroll_extends_remaining(): void
