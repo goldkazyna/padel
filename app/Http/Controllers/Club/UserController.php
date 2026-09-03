@@ -101,6 +101,25 @@ class UserController extends Controller
             $query->whereDate('created_at', '<=', $dateTo);
         }
 
+        // Фильтр по полу. «unknown» — те, кто пол не указал: их видно
+        // отдельно, иначе они молча выпадают из обеих выборок.
+        $gender = $request->get('gender');
+        if (in_array($gender, ['male', 'female'], true)) {
+            $query->where('gender', $gender);
+        } elseif ($gender === 'unknown') {
+            $query->where(function ($q) {
+                $q->whereNull('gender')->orWhere('gender', '');
+            });
+        }
+
+        // Сыгранные матчи во всех форматах: и для колонки, и для фильтра
+        // «только игравшие». Считаем один раз на запрос — источников много.
+        $matchCounts = \App\Support\PlayerMatchCounts::cached();
+        if ($request->boolean('with_games')) {
+            $played = array_keys(array_filter($matchCounts, fn ($n) => $n > 0));
+            $query->whereIn('id', $played ?: [0]);
+        }
+
         // Фильтр по верификации уровня
         $verified = $request->get('verified');
         if ($verified === 'unverified') {
@@ -171,7 +190,7 @@ class UserController extends Controller
         $clubCity = $club ? $club->city : null;
         return view('club.users.index', compact(
             'users', 'levelStats', 'clubCity', 'ratingLocks', 'isSuper',
-            'exportFilters', 'exportCount'
+            'exportFilters', 'exportCount', 'matchCounts'
         ));
     }
 

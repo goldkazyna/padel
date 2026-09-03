@@ -74,6 +74,32 @@
             'date_to' => request('date_to'),
         ]);
     @endphp
+    @php
+        $gCurrent = request('gender');
+        $gBase = array_filter(array_merge($vBase, ['verified' => request('verified'), 'with_games' => request('with_games')]));
+        $playedOnly = request()->boolean('with_games');
+    @endphp
+    <div class="verified-filter">
+        <span class="verified-filter-label">Пол:</span>
+        <a href="{{ route('club.users.index', collect($gBase)->except('gender')->all()) }}"
+           class="verified-pill {{ !$gCurrent ? 'active' : '' }}">Все</a>
+        <a href="{{ route('club.users.index', array_merge($gBase, ['gender' => 'male'])) }}"
+           class="verified-pill {{ $gCurrent === 'male' ? 'active' : '' }}">Мужчины</a>
+        <a href="{{ route('club.users.index', array_merge($gBase, ['gender' => 'female'])) }}"
+           class="verified-pill {{ $gCurrent === 'female' ? 'active' : '' }}">Женщины</a>
+        <a href="{{ route('club.users.index', array_merge($gBase, ['gender' => 'unknown'])) }}"
+           class="verified-pill {{ $gCurrent === 'unknown' ? 'active' : '' }}">Не указан</a>
+
+        <span class="verified-filter-label" style="margin-left:18px;">Игры:</span>
+        <a href="{{ route('club.users.index', $playedOnly
+                ? collect($gBase)->except('with_games')->all()
+                : array_merge($gBase, ['with_games' => 1])) }}"
+           class="verified-pill {{ $playedOnly ? 'active' : '' }}"
+           title="Скрыть тех, кто ещё не сыграл ни одного матча">
+            Только игравшие
+        </a>
+    </div>
+
     <div class="verified-filter">
         <span class="verified-filter-label">Верификация уровня:</span>
         <a href="{{ route('club.users.index', $vBase) }}"
@@ -307,6 +333,8 @@
                         </a>
                     </th>
                     <th>Город</th>
+                    <th>Пол</th>
+                    <th>Матчей</th>
 					<th>
                         <a href="{{ route('club.users.index', array_merge($params, ['sort' => 'level', 'dir' => $currentSort === 'level' && $currentDir === 'asc' ? 'desc' : 'asc'])) }}" class="sort-link {{ $currentSort === 'level' ? 'active' : '' }}">
                             Уровень {!! $currentSort === 'level' ? ($currentDir === 'asc' ? '↑' : '↓') : '' !!}
@@ -347,6 +375,22 @@
                         </td>
                         <td>
                             <span class="user-city">{{ $user->city ?: '—' }}</span>
+                        </td>
+                        <td>
+                            @if($user->gender === 'male')
+                                <span class="gender-tag gender-m">М</span>
+                            @elseif($user->gender === 'female')
+                                <span class="gender-tag gender-f">Ж</span>
+                            @else
+                                <span style="color:#52525b;">—</span>
+                            @endif
+                        </td>
+                        <td>
+                            {{-- Матчи во всех форматах: американо, флекс, король корта,
+                                 парные, плей-офф. Ноль — приглушаем, чтобы взгляд цеплялся
+                                 за тех, кто играет. --}}
+                            @php $played = $matchCounts[$user->id] ?? 0; @endphp
+                            <span class="matches-count {{ $played > 0 ? 'has' : '' }}">{{ $played }}</span>
                         </td>
 						<td>
 							<span class="user-level">{{ $user->level }}</span>
@@ -684,6 +728,26 @@
         }
 
         /* Verification Filter */
+        /* Пол и число матчей в таблице игроков. */
+        .gender-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .gender-m { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .gender-f { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .matches-count {
+            font-variant-numeric: tabular-nums;
+            font-size: 13px;
+            color: #52525b;
+        }
+        .matches-count.has { color: var(--text-primary); font-weight: 600; }
+
         .verified-filter {
             display: flex;
             align-items: center;
