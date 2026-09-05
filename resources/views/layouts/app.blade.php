@@ -1041,7 +1041,9 @@
 					@if(!$modClub || $modClub->hasFeature('inventory'))
 					<li class="nav-item">
 						{{-- Красный бейдж — сколько единиц инвентаря ждут возврата --}}
-						@php($invOutMod = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub($modClub))
+						@php
+							$invOutMod = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub($modClub);
+						@endphp
 						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-box-seam"></i>
 							<span>Инвентарь</span>
@@ -1050,7 +1052,9 @@
 					</li>
 					@endif
 					<li class="nav-item">
-						@php($cardsPendingMod = ($__cc = $modClub) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
+						@php
+							$cardsPendingMod = ($__cc = $modClub) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0;
+						@endphp
 						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-credit-card-2-front"></i>
 							<span>Клубные карты</span>
@@ -1108,7 +1112,9 @@
 							</a>
 						</li>
 				@elseif(auth()->user()->isClubAdmin() || auth()->user()->isSuperAdmin())
-					@php($navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first())
+					@php
+						$navClub = auth()->user()->isSuperAdmin() ? null : auth()->user()->adminClubs()->first();
+					@endphp
 					<li class="nav-section-title">Работа клуба</li>
 					@if(!$navClub || $navClub->hasFeature('courts'))
 					<li class="nav-item">
@@ -1188,7 +1194,9 @@
 					</li>
 					@endif
 					<li class="nav-item">
-						@php($cardsPendingNav = ($__cc = $navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0)
+						@php
+							$cardsPendingNav = ($__cc = $navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)) ? app(\App\Services\ClubCardService::class)->pendingCountForClub($__cc) : 0;
+						@endphp
 						<a href="{{ route('club.cards.index') }}" class="nav-link {{ request()->routeIs('club.cards.*') || request()->routeIs('club.cardTypes.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-credit-card-2-front"></i>
 							<span>Клубные карты</span>
