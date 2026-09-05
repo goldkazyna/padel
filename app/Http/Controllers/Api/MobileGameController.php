@@ -219,6 +219,50 @@ class MobileGameController extends Controller
         return $free[0] ?? null;
     }
 
+    /**
+     * Освободилось место — сажаем первого из очереди.
+     *
+     * Очередь появляется только когда игра была полной: свободное место
+     * человек занимает сам. Без этого шага ожидающие висели бы до конца игры,
+     * как висели прежние заявки.
+     */
+    private function promoteFromQueue(Game $game): void
+    {
+        $game->refresh();
+        if (!in_array($game->status, [Game::STATUS_OPEN, Game::STATUS_FULL], true)) {
+            return;
+        }
+
+        while (($position = $this->nextFreePosition($game)) !== null) {
+            $next = $game->players()
+                ->where('status', GamePlayer::STATUS_CANDIDATE)
+                ->orderBy('id')
+                ->first();
+
+            if (!$next) {
+                return;
+            }
+
+            $next->update([
+                'status' => GamePlayer::STATUS_ACCEPTED,
+                'position' => $position,
+                'responded_at' => now(),
+            ]);
+
+            $this->notifyGame($next->user, 'Вы в составе', 'Место освободилось — вы играете', 'game_application_approved', $game->id);
+            $this->notifyGame(
+                $game->creator,
+                'Новый игрок в игре',
+                "{$next->user->name} занял освободившееся место",
+                'game_joined',
+                $game->id
+            );
+
+            $this->syncFullness($game);
+            $game->refresh();
+        }
+    }
+
     /** Детали игры. */
     public function show(Request $request, Game $game)
     {
@@ -641,7 +685,17 @@ class MobileGameController extends Controller
         ]);
     }
 
-    /** Подать заявку на игру (кандидат). */
+    /**
+     * Присоединиться к игре из ленты или по ссылке.
+     *
+     * Есть свободное место — игрок сразу в составе, организатору приходит
+     * пуш. Раньше здесь заводился «кандидат», которого организатор должен был
+     * одобрить: за всё время не одобрили ни одной заявки из девятнадцати —
+     * часть висела месяцами, часть умерла вместе с отменённой игрой.
+     *
+     * Кандидат остаётся только когда мест нет: это лист ожидания, из него
+     * организатор берёт человека руками (approveApplication).
+     */
     public function apply(Request $request, Game $game)
     {
         $user = $request->user();
@@ -660,26 +714,44 @@ class MobileGameController extends Controller
 
         $source = ($data['source'] ?? 'app_feed') === 'app_link' ? GamePlayer::SOURCE_APP_LINK : GamePlayer::SOURCE_APP_FEED;
 
+        // Свободное место — сажаем сразу; мест нет — человек ждёт в очереди.
+        $position = $this->nextFreePosition($game);
+        $joined = $position !== null;
+
+        $attributes = [
+            'status' => $joined ? GamePlayer::STATUS_ACCEPTED : GamePlayer::STATUS_CANDIDATE,
+            'position' => $position,
+            'source' => $source,
+            'responded_at' => $joined ? now() : null,
+            'out_of_range' => $outOfRange,
+        ];
+
         if ($existing) {
-            $existing->update([
-                'status' => GamePlayer::STATUS_CANDIDATE,
-                'position' => null,
-                'source' => $source,
-                'responded_at' => null,
-                'out_of_range' => $outOfRange,
-            ]);
+            $existing->update($attributes);
         } else {
-            GamePlayer::create([
-                'game_id' => $game->id,
-                'user_id' => $user->id,
-                'position' => null,
-                'status' => GamePlayer::STATUS_CANDIDATE,
-                'source' => $source,
-                'out_of_range' => $outOfRange,
-            ]);
+            GamePlayer::create($attributes + ['game_id' => $game->id, 'user_id' => $user->id]);
         }
 
-        $this->notifyGame($game->creator, 'Новая заявка', "{$user->name} хочет присоединиться к игре", 'game_application', $game->id);
+        $this->syncFullness($game);
+        $this->logGameAction($game, $user->id, $joined ? GameActionLog::ACTION_JOIN : GameActionLog::ACTION_APPLY);
+
+        if ($joined) {
+            $this->notifyGame(
+                $game->creator,
+                'Новый игрок в игре',
+                "{$user->name} присоединился к вашей игре",
+                'game_joined',
+                $game->id
+            );
+        } else {
+            $this->notifyGame(
+                $game->creator,
+                'Заявка в лист ожидания',
+                "{$user->name} хочет в игру — мест нет, ждёт очереди",
+                'game_application',
+                $game->id
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -800,6 +872,7 @@ class MobileGameController extends Controller
         $player->update(['status' => GamePlayer::STATUS_LEFT, 'position' => null]);
         $this->syncFullness($game);
         $this->notifyGame($game->creator, 'Игрок вышел', "{$user->name} покинул игру", 'game_left', $game->id);
+        $this->promoteFromQueue($game);
 
         return response()->json([
             'success' => true,
@@ -827,6 +900,7 @@ class MobileGameController extends Controller
         $this->syncFullness($game);
         $this->notifyGame($removed, 'Вас удалили из игры', 'Организатор удалил вас из состава', 'game_removed', $game->id);
         $this->logGameAction($game, $user->id, GameActionLog::ACTION_PLAYER_REMOVE, ['removed_user_id' => $removedUserId]);
+        $this->promoteFromQueue($game);
 
         return response()->json([
             'success' => true,

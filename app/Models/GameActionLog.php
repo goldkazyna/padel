@@ -15,6 +15,10 @@ class GameActionLog extends Model
     const ACTION_PLAYER_REMOVE = 'player_remove';
     const ACTION_SCHEDULE_REGENERATE = 'schedule_regenerate';
     const ACTION_CANCEL = 'cancel';
+    /** Пришёл из ленты и сразу сел в состав. */
+    const ACTION_JOIN = 'join';
+    /** Пришёл, но мест не было — встал в очередь. */
+    const ACTION_APPLY = 'apply';
 
     protected $fillable = ['game_id', 'user_id', 'action', 'payload'];
 
