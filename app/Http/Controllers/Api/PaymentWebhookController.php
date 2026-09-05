@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Log;
  * merchantReference = наш orderReference при создании ссылки ("booking-{id}").
  * Авторизация вебхука: заголовок Authorization (Bearer <секрет>), сверяем с
  * секретом клуба (clubs.plexy_webhook_secret, иначе env-дефолт).
+ *
+ * Эндпоинт открыт наружу, поэтому доверяем только подписанному запросу:
+ * нет секрета у клуба — не принимаем вовсе (см. denyUnlessSigned).
  */
 class PaymentWebhookController extends Controller
 {
@@ -68,15 +71,8 @@ class PaymentWebhookController extends Controller
 
         $club = $booking->court?->club;
 
-        // Проверка секрета вебхука (если задан у клуба/в env).
-        $secret = $club?->plexyWebhookSecret();
-        if (!empty($secret)) {
-            $provided = $request->bearerToken() ?: (string) $request->header('Authorization');
-            $provided = trim(preg_replace('/^Bearer\s+/i', '', $provided));
-            if (!hash_equals($secret, $provided)) {
-                Log::warning('Plexy webhook: неверный секрет', ['booking' => $booking->id]);
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-            }
+        if ($denied = $this->denyUnlessSigned($request, $club, ['booking' => $booking->id])) {
+            return $denied;
         }
 
         if ($isPaid && !$booking->is_paid) {
@@ -114,14 +110,13 @@ class PaymentWebhookController extends Controller
             return response()->json(['success' => true, 'ignored' => true]);
         }
 
-        $secret = $payment->tournament?->club?->plexyWebhookSecret();
-        if (!empty($secret)) {
-            $provided = $request->bearerToken() ?: (string) $request->header('Authorization');
-            $provided = trim(preg_replace('/^Bearer\s+/i', '', $provided));
-            if (!hash_equals($secret, $provided)) {
-                Log::warning('Plexy webhook: неверный секрет (турнир)', ['tourpay' => $payment->id]);
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-            }
+        $denied = $this->denyUnlessSigned(
+            $request,
+            $payment->tournament?->club,
+            ['tourpay' => $payment->id]
+        );
+        if ($denied) {
+            return $denied;
         }
 
         if ($isPaid) {
@@ -153,14 +148,8 @@ class PaymentWebhookController extends Controller
             return response()->json(['success' => true, 'ignored' => true]);
         }
 
-        $secret = $link->club?->plexyWebhookSecret();
-        if (!empty($secret)) {
-            $provided = $request->bearerToken() ?: (string) $request->header('Authorization');
-            $provided = trim(preg_replace('/^Bearer\s+/i', '', $provided));
-            if (!hash_equals($secret, $provided)) {
-                Log::warning('Plexy webhook: неверный секрет (счёт)', ['paylink' => $link->id]);
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-            }
+        if ($denied = $this->denyUnlessSigned($request, $link->club, ['paylink' => $link->id])) {
+            return $denied;
         }
 
         if ($isPaid) {
@@ -171,5 +160,41 @@ class PaymentWebhookController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Пускаем только подписанный вебхук.
+     *
+     * Раньше пустой секрет означал «проверять нечем — принимаем», и клуб,
+     * которому секрет не прописали, оставался с открытым эндпоинтом: чужой
+     * POST со ссылкой «booking-{id}» помечал бронь оплаченной. Теперь нет
+     * секрета — нет доверия. Деньги на этом не теряются: факт оплаты мы и так
+     * подтверждаем активной проверкой ссылки у Plexy (paymentStatus), вебхук
+     * тут только ускоряет.
+     *
+     * @return \Illuminate\Http\JsonResponse|null null, если запрос доверенный
+     */
+    private function denyUnlessSigned(Request $request, ?\App\Models\Club $club, array $context)
+    {
+        $secret = $club?->plexyWebhookSecret();
+
+        if (empty($secret)) {
+            Log::warning('Plexy webhook: у клуба не задан секрет — запрос отклонён', $context + [
+                'club' => $club?->id,
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $provided = $request->bearerToken() ?: (string) $request->header('Authorization');
+        $provided = trim(preg_replace('/^Bearer\s+/i', '', $provided));
+
+        if (!hash_equals($secret, $provided)) {
+            Log::warning('Plexy webhook: неверный секрет', $context);
+
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        return null;
     }
 }
