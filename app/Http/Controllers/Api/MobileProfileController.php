@@ -164,9 +164,30 @@ class MobileProfileController extends Controller
             $prev = $rating;
         }
 
+        // Амигос: карточка в профиле и бейдж сообщений. Список игроков сюда не
+        // тянем — он живёт в /amigos, профиль от него тормозить не должен.
+        $amigoIds = \App\Models\PlayerFollow::where('follower_id', $user->id)
+            ->pluck('following_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $statuses = \App\Support\AmigoActivity::cached($amigoIds);
+        $playingIds = array_keys(array_filter($statuses, fn ($s) => $s['kind'] === 'playing'));
+
+        $playingPreview = \App\Models\User::whereIn('id', array_slice($playingIds, 0, 5))
+            ->get(['id', 'name', 'avatar'])
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'avatar' => $p->avatar])
+            ->values();
+
         return response()->json([
             'success' => true,
             'user' => $this->formatUser($user, $place),
+            'amigos' => [
+                'count' => count($amigoIds),
+                'playing_count' => count($playingIds),
+                'playing_preview' => $playingPreview,
+                'unread_messages' => $this->unreadMessages($user->id),
+            ],
             'statistics' => [
                 'matches_played' => $matchStats['total'],
                 'wins' => $matchStats['won'],
@@ -183,6 +204,32 @@ class MobileProfileController extends Controller
                 'rating_trend_details' => $details,
             ],
         ]);
+    }
+
+    /** Сколько личных сообщений ждут ответа — бейдж в шапке профиля. */
+    private function unreadMessages(int $userId): int
+    {
+        $conversations = \App\Models\Conversation::where(function ($q) use ($userId) {
+            $q->where('user_one_id', $userId)->orWhere('user_two_id', $userId);
+        })->pluck('id');
+
+        if ($conversations->isEmpty()) {
+            return 0;
+        }
+
+        $reads = \App\Models\ConversationRead::where('user_id', $userId)
+            ->whereIn('conversation_id', $conversations)
+            ->pluck('last_read_message_id', 'conversation_id');
+
+        $total = 0;
+        foreach ($conversations as $conversationId) {
+            $total += \App\Models\ConversationMessage::where('conversation_id', $conversationId)
+                ->where('user_id', '!=', $userId)
+                ->where('id', '>', (int) ($reads[$conversationId] ?? 0))
+                ->count();
+        }
+
+        return $total;
     }
 
     /**

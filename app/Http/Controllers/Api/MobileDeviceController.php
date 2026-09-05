@@ -48,6 +48,10 @@ class MobileDeviceController extends Controller
             'notify_tournament_reminders' => (bool) $user->notify_tournament_reminders,
             'notify_booking_reminders' => (bool) $user->notify_booking_reminders,
             'notify_organizer_chat' => (bool) $user->notify_organizer_chat,
+            // Два тумблера, а не один: активность амигос и личные сообщения
+            // раздражают по-разному, выключать их хотят порознь.
+            'notify_amigos' => (bool) $user->notify_amigos,
+            'notify_messages' => (bool) $user->notify_messages,
             'notify_club_ids' => $user->notify_club_ids,
             'notify_cities_off' => $user->notify_cities_off ?? [],
             'clubs' => $clubs,
@@ -62,6 +66,8 @@ class MobileDeviceController extends Controller
             'notify_tournament_reminders' => 'sometimes|boolean',
             'notify_booking_reminders' => 'sometimes|boolean',
             'notify_organizer_chat' => 'sometimes|boolean',
+            'notify_amigos' => 'sometimes|boolean',
+            'notify_messages' => 'sometimes|boolean',
             'notify_club_ids' => 'sometimes|nullable|array',
             'notify_club_ids.*' => 'integer|exists:clubs,id',
             'notify_cities_off' => 'sometimes|nullable|array',

@@ -19,6 +19,9 @@ use App\Http\Controllers\Api\MobileTournamentInvitationController;
 use App\Http\Controllers\Api\MobileProfileController;
 use App\Http\Controllers\Api\MobileAchievementController;
 use App\Http\Controllers\Api\MobileMatchController;
+use App\Http\Controllers\Api\MobileAmigoController;
+use App\Http\Controllers\Api\MobileMessageController;
+use App\Http\Controllers\Api\MobileBlockController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileNotificationController;
 use App\Http\Controllers\Api\MobileSupportController;
@@ -266,6 +269,29 @@ Route::prefix('mobile')->group(function () {
         Route::get('/profile/partners', [MobileProfileController::class, 'partners']);
         Route::get('/profile/quiz', [MobileProfileController::class, 'quizQuestions']);
         Route::post('/profile/quiz', [MobileProfileController::class, 'submitQuiz']);
+
+        // Амигос: связи между игроками, их активность и личная переписка.
+        // Связь односторонняя — добавление не требует согласия.
+        Route::get('/amigos', [MobileAmigoController::class, 'index']);
+        Route::get('/amigos/followers', [MobileAmigoController::class, 'followers']);
+        Route::get('/amigos/candidates', [MobileAmigoController::class, 'candidates']);
+        Route::get('/amigos/feed', [MobileAmigoController::class, 'feed']);
+        Route::post('/amigos/{user}', [MobileAmigoController::class, 'follow']);
+        Route::delete('/amigos/{user}', [MobileAmigoController::class, 'unfollow']);
+
+        // Личные сообщения. Писать можно любому игроку, поэтому рядом же
+        // блокировка и жалоба — без них открытая переписка недопустима.
+        Route::get('/messages', [MobileMessageController::class, 'index']);
+        Route::get('/messages/unread-count', [MobileMessageController::class, 'unreadCount']);
+        Route::delete('/messages/message/{message}', [MobileMessageController::class, 'destroy']);
+        Route::get('/messages/{user}', [MobileMessageController::class, 'show']);
+        Route::post('/messages/{user}', [MobileMessageController::class, 'store']);
+        Route::post('/messages/{user}/read', [MobileMessageController::class, 'read']);
+
+        Route::get('/blocks', [MobileBlockController::class, 'index']);
+        Route::post('/users/{user}/block', [MobileBlockController::class, 'store']);
+        Route::delete('/users/{user}/block', [MobileBlockController::class, 'destroy']);
+        Route::post('/reports', [MobileBlockController::class, 'report']);
 
         // Матчи
         Route::get('/matches/history', [MobileMatchController::class, 'history']);
