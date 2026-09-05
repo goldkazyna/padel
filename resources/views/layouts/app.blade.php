@@ -976,10 +976,12 @@
                 @endif
 
                 @if(auth()->user()->isClubModerator())
-					@php($modClub = auth()->user()->moderatorClubs()->first())
-					@php($openShift = $modClub
-						? app(\App\Services\ShiftService::class)->currentShift($modClub, auth()->user())
-						: null)
+					@php
+						$modClub = auth()->user()->moderatorClubs()->first();
+						$openShift = $modClub
+							? app(\App\Services\ShiftService::class)->currentShift($modClub, auth()->user())
+							: null;
+					@endphp
 					{{-- Закрытие смены живёт кнопкой внизу сайдбара, на месте
 					     привычного «Выйти» — дублировать его в меню незачем. --}}
 					<li class="nav-section-title">Работа клуба</li>
@@ -1173,9 +1175,11 @@
 					<li class="nav-item">
 						{{-- Красный бейдж — сколько единиц инвентаря ждут возврата.
 						     У супер-админа своего клуба нет, берём первый — как у клубных карт. --}}
-						@php($invOutNav = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub(
-							$navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)
-						))
+						@php
+							$invOutNav = \App\Models\ClubInventoryIssueItem::outstandingUnitsForClub(
+								$navClub ?? (auth()->user()->isSuperAdmin() ? \App\Models\Club::first() : null)
+							);
+						@endphp
 						<a href="{{ route('club.inventory.index') }}" class="nav-link {{ request()->routeIs('club.inventory.*') ? 'active' : '' }}" style="position:relative;">
 							<i class="bi bi-box-seam"></i>
 							<span>Инвентарь</span>
