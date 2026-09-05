@@ -84,4 +84,38 @@ class PlexyService
 
         return $resp->json();
     }
+
+    /**
+     * Все транзакции мерчанта — не только те, что мы выставляли сами.
+     *
+     * Сюда попадают и оплаты из приложения (бронь, турнир), и счета из CRM,
+     * и ссылки, созданные прямо в кабинете Plexy: у клуба одна касса, и видеть
+     * её он должен целиком.
+     *
+     * ВАЖНО про единицы: здесь суммы приходят в ТЕНГЕ, а в /v1/payment-links —
+     * в тиынах (×100). Проверено на одном и том же платеже.
+     *
+     * @return array{data: array<int, array<string, mixed>>, page: int, size: int, total: int}
+     */
+    public function listTransactions(int $page = 1, int $size = 50): array
+    {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(20)
+            ->get($this->baseUrl . '/v1/transactions', ['page' => $page, 'size' => $size]);
+
+        if (!$resp->successful()) {
+            $msg = $resp->json('message') ?: $resp->body();
+            throw new \RuntimeException('Plexy listTransactions: ' . $msg);
+        }
+
+        $data = $resp->json();
+
+        return [
+            'data' => $data['data'] ?? [],
+            'page' => (int) ($data['page'] ?? $page),
+            'size' => (int) ($data['size'] ?? $size),
+            'total' => (int) ($data['total'] ?? count($data['data'] ?? [])),
+        ];
+    }
 }

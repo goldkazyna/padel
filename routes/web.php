@@ -452,6 +452,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         // менеджеру — счёт чаще всего выставляют на ресепшене.
         Route::get('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'index'])->name('payments.index');
         Route::get('/payments/clients', [App\Http\Controllers\Club\PaymentLinkController::class, 'clients'])->name('payments.clients');
+        // Касса целиком: транзакции из Plexy, включая оплаты из приложения.
+        Route::get('/payments/app', [App\Http\Controllers\Club\PaymentLinkController::class, 'appPayments'])->name('payments.app');
         Route::post('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'store'])->name('payments.store');
         Route::post('/payments/sync-all', [App\Http\Controllers\Club\PaymentLinkController::class, 'syncAll'])->name('payments.syncAll');
         Route::post('/payments/{link}/sync', [App\Http\Controllers\Club\PaymentLinkController::class, 'sync'])->name('payments.sync');

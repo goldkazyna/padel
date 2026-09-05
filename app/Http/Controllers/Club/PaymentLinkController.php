@@ -56,6 +56,46 @@ class PaymentLinkController extends Controller
     }
 
     /**
+     * Вся касса клуба: транзакции прямо из Plexy.
+     *
+     * Отдельная вкладка, потому что источник другой. Счета из CRM — это то,
+     * что клуб выставил сам; здесь же видно всё, за что вообще заплатили:
+     * брони и турниры из приложения и ссылки, созданные в кабинете Plexy.
+     */
+    public function appPayments(Request $request)
+    {
+        $club = $this->club($request);
+
+        $page = max(1, (int) $request->get('page', 1));
+        $error = null;
+        $data = ['rows' => [], 'page' => $page, 'size' => 50, 'total' => 0];
+
+        if ($club->hasPlexyConfigured()) {
+            try {
+                $data = \App\Support\PlexyTransactions::page(
+                    $club,
+                    $page,
+                    50,
+                    $request->boolean('refresh')
+                );
+            } catch (\Throwable $e) {
+                // Шлюз может лежать — страница должна открыться и сказать об этом,
+                // а не отдать 500.
+                $error = $e->getMessage();
+            }
+        }
+
+        return view('club.payments.app', [
+            'club' => $club,
+            'rows' => $data['rows'],
+            'page' => $data['page'],
+            'size' => $data['size'],
+            'total' => $data['total'],
+            'error' => $error,
+        ]);
+    }
+
+    /**
      * Подсказка клиентов для формы счёта: один инпут ищет и по имени,
      * и по телефону — менеджеру на ресепшене удобнее вбить то, что помнит.
      * Короче трёх символов не ищем: пол-базы в выпадашке бесполезно.

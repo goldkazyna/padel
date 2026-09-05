@@ -44,6 +44,12 @@
         </div>
     </div>
 
+    {{-- Две вкладки: свои счета и вся касса из Plexy. --}}
+    <div class="pay-tabs">
+        <a href="{{ route('club.payments.index') }}" class="pay-tab active">Счета клиентам</a>
+        <a href="{{ route('club.payments.app') }}" class="pay-tab">Все платежи</a>
+    </div>
+
     @if(!$plexyReady)
         <div class="pay-empty">
             <i class="bi bi-credit-card"></i>
@@ -457,6 +463,14 @@ document.addEventListener('DOMContentLoaded', function () {
 @endif
 
 <style>
+    .pay-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .pay-tab {
+        padding: 9px 16px; border-radius: 10px; border: 1px solid var(--border);
+        color: var(--text-secondary); text-decoration: none; font-size: 13px; font-weight: 600;
+    }
+    .pay-tab:hover { color: var(--text-primary); border-color: var(--border-light); }
+    .pay-tab.active { background: var(--accent); border-color: var(--accent); color: #0c0e0f; }
+
 .pay-wrap { max-width: 1120px; }
 .pay-head { margin-bottom: 18px; }
 .pay-head h2 { margin: 0 0 4px; }
