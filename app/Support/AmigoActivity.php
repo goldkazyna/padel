@@ -145,6 +145,9 @@ class AmigoActivity
             $out[$userId] = [
                 'kind' => 'soon',
                 'title' => 'турнир ' . self::whenWord($start),
+                // Время отдельным полем: приложение покажет его на своём языке,
+                // а готовую русскую строку оставляем как запасной вариант.
+                'at' => $start->toIso8601String(),
                 'subtitle' => trim(($row->name ?: 'Турнир') . ($row->club_name ? ' · ' . $row->club_name : '')),
                 'tournament_id' => (int) $row->tournament_id,
             ];
@@ -183,6 +186,7 @@ class AmigoActivity
             $out[$userId] = [
                 'kind' => 'looking',
                 'title' => 'ищет игроков',
+                'at' => $start->toIso8601String(),
                 'subtitle' => trim(self::whenWord($start) . ($row->club_name ? ' · ' . $row->club_name : '')),
                 'game_id' => (int) $row->game_id,
             ];
@@ -214,6 +218,7 @@ class AmigoActivity
                 'subtitle' => $status['subtitle'],
                 'tournament_id' => $status['tournament_id'] ?? null,
                 'game_id' => $status['game_id'] ?? null,
+                'starts_at' => $status['at'] ?? null,
                 'at' => now()->toIso8601String(),
             ];
         }

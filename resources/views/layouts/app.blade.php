@@ -1309,6 +1309,16 @@
                             <span>Тикеты</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.reports.index') }}" class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                            <i class="bi bi-flag"></i>
+                            <span>Жалобы</span>
+                            @php $newReports = \App\Models\ContentReport::where('status', 'new')->count(); @endphp
+                            @if($newReports > 0)
+                                <span class="badge bg-danger ms-auto">{{ $newReports }}</span>
+                            @endif
+                        </a>
+                    </li>
                 @endif
             </ul>
         </nav>
