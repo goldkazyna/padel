@@ -54,6 +54,27 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     ]);
 })->name('tournament.share');
 
+// Лендинг трансляции турнира: игрок делится ссылкой из live-экрана, зритель
+// попадает на тот же live в приложении (или в магазин, если приложения нет).
+Route::get('/live/{tournament}', function (\App\Models\Tournament $tournament) {
+    $tournament->load('club');
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+
+    $logo = $tournament->club->logo ?? null;
+    if ($logo && !preg_match('#^https?://#', $logo)) {
+        $logo = asset('logos/' . ltrim($logo, '/'));
+    }
+
+    return view('live-share', [
+        'tournament' => $tournament,
+        'storeUrl' => $isIOS
+            ? config('mobile_app.store_url_ios')
+            : config('mobile_app.store_url_android'),
+        'ogImage' => $logo ?: asset('logos/add-padel-almaty.jpg'),
+    ]);
+})->name('tournament.live.share');
+
 /**
  * Отказ от ответственности: QR на стойке клуба ведёт сюда.
  * Страница сразу пробует открыть приложение и уводит в стор, если его нет.
