@@ -1314,8 +1314,6 @@
                             <i class="bi bi-flag"></i>
                             <span>Жалобы</span>
                             @php
-                                // Блочная запись обязательна: однострочная
-                                // @php ... @endphp ломает компиляцию Blade.
                                 $newReports = \App\Models\ContentReport::where('status', 'new')->count();
                             @endphp
                             @if($newReports > 0)
