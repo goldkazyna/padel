@@ -316,7 +316,9 @@
                     </div>
 
                     @if($club->collectsWaiver())
-                        @php($waiverUrl = url('/w/' . $club->id))
+                        @php
+                            $waiverUrl = url('/w/' . $club->id);
+                        @endphp
                         <div class="mb-4" id="waiver-qr">
                             <label class="form-label">QR для стойки</label>
                             <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -454,7 +456,9 @@
                         <small class="text-muted">Токен бота для этого клуба. Если пусто — используется общий бот.</small>
                     </div>
 
-                    @php($features = $club->features ?? [])
+                    @php
+                        $features = $club->features ?? [];
+                    @endphp
                     <div class="mb-4">
                         <label class="form-label">Доступные модули</label>
                         <div class="d-flex flex-column gap-2">
