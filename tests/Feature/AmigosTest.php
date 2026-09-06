@@ -301,6 +301,27 @@ class AmigosTest extends TestCase
         $this->assertSame(3, collect($candidates)->firstWhere('name', 'Напарник')['games_together']);
     }
 
+    public function test_подтверждённый_уровень_виден_в_списках(): void
+    {
+        // Галочка есть в рейтинге и в турнире; в амигос имя шло голым, и один
+        // и тот же человек выглядел то подтверждённым, то нет.
+        $verified = $this->player('Марина');
+        $verified->update(['level_verified' => true]);
+        $plain = $this->player('Пётр');
+
+        $this->follow($verified);
+        $this->follow($plain);
+
+        Sanctum::actingAs($this->me);
+
+        $amigos = $this->getJson('/api/mobile/amigos')->assertOk()->json('amigos');
+        $this->assertTrue(collect($amigos)->firstWhere('name', 'Марина')['level_verified']);
+        $this->assertFalse(collect($amigos)->firstWhere('name', 'Пётр')['level_verified']);
+
+        $found = $this->getJson('/api/mobile/amigos/search?q=Марина')->assertOk()->json('players');
+        $this->assertTrue($found[0]['level_verified']);
+    }
+
     public function test_кандидат_уже_добавленный_в_список_не_попадает(): void
     {
         $partner = $this->player('Напарник');

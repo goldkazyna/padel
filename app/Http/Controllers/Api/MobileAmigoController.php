@@ -149,6 +149,7 @@ class MobileAmigoController extends Controller
                 'name' => $player->name,
                 'avatar' => $player->avatar,
                 'level' => $player->level,
+                'level_verified' => (bool) $player->level_verified,
                 'rating' => (int) $player->rating,
                 'games_together' => (int) $row['games'],
                 'winrate' => $row['winrate'],
@@ -189,7 +190,7 @@ class MobileAmigoController extends Controller
         $players = \App\Support\NameSearch::orderExactFirst($query, $q)
             ->orderByDesc('rating')
             ->limit(30)
-            ->get(['id', 'name', 'avatar', 'level', 'rating']);
+            ->get(['id', 'name', 'avatar', 'level', 'level_verified', 'rating']);
 
         return response()->json([
             'success' => true,
@@ -198,6 +199,7 @@ class MobileAmigoController extends Controller
                 'name' => $player->name,
                 'avatar' => $player->avatar,
                 'level' => $player->level,
+                'level_verified' => (bool) $player->level_verified,
                 'rating' => (int) $player->rating,
                 'is_amigo' => in_array($player->id, $amigoIds, true),
             ])->values(),
@@ -212,7 +214,7 @@ class MobileAmigoController extends Controller
 
         $events = AmigoActivity::feed($ids);
         $users = User::whereIn('id', array_column($events, 'user_id'))
-            ->get(['id', 'name', 'avatar', 'level', 'rating', 'hidden_from_rating'])
+            ->get(['id', 'name', 'avatar', 'level', 'level_verified', 'rating', 'hidden_from_rating'])
             ->keyBy('id');
 
         $out = [];
@@ -226,6 +228,7 @@ class MobileAmigoController extends Controller
                 'id' => $player->id,
                 'name' => $player->name,
                 'avatar' => $player->avatar,
+                'level_verified' => (bool) $player->level_verified,
             ];
             $out[] = $event;
         }
@@ -276,7 +279,7 @@ class MobileAmigoController extends Controller
         }
 
         $users = User::whereIn('id', $ids)
-            ->get(['id', 'name', 'avatar', 'level', 'rating', 'hidden_from_rating']);
+            ->get(['id', 'name', 'avatar', 'level', 'level_verified', 'rating', 'hidden_from_rating']);
 
         $statuses = AmigoActivity::cached($ids);
 
@@ -307,6 +310,7 @@ class MobileAmigoController extends Controller
                 'name' => $player->name,
                 'avatar' => $player->avatar,
                 'level' => $player->level,
+                'level_verified' => (bool) $player->level_verified,
                 'rating' => (int) $player->rating,
                 // «Взаимно» — это обе стороны сразу. На вкладке «меня добавили»
                 // одна сторона есть у всех, и односторонний флаг там врал бы.
