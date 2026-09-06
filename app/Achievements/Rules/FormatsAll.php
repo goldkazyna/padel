@@ -12,6 +12,10 @@ use App\Achievements\PlayerHistory;
  * Bali KOC и «Классический» в зачёт не идут: клубы их не проводят (на проде
  * нет ни одного завершённого), и значок с ними был недостижим — его не
  * получил ни один игрок.
+ *
+ * Round Robin убран из зачёта: это вариант «Короля корта» с другим порядком
+ * раундов, а не отдельный формат, и требовать его отдельно — значит просить
+ * сыграть одно и то же дважды.
  */
 class FormatsAll implements Achievement
 {
@@ -23,13 +27,12 @@ class FormatsAll implements Achievement
         'team',
         'king_of_court',
         'just_padel_it',
-        'round_robin',
         'escalera',
     ];
 
     public function code(): string { return 'formats_all'; }
     public function title(): string { return 'Знаток форматов'; }
-    public function description(): string { return 'Сыграть все восемь форматов'; }
+    public function description(): string { return 'Сыграть все семь форматов'; }
     public function icon(): string { return 'auto_awesome'; }
     public function group(): string { return 'variety'; }
     public function tier(): string { return 'gold'; }

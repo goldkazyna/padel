@@ -127,7 +127,7 @@ class AchievementRulesTest extends TestCase
         $rule = new \App\Achievements\Rules\FormatsAll();
 
         // Клубы их не проводят: с ними значок был недостижим.
-        $this->assertSame(8, $rule->target());
+        $this->assertSame(7, $rule->target());
 
         $matches = [
             $this->match(['tournament_type' => 'bali_koc', 'tournament_id' => 1]),
@@ -138,7 +138,22 @@ class AchievementRulesTest extends TestCase
         $this->assertSame(1, $rule->progress($this->history($matches)));
     }
 
-    public function test_знаток_форматов_закрывается_восемью(): void
+    public function test_знаток_форматов_не_считает_round_robin(): void
+    {
+        $rule = new \App\Achievements\Rules\FormatsAll();
+
+        // Round Robin — вариант «Короля корта», а не отдельный формат.
+        $this->assertNotContains('round_robin', \App\Achievements\Rules\FormatsAll::COUNTED);
+
+        $matches = [
+            $this->match(['tournament_type' => 'round_robin', 'tournament_id' => 1]),
+            $this->match(['tournament_type' => 'americano', 'tournament_id' => 2]),
+        ];
+
+        $this->assertSame(1, $rule->progress($this->history($matches)));
+    }
+
+    public function test_знаток_форматов_закрывается_семью(): void
     {
         $rule = new \App\Achievements\Rules\FormatsAll();
 
@@ -147,7 +162,7 @@ class AchievementRulesTest extends TestCase
             $matches[] = $this->match(['tournament_type' => $type, 'tournament_id' => $i + 1]);
         }
 
-        $this->assertSame(8, $rule->progress($this->history($matches)));
+        $this->assertSame(7, $rule->progress($this->history($matches)));
     }
 
     public function test_значки_за_мячи_считают_забитое(): void
