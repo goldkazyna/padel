@@ -189,7 +189,7 @@ class MobileHomeController extends Controller
             ->where('start_date', '>', now())
             ->whereHas('club', fn($q) => $q->where('is_test', false))
             ->orderBy('start_date', 'asc')
-            ->with(['club', 'venueClub']);
+            ->with(['club', 'venueClub', 'league']);
 
         $hiddenClubIds = $this->normalizeHiddenClubIds($user);
         if (!empty($hiddenClubIds)) {
@@ -235,6 +235,18 @@ class MobileHomeController extends Controller
             ] : null,
             'status' => $t->status,
             'status_name' => $t->status_name,
+            // Этап лиги: в календаре и «Скоро» он ничем не отличался от
+            // обычного турнира, и человек записывался в лигу, не понимая
+            // этого. Приложение рисует по этому полю метку «Лига · этап 3».
+            'league' => $t->league ? [
+                'id' => $t->league->id,
+                'name' => $t->league->name,
+                'stage' => (int) $t->league_stage,
+                'stages_total' => max(
+                    (int) $t->league->stages_planned,
+                    $t->league->stages()->count()
+                ),
+            ] : null,
             'is_rated' => (bool) $t->is_rated,
             'pairing_mode' => $t->pairing_mode ?? 'self',
             'is_admin_pairing' => $t->isAdminPairing(),
