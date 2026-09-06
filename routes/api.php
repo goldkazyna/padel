@@ -265,6 +265,7 @@ Route::prefix('mobile')->group(function () {
         // Профиль
         Route::get('/profile', [MobileProfileController::class, 'index']);
         Route::put('/profile', [MobileProfileController::class, 'update']);
+        Route::get('/profile/rating-history', [MobileProfileController::class, 'ratingHistory']);
         Route::post('/profile/avatar', [MobileProfileController::class, 'avatar']);
         Route::get('/profile/partners', [MobileProfileController::class, 'partners']);
         Route::get('/profile/quiz', [MobileProfileController::class, 'quizQuestions']);

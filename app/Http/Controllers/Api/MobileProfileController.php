@@ -86,83 +86,13 @@ class MobileProfileController extends Controller
                 ->count() + 1;
         }
 
-        // Тренд рейтинга для графика «Динамика рейтинга».
-        // Каждый турнир = одна точка (берём финальный rating_after турнира).
-        // Каждая ручная правка (tournament_id = null) = отдельная точка.
-        $rawHistory = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->whereNotNull('rating_after')
-            ->orderBy('id', 'asc')
-            ->with('club:id,name')
-            ->get(['id', 'tournament_id', 'club_id', 'rating_after', 'created_at']);
-
-        $entries = [];
-        $prevTournamentId = -1; // -1 = «нет предыдущей»
-        foreach ($rawHistory as $h) {
-            $tid = $h->tournament_id !== null ? (int) $h->tournament_id : null;
-            if ($tid !== null && $tid === $prevTournamentId) {
-                // Тот же турнир — обновляем последнюю запись (финальный rating_after)
-                $last = count($entries) - 1;
-                $entries[$last]['rating_after'] = (int) $h->rating_after;
-                $entries[$last]['created_at'] = $h->created_at;
-            } else {
-                $entries[] = [
-                    'tournament_id' => $tid,
-                    'rating_after' => (int) $h->rating_after,
-                    'created_at' => $h->created_at,
-                    'club_name' => $h->club?->name,
-                ];
-                $prevTournamentId = $tid ?? -1;
-            }
-        }
-        $entries = array_slice($entries, -10);
-
-        $ratingTrend = array_map(fn($e) => $e['rating_after'], $entries);
-
-        // Подгружаем турниры для отображения названий/клубов/дат
-        $tournamentIds = array_values(array_filter(array_map(
-            fn($e) => $e['tournament_id'],
-            $entries,
-        ), fn($v) => $v !== null));
-        $tournaments = $tournamentIds
-            ? \App\Models\Tournament::whereIn('id', $tournamentIds)
-                ->with('club')
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        $details = [];
-        $prev = null;
-        foreach ($entries as $entry) {
-            $rating = (int) $entry['rating_after'];
-            $delta = $prev === null ? null : $rating - $prev;
-            if ($entry['tournament_id'] === null) {
-                // Ручная правка админом — точка без турнира.
-                $details[] = [
-                    'tournament_id' => null,
-                    'name' => 'Ручная корректировка',
-                    // Клуб администратора, который правил рейтинг. У правок,
-                    // сделанных до появления этого поля, его нет — там
-                    // остаётся прежняя подпись.
-                    'club_name' => $entry['club_name'] ?? 'Padel Kz',
-                    'date' => $entry['created_at']?->translatedFormat('j M Y'),
-                    'rating' => $rating,
-                    'delta' => $delta,
-                    'is_manual' => true,
-                ];
-            } else {
-                $t = $tournaments[$entry['tournament_id']] ?? null;
-                $details[] = [
-                    'tournament_id' => $entry['tournament_id'],
-                    'name' => $t?->name ?? 'Турнир',
-                    'club_name' => $t?->club?->name,
-                    'date' => $t?->start_date?->translatedFormat('j M Y'),
-                    'rating' => $rating,
-                    'delta' => $delta,
-                    'is_manual' => false,
-                ];
-            }
-            $prev = $rating;
-        }
+        // Тренд рейтинга для графика «Динамика рейтинга»: последние десять
+        // точек. Полный список — в GET /profile/rating-history.
+        $details = \App\Support\RatingTrend::points(
+            $user,
+            \App\Support\RatingTrend::CARD_POINTS
+        );
+        $ratingTrend = array_map(fn ($d) => $d['rating'], $details);
 
         // Амигос: карточка в профиле и бейдж сообщений. Список игроков сюда не
         // тянем — он живёт в /amigos, профиль от него тормозить не должен.
@@ -354,6 +284,32 @@ class MobileProfileController extends Controller
             'success' => true,
             'message' => 'Профиль обновлён',
             'user' => $this->formatUser($user, $place),
+        ]);
+    }
+
+    /**
+     * Вся динамика рейтинга: каждая точка от первой до последней.
+     * GET /api/mobile/profile/rating-history
+     */
+    public function ratingHistory(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        $points = \App\Support\RatingTrend::points($user);
+
+        $ratings = array_column($points, 'rating');
+
+        return response()->json([
+            'success' => true,
+            'points' => $points,
+            // Свод по всей истории — считать его в приложении значило бы
+            // повторить ту же логику ещё раз.
+            'summary' => [
+                'total' => count($points),
+                'current' => $ratings ? end($ratings) : (int) $user->rating,
+                'start' => $ratings ? $ratings[0] : (int) $user->rating,
+                'best' => $ratings ? max($ratings) : (int) $user->rating,
+                'worst' => $ratings ? min($ratings) : (int) $user->rating,
+            ],
         ]);
     }
 
