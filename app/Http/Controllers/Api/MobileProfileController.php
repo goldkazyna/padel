@@ -203,6 +203,14 @@ class MobileProfileController extends Controller
                 'rating_trend' => $ratingTrend,
                 'rating_trend_details' => $details,
             ],
+            // Простой: сколько дней без игры, когда спишется рейтинг и
+            // сколько. Приложение показывает предупреждение под статистикой.
+            'inactivity' => \App\Support\RatingDecay::profileBlock(
+                $user,
+                $user->last_played_at
+                    ? \Illuminate\Support\Carbon::parse($user->last_played_at)
+                    : \App\Support\PlayerActivity::lastPlayedAt($user->id)
+            ),
         ]);
     }
 

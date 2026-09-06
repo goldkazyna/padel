@@ -17,10 +17,15 @@ class LevelUp implements Achievement
 
     public function progress(PlayerHistory $history): int
     {
-        // Ручные правки рейтинга администратором в счёт не идут: поднятие
-        // уровня руками не должно выдавать значок за игровое достижение.
+        // Ручные правки рейтинга администратором и списания за простой в
+        // счёт не идут: значок «поднял уровень» — за игру, а не за то, что
+        // рейтинг подвинули со стороны.
+        $skip = [
+            \App\Models\RatingHistory::REASON_MANUAL,
+            \App\Models\RatingHistory::REASON_DECAY,
+        ];
         $play = $history->ratingEntries
-            ->reject(fn ($entry) => $entry->reason === \App\Models\RatingHistory::REASON_MANUAL)
+            ->reject(fn ($entry) => in_array($entry->reason, $skip, true))
             ->values();
 
         $first = $play->first();

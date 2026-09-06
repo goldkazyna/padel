@@ -60,6 +60,14 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyTenMinutes()
             ->withoutOverlapping();
 
+        // Списание рейтинга за простой + обновление даты последней игры.
+        // Утром, а не ночью: если проход что-то испортит, это видно в тот же
+        // день, а не через сутки.
+        $schedule->command('rating:decay-inactive')
+            ->dailyAt('05:00')
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // Ежедневный бэкап БД + загруженных файлов (локально 7 копий + облако).
         $schedule->command('backup:run')
             ->dailyAt('03:30')

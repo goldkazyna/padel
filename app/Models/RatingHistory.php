@@ -16,6 +16,13 @@ class RatingHistory extends Model
      */
     public const REASON_MANUAL = 'Ручная корректировка';
 
+    /**
+     * Списание за простой: у записи тоже пустой tournament_id, и без
+     * отдельной причины её не отличить от ручной правки. Достижения такие
+     * записи не считают.
+     */
+    public const REASON_DECAY = 'Списание за простой';
+
     /** Кто сделал ручную правку (у турнирных записей пусто). */
     public function changedBy()
     {
