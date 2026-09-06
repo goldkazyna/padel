@@ -88,7 +88,10 @@ class AmigoActivity
             $out[(int) $row->user_id] = [
                 'kind' => 'playing',
                 'title' => 'играет',
-                'subtitle' => trim(($row->name ?: 'Турнир') . ($row->club_name ? ' · ' . $row->club_name : '')),
+                // Формат и клуб, а не название турнира: названия бывают вроде
+                // «ADVANCED DAVAY PADEL AMERICANO FLEX · ЧЕТВЕРГ» — в строку
+                // они не влезают и обрезаются на полуслове.
+                'subtitle' => self::where(self::formatName($row->type), $row->club_name),
                 'tournament_id' => (int) $row->tournament_id,
             ];
         }
@@ -106,7 +109,7 @@ class AmigoActivity
             $out[(int) $row->user_id] = [
                 'kind' => 'playing',
                 'title' => 'играет',
-                'subtitle' => trim('Игра' . ($row->club_name ? ' · ' . $row->club_name : '')),
+                'subtitle' => self::where('Игра', $row->club_name),
                 'game_id' => (int) $row->game_id,
             ];
         }
@@ -129,6 +132,7 @@ class AmigoActivity
                 'tournament_participants.user_id',
                 'tournaments.id as tournament_id',
                 'tournaments.name',
+                'tournaments.type',
                 'tournaments.start_date',
                 'clubs.name as club_name',
             ]);
@@ -148,12 +152,24 @@ class AmigoActivity
                 // Время отдельным полем: приложение покажет его на своём языке,
                 // а готовую русскую строку оставляем как запасной вариант.
                 'at' => $start->toIso8601String(),
-                'subtitle' => trim(($row->name ?: 'Турнир') . ($row->club_name ? ' · ' . $row->club_name : '')),
+                'subtitle' => self::where(self::formatName($row->type ?? null), $row->club_name),
                 'tournament_id' => (int) $row->tournament_id,
             ];
         }
 
         return $out;
+    }
+
+    /** «Американо · Padel Sai» — формат и клуб через точку. */
+    private static function where(string $what, ?string $club): string
+    {
+        return trim($what . ($club ? ' · ' . $club : ''));
+    }
+
+    /** Человеческое название формата турнира. */
+    private static function formatName(?string $type): string
+    {
+        return $type ? (new Tournament(['type' => $type]))->type_name : 'Турнир';
     }
 
     /** Кто ищет людей в свою игру: игра открыта и мест не хватает. */

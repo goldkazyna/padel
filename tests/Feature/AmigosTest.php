@@ -148,7 +148,9 @@ class AmigosTest extends TestCase
 
         $response->assertJsonPath('playing_count', 1);
         $response->assertJsonPath('amigos.0.status.kind', 'playing');
-        $this->assertStringContainsString('Вечерний американо', $response->json('amigos.0.status.subtitle'));
+        // В подписи формат и клуб, а не название турнира: названия бывают
+        // длиной в строку и обрезаются на полуслове.
+        $this->assertSame('Американо · Padel Sai', $response->json('amigos.0.status.subtitle'));
     }
 
     public function test_играющие_идут_первыми(): void
