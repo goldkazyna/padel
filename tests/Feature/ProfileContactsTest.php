@@ -109,6 +109,41 @@ class ProfileContactsTest extends TestCase
         $this->assertSame('моё_имя', $user->fresh()->telegram_username);
     }
 
+    public function test_админка_видит_номер_ватсапа_участника(): void
+    {
+        // Организатор пишет игроку из админки. Раньше кнопка вела на телефон
+        // входа — а это логин, и не всегда тот номер, где человек читает.
+        $club = \App\Models\Club::create([
+            'name' => 'Padel Sai', 'address' => 'А', 'city' => 'Алматы',
+        ]);
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+        $player = User::factory()->create([
+            'phone' => '77771112233',
+            'whatsapp' => '77774333822',
+        ]);
+
+        $tournament = \App\Models\Tournament::factory()->create([
+            'club_id' => $club->id,
+            'status' => 'open',
+            'type' => 'americano',
+            'creator_id' => $admin->id,
+        ]);
+        $tournament->participants()->attach($player->id, ['status' => 'registered']);
+
+        Sanctum::actingAs($admin);
+
+        $rows = $this->getJson("/api/mobile/admin/tournaments/{$tournament->id}/participants")
+            ->assertOk()
+            ->json('participants');
+
+        $row = collect($rows)->firstWhere('id', $player->id);
+
+        $this->assertNotNull($row, 'участник в списке');
+        $this->assertSame('77774333822', $row['whatsapp']);
+        $this->assertSame('77771112233', $row['phone'], 'телефон входа тоже на месте');
+    }
+
     public function test_контакты_не_ломают_обычное_сохранение(): void
     {
         $user = User::factory()->create(['phone' => '77771112233', 'name' => 'Старое']);

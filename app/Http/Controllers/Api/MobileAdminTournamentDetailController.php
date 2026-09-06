@@ -1015,7 +1015,7 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $logs = \App\Models\TournamentRegistrationLog::where('tournament_id', $tournament->id)
-            ->with('user:id,name,phone,avatar,level,level_verified,rating')
+            ->with('user:id,name,phone,whatsapp,avatar,level,level_verified,rating')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
@@ -1534,7 +1534,7 @@ class MobileAdminTournamentDetailController extends Controller
         }
 
         $invitations = \App\Models\TournamentInvitation::where('tournament_id', $tournament->id)
-            ->with('user:id,name,phone,level,rating,avatar')
+            ->with('user:id,name,phone,whatsapp,level,rating,avatar')
             ->orderByDesc('created_at')
             ->get()
             ->filter(fn($inv) => $inv->user)
@@ -1628,7 +1628,7 @@ class MobileAdminTournamentDetailController extends Controller
             ->tap(fn ($qq) => \App\Support\NameSearch::orderExactFirst($qq, $q, ['name']))
             ->orderBy('name')
             ->limit(20)
-            ->get(['id', 'name', 'phone', 'level', 'rating', 'avatar', 'level_verified'])
+            ->get(['id', 'name', 'phone', 'whatsapp', 'level', 'rating', 'avatar', 'level_verified'])
             ->map(fn($u) => $this->formatUser($u));
 
         return response()->json([
@@ -1787,6 +1787,9 @@ class MobileAdminTournamentDetailController extends Controller
             'id' => $u->id,
             'name' => $u->name,
             'phone' => $u->phone,
+            // Отдельный номер WhatsApp, если человек его указал: у части
+            // людей он не тот, которым они входят.
+            'whatsapp' => $u->whatsapp,
             'level' => $u->level !== null ? (float) $u->level : null,
             'rating' => $u->rating !== null ? (int) $u->rating : null,
             'avatar_url' => $u->avatar, // в БД уже хранится готовый URL (как в рейтинге)
