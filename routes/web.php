@@ -54,6 +54,27 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     ]);
 })->name('tournament.share');
 
+// Лендинг лиги — для шаринга: открывает «padelp://league/{id}» или уводит в
+// магазин, если приложения нет.
+Route::get('/l/{league}', function (\App\Models\League $league) {
+    $league->load('club');
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+
+    $logo = $league->club->logo ?? null;
+    if ($logo && !preg_match('#^https?://#', $logo)) {
+        $logo = asset('logos/' . ltrim($logo, '/'));
+    }
+
+    return view('league-share', [
+        'league' => $league,
+        'storeUrl' => $isIOS
+            ? config('mobile_app.store_url_ios')
+            : config('mobile_app.store_url_android'),
+        'ogImage' => $logo ?: asset('logos/add-padel-almaty.jpg'),
+    ]);
+})->name('league.share');
+
 // Лендинг трансляции турнира: игрок делится ссылкой из live-экрана, зритель
 // попадает на тот же live в приложении (или в магазин, если приложения нет).
 Route::get('/live/{tournament}', function (\App\Models\Tournament $tournament) {
