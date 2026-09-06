@@ -277,6 +277,10 @@ class MobileProfileController extends Controller
             'hand'        => 'nullable|string|in:right,left',
             'position'    => 'nullable|string|in:right,left,any',
             'phone'       => 'nullable|string|max:20',
+            // Необязательные контакты: пустая строка = «стереть».
+            'whatsapp'    => 'nullable|string|max:32',
+            'telegram_username' => 'nullable|string|max:64',
+            'instagram'   => 'nullable|string|max:64',
         ]);
 
         $user = $request->user();
@@ -310,6 +314,29 @@ class MobileProfileController extends Controller
 
                 $user->phone = $digits;
             }
+        }
+
+        // Контакты чистим до хранения: люди вводят «@denis», «t.me/denis» и
+        // «https://instagram.com/denis/» — храним один вид, иначе потом ни
+        // сравнить, ни собрать ссылку.
+        foreach (['telegram_username', 'instagram'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $validated[$field] = \App\Support\ContactHandle::username($validated[$field]);
+            }
+        }
+
+        if (array_key_exists('whatsapp', $validated)) {
+            $raw = trim((string) $validated['whatsapp']);
+            $normalized = \App\Support\ContactHandle::phone($raw);
+
+            if ($raw !== '' && $normalized === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Неверный формат номера WhatsApp',
+                ], 422);
+            }
+
+            $validated['whatsapp'] = $normalized;
         }
 
         $user->fill($validated);
@@ -427,6 +454,10 @@ class MobileProfileController extends Controller
             'quiz_completed' => (bool) $user->quiz_completed,
             'patronymic' => $user->patronymic,
             'city' => $user->city,
+            // Необязательные контакты — их заполняют в редактировании профиля.
+            'whatsapp' => $user->whatsapp,
+            'telegram_username' => $user->telegram_username,
+            'instagram' => $user->instagram,
             'gender' => $user->gender,
             'age' => $user->age,
             'birth_date' => $user->birth_date ? $user->birth_date->format('Y-m-d') : null,
