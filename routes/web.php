@@ -41,11 +41,7 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
         : config('mobile_app.store_url_android');
 
     // Картинка для OG-превью: лого клуба → fallback общая картинка.
-    $logo = $tournament->club->logo ?? null;
-    if ($logo && !preg_match('#^https?://#', $logo)) {
-        $logo = asset('logos/' . ltrim($logo, '/'));
-    }
-    $ogImage = $logo ?: asset('logos/add-padel-almaty.jpg');
+    $ogImage = \App\Support\ShareLogo::url($tournament->club->logo ?? null);
 
     return view('tournament-share', [
         'tournament' => $tournament,
@@ -61,17 +57,14 @@ Route::get('/l/{league}', function (\App\Models\League $league) {
     $ua = request()->header('User-Agent', '');
     $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
 
-    $logo = $league->club->logo ?? null;
-    if ($logo && !preg_match('#^https?://#', $logo)) {
-        $logo = asset('logos/' . ltrim($logo, '/'));
-    }
+    $logo = \App\Support\ShareLogo::url($league->club->logo ?? null);
 
     return view('league-share', [
         'league' => $league,
         'storeUrl' => $isIOS
             ? config('mobile_app.store_url_ios')
             : config('mobile_app.store_url_android'),
-        'ogImage' => $logo ?: asset('logos/add-padel-almaty.jpg'),
+        'ogImage' => $logo,
     ]);
 })->name('league.share');
 
@@ -82,17 +75,14 @@ Route::get('/live/{tournament}', function (\App\Models\Tournament $tournament) {
     $ua = request()->header('User-Agent', '');
     $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
 
-    $logo = $tournament->club->logo ?? null;
-    if ($logo && !preg_match('#^https?://#', $logo)) {
-        $logo = asset('logos/' . ltrim($logo, '/'));
-    }
+    $logo = \App\Support\ShareLogo::url($tournament->club->logo ?? null);
 
     return view('live-share', [
         'tournament' => $tournament,
         'storeUrl' => $isIOS
             ? config('mobile_app.store_url_ios')
             : config('mobile_app.store_url_android'),
-        'ogImage' => $logo ?: asset('logos/add-padel-almaty.jpg'),
+        'ogImage' => $logo,
     ]);
 })->name('tournament.live.share');
 
