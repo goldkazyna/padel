@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 
 class MobileRatingController extends Controller
 {
+    // Формат турнира тот же, что на главной: карточка Live в профиле игрока
+    // рисуется тем же виджетом, что и своя.
+    use Concerns\FormatsTournaments;
+
     /**
      * Рейтинг игроков
      * GET /api/mobile/rating
@@ -478,8 +482,31 @@ class MobileRatingController extends Controller
                 'rating_trend' => $ratingTrend,
                 'rating_trend_details' => $ratingTrendDetails,
             ],
+            // Турнир, который человек играет прямо сейчас. Показываем в его
+            // профиле такой же карточкой, как свой активный турнир на главной.
+            'live_tournament' => $this->liveTournamentOf($user),
             'history' => $history,
         ]);
+    }
+
+    /**
+     * Идущий турнир игрока — тот, где он участник, а турнир in_progress.
+     *
+     * Берём ближайший по времени старта: одновременно двух турниров у
+     * человека не бывает, но данные всякое переживали.
+     */
+    private function liveTournamentOf(User $user): ?array
+    {
+        $tournament = \App\Models\Tournament::with(['club', 'creator'])
+            ->where('status', 'in_progress')
+            ->whereHas('participants', function ($q) use ($user) {
+                $q->where('users.id', $user->id)
+                    ->where('tournament_participants.status', 'registered');
+            })
+            ->orderByDesc('start_date')
+            ->first();
+
+        return $tournament ? $this->formatTournament($tournament, $user) : null;
     }
 
     /**
