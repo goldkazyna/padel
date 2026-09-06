@@ -158,6 +158,52 @@ class MobileAmigoController extends Controller
         return response()->json(['success' => true, 'candidates' => $candidates]);
     }
 
+    /**
+     * GET /amigos/search?q= — найти игрока по имени и добавить.
+     *
+     * Кандидаты (те, с кем уже играли) закрывают только первый шаг. Дальше
+     * человеку нужно найти конкретного Ержана, которого он знает по клубу, —
+     * поэтому ищем по всей базе тем же поиском, что и рейтинг: он понимает
+     * и «Ержан», и «Yerzhan».
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $me = $request->user();
+        $q = trim((string) $request->query('q', ''));
+
+        // Меньше двух символов — это пол-базы в выдаче, толку ноль.
+        if (mb_strlen($q) < 2) {
+            return response()->json(['success' => true, 'players' => []]);
+        }
+
+        $blocked = $this->blockedIds($me->id);
+        $amigoIds = $this->followingIds($me->id);
+
+        $query = User::visibleInRating()
+            ->whereNotIn('id', array_merge($blocked, [$me->id]));
+
+        // apply() фильтрует, orderExactFirst() только сортирует — нужны оба,
+        // иначе в выдачу попадёт вся база.
+        \App\Support\NameSearch::apply($query, $q);
+
+        $players = \App\Support\NameSearch::orderExactFirst($query, $q)
+            ->orderByDesc('rating')
+            ->limit(30)
+            ->get(['id', 'name', 'avatar', 'level', 'rating']);
+
+        return response()->json([
+            'success' => true,
+            'players' => $players->map(fn ($player) => [
+                'id' => $player->id,
+                'name' => $player->name,
+                'avatar' => $player->avatar,
+                'level' => $player->level,
+                'rating' => (int) $player->rating,
+                'is_amigo' => in_array($player->id, $amigoIds, true),
+            ])->values(),
+        ]);
+    }
+
     /** GET /amigos/feed — что у своих происходит. */
     public function feed(Request $request): JsonResponse
     {

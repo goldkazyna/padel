@@ -369,6 +369,76 @@ class AmigosTest extends TestCase
             ->assertJsonPath('amigos.unread_messages', 0);
     }
 
+    public function test_поиск_находит_игрока_по_имени(): void
+    {
+        $this->player('Ержан Рахимов');
+        $this->player('Диана Смагулова');
+
+        Sanctum::actingAs($this->me);
+
+        $found = $this->getJson('/api/mobile/amigos/search?q=Ержан')->assertOk()->json('players');
+
+        $names = array_column($found, 'name');
+        $this->assertContains('Ержан Рахимов', $names);
+        $this->assertNotContains('Диана Смагулова', $names);
+        $this->assertFalse($found[0]['is_amigo']);
+    }
+
+    public function test_поиск_понимает_другой_алфавит(): void
+    {
+        // Половина игроков записана латиницей, ищут их кириллицей — и наоборот.
+        $this->player('Yerzhan Rakhimov');
+
+        Sanctum::actingAs($this->me);
+
+        $found = $this->getJson('/api/mobile/amigos/search?q=Ержан')->assertOk()->json('players');
+
+        $this->assertNotEmpty($found, 'поиск должен находить и латиницу');
+    }
+
+    public function test_поиск_помечает_уже_добавленных(): void
+    {
+        $other = $this->player('Асхат Ким');
+        $this->follow($other);
+
+        Sanctum::actingAs($this->me);
+
+        $found = $this->getJson('/api/mobile/amigos/search?q=Асхат')->assertOk()->json('players');
+
+        $this->assertTrue($found[0]['is_amigo'], 'иначе кнопка предложит добавить дважды');
+    }
+
+    public function test_поиск_не_показывает_себя_и_заблокированных(): void
+    {
+        $blocked = $this->player('Неприятный Тип');
+        UserBlock::create([
+            'user_id' => $this->me->id,
+            'blocked_user_id' => $blocked->id,
+            'created_at' => now(),
+        ]);
+
+        Sanctum::actingAs($this->me);
+
+        $names = array_column(
+            $this->getJson('/api/mobile/amigos/search?q=и')->assertOk()->json('players'),
+            'name'
+        );
+
+        $this->assertNotContains('Неприятный Тип', $names);
+        $this->assertNotContains('Денис', $names, 'себя в поиске быть не должно');
+    }
+
+    public function test_короткий_запрос_ничего_не_ищет(): void
+    {
+        $this->player('Асхат Ким');
+
+        Sanctum::actingAs($this->me);
+
+        $this->getJson('/api/mobile/amigos/search?q=А')
+            ->assertOk()
+            ->assertJsonPath('players', []);
+    }
+
     public function test_лента_показывает_события_своих(): void
     {
         $playing = $this->player('Асхат');

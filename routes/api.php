@@ -275,6 +275,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/amigos', [MobileAmigoController::class, 'index']);
         Route::get('/amigos/followers', [MobileAmigoController::class, 'followers']);
         Route::get('/amigos/candidates', [MobileAmigoController::class, 'candidates']);
+        Route::get('/amigos/search', [MobileAmigoController::class, 'search']);
         Route::get('/amigos/feed', [MobileAmigoController::class, 'feed']);
         Route::post('/amigos/{user}', [MobileAmigoController::class, 'follow']);
         Route::delete('/amigos/{user}', [MobileAmigoController::class, 'unfollow']);
