@@ -83,6 +83,32 @@ class ProfileContactsTest extends TestCase
         $this->assertNull($user->fresh()->whatsapp);
     }
 
+    public function test_бот_запоминает_ник_телеграма(): void
+    {
+        // Ник приходит в каждом апдейте от бота, а мы его выбрасывали: на
+        // 1457 привязанных телеграм-аккаунтов не было ни одного ника.
+        $user = User::factory()->create([
+            'telegram_id' => '555',
+            'telegram_username' => null,
+        ]);
+
+        \App\Support\TelegramPhoneLinker::adoptTelegramIdentity($user, '555', 'denis');
+
+        $this->assertSame('denis', $user->fresh()->telegram_username);
+    }
+
+    public function test_свой_ник_бот_не_затирает(): void
+    {
+        $user = User::factory()->create([
+            'telegram_id' => '555',
+            'telegram_username' => 'моё_имя',
+        ]);
+
+        \App\Support\TelegramPhoneLinker::adoptTelegramIdentity($user, '555', 'denis');
+
+        $this->assertSame('моё_имя', $user->fresh()->telegram_username);
+    }
+
     public function test_контакты_не_ломают_обычное_сохранение(): void
     {
         $user = User::factory()->create(['phone' => '77771112233', 'name' => 'Старое']);

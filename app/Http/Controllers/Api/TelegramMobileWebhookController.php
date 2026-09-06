@@ -56,6 +56,9 @@ class TelegramMobileWebhookController extends Controller
         $telegramId = (string) $from['id'];
         $firstName = $from['first_name'] ?? '';
         $lastName = $from['last_name'] ?? '';
+        // Ник телеграма бот присылает сам — раньше мы его просто выбрасывали,
+        // и в базе на 1457 привязанных аккаунтов не было ни одного ника.
+        $username = $from['username'] ?? null;
 
         // Ищем или создаём юзера
         $user = User::where('telegram_id', $telegramId)->first();
@@ -68,12 +71,19 @@ class TelegramMobileWebhookController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'telegram_id' => $telegramId,
+                'telegram_username' => $username,
                 'level' => '1.0',
                 'rating' => 1125,
                 'email' => "tg_{$telegramId}@padel.local",
                 'password' => Hash::make("tg_{$telegramId}_" . time()),
                 'role' => 'player',
             ]);
+        }
+
+        // Ник дописываем и старым аккаунтам, но не затираем: человек мог
+        // вписать свой в профиле руками.
+        if (empty($user->telegram_username) && !empty($username)) {
+            $user->update(['telegram_username' => $username]);
         }
 
         // Привязываем юзера к токену
