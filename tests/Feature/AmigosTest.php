@@ -441,6 +441,39 @@ class AmigosTest extends TestCase
             ->assertJsonPath('players', []);
     }
 
+    public function test_в_ленте_есть_результат_а_не_только_факт_игры(): void
+    {
+        $player = $this->player('Асхат');
+        $this->follow($player);
+
+        $tournament = Tournament::factory()->create([
+            'club_id' => $this->club->id,
+            'status' => 'completed',
+            'type' => 'americano',
+            'name' => 'ADVANCED DAVAY PADEL AMERICANO FLEX · ЧЕТВЕРГ',
+        ]);
+
+        \App\Models\RatingHistory::create([
+            'user_id' => $player->id,
+            'tournament_id' => $tournament->id,
+            'rating_before' => 3000,
+            'rating_after' => 3062,
+            'change' => 62,
+            'reason' => 'Турнир',
+        ]);
+
+        Sanctum::actingAs($this->me);
+
+        $events = collect($this->getJson('/api/mobile/amigos/feed')->assertOk()->json('events'));
+        $played = $events->firstWhere('kind', 'played');
+
+        $this->assertNotNull($played);
+        $this->assertSame(62, $played['rating_change'], 'без изменения рейтинга событие бессмысленно');
+        // Название турнира в строку не влезает — показываем формат и клуб.
+        $this->assertSame('Американо · Padel Sai', $played['subtitle']);
+        $this->assertArrayHasKey('place', $played);
+    }
+
     public function test_лента_показывает_события_своих(): void
     {
         $playing = $this->player('Асхат');

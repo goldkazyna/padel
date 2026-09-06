@@ -6,6 +6,7 @@ use App\Models\Game;
 use App\Models\GamePlayer;
 use App\Models\RatingHistory;
 use App\Models\Tournament;
+use App\Support\TournamentPlace;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,9 @@ class AmigoActivity
 {
     /** Насколько вперёд считаем турнир «скоро». */
     private const SOON_HOURS = 36;
+
+    /** Для скольких верхних событий ленты считаем место игрока. */
+    private const PLACES_IN_FEED = 15;
 
     /** Сколько секунд держим посчитанное: статус меняется редко, экран открывают часто. */
     public const CACHE_SECONDS = 45;
@@ -246,23 +250,37 @@ class AmigoActivity
             ->limit($limit)
             ->get(['user_id', 'tournament_id', 'change', 'created_at']);
 
-        $tournaments = Tournament::whereIn('id', $played->pluck('tournament_id')->unique())
-            ->get(['id', 'name', 'type'])
+        $tournaments = Tournament::with('club:id,name')
+            ->whereIn('id', $played->pluck('tournament_id')->unique())
+            ->get(['id', 'name', 'type', 'club_id'])
             ->keyBy('id');
 
+        $place = 0;
         foreach ($played as $row) {
             $tournament = $tournaments[$row->tournament_id] ?? null;
             $change = (int) $row->change;
+
+            // Место считаем не для всех: расчёт лезет в плей-офф и таблицы,
+            // а ниже по ленте оно уже никого не интересует.
+            $userPlace = null;
+            if ($tournament && $place < self::PLACES_IN_FEED) {
+                $userPlace = TournamentPlace::for($tournament, (int) $row->user_id);
+                $place++;
+            }
 
             $events[] = [
                 'user_id' => (int) $row->user_id,
                 'kind' => 'played',
                 'title' => 'сыграл турнир',
-                'subtitle' => trim(($tournament->name ?? 'Турнир')
-                    . ($change !== 0 ? ' · ' . ($change > 0 ? '+' : '') . $change . ' рейтинга' : '')),
+                // Формат и клуб: названия турниров в строку не влезают.
+                'subtitle' => self::where(
+                    self::formatName($tournament->type ?? null),
+                    $tournament?->club?->name
+                ),
                 'tournament_id' => (int) $row->tournament_id,
                 'game_id' => null,
                 'rating_change' => $change,
+                'place' => $userPlace,
                 'at' => Carbon::parse($row->created_at)->toIso8601String(),
             ];
         }
