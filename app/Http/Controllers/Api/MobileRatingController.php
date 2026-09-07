@@ -383,7 +383,8 @@ class MobileRatingController extends Controller
         // (reason = 'Ручная корректировка', tournament_id = null).
         // Если turn_id есть, но турнир физически удалён — это руины, прячем.
         $ratedHistory = \App\Models\RatingHistory::where('user_id', $user->id)
-            ->with('tournament:id,name,type,has_playoff,is_paired')
+            ->with(['tournament:id,name,type,has_playoff,is_paired,league_id,league_stage',
+                'tournament.league:id,name'])
             ->orderBy('created_at', 'desc')
             ->limit(50)
             ->get()
@@ -411,6 +412,7 @@ class MobileRatingController extends Controller
                     'change' => $h->change,
                     'rating_after' => $h->rating_after,
                     'place' => $this->getTournamentPlace($h->tournament, $user->id),
+                    'league' => $this->leagueRef($h->tournament),
                     'is_manual' => false,
                     'is_rated' => true,
                     '_ts' => $h->created_at->timestamp,
@@ -422,6 +424,7 @@ class MobileRatingController extends Controller
         $uid = $user->id;
         $nonRatedHistory = \App\Models\Tournament::where('is_rated', false)
             ->where('status', 'completed')
+            ->with('league:id,name')
             ->where(function ($q) use ($uid) {
                 $q->whereHas('groups.players', fn($x) => $x->where('users.id', $uid))
                   ->orWhereHas('mexicanoPlayers', fn($x) => $x->where('user_id', $uid))
@@ -442,6 +445,7 @@ class MobileRatingController extends Controller
                 'change' => null,
                 'rating_after' => null,
                 'place' => $this->getTournamentPlace($t, $user->id),
+                'league' => $this->leagueRef($t),
                 'is_manual' => false,
                 'is_rated' => false,
                 '_ts' => $t->start_date->timestamp,
@@ -507,6 +511,29 @@ class MobileRatingController extends Controller
             ->first();
 
         return $tournament ? $this->formatTournament($tournament, $user) : null;
+    }
+
+    /**
+     * Этап лиги в истории: приложение рисует по этому полю метку
+     * «Лига · этап N». У обычного турнира — null.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function leagueRef(\App\Models\Tournament $t): ?array
+    {
+        if (!$t->league_id || !$t->league) {
+            return null;
+        }
+
+        return [
+            'id' => $t->league->id,
+            'name' => $t->league->name,
+            'stage' => (int) $t->league_stage,
+            'stages_total' => max(
+                (int) $t->league->stages_planned,
+                $t->league->stages()->count()
+            ),
+        ];
     }
 
     /**

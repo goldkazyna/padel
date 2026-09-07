@@ -154,11 +154,11 @@ class MobileTournamentController extends Controller
 
         $tournaments = Tournament::whereIn('id', $allIds)
             ->where('status', 'completed')
-            // Этапы лиги живут в своей лиге: место и название там про лигу,
-            // и в общей истории они только путали. Смотреть их — в «Мои лиги».
-            ->whereNull('league_id')
+            // Этапы лиги тоже здесь: человек их сыграл, и в истории они
+            // должны быть — с местом, как у обычного турнира. Что это этап,
+            // видно по метке «Лига · этап N» (поле league).
             ->orderBy('start_date', 'desc')
-            ->with(['club', 'venueClub'])
+            ->with(['club', 'venueClub', 'league'])
             ->get()
             ->map(fn($t) => $this->formatArchiveTournament($t, $user));
 
