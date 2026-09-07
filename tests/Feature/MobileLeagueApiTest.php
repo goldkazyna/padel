@@ -201,7 +201,7 @@ class MobileLeagueApiTest extends TestCase
         $this->assertNull($second['my_points']);
     }
 
-    public function test_этапы_лиги_не_попадают_в_историю_турниров(): void
+    public function test_этапы_лиги_попадают_в_историю_турниров(): void
     {
         $stage = $this->stage(1);
         $stage->participants()->attach($this->me->id, ['status' => 'registered']);
@@ -220,9 +220,14 @@ class MobileLeagueApiTest extends TestCase
             ->getJson('/api/mobile/tournaments/archive')
             ->assertOk();
 
-        $ids = collect($response->json('tournaments'))->pluck('id')->all();
+        $rows = collect($response->json('tournaments'));
+        $ids = $rows->pluck('id')->all();
         $this->assertContains($plain->id, $ids);
-        $this->assertNotContains($stage->id, $ids, 'этап смотрим в лиге, а не в истории');
+        // Правило поменялось: человек сыграл этап — он в истории, но
+        // подписан лигой, чтобы его не путали с обычным турниром.
+        $this->assertContains($stage->id, $ids, 'этап тоже в истории');
+        $this->assertSame(1, $rows->firstWhere('id', $stage->id)['league']['stage']);
+        $this->assertNull($rows->firstWhere('id', $plain->id)['league']);
     }
 
     public function test_мои_лиги_показывают_место_и_очки(): void

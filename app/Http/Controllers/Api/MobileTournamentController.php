@@ -1243,8 +1243,11 @@ class MobileTournamentController extends Controller
         ], $userMatches);
 
         $me = User::find($userId);
+        // Ничья — это ничья: раньше она попадала в поражения (всё, что не
+        // победа), и разбор писал про «поражение» там, где счёт был равным.
         $wins = count(array_filter($userMatches, fn($m) => ($m['result'] ?? '') === 'win'));
-        $losses = count($userMatches) - $wins;
+        $draws = count(array_filter($userMatches, fn($m) => ($m['result'] ?? '') === 'draw'));
+        $losses = count($userMatches) - $wins - $draws;
 
         return [
             'tournament' => [
@@ -1261,6 +1264,7 @@ class MobileTournamentController extends Controller
                 'place' => $this->getUserPlace($tournament, $userId),
                 'wins' => $wins,
                 'losses' => $losses,
+                'draws' => $draws,
             ],
             'matches' => $matches,
         ];
@@ -2313,7 +2317,11 @@ class MobileTournamentController extends Controller
             'is_final' => $isFinal,
             'score_my' => $myScore,
             'score_opponent' => $oppScore,
-            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            // Ничья — отдельный исход: «всё, что не победа — поражение»
+            // врало и в разборе, и в подписи матча.
+            'result' => $myScore > $oppScore
+                ? 'win'
+                : ($myScore < $oppScore ? 'loss' : 'draw'),
             'rating_change' => $ratingChange,
             'my_avg' => $myAvg,
             'opp_avg' => $oppAvg,
@@ -2359,7 +2367,10 @@ class MobileTournamentController extends Controller
             'is_final' => $isFinal,
             'score_my' => $myScore,
             'score_opponent' => $oppScore,
-            'result' => $myScore > $oppScore ? 'win' : 'loss',
+            // Ничья и здесь ничья: командный матч тоже может кончиться вничью.
+            'result' => $myScore > $oppScore
+                ? 'win'
+                : ($myScore < $oppScore ? 'loss' : 'draw'),
             'rating_change' => $ratingChange,
             'my_avg' => $myAvg,
             'opp_avg' => $oppAvg,
