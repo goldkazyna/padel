@@ -218,6 +218,48 @@ class OpenPairsTest extends TestCase
         $this->assertNull($team->player2_id, 'место снова свободно');
     }
 
+    public function test_можно_занять_пустую_пару_в_сетке(): void
+    {
+        $user = $this->player();
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs")
+            ->assertOk();
+
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+        $this->assertSame($user->id, (int) $team->player1_id);
+        $this->assertNull($team->player2_id);
+    }
+
+    public function test_пересадка_в_пустую_пару_освобождает_прежнюю(): void
+    {
+        $first = $this->player();
+        $second = $this->player();
+        $this->register($first)->assertOk();
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")->assertOk();
+
+        // Передумал играть с первым — пересел в свою пару.
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs")->assertOk();
+
+        $this->assertNull($team->fresh()->player2_id, 'место у первого снова свободно');
+        $this->assertSame(2, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+    }
+
+    public function test_когда_пар_нет_пустую_занять_нельзя(): void
+    {
+        for ($i = 0; $i < 3; $i++) {
+            $this->register($this->player())->assertOk();
+        }
+
+        Sanctum::actingAs($this->player());
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Свободных пар не осталось');
+    }
+
     public function test_в_старых_турнирах_ничего_не_меняется(): void
     {
         $this->tournament->update(['open_pairs' => false]);

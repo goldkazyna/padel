@@ -323,6 +323,110 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Занять пустую пару в сетке (сесть первым).
+     * POST /api/mobile/tournaments/{tournament}/pairs
+     *
+     * Отличается от «Записаться» только тем, что человек уже может быть в
+     * турнире: тогда он пересаживается, а прежнее место освобождается.
+     */
+    public function takeEmptyPair(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        if ($error = $this->openPairsGuard($tournament, $user)) {
+            return $error;
+        }
+
+        $deadline = $tournament->moderationDeadline();
+
+        $outcome = DB::transaction(function () use ($tournament, $user, $deadline) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $mine = \App\Support\OpenPairs::teamOf($tournament, $user->id);
+            if ($mine && $mine->player2_id === null) {
+                // Он и так один в своей паре — пересаживать некуда.
+                return 'already';
+            }
+
+            if ($mine) {
+                \App\Support\OpenPairs::leave($tournament, $user->id);
+            }
+
+            if (!\App\Support\OpenPairs::canCreatePair($tournament)) {
+                return 'full';
+            }
+
+            $active = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if (!$active) {
+                $pivot = ['status' => 'pending'];
+                if ($deadline) $pivot['moderation_deadline'] = $deadline;
+                $tournament->participants()->wherePivot('status', 'cancelled')->detach($user->id);
+                $tournament->participants()->attach($user->id, $pivot);
+            }
+
+            \App\Support\OpenPairs::createOpen($tournament, $user, 'approved');
+
+            return 'created';
+        });
+
+        if ($outcome === 'already') {
+            return response()->json(['success' => false, 'message' => 'Вы уже ждёте напарника'], 400);
+        }
+        if ($outcome === 'full') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Свободных пар не осталось',
+            ], 409);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Место занято, ждём напарника']);
+    }
+
+    /**
+     * Общие проверки для действий с открытыми парами.
+     */
+    private function openPairsGuard(Tournament $tournament, User $user)
+    {
+        if (!$tournament->usesOpenPairs()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'В этом турнире пары собирает клуб',
+            ], 400);
+        }
+        if ($tournament->status !== 'open') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир не открыт для регистрации',
+            ], 400);
+        }
+        if ($tournament->requiresOnlinePayment()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Участие в этом турнире оплачивается онлайн',
+                'payment_required' => true,
+            ], 400);
+        }
+        if ($tournament->verified_only && !$user->level_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир только для верифицированных игроков',
+            ], 400);
+        }
+        if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        return null;
+    }
+
+    /**
      * Сесть в свободное место чужой пары.
      * POST /api/mobile/tournaments/{tournament}/pairs/{team}/join
      */

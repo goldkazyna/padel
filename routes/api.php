@@ -339,6 +339,8 @@ Route::prefix('mobile')->group(function () {
         Route::get('/tournaments/{tournament}/stats', [MobileTournamentController::class, 'stats']);
         Route::get('/tournaments/{tournament}/live', [MobileTournamentController::class, 'live']);
         Route::post('/tournaments/{tournament}/register', [MobileTournamentController::class, 'register']);
+        // Открытые пары: занять пустую пару в сетке.
+        Route::post('/tournaments/{tournament}/pairs', [MobileTournamentController::class, 'takeEmptyPair']);
         // Открытые пары: сесть в свободное место чужой пары.
         Route::post('/tournaments/{tournament}/pairs/{team}/join', [MobileTournamentController::class, 'joinPair']);
         // Оплата участия: ссылка Plexy и опрос статуса. Приложение не ждёт
