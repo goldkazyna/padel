@@ -39,18 +39,61 @@ class TournamentAiAnalysisService
         $model = config('services.anthropic.model', 'claude-haiku-4-5-20251001');
         $langName = self::LANG_NAMES[$lang] ?? 'Russian';
 
+        // Модель иногда путает закрывающую скобку — тогда JSON не читается.
+        // Второй заход с явным напоминанием обычно спасает; если и он не
+        // помог, лучше честная ошибка, чем сырой JSON на экране.
+        $analysis = $this->ask($key, $model, $langName, $context, false);
+        if ($analysis === null) {
+            $analysis = $this->ask($key, $model, $langName, $context, true);
+        }
+
+        if ($analysis === null) {
+            throw new RuntimeException('Модель вернула неразбираемый ответ');
+        }
+
+        return [
+            'model' => $model,
+            'analysis' => $analysis,
+        ];
+    }
+
+    /**
+     * Один запрос к модели. Возвращает разобранный разбор или null, если
+     * ответ не читается как JSON.
+     *
+     * @param  array $context
+     * @return array<string, mixed>|null
+     */
+    private function ask(
+        string $key,
+        string $model,
+        string $langName,
+        array $context,
+        bool $strict
+    ): ?array {
+        $user = "Данные выступления игрока (JSON):\n\n"
+            . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+        if ($strict) {
+            $user .= "\n\nПрошлый ответ не разобрался. Верни строго валидный JSON "
+                . "по схеме, проверь парность скобок, ничего не пиши до и после него.";
+        }
+
         $response = Http::withHeaders([
             'x-api-key' => $key,
             'anthropic-version' => config('services.anthropic.version', '2023-06-01'),
             'content-type' => 'application/json',
         ])->connectTimeout(15)->timeout(60)->post(self::ENDPOINT, [
             'model' => $model,
-            'max_tokens' => 1400,
+            // С запасом: на 1400 длинный разбор обрывался на полуслове.
+            'max_tokens' => 2000,
             'system' => $this->systemPrompt($langName),
-            'messages' => [[
-                'role' => 'user',
-                'content' => "Данные выступления игрока (JSON):\n\n" . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
-            ]],
+            'messages' => [
+                ['role' => 'user', 'content' => $user],
+                // Подсказываем начало ответа: так модель не оборачивает его
+                // в ```json и не пишет вступление.
+                ['role' => 'assistant', 'content' => '{'],
+            ],
         ]);
 
         if (!$response->successful()) {
@@ -63,10 +106,18 @@ class TournamentAiAnalysisService
             throw new RuntimeException('Пустой ответ Claude API');
         }
 
-        return [
-            'model' => $model,
-            'analysis' => $this->parseAnalysis($text),
-        ];
+        // Ответ продолжает нашу открывающую скобку.
+        $data = \App\Support\AiJson::decode('{' . $text);
+        if ($data === null) {
+            Log::warning('AI analysis: ответ не разобрался', [
+                'strict' => $strict,
+                'head' => mb_substr($text, 0, 200),
+            ]);
+
+            return null;
+        }
+
+        return $this->normalize($data);
     }
 
     private function systemPrompt(string $langName): string
@@ -97,35 +148,13 @@ PROMPT;
     }
 
     /**
-     * Достаём JSON из ответа модели и нормализуем к ожидаемой схеме.
+     * Привести разобранный ответ к ожидаемой схеме.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
      */
-    private function parseAnalysis(string $text): array
+    private function normalize(array $data): array
     {
-        $json = trim($text);
-        // Снимаем возможные ```json ... ``` ограждения.
-        if (str_starts_with($json, '```')) {
-            $json = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $json);
-        }
-        // На случай префиксного текста — берём с первой { до последней }.
-        $start = strpos($json, '{');
-        $end = strrpos($json, '}');
-        if ($start !== false && $end !== false && $end > $start) {
-            $json = substr($json, $start, $end - $start + 1);
-        }
-
-        $data = json_decode($json, true);
-        if (!is_array($data)) {
-            // Фолбэк: показываем как есть в summary, чтобы фича не падала.
-            return [
-                'headline' => '',
-                'summary' => trim($text),
-                'factors' => [],
-                'best_match' => null,
-                'worst_match' => null,
-                'tips' => [],
-            ];
-        }
-
         $normMatch = function ($m) {
             if (!is_array($m)) return null;
             $label = trim((string) ($m['label'] ?? ''));
