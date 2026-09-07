@@ -23,7 +23,11 @@
 
     $existingPairs = $approvedTeams->map(fn ($t) => [(int) $t->player1_id, (int) $t->player2_id])->values();
     $maxPairs = (int) ($tournament->max_participants / 2);
-    $rosterReady = $tournament->approvedParticipantsCount() >= (int) $tournament->max_participants;
+    $approvedCount = $tournament->approvedParticipantsCount();
+    $pendingCount = $tournament->pendingParticipantsCount();
+    // Полный состав больше не условие: собирать пары можно из подтверждённых,
+    // а опоздавших доставить потом. Но предупредить об этом стоит.
+    $rosterReady = $approvedCount >= (int) $tournament->max_participants;
 @endphp
 
 <div class="pb" id="pairBuilder"
@@ -37,7 +41,7 @@
         <span class="pb-badge" id="pbCount">0 из {{ $maxPairs }}</span>
         <span class="pb-spacer"></span>
 
-        @if($rosterReady)
+        @if($pairPlayers->count() >= 2)
             <div class="pb-menu-wrap">
                 <button type="button" class="btn-outline-custom" id="pbAutoBtn">
                     <i class="bi bi-magic"></i> Авто-пары
@@ -57,9 +61,17 @@
 
     @unless($rosterReady)
         <p class="pb-note">
-            Собрать пары можно при полном составе. Подтверждено
-            {{ $tournament->approvedParticipantsCount() }} из {{ $tournament->max_participants }} —
-            сначала подтвердите всех участников.
+            Подтверждено {{ $approvedCount }} из {{ $tournament->max_participants }}@if($pendingCount > 0),
+            {{ $pendingCount }} на модерации@endif. Пары можно собирать уже сейчас —
+            в списке только подтверждённые игроки; кто подтвердится позже,
+            появится здесь, и его останется доставить в пару.
+        </p>
+    @endunless
+
+    @if($pairPlayers->count() < 2)
+        <p class="pb-note">
+            Пока некого объединять в пары: подтверждён
+            {{ $approvedCount }} участник@if($approvedCount != 1)а @endif.
         </p>
     @else
         <div class="pb-pairs" id="pbPairs"></div>

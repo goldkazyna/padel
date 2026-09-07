@@ -204,9 +204,6 @@ class TeamTournamentService
         if ($tournament->teamGroups()->count() > 0) {
             return [false, 'Турнир уже стартовал.'];
         }
-        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
-            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
-        }
 
         $registeredIds = $tournament->participants()
             ->wherePivot('status', 'registered')
@@ -263,10 +260,10 @@ class TeamTournamentService
         if ($tournament->teamGroups()->count() > 0) {
             return [false, 'Турнир уже стартовал — пары менять нельзя.'];
         }
-        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
-            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
-        }
 
+        // Полного состава не требуем: организатор собирает пары из тех, кто
+        // уже подтверждён, а опоздавших доставляет позже. Ждать последнего —
+        // значит собирать восемь пар в вечер перед игрой.
         $maxPairs = (int) ($tournament->max_participants / 2);
         if (count($pairs) > $maxPairs) {
             return [false, "Пар больше, чем мест: максимум {$maxPairs}."];
@@ -385,9 +382,6 @@ class TeamTournamentService
         if ($tournament->teamGroups()->count() > 0) {
             return [false, 'Турнир уже стартовал.'];
         }
-        if ($tournament->approvedParticipantsCount() < (int) $tournament->max_participants) {
-            return [false, 'Собрать пары можно только при полном составе — сначала подтвердите всех участников.'];
-        }
 
         $teams = $tournament->teams()->get();
         $pairedIds = [];
@@ -396,6 +390,8 @@ class TeamTournamentService
             $pairedIds[] = $t->player2_id;
         }
 
+        // Только подтверждённые: заявка на модерации может не подтвердиться,
+        // и пара развалилась бы.
         $pool = $tournament->participants()
             ->wherePivot('status', 'registered')
             ->get()
