@@ -157,17 +157,18 @@ class FlexPairBuilderTest extends TestCase
         $this->save($tournament, $pairs)->assertStatus(422);
     }
 
-    public function test_неполный_состав_пары_не_собирает(): void
+    public function test_неполный_состав_пары_собирать_не_мешает(): void
     {
         [$tournament, $users] = $this->tournament(8);
-        // Один вышел — состав неполный, значит расклад преждевременный.
+        // Один вышел — состав неполный. Ждать его не нужно: организатор
+        // собирает пары из тех, кто есть, а опоздавшего доставит позже.
         TournamentParticipant::where('tournament_id', $tournament->id)
             ->where('user_id', $users[7]->id)
             ->delete();
 
-        $this->save($tournament, [[$users[0]->id, $users[1]->id]])->assertStatus(422);
+        $this->save($tournament, [[$users[0]->id, $users[1]->id]])->assertOk();
 
-        $this->assertSame(0, $tournament->teams()->count());
+        $this->assertSame(1, $tournament->teams()->count());
     }
 
     public function test_после_старта_пары_не_меняются(): void
