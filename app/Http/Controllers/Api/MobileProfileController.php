@@ -215,34 +215,19 @@ class MobileProfileController extends Controller
 
         $user = $request->user();
 
-        // Телефон разрешаем записать только если он ещё не задан у пользователя
+        // Телефон через профиль не принимаем вообще: он подтверждается
+        // кодом из СМС (POST /auth/phone/send-new-code → confirm-new).
+        // Раньше пустой телефон можно было вписать руками — так в базе
+        // появлялись чужие и опечатанные номера.
         if (array_key_exists('phone', $validated)) {
-            $rawPhone = $validated['phone'];
+            $raw = trim((string) $validated['phone']);
             unset($validated['phone']);
 
-            if (empty($user->phone) && !empty($rawPhone)) {
-                $digits = preg_replace('/[^0-9]/', '', $rawPhone);
-                if (strlen($digits) === 11 && $digits[0] === '8') {
-                    $digits = '7' . substr($digits, 1);
-                } elseif (strlen($digits) === 10) {
-                    $digits = '7' . $digits;
-                }
-
-                if (strlen($digits) !== 11 || $digits[0] !== '7') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Неверный формат телефона',
-                    ], 422);
-                }
-
-                if (User::where('phone', $digits)->where('id', '!=', $user->id)->exists()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Этот телефон уже используется другим аккаунтом',
-                    ], 422);
-                }
-
-                $user->phone = $digits;
+            if ($raw !== '' && $raw !== (string) $user->phone) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Номер телефона подтверждается кодом из СМС',
+                ], 422);
             }
         }
 

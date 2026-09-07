@@ -52,7 +52,13 @@ class TelegramPhoneLinker
 
         $existing = self::otherAccountWithPhone($phone, $user->id);
         if (!$existing) {
-            $user->update(['phone' => $phone]);
+            // Номер пришёл от самого телеграма (request_contact) — это
+            // подтверждение не хуже нашего кода.
+            $user->forceFill([
+                'phone' => $phone,
+                'phone_verified_at' => now(),
+            ])->save();
+
             return [$user, false];
         }
 

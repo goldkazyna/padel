@@ -104,11 +104,16 @@ class MobileAuthController extends Controller
                 'first_name' => '',
                 'last_name' => '',
                 'phone' => $phone,
+                // Код с этого номера только что подтверждён — значит номер его.
+                'phone_verified_at' => now(),
                 'role' => 'player',
                 'rating' => 1000,
                 'level' => 1.00,
             ]);
             $isNew = true;
+        } elseif ($user->phone_verified_at === null) {
+            // Старый аккаунт, вошедший по коду: номер тоже подтверждён.
+            $user->forceFill(['phone_verified_at' => now()])->saveQuietly();
         }
 
         // Удаляем использованный код
@@ -675,6 +680,13 @@ class MobileAuthController extends Controller
         $request->validate(['phone' => 'required|string']);
         $user = $request->user();
 
+        // Если номера ещё нет (вход через Apple/Google), подтверждать
+        // нечего — шаг со старым номером пропускаем. Раньше такой человек
+        // вписывал телефон прямо в профиле, и никто его не проверял.
+        if (empty($user->phone)) {
+            Cache::put("phone_change_allowed_{$user->id}", true, now()->addMinutes(10));
+        }
+
         if (!Cache::get("phone_change_allowed_{$user->id}")) {
             return response()->json([
                 'success' => false,
@@ -751,7 +763,10 @@ class MobileAuthController extends Controller
             ], 400);
         }
 
-        $user->forceFill(['phone' => $newPhone])->save();
+        $user->forceFill([
+            'phone' => $newPhone,
+            'phone_verified_at' => now(),
+        ])->save();
         Cache::forget("phone_new_code_{$user->id}");
         Cache::forget("phone_new_value_{$user->id}");
         Cache::forget("phone_change_allowed_{$user->id}");
