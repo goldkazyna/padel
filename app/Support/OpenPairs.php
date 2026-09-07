@@ -80,6 +80,52 @@ class OpenPairs
     }
 
     /**
+     * Выкинуть из пар всех, кто больше не в составе.
+     *
+     * Участника снимает не только он сам: организатор убирает из состава,
+     * отклоняет заявку, истекает срок оплаты. Каждый такой путь должен
+     * оставлять пары в порядке, иначе в турнире висят пары без игроков —
+     * ровно это и случилось в турнире 1480.
+     */
+    public static function prune(Tournament $tournament): void
+    {
+        if (!$tournament->usesOpenPairs()) {
+            return;
+        }
+
+        $active = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($tournament->teams()->get() as $team) {
+            $first = (int) $team->player1_id;
+            $second = $team->player2_id ? (int) $team->player2_id : null;
+
+            $keepFirst = in_array($first, $active, true);
+            $keepSecond = $second !== null && in_array($second, $active, true);
+
+            if ($keepFirst && ($second === null || $keepSecond)) {
+                continue;
+            }
+
+            if (!$keepFirst && !$keepSecond) {
+                $team->delete();
+                continue;
+            }
+
+            $stayId = $keepFirst ? $first : $second;
+            $stay = User::find($stayId);
+            $team->update([
+                'player1_id' => $stayId,
+                'player2_id' => null,
+                'rating_avg' => (int) ($stay?->rating ?? $team->rating_avg),
+            ]);
+        }
+    }
+
+    /**
      * Убрать игрока из его пары.
      *
      * Ушёл первый — второй занимает его место и пара снова открыта. Ушёл

@@ -273,8 +273,9 @@ class MobileTournamentController extends Controller
         );
         $formatTeam = fn($t, $status = null) => [
             'id' => $t->id,
-            'player1' => $formatPlayer($t->player1),
-            'player2' => $formatPlayer($t->player2),
+            'player1' => $t->player1 ? $formatPlayer($t->player1) : null,
+            // В открытых парах второе место пустует, пока кто-то не подсел.
+            'player2' => $t->player2 ? $formatPlayer($t->player2) : null,
             'status' => $status ?? $t->status,
         ];
 
@@ -782,10 +783,9 @@ class MobileTournamentController extends Controller
         $tournament->participants()->detach($user->id);
 
         // Пара без игрока не остаётся: партнёр становится первым, а место
-        // рядом с ним снова свободно.
-        if ($tournament->usesOpenPairs()) {
-            \App\Support\OpenPairs::leave($tournament, $user->id);
-        }
+        // рядом с ним снова свободно. prune() заодно подчищает пары, из
+        // которых игроков убрали другим путём.
+        \App\Support\OpenPairs::prune($tournament);
 
         \App\Models\ActivityLog::log(
             'unregistered',

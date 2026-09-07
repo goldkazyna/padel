@@ -1102,6 +1102,7 @@ class MobileAdminTournamentDetailController extends Controller
         $wasMain = $row ? in_array($row->pivot->status, ['registered', 'pending'], true) : false;
 
         $tournament->participants()->detach($user->id);
+        \App\Support\OpenPairs::prune($tournament);
         $this->notifyRejected($tournament, $user);
 
         if ($wasMain && $tournament->status === 'open') {
@@ -1172,6 +1173,7 @@ class MobileAdminTournamentDetailController extends Controller
         $wasMain = $row ? in_array($row->pivot->status, ['registered', 'pending'], true) : false;
 
         $tournament->participants()->detach($user->id);
+        \App\Support\OpenPairs::prune($tournament);
 
         if ($wasMain && $tournament->status === 'open') {
             \App\Http\Controllers\Api\MobileTournamentController::promoteNextFromWaitlist($tournament);

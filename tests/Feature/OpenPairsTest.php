@@ -180,6 +180,44 @@ class OpenPairsTest extends TestCase
         $this->assertSame(0, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
     }
 
+    public function test_пара_не_переживает_убранного_организатором(): void
+    {
+        // Организатор убирает участника не через отмену записи — пара после
+        // этого не должна остаться без игрока. Ровно так в турнире 1480
+        // повисли две пустые пары.
+        $first = $this->player();
+        $second = $this->player();
+        $this->register($first)->assertOk();
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")->assertOk();
+
+        // Снимаем обоих «мимо» отмены — так делает админка.
+        $this->tournament->participants()->detach([$first->id, $second->id]);
+        \App\Support\OpenPairs::prune($this->tournament->fresh());
+
+        $this->assertSame(0, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+    }
+
+    public function test_убрали_одного_из_пары_второй_остаётся(): void
+    {
+        $first = $this->player();
+        $second = $this->player();
+        $this->register($first)->assertOk();
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")->assertOk();
+
+        $this->tournament->participants()->detach($first->id);
+        \App\Support\OpenPairs::prune($this->tournament->fresh());
+
+        $team->refresh();
+        $this->assertSame($second->id, (int) $team->player1_id);
+        $this->assertNull($team->player2_id, 'место снова свободно');
+    }
+
     public function test_в_старых_турнирах_ничего_не_меняется(): void
     {
         $this->tournament->update(['open_pairs' => false]);
