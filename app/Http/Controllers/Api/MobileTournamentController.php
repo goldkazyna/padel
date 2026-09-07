@@ -322,6 +322,127 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Сесть в свободное место чужой пары.
+     * POST /api/mobile/tournaments/{tournament}/pairs/{team}/join
+     */
+    public function joinPair(Request $request, Tournament $tournament, int $team)
+    {
+        $user = $request->user();
+
+        if (!$tournament->usesOpenPairs()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'В этом турнире пары собирает клуб',
+            ], 400);
+        }
+        if ($tournament->status !== 'open') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир не открыт для регистрации',
+            ], 400);
+        }
+        if ($tournament->requiresOnlinePayment()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Участие в этом турнире оплачивается онлайн',
+                'payment_required' => true,
+            ], 400);
+        }
+        if ($tournament->verified_only && !$user->level_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир только для верифицированных игроков',
+            ], 400);
+        }
+        if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        $deadline = $tournament->moderationDeadline();
+
+        $outcome = DB::transaction(function () use ($tournament, $user, $team, $deadline) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $pair = $tournament->teams()->whereKey($team)->lockForUpdate()->first();
+            if (!$pair) {
+                return 'not_found';
+            }
+            if ($pair->player2_id !== null) {
+                return 'taken';
+            }
+            if ((int) $pair->player1_id === (int) $user->id) {
+                return 'self';
+            }
+
+            $already = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if ($already) {
+                // Уже в турнире: переносим в выбранную пару, прежнюю
+                // освобождаем — иначе игрок займёт два места сразу.
+                \App\Support\OpenPairs::leave($tournament, $user->id);
+            } else {
+                $pivot = ['status' => 'pending'];
+                if ($deadline) $pivot['moderation_deadline'] = $deadline;
+                $tournament->participants()->wherePivot('status', 'cancelled')->detach($user->id);
+                $tournament->participants()->attach($user->id, $pivot);
+            }
+
+            \App\Support\OpenPairs::join($pair->fresh(), $user);
+
+            return 'joined';
+        });
+
+        if ($outcome === 'not_found') {
+            return response()->json(['success' => false, 'message' => 'Пара не найдена'], 404);
+        }
+        if ($outcome === 'taken') {
+            return response()->json(['success' => false, 'message' => 'Место в паре уже заняли'], 409);
+        }
+        if ($outcome === 'self') {
+            return response()->json(['success' => false, 'message' => 'Это ваша пара'], 400);
+        }
+
+        $pair = $tournament->teams()->with('player1')->find($team);
+        $partner = $pair?->player1;
+
+        if ($partner && (int) $partner->id !== (int) $user->id) {
+            self::notifyPartnerJoined($tournament, $partner, $user);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $partner
+                ? "Вы в паре с {$partner->name}"
+                : 'Вы в паре',
+        ]);
+    }
+
+    /** Пуш тому, к кому подсели: он должен узнать напарника заранее. */
+    private static function notifyPartnerJoined(Tournament $tournament, User $partner, User $joined): void
+    {
+        try {
+            app(\App\Services\FCMNotificationService::class)->sendToUser(
+                $partner,
+                'Партнёр в паре',
+                "{$joined->name} играет с вами в «{$tournament->name}»",
+                ['type' => 'tournament', 'tournament_id' => (string) $tournament->id],
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Не отправился пуш о партнёре', [
+                'tournament' => $tournament->id,
+                'user' => $partner->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Оплатить участие: создаём ссылку Plexy и отдаём её приложению.
      * POST /api/mobile/tournaments/{id}/pay
      */
@@ -484,6 +605,16 @@ class MobileTournamentController extends Controller
 
             $hasMain = ($takenSlots + $needSlots) <= $tournament->max_participants;
 
+            // В открытых парах место — это пара, а не кресло: шесть пар по
+            // одному человеку занимают весь турнир, хотя людей всего шесть.
+            // Седьмой либо подсаживается к кому-то, либо ждёт очереди.
+            if ($tournament->usesOpenPairs()) {
+                $pairsTaken = $tournament->teams()
+                    ->whereIn('status', ['approved', 'pending'])
+                    ->count();
+                $hasMain = ($pairsTaken + 1) <= \App\Support\OpenPairs::maxPairs($tournament);
+            }
+
             if ($hasMain) {
                 $pivot = ['status' => 'pending'];
                 if ($deadline) $pivot['moderation_deadline'] = $deadline;
@@ -491,6 +622,15 @@ class MobileTournamentController extends Controller
                 if ($friend) {
                     $tournament->participants()->attach($friend->id, $pivot);
                 }
+
+                if ($tournament->usesOpenPairs()) {
+                    $team = \App\Support\OpenPairs::createOpen($tournament, $user, 'approved');
+                    // Записался с другом — пара сразу полная.
+                    if ($friend) {
+                        \App\Support\OpenPairs::join($team, $friend);
+                    }
+                }
+
                 return 'registered';
             }
 
@@ -640,6 +780,12 @@ class MobileTournamentController extends Controller
             ->count() >= $tournament->max_participants;
 
         $tournament->participants()->detach($user->id);
+
+        // Пара без игрока не остаётся: партнёр становится первым, а место
+        // рядом с ним снова свободно.
+        if ($tournament->usesOpenPairs()) {
+            \App\Support\OpenPairs::leave($tournament, $user->id);
+        }
 
         \App\Models\ActivityLog::log(
             'unregistered',

@@ -80,6 +80,10 @@ trait FormatsTournaments
             // Готовый ответ на вопрос «поодиночке или парой»: клиенту не нужно
             // знать, у каких форматов бывают пары.
             'uses_solo_registration' => $t->usesSoloRegistration(),
+            // Открытые пары: игрок записывается один и становится половиной
+            // пары. Приложение рисует пустое место с плюсом.
+            'open_pairs' => $t->usesOpenPairs(),
+            'max_pairs' => \App\Support\OpenPairs::maxPairs($t),
             'min_level' => (float) $t->min_level,
             'max_level' => (float) $t->max_level,
             'price' => (float) $t->price,

@@ -1,0 +1,192 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Club;
+use App\Models\Tournament;
+use App\Models\TournamentTeam;
+use App\Models\User;
+use App\Services\FCMNotificationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Mockery;
+use Tests\TestCase;
+
+/**
+ * Открытые пары в парном Americano Flex.
+ *
+ * Игрок записывается один и сразу становится половиной пары — рядом пустое
+ * место, к которому подсаживается следующий. Пар ровно столько, сколько
+ * помещается в турнир; когда все созданы, запись уходит в лист ожидания, и
+ * оттуда игрока переставляет организатор.
+ */
+class OpenPairsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Tournament $tournament;
+    private Club $club;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $mock = Mockery::mock(FCMNotificationService::class);
+        $mock->shouldReceive('sendToUser')->andReturn(true);
+        $this->instance(FCMNotificationService::class, $mock);
+
+        $this->club = Club::create(['name' => 'Davay Padel', 'address' => 'А', 'city' => 'Алматы']);
+
+        // 6 мест = 3 пары.
+        $this->tournament = Tournament::factory()->create([
+            'club_id' => $this->club->id,
+            'type' => 'americano_flex',
+            'is_paired' => true,
+            'open_pairs' => true,
+            'status' => 'open',
+            'max_participants' => 6,
+            'waitlist_size' => 4,
+            'min_level' => 1,
+            'max_level' => 7,
+        ]);
+    }
+
+    private function player(): User
+    {
+        return User::factory()->create(['level' => 3.0, 'rating' => 3000]);
+    }
+
+    private function register(User $user, array $body = [])
+    {
+        Sanctum::actingAs($user);
+
+        return $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/register", $body);
+    }
+
+    public function test_запись_в_одиночку_создаёт_открытую_пару(): void
+    {
+        $user = $this->player();
+
+        $this->register($user)->assertOk();
+
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->first();
+        $this->assertNotNull($team, 'пара создалась');
+        $this->assertSame($user->id, (int) $team->player1_id);
+        $this->assertNull($team->player2_id, 'второе место свободно');
+    }
+
+    public function test_второй_садится_в_свободное_место(): void
+    {
+        $first = $this->player();
+        $second = $this->player();
+        $this->register($first)->assertOk();
+
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")
+            ->assertOk();
+
+        $team->refresh();
+        $this->assertSame($second->id, (int) $team->player2_id);
+        $this->assertSame(1, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+        $this->assertSame(2, $this->tournament->participants()->count());
+    }
+
+    public function test_занятое_место_второй_раз_не_отдаём(): void
+    {
+        $first = $this->player();
+        $second = $this->player();
+        $third = $this->player();
+
+        $this->register($first)->assertOk();
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")->assertOk();
+
+        Sanctum::actingAs($third);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Место в паре уже заняли');
+    }
+
+    public function test_когда_все_пары_созданы_запись_идёт_в_лист_ожидания(): void
+    {
+        // Три пары по одному человеку — мест для новых пар нет.
+        for ($i = 0; $i < 3; $i++) {
+            $this->register($this->player())->assertOk();
+        }
+
+        $seventh = $this->player();
+        $response = $this->register($seventh)->assertOk();
+
+        $this->assertTrue($response->json('requires_waitlist_confirmation'));
+
+        $this->register($seventh, ['confirm_waitlist' => true])->assertOk();
+
+        $this->assertSame(
+            'waiting',
+            $this->tournament->participants()->where('user_id', $seventh->id)->first()->pivot->status
+        );
+        // Новой пары не появилось: их и так максимум.
+        $this->assertSame(3, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+    }
+
+    public function test_из_листа_ожидания_можно_сесть_в_пару(): void
+    {
+        for ($i = 0; $i < 3; $i++) {
+            $this->register($this->player())->assertOk();
+        }
+        $waiting = $this->player();
+        $this->register($waiting, ['confirm_waitlist' => true])->assertOk();
+
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($waiting);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")
+            ->assertOk();
+
+        $this->assertSame($waiting->id, (int) $team->fresh()->player2_id);
+    }
+
+    public function test_отмена_освобождает_место_а_партнёр_остаётся(): void
+    {
+        $first = $this->player();
+        $second = $this->player();
+        $this->register($first)->assertOk();
+        $team = TournamentTeam::where('tournament_id', $this->tournament->id)->firstOrFail();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")->assertOk();
+
+        // Уходит первый — второй занимает его место, пара снова открыта.
+        Sanctum::actingAs($first);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/cancel")->assertOk();
+
+        $team->refresh();
+        $this->assertSame($second->id, (int) $team->player1_id);
+        $this->assertNull($team->player2_id);
+    }
+
+    public function test_последний_ушёл_пары_нет(): void
+    {
+        $user = $this->player();
+        $this->register($user)->assertOk();
+
+        Sanctum::actingAs($user);
+        $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/cancel")->assertOk();
+
+        $this->assertSame(0, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+    }
+
+    public function test_в_старых_турнирах_ничего_не_меняется(): void
+    {
+        $this->tournament->update(['open_pairs' => false]);
+
+        $this->register($this->player())->assertOk();
+
+        $this->assertSame(0, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
+        $this->assertSame(1, $this->tournament->participants()->count());
+    }
+}

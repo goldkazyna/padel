@@ -147,6 +147,7 @@ class Tournament extends Model
 		'rounds_count',
 		'teams_advance',
 		'pairing_mode',
+		'open_pairs',
 		'is_paired',
 		'has_playoff',
 		'playoff_type',
@@ -241,6 +242,16 @@ class Tournament extends Model
     public function isSelfPairing(): bool
     {
         return $this->supportsPairingModeChoice() && !$this->isAdminPairing();
+    }
+
+    /**
+     * Открытые пары: игрок записывается один и становится половиной пары,
+     * к которой подсаживается следующий. Только парный флекс и только у
+     * турниров, созданных после появления этой схемы.
+     */
+    public function usesOpenPairs(): bool
+    {
+        return $this->isPairedFlex() && (bool) $this->open_pairs;
     }
 
     /**
