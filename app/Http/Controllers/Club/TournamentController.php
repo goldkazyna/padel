@@ -1465,6 +1465,25 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Посадить игрока на свободное место в паре.
+	 */
+	public function fillPair(Request $request, Tournament $tournament, int $pair, \App\Services\PairRegistrationService $pairs)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		$validated = $request->validate([
+			'player_id' => 'required|exists:users,id',
+		]);
+
+		[$ok, $message] = $pairs->fillPair($tournament, $pair, (int) $validated['player_id']);
+
+		return back()->with($ok ? 'success' : 'error', $message);
+	}
+
+	/**
 	 * Разбить пару. Игроки остаются записанными на турнир.
 	 */
 	public function removePair(Tournament $tournament, int $pair, \App\Services\PairRegistrationService $pairs)

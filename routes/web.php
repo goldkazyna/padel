@@ -573,6 +573,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // Запись парой: организатор добавляет сразу двоих
             Route::post('/tournaments/{tournament}/pairs', [ClubTournamentController::class, 'addPair'])
                 ->name('tournaments.pairs.add');
+            // Посадить второго игрока в неполную пару.
+            Route::post('/tournaments/{tournament}/pairs/{pair}/fill', [TournamentController::class, 'fillPair'])
+                ->name('tournaments.pairs.fill');
             Route::delete('/tournaments/{tournament}/pairs/{pair}', [ClubTournamentController::class, 'removePair'])
                 ->name('tournaments.pairs.remove');
             // Приглашения игроков (как в мобильной админке) — все индивидуальные турниры

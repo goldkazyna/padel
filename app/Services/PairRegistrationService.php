@@ -117,6 +117,73 @@ class PairRegistrationService
     }
 
     /**
+     * Посадить игрока на свободное место в паре.
+     *
+     * Организатор собирает пары до старта, и половина пары — обычное дело:
+     * человек записался один. Раньше добить такую пару было нечем — только
+     * разбить и собрать заново.
+     */
+    public function fillPair(Tournament $tournament, int $teamId, int $userId): array
+    {
+        if ($tournament->status !== 'open') {
+            return [false, 'Турнир уже запущен или завершён'];
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            return [false, 'Игрок не найден'];
+        }
+
+        $result = DB::transaction(function () use ($tournament, $teamId, $userId) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $team = $tournament->teams()->whereKey($teamId)->lockForUpdate()->first();
+            if (!$team) {
+                return 'not_found';
+            }
+            if ($team->player2_id !== null) {
+                return 'taken';
+            }
+            if ((int) $team->player1_id === $userId) {
+                return 'self';
+            }
+            if ($this->alreadyPaired($tournament, [$userId])) {
+                return 'in_pair';
+            }
+
+            // Записан ли он вообще: пару собирают и из тех, кого ещё нет в
+            // составе, — тогда добавляем как обычного участника.
+            $active = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+                ->where('user_id', $userId)
+                ->exists();
+
+            if (!$active) {
+                $tournament->participants()->wherePivot('status', 'cancelled')->detach($userId);
+                $tournament->participants()->attach($userId, ['status' => 'registered']);
+            }
+
+            $partner = User::find($userId);
+            $team->update([
+                'player2_id' => $userId,
+                'rating_avg' => (int) round(
+                    ((int) $team->player1->rating + (int) $partner->rating) / 2
+                ),
+            ]);
+
+            return 'filled';
+        });
+
+        return match ($result) {
+            'not_found' => [false, 'Пара не найдена'],
+            'taken' => [false, 'В этой паре уже двое'],
+            'self' => [false, 'Игрок не может быть в паре с самим собой'],
+            'in_pair' => [false, 'Игрок уже состоит в паре'],
+            default => [true, "{$user->name} добавлен в пару"],
+        };
+    }
+
+    /**
      * Разбить пару.
      *
      * Игроки остаются записанными — организатор может собрать их заново

@@ -188,6 +188,16 @@
                     <div class="participant-rating">{{ $pair->rating_avg }}</div>
                     @if($tournament->status === 'open')
                         <div class="participant-actions">
+                            {{-- Половина пары — обычное дело: человек записался
+                                 один. Плюс открывает поиск второго прямо здесь,
+                                 иначе непонятно, как его дособрать. --}}
+                            @if(!$pair->player2_id)
+                                <button type="button" class="btn-outline-custom btn-sm"
+                                        title="Добавить второго игрока"
+                                        onclick="togglePairFill({{ $pair->id }})">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            @endif
                             <form action="{{ route('club.tournaments.rejectTeam', [$tournament, $pair]) }}" method="POST" class="d-inline" onsubmit="return confirm('Убрать пару из турнира?')">
                                 @csrf
                                 <button class="btn-danger-custom btn-sm" title="Убрать"><i class="bi bi-x"></i></button>
@@ -195,6 +205,25 @@
                         </div>
                     @endif
                 </div>
+
+                @if($tournament->status === 'open' && !$pair->player2_id)
+                    <div class="pair-fill" id="pairFill{{ $pair->id }}" style="display: none;">
+                        <form action="{{ route('club.tournaments.pairs.fill', [$tournament, $pair]) }}" method="POST">
+                            @csrf
+                            <div class="search-wrapper">
+                                <input type="text" class="form-control player-search-input"
+                                       data-target="pairFillP{{ $pair->id }}" data-mode="pair"
+                                       placeholder="Телефон или имя второго игрока..." autocomplete="off">
+                                <input type="hidden" name="player_id" id="pairFillP{{ $pair->id }}PlayerId">
+                                <div class="search-results" id="pairFillP{{ $pair->id }}Results"></div>
+                            </div>
+                            <div class="selected-player mt-2" id="pairFillP{{ $pair->id }}Selected" style="display: none;"></div>
+                            <button type="submit" class="btn-primary-custom btn-sm mt-2">
+                                <i class="bi bi-check-lg me-1"></i> Добавить в пару
+                            </button>
+                        </form>
+                    </div>
+                @endif
             @empty
                 <div class="empty-participants">
                     <i class="bi bi-people"></i>
@@ -665,6 +694,14 @@
     border-left: 3px solid #60a5fa;
 }
 
+.pair-fill {
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 0 0 10px 0;
+}
+
 .pending-section {
     background: rgba(234, 179, 8, 0.05);
     border: 1px solid rgba(234, 179, 8, 0.2);
@@ -907,6 +944,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const letter = (player.name || '?').trim().charAt(0).toUpperCase();
         return `<div class="search-result-avatar search-result-avatar-empty">${letter}</div>`;
     }
+// Плюс у неполной пары: показать поиск второго игрока.
+function togglePairFill(pairId) {
+    const box = document.getElementById('pairFill' + pairId);
+    if (!box) return;
+    const open = box.style.display !== 'none';
+    box.style.display = open ? 'none' : 'block';
+    if (!open) {
+        const input = box.querySelector('.player-search-input');
+        if (input) input.focus();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const searchInputs = document.querySelectorAll('.player-search-input');
     
