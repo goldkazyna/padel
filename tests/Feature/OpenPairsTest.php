@@ -291,9 +291,34 @@ class OpenPairsTest extends TestCase
 
         $this->assertStringContainsString('«+»', $response->json('message'));
         $this->assertStringContainsString(
-            'организатором',
+            'организатора',
             $response->json('message'),
             'подсказываем и второй путь — попросить организатора'
         );
+    }
+
+    public function test_когда_свободных_мест_нет_очередь_просто_ждёт(): void
+    {
+        // Три пары собраны целиком: просить «сядьте сами» не о чем, и
+        // сообщение должно обещать место, а не давать задание.
+        $pairs = [];
+        foreach (range(1, 3) as $i) {
+            $first = $this->player();
+            $this->register($first)->assertOk();
+            $team = TournamentTeam::where('tournament_id', $this->tournament->id)
+                ->whereNull('player2_id')->orderBy('id')->first();
+            $second = $this->player();
+            Sanctum::actingAs($second);
+            $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/pairs/{$team->id}/join")
+                ->assertOk();
+        }
+
+        $late = $this->player();
+        $response = $this->register($late);
+
+        $response->assertOk()->assertJsonPath('registration_status', 'waiting');
+        $this->assertStringContainsString('Мест нет', $response->json('message'));
+        $this->assertStringNotContainsString('«+»', $response->json('message'),
+            'звать сесть некуда — свободных мест нет');
     }
 }
