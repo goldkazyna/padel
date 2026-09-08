@@ -2541,7 +2541,10 @@ class MobileAdminTournamentDetailController extends Controller
             'id' => $user->id,
             'name' => $name,
             'initials' => $this->initials($name),
-            'avatar_url' => $user->avatar ? asset('storage/' . $user->avatar) : null,
+            // В базе лежит готовый URL (загруженный файл или ссылка от
+            // Google), поэтому дописывать storage/ нельзя — получался
+            // адрес вида .../storage/https://..., и картинка не грузилась.
+            'avatar_url' => $user->avatar ?: null,
         ];
     }
 

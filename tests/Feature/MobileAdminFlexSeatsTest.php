@@ -217,4 +217,37 @@ class MobileAdminFlexSeatsTest extends TestCase
             ->assertJsonPath('flex_pairs.pairs.0.player1.status', 'registered')
             ->assertJsonPath('flex_pairs.pairs.0.player2.status', 'pending');
     }
+
+    public function test_в_матчах_приходит_готовая_ссылка_на_аватар(): void
+    {
+        // В базе лежит готовый URL: дописанное storage/ ломало адрес, и
+        // картинка в раунде не грузилась.
+        $first = $this->player();
+        $first->update(['avatar' => 'https://padel-p.kz/storage/avatars/a.webp']);
+        $second = $this->player();
+        $this->pair($first, $second);
+        $this->tournament->update(['status' => 'in_progress']);
+
+        $round = \App\Models\AmericanoFlexRound::create([
+            'tournament_id' => $this->tournament->id,
+            'round_number' => 1,
+            'status' => 'in_progress',
+        ]);
+        \App\Models\AmericanoFlexMatch::create([
+            'americano_flex_round_id' => $round->id,
+            'court_number' => 1,
+            'team1_player1_id' => $first->id,
+            'team1_player2_id' => $second->id,
+            'team2_player1_id' => $second->id,
+            'team2_player2_id' => $first->id,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->getJson("/api/mobile/admin/tournaments/{$this->tournament->id}/matches");
+
+        $response->assertOk()->assertJsonPath(
+            'groups.0.rounds.0.matches.0.team1.players.0.avatar_url',
+            'https://padel-p.kz/storage/avatars/a.webp'
+        );
+    }
 }
