@@ -20,9 +20,9 @@ class PhoneVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_профиль_не_принимает_телефон(): void
+    public function test_профиль_не_меняет_указанный_телефон(): void
     {
-        $user = User::factory()->create(['phone' => null]);
+        $user = User::factory()->create(['phone' => '77771112233']);
         Sanctum::actingAs($user);
 
         $this->putJson('/api/mobile/profile', [
@@ -30,6 +30,46 @@ class PhoneVerificationTest extends TestCase
             'phone' => '77701829772',
         ])->assertStatus(422)
           ->assertJsonPath('message', 'Номер телефона подтверждается кодом из СМС');
+
+        $this->assertSame('77771112233', $user->fresh()->phone);
+    }
+
+    public function test_первый_телефон_вписывается_из_профиля(): void
+    {
+        // Вход через Google: номера нет вовсе, и без него с человеком
+        // некому связаться. Подтверждённым такой номер не считается.
+        $user = User::factory()->create(['phone' => null]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/mobile/profile', ['phone' => '+7 (706) 644-79-87'])
+            ->assertOk();
+
+        $fresh = $user->fresh();
+        $this->assertSame('77066447987', $fresh->phone, 'номер приведён к 11 цифрам');
+        $this->assertNull($fresh->phone_verified_at, 'номер не подтверждён');
+    }
+
+    public function test_первый_телефон_не_отбирает_чужой_аккаунт(): void
+    {
+        User::factory()->create(['phone' => '77066447987']);
+        $user = User::factory()->create(['phone' => null]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/mobile/profile', ['phone' => '77066447987'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Этот номер уже привязан к другому аккаунту');
+
+        $this->assertNull($user->fresh()->phone);
+    }
+
+    public function test_кривой_номер_не_сохраняем(): void
+    {
+        $user = User::factory()->create(['phone' => null]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/mobile/profile', ['phone' => '770664'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Проверьте номер телефона');
 
         $this->assertNull($user->fresh()->phone);
     }

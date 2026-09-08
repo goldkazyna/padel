@@ -215,19 +215,55 @@ class MobileProfileController extends Controller
 
         $user = $request->user();
 
-        // Телефон через профиль не принимаем вообще: он подтверждается
-        // кодом из СМС (POST /auth/phone/send-new-code → confirm-new).
-        // Раньше пустой телефон можно было вписать руками — так в базе
-        // появлялись чужие и опечатанные номера.
+        // Телефон.
+        //
+        // Смену уже указанного номера подтверждают кодом из СМС
+        // (POST /auth/phone/send-new-code → confirm-new): раньше его можно
+        // было переписать молча, и в базе оказывались чужие номера.
+        //
+        // А вот первый номер вписать надо: у тех, кто вошёл через Google или
+        // Apple, телефона нет вовсе, и без него с ними некому связаться.
+        // Номер сохраняем как неподтверждённый и не отдаём чужой аккаунт:
+        // занятый номер — отказ.
         if (array_key_exists('phone', $validated)) {
             $raw = trim((string) $validated['phone']);
             unset($validated['phone']);
 
-            if ($raw !== '' && $raw !== (string) $user->phone) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Номер телефона подтверждается кодом из СМС',
-                ], 422);
+            $current = trim((string) $user->phone);
+
+            if ($raw !== '' && $raw !== $current) {
+                if ($current !== '') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Номер телефона подтверждается кодом из СМС',
+                    ], 422);
+                }
+
+                $phone = \App\Support\ContactHandle::phone($raw);
+                if ($phone === null) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Проверьте номер телефона',
+                    ], 422);
+                }
+
+                $taken = \App\Models\User::where('phone', $phone)
+                    ->where('id', '!=', $user->id)
+                    ->exists();
+                if ($taken) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Этот номер уже привязан к другому аккаунту',
+                    ], 422);
+                }
+
+                $validated['phone'] = $phone;
+                $validated['phone_verified_at'] = null;
+
+                \Log::info('Профиль: вписан первый телефон', [
+                    'user_id' => $user->id,
+                    'phone' => $phone,
+                ]);
             }
         }
 
