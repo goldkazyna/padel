@@ -115,6 +115,9 @@ trait FormatsTournaments
             $data['in_waitlist'] = $registration['in_waitlist'];
             $data['waitlist_position'] = $registration['waitlist_position'];
             $data['moderation_deadline'] = $registration['moderation_deadline'] ?? null;
+            // Кнопка должна говорить правду: когда состав полон, запись
+            // уходит в очередь, а надпись «Записаться» это скрывала.
+            $data['goes_to_waitlist'] = $data['can_register'] && $t->isFull();
         }
 
         return $data;

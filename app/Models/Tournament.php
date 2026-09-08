@@ -321,6 +321,12 @@ class Tournament extends Model
 
     public function isFull(): bool
 	{
+		// В открытых парах место — это пара: шесть пар по одному человеку
+		// занимают турнир целиком, хотя людей всего шесть.
+		if ($this->usesOpenPairs()) {
+			return !\App\Support\OpenPairs::canCreatePair($this);
+		}
+
 		return $this->takenSlotsCount() >= $this->max_participants;
 	}
 
