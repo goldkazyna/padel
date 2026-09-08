@@ -259,6 +259,9 @@ class MobileProfileController extends Controller
 
                 $validated['phone'] = $phone;
                 $validated['phone_verified_at'] = null;
+                // Проверить номер нечем: пометка нужна, чтобы он уступил
+                // тому, кто подтвердит его кодом из СМС.
+                $validated['phone_self_claimed'] = true;
 
                 \Log::info('Профиль: вписан первый телефон', [
                     'user_id' => $user->id,

@@ -96,6 +96,25 @@ class MobileAuthController extends Controller
         // минимальную учётку (только телефон). Профиль (ФИО, город, дата
         // рождения, пол) добивается на экране регистрации через PUT /profile.
         $user = User::where('phone', $phone)->first();
+
+        // Номер, который вписали руками в профиле, кодом не подтверждён:
+        // человек мог ошибиться цифрой или указать чужой. Тот, кто получил
+        // на него код, и есть владелец — номер переходит к нему, а прежний
+        // аккаунт остаётся при своём входе через Google, Apple или Telegram.
+        if ($user && $user->phone_self_claimed && $user->phone_verified_at === null) {
+            $hasOtherWayIn = $user->google_id || $user->apple_id || $user->telegram_id;
+
+            if ($hasOtherWayIn) {
+                \Log::warning('Номер отобран у аккаунта: вписан руками, подтверждён другим', [
+                    'user_id' => $user->id,
+                    'phone' => $phone,
+                ]);
+
+                $user->forceFill(['phone' => null, 'phone_self_claimed' => false])->saveQuietly();
+                $user = null;
+            }
+        }
+
         $isNew = false;
 
         if (!$user) {
@@ -113,7 +132,10 @@ class MobileAuthController extends Controller
             $isNew = true;
         } elseif ($user->phone_verified_at === null) {
             // Старый аккаунт, вошедший по коду: номер тоже подтверждён.
-            $user->forceFill(['phone_verified_at' => now()])->saveQuietly();
+            $user->forceFill([
+                'phone_verified_at' => now(),
+                'phone_self_claimed' => false,
+            ])->saveQuietly();
         }
 
         // Удаляем использованный код
@@ -766,6 +788,7 @@ class MobileAuthController extends Controller
         $user->forceFill([
             'phone' => $newPhone,
             'phone_verified_at' => now(),
+            'phone_self_claimed' => false,
         ])->save();
         Cache::forget("phone_new_code_{$user->id}");
         Cache::forget("phone_new_value_{$user->id}");

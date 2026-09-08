@@ -57,6 +57,7 @@ class TelegramPhoneLinker
             $user->forceFill([
                 'phone' => $phone,
                 'phone_verified_at' => now(),
+                'phone_self_claimed' => false,
             ])->save();
 
             return [$user, false];

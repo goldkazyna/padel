@@ -49,6 +49,73 @@ class PhoneVerificationTest extends TestCase
         $this->assertNull($fresh->phone_verified_at, 'номер не подтверждён');
     }
 
+    public function test_вписанный_руками_номер_уступает_подтверждённому(): void
+    {
+        // Человек ошибся цифрой и вписал чужой номер. Настоящий владелец
+        // входит по коду — номер переходит к нему, а прежний аккаунт живёт
+        // дальше со входом через Google.
+        $claimer = User::factory()->create([
+            'phone' => null,
+            'google_id' => 'google-777',
+        ]);
+        Sanctum::actingAs($claimer);
+        $this->putJson('/api/mobile/profile', ['phone' => '77066447987'])->assertOk();
+        $this->assertTrue($claimer->fresh()->phone_self_claimed);
+
+        // Новая сессия: вход по коду с этого номера.
+        $this->postJson('/api/mobile/auth/verify-code', [
+            'phone' => '77066447987',
+            'code' => '1111',
+        ])->assertOk()->assertJsonPath('is_new', true);
+
+        $claimer = $claimer->fresh();
+        $this->assertNull($claimer->phone, 'номер отобран');
+        $this->assertFalse((bool) $claimer->phone_self_claimed);
+        $this->assertSame('google-777', $claimer->google_id, 'вход через Google остался');
+
+        $owner = User::where('phone', '77066447987')->first();
+        $this->assertNotNull($owner);
+        $this->assertNotSame($claimer->id, $owner->id);
+        $this->assertNotNull($owner->phone_verified_at);
+    }
+
+    public function test_аккаунт_клуба_номер_не_теряет(): void
+    {
+        // Игрока завёл клуб в CRM: телефон не подтверждён, но вписан не им.
+        // Отобрать нельзя — иначе рейтинг и история останутся в старой учётке.
+        $player = User::factory()->create([
+            'phone' => '77066447987',
+            'phone_verified_at' => null,
+            'rating' => 2500,
+        ]);
+
+        $this->postJson('/api/mobile/auth/verify-code', [
+            'phone' => '77066447987',
+            'code' => '1111',
+        ])->assertOk()->assertJsonPath('is_new', false);
+
+        $player = $player->fresh();
+        $this->assertSame('77066447987', $player->phone);
+        $this->assertNotNull($player->phone_verified_at, 'номер стал подтверждённым');
+        $this->assertSame(2500, (int) $player->rating);
+    }
+
+    public function test_без_другого_входа_номер_не_отбираем(): void
+    {
+        // Отобрать номер у того, кому больше нечем войти, — значит запереть
+        // человека снаружи. Такой аккаунт отдаём как есть.
+        $user = User::factory()->create(['phone' => null]);
+        Sanctum::actingAs($user);
+        $this->putJson('/api/mobile/profile', ['phone' => '77066447987'])->assertOk();
+
+        $this->postJson('/api/mobile/auth/verify-code', [
+            'phone' => '77066447987',
+            'code' => '1111',
+        ])->assertOk()->assertJsonPath('is_new', false);
+
+        $this->assertSame('77066447987', $user->fresh()->phone);
+    }
+
     public function test_первый_телефон_не_отбирает_чужой_аккаунт(): void
     {
         User::factory()->create(['phone' => '77066447987']);
