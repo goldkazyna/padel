@@ -32,19 +32,25 @@
 
 <div class="section-header" style="cursor: pointer;" onclick="toggleParticipants()">
     <h5>
-        <i class="bi bi-people"></i> 
-        Участники ({{ $tournament->approvedParticipantsCount() }}/{{ $tournament->max_participants }})
-        @if($tournament->pendingParticipantsCount() > 0)
-            <span class="pending-badge">+{{ $tournament->pendingParticipantsCount() }} на модерации</span>
-        @endif
-        @if($waitlistParticipants->count() > 0)
-            <span class="waitlist-badge">+{{ $waitlistParticipants->count() }} в листе ожидания</span>
+        <i class="bi bi-people"></i>
+        {{-- У парного флекса свои счётчики в блоке состава: там место меряется
+             парами, а не креслами, и два счётчика рядом только путали. --}}
+        @if($tournament->isPairedFlex())
+            Участники
+        @else
+            Участники ({{ $tournament->approvedParticipantsCount() }}/{{ $tournament->max_participants }})
+            @if($tournament->pendingParticipantsCount() > 0)
+                <span class="pending-badge">+{{ $tournament->pendingParticipantsCount() }} на модерации</span>
+            @endif
+            @if($waitlistParticipants->count() > 0)
+                <span class="waitlist-badge">+{{ $waitlistParticipants->count() }} в листе ожидания</span>
+            @endif
         @endif
         @if($tournament->status === 'in_progress' || $tournament->status === 'completed' || $hasGroups)
             <i class="bi bi-chevron-down toggle-icon" id="toggleIcon"></i>
         @endif
     </h5>
-    @if($tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0 && !$hasGroups)
+    @if(!$tournament->isPairedFlex() && $tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0 && !$hasGroups)
         <form action="{{ route('club.tournaments.participants.approveAll', $tournament) }}" method="POST" class="d-inline" onclick="event.stopPropagation()">
             @csrf
             <button type="submit" class="btn-outline-custom btn-sm" onclick="return confirm('Одобрить все заявки?')">

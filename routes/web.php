@@ -580,7 +580,7 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::post('/tournaments/{tournament}/pairs/seat/{user}', [TournamentController::class, 'seatPlayer'])
                 ->name('tournaments.pairs.seat');
             // Перенести игрока в конкретную пару.
-            Route::post('/tournaments/{tournament}/pairs/move/{user}/{pair}', [TournamentController::class, 'movePlayerToPair'])
+            Route::post('/tournaments/{tournament}/pairs/move/{user}/{pair}/{seat}', [TournamentController::class, 'movePlayerToPair'])
                 ->name('tournaments.pairs.move');
             Route::delete('/tournaments/{tournament}/pairs/{pair}', [ClubTournamentController::class, 'removePair'])
                 ->name('tournaments.pairs.remove');

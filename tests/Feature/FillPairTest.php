@@ -115,7 +115,7 @@ class FillPairTest extends TestCase
         $this->assertSame('Игрок не может быть в паре с самим собой', $message);
     }
 
-    public function test_посадка_переводит_из_модерации_в_состав(): void
+    public function test_посадка_не_одобряет_заявку(): void
     {
         $pair = $this->halfPair();
         $second = User::factory()->create(['rating' => 2000]);
@@ -125,8 +125,9 @@ class FillPairTest extends TestCase
             ->fillPair($this->tournament, $pair->id, $second->id);
 
         $this->assertTrue($ok, $message);
-        // Место в паре — это и есть одобрение: иначе играет, а в составе нет.
-        $this->assertSame('registered', $this->tournament->participants()
+        // В открытых парах заявка и так держит место в сетке, а одобрение —
+        // отдельное решение организатора: посадка его не подменяет.
+        $this->assertSame('pending', $this->tournament->participants()
             ->where('user_id', $second->id)->first()->pivot->status);
     }
 
@@ -176,7 +177,7 @@ class FillPairTest extends TestCase
             ->movePlayerToPair($this->tournament, $this->first->id, $pair->id);
 
         $this->assertFalse($ok);
-        $this->assertSame('Игрок уже в этой паре', $message);
+        $this->assertSame('Игрок уже на этом месте', $message);
     }
 
     public function test_после_старта_пары_не_трогаем(): void

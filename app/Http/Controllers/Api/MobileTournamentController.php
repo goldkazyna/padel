@@ -491,6 +491,14 @@ class MobileTournamentController extends Controller
                 // Уже в турнире: переносим в выбранную пару, прежнюю
                 // освобождаем — иначе игрок займёт два места сразу.
                 \App\Support\OpenPairs::leave($tournament, $user->id);
+
+                // Из листа ожидания место в паре выводит: иначе человек
+                // сидит в сетке, а числится ожидающим.
+                $pivot = ['status' => 'pending'];
+                if ($deadline) $pivot['moderation_deadline'] = $deadline;
+                $tournament->participants()
+                    ->wherePivot('status', 'waiting')
+                    ->updateExistingPivot($user->id, $pivot);
             } else {
                 $pivot = ['status' => 'pending'];
                 if ($deadline) $pivot['moderation_deadline'] = $deadline;

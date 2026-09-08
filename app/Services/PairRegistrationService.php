@@ -164,8 +164,11 @@ class PairRegistrationService
                 $tournament->participants()->wherePivot('status', 'cancelled')->detach($userId);
                 $tournament->participants()->attach($userId, ['status' => 'registered']);
             } else {
+                // Из листа ожидания поднимаем: место в паре — это состав.
+                // Заявку на модерации не одобряем: это отдельное решение,
+                // а место за ней в открытых парах и так держится.
                 $tournament->participants()
-                    ->wherePivotIn('status', ['pending', 'waiting'])
+                    ->wherePivotIn('status', ['waiting'])
                     ->updateExistingPivot($userId, ['status' => 'registered']);
             }
 
@@ -197,24 +200,186 @@ class PairRegistrationService
      */
     public function movePlayerToPair(Tournament $tournament, int $userId, int $teamId): array
     {
+        return $this->movePlayerToSeat($tournament, $userId, $teamId, 2);
+    }
+
+    /**
+     * Пересадить игрока на конкретное место.
+     *
+     * Организатор тасует состав как хочет: свободное место, занятое (тогда
+     * игроки меняются местами) и пустая пара — $teamId = 0. Раньше пересадить
+     * можно было только в пару со свободным местом, и когда все пары полные,
+     * меню оказывалось пустым: приходилось разбивать пару руками.
+     *
+     * $seat — 1 или 2. Первое место всегда занято: пары без первого игрока
+     * не бывает.
+     */
+    public function movePlayerToSeat(Tournament $tournament, int $userId, int $teamId, int $seat = 2): array
+    {
         if ($tournament->status !== 'open') {
             return [false, 'Турнир уже запущен или завершён'];
         }
-
-        $target = $tournament->teams()->whereKey($teamId)->first();
-        if (!$target) {
-            return [false, 'Пара не найдена'];
-        }
-        if ((int) $target->player1_id === $userId || (int) $target->player2_id === $userId) {
-            return [false, 'Игрок уже в этой паре'];
-        }
-        if ($target->player2_id !== null) {
-            return [false, 'В этой паре уже двое'];
+        if (!in_array($seat, [1, 2], true)) {
+            return [false, 'Неизвестное место в паре'];
         }
 
-        \App\Support\OpenPairs::leave($tournament, $userId);
+        $user = User::find($userId);
+        if (!$user) {
+            return [false, 'Игрок не найден'];
+        }
 
-        return $this->fillPair($tournament->fresh(), $teamId, $userId);
+        $outcome = DB::transaction(function () use ($tournament, $userId, $teamId, $seat) {
+            Tournament::where('id', $tournament->id)->lockForUpdate()->first();
+
+            $from = \App\Support\OpenPairs::teamOf($tournament, $userId);
+
+            if ($teamId === 0) {
+                if ($from && $from->player2_id === null) {
+                    return 'alone';
+                }
+                if (!\App\Support\OpenPairs::canCreatePair($tournament)) {
+                    return 'no_room';
+                }
+
+                $this->releaseSeat($from, $userId);
+                \App\Models\TournamentTeam::create([
+                    'tournament_id' => $tournament->id,
+                    'player1_id' => $userId,
+                    'player2_id' => null,
+                    'status' => 'approved',
+                    'rating_avg' => (int) (User::find($userId)?->rating ?? 0),
+                ]);
+                $this->seatIsRoster($tournament, $userId);
+
+                return 'moved';
+            }
+
+            $target = $tournament->teams()->whereKey($teamId)->lockForUpdate()->first();
+            if (!$target) {
+                return 'not_found';
+            }
+
+            $column = $seat === 1 ? 'player1_id' : 'player2_id';
+            $occupant = $target->$column ? (int) $target->$column : null;
+            if ($occupant === $userId) {
+                return 'same';
+            }
+
+            // Внутри своей же пары — просто меняем игроков местами.
+            if ($from && (int) $from->id === (int) $target->id) {
+                if ($target->player2_id === null) {
+                    return 'same';
+                }
+                $target->update([
+                    'player1_id' => $target->player2_id,
+                    'player2_id' => $target->player1_id,
+                ]);
+
+                return 'moved';
+            }
+
+            if ($occupant !== null && $from) {
+                // Обмен между парами: каждый занимает место другого.
+                $fromColumn = (int) $from->player1_id === $userId ? 'player1_id' : 'player2_id';
+                $from->update([$fromColumn => $occupant]);
+                $target->update([$column => $userId]);
+                $this->syncPair($from);
+            } elseif ($occupant !== null) {
+                // Игрок был без пары — тот, кого он сменил, уходит в «Без пары».
+                $target->update([$column => $userId]);
+            } else {
+                $this->releaseSeat($from, $userId);
+                $target->update([$column => $userId]);
+            }
+
+            $this->syncPair($target);
+            $this->seatIsRoster($tournament, $userId);
+
+            return 'moved';
+        });
+
+        return match ($outcome) {
+            'not_found' => [false, 'Пара не найдена'],
+            'same' => [false, 'Игрок уже на этом месте'],
+            'alone' => [false, 'Игрок и так один в паре'],
+            'no_room' => [false, 'Пар больше, чем мест'],
+            default => [true, "{$user->name} пересажен"],
+        };
+    }
+
+    /**
+     * Освободить место игрока в его прежней паре: остался напарник — пара
+     * снова открыта, не осталось никого — пары нет.
+     */
+    private function releaseSeat($team, int $userId): void
+    {
+        if (!$team) {
+            return;
+        }
+
+        $isFirst = (int) $team->player1_id === $userId;
+        $partnerId = $isFirst ? $team->player2_id : $team->player1_id;
+
+        if (!$partnerId) {
+            $team->delete();
+
+            return;
+        }
+
+        $team->update(['player1_id' => $partnerId, 'player2_id' => null]);
+        $this->syncPair($team);
+    }
+
+    /**
+     * Пересчитать средний рейтинг пары и убрать её, если игроков не осталось.
+     */
+    private function syncPair($team): void
+    {
+        if (!$team) {
+            return;
+        }
+
+        $team->refresh();
+
+        if (!$team->player1_id && !$team->player2_id) {
+            $team->delete();
+
+            return;
+        }
+        if (!$team->player1_id) {
+            $team->player1_id = $team->player2_id;
+            $team->player2_id = null;
+        }
+
+        $first = (int) (User::find($team->player1_id)?->rating ?? 0);
+        $second = $team->player2_id ? (int) (User::find($team->player2_id)?->rating ?? 0) : null;
+
+        $team->rating_avg = $second === null ? $first : (int) round(($first + $second) / 2);
+        $team->save();
+    }
+
+    /**
+     * Место в паре — это состав. Из листа ожидания поднимаем, кого в турнире
+     * нет вовсе — записываем; заявку на модерации не трогаем: в открытых
+     * парах место за ней и так держится, а одобрение — отдельное решение.
+     */
+    private function seatIsRoster(Tournament $tournament, int $userId): void
+    {
+        $status = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+            ->where('user_id', $userId)
+            ->first()?->pivot?->status;
+
+        if ($status === null) {
+            $tournament->participants()->wherePivot('status', 'cancelled')->detach($userId);
+            $tournament->participants()->attach($userId, ['status' => 'registered']);
+
+            return;
+        }
+
+        if ($status === 'waiting') {
+            $tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
+        }
     }
 
     /**

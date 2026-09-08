@@ -1384,6 +1384,12 @@ class TournamentController extends Controller
 			'moderation_deadline' => $to === 'pending' ? $tournament->moderationDeadline() : null,
 		]);
 
+		// Лист ожидания — вне состава, значит и вне пары: иначе игрок висит
+		// в паре, но в турнире не числится, а место в сетке занято.
+		if ($to === 'waiting') {
+			\App\Support\OpenPairs::leave($tournament, (int) $userId);
+		}
+
 		$labels = [
 			'registered' => 'основной список',
 			'pending' => 'модерацию',
@@ -1486,14 +1492,14 @@ class TournamentController extends Controller
 	/**
 	 * Перенести игрока в конкретную пару.
 	 */
-	public function movePlayerToPair(Tournament $tournament, int $userId, int $pair, \App\Services\PairRegistrationService $pairs)
+	public function movePlayerToPair(Tournament $tournament, int $userId, int $pair, int $seat, \App\Services\PairRegistrationService $pairs)
 	{
 		$club = $this->getClub();
 		if ($club && $tournament->club_id != $club->id) {
 			abort(403);
 		}
 
-		[$ok, $message] = $pairs->movePlayerToPair($tournament, $userId, $pair);
+		[$ok, $message] = $pairs->movePlayerToSeat($tournament, $userId, $pair, (int) $seat);
 
 		return back()->with($ok ? 'success' : 'error', $message);
 	}
@@ -1574,19 +1580,20 @@ class TournamentController extends Controller
 			return back()->with('error', 'Этот игрок уже участвует в турнире');
 		}
 		
-		// Удаляем старого участника
-		$tournament->participants()->detach($userId);
-		\App\Support\OpenPairs::prune($tournament);
-		
-		// Добавляем нового
+		// Порядок важен: сначала новый в составе, потом подмена в паре и лишь
+		// затем уход старого. Если снять старого первым, чистка пар освободит
+		// его место — и подменять будет уже нечего.
 		$tournament->participants()->attach($validated['new_user_id'], [
 			'status' => 'registered',
 		]);
-		
+
 		// Пары живут отдельной таблицей: без этого ушедший остался бы в паре,
 		// а пришедший — вне пар, и турнир не стартовал бы.
 		app(\App\Services\TeamTournamentService::class)
 			->replaceInPairs($tournament, (int) $userId, (int) $validated['new_user_id']);
+
+		$tournament->participants()->detach($userId);
+		\App\Support\OpenPairs::prune($tournament);
 
 		$newUser = \App\Models\User::find($validated['new_user_id']);
 		

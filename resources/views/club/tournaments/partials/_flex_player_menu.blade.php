@@ -2,68 +2,113 @@
     Трёхточечное меню игрока в парном флексе.
 
     Организатор тасует состав руками: перекинуть между основным списком,
-    модерацией и листом ожидания, пересадить в другую пару, убрать совсем.
-    Раньше для этого приходилось разбивать пару и собирать заново.
+    модерацией и листом ожидания, пересадить на любое место — свободное,
+    занятое (тогда игроки меняются местами) или в пустую пару, убрать совсем.
+    Раньше для этого приходилось разбивать пару и собирать заново, а когда все
+    пары были полными, пересадить было некуда вовсе.
 
     Ждёт: $tournament, $player, $current (registered|pending|waiting),
-    $freePairs — пары со свободным местом, $currentPairId — где сидит сейчас.
+    $seatOptions — все места сетки, $canCreatePair — влезает ли ещё пара.
 --}}
 @php
-    $moveLabels = [
-        'registered' => 'В основной список',
-        'pending'    => 'На модерацию',
-        'waiting'    => 'В лист ожидания',
-    ];
+    $menuPlayerId = (int) $player->id;
+    $menuSeats = collect($seatOptions);
+    $menuOwn = $menuSeats->first(fn ($s) => (int) $s->userId === $menuPlayerId);
+    // Места своей же пары не предлагаем: пересадка внутри неё ничего не меняет.
+    $menuSeats = $menuOwn
+        ? $menuSeats->reject(fn ($s) => $s->teamId === $menuOwn->teamId)
+        : $menuSeats;
+    $menuAlone = $menuOwn && $menuOwn->soloPair;
 @endphp
 
 <div class="dropdown d-inline flexp-menu">
-    <button class="flexp-dots" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Действия">
+    <button class="flexp-dots" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport"
+            aria-expanded="false" title="Действия">
         <i class="bi bi-three-dots-vertical"></i>
     </button>
     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-        <li class="dropdown-header">Статус</li>
-        @foreach($moveLabels as $to => $label)
-            @if($to !== $current)
-                <li>
-                    <form action="{{ route('club.tournaments.participants.move', [$tournament, $player->id]) }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="to" value="{{ $to }}">
-                        <button type="submit" class="dropdown-item">
-                            <i class="bi bi-arrow-right-short"></i> {{ $label }}
-                        </button>
-                    </form>
-                </li>
-            @endif
-        @endforeach
+        <li class="dropdown-header">Состав</li>
 
-        @if($freePairs->isNotEmpty() || $currentPairId)
-            <li><hr class="dropdown-divider"></li>
-            <li class="dropdown-header">Пересадить</li>
+        @if($current === 'pending')
+            <li>
+                <form action="{{ route('club.tournaments.participants.approve', [$tournament, $player->id]) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="dropdown-item text-success">
+                        <i class="bi bi-check-lg"></i> Одобрить заявку
+                    </button>
+                </form>
+            </li>
+        @else
+            <li>
+                <form action="{{ route('club.tournaments.participants.move', [$tournament, $player->id]) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="to" value="pending">
+                    <button type="submit" class="dropdown-item">
+                        <i class="bi bi-hourglass-split"></i> На модерацию
+                    </button>
+                </form>
+            </li>
         @endif
 
-        @foreach($freePairs as $index => $free)
-            @continue($currentPairId === $free->id)
+        @if($current !== 'registered')
             <li>
-                <form action="{{ route('club.tournaments.pairs.move', [$tournament, $player->id, $free->id]) }}" method="POST">
+                <form action="{{ route('club.tournaments.participants.move', [$tournament, $player->id]) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="to" value="registered">
+                    <button type="submit" class="dropdown-item">
+                        <i class="bi bi-person-check"></i> В основной список
+                    </button>
+                </form>
+            </li>
+        @endif
+
+        @if($current !== 'waiting')
+            <li>
+                <form action="{{ route('club.tournaments.participants.move', [$tournament, $player->id]) }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="to" value="waiting">
+                    <button type="submit" class="dropdown-item">
+                        <i class="bi bi-hourglass"></i> В лист ожидания
+                        <span class="flexp-menu-note">освободит место в паре</span>
+                    </button>
+                </form>
+            </li>
+        @endif
+
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Пересадить</li>
+
+        @if($canCreatePair && !$menuAlone)
+            <li>
+                <form action="{{ route('club.tournaments.pairs.move', [$tournament, $player->id, 0, 2]) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="dropdown-item">
+                        <i class="bi bi-plus-square"></i> В пустую пару
+                    </button>
+                </form>
+            </li>
+        @endif
+
+        @forelse($menuSeats as $slot)
+            <li>
+                <form action="{{ route('club.tournaments.pairs.move', [$tournament, $player->id, $slot->teamId, $slot->seat]) }}" method="POST">
                     @csrf
                     <button type="submit" class="dropdown-item">
                         <i class="bi bi-arrow-left-right"></i>
-                        Пара {{ $free->position }} — к {{ $free->partner }}
+                        Пара {{ $slot->position }} —
+                        @if($slot->userId)
+                            вместо {{ $slot->name }}<span class="flexp-menu-note">меняются местами</span>
+                        @else
+                            свободное место<span class="flexp-menu-note">напарник: {{ $slot->name }}</span>
+                        @endif
                     </button>
                 </form>
             </li>
-        @endforeach
-
-        @if(!$currentPairId)
-            <li>
-                <form action="{{ route('club.tournaments.pairs.seat', [$tournament, $player->id]) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="dropdown-item">
-                        <i class="bi bi-plus-lg"></i> В первое свободное место
-                    </button>
-                </form>
-            </li>
-        @endif
+        @empty
+            @unless($canCreatePair && !$menuAlone)
+                <li><span class="dropdown-item-text flexp-menu-note">мест в сетке нет</span></li>
+            @endunless
+        @endforelse
 
         <li><hr class="dropdown-divider"></li>
         <li>

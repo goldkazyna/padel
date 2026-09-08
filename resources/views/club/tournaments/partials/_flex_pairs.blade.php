@@ -1,11 +1,10 @@
 {{--
-    Состав парного Americano Flex: пары строками, ниже — пул тех, кому пары
-    ещё нет, и заявки на модерации.
+    Состав парного Americano Flex: пары строками, ниже — те, кто в турнире, но
+    места в паре пока не занял.
 
-    Раньше здесь был плоский список участников плюс четыре формы подряд:
-    организатор не видел, кто с кем, а плюс у неполной пары терялся в общем
-    ряду кнопок справа. Теперь свободное место — само по себе кнопка, а у
-    каждого игрока есть меню: сменить статус, пересадить, убрать.
+    Каждый игрок показан ровно один раз. Заявка на модерации в открытых парах
+    держит место в сетке — значит её видно на этом месте с пометкой, а не
+    отдельным списком-двойником. Лист ожидания — вне состава и вне пар.
 
     Ждёт $tournament.
 --}}
@@ -17,33 +16,61 @@
         ->orderBy('id')
         ->get();
 
-    $pairedIds = $pairs->flatMap(fn ($p) => [$p->player1_id, $p->player2_id])->filter()->unique();
-    $unpaired = $tournament->approvedParticipants->reject(fn ($u) => $pairedIds->contains($u->id));
-    $pending = $tournament->pendingParticipants;
-    $waiting = $tournament->participants()
-        ->wherePivot('status', 'waiting')
-        ->orderBy('tournament_participants.created_at')
-        ->get();
+    // Статус каждого участника: показываем его прямо на месте в паре.
+    $statusOf = $tournament->participants()
+        ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+        ->get()
+        ->mapWithKeys(fn ($u) => [(int) $u->id => $u->pivot->status]);
 
-    $playersIn = $pairedIds->count() + $unpaired->count();
+    $pairedIds = $pairs->flatMap(fn ($p) => [$p->player1_id, $p->player2_id])
+        ->filter()->map(fn ($id) => (int) $id)->unique();
+
+    $poolOf = fn (string $status) => $tournament->participants()
+        ->wherePivot('status', $status)
+        ->orderBy('tournament_participants.created_at')
+        ->get()
+        ->reject(fn ($u) => $pairedIds->contains((int) $u->id));
+
+    $unpaired = $poolOf('registered');
+    $pendingPool = $poolOf('pending');
+    $waitingPool = $poolOf('waiting');
+
+    $pendingTotal = $statusOf->filter(fn ($s) => $s === 'pending')->count();
+    $waitingTotal = $statusOf->filter(fn ($s) => $s === 'waiting')->count();
+    $playersIn = $statusOf->filter(fn ($s) => $s !== 'waiting')->count();
+
     $emptyRows = max(0, $maxPairs - $pairs->count());
     $canEdit = $tournament->status === 'open';
+    $canCreatePair = $canEdit && $pairs->count() < $maxPairs;
 
-    // Куда можно пересадить: пары со свободным местом, с номером и именем
-    // соседа — в меню это читается лучше, чем голый номер.
-    $freePairs = $pairs->values()->filter(fn ($p) => $p->player2_id === null)
-        ->map(fn ($p, $i) => (object) [
-            'id' => $p->id,
-            'position' => $pairs->search(fn ($x) => $x->id === $p->id) + 1,
-            'partner' => $p->player1->name ?? '—',
-        ])->values();
+    // Все места сетки для меню «Пересадить»: занятые (обмен) и свободные.
+    $seatOptions = collect();
+    foreach ($pairs as $index => $pair) {
+        $seatOptions->push((object) [
+            'teamId' => (int) $pair->id,
+            'seat' => 1,
+            'position' => $index + 1,
+            'userId' => (int) $pair->player1_id,
+            'name' => $pair->player1->name ?? '—',
+            'soloPair' => $pair->player2_id === null,
+        ]);
+        $seatOptions->push((object) [
+            'teamId' => (int) $pair->id,
+            'seat' => 2,
+            'position' => $index + 1,
+            'userId' => $pair->player2_id ? (int) $pair->player2_id : null,
+            'name' => $pair->player2->name ?? ($pair->player1->name ?? '—'),
+            'soloPair' => $pair->player2_id === null,
+        ]);
+    }
 
-    $pairIdOf = function ($userId) use ($pairs) {
-        $team = $pairs->first(fn ($p) => (int) $p->player1_id === (int) $userId
-            || (int) $p->player2_id === (int) $userId);
-
-        return $team?->id;
-    };
+    $menuArgs = fn ($player) => [
+        'tournament' => $tournament,
+        'player' => $player,
+        'current' => $statusOf[(int) $player->id] ?? 'registered',
+        'seatOptions' => $seatOptions,
+        'canCreatePair' => $canCreatePair,
+    ];
 @endphp
 
 <div class="flexp">
@@ -51,14 +78,14 @@
         <h3><i class="bi bi-people"></i> Состав</h3>
         <span class="flexp-chip ok">пар {{ $pairs->count() }} / {{ $maxPairs }}</span>
         <span class="flexp-chip">игроков {{ $playersIn }} / {{ $tournament->max_participants }}</span>
-        @if($pending->count() > 0)
-            <span class="flexp-chip warn">{{ $pending->count() }} на модерации</span>
+        @if($pendingTotal > 0)
+            <span class="flexp-chip warn">{{ $pendingTotal }} на модерации</span>
         @endif
-        @if($waiting->count() > 0)
-            <span class="flexp-chip blue">{{ $waiting->count() }} в листе ожидания</span>
+        @if($waitingTotal > 0)
+            <span class="flexp-chip blue">{{ $waitingTotal }} в листе ожидания</span>
         @endif
         <span class="flexp-spacer"></span>
-        @if($canEdit && $unpaired->count() >= 2)
+        @if($canEdit && $unpaired->count() + $pendingPool->count() >= 2)
             <form action="{{ route('club.tournaments.pairing.auto', $tournament) }}" method="POST" class="d-inline m-0">
                 @csrf
                 <button class="btn-outline-custom btn-sm"><i class="bi bi-shuffle"></i> Авто-пары</button>
@@ -71,47 +98,35 @@
         <div class="flexp-row">
             <div class="flexp-no">{{ $i + 1 }}</div>
 
-            <div class="flexp-seat">
-                @include('club.tournaments.partials._player_avatar', ['player' => $pair->player1])
-                <div class="flexp-seat-info">
-                    <div class="flexp-name">{{ $pair->player1->name ?? '—' }}</div>
-                    <div class="flexp-meta">@phoneFmt($pair->player1->phone ?? '') · {{ $pair->player1->level }}</div>
-                </div>
-                <div class="flexp-rating">{{ $pair->player1->rating }}</div>
-                @if($canEdit && $pair->player1)
-                    @include('club.tournaments.partials._flex_player_menu', [
-                        'player' => $pair->player1,
-                        'current' => 'registered',
-                        'freePairs' => $freePairs,
-                        'currentPairId' => $pair->id,
-                    ])
-                @endif
-            </div>
-
-            @if($pair->player2)
-                <div class="flexp-seat">
-                    @include('club.tournaments.partials._player_avatar', ['player' => $pair->player2])
-                    <div class="flexp-seat-info">
-                        <div class="flexp-name">{{ $pair->player2->name }}</div>
-                        <div class="flexp-meta">@phoneFmt($pair->player2->phone ?? '') · {{ $pair->player2->level }}</div>
+            @foreach([$pair->player1, $pair->player2] as $seatPlayer)
+                @if($seatPlayer)
+                    @php $seatStatus = $statusOf[(int) $seatPlayer->id] ?? 'registered'; @endphp
+                    <div class="flexp-seat flexp-seat-{{ $seatStatus }}">
+                        @include('club.tournaments.partials._player_avatar', ['player' => $seatPlayer])
+                        <div class="flexp-seat-info">
+                            <div class="flexp-name">
+                                {{ $seatPlayer->name }}
+                                @if($seatStatus === 'pending')
+                                    <span class="flexp-tag warn">на модерации</span>
+                                @elseif($seatStatus === 'waiting')
+                                    <span class="flexp-tag blue">лист ожидания</span>
+                                @endif
+                            </div>
+                            <div class="flexp-meta">@phoneFmt($seatPlayer->phone ?? '') · {{ $seatPlayer->level }}</div>
+                        </div>
+                        <div class="flexp-rating">{{ $seatPlayer->rating }}</div>
+                        @if($canEdit)
+                            @include('club.tournaments.partials._flex_player_menu', $menuArgs($seatPlayer))
+                        @endif
                     </div>
-                    <div class="flexp-rating">{{ $pair->player2->rating }}</div>
-                    @if($canEdit)
-                        @include('club.tournaments.partials._flex_player_menu', [
-                            'player' => $pair->player2,
-                            'current' => 'registered',
-                            'freePairs' => $freePairs,
-                            'currentPairId' => $pair->id,
-                        ])
-                    @endif
-                </div>
-            @elseif($canEdit)
-                <button type="button" class="flexp-seat flexp-free" onclick="togglePairFill({{ $pair->id }})">
-                    <span class="flexp-plus">+</span> Посадить второго
-                </button>
-            @else
-                <div class="flexp-seat flexp-empty">Место свободно</div>
-            @endif
+                @elseif($canEdit)
+                    <button type="button" class="flexp-seat flexp-free" onclick="togglePairFill({{ $pair->id }})">
+                        <span class="flexp-plus">+</span> Посадить второго
+                    </button>
+                @else
+                    <div class="flexp-seat flexp-empty">Место свободно</div>
+                @endif
+            @endforeach
 
             <div class="flexp-tail">
                 <span class="flexp-avg">{{ $pair->player2 ? 'ср. ' . $pair->rating_avg : '—' }}</span>
@@ -155,14 +170,14 @@
         </div>
     @endfor
 
-    {{-- Без пары: синим — состав есть, осталось разложить --}}
+    {{-- Без пары: в составе есть, места в сетке не заняли --}}
     @if($unpaired->count() > 0)
         <div class="flexp-pool flexp-pool-blue">
             <div class="flexp-pool-head">
                 <i class="bi bi-person-exclamation"></i>
                 <span>Без пары</span>
                 <span class="flexp-pool-count">{{ $unpaired->count() }}</span>
-                <span class="flexp-pool-hint">записаны, но пары ещё нет — посадите их к кому-то или в пустую</span>
+                <span class="flexp-pool-hint">в составе, но места в сетке нет — посадите к кому-то или в пустую пару</span>
             </div>
             <div class="flexp-chips">
                 @foreach($unpaired as $player)
@@ -177,12 +192,7 @@
                                 @csrf
                                 <button class="flexp-put" title="Посадить в первое свободное место">посадить</button>
                             </form>
-                            @include('club.tournaments.partials._flex_player_menu', [
-                                'player' => $player,
-                                'current' => 'registered',
-                                'freePairs' => $freePairs,
-                                'currentPairId' => null,
-                            ])
+                            @include('club.tournaments.partials._flex_player_menu', $menuArgs($player))
                         @endif
                     </div>
                 @endforeach
@@ -190,14 +200,14 @@
         </div>
     @endif
 
-    {{-- На модерации: жёлтым — ждут решения --}}
-    @if($pending->count() > 0)
+    {{-- На модерации без места: заявка есть, а сетка занята --}}
+    @if($pendingPool->count() > 0)
         <div class="flexp-pool flexp-pool-amber">
             <div class="flexp-pool-head">
                 <i class="bi bi-hourglass-split"></i>
-                <span>На модерации</span>
-                <span class="flexp-pool-count">{{ $pending->count() }}</span>
-                <span class="flexp-pool-hint">ждут вашего решения — одобренные попадут в «Без пары»</span>
+                <span>На модерации, без пары</span>
+                <span class="flexp-pool-count">{{ $pendingPool->count() }}</span>
+                <span class="flexp-pool-hint">заявка ждёт решения, места в сетке пока нет</span>
                 <span class="flexp-spacer"></span>
                 @if($canEdit)
                     <form action="{{ route('club.tournaments.participants.approveAll', $tournament) }}" method="POST" class="m-0"
@@ -208,7 +218,7 @@
                 @endif
             </div>
             <div class="flexp-chips">
-                @foreach($pending as $player)
+                @foreach($pendingPool as $player)
                     <div class="flexp-chip-player">
                         @include('club.tournaments.partials._player_avatar', ['player' => $player])
                         <div class="flexp-seat-info">
@@ -220,12 +230,7 @@
                                 @csrf
                                 <button class="flexp-ok" title="Одобрить"><i class="bi bi-check-lg"></i></button>
                             </form>
-                            @include('club.tournaments.partials._flex_player_menu', [
-                                'player' => $player,
-                                'current' => 'pending',
-                                'freePairs' => $freePairs,
-                                'currentPairId' => null,
-                            ])
+                            @include('club.tournaments.partials._flex_player_menu', $menuArgs($player))
                         @endif
                     </div>
                 @endforeach
@@ -233,17 +238,17 @@
         </div>
     @endif
 
-    {{-- Лист ожидания: серым — эти вне состава, пока их не переставят --}}
-    @if($waiting->count() > 0)
+    {{-- Лист ожидания: вне состава и вне пар --}}
+    @if($waitingPool->count() > 0)
         <div class="flexp-pool flexp-pool-grey">
             <div class="flexp-pool-head">
                 <i class="bi bi-hourglass"></i>
                 <span>Лист ожидания</span>
-                <span class="flexp-pool-count">{{ $waiting->count() }}</span>
-                <span class="flexp-pool-hint">вне состава — переведите в основной список, когда освободится место</span>
+                <span class="flexp-pool-count">{{ $waitingPool->count() }}</span>
+                <span class="flexp-pool-hint">вне состава — посадите в пару, когда освободится место</span>
             </div>
             <div class="flexp-chips">
-                @foreach($waiting as $player)
+                @foreach($waitingPool as $player)
                     <div class="flexp-chip-player">
                         @include('club.tournaments.partials._player_avatar', ['player' => $player])
                         <div class="flexp-seat-info">
@@ -251,12 +256,11 @@
                             <div class="flexp-meta">{{ $player->level }} · {{ $player->rating }}</div>
                         </div>
                         @if($canEdit)
-                            @include('club.tournaments.partials._flex_player_menu', [
-                                'player' => $player,
-                                'current' => 'waiting',
-                                'freePairs' => $freePairs,
-                                'currentPairId' => null,
-                            ])
+                            <form action="{{ route('club.tournaments.pairs.seat', [$tournament, $player->id]) }}" method="POST" class="m-0">
+                                @csrf
+                                <button class="flexp-put" title="Посадить в первое свободное место">посадить</button>
+                            </form>
+                            @include('club.tournaments.partials._flex_player_menu', $menuArgs($player))
                         @endif
                     </div>
                 @endforeach
@@ -287,8 +291,8 @@
 </div>
 
 <style>
-/* Крупнее прежнего в полтора раза: таблицу состава читают через весь экран,
-   а не носом в монитор. */
+/* Крупнее прежнего в полтора раза: состав читают через весь экран, а не
+   носом в монитор. */
 .flexp{margin-bottom:18px}
 .flexp-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .flexp-bar h3{font-size:19px;font-weight:700;color:#fff;margin:0}
@@ -307,12 +311,18 @@
 
 .flexp-seat{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;
     background:#1E2227;min-height:60px;width:100%;text-align:left;min-width:0}
+.flexp-seat-pending{box-shadow:inset 3px 0 0 #EAB34E}
+.flexp-seat-waiting{box-shadow:inset 3px 0 0 #8FBBFF}
 .flexp-seat .player-avatar{width:40px;height:40px;font-size:15px;flex:0 0 auto}
 .flexp-seat-info{min-width:0;flex:1}
 .flexp-name{font-size:16px;font-weight:600;color:#EDEFF2;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
 .flexp-meta{font-size:13.5px;color:#9aa1a9;margin-top:2px}
 .flexp-rating{font-size:16px;font-weight:800;color:#9aa1a9;flex:0 0 auto}
+.flexp-tag{font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px;
+    margin-left:6px;vertical-align:middle}
+.flexp-tag.warn{background:rgba(234,179,78,.16);color:#EAB34E}
+.flexp-tag.blue{background:rgba(91,155,255,.16);color:#8FBBFF}
 
 .flexp-tail{display:flex;align-items:center;justify-content:flex-end;gap:10px}
 .flexp-avg{color:#9aa1a9;font-size:14px;white-space:nowrap}
@@ -328,9 +338,10 @@
 .flexp-dots{border:1px solid var(--border);background:transparent;color:#9aa1a9;
     border-radius:8px;width:32px;height:32px;display:grid;place-items:center;flex:0 0 auto}
 .flexp-dots:hover{color:#fff;border-color:rgba(255,255,255,.25)}
-.flexp-menu .dropdown-menu{min-width:260px}
-.flexp-menu .dropdown-item{font-size:14px}
+.flexp-menu .dropdown-menu{min-width:300px;max-height:60vh;overflow-y:auto}
+.flexp-menu .dropdown-item{font-size:14px;display:flex;align-items:center;gap:8px}
 .flexp-menu .dropdown-header{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase}
+.flexp-menu-note{font-size:12px;color:#6a7178;margin-left:auto;padding-left:10px}
 
 .flexp-pool{border-radius:12px;padding:14px 16px;margin:14px 0}
 .flexp-pool-blue{background:rgba(91,155,255,.08);border:1px solid rgba(91,155,255,.35)}
