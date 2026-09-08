@@ -64,6 +64,14 @@
         ]);
     }
 
+    // Кого сажают в пару чаще всего: те, кто уже в турнире, но места не
+    // заняли. Искать их по всей базе — лишняя работа, поэтому показываем
+    // сразу, а поиск оставляем ниже для тех, кого в турнире ещё нет.
+    $seatCandidates = collect()
+        ->concat($unpaired->map(fn ($u) => ['user' => $u, 'tag' => null]))
+        ->concat($pendingPool->map(fn ($u) => ['user' => $u, 'tag' => 'модерация']))
+        ->concat($waitingPool->map(fn ($u) => ['user' => $u, 'tag' => 'очередь']));
+
     $menuArgs = fn ($player) => [
         'tournament' => $tournament,
         'player' => $player,
@@ -143,6 +151,30 @@
 
         @if($canEdit && !$pair->player2)
             <div class="pair-fill" id="pairFill{{ $pair->id }}" style="display: none;">
+                @if($seatCandidates->isNotEmpty())
+                    <div class="flexp-cands">
+                        <div class="flexp-cands-title">Уже в турнире, без пары</div>
+                        <div class="flexp-cands-list">
+                            @foreach($seatCandidates as $candidate)
+                                <form action="{{ route('club.tournaments.pairs.fill', [$tournament, $pair]) }}"
+                                      method="POST" class="m-0">
+                                    @csrf
+                                    <input type="hidden" name="player_id" value="{{ $candidate['user']->id }}">
+                                    <button type="submit" class="flexp-cand">
+                                        @include('club.tournaments.partials._player_avatar', ['player' => $candidate['user']])
+                                        <span class="flexp-cand-name">{{ $candidate['user']->name }}</span>
+                                        <span class="flexp-cand-meta">{{ $candidate['user']->level }} · {{ $candidate['user']->rating }}</span>
+                                        @if($candidate['tag'])
+                                            <span class="flexp-cand-tag">{{ $candidate['tag'] }}</span>
+                                        @endif
+                                    </button>
+                                </form>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="flexp-cands-or">или найдите игрока в базе</div>
+                @endif
+
                 <form action="{{ route('club.tournaments.pairs.fill', [$tournament, $pair]) }}" method="POST">
                     @csrf
                     <div class="search-wrapper">
@@ -379,6 +411,21 @@
     width:32px;height:32px;display:grid;place-items:center;font-size:15px}
 .flexp-x{border:none;background:rgba(240,85,77,.14);color:#F0554D;border-radius:8px;
     width:32px;height:32px;display:grid;place-items:center;font-size:15px}
+
+.flexp-cands{margin-bottom:12px}
+.flexp-cands-title{font-size:12px;letter-spacing:.5px;text-transform:uppercase;
+    color:#6a7178;margin-bottom:8px}
+.flexp-cands-list{display:flex;flex-wrap:wrap;gap:8px}
+.flexp-cand{display:flex;align-items:center;gap:9px;background:#1E2227;
+    border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;
+    color:#EDEFF2;font-size:14px}
+.flexp-cand:hover{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.08)}
+.flexp-cand .player-avatar{width:30px;height:30px;font-size:12px;flex:0 0 auto}
+.flexp-cand-name{font-weight:600}
+.flexp-cand-meta{color:#9aa1a9;font-size:12.5px}
+.flexp-cand-tag{font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px;
+    background:rgba(255,255,255,.08);color:#9aa1a9}
+.flexp-cands-or{font-size:12.5px;color:#6a7178;margin-bottom:8px}
 
 .flexp-add{background:rgba(255,255,255,.03);border:1px solid var(--border);
     border-radius:12px;padding:14px 16px;margin-top:14px}
