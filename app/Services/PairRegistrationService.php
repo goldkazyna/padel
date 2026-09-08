@@ -184,6 +184,47 @@ class PairRegistrationService
     }
 
     /**
+     * Посадить игрока в первое свободное место: сначала в чью-то неполную
+     * пару, а если таких нет — открыть новую.
+     */
+    public function seatPlayer(Tournament $tournament, int $userId): array
+    {
+        $open = $tournament->teams()
+            ->whereNull('player2_id')
+            ->whereIn('status', ['approved', 'pending'])
+            ->where('player1_id', '!=', $userId)
+            ->orderBy('id')
+            ->first();
+
+        if ($open) {
+            return $this->fillPair($tournament, $open->id, $userId);
+        }
+
+        if ($tournament->status !== 'open') {
+            return [false, 'Турнир уже запущен или завершён'];
+        }
+        if ($this->alreadyPaired($tournament, [$userId])) {
+            return [false, 'Игрок уже состоит в паре'];
+        }
+
+        $maxPairs = (int) floor($tournament->max_participants / 2);
+        if ($tournament->teams()->whereIn('status', ['approved', 'pending'])->count() >= $maxPairs) {
+            return [false, 'Пар больше, чем мест'];
+        }
+
+        $user = User::find($userId);
+        \App\Models\TournamentTeam::create([
+            'tournament_id' => $tournament->id,
+            'player1_id' => $userId,
+            'player2_id' => null,
+            'status' => 'approved',
+            'rating_avg' => (int) ($user?->rating ?? 0),
+        ]);
+
+        return [true, "{$user?->name} ждёт напарника в новой паре"];
+    }
+
+    /**
      * Разбить пару.
      *
      * Игроки остаются записанными — организатор может собрать их заново

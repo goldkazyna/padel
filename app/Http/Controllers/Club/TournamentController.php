@@ -1484,6 +1484,21 @@ class TournamentController extends Controller
 	}
 
 	/**
+	 * Посадить игрока в первое свободное место.
+	 */
+	public function seatPlayer(Tournament $tournament, int $userId, \App\Services\PairRegistrationService $pairs)
+	{
+		$club = $this->getClub();
+		if ($club && $tournament->club_id != $club->id) {
+			abort(403);
+		}
+
+		[$ok, $message] = $pairs->seatPlayer($tournament, $userId);
+
+		return back()->with($ok ? 'success' : 'error', $message);
+	}
+
+	/**
 	 * Разбить пару. Игроки остаются записанными на турнир.
 	 */
 	public function removePair(Tournament $tournament, int $pair, \App\Services\PairRegistrationService $pairs)

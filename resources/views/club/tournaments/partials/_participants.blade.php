@@ -113,7 +113,11 @@
     {{-- Пары записываются сами: заявка приходит парой, а не игроком, и живёт
          в командах турнира. Список участников заполнится только при старте,
          поэтому здесь показываем пары — иначе организатору нечего одобрять. --}}
-    @if($showsPairs)
+    {{-- Парный флекс собирается по-своему: пары строками, ниже пул тех, кому
+         пары ещё нет, и заявки. Остальные парные форматы — прежним видом. --}}
+    @if($tournament->isPairedFlex())
+        @include('club.tournaments.partials._flex_pairs', ['tournament' => $tournament])
+    @elseif($showsPairs)
         @php
             $pendingPairs = $tournament->teams()->where('status', 'pending')
                 ->with(['player1', 'player2'])->orderBy('created_at')->get();
@@ -295,7 +299,7 @@
     @endif
 
     {{-- Заявки на модерации --}}
-    @if($tournament->usesSoloRegistration() && $tournament->pendingParticipantsCount() > 0)
+    @if($tournament->usesSoloRegistration() && !$tournament->isPairedFlex() && $tournament->pendingParticipantsCount() > 0)
     <div class="pending-section mb-4">
         <div class="pending-header">
             <i class="bi bi-hourglass-split text-warning"></i>
@@ -535,7 +539,7 @@
     @endif
 
     {{-- Форма добавления участника: только при записи поодиночке --}}
-    @if($tournament->usesSoloRegistration() && $tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
+    @if($tournament->usesSoloRegistration() && !$tournament->isPairedFlex() && $tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">
         <div class="add-participant-header">
             <i class="bi bi-person-plus"></i>

@@ -576,6 +576,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             // Посадить второго игрока в неполную пару.
             Route::post('/tournaments/{tournament}/pairs/{pair}/fill', [TournamentController::class, 'fillPair'])
                 ->name('tournaments.pairs.fill');
+            // Посадить игрока в первое свободное место.
+            Route::post('/tournaments/{tournament}/pairs/seat/{user}', [TournamentController::class, 'seatPlayer'])
+                ->name('tournaments.pairs.seat');
             Route::delete('/tournaments/{tournament}/pairs/{pair}', [ClubTournamentController::class, 'removePair'])
                 ->name('tournaments.pairs.remove');
             // Приглашения игроков (как в мобильной админке) — все индивидуальные турниры
