@@ -203,6 +203,10 @@ Route::prefix('mobile')->group(function () {
         Route::get('/admin/tournaments/{tournament}/pairs', [MobileAdminTournamentDetailController::class, 'pairsState']);
         Route::post('/admin/tournaments/{tournament}/pairs', [MobileAdminTournamentDetailController::class, 'addPair']);
         Route::delete('/admin/tournaments/{tournament}/pairs/{pair}', [MobileAdminTournamentDetailController::class, 'removePair']);
+        // Парный флекс: работа с местами в сетке.
+        Route::post('/admin/tournaments/{tournament}/pairs/seat', [MobileAdminTournamentDetailController::class, 'seatPlayer']);
+        Route::post('/admin/tournaments/{tournament}/pairs/move', [MobileAdminTournamentDetailController::class, 'movePlayerToSeat']);
+        Route::post('/admin/tournaments/{tournament}/pairs/{pair}/fill', [MobileAdminTournamentDetailController::class, 'fillPair']);
 
         // Ручной сбор пар (групповой турнир, pairing_mode=admin)
         Route::get('/admin/tournaments/{tournament}/pairing', [MobileAdminTournamentDetailController::class, 'pairingState']);

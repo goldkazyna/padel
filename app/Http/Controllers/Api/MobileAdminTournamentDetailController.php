@@ -994,13 +994,22 @@ class MobileAdminTournamentDetailController extends Controller
                 return $arr;
             });
 
-        return response()->json([
+        $payload = [
             'success' => true,
             'type' => 'single',
             'participants' => $list,
             'max_participants' => (int) $tournament->max_participants,
             'can_modify' => $this->canModifyParticipants($tournament),
-        ]);
+        ];
+
+        // Парный флекс собирают по местам, а не списком: экран рисует всю
+        // сетку, включая пустые пары, и сажает людей тапом. Отдаём её здесь
+        // же — второй запрос ради шести строк не нужен.
+        if ($tournament->isPairedFlex()) {
+            $payload['flex_pairs'] = $this->flexPairs($tournament);
+        }
+
+        return response()->json($payload);
     }
 
     /**
@@ -1781,6 +1790,102 @@ class MobileAdminTournamentDetailController extends Controller
             'avatar' => $u->avatar,
             'verified' => (bool) $u->level_verified,
         ];
+    }
+
+    /**
+     * Сетка пар парного флекса: занятые места, свободные и пустые пары.
+     */
+    private function flexPairs(Tournament $tournament): array
+    {
+        $pairs = $tournament->teams()
+            ->whereIn('status', ['approved', 'pending'])
+            ->with(['player1', 'player2'])
+            ->orderBy('id')
+            ->get();
+
+        return [
+            'max_pairs' => \App\Support\OpenPairs::maxPairs($tournament),
+            'pairs' => $pairs->values()->map(fn ($p, $i) => [
+                'id' => (int) $p->id,
+                'position' => $i + 1,
+                'rating_avg' => (int) $p->rating_avg,
+                'player1' => $p->player1 ? $this->formatUser($p->player1) : null,
+                'player2' => $p->player2 ? $this->formatUser($p->player2) : null,
+            ])->all(),
+        ];
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairs/{pair}/fill
+     */
+    public function fillPair(
+        Request $request,
+        Tournament $tournament,
+        int $pair,
+        \App\Services\PairRegistrationService $pairs
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $data = $request->validate(['user_id' => 'required|integer']);
+        [$ok, $message] = $pairs->fillPair($tournament, $pair, (int) $data['user_id']);
+
+        return $ok
+            ? response()->json(['success' => true, 'message' => $message])
+            : $this->error($message);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairs/seat
+     */
+    public function seatPlayer(
+        Request $request,
+        Tournament $tournament,
+        \App\Services\PairRegistrationService $pairs
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $data = $request->validate(['user_id' => 'required|integer']);
+        [$ok, $message] = $pairs->seatPlayer($tournament, (int) $data['user_id']);
+
+        return $ok
+            ? response()->json(['success' => true, 'message' => $message])
+            : $this->error($message);
+    }
+
+    /**
+     * POST /api/mobile/admin/tournaments/{tournament}/pairs/move
+     *
+     * team_id = 0 — открыть новую пару.
+     */
+    public function movePlayerToSeat(
+        Request $request,
+        Tournament $tournament,
+        \App\Services\PairRegistrationService $pairs
+    ): JsonResponse {
+        if (!$this->canManageTournament($request->user(), $tournament)) {
+            return $this->forbidden();
+        }
+
+        $data = $request->validate([
+            'user_id' => 'required|integer',
+            'team_id' => 'required|integer|min:0',
+            'seat' => 'required|integer|in:1,2',
+        ]);
+
+        [$ok, $message] = $pairs->movePlayerToSeat(
+            $tournament,
+            (int) $data['user_id'],
+            (int) $data['team_id'],
+            (int) $data['seat']
+        );
+
+        return $ok
+            ? response()->json(['success' => true, 'message' => $message])
+            : $this->error($message);
     }
 
     private function formatUser(User $u): array
