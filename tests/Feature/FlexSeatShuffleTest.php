@@ -169,6 +169,39 @@ class FlexSeatShuffleTest extends TestCase
         $this->assertSame('Игрок уже на этом месте', $message);
     }
 
+    /**
+     * Маршруты бьют по настоящему контроллеру.
+     *
+     * Сервис вызывали напрямую, а маршруты указывали не на тот класс —
+     * страница отдавала 500, хотя все тесты были зелёными.
+     */
+    public function test_кнопки_состава_работают_через_маршруты(): void
+    {
+        $first = $this->player(3000);
+        $second = $this->player(2000);
+        $loner = $this->player(1500);
+        $pair = $this->pair($first);
+        $admin = $this->clubAdmin();
+
+        // Досбор пары.
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.pairs.fill', [$this->tournament, $pair]), ['player_id' => $second->id])
+            ->assertRedirect();
+        $this->assertSame($second->id, (int) $pair->fresh()->player2_id);
+
+        // Пересадка на занятое место — меняются местами.
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.pairs.move', [$this->tournament, $loner->id, $pair->id, 2]))
+            ->assertRedirect();
+        $this->assertSame($loner->id, (int) $pair->fresh()->player2_id);
+
+        // Посадка в первое свободное место.
+        $this->actingAs($admin)
+            ->post(route('club.tournaments.pairs.seat', [$this->tournament, $second->id]))
+            ->assertRedirect();
+        $this->assertNotNull(OpenPairs::teamOf($this->tournament, $second->id));
+    }
+
     private function clubAdmin(): User
     {
         $admin = User::factory()->create(['role' => 'club_admin']);
