@@ -22,6 +22,20 @@ class GameMembershipHelpersTest extends TestCase
         $this->assertContains($u->id, collect($res->json('data'))->pluck('id')->all());
     }
 
+    public function test_search_player_answers_partners_key(): void
+    {
+        // Приложение читает 'partners': пока сервер отдавал только 'data',
+        // список в шторке был пустым, что бы ни ввели.
+        $u = User::factory()->create(['phone' => '77774333822']);
+        Sanctum::actingAs(User::factory()->create());
+
+        $res = $this->postJson('/api/mobile/games/search-player', ['phone' => '43338'])
+            ->assertOk();
+
+        $this->assertContains($u->id, collect($res->json('partners'))->pluck('id')->all());
+        $this->assertSame($res->json('data'), $res->json('partners'));
+    }
+
     public function test_search_player_empty_returns_404(): void
     {
         Sanctum::actingAs(User::factory()->create());

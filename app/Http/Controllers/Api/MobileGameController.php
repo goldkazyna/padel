@@ -1072,7 +1072,13 @@ class MobileGameController extends Controller
             ];
         });
 
-        return response()->json(['success' => true, 'data' => $data]);
+        // Ключ 'partners' — для сборок в сторе: они читают именно его, а
+        // 'data' не видели вовсе, и поиск всегда возвращал пусто.
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'partners' => $data,
+        ]);
     }
 
     /** Начать игру: full → in_progress (только организатор). */
