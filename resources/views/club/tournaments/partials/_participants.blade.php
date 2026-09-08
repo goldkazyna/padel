@@ -487,8 +487,10 @@
     </div>
     @endif
 
-    {{-- Лист ожидания --}}
-    @if($waitlistParticipants->count() > 0)
+    {{-- Лист ожидания. У парного флекса он свой, внутри блока состава: там
+         у каждого есть меню «посадить в пару», и два одинаковых списка на
+         странице только путали. --}}
+    @if(!$tournament->isPairedFlex() && $waitlistParticipants->count() > 0)
     <div class="waitlist-section mb-4 mt-4">
         <div class="waitlist-header">
             <i class="bi bi-hourglass-split"></i>
