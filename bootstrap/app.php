@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 		]);
 		
 		$middleware->alias([
+			'no.store' => \App\Http\Middleware\NoStore::class,
 			'role' => \App\Http\Middleware\RoleMiddleware::class,
 			'telegram.miniapp' => \App\Http\Middleware\TelegramMiniAppAuth::class,
 			'club.feature' => \App\Http\Middleware\CheckClubFeature::class,
@@ -27,7 +28,43 @@ return Application::configure(basePath: dirname(__DIR__))
 		]);
 	})
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Протухший CSRF-токен — не ошибка человека.
         //
+        // Форма входа висит открытой, пользователь переключается между
+        // аккаунтами или возвращается кнопкой «Назад» — токен от прежней
+        // сессии уже не годится, и Laravel показывает голую страницу «419
+        // Page Expired», из которой некуда идти. Возвращаем на ту же форму:
+        // токен там уже свежий, введённое (кроме пароля) на месте.
+        //
+        // Ловим по коду ответа, а не по классу: TokenMismatchException
+        // превращается в HttpException(419) раньше, чем доходит до
+        // обработчиков исключений.
+        $exceptions->respond(function (
+            \Symfony\Component\HttpFoundation\Response $response,
+            \Throwable $e,
+            \Illuminate\Http\Request $request
+        ) {
+            if ($response->getStatusCode() !== 419) {
+                return $response;
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Страница устарела. Обновите её и повторите.',
+                ], 419);
+            }
+
+            // Возвращаем строго на страницу, с которой пришли, и только
+            // если она наша: чужой referer — это открытый редирект.
+            $back = (string) $request->headers->get('referer');
+            if ($back === '' || !str_starts_with($back, url('/')) || $back === $request->fullUrl()) {
+                $back = route('login');
+            }
+
+            return redirect()->to($back)
+                ->withInput($request->except(['password', 'password_confirmation', '_token']))
+                ->with('status', 'Страница была открыта слишком долго. Попробуйте ещё раз.');
+        });
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
         $schedule->command('tournaments:process-moderation')
