@@ -203,4 +203,18 @@ class MobileAdminFlexSeatsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('tournament.can_start', true);
     }
+
+    public function test_на_месте_в_паре_видно_статус_игрока(): void
+    {
+        // Человек может сидеть в сетке и висеть на модерации: без пометки
+        // организатор этого не увидит и не поймёт, кого ещё одобрять.
+        $first = $this->player();
+        $pending = $this->player('pending');
+        $this->pair($first, $pending);
+
+        $this->getJson("/api/mobile/admin/tournaments/{$this->tournament->id}/participants")
+            ->assertOk()
+            ->assertJsonPath('flex_pairs.pairs.0.player1.status', 'registered')
+            ->assertJsonPath('flex_pairs.pairs.0.player2.status', 'pending');
+    }
 }

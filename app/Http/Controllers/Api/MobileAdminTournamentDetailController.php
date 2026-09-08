@@ -1827,14 +1827,30 @@ class MobileAdminTournamentDetailController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Статус участника нужен прямо на месте в паре: человек может сидеть
+        // в сетке и при этом висеть на модерации — без пометки это не видно.
+        $statuses = $tournament->participants()
+            ->get(['users.id'])
+            ->mapWithKeys(fn ($u) => [(int) $u->id => $u->pivot->status]);
+
+        $seat = function (?User $user) use ($statuses) {
+            if (!$user) {
+                return null;
+            }
+
+            return $this->formatUser($user) + [
+                'status' => $statuses[(int) $user->id] ?? 'registered',
+            ];
+        };
+
         return [
             'max_pairs' => \App\Support\OpenPairs::maxPairs($tournament),
             'pairs' => $pairs->values()->map(fn ($p, $i) => [
                 'id' => (int) $p->id,
                 'position' => $i + 1,
                 'rating_avg' => (int) $p->rating_avg,
-                'player1' => $p->player1 ? $this->formatUser($p->player1) : null,
-                'player2' => $p->player2 ? $this->formatUser($p->player2) : null,
+                'player1' => $seat($p->player1),
+                'player2' => $seat($p->player2),
             ])->all(),
         ];
     }
