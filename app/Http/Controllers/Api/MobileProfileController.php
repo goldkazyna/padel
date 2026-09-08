@@ -232,14 +232,16 @@ class MobileProfileController extends Controller
             $current = trim((string) $user->phone);
 
             if ($raw !== '' && $raw !== $current) {
-                if ($current !== '') {
+                // Подтверждённый номер меняют только кодом: человек уже
+                // доказал, что номер его, и СМС на него доходит.
+                if ($user->phone_verified_at !== null) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Номер телефона подтверждается кодом из СМС',
                     ], 422);
                 }
 
-                $phone = \App\Support\ContactHandle::phone($raw);
+                $phone = \App\Support\ContactHandle::anyPhone($raw);
                 if ($phone === null) {
                     return response()->json([
                         'success' => false,
@@ -424,6 +426,9 @@ class MobileProfileController extends Controller
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'phone' => $user->phone,
+            // Пока номер не подтверждён кодом, приложение даёт его исправить:
+            // на иностранные номера СМС не доходят, и другого пути нет.
+            'phone_verified' => $user->phone_verified_at !== null,
             'avatar' => $user->avatar,
             'rating' => $user->rating,
             'level' => $user->level,

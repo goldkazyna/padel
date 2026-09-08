@@ -20,9 +20,12 @@ class PhoneVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_профиль_не_меняет_указанный_телефон(): void
+    public function test_профиль_не_меняет_подтверждённый_телефон(): void
     {
-        $user = User::factory()->create(['phone' => '77771112233']);
+        $user = User::factory()->create([
+            'phone' => '77771112233',
+            'phone_verified_at' => now(),
+        ]);
         Sanctum::actingAs($user);
 
         $this->putJson('/api/mobile/profile', [
@@ -114,6 +117,45 @@ class PhoneVerificationTest extends TestCase
         ])->assertOk()->assertJsonPath('is_new', false);
 
         $this->assertSame('77066447987', $user->fresh()->phone);
+    }
+
+    public function test_иностранный_номер_принимается(): void
+    {
+        // На колумбийский номер СМС не уходит — шлюз отбивает его как
+        // «Invalid Length recipient». Значит вписать его надо руками.
+        $user = User::factory()->create(['phone' => null]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/mobile/profile', ['phone' => '+57 318 759 6895'])
+            ->assertOk();
+
+        $this->assertSame('573187596895', $user->fresh()->phone);
+    }
+
+    public function test_неподтверждённый_номер_можно_исправить(): void
+    {
+        // Опечатался в своём же номере — код на него не придёт, и исправить
+        // через СМС нечем. Пока номер не подтверждён, правим свободно.
+        $user = User::factory()->create([
+            'phone' => '573187596891',
+            'phone_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/mobile/profile', ['phone' => '573187596895'])
+            ->assertOk();
+
+        $this->assertSame('573187596895', $user->fresh()->phone);
+    }
+
+    public function test_профиль_говорит_подтверждён_ли_номер(): void
+    {
+        $user = User::factory()->create(['phone' => '77771112233', 'phone_verified_at' => null]);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/mobile/profile')
+            ->assertOk()
+            ->assertJsonPath('user.phone_verified', false);
     }
 
     public function test_первый_телефон_не_отбирает_чужой_аккаунт(): void
