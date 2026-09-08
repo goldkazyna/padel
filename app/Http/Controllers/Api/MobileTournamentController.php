@@ -422,6 +422,14 @@ class MobileTournamentController extends Controller
                 'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
             ], 400);
         }
+        // Занять место в паре — это тоже запись на турнир: играть в двух
+        // разом нельзя.
+        if ($clash = \App\Support\TournamentClash::find($tournament, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => \App\Support\TournamentClash::message($clash),
+            ], 400);
+        }
 
         return null;
     }
@@ -661,6 +669,15 @@ class MobileTournamentController extends Controller
             ], 400);
         }
 
+        // Играть в двух турнирах разом нельзя: человек записывался на два
+        // на один вечер и узнавал об этом уже на корте.
+        if ($clash = \App\Support\TournamentClash::find($tournament, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => \App\Support\TournamentClash::message($clash),
+            ], 400);
+        }
+
         // Валидация друга (если указан)
         $friend = null;
         if ($friendId) {
@@ -692,6 +709,12 @@ class MobileTournamentController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => "Уровень {$friend->name} ({$friend->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+                ], 400);
+            }
+            if ($friendClash = \App\Support\TournamentClash::find($tournament, $friend)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "{$friend->name} в это время уже играет: «{$friendClash->name}».",
                 ], 400);
             }
         }
@@ -1071,6 +1094,19 @@ class MobileTournamentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => "Уровень партнёра ({$partner->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        if ($clash = \App\Support\TournamentClash::find($tournament, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => \App\Support\TournamentClash::message($clash),
+            ], 400);
+        }
+        if ($partnerClash = \App\Support\TournamentClash::find($tournament, $partner)) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$partner->name} в это время уже играет: «{$partnerClash->name}».",
             ], 400);
         }
 

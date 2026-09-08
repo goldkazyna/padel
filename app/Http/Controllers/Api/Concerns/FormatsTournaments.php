@@ -210,6 +210,12 @@ trait FormatsTournaments
      */
     private function resolveBlockReason(Tournament $t, $user, int $needSlots): ?string
     {
+        // Занят в это время в другом турнире — говорим об этом до нажатия,
+        // а не после.
+        if ($clash = \App\Support\TournamentClash::find($t, $user)) {
+            return \App\Support\TournamentClash::message($clash);
+        }
+
         if ($t->isFull() && $t->hasWaitlistSlot($needSlots)) {
             // Места нет в основном, но есть в waitlist — пропускаем (UI спросит confirm)
             if (!$t->isOpen()) return 'Турнир не открыт для регистрации';
