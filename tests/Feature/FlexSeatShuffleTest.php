@@ -202,6 +202,29 @@ class FlexSeatShuffleTest extends TestCase
         $this->assertNotNull(OpenPairs::teamOf($this->tournament, $second->id));
     }
 
+    public function test_тестовые_игроки_садятся_в_сетку_парами(): void
+    {
+        // В открытых парах место в турнире — это место в паре. Раньше кнопка
+        // сыпала двенадцать человек в «Без пары», сетка оставалась пустой,
+        // и турнир было не запустить, не собрав пары руками.
+        foreach (range(1, 12) as $n) {
+            User::factory()->create(['email' => "{$n}@gmail.com", 'role' => 'player']);
+        }
+
+        $this->actingAs($this->clubAdmin())
+            ->post(route('club.tournaments.addTestPlayers', $this->tournament))
+            ->assertRedirect();
+
+        $this->tournament->refresh();
+        $this->assertSame(8, $this->tournament->participants()->count(), 'мест ровно восемь');
+        $this->assertSame(4, $this->tournament->teams()->count(), 'и все они в парах');
+        $this->assertSame(
+            0,
+            $this->tournament->teams()->whereNull('player2_id')->count(),
+            'неполных пар не осталось'
+        );
+    }
+
     private function clubAdmin(): User
     {
         $admin = User::factory()->create(['role' => 'club_admin']);

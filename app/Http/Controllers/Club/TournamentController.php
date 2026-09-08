@@ -926,6 +926,17 @@ class TournamentController extends Controller
 			$tournament->participants()->attach($player->id, ['status' => 'registered']);
 		}
 
+		// В открытых парах место в турнире — это место в паре: живой игрок,
+		// записываясь, либо открывает пару, либо садится к тому, кто уже ждёт.
+		// Тестовые должны попадать так же, иначе сетка остаётся пустой, а
+		// внизу висит стена из двенадцати человек «без пары».
+		if ($tournament->usesOpenPairs()) {
+			$pairs = app(\App\Services\PairRegistrationService::class);
+			foreach ($players as $player) {
+				$pairs->seatPlayer($tournament->fresh(), $player->id);
+			}
+		}
+
 		return back()->with('success', 'Добавлено ' . $players->count() . ' игроков');
 	}
 	/**
