@@ -90,7 +90,9 @@ trait FormatsTournaments
             'max_participants' => $t->max_participants,
             'participants_count' => $this->getParticipantsCount($t),
             'spots_left' => max(0, $t->max_participants - $this->getParticipantsCount($t)),
-            'waitlist_size' => (int) ($t->waitlist_size ?? 0),
+            // 0 = «без предела»: в открытых парах очередь не ограничена, и
+            // подпись «3 / 4» под списком ожидания была бы враньём.
+            'waitlist_size' => $t->usesOpenPairs() ? 0 : (int) ($t->waitlist_size ?? 0),
             'waitlist_count' => $t->waitlistCount(),
             'waitlist_available' => $t->hasWaitlistSlot(),
             // Участие платное и оплачивается онлайн: приложение вместо

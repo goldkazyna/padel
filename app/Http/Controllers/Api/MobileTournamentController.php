@@ -755,11 +755,21 @@ class MobileTournamentController extends Controller
             $hasWaitlist = $waitlistCapacity > 0
                 && ($waitlistTaken + $needSlots) <= $waitlistCapacity;
 
+            // В открытых парах очередь не ограничиваем и не переспрашиваем.
+            // «Мест нет» тут неправда: все пары созданы, но свободные места
+            // рядом с игроками остались — человек сядет сам или его посадит
+            // организатор. Отказать ему было бы просто потерей участника.
+            $needConfirm = !$confirmWaitlist;
+            if ($tournament->usesOpenPairs()) {
+                $hasWaitlist = true;
+                $needConfirm = false;
+            }
+
             if (!$hasWaitlist) {
                 return 'no_space';
             }
 
-            if (!$confirmWaitlist) {
+            if ($needConfirm) {
                 return 'needs_confirm';
             }
 
@@ -848,11 +858,22 @@ class MobileTournamentController extends Controller
 
         if ($isWaitlisted) {
             $position = $tournament->getWaitlistPosition($user) ?? 0;
+
+            $message = $friend
+                ? "Вы и {$friend->name} в листе ожидания"
+                : 'Вы в листе ожидания';
+
+            // В открытых парах очередь — не тупик: свободные места в парах
+            // остались, и человеку надо сказать, что он может сесть сам.
+            if ($tournament->usesOpenPairs()) {
+                $message = $friend
+                    ? "Вы и {$friend->name} в листе ожидания: все пары уже созданы. Займите свободные места в парах — нажмите «+» рядом с игроком, — или свяжитесь с организатором, он подберёт пару."
+                    : 'Вы в листе ожидания: все пары уже созданы. Займите свободное место в любой паре — нажмите «+» рядом с игроком, — или свяжитесь с организатором, он подберёт вам пару.';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => $friend
-                    ? "Вы и {$friend->name} в листе ожидания"
-                    : 'Вы в листе ожидания',
+                'message' => $message,
                 'registration_status' => 'waiting',
                 'waitlist_position' => $position,
             ]);

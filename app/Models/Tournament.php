@@ -369,6 +369,14 @@ class Tournament extends Model
 	 */
 	public function hasWaitlistSlot(int $needSlots = 1): bool
 	{
+		// В открытых парах очередь бесконечна: все пары созданы, но места
+		// рядом с игроками ещё свободны — человек сядет сам или его посадит
+		// организатор. Отказать ему значило бы потерять участника на ровном
+		// месте.
+		if ($this->usesOpenPairs()) {
+			return true;
+		}
+
 		$size = (int) ($this->waitlist_size ?? 0);
 		if ($size <= 0) return false;
 		// waitlist_size для team задаётся в парах, для solo в людях.

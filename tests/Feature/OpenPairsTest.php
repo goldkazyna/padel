@@ -118,12 +118,12 @@ class OpenPairsTest extends TestCase
             $this->register($this->player())->assertOk();
         }
 
+        // Переспрашивать не о чем: свободные места в парах остались, и
+        // человек либо сядет сам, либо его посадит организатор.
         $seventh = $this->player();
-        $response = $this->register($seventh)->assertOk();
-
-        $this->assertTrue($response->json('requires_waitlist_confirmation'));
-
-        $this->register($seventh, ['confirm_waitlist' => true])->assertOk();
+        $this->register($seventh)
+            ->assertOk()
+            ->assertJsonPath('registration_status', 'waiting');
 
         $this->assertSame(
             'waiting',
@@ -268,5 +268,32 @@ class OpenPairsTest extends TestCase
 
         $this->assertSame(0, TournamentTeam::where('tournament_id', $this->tournament->id)->count());
         $this->assertSame(1, $this->tournament->participants()->count());
+    }
+
+    public function test_очередь_в_открытых_парах_без_лимита(): void
+    {
+        // Все пары созданы, но места рядом с игроками свободны: отказывать
+        // человеку не за что, и переспрашивать «встать в очередь?» тоже.
+        // Три пары — весь турнир, каждый записавшийся открывает свою.
+        foreach (range(1, 3) as $i) {
+            $this->register($this->player())->assertOk();
+        }
+        $this->tournament->update(['waitlist_size' => 0]);
+
+        $late = User::factory()->create(['level' => 2.0]);
+        Sanctum::actingAs($late);
+
+        $response = $this->postJson("/api/mobile/tournaments/{$this->tournament->id}/register");
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('registration_status', 'waiting');
+
+        $this->assertStringContainsString('«+»', $response->json('message'));
+        $this->assertStringContainsString(
+            'организатором',
+            $response->json('message'),
+            'подсказываем и второй путь — попросить организатора'
+        );
     }
 }

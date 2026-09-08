@@ -162,7 +162,7 @@
 								   value="{{ old('reserve_count', 0) }}" min="0" max="10">
 							<small class="text-secondary">Места для знакомых, которых заменишь позже</small>
 						</div>
-						<div class="col-md-6 mb-4">
+						<div class="col-md-6 mb-4" id="waitlistField">
 							<label class="form-label">Лист ожидания <span id="waitlistHintPairs" style="display:none; font-weight:400; color:#a1a1aa;">(в парах)</span></label>
 							<input type="number" name="waitlist_size" class="form-control"
 								   value="{{ old('waitlist_size', 0) }}" min="0" max="32">
@@ -589,6 +589,7 @@
 						<div class="mb-3">
 							<div class="form-check">
 								<input type="checkbox" name="is_paired" value="1" id="flexIsPaired" class="form-check-input"
+									onchange="toggleTypeFields()"
 									{{ old('is_paired') ? 'checked' : '' }}>
 								<label for="flexIsPaired" class="form-check-label">
 									<strong>Парный</strong> <small class="text-muted">— фиксированные пары (партнёр не меняется). Игроки записываются по одному, пары собирает админ. Число игроков — чётное; на 2 корта: 5 пар = 1 отдыхает.</small>
@@ -648,6 +649,16 @@ function toggleTypeFields() {
     if (reserveHint) reserveHint.style.display = (type === 'team') ? 'inline' : 'none';
     var waitlistHint = document.getElementById('waitlistHintPairs');
     if (waitlistHint) waitlistHint.style.display = (type === 'team') ? 'inline' : 'none';
+
+    // У парного флекса очередь не ограничена: все пары созданы, но места
+    // рядом с игроками свободны, и любой может сесть сам. Спрашивать её
+    // размер бессмысленно — прячем поле и обнуляем значение.
+    var waitlistField = document.getElementById('waitlistField');
+    var flexPairedCb = document.getElementById('flexIsPaired');
+    var waitlistOff = (type === 'americano_flex') && flexPairedCb && flexPairedCb.checked;
+    if (waitlistField) waitlistField.style.display = waitlistOff ? 'none' : '';
+    var waitlistInput = document.querySelector('input[name="waitlist_size"]');
+    if (waitlistInput && waitlistOff) waitlistInput.value = 0;
 
     // Скрываем все
     if (americanoFields) americanoFields.style.display = 'none';
