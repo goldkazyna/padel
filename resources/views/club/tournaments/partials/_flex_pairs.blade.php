@@ -171,9 +171,10 @@
         </div>
     @endfor
 
-    {{-- Без пары: в составе есть, места в сетке не заняли --}}
+    {{-- Без пары: в составе есть, места в сетке не заняли. Отдельный цвет:
+         синий занят листом ожидания, жёлтый — модерацией. --}}
     @if($unpaired->count() > 0)
-        <div class="flexp-pool flexp-pool-blue">
+        <div class="flexp-pool flexp-pool-violet">
             <div class="flexp-pool-head">
                 <i class="bi bi-person-exclamation"></i>
                 <span>Без пары</span>
@@ -239,9 +240,10 @@
         </div>
     @endif
 
-    {{-- Лист ожидания: вне состава и вне пар --}}
+    {{-- Лист ожидания: вне состава и вне пар. Синий — как этот блок
+         выглядел на странице турнира до сборки пар. --}}
     @if($waitingPool->count() > 0)
-        <div class="flexp-pool flexp-pool-grey">
+        <div class="flexp-pool flexp-pool-blue">
             <div class="flexp-pool-head">
                 <i class="bi bi-hourglass"></i>
                 <span>Лист ожидания</span>
@@ -355,13 +357,13 @@
 
 .flexp-pool{border-radius:12px;padding:14px 16px;margin:14px 0}
 .flexp-pool-blue{background:rgba(91,155,255,.08);border:1px solid rgba(91,155,255,.35)}
+.flexp-pool-violet{background:rgba(124,58,237,.10);border:1px solid rgba(124,58,237,.45)}
 .flexp-pool-amber{background:rgba(234,179,78,.08);border:1px solid rgba(234,179,78,.35)}
-.flexp-pool-grey{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14)}
 .flexp-pool-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px;
     font-weight:700;font-size:16px}
 .flexp-pool-blue .flexp-pool-head{color:#8FBBFF}
+.flexp-pool-violet .flexp-pool-head{color:#B292FF}
 .flexp-pool-amber .flexp-pool-head{color:#EAB34E}
-.flexp-pool-grey .flexp-pool-head{color:#c9cfd6}
 .flexp-pool-count{font-size:13.5px;font-weight:800;border-radius:999px;padding:2px 10px;
     background:rgba(255,255,255,.1)}
 .flexp-pool-hint{font-weight:400;font-size:13.5px;color:#9aa1a9}
