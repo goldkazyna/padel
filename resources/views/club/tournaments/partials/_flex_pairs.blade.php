@@ -70,6 +70,7 @@
         'current' => $statusOf[(int) $player->id] ?? 'registered',
         'seatOptions' => $seatOptions,
         'canCreatePair' => $canCreatePair,
+        'nextPairNo' => $pairs->count() + 1,
     ];
 @endphp
 
@@ -338,10 +339,19 @@
 .flexp-dots{border:1px solid var(--border);background:transparent;color:#9aa1a9;
     border-radius:8px;width:32px;height:32px;display:grid;place-items:center;flex:0 0 auto}
 .flexp-dots:hover{color:#fff;border-color:rgba(255,255,255,.25)}
-.flexp-menu .dropdown-menu{min-width:300px;max-height:60vh;overflow-y:auto}
+.flexp-menu .dropdown-menu{min-width:320px;max-height:70vh;overflow-y:auto;padding-top:0}
 .flexp-menu .dropdown-item{font-size:14px;display:flex;align-items:center;gap:8px}
+.flexp-menu .dropdown-item i{width:18px;text-align:center}
 .flexp-menu .dropdown-header{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase}
 .flexp-menu-note{font-size:12px;color:#6a7178;margin-left:auto;padding-left:10px}
+/* Шапка меню: в списке из двенадцати человек без имени легко промахнуться. */
+.flexp-menu-head{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
+.flexp-menu-head .player-avatar{width:34px;height:34px;font-size:13px;flex:0 0 auto}
+.flexp-menu-who{min-width:0}
+.flexp-menu-name{font-size:14.5px;font-weight:700;color:#EDEFF2;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+.flexp-menu-meta{font-size:12.5px;color:#9aa1a9}
 
 .flexp-pool{border-radius:12px;padding:14px 16px;margin:14px 0}
 .flexp-pool-blue{background:rgba(91,155,255,.08);border:1px solid rgba(91,155,255,.35)}

@@ -1,5 +1,5 @@
 {{--
-    Трёхточечное меню игрока в парном флексе.
+    Меню игрока в парном флексе.
 
     Организатор тасует состав руками: перекинуть между основным списком,
     модерацией и листом ожидания, пересадить на любое место — свободное,
@@ -7,8 +7,12 @@
     Раньше для этого приходилось разбивать пару и собирать заново, а когда все
     пары были полными, пересадить было некуда вовсе.
 
+    Шапка показывает, кого двигаешь: в списке из двенадцати человек меню
+    открывается одинаковым, и без имени легко перепутать строку.
+
     Ждёт: $tournament, $player, $current (registered|pending|waiting),
-    $seatOptions — все места сетки, $canCreatePair — влезает ли ещё пара.
+    $seatOptions — все места сетки, $canCreatePair — влезает ли ещё пара,
+    $nextPairNo — номер строки, в которой откроется новая пара.
 --}}
 @php
     $menuPlayerId = (int) $player->id;
@@ -19,6 +23,13 @@
         ? $menuSeats->reject(fn ($s) => $s->teamId === $menuOwn->teamId)
         : $menuSeats;
     $menuAlone = $menuOwn && $menuOwn->soloPair;
+
+    $menuWhere = $menuOwn ? 'пара ' . $menuOwn->position : 'без пары';
+    $menuStatus = [
+        'registered' => 'в составе',
+        'pending' => 'на модерации',
+        'waiting' => 'лист ожидания',
+    ][$current] ?? 'в составе';
 @endphp
 
 <div class="dropdown d-inline flexp-menu">
@@ -27,6 +38,14 @@
         <i class="bi bi-three-dots-vertical"></i>
     </button>
     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+        <li class="flexp-menu-head">
+            @include('club.tournaments.partials._player_avatar', ['player' => $player])
+            <div class="flexp-menu-who">
+                <div class="flexp-menu-name">{{ $player->name }}</div>
+                <div class="flexp-menu-meta">{{ $player->level }} · {{ $player->rating }} · {{ $menuStatus }}, {{ $menuWhere }}</div>
+            </div>
+        </li>
+
         <li class="dropdown-header">Состав</li>
 
         @if($current === 'pending')
@@ -69,21 +88,22 @@
                     <input type="hidden" name="to" value="waiting">
                     <button type="submit" class="dropdown-item">
                         <i class="bi bi-hourglass"></i> В лист ожидания
-                        <span class="flexp-menu-note">освободит место в паре</span>
+                        <span class="flexp-menu-note">вне состава</span>
                     </button>
                 </form>
             </li>
         @endif
 
         <li><hr class="dropdown-divider"></li>
-        <li class="dropdown-header">Пересадить</li>
+        <li class="dropdown-header">Место</li>
 
         @if($canCreatePair && !$menuAlone)
             <li>
                 <form action="{{ route('club.tournaments.pairs.move', [$tournament, $player->id, 0, 2]) }}" method="POST">
                     @csrf
-                    <button type="submit" class="dropdown-item">
-                        <i class="bi bi-plus-square"></i> В пустую пару
+                    <button type="submit" class="dropdown-item text-success">
+                        <i class="bi bi-plus-square"></i> Открыть новую пару
+                        <span class="flexp-menu-note">строка {{ $nextPairNo }}</span>
                     </button>
                 </form>
             </li>
@@ -94,12 +114,14 @@
                 <form action="{{ route('club.tournaments.pairs.move', [$tournament, $player->id, $slot->teamId, $slot->seat]) }}" method="POST">
                     @csrf
                     <button type="submit" class="dropdown-item">
-                        <i class="bi bi-arrow-left-right"></i>
-                        Пара {{ $slot->position }} —
                         @if($slot->userId)
-                            вместо {{ $slot->name }}<span class="flexp-menu-note">меняются местами</span>
+                            <i class="bi bi-arrow-left-right"></i>
+                            Пара {{ $slot->position }} · вместо: {{ $slot->name }}
+                            <span class="flexp-menu-note">обмен</span>
                         @else
-                            свободное место<span class="flexp-menu-note">напарник: {{ $slot->name }}</span>
+                            <i class="bi bi-person-plus"></i>
+                            Пара {{ $slot->position }} · свободное место
+                            <span class="flexp-menu-note">к: {{ $slot->name }}</span>
                         @endif
                     </button>
                 </form>
