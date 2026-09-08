@@ -319,6 +319,24 @@ class Tournament extends Model
         return $this->status === 'open';
     }
 
+    /**
+     * Неполные пары парного флекса: в них место второго пустует.
+     *
+     * Запуск такие пары просто выбрасывает — люди из них остались бы вне
+     * турнира. Поэтому и кнопка старта должна быть неактивна, пока их нет.
+     */
+    public function incompleteFlexPairs(): int
+    {
+        if (!$this->isPairedFlex()) {
+            return 0;
+        }
+
+        return $this->teams()
+            ->whereIn('status', ['approved', 'pending'])
+            ->whereNull('player2_id')
+            ->count();
+    }
+
     public function isFull(): bool
 	{
 		// В открытых парах место — это пара: шесть пар по одному человеку

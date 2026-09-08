@@ -171,4 +171,36 @@ class MobileAdminFlexSeatsTest extends TestCase
             ['user_id' => $this->player()->id]
         )->assertForbidden();
     }
+
+    public function test_с_недособранной_парой_запуск_запрещён(): void
+    {
+        // Запуск выбрасывает неполные пары: игроки из них остались бы вне
+        // турнира, поэтому и кнопка, и сам старт должны быть закрыты.
+        $this->tournament->update(['courts_count' => 1]);
+        $this->pair($this->player(), $this->player());
+        $this->pair($this->player(), $this->player());
+        $this->pair($this->player());
+
+        $this->getJson("/api/mobile/admin/tournaments/{$this->tournament->id}")
+            ->assertOk()
+            ->assertJsonPath('tournament.can_start', false);
+
+        $this->postJson("/api/mobile/admin/tournaments/{$this->tournament->id}/start")
+            ->assertStatus(422)
+            ->assertJsonPath('message',
+                'Одна пара не собрана — посадите второго игрока или распустите её');
+
+        $this->assertSame('open', $this->tournament->fresh()->status);
+    }
+
+    public function test_когда_все_пары_собраны_запуск_открыт(): void
+    {
+        $this->tournament->update(['courts_count' => 1]);
+        $this->pair($this->player(), $this->player());
+        $this->pair($this->player(), $this->player());
+
+        $this->getJson("/api/mobile/admin/tournaments/{$this->tournament->id}")
+            ->assertOk()
+            ->assertJsonPath('tournament.can_start', true);
+    }
 }

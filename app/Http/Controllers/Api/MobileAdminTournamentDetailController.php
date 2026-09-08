@@ -404,6 +404,15 @@ class MobileAdminTournamentDetailController extends Controller
         if ($tournament->isAmericano()) {
             $ok = $americano->startTournament($tournament);
         } elseif ($tournament->isAmericanoFlex()) {
+            $incomplete = $tournament->incompleteFlexPairs();
+            if ($incomplete > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $incomplete === 1
+                        ? 'Одна пара не собрана — посадите второго игрока или распустите её'
+                        : "Не собрано пар: {$incomplete}. Посадите вторых игроков или распустите неполные пары",
+                ], 422);
+            }
             $ok = $flex->startTournament($tournament);
         } elseif ($tournament->isMexicano()) {
             $ok = $mexicano->startTournament($tournament);
@@ -811,6 +820,21 @@ class MobileAdminTournamentDetailController extends Controller
         if ($t->isEscalera()) {
             $canStart = $t->status === 'open' && $taken === (int) $t->courts_count * 4;
         }
+        // Парный флекс: старт выбрасывает недособранные пары — значит, пока
+        // хоть в одной пустует место, запускать нельзя.
+        if ($t->isPairedFlex()) {
+            $complete = $t->teams()
+                ->whereIn('status', ['approved', 'pending'])
+                ->whereNotNull('player2_id')
+                ->count();
+            // Пар нужно столько же, сколько требует сам запуск: по две на
+            // корт, иначе кнопка активна, а старт молча не проходит.
+            $needPairs = max(2, (int) $t->courts_count * 2);
+            $canStart = $t->status === 'open'
+                && $complete >= $needPairs
+                && $t->incompleteFlexPairs() === 0;
+        }
+
         // Для Bali KOC: чтобы стартануть, пары должны быть созданы.
         $baliPairsCreated = $t->isBaliKoc()
             ? $t->baliKocPairs()->exists()
