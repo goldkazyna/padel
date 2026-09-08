@@ -1284,6 +1284,9 @@ class TournamentController extends Controller
 				'phone' => PhoneVisibility::forExport($player->phone),
 				'level' => $player->level,
 				'rating' => $player->rating,
+				// Фронт умеет показывать фото, а в ответе его не было — в
+				// выпадашке у всех висели одинаковые кружки с буквой.
+				'avatar' => $player->avatar,
 			];
 		}));
 	}

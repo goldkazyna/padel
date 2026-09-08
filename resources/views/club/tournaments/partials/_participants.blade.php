@@ -951,10 +951,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Аватар в результатах поиска: фото, если есть, иначе инициал.
     function playerAvatar(player) {
         if (player.avatar) {
-            return `<img class="search-result-avatar" src="${player.avatar}" alt="">`;
+            return `<img class="search-result-avatar" src="${player.avatar}" alt="" loading="lazy">`;
         }
-        const letter = (player.name || '?').trim().charAt(0).toUpperCase();
-        return `<div class="search-result-avatar search-result-avatar-empty">${letter}</div>`;
+        // Инициалы как в таблицах: две буквы, если имя из двух слов.
+        const parts = (player.name || '?').trim().split(/\s+/).slice(0, 2);
+        const letters = parts.map(p => p.charAt(0)).join('').toUpperCase();
+        return `<div class="search-result-avatar search-result-avatar-empty">${letters}</div>`;
     }
 // Плюс у неполной пары: показать поиск второго игрока.
 function togglePairFill(pairId) {
@@ -1003,7 +1005,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                      data-name="${player.name}"
                                      data-phone="${player.phone}"
                                      data-rating="${player.rating}"
-                                     data-level="${player.level}">
+                                     data-level="${player.level}"
+                                     data-avatar="${player.avatar || ''}">
                                     ${playerAvatar(player)}
                                     <div>
                                         <div class="search-result-name">${player.name}</div>
@@ -1022,13 +1025,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const phone = this.dataset.phone;
                                 const rating = this.dataset.rating;
                                 const level = this.dataset.level;
+                                const avatar = this.dataset.avatar;
                                 
                                 hiddenInput.value = id;
                                 input.value = '';
                                 resultsDiv.classList.remove('show');
                                 
                                 selectedDiv.innerHTML = `
-                                    <div class="participant-avatar">${name.split(' ').map(n => n[0]).join('').toUpperCase()}</div>
+                                    ${playerAvatar({ avatar, name })}
                                     <div>
                                         <div class="fw-bold">${name}</div>
                                         <div class="text-secondary small">${phone} • Уровень: ${level} • Рейтинг: ${rating}</div>
