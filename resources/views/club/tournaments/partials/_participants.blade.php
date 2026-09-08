@@ -1,6 +1,11 @@
 @php
     $hasGroups = $tournament->isAmericano() && $tournament->groups()->count() > 0;
 
+    // Парный турнир показываем парами — и там, где записываются сразу парой,
+    // и там, где поодиночке, а пары собирает клуб (парный флекс, этап лиги).
+    // Заявки на модерации остаются поимённо: пары из них ещё не собраны.
+    $showsPairs = !$tournament->usesSoloRegistration() || (bool) $tournament->is_paired;
+
     // Кто оплатил участие онлайн. Один платёж может закрывать двоих —
     // тот, кто платил, и записанный им друг.
     $paidOnline = [];
@@ -108,7 +113,7 @@
     {{-- Пары записываются сами: заявка приходит парой, а не игроком, и живёт
          в командах турнира. Список участников заполнится только при старте,
          поэтому здесь показываем пары — иначе организатору нечего одобрять. --}}
-    @if(!$tournament->usesSoloRegistration())
+    @if($showsPairs)
         @php
             $pendingPairs = $tournament->teams()->where('status', 'pending')
                 ->with(['player1', 'player2'])->orderBy('created_at')->get();
@@ -326,8 +331,8 @@
     </div>
     @endif
 	
-    {{-- Одобренные участники --}}
-    @if($tournament->usesSoloRegistration())
+    {{-- Одобренные участники: плоским списком только в непарных турнирах --}}
+    @if($tournament->usesSoloRegistration() && !$showsPairs)
     <div class="participants-list">
         @forelse($tournament->approvedParticipants as $index => $participant)
             <div class="participant-row approved">

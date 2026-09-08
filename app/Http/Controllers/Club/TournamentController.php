@@ -743,6 +743,7 @@ class TournamentController extends Controller
 		$wasFull = $takenSlots >= $tournament->max_participants;
 
 		$tournament->participants()->detach($userId);
+		\App\Support\OpenPairs::prune($tournament);
 
 		// Подтягиваем из листа ожидания, если ушёл человек из основного состава
 		$promoted = null;
@@ -1123,6 +1124,7 @@ class TournamentController extends Controller
 		$wasFull = $takenSlots >= $tournament->max_participants;
 
 		$tournament->participants()->detach($userId);
+		\App\Support\OpenPairs::prune($tournament);
 
 		// Подтягиваем из waitlist, если был в основном составе
 		$promoted = null;
@@ -1525,6 +1527,7 @@ class TournamentController extends Controller
 		
 		// Удаляем старого участника
 		$tournament->participants()->detach($userId);
+		\App\Support\OpenPairs::prune($tournament);
 		
 		// Добавляем нового
 		$tournament->participants()->attach($validated['new_user_id'], [
@@ -1741,6 +1744,7 @@ class TournamentController extends Controller
 		$wasFull = $takenSlots >= $tournament->max_participants;
 
 		$tournament->participants()->detach($user->id);
+		\App\Support\OpenPairs::prune($tournament);
 
 		// Если турнир был полным — уведомляем в канал и подписчиков
 		if ($wasFull && $tournament->status === 'open') {
