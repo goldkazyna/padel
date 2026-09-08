@@ -152,7 +152,9 @@ class PairRegistrationService
             }
 
             // Записан ли он вообще: пару собирают и из тех, кого ещё нет в
-            // составе, — тогда добавляем как обычного участника.
+            // составе, — тогда добавляем как обычного участника. А если он
+            // висел на модерации или в листе ожидания — место в паре и есть
+            // одобрение, иначе он играет, но в составе не числится.
             $active = $tournament->participants()
                 ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
                 ->where('user_id', $userId)
@@ -161,6 +163,10 @@ class PairRegistrationService
             if (!$active) {
                 $tournament->participants()->wherePivot('status', 'cancelled')->detach($userId);
                 $tournament->participants()->attach($userId, ['status' => 'registered']);
+            } else {
+                $tournament->participants()
+                    ->wherePivotIn('status', ['pending', 'waiting'])
+                    ->updateExistingPivot($userId, ['status' => 'registered']);
             }
 
             $partner = User::find($userId);
@@ -181,6 +187,34 @@ class PairRegistrationService
             'in_pair' => [false, 'Игрок уже состоит в паре'],
             default => [true, "{$user->name} добавлен в пару"],
         };
+    }
+
+    /**
+     * Перенести игрока в конкретную пару.
+     *
+     * Организатор тасует состав руками: «этого во вторую, того в четвёртую».
+     * Из прежней пары игрок уходит сам — партнёр остаётся ждать нового.
+     */
+    public function movePlayerToPair(Tournament $tournament, int $userId, int $teamId): array
+    {
+        if ($tournament->status !== 'open') {
+            return [false, 'Турнир уже запущен или завершён'];
+        }
+
+        $target = $tournament->teams()->whereKey($teamId)->first();
+        if (!$target) {
+            return [false, 'Пара не найдена'];
+        }
+        if ((int) $target->player1_id === $userId || (int) $target->player2_id === $userId) {
+            return [false, 'Игрок уже в этой паре'];
+        }
+        if ($target->player2_id !== null) {
+            return [false, 'В этой паре уже двое'];
+        }
+
+        \App\Support\OpenPairs::leave($tournament, $userId);
+
+        return $this->fillPair($tournament->fresh(), $teamId, $userId);
     }
 
     /**

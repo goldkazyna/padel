@@ -115,6 +115,70 @@ class FillPairTest extends TestCase
         $this->assertSame('Игрок не может быть в паре с самим собой', $message);
     }
 
+    public function test_посадка_переводит_из_модерации_в_состав(): void
+    {
+        $pair = $this->halfPair();
+        $second = User::factory()->create(['rating' => 2000]);
+        $this->tournament->participants()->attach($second->id, ['status' => 'pending']);
+
+        [$ok, $message] = app(PairRegistrationService::class)
+            ->fillPair($this->tournament, $pair->id, $second->id);
+
+        $this->assertTrue($ok, $message);
+        // Место в паре — это и есть одобрение: иначе играет, а в составе нет.
+        $this->assertSame('registered', $this->tournament->participants()
+            ->where('user_id', $second->id)->first()->pivot->status);
+    }
+
+    public function test_посадка_поднимает_из_листа_ожидания(): void
+    {
+        $pair = $this->halfPair();
+        $second = User::factory()->create(['rating' => 2000]);
+        $this->tournament->participants()->attach($second->id, ['status' => 'waiting']);
+
+        app(PairRegistrationService::class)->fillPair($this->tournament, $pair->id, $second->id);
+
+        $this->assertSame('registered', $this->tournament->participants()
+            ->where('user_id', $second->id)->first()->pivot->status);
+    }
+
+    public function test_игрока_пересаживают_в_другую_пару(): void
+    {
+        $pair = $this->halfPair();
+        $second = User::factory()->create(['rating' => 2000]);
+        app(PairRegistrationService::class)->fillPair($this->tournament, $pair->id, $second->id);
+
+        $other = User::factory()->create(['rating' => 1000]);
+        $this->tournament->participants()->attach($other->id, ['status' => 'registered']);
+        $target = TournamentTeam::create([
+            'tournament_id' => $this->tournament->id,
+            'player1_id' => $other->id,
+            'player2_id' => null,
+            'status' => 'approved',
+            'rating_avg' => 1000,
+        ]);
+
+        [$ok, $message] = app(PairRegistrationService::class)
+            ->movePlayerToPair($this->tournament, $second->id, $target->id);
+
+        $this->assertTrue($ok, $message);
+        $this->assertSame($second->id, (int) $target->fresh()->player2_id);
+        // Из прежней пары ушёл, но она осталась с первым игроком.
+        $this->assertNull($pair->fresh()->player2_id);
+        $this->assertSame($this->first->id, (int) $pair->fresh()->player1_id);
+    }
+
+    public function test_в_свою_же_пару_не_пересаживаем(): void
+    {
+        $pair = $this->halfPair();
+
+        [$ok, $message] = app(PairRegistrationService::class)
+            ->movePlayerToPair($this->tournament, $this->first->id, $pair->id);
+
+        $this->assertFalse($ok);
+        $this->assertSame('Игрок уже в этой паре', $message);
+    }
+
     public function test_после_старта_пары_не_трогаем(): void
     {
         $pair = $this->halfPair();
