@@ -123,6 +123,41 @@ class DirectMessagesTest extends TestCase
             ->assertJsonPath('show_rules', false);
     }
 
+    public function test_галочки_показывают_прочитано_ли_сообщение(): void
+    {
+        // Две серые галочки — сообщение на сервере и дойдёт; синие — тот,
+        // кому писали, открыл переписку после него.
+        Sanctum::actingAs($this->me);
+        $this->send($this->other, 'Привет')->assertOk();
+
+        $before = $this->getJson("/api/mobile/messages/{$this->other->id}")->assertOk();
+        $this->assertFalse($before->json('messages.0.is_read'), 'ещё не прочитано');
+        $this->assertSame(0, $before->json('peer_last_read_id'));
+
+        // Собеседник открыл переписку.
+        Sanctum::actingAs($this->other);
+        $this->postJson("/api/mobile/messages/{$this->me->id}/read")->assertOk();
+
+        Sanctum::actingAs($this->me);
+        $after = $this->getJson("/api/mobile/messages/{$this->other->id}")->assertOk();
+        $this->assertTrue($after->json('messages.0.is_read'));
+        $this->assertGreaterThan(0, $after->json('peer_last_read_id'));
+    }
+
+    public function test_чужое_сообщение_галочек_не_имеет(): void
+    {
+        // Галочки — про свои сообщения: у входящих статуса быть не должно.
+        Sanctum::actingAs($this->other);
+        $this->send($this->me, 'Привет')->assertOk();
+
+        Sanctum::actingAs($this->me);
+        $this->postJson("/api/mobile/messages/{$this->other->id}/read")->assertOk();
+
+        $response = $this->getJson("/api/mobile/messages/{$this->other->id}")->assertOk();
+        $this->assertFalse($response->json('messages.0.is_mine'));
+        $this->assertFalse($response->json('messages.0.is_read'));
+    }
+
     public function test_непрочитанные_считаются_и_сбрасываются(): void
     {
         Sanctum::actingAs($this->other);

@@ -134,6 +134,8 @@ class MobileMessageController extends Controller
         $afterId = $request->query('after_id');
         $beforeId = $request->query('before_id');
 
+        $peerLastReadId = $this->peerLastReadId($conversation->id, $user->id);
+
         $query = ConversationMessage::where('conversation_id', $conversation->id);
 
         if ($afterId !== null) {
@@ -164,7 +166,13 @@ class MobileMessageController extends Controller
             'blocked_me' => $blockedMe,
             // Правила показываем один раз — пока в переписке нет ни одного сообщения.
             'show_rules' => $conversation->messages()->count() === 0,
-            'messages' => $messages->map(fn ($m) => $this->formatMessage($m, $me->id))->values(),
+            // Одно число вместо флага у каждого сообщения: приложению этого
+            // хватает, чтобы покрасить галочки, и оно не устареет при
+            // подгрузке старых страниц.
+            'peer_last_read_id' => $peerLastReadId,
+            'messages' => $messages
+                ->map(fn ($m) => $this->formatMessage($m, $me->id, $peerLastReadId))
+                ->values(),
         ]);
     }
 
@@ -254,14 +262,37 @@ class MobileMessageController extends Controller
 
     // ===== внутреннее =====
 
-    private function formatMessage(ConversationMessage $message, int $meId): array
-    {
+    private function formatMessage(
+        ConversationMessage $message,
+        int $meId,
+        int $peerLastReadId = 0
+    ): array {
+        $mine = (int) $message->user_id === $meId;
+
         return [
             'id' => $message->id,
             'text' => $message->text,
-            'is_mine' => (int) $message->user_id === $meId,
+            'is_mine' => $mine,
             'created_at' => $message->created_at?->toIso8601String(),
+            // Своё сообщение всегда доставлено — оно уже лежит на сервере и
+            // придёт собеседнику. Прочитанным считаем, когда тот открыл
+            // переписку после него: отметка чтения хранит последний
+            // увиденный id.
+            'is_read' => $mine && $message->id <= $peerLastReadId,
         ];
+    }
+
+    /**
+     * До какого сообщения собеседник дочитал переписку.
+     *
+     * Отдельная отметка на пользователя уже была нужна для счётчика
+     * непрочитанного — галочки берут её же, без новых таблиц.
+     */
+    private function peerLastReadId(int $conversationId, int $peerId): int
+    {
+        return (int) ConversationRead::where('conversation_id', $conversationId)
+            ->where('user_id', $peerId)
+            ->value('last_read_message_id');
     }
 
     /** @return array<int, int> */
