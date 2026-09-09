@@ -993,7 +993,15 @@ class MobileGameController extends Controller
         if (!$game->isOrganizer($user->id)) {
             return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
         }
-        if ($player->game_id !== $game->id || $player->status !== GamePlayer::STATUS_ACCEPTED) {
+        // Убрать можно любого, кто занимает место: и принятого, и того, кто
+        // ещё думает над приглашением или стоит в очереди. Раньше крестик
+        // работал только на принятых, а на остальных отвечал «не найден».
+        $active = [
+            GamePlayer::STATUS_ACCEPTED,
+            GamePlayer::STATUS_INVITED,
+            GamePlayer::STATUS_CANDIDATE,
+        ];
+        if ($player->game_id !== $game->id || !in_array($player->status, $active, true)) {
             return response()->json(['success' => false, 'message' => 'Участник не найден'], 422);
         }
         if ($player->user_id === $user->id) {
@@ -1003,6 +1011,11 @@ class MobileGameController extends Controller
         $removed = $player->user;
         $removedUserId = $player->user_id;
         $player->update(['status' => GamePlayer::STATUS_REMOVED, 'position' => null]);
+        Invitation::where('invitable_type', Game::class)
+            ->where('invitable_id', $game->id)
+            ->where('user_id', $removedUserId)
+            ->where('status', Invitation::STATUS_PENDING)
+            ->update(['status' => Invitation::STATUS_CANCELLED]);
         $this->syncFullness($game);
         $this->notifyGame($removed, 'Вас удалили из игры', 'Организатор удалил вас из состава', 'game_removed', $game->id);
         $this->logGameAction($game, $user->id, GameActionLog::ACTION_PLAYER_REMOVE, ['removed_user_id' => $removedUserId]);

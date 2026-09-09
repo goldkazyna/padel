@@ -4,6 +4,7 @@ namespace Tests\Feature\Games;
 
 use App\Models\Game;
 use App\Models\GamePlayer;
+use App\Models\Invitation;
 use App\Models\User;
 use App\Services\FCMNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,6 +64,41 @@ class GameLeaveRemoveTest extends TestCase
 
         $this->postJson("/api/mobile/games/{$game->id}/players/{$player->id}/remove")->assertOk();
         $this->assertSame(GamePlayer::STATUS_REMOVED, $player->fresh()->status);
+    }
+
+    public function test_organizer_removes_invited_player(): void
+    {
+        $this->fakePush();
+        $organizer = User::factory()->create();
+        $invitee = User::factory()->create();
+        $game = Game::factory()->create(['creator_id' => $organizer->id, 'status' => 'open']);
+        GamePlayer::factory()->create([
+            'game_id' => $game->id, 'user_id' => $organizer->id,
+            'position' => 1, 'status' => GamePlayer::STATUS_ACCEPTED,
+        ]);
+        $player = GamePlayer::factory()->create([
+            'game_id' => $game->id, 'user_id' => $invitee->id,
+            'position' => 2, 'status' => GamePlayer::STATUS_INVITED,
+        ]);
+        Invitation::create([
+            'user_id' => $invitee->id,
+            'inviter_id' => $organizer->id,
+            'invitable_type' => Game::class,
+            'invitable_id' => $game->id,
+            'kind' => Invitation::KIND_GAME,
+            'status' => Invitation::STATUS_PENDING,
+        ]);
+        Sanctum::actingAs($organizer);
+
+        // Крестик у приглашённого отвечал «Участник не найден».
+        $this->postJson("/api/mobile/games/{$game->id}/players/{$player->id}/remove")->assertOk();
+
+        $this->assertSame(GamePlayer::STATUS_REMOVED, $player->fresh()->status);
+        $this->assertSame(
+            Invitation::STATUS_CANCELLED,
+            Invitation::where('invitable_id', $game->id)->where('user_id', $invitee->id)->first()->status,
+            'приглашение снимается вместе с местом'
+        );
     }
 
     public function test_non_organizer_cannot_remove(): void
