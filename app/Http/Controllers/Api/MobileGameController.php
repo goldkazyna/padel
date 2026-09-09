@@ -569,10 +569,22 @@ class MobileGameController extends Controller
     /** Форматтер игры для API. $user может быть null (публичный переход по ссылке). */
     public function formatGame(Game $game, ?User $user): array
     {
-        $players = $game->players->map(function ($p) use ($user) {
+        // Телефон соседа по корту видят только свои: организатор и те, кто
+        // уже в составе. Случайному зрителю из ленты номера ни к чему.
+        $insider = $user && (
+            $game->isOrganizer($user->id)
+            || $game->players->contains(fn ($p) => $p->user_id === $user->id
+                && $p->status === GamePlayer::STATUS_ACCEPTED)
+        );
+
+        $players = $game->players->map(function ($p) use ($user, $insider) {
             $name = $p->user->name ?? 'Без имени';
             return [
                 'id' => $p->user->id,
+                'phone' => $insider ? $p->user->phone : null,
+                // В профиле WhatsApp может быть не заполнен — тогда пишем
+                // на номер телефона, он у них обычно один и тот же.
+                'whatsapp' => $insider ? ($p->user->whatsapp ?: $p->user->phone) : null,
                 'player_id' => $p->id,
                 'position' => $p->position,
                 'status' => $p->status,
