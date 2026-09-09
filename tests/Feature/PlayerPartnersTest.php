@@ -109,6 +109,47 @@ class PlayerPartnersTest extends TestCase
         $this->assertGreaterThan($rows[1]['score'], $rows[0]['score']);
     }
 
+    public function test_короткая_серия_не_обгоняет_длинную_историю(): void
+    {
+        // Три победы из трёх стояли выше восемнадцати матчей с 63% — а такой
+        // партнёр проверен куда лучше.
+        $me = User::factory()->create();
+        $short = User::factory()->create(['name' => 'Три из трёх']);
+        $long = User::factory()->create(['name' => 'Шестнадцать матчей']);
+
+        foreach (range(1, 3) as $_) {
+            $this->play($me, $short, true);
+        }
+        foreach (range(1, 10) as $_) {
+            $this->play($me, $long, true);
+        }
+        foreach (range(1, 6) as $_) {
+            $this->play($me, $long, false);
+        }
+
+        $rows = PlayerPartners::all($me);
+
+        $this->assertSame($long->id, $rows[0]['user_id']);
+        $this->assertSame($short->id, $rows[1]['user_id']);
+    }
+
+    public function test_галочка_верификации_приходит_с_партнёром(): void
+    {
+        $me = User::factory()->create();
+        $verified = User::factory()->create(['level_verified' => true]);
+        $plain = User::factory()->create(['level_verified' => false]);
+
+        foreach (range(1, 3) as $_) {
+            $this->play($me, $verified, true);
+            $this->play($me, $plain, true);
+        }
+
+        $rows = collect(PlayerPartners::all($me))->keyBy('user_id');
+
+        $this->assertTrue($rows[$verified->id]['verified']);
+        $this->assertFalse($rows[$plain->id]['verified']);
+    }
+
     public function test_случайный_партнёр_не_вытесняет_проверенного(): void
     {
         $me = User::factory()->create();

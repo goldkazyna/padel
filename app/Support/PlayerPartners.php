@@ -37,6 +37,7 @@ class PlayerPartners
                 'user_id' => (int) $id,
                 'name' => $partner['name'] ?? 'Игрок',
                 'avatar' => $partner['avatar'] ?? null,
+                'verified' => false,
                 'games' => 0,
                 'wins' => 0,
                 'losses' => 0,
@@ -51,7 +52,15 @@ class PlayerPartners
             };
         }
 
-        $rows = array_map(function (array $row) {
+        // Синяя галочка рядом с именем — там же, где и в остальных списках.
+        // Историю матчей она не несёт, поэтому добираем одним запросом.
+        $verified = User::whereIn('id', array_keys($byId))
+            ->where('level_verified', true)
+            ->pluck('id')
+            ->all();
+
+        $rows = array_map(function (array $row) use ($verified) {
+            $row['verified'] = in_array($row['user_id'], $verified, true);
             // Ничьи в знаменатель не идут — как и везде в статистике игрока.
             $row['winrate'] = CountedMatches::winrate($row['wins'], $row['losses']);
             $row['score'] = self::score($row['wins'], $row['losses']);
@@ -76,8 +85,9 @@ class PlayerPartners
      * Оценка пары «сколько выигрываем вместе» с поправкой на число матчей.
      *
      * Нижняя граница доверительного интервала Вильсона: чем меньше сыграно,
-     * тем сильнее результат тянет к середине. 3 из 3 дают 0.44, а 7 из 8 —
-     * 0.47, и восьмиматчевый партнёр обходит случайную серию, как и должен.
+     * тем сильнее результат тянет к середине. 3 из 3 дают 0.31, 7 из 8 —
+     * 0.42, а 10 из 16 — 0.32: и длинная серия середняка, и короткая серия
+     * без поражений оцениваются по тому, насколько им можно верить.
      */
     public static function score(int $wins, int $losses): float
     {
@@ -86,7 +96,11 @@ class PlayerPartners
             return 0.0;
         }
 
-        $z = 1.96;              // 95% — обычная планка для таких оценок
+        // 99% вместо привычных 95%: на 95% три победы из трёх обгоняли
+        // восемнадцать матчей с 63% — а такой партнёр очевидно проверен
+        // лучше. С более строгой планкой короткая серия выходит вперёд,
+        // только если результат заметно выше.
+        $z = 2.58;
         $p = $wins / $played;
         $z2 = $z * $z;
 
