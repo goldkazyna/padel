@@ -188,6 +188,9 @@ class MobileProfileController extends Controller
             'min_games' => \App\Support\PlayerPartners::MIN_GAMES,
             'best' => $rows[0] ?? null,
             'top' => array_slice($rows, 0, 5),
+            // Весь список — для экрана «Все партнёры». Их десятки, а не
+            // тысячи: отдельная ручка с пагинацией была бы дороже.
+            'all' => $rows,
         ]);
     }
 

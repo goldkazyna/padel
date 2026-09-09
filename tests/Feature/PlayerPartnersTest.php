@@ -85,6 +85,30 @@ class PlayerPartnersTest extends TestCase
         $this->assertSame(100, $best['winrate']);
     }
 
+    public function test_серия_из_трёх_не_обгоняет_семь_побед_из_восьми(): void
+    {
+        // Голый процент врал: 3 из 3 казались лучше, чем 7 из 8, хотя с
+        // восьмиматчевым партнёром сыграно втрое больше и он весомее.
+        $me = User::factory()->create();
+        $short = User::factory()->create(['name' => 'Три матча']);
+        $long = User::factory()->create(['name' => 'Восемь матчей']);
+
+        foreach ([true, true, true] as $won) {
+            $this->play($me, $short, $won);
+        }
+        foreach ([true, true, true, true, true, true, true, false] as $won) {
+            $this->play($me, $long, $won);
+        }
+
+        $rows = PlayerPartners::all($me);
+
+        $this->assertSame($long->id, $rows[0]['user_id']);
+        $this->assertSame(8, $rows[0]['games']);
+        $this->assertSame(88, $rows[0]['winrate']);
+        $this->assertSame($short->id, $rows[1]['user_id']);
+        $this->assertGreaterThan($rows[1]['score'], $rows[0]['score']);
+    }
+
     public function test_случайный_партнёр_не_вытесняет_проверенного(): void
     {
         $me = User::factory()->create();

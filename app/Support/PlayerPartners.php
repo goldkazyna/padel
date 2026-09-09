@@ -54,20 +54,46 @@ class PlayerPartners
         $rows = array_map(function (array $row) {
             // Ничьи в знаменатель не идут — как и везде в статистике игрока.
             $row['winrate'] = CountedMatches::winrate($row['wins'], $row['losses']);
+            $row['score'] = self::score($row['wins'], $row['losses']);
 
             return $row;
         }, array_values($byId));
 
         usort($rows, function (array $a, array $b) {
-            // Сначала те, с кем чаще выигрываешь; при равном проценте —
-            // с кем сыграно больше: один общий матч не делает лучшим партнёром.
+            // Голый процент врал: три матча из трёх обгоняли семь побед из
+            // восьми, хотя второе — куда весомее. Сортируем по оценке, где
+            // редкие матчи тянут результат к середине.
             $ready = fn (array $r) => $r['games'] >= self::MIN_GAMES ? 1 : 0;
 
-            return [$ready($b), $b['winrate'], $b['games']]
-                <=> [$ready($a), $a['winrate'], $a['games']];
+            return [$ready($b), $b['score'], $b['games']]
+                <=> [$ready($a), $a['score'], $a['games']];
         });
 
         return $rows;
+    }
+
+    /**
+     * Оценка пары «сколько выигрываем вместе» с поправкой на число матчей.
+     *
+     * Нижняя граница доверительного интервала Вильсона: чем меньше сыграно,
+     * тем сильнее результат тянет к середине. 3 из 3 дают 0.44, а 7 из 8 —
+     * 0.47, и восьмиматчевый партнёр обходит случайную серию, как и должен.
+     */
+    public static function score(int $wins, int $losses): float
+    {
+        $played = $wins + $losses;
+        if ($played === 0) {
+            return 0.0;
+        }
+
+        $z = 1.96;              // 95% — обычная планка для таких оценок
+        $p = $wins / $played;
+        $z2 = $z * $z;
+
+        $numerator = $p + $z2 / (2 * $played)
+            - $z * sqrt(($p * (1 - $p) + $z2 / (4 * $played)) / $played);
+
+        return round($numerator / (1 + $z2 / $played), 4);
     }
 
     /**
