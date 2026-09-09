@@ -321,16 +321,19 @@ class AmigoActivity
         $time = $moment->format('H:i');
         // Сравниваем с местным «сегодня»: по UTC вечерние турниры уезжали
         // на «завтра» — в Алматы уже новый день, а в UTC ещё нет.
-        $today = self::localNow()->startOfDay();
-        $day = $moment->copy()->startOfDay();
+        // Сравниваем календарные дни, а не моменты: даты турниров записаны
+        // в местных часах, и мгновение «00:00 в Алматы» не равно «00:00 UTC».
+        $today = self::localNow()->format('Y-m-d');
+        $day = $moment->format('Y-m-d');
 
-        if ($day->equalTo($today)) {
+        if ($day === $today) {
             return 'сегодня ' . $time;
         }
-        if ($day->equalTo($today->copy()->addDay())) {
+        if ($day === self::localNow()->addDay()->format('Y-m-d')) {
             return 'завтра ' . $time;
         }
 
-        return $moment->translatedFormat('j MMM') . ' ' . $time;
+        // 'M' — короткое название месяца; три подряд давали «сентябрясентября».
+        return $moment->translatedFormat('j M') . ' ' . $time;
     }
 }

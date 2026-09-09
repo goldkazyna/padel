@@ -229,6 +229,29 @@ class AmigosTest extends TestCase
         $this->assertStringContainsString('+05:00', $at, 'смещение клуба указано');
     }
 
+    public function test_сегодняшний_турнир_подписан_словом_сегодня(): void
+    {
+        // День считался по UTC: вечерние турниры уезжали в «9 сент.» вместо
+        // «сегодня», а формат месяца печатал «сентябрясентября».
+        $player = $this->player('Сегодняшний');
+        $this->follow($player);
+
+        $tournament = Tournament::factory()->create([
+            'club_id' => $this->club->id,
+            'status' => 'open',
+            'type' => 'americano',
+            'start_date' => now('Asia/Almaty')->addHours(2),
+        ]);
+        $tournament->participants()->attach($player->id, ['status' => 'registered']);
+
+        Sanctum::actingAs($this->me);
+        $rows = collect($this->getJson('/api/mobile/amigos')->json('amigos'))->keyBy('name');
+
+        $title = $rows['Сегодняшний']['status']['title'];
+        $this->assertStringContainsString('сегодня', $title);
+        $this->assertStringNotContainsString('сентябрясентября', $title);
+    }
+
     public function test_приватная_игра_в_активность_не_идёт(): void
     {
         $player = $this->player('Тихий');
