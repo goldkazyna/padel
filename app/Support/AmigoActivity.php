@@ -121,6 +121,28 @@ class AmigoActivity
         return $out;
     }
 
+    /**
+     * Часовой пояс клубов.
+     *
+     * В базе даты турниров и игр лежат «как на стене» — 20:00 значит 20:00 в
+     * Алматы, — а приложение считает конфигурацию UTC. Из-за этого «через
+     * сколько начнётся» и сама метка времени уезжали на пять часов: турнир в
+     * 20:00 приложение показывало как 01:00.
+     */
+    private const TZ = 'Asia/Almaty';
+
+    /** «Сейчас» в тех же часах, в каких лежат даты в базе. */
+    private static function localNow(): Carbon
+    {
+        return now(self::TZ);
+    }
+
+    /** Метка времени со смещением клуба: 20:00 остаётся 20:00. */
+    private static function localIso(Carbon $moment): string
+    {
+        return $moment->copy()->shiftTimezone(self::TZ)->toIso8601String();
+    }
+
     /** У кого турнир на ближайшие полтора суток. */
     private static function soon(array $userIds): array
     {
@@ -130,7 +152,10 @@ class AmigoActivity
             ->whereIn('tournament_participants.user_id', $userIds)
             ->where('tournament_participants.status', 'registered')
             ->whereIn('tournaments.status', ['open', 'closed', 'full'])
-            ->whereBetween('tournaments.start_date', [now(), now()->addHours(self::SOON_HOURS)])
+            ->whereBetween('tournaments.start_date', [
+                self::localNow(),
+                self::localNow()->addHours(self::SOON_HOURS),
+            ])
             ->orderBy('tournaments.start_date')
             ->get([
                 'tournament_participants.user_id',
@@ -155,7 +180,7 @@ class AmigoActivity
                 'title' => 'турнир ' . self::whenWord($start),
                 // Время отдельным полем: приложение покажет его на своём языке,
                 // а готовую русскую строку оставляем как запасной вариант.
-                'at' => $start->toIso8601String(),
+                'at' => self::localIso($start),
                 'subtitle' => self::where(self::formatName($row->type ?? null), $row->club_name),
                 'tournament_id' => (int) $row->tournament_id,
             ];
@@ -186,7 +211,7 @@ class AmigoActivity
             ->where('game_players.status', GamePlayer::STATUS_ACCEPTED)
             ->where('games.status', Game::STATUS_OPEN)
             ->where('games.visibility', Game::VISIBILITY_PUBLIC)
-            ->where('games.starts_at', '>', now())
+            ->where('games.starts_at', '>', self::localNow())
             ->orderBy('games.starts_at')
             ->get([
                 'game_players.user_id',
@@ -206,7 +231,7 @@ class AmigoActivity
             $out[$userId] = [
                 'kind' => 'looking',
                 'title' => 'ищет игроков',
-                'at' => $start->toIso8601String(),
+                'at' => self::localIso($start),
                 'subtitle' => trim(self::whenWord($start) . ($row->club_name ? ' · ' . $row->club_name : '')),
                 'game_id' => (int) $row->game_id,
             ];
@@ -294,11 +319,15 @@ class AmigoActivity
     private static function whenWord(Carbon $moment): string
     {
         $time = $moment->format('H:i');
+        // Сравниваем с местным «сегодня»: по UTC вечерние турниры уезжали
+        // на «завтра» — в Алматы уже новый день, а в UTC ещё нет.
+        $today = self::localNow()->startOfDay();
+        $day = $moment->copy()->startOfDay();
 
-        if ($moment->isToday()) {
+        if ($day->equalTo($today)) {
             return 'сегодня ' . $time;
         }
-        if ($moment->isTomorrow()) {
+        if ($day->equalTo($today->copy()->addDay())) {
             return 'завтра ' . $time;
         }
 

@@ -179,7 +179,8 @@ class AmigosTest extends TestCase
             'club_id' => $this->club->id,
             'status' => 'open',
             'type' => 'americano',
-            'start_date' => now()->addHours(3),
+            // Даты клубов лежат в местных часах Алматы — как их пишет CRM.
+            'start_date' => now('Asia/Almaty')->addHours(3),
         ]);
         $tournament->participants()->attach($soon->id, ['status' => 'registered']);
 
@@ -188,7 +189,7 @@ class AmigosTest extends TestCase
             'creator_id' => $looking->id,
             'status' => Game::STATUS_OPEN,
             'visibility' => Game::VISIBILITY_PUBLIC,
-            'starts_at' => now()->addHours(5),
+            'starts_at' => now('Asia/Almaty')->addHours(5),
         ]);
         GamePlayer::factory()->create([
             'game_id' => $game->id,
@@ -202,6 +203,30 @@ class AmigosTest extends TestCase
 
         $this->assertSame('soon', $rows['Диана']['status']['kind']);
         $this->assertSame('looking', $rows['Ержан']['status']['kind']);
+    }
+
+    public function test_время_турнира_отдаётся_по_алматы(): void
+    {
+        // В базе часы местные: 20:00 значит 20:00 в Алматы. Метка без
+        // смещения превращалась у телефона в 01:00 следующего дня.
+        $player = $this->player('Вечерний');
+        $this->follow($player);
+
+        $start = now('Asia/Almaty')->addHours(3)->setTime(20, 0);
+        $tournament = Tournament::factory()->create([
+            'club_id' => $this->club->id,
+            'status' => 'open',
+            'type' => 'americano',
+            'start_date' => $start,
+        ]);
+        $tournament->participants()->attach($player->id, ['status' => 'registered']);
+
+        Sanctum::actingAs($this->me);
+        $rows = collect($this->getJson('/api/mobile/amigos')->json('amigos'))->keyBy('name');
+
+        $at = $rows['Вечерний']['status']['at'];
+        $this->assertStringContainsString('T20:00:00', $at, 'часы остаются местными');
+        $this->assertStringContainsString('+05:00', $at, 'смещение клуба указано');
     }
 
     public function test_приватная_игра_в_активность_не_идёт(): void
