@@ -40,6 +40,7 @@ class MobileGameController extends Controller
             'name' => $c->name,
             'address' => $c->address,
             'city' => $c->city,
+            'logo' => $c->logo_url,
         ]);
 
         return response()->json(['success' => true, 'data' => $clubs]);
@@ -599,7 +600,7 @@ class MobileGameController extends Controller
             'id' => $game->id,
             'creator_id' => $game->creator_id,
             'is_creator' => $user && $game->creator_id === $user->id,
-            'club' => $game->club ? ['id' => $game->club->id, 'name' => $game->club->name] : null,
+            'club' => $game->club ? ['id' => $game->club->id, 'name' => $game->club->name, 'logo' => $game->club->logo_url] : null,
             'court_id' => $game->court_id,
             'starts_at' => $game->starts_at?->toIso8601String(),
             'ends_at' => $game->ends_at?->toIso8601String(),
