@@ -50,6 +50,22 @@ Route::get('/t/{tournament}', function (\App\Models\Tournament $tournament) {
     ]);
 })->name('tournament.share');
 
+// Лендинг игры — для шаринга: открывает «padelp://game/{id}» или уводит
+// в магазин, если приложения нет. Ссылкой делятся из карточки игры.
+Route::get('/g/{game}', function (\App\Models\Game $game) {
+    $game->load('club');
+    $ua = request()->header('User-Agent', '');
+    $isIOS = (bool) preg_match('/iPad|iPhone|iPod/i', $ua);
+
+    return view('game-share', [
+        'game' => $game,
+        'storeUrl' => $isIOS
+            ? config('mobile_app.store_url_ios')
+            : config('mobile_app.store_url_android'),
+        'ogImage' => \App\Support\ShareLogo::url($game->club->logo ?? null),
+    ]);
+})->name('game.share');
+
 // Лендинг лиги — для шаринга: открывает «padelp://league/{id}» или уводит в
 // магазин, если приложения нет.
 Route::get('/l/{league}', function (\App\Models\League $league) {
