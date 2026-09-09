@@ -111,6 +111,31 @@ class PlayerSearchEverywhereTest extends TestCase
             ->assertJsonFragment(['first_name' => 'Денис']);
     }
 
+    public function test_приглашение_в_игру_ищет_и_по_имени(): void
+    {
+        $player = User::factory()->create(['role' => 'player', 'level' => 3.0]);
+
+        $response = $this->actingAs($player, 'sanctum')
+            ->postJson('/api/mobile/games/search-player', ['phone' => 'Денис'])
+            ->assertOk();
+
+        $names = collect($response->json('partners'))->pluck('full_name')->all();
+
+        $this->assertContains('Денис Дудников', $names);
+        $this->assertContains('Denis Dudnikov', $names, 'латиница тоже находится');
+        $this->assertSame('Денис Дудников', $names[0], 'своё написание первым');
+    }
+
+    public function test_приглашение_в_игру_ищет_по_телефону(): void
+    {
+        $player = User::factory()->create(['role' => 'player', 'level' => 3.0]);
+
+        $this->actingAs($player, 'sanctum')
+            ->postJson('/api/mobile/games/search-player', ['phone' => '7777444'])
+            ->assertOk()
+            ->assertJsonFragment(['full_name' => 'Denis Dudnikov']);
+    }
+
     public function test_веб_добавление_игрока_в_турнир(): void
     {
         $tournament = $this->tournament();
