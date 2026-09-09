@@ -436,6 +436,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/share/rotate', [MobileGameController::class, 'shareRotate']);
         Route::post('/games/{game}/share/revoke', [MobileGameController::class, 'shareRevoke']);
         Route::post('/games/{game}/invite', [MobileGameController::class, 'invite']);
+        Route::post('/games/{game}/players', [MobileGameController::class, 'addPlayer']);
         Route::post('/games/{game}/apply', [MobileGameController::class, 'apply']);
         Route::post('/games/{game}/applications/{player}/approve', [MobileGameController::class, 'approveApplication']);
         Route::post('/games/{game}/applications/{player}/reject', [MobileGameController::class, 'rejectApplication']);

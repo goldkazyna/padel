@@ -648,6 +648,74 @@ class MobileGameController extends Controller
     }
 
     /** Персональное приглашение игрока (только организатор). */
+    /**
+     * Посадить игрока в состав (только организатор).
+     *
+     * Приглашение ждёт ответа, а организатор, добавляя знакомого через плюс
+     * у свободного места, ответа не ждёт: человек с ним уже договорился.
+     */
+    public function addPlayer(Request $request, Game $game)
+    {
+        $user = $request->user();
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if (!in_array($game->status, [Game::STATUS_OPEN, Game::STATUS_FULL], true)) {
+            return response()->json(['success' => false, 'message' => 'Игру уже не изменить'], 422);
+        }
+
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'position' => 'nullable|integer|min:1',
+        ]);
+
+        $player = User::find($data['user_id']);
+        $existing = $game->players()->where('user_id', $player->id)->first();
+        $active = [GamePlayer::STATUS_INVITED, GamePlayer::STATUS_CANDIDATE, GamePlayer::STATUS_ACCEPTED];
+        if ($existing && $existing->status === GamePlayer::STATUS_ACCEPTED) {
+            return response()->json(['success' => false, 'message' => 'Игрок уже в составе'], 422);
+        }
+
+        $free = $game->getAvailablePositions();
+        $position = (!empty($data['position']) && in_array($data['position'], $free, true))
+            ? $data['position']
+            : ($free[0] ?? null);
+        if ($position === null) {
+            return response()->json(['success' => false, 'message' => 'Мест больше нет'], 422);
+        }
+
+        $attrs = [
+            'status' => GamePlayer::STATUS_ACCEPTED,
+            'source' => GamePlayer::SOURCE_INVITE,
+            'position' => $position,
+            'responded_at' => now(),
+            'out_of_range' => !$this->userInRange($game, $player),
+        ];
+
+        if ($existing) {
+            // Пришедшее раньше приглашение или заявка просто становятся местом
+            // в составе — иначе у человека остался бы висеть вопрос без ответа.
+            $existing->update($attrs);
+        } else {
+            GamePlayer::create($attrs + ['game_id' => $game->id, 'user_id' => $player->id]);
+        }
+
+        Invitation::where('invitable_type', Game::class)
+            ->where('invitable_id', $game->id)
+            ->where('user_id', $player->id)
+            ->where('status', Invitation::STATUS_PENDING)
+            ->update(['status' => Invitation::STATUS_ACCEPTED]);
+
+        $this->syncFullness($game);
+        $this->logGameAction($game, $user->id, GameActionLog::ACTION_PLAYER_ADD, ['user_id' => $player->id]);
+        $this->notifyGame($player, 'Вас добавили в игру', "{$user->name} записал вас в игру", 'game_added', $game->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame($game->fresh(['creator', 'club', 'court', 'players.user']), $user),
+        ]);
+    }
+
     public function invite(Request $request, Game $game)
     {
         $user = $request->user();
