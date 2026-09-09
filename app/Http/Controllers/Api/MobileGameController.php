@@ -14,6 +14,7 @@ use App\Models\Notification;
 use App\Models\RatingHistory;
 use App\Models\User;
 use App\Services\FCMNotificationService;
+use App\Support\AmericanoGameSchedule;
 use App\Support\GameAmericanoRanking;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
@@ -56,6 +57,11 @@ class MobileGameController extends Controller
             return response()->json(['success' => false, 'message' => $metaErr], 422);
         }
 
+        $capacity = (int) ($validated['capacity'] ?? 4);
+        if ($capErr = $this->validateCapacityFormat($capacity, $validated['format'])) {
+            return response()->json(['success' => false, 'message' => $capErr], 422);
+        }
+
         // Длительность 30 мин – 6 ч.
         $mins = Carbon::parse($validated['starts_at'])->diffInMinutes(Carbon::parse($validated['ends_at']));
         if ($mins < 30 || $mins > 360) {
@@ -77,7 +83,7 @@ class MobileGameController extends Controller
             'format_meta' => $validated['format_meta'] ?? null,
             'rating_min' => $validated['rating_min'] ?? null,
             'rating_max' => $validated['rating_max'] ?? null,
-            'capacity' => 4,
+            'capacity' => $capacity,
             'price' => $validated['price'] ?? null,
             'description' => $validated['description'] ?? null,
             'status' => Game::STATUS_OPEN,
@@ -115,7 +121,25 @@ class MobileGameController extends Controller
             'rating_max' => 'nullable|numeric|min:1|max:5.75|gte:rating_min',
             'price' => 'nullable|integer|min:0',
             'description' => 'nullable|string|max:1000',
+            // Корт на четверых — обычная игра. Больше народу играют только
+            // Американо со сменой пар: «по сетам» вчетвером и вшестером —
+            // разные игры, и счёт для них считается по-разному.
+            'capacity' => 'nullable|integer|min:4|max:16',
         ]);
+    }
+
+    /**
+     * Больше четырёх человек — только Американо.
+     *
+     * @return string|null текст ошибки
+     */
+    private function validateCapacityFormat(int $capacity, string $format): ?string
+    {
+        if ($capacity > 4 && $format !== Game::FORMAT_AMERICANO) {
+            return 'Больше четырёх игроков — только формат «Американо»: в нём пары меняются, и все успевают сыграть';
+        }
+
+        return null;
     }
 
     /** Валидация format_meta по формату. Возвращает текст ошибки или null. */
@@ -454,6 +478,18 @@ class MobileGameController extends Controller
             return response()->json(['success' => false, 'message' => $metaErr], 422);
         }
 
+        $capacity = (int) ($validated['capacity'] ?? $game->capacity);
+        if ($capErr = $this->validateCapacityFormat($capacity, $validated['format'])) {
+            return response()->json(['success' => false, 'message' => $capErr], 422);
+        }
+        // Уменьшать мест ниже уже принятых нельзя: кого-то пришлось бы выгнать.
+        if ($capacity < $game->acceptedCount()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'В игре уже больше игроков, чем вы оставляете мест',
+            ], 422);
+        }
+
         $mins = Carbon::parse($validated['starts_at'])->diffInMinutes(Carbon::parse($validated['ends_at']));
         if ($mins < 30 || $mins > 360) {
             return response()->json(['success' => false, 'message' => 'Длительность игры должна быть от 30 минут до 6 часов'], 422);
@@ -470,6 +506,7 @@ class MobileGameController extends Controller
             'format_meta' => $validated['format_meta'] ?? null,
             'rating_min' => $validated['rating_min'] ?? null,
             'rating_max' => $validated['rating_max'] ?? null,
+            'capacity' => $capacity,
             'price' => $validated['price'] ?? null,
             'description' => $validated['description'] ?? null,
         ]);
@@ -1348,12 +1385,6 @@ class MobileGameController extends Controller
     }
 
     /** Классическое расписание Американо 4/1: слоты 0..3, 3 раунда, каждый партнёрит каждого 1 раз. */
-    private const AMERICANO_4_SCHEDULE = [
-        [[0, 1], [2, 3]],
-        [[0, 2], [1, 3]],
-        [[0, 3], [1, 2]],
-    ];
-
     /** Проверка пар раунда. Возвращает текст ошибки или null. */
     private function validateRoundPairs(Game $game, array $pairA, array $pairB): ?string
     {
@@ -1391,20 +1422,19 @@ class MobileGameController extends Controller
             ->pluck('user_id')
             ->all();
 
-        if (count($userIds) !== 4) {
-            return; // расписание определено только для 4 игроков
+        if (count($userIds) < 4) {
+            return; // вчетвером — минимум, иначе играть нечем
         }
 
         shuffle($userIds); // слот→игрок случайно: варьирует партнёрства
 
         $roundNo = 1;
-        foreach (self::AMERICANO_4_SCHEDULE as $slots) {
-            [$a, $b] = $slots;
+        foreach (AmericanoGameSchedule::build($userIds) as $round) {
             GameRound::create([
                 'game_id' => $game->id,
                 'round_no' => $roundNo++,
-                'pair_a' => [$userIds[$a[0]], $userIds[$a[1]]],
-                'pair_b' => [$userIds[$b[0]], $userIds[$b[1]]],
+                'pair_a' => $round['a'],
+                'pair_b' => $round['b'],
                 'is_played' => false,
             ]);
         }
