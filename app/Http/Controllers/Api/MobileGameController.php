@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\FCMNotificationService;
 use App\Support\AmericanoGameSchedule;
 use App\Support\GameAmericanoRanking;
+use App\Support\GameArchive;
 use App\Traits\RatingCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -371,30 +372,49 @@ class MobileGameController extends Controller
         $user = $request->user();
         $filters = $request->validate([
             'status' => 'nullable|string',
+            // live — предстоящие и идущие, archive — прошедшие.
+            'scope' => 'nullable|in:live,archive',
+            // creator — я собрал игру, player — позвали меня.
+            'role' => 'nullable|in:creator,player',
             'per_page' => 'nullable|integer|min:1|max:50',
             'page' => 'nullable|integer|min:1',
         ]);
 
-        $query = Game::with(['creator', 'club', 'court', 'players.user'])
-            ->where(function ($q) use ($user) {
-                $q->where('creator_id', $user->id)
-                    ->orWhereHas('players', function ($p) use ($user) {
-                        $p->where('user_id', $user->id)
-                            ->whereNotIn('status', [
-                                GamePlayer::STATUS_DECLINED,
-                                GamePlayer::STATUS_LEFT,
-                                GamePlayer::STATUS_REMOVED,
-                            ]);
-                    });
-            })
-            ->orderByDesc('starts_at');
+        $role = $filters['role'] ?? null;
+        $scope = $filters['scope'] ?? 'live';
+
+        $mine = function ($p) use ($user) {
+            $p->where('user_id', $user->id)
+                ->whereNotIn('status', [
+                    GamePlayer::STATUS_DECLINED,
+                    GamePlayer::STATUS_LEFT,
+                    GamePlayer::STATUS_REMOVED,
+                ]);
+        };
+
+        $query = Game::with(['creator', 'club', 'court', 'players.user']);
+
+        if ($role === 'creator') {
+            $query->where('creator_id', $user->id);
+        } elseif ($role === 'player') {
+            // «Играю» — где меня позвали или где я сам занял место, но
+            // собирал игру кто-то другой.
+            $query->where('creator_id', '<>', $user->id)->whereHas('players', $mine);
+        } else {
+            $query->where(function ($q) use ($user, $mine) {
+                $q->where('creator_id', $user->id)->orWhereHas('players', $mine);
+            });
+        }
+
+        $query->orderByDesc('starts_at');
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
+        } elseif ($scope === 'archive') {
+            // В архиве отменённые нужны: человек ищет, куда делась игра.
+            GameArchive::archived($query);
         } else {
-            // Отменённую игру в списке держать незачем — она только мешает.
-            // Кому нужна история, просит её статусом явно.
-            $query->where('status', '<>', Game::STATUS_CANCELLED);
+            GameArchive::live($query);
         }
 
         $perPage = (int) ($filters['per_page'] ?? 20);
