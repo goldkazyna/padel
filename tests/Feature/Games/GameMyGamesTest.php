@@ -29,11 +29,17 @@ class GameMyGamesTest extends TestCase
         $leftGame = Game::factory()->create(['status' => 'open', 'starts_at' => now()->addDay(), 'ends_at' => now()->addDay()->addHour()]);
         GamePlayer::factory()->create(['game_id' => $leftGame->id, 'user_id' => $me->id, 'position' => 3, 'status' => GamePlayer::STATUS_LEFT]);
 
+        // Живой список: доигранная игра уехала в архив, идущая осталась.
         $res = $this->getJson('/api/mobile/games/my')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
-        $this->assertContains($mine->id, $ids);
         $this->assertContains($joined->id, $ids);
-        $this->assertSame(2, $res->json('meta.total'));
+        $this->assertNotContains($mine->id, $ids);
+        $this->assertNotContains($leftGame->id, $ids);
+
+        $archive = collect(
+            $this->getJson('/api/mobile/games/my?scope=archive')->assertOk()->json('data')
+        )->pluck('id')->all();
+        $this->assertContains($mine->id, $archive);
     }
 
     public function test_status_filter(): void
