@@ -603,7 +603,18 @@ class MobileGameController extends Controller
             ];
         })->values();
 
-        $mine = $user ? $game->players->firstWhere('user_id', $user->id) : null;
+        // Своя строка — только пока она занимает место. Ушедший или убранный
+        // из состава оставляет запись со статусом left/removed, и по ней
+        // приложение считало человека участником: кнопки «занять место» он
+        // больше не видел и вернуться в игру не мог.
+        $mine = $user
+            ? $game->players->first(fn ($p) => $p->user_id === $user->id
+                && in_array($p->status, [
+                    GamePlayer::STATUS_ACCEPTED,
+                    GamePlayer::STATUS_INVITED,
+                    GamePlayer::STATUS_CANDIDATE,
+                ], true))
+            : null;
 
         $rounds = $game->relationLoaded('rounds')
             ? $game->rounds
