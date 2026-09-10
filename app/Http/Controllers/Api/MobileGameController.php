@@ -1333,14 +1333,35 @@ class MobileGameController extends Controller
             return response()->json(['success' => false, 'message' => 'Введите счёт хотя бы одного раунда'], 422);
         }
 
-        $game->update(['score_locked' => true]);
-        // Организатор автоматически подтверждает счёт.
+        // Организатор закрывает игру сам: ждать, пока каждый нажмёт
+        // «подтвердить», было не за чем — игры висели замороженными
+        // неделями, и рейтинг никому не начислялся.
+        $game->update([
+            'score_locked' => true,
+            'status' => Game::STATUS_FINISHED,
+        ]);
         $game->players()
-            ->where('user_id', $user->id)
             ->where('status', GamePlayer::STATUS_ACCEPTED)
             ->update(['score_confirmed' => true]);
 
+        $game->refresh()->load(['players.user', 'rounds']);
+        $this->applyGameElo($game);
         $this->logGameAction($game, $user->id, GameActionLog::ACTION_FINISH);
+
+        foreach ($game->players as $player) {
+            if ($player->status !== GamePlayer::STATUS_ACCEPTED) continue;
+            if ($player->user_id === $user->id || !$player->user) continue;
+
+            $this->notifyGame(
+                $player->user,
+                'Игра завершена',
+                $game->type === Game::TYPE_RATED
+                    ? 'Счёт записан, рейтинг обновлён'
+                    : 'Счёт записан',
+                'game_finished',
+                $game->id
+            );
+        }
 
         return response()->json([
             'success' => true,
