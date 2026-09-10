@@ -156,15 +156,14 @@
                 <i class="bi bi-pencil"></i> Редактировать
             </a>
             
-            {{-- Кнопка отмены турнира --}}
+            {{-- Кнопка отмены турнира. Спрашиваем модалкой, а не системным confirm:
+                 турнир отменяли промахом мыши, а состав и пары после этого
+                 приходилось поднимать руками. --}}
             @if(!in_array($tournament->status, ['completed', 'cancelled']))
-                <form action="{{ route('club.tournaments.cancel', $tournament) }}" method="POST" 
-                      onsubmit="return confirm('Отменить турнир? Это действие нельзя отменить.')">
-                    @csrf
-                    <button type="submit" class="btn-danger-custom">
-                        <i class="bi bi-x-circle"></i> Отменить
-                    </button>
-                </form>
+                <button type="button" class="btn-danger-custom"
+                        data-bs-toggle="modal" data-bs-target="#cancelTournamentModal">
+                    <i class="bi bi-x-circle"></i> Отменить
+                </button>
             @endif
         @endif
         
@@ -173,3 +172,41 @@
         </a>
     </div>
 </div>
+
+{{-- Подтверждение отмены турнира --}}
+@if(!in_array($tournament->status, ['completed', 'cancelled']))
+    @php
+        $cancelSignedUp = $tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending'])
+            ->count();
+    @endphp
+    <div class="modal fade" id="cancelTournamentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-dark">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Отменить турнир?</h5>
+                    <button type="button" class="btn-close btn-close-white"
+                            data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <p class="mb-2">«{{ $tournament->name }}»</p>
+                    <p class="text-muted mb-0">
+                        Турнир перейдёт в статус «Отменён»@if($cancelSignedUp > 0), {{ $cancelSignedUp }} {{ trans_choice('участник|участника|участников', $cancelSignedUp) }} получат уведомление об отмене@endif.
+                        Состав и пары останутся на месте.
+                    </p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">
+                        Не отменять
+                    </button>
+                    <form action="{{ route('club.tournaments.cancel', $tournament) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn-danger-custom">
+                            <i class="bi bi-x-circle"></i> Отменить турнир
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
