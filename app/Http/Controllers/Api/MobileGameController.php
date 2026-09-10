@@ -594,6 +594,7 @@ class MobileGameController extends Controller
                 'avatar' => $p->user->avatar,
                 'rating' => $p->user->rating,
                 'level' => (float) $p->user->level,
+                'level_verified' => (bool) $p->user->level_verified,
                 'is_me' => $user && $p->user->id === $user->id,
                 'score_confirmed' => (bool) $p->score_confirmed,
                 'rating_before' => $p->rating_before,

@@ -77,6 +77,15 @@ class GamePlayerContactsTest extends TestCase
         $this->assertSame('77773334455', $player['whatsapp'], 'пишем на телефон');
     }
 
+    public function test_verified_level_is_in_payload(): void
+    {
+        $this->member->update(['level_verified' => true]);
+
+        $player = $this->memberPayload($this->creator);
+
+        $this->assertTrue($player['level_verified'], 'галочка едет в состав');
+    }
+
     public function test_outsider_sees_no_contacts(): void
     {
         $player = $this->memberPayload(User::factory()->create());
