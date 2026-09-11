@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use App\Models\Club;
 use App\Reports\ClubIncomeReportService;
+use App\Reports\CancelledBookingsReportService;
 use App\Reports\ClubLoadReportService;
 use App\Reports\ClientsReportService;
 use App\Reports\CoachesReportService;
@@ -28,6 +29,7 @@ class AdditionalReportsController extends Controller
         'club-weekdays'    => [ClubLoadReportService::class, 'byWeekdays','zagruzka-po-dnyam',      'Клуб', 'Загруженность по дням недели'],
         'club-months'      => [ClubLoadReportService::class, 'byMonths',  'zagruzka-po-mesyacam',   'Клуб', 'Загруженность по месяцам'],
         'clients-visits'   => [ClientsReportService::class,  'visits',    'poseshcheniya',          'Клиенты', 'Посещения клиентов'],
+        'bookings-cancelled' => [CancelledBookingsReportService::class, 'list', 'otmenennye-broni',  'Клуб', 'Отменённые брони'],
         'coaches-usage'    => [CoachesReportService::class,  'usage',     'trenery-ispolzovanie',   'Тренеры', 'Использование услуг'],
         'coaches-sessions' => [CoachesReportService::class,  'sessions',  'trenery-trenirovki',     'Тренеры', 'Проведённые тренировки'],
         'coaches-salary'   => [CoachesReportService::class,  'salary',    'trenery-zarplata',       'Тренеры', 'Зарплата тренеров'],
