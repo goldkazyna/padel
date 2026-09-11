@@ -102,6 +102,16 @@
             </span>
         </label>
 
+        <label class="settings-toggle-row">
+            <input type="hidden" name="moderators_can_view_reports" value="0">
+            <input type="checkbox" name="moderators_can_view_reports" value="1"
+                   {{ ($club->moderators_can_view_reports ?? false) ? 'checked' : '' }}>
+            <span class="settings-toggle-text">
+                <span class="settings-toggle-title">Менеджеры видят отчёты</span>
+                <small class="form-hint">Если включено — менеджеры клуба заходят в раздел «Отчёты»: выручка, долги, загруженность, зарплата тренеров. Выключено — отчёты только у вас.</small>
+            </span>
+        </label>
+
         <div class="form-group" style="margin-top:6px">
             <label class="form-label">Отмена брони — не позднее чем за (часов)</label>
             <input type="number" name="booking_cancel_hours" class="form-input" min="0" max="168"

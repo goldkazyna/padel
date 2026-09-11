@@ -329,6 +329,19 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/shifts/{shift}', [App\Http\Controllers\Club\ShiftJournalController::class, 'show'])->name('shifts.show');
         });
 
+        // Отчёты: владелец всегда, менеджер — если клуб разрешил в настройках.
+        Route::middleware('club.reports')->group(function () {
+            Route::get('/reports', [App\Http\Controllers\Club\ReportsController::class, 'index'])->name('reports.index');
+            Route::get('/reports/export', [App\Http\Controllers\Club\ReportsController::class, 'export'])->name('reports.export');
+            Route::get('/reports/no-phone', [App\Http\Controllers\Club\ReportsController::class, 'noPhoneBookings'])->name('reports.noPhone');
+
+            // Дополнительные отчёты (Excel)
+            Route::get('/reports/extra', [App\Http\Controllers\Club\AdditionalReportsController::class, 'index'])->name('reports.extra.index');
+            // Разбивка долгов по одному клиенту — с печатью в PDF из браузера.
+            Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
+            Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
+        });
+
         // Управление модераторами (только admin)
         Route::middleware('role:club_admin,super_admin')->group(function () {
             Route::middleware('club.feature:moderators')->group(function () {
@@ -340,15 +353,6 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
                 Route::delete('/moderators/{user}', [App\Http\Controllers\Club\ModeratorManagerController::class, 'destroy'])->name('moderators.destroy');
             });
 
-            // Отчёты
-            Route::get('/reports', [App\Http\Controllers\Club\ReportsController::class, 'index'])->name('reports.index');
-            Route::get('/reports/export', [App\Http\Controllers\Club\ReportsController::class, 'export'])->name('reports.export');
-            Route::get('/reports/no-phone', [App\Http\Controllers\Club\ReportsController::class, 'noPhoneBookings'])->name('reports.noPhone');
-
-            // Дополнительные отчёты (Excel)
-            Route::get('/reports/extra', [App\Http\Controllers\Club\AdditionalReportsController::class, 'index'])->name('reports.extra.index');
-            // Разбивка долгов по одному клиенту — с печатью в PDF из браузера.
-            Route::get('/reports/debts-by-client', [App\Http\Controllers\Club\AdditionalReportsController::class, 'debtsByClient'])->name('reports.debts.client');
             // Переписка WhatsApp: пока только чтение того, что принёс вебхук.
             // Лиги: серия турниров с общей таблицей. Этап лиги — обычный
             // турнир, он живёт в существующем разделе «Турниры».
@@ -375,7 +379,6 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/whatsapp/{phone}/panel', [App\Http\Controllers\Club\WhatsappController::class, 'panel'])->name('whatsapp.panel')->where('phone', '[0-9]+');
             Route::get('/whatsapp/{phone}/updates', [App\Http\Controllers\Club\WhatsappController::class, 'chatUpdates'])->name('whatsapp.chat-updates')->where('phone', '[0-9]+');
             Route::get('/whatsapp/{phone}', [App\Http\Controllers\Club\WhatsappController::class, 'show'])->name('whatsapp.show')->where('phone', '[0-9]+');
-            Route::get('/reports/extra/{report}', [App\Http\Controllers\Club\AdditionalReportsController::class, 'download'])->name('reports.extra.download');
         });
 
         // Кол-во необработанных бронирований (для polling)

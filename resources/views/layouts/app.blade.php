@@ -985,6 +985,16 @@
 					{{-- Закрытие смены живёт кнопкой внизу сайдбара, на месте
 					     привычного «Выйти» — дублировать его в меню незачем. --}}
 					<li class="nav-section-title">Работа клуба</li>
+					{{-- Отчёты менеджеру показываем, только если клуб их открыл:
+					     там выручка, долги и зарплаты. --}}
+					@if($modClub && $modClub->moderators_can_view_reports)
+					<li class="nav-item">
+						<a href="{{ route('club.reports.index') }}" class="nav-link {{ request()->routeIs('club.reports.*') ? 'active' : '' }}">
+							<i class="bi bi-bar-chart-line"></i>
+							<span>Отчёты</span>
+						</a>
+					</li>
+					@endif
 					@if(!$modClub || $modClub->hasFeature('courts'))
 					<li class="nav-item">
 						<a href="{{ route('club.courts.schedule') }}" class="nav-link {{ request()->routeIs('club.courts.*') ? 'active' : '' }}" style="position:relative;">

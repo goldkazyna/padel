@@ -37,6 +37,8 @@ class AccountController extends Controller
             'tournament_payment_enabled' => $club->hasPlexyConfigured()
                 && $request->boolean('tournament_payment_enabled'),
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
+            // Отчёты менеджерам открывает сам клуб: там выручка и долги.
+            'moderators_can_view_reports' => $request->boolean('moderators_can_view_reports'),
             'booking_cancel_hours' => $cancelHours,
             'card_bg_color' => $this->hexOrNull($request->input('card_bg_color')),
             'card_accent_color' => $this->hexOrNull($request->input('card_accent_color')),
