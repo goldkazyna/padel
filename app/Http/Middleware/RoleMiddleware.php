@@ -14,9 +14,25 @@ class RoleMiddleware
             return redirect()->route('login');
         }
 
-        $userRole = auth()->user()->role;
+        $user = auth()->user();
 
-        if (!in_array($userRole, $roles)) {
+        // Клубные роли проверяем по настоящим правам: модератором или
+        // админом клуба назначают записью в таблице, а роль у человека
+        // может остаться прежней (тренер, игрок).
+        $allowed = false;
+        foreach ($roles as $role) {
+            $allowed = match ($role) {
+                'super_admin' => $user->isSuperAdmin(),
+                'club_admin' => $user->isClubAdmin() || $user->adminClubs()->exists(),
+                'club_moderator' => $user->isClubModerator(),
+                default => $user->role === $role,
+            };
+            if ($allowed) {
+                break;
+            }
+        }
+
+        if (!$allowed) {
             abort(403, 'Доступ запрещён');
         }
 

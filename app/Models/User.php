@@ -300,9 +300,24 @@ class User extends Authenticatable
     {
         return $this->role === 'super_admin';
     }
+	/**
+	 * Модератор клуба.
+	 *
+	 * Права даёт сама запись в `club_moderators`: модератором назначают и
+	 * тренера, и обычного игрока — роль при этом не меняется, и человек
+	 * упирался в «нет прав», хотя галочки у него стояли. Владелец клуба
+	 * остаётся админом, даже если его заодно добавили модератором.
+	 */
 	public function isClubModerator(): bool
 	{
-		return $this->role === 'club_moderator';
+		if ($this->role === 'club_moderator') {
+			return true;
+		}
+		if ($this->isSuperAdmin() || $this->isClubAdmin()) {
+			return false;
+		}
+
+		return $this->moderatorClubs()->exists();
 	}
 
     public function isCoach(): bool
