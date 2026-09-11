@@ -246,6 +246,23 @@ class MobileCourtController extends Controller
         ]);
     }
 
+    /**
+     * Телефон, по которому и правда можно позвонить.
+     *
+     * Форма бронирования подставляет «+» как заготовку, и при пустом профиле
+     * именно он и уезжал на сервер: в расписании клуба оставалась бронь
+     * с плюсом вместо номера.
+     */
+    private function usablePhone(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return strlen(preg_replace('/\D/', '', $value)) >= 10 ? $value : null;
+    }
+
     public function book(Request $request, Club $club)
     {
         $validated = $request->validate([
@@ -260,6 +277,20 @@ class MobileCourtController extends Controller
             'needs_coach' => 'nullable|boolean',
             'club_card_id' => 'nullable|integer',
         ]);
+
+        $user = $request->user();
+
+        // Телефон обязателен: по этой брони клубу нужно с кем-то связаться.
+        // У входа через Google и Apple номера может не быть вовсе, и форма
+        // присылала один «+» — в расписании такая бронь без контакта.
+        $phone = $this->usablePhone($validated['client_phone'] ?? null)
+            ?? $this->usablePhone($user->phone);
+        if ($phone === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Укажите номер телефона — клубу нужно, как с вами связаться.',
+            ], 422);
+        }
 
         // Проверяем что корт принадлежит клубу и активен
         $court = Court::where('id', $validated['court_id'])
@@ -363,7 +394,7 @@ class MobileCourtController extends Controller
             'start_time' => $startTimeStr,
             'end_time' => $endTimeStr,
             'client_name' => $validated['client_name'] ?? $user->full_name ?? $user->name,
-            'client_phone' => $validated['client_phone'] ?? $user->phone,
+            'client_phone' => $phone,
             'status' => 'confirmed',
             'booked_by' => $user->id,
             'price' => $courtPrice + $coachPrice,
