@@ -135,11 +135,17 @@ class CancelledBookingsReportTest extends TestCase
         $this->assertStringContainsString('spreadsheetml', $resp->headers->get('content-type'));
     }
 
-    public function test_отчёт_есть_в_списке(): void
+    public function test_отчёт_есть_в_списке_и_помечен_новым(): void
     {
-        $this->actingAs($this->manager)
+        $html = $this->actingAs($this->manager)
             ->get('/club/reports/extra')
             ->assertOk()
-            ->assertSee('Отменённые брони');
+            ->assertSee('Отменённые брони')
+            ->getContent();
+
+        // Свежий отчёт обведён оранжевым и подписан «Новый».
+        $this->assertStringContainsString('report-btn--fresh', $html);
+        $this->assertStringContainsString('rgba(240,132,70,0.55)', $html);
+        $this->assertStringContainsString('Новый', $html);
     }
 }

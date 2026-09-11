@@ -22,6 +22,12 @@ class AdditionalReportsController extends Controller
 {
     use ResolvesReportPeriod;
 
+    /**
+     * Свежие отчёты — обводим оранжевым в списке, чтобы клуб заметил, что
+     * появилось новое. Слаг убираем отсюда, когда отчёт примелькался.
+     */
+    private const FRESH = ['bookings-cancelled'];
+
     /** slug => [serviceClass, method, filenameBase, categoryLabel, reportLabel] */
     private const REPORTS = [
         'income-breakdown' => [ClubIncomeReportService::class, 'breakdown', 'dohody-v-razreze',     'Доходы', 'Доходы клуба в разрезе'],
@@ -62,7 +68,11 @@ class AdditionalReportsController extends Controller
 
         $grouped = [];
         foreach (self::REPORTS as $slug => [$svc, $method, $file, $category, $label]) {
-            $grouped[$category][] = ['slug' => $slug, 'label' => $label];
+            $grouped[$category][] = [
+                'slug' => $slug,
+                'label' => $label,
+                'fresh' => in_array($slug, self::FRESH, true),
+            ];
         }
 
         return view('club.reports.extra', [

@@ -68,9 +68,11 @@
                             . '?' . http_build_query(request()->only(['preset','from','to']));
                     @endphp
                     <a href="{{ $dlUrl }}"
+                       class="{{ !empty($r['fresh']) ? 'report-btn report-btn--fresh' : 'report-btn' }}"
                        style="display:flex;align-items:center;justify-content:space-between;gap:12px;
                               padding:14px 16px;border-radius:12px;
-                              background:#1c1c21;border:1px solid rgba(255,255,255,0.06);
+                              background:#1c1c21;
+                              border:1px solid {{ !empty($r['fresh']) ? 'rgba(240,132,70,0.55)' : 'rgba(255,255,255,0.06)' }};
                               text-decoration:none;color:inherit;transition:background .15s;"
                        onmouseover="this.style.background='rgba(34,196,122,0.07)'"
                        onmouseout="this.style.background='#1c1c21'">
@@ -78,9 +80,15 @@
                             <i class="bi bi-file-earmark-excel" style="font-size:18px;color:#22c47a;flex-shrink:0;"></i>
                             <span style="font-size:14px;font-weight:600;color:#f3f3f5;">{{ $r['label'] }}</span>
                         </div>
-                        <span style="background:rgba(34,196,122,0.12);color:#22c47a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;">
-                            Excel
-                        </span>
+                        @if(!empty($r['fresh']))
+                            <span style="background:rgba(240,132,70,0.14);color:#f08446;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;">
+                                Новый
+                            </span>
+                        @else
+                            <span style="background:rgba(34,196,122,0.12);color:#22c47a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;">
+                                Excel
+                            </span>
+                        @endif
                     </a>
                 @endforeach
             </div>
