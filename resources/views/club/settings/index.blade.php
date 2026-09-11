@@ -286,7 +286,11 @@
 </script>
 
 <style>
-    .settings-container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+    .settings-container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    /* Поля держим читаемой ширины: строка ввода во всю тысячу пикселей
+       выглядит пустой, а глазу неудобно возвращаться к началу. */
+    .settings-panel .form-group,
+    .settings-panel .settings-toggle-row { max-width: 620px; }
     .settings-page-header { margin-bottom: 24px; }
     .settings-page-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
     .settings-page-sub { color: #71717a; font-size: 14px; margin: 4px 0 0; }
@@ -318,7 +322,22 @@
     .form-hint { color: #52525b; font-size: 11px; display: block; margin-top: 6px; }
 
     .settings-toggle-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin-bottom: 20px; }
-    .settings-toggle-row input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; accent-color: #22c55e; cursor: pointer; flex-shrink: 0; }
+    /* Переключатель вместо галочки: настройка «включено/выключено»
+       читается тумблером быстрее, чем квадратиком. */
+    .settings-toggle-row input[type="checkbox"] {
+        appearance: none; -webkit-appearance: none;
+        position: relative; flex-shrink: 0; cursor: pointer;
+        width: 40px; height: 23px; margin: 1px 0 0; border-radius: 999px;
+        background: #26262b; border: 1px solid #2f2f35; transition: background .15s;
+    }
+    .settings-toggle-row input[type="checkbox"]::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 17px; height: 17px; border-radius: 50%;
+        background: #6b6b74; transition: left .15s, background .15s;
+    }
+    .settings-toggle-row input[type="checkbox"]:checked { background: rgba(34,197,94,.35); border-color: rgba(34,197,94,.5); }
+    .settings-toggle-row input[type="checkbox"]:checked::after { left: 19px; background: #22c55e; }
+    .settings-toggle-row input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
     .settings-toggle-text { display: block; }
     .settings-toggle-title { display: block; font-size: 15px; font-weight: 600; color: #f4f4f5; }
 
