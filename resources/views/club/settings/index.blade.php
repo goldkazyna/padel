@@ -21,8 +21,20 @@
         </div>
     @endif
 
+    {{-- Вкладки: раньше всё лежало одной простынёй, и до телеграма надо было
+         крутить мимо галочек и дизайна карты. --}}
+    <div class="settings-tabs" role="tablist">
+        @if(!empty($club))
+            <button type="button" class="settings-tab is-active" data-tab="club">Клуб</button>
+            <button type="button" class="settings-tab" data-tab="card">Клубная карта</button>
+            <button type="button" class="settings-tab" data-tab="notify">Уведомления</button>
+        @endif
+        <button type="button" class="settings-tab {{ empty($club) ? 'is-active' : '' }}" data-tab="profile">Профиль</button>
+        <button type="button" class="settings-tab" data-tab="security">Безопасность</button>
+    </div>
+
     {{-- Профиль --}}
-    <form action="{{ route('club.settings.profile') }}" method="POST" class="settings-card">
+    <form action="{{ route('club.settings.profile') }}" method="POST" class="settings-card settings-panel" data-panel="profile">
         @csrf
         @method('PUT')
         <h2 class="settings-card-title">Профиль</h2>
@@ -45,10 +57,13 @@
 
     {{-- Настройки клуба --}}
     @if(!empty($club))
-    <form action="{{ route('club.settings.club') }}" method="POST" class="settings-card">
+    <form action="{{ route('club.settings.club') }}" method="POST">
         @csrf
         @method('PUT')
-        <h2 class="settings-card-title">Настройки клуба</h2>
+
+        {{-- Вкладка «Клуб»: записи, оплата, отмена брони. --}}
+        <div class="settings-card settings-panel is-active" data-panel="club">
+        <h2 class="settings-card-title">Записи и брони</h2>
 
         <label class="settings-toggle-row">
             <input type="hidden" name="allow_booking_without_payment" value="0">
@@ -94,9 +109,14 @@
             <small class="form-hint">За сколько часов до начала клиент ещё может отменить бронь в приложении. 0 — отмена разрешена в любое время.</small>
         </div>
 
-        {{-- Дизайн клубной карты в приложении --}}
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a">
-            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Дизайн клубной карты</div>
+            <div class="settings-actions">
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+
+        {{-- Вкладка «Клубная карта»: цвета и живое превью. --}}
+        <div class="settings-card settings-panel" data-panel="card">
+            <h2 class="settings-card-title">Дизайн клубной карты</h2>
             <div class="form-hint" style="margin-bottom:14px">Как выглядит клубная карта в приложении. Цвета берутся отсюда.</div>
 
             <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:18px">
@@ -129,11 +149,15 @@
                 <div style="position:relative;height:6px;border-radius:4px;background:rgba(0,0,0,.32);margin-top:10px;overflow:hidden"><div id="cdBar" style="height:100%;width:80%"></div></div>
                 <div style="position:absolute;left:18px;bottom:14px;font-family:monospace;font-size:12px;letter-spacing:1px;opacity:.85">EMC000064</div>
             </div>
+
+            <div class="settings-actions" style="margin-top:18px">
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
         </div>
 
-        {{-- Telegram-уведомления клуба --}}
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #27272a">
-            <div style="font-size:14px;font-weight:800;color:#e4e4e7;margin-bottom:4px">Telegram-уведомления клуба</div>
+        {{-- Вкладка «Уведомления»: телеграм-бот клуба. --}}
+        <div class="settings-card settings-panel" data-panel="notify">
+            <h2 class="settings-card-title">Telegram-уведомления клуба</h2>
             <div class="form-hint" style="margin-bottom:14px">Бот присылает уведомление, когда игрок бронирует или отменяет корт в приложении, а также когда менеджер открывает и закрывает смену. Замечания из чек-листа приходят прямо в сообщении.</div>
 
             <label class="settings-toggle-row">
@@ -159,15 +183,16 @@
                           placeholder="Один chat id в строке">{{ old('telegram_chat_ids', $club->telegram_chat_ids) }}</textarea>
                 <small class="form-hint">Получатели — по одному в строке (или через запятую). Личный id узнают у @userinfobot; для группы/канала добавьте бота туда и укажите id (например -100…). Важно: получатель должен сначала написать боту /start.</small>
             </div>
-        </div>
 
-        <div class="settings-actions">
-            <button type="submit" class="btn-save">Сохранить</button>
+            <div class="settings-actions">
+                <button type="submit" class="btn-save">Сохранить</button>
+            </div>
         </div>
     </form>
 
     {{-- Тест Telegram (отдельная форма — по уже сохранённым настройкам) --}}
-    <form action="{{ route('club.settings.club.telegramTest') }}" method="POST" style="margin:-8px 0 8px">
+    <form action="{{ route('club.settings.club.telegramTest') }}" method="POST"
+          class="settings-panel" data-panel="notify" style="margin:-8px 0 20px">
         @csrf
         <button type="submit" class="btn-save" style="background:#1d211c;border:1px solid #2a3330;color:#e4e4e7">
             Отправить тестовое уведомление
@@ -198,7 +223,7 @@
     @endif
 
     {{-- Смена пароля --}}
-    <form action="{{ route('club.settings.password') }}" method="POST" class="settings-card">
+    <form action="{{ route('club.settings.password') }}" method="POST" class="settings-card settings-panel" data-panel="security">
         @csrf
         @method('PUT')
         <h2 class="settings-card-title">Смена пароля</h2>
@@ -225,6 +250,41 @@
     </form>
 </div>
 
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.settings-tab');
+    var panels = document.querySelectorAll('.settings-panel');
+    if (!tabs.length) return;
+
+    function open(name) {
+        var found = false;
+        tabs.forEach(function (t) {
+            var on = t.dataset.tab === name;
+            t.classList.toggle('is-active', on);
+            if (on) found = true;
+        });
+        if (!found) return false;
+
+        panels.forEach(function (p) {
+            p.classList.toggle('is-active', p.dataset.panel === name);
+        });
+        try { localStorage.setItem('clubSettingsTab', name); } catch (e) {}
+        return true;
+    }
+
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () { open(t.dataset.tab); });
+    });
+
+    // После сохранения страница перезагружается — возвращаем человека туда,
+    // где он был, иначе каждый раз кидало на первую вкладку.
+    var saved = null;
+    try { saved = localStorage.getItem('clubSettingsTab'); } catch (e) {}
+    var fromHash = location.hash ? location.hash.slice(1) : null;
+    if (!open(fromHash) && !open(saved)) open(tabs[0].dataset.tab);
+})();
+</script>
+
 <style>
     .settings-container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
     .settings-page-header { margin-bottom: 24px; }
@@ -234,6 +294,17 @@
     .flash-message { padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
     .flash-error { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
     .flash-success { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+
+    .settings-tabs { display: flex; gap: 4px; border-bottom: 1px solid #27272a; margin-bottom: 20px; overflow-x: auto; }
+    .settings-tab { appearance: none; background: none; border: none; border-bottom: 2px solid transparent;
+        padding: 10px 14px; color: #a1a1aa; font-size: 14px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+    .settings-tab:hover { color: #e4e4e7; }
+    .settings-tab.is-active { color: #22c55e; border-color: #22c55e; font-weight: 700; }
+
+    /* Панель показывается только своей вкладкой; одна форма клуба живёт
+       сразу в трёх — «Сохранить» на любой из них сохраняет всё. */
+    .settings-panel { display: none; }
+    .settings-panel.is-active { display: block; }
 
     .settings-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
     .settings-card-title { font-size: 17px; font-weight: 800; margin: 0 0 20px; color: #f4f4f5; }
