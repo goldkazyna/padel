@@ -994,10 +994,31 @@ class MobileAdminTournamentDetailController extends Controller
                     'player2' => $t->player2 ? $this->formatUser($t->player2) : null,
                 ]);
 
+            // Игроки без пары: сами записались или их завели, а пары не сложилось.
+            // Экран показывает пары, и без этого списка такой человек не виден
+            // вообще — ни убрать, ни поставить в пару.
+            $inTeams = $tournament->teams()
+                ->pluck('player2_id')
+                ->merge($tournament->teams()->pluck('player1_id'))
+                ->filter()
+                ->unique();
+
+            $unpaired = $tournament->participants()
+                ->wherePivotIn('status', ['registered', 'pending'])
+                ->whereNotIn('users.id', $inTeams)
+                ->get()
+                ->map(function ($u) {
+                    $arr = $this->formatUser($u);
+                    $arr['status'] = $u->pivot->status;
+                    return $arr;
+                })
+                ->values();
+
             return response()->json([
                 'success' => true,
                 'type' => 'team',
                 'teams' => $teams,
+                'unpaired' => $unpaired,
                 'max_teams' => (int) ($tournament->max_participants / 2),
                 'can_modify' => $this->canModifyParticipants($tournament),
             ]);
