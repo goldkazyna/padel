@@ -234,9 +234,17 @@ class JustPadelItService
         \Illuminate\Support\Facades\DB::transaction(function () use ($tournament, $teams, &$made) {
             foreach ($teams as $team) {
                 // Оба игрока должны быть участниками: по ним формат считает состав.
+                // Пара одобрена — значит и заявки её игроков одобрены. Иначе игрок
+                // с «на модерации» не попадал в счёт, состав переставал делиться
+                // на 4, и турнир не стартовал; поднять его руками было негде —
+                // в парном турнире отдельных заявок на экране нет.
                 foreach ([$team->player1_id, $team->player2_id] as $userId) {
-                    if (!$tournament->participants()->where('users.id', $userId)->exists()) {
+                    $current = $tournament->participants()->where('users.id', $userId)->first();
+
+                    if (!$current) {
                         $tournament->participants()->attach($userId, ['status' => 'registered']);
+                    } elseif ($current->pivot->status === 'pending') {
+                        $tournament->participants()->updateExistingPivot($userId, ['status' => 'registered']);
                     }
                 }
 
