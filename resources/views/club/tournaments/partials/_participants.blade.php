@@ -253,7 +253,13 @@
                 ->merge($tournament->teams()->pluck('player1_id'))
                 ->merge($tournament->teams()->pluck('player2_id'))
                 ->unique();
-            $unpaired = $tournament->approvedParticipants->reject(fn ($u) => $pairedIds->contains($u->id));
+            // Заявки «на модерации» тоже сюда: в парном турнире отдельного блока
+            // заявок нет, и такой игрок был не виден вообще — ни убрать, ни в пару.
+            $unpaired = $tournament->approvedParticipants
+                ->concat($tournament->pendingParticipants)
+                ->reject(fn ($u) => $pairedIds->contains($u->id))
+                ->unique('id')
+                ->values();
         @endphp
         @if($unpaired->isNotEmpty())
             <div class="pair-add-section mt-4">
@@ -267,6 +273,9 @@
                         <div class="pair-row">
                             <div class="pair-row-names">
                                 {{ $participant->name }}
+                                @if(($participant->pivot->status ?? '') === 'pending')
+                                    <span class="pending-badge">на модерации</span>
+                                @endif
                                 <small class="text-muted d-block">@phoneFmt($participant->phone)</small>
                             </div>
                             @if($tournament->status === 'open')

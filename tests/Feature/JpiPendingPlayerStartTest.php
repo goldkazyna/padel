@@ -81,6 +81,26 @@ class JpiPendingPlayerStartTest extends TestCase
         $this->assertSame('in_progress', $t->fresh()->status);
     }
 
+    public function test_заявка_без_пары_видна_организатору(): void
+    {
+        [$t, $p] = $this->makeTournament(9);
+
+        $club = \App\Models\Club::first();
+        $admin = User::factory()->create(['role' => 'club_admin']);
+        $admin->adminClubs()->attach($club->id);
+
+        $this->pair($t, $p[0], $p[1]);
+        $this->pair($t, $p[2], $p[3]);
+        $t->participants()->attach($p[8]->id, ['status' => 'pending']);
+
+        $html = $this->actingAs($admin)->get("/club/tournaments/{$t->id}")->assertOk()->getContent();
+
+        $this->assertStringContainsString($p[8]->name, $html, 'игрок без пары виден');
+        $this->assertStringContainsString('на модерации', $html);
+        $this->assertStringContainsString(
+            "/club/tournaments/{$t->id}/participants/{$p[8]->id}", $html, 'есть чем убрать');
+    }
+
     public function test_лишний_игрок_без_пары_не_ломает_старт(): void
     {
         [$t, $p] = $this->makeTournament(9);
