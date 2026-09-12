@@ -351,6 +351,8 @@ Route::prefix('mobile')->group(function () {
         // вебхук — спрашивает статус само.
         Route::post('/tournaments/{tournament}/pay', [MobileTournamentController::class, 'pay']);
         Route::get('/tournaments/{tournament}/payment-status', [MobileTournamentController::class, 'paymentStatus']);
+        // Встать в очередь, не оплачивая: платный турнир, но человек ждёт места.
+        Route::post('/tournaments/{tournament}/waitlist', [MobileTournamentController::class, 'joinWaitlist']);
         Route::post('/tournaments/{tournament}/cancel', [MobileTournamentController::class, 'cancel']);
         Route::post('/tournaments/{tournament}/search-partner', [MobileTournamentController::class, 'searchPartner']);
         Route::post('/tournaments/{tournament}/register-team', [MobileTournamentController::class, 'registerTeam']);

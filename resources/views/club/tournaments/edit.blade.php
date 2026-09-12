@@ -265,14 +265,6 @@
                                 <small class="text-secondary">Турнир уже начат — изменить нельзя.</small>
                             @endif
                         </div>
-                        {{-- У парного флекса очередь не ограничена: все пары созданы, но
-                             места рядом с игроками свободны, и любой может сесть сам. --}}
-                        <div class="col-md-6 mb-4" @if($tournament->isPairedFlex()) style="display:none" @endif>
-                            <label class="form-label">Лист ожидания {{ $tournament->isTeamBased() ? '(в парах)' : '' }}</label>
-                            <input type="number" name="waitlist_size" class="form-control"
-                                   value="{{ old('waitlist_size', $tournament->waitlist_size ?? 0) }}" min="0" max="32">
-                            <small class="text-secondary">Сколько человек/пар встанут в очередь, когда турнир заполнится</small>
-                        </div>
                         <div class="col-md-6 mb-4">
                             <label class="form-label">Таймер модерации, часов</label>
                             <input type="number" name="moderation_hours" class="form-control"

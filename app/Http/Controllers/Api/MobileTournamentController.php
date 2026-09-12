@@ -619,6 +619,82 @@ class MobileTournamentController extends Controller
     }
 
     /**
+     * Встать в очередь, не оплачивая.
+     * POST /api/mobile/tournaments/{id}/waitlist
+     *
+     * Платный турнир не всем по карману сразу: человек хочет «если место
+     * освободится или передумаю — я рядом». Очередь безразмерная, деньги
+     * не берутся; в состав такого игрока поднимает клуб руками.
+     */
+    public function joinWaitlist(Request $request, Tournament $tournament)
+    {
+        $user = $request->user();
+
+        if ($tournament->status !== 'open') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир не открыт для регистрации',
+            ], 400);
+        }
+
+        if (!$tournament->usesSoloRegistration()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'В парном турнире в очередь встают парой',
+            ], 400);
+        }
+
+        if ($tournament->participants()
+            ->wherePivotIn('status', ['registered', 'pending', 'waiting'])
+            ->where('user_id', $user->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Вы уже записаны на этот турнир',
+            ], 400);
+        }
+
+        if ($tournament->verified_only && !$user->level_verified) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Турнир только для верифицированных игроков',
+            ], 400);
+        }
+
+        if ($user->level < $tournament->min_level || $user->level > $tournament->max_level) {
+            return response()->json([
+                'success' => false,
+                'message' => "Ваш уровень ({$user->level}) не подходит. Требуется: {$tournament->min_level} – {$tournament->max_level}",
+            ], 400);
+        }
+
+        if ($clash = \App\Support\TournamentClash::find($tournament, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => "В это время вы уже играете: «{$clash->name}».",
+            ], 400);
+        }
+
+        DB::transaction(function () use ($tournament, $user) {
+            // Отменённая раньше запись мешает attach: уникальный индекс.
+            $tournament->participants()->wherePivot('status', 'cancelled')->detach($user->id);
+            $tournament->participants()->attach($user->id, ['status' => 'waiting']);
+        });
+
+        TournamentSubscription::where('tournament_id', $tournament->id)
+            ->where('user_id', $user->id)
+            ->delete();
+
+        \App\Models\TournamentRegistrationLog::record($tournament->id, $user->id, 'registered');
+
+        return response()->json([
+            'success' => true,
+            'waitlisted' => true,
+            'waitlist_position' => $tournament->getWaitlistPosition($user),
+            'message' => 'Вы в листе ожидания',
+        ]);
+    }
+
+    /**
      * Записаться на турнир
      * POST /api/mobile/tournaments/{id}/register
      */
@@ -770,13 +846,8 @@ class MobileTournamentController extends Controller
                 return 'registered';
             }
 
-            // Основные места кончились — пробуем waitlist
-            $waitlistTaken = $tournament->participants()
-                ->wherePivot('status', 'waiting')
-                ->count();
-            $waitlistCapacity = (int) ($tournament->waitlist_size ?? 0);
-            $hasWaitlist = $waitlistCapacity > 0
-                && ($waitlistTaken + $needSlots) <= $waitlistCapacity;
+            // Основные места кончились — идём в очередь. Она безразмерная.
+            $hasWaitlist = true;
 
             // В открытых парах очередь не ограничиваем и не переспрашиваем.
             // «Мест нет» тут неправда: все пары созданы, но свободные места
@@ -1164,15 +1235,11 @@ class MobileTournamentController extends Controller
                 ];
             }
 
-            $waitlistCapacity = (int) ($tournament->waitlist_size ?? 0);
+            // Очередь пар тоже без потолка.
             $waitlistTaken = TournamentTeam::where('tournament_id', $tournament->id)
                 ->where('status', 'waiting')
                 ->count();
-            $hasWaitlist = $waitlistCapacity > 0 && ($waitlistTaken + 1) <= $waitlistCapacity;
 
-            if (!$hasWaitlist) {
-                return ['outcome' => 'no_space'];
-            }
             if (!$confirmWaitlist) {
                 return ['outcome' => 'needs_confirm', 'position' => $waitlistTaken + 1];
             }
@@ -3045,6 +3112,11 @@ class MobileTournamentController extends Controller
     {
         if ($tournament->isTeamBased()) return null;
         if ($tournament->status !== 'open') return null;
+
+        // Платный турнир очередь сама не двигает: поднятый игрок попал бы
+        // в состав мимо кассы. Кого пустить на освободившееся место —
+        // решает клуб, он же берёт с человека деньги.
+        if ($tournament->requiresOnlinePayment()) return null;
 
         return DB::transaction(function () use ($tournament) {
             Tournament::where('id', $tournament->id)->lockForUpdate()->first();

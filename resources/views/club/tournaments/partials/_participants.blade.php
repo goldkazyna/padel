@@ -503,7 +503,7 @@
     <div class="waitlist-section mb-4 mt-4">
         <div class="waitlist-header">
             <i class="bi bi-hourglass-split"></i>
-            <span>Лист ожидания ({{ $waitlistParticipants->count() }}{{ $tournament->waitlist_size ? '/'.$tournament->waitlist_size : '' }})</span>
+            <span>Лист ожидания ({{ $waitlistParticipants->count() }})</span>
         </div>
         <div class="participants-list">
             @foreach($waitlistParticipants as $i => $participant)

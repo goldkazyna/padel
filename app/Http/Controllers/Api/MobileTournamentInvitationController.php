@@ -111,24 +111,11 @@ class MobileTournamentInvitationController extends Controller
                 return 'registered';
             }
 
-            $waitlistTaken = $tournament->participants()
-                ->wherePivot('status', 'waiting')
-                ->count();
-            $waitlistCapacity = (int) ($tournament->waitlist_size ?? 0);
-            if ($waitlistCapacity > 0 && ($waitlistTaken + 1) <= $waitlistCapacity) {
-                $tournament->participants()->attach($userId, ['status' => 'waiting']);
-                return 'waitlisted';
-            }
+            // Мест нет — в очередь; она безразмерная у любого турнира.
+            $tournament->participants()->attach($userId, ['status' => 'waiting']);
 
-            return 'no_space';
+            return 'waitlisted';
         });
-
-        if ($outcome === 'no_space') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Все места заняты, лист ожидания заполнен',
-            ], 400);
-        }
 
         $invitation->update(['status' => 'accepted', 'responded_at' => now()]);
 

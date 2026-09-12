@@ -384,7 +384,11 @@ class TournamentInvitationTest extends TestCase
         ]);
     }
 
-    public function test_accept_when_full_without_waitlist_fails(): void
+    /**
+     * Мест нет — приглашённый уходит в очередь, а не получает отказ.
+     * Очередь безразмерная у любого турнира, отказывать больше незачем.
+     */
+    public function test_accept_when_full_goes_to_waitlist(): void
     {
         [, $admin, $tournament, $player] = $this->setup3();
         // Забиваем 4 места
@@ -400,9 +404,13 @@ class TournamentInvitationTest extends TestCase
         Sanctum::actingAs($player);
 
         $this->postJson("/api/mobile/tournaments/invitations/{$inv->id}/accept")
-            ->assertStatus(400);
+            ->assertOk()
+            ->assertJsonPath('waitlisted', true);
 
-        $this->assertSame('pending', $inv->fresh()->status);
+        $this->assertSame('accepted', $inv->fresh()->status);
+        $this->assertDatabaseHas('tournament_participants', [
+            'tournament_id' => $tournament->id, 'user_id' => $player->id, 'status' => 'waiting',
+        ]);
     }
 
     public function test_decline_marks_declined(): void
