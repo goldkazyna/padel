@@ -153,6 +153,36 @@
                         </div>
                         <i class="bi bi-chevron-right lg-chevron"></i>
                         </a>
+                        {{-- Пуш по этапу — та же рассылка, что у обычного турнира:
+                             этап живёт в лиге, и искать его в общем списке турниров
+                             организатору незачем. --}}
+                        @if($stage->status === 'open')
+                            @php
+                                $pushService = app(\App\Services\TournamentPushService::class);
+                                $pushLeft = $pushService->remaining($stage);
+                                $pushMax = \App\Services\TournamentPushService::MAX_SENDS;
+                            @endphp
+                            <span class="push-wrap">
+                                @if($pushLeft > 0)
+                                    <button type="button" class="btn-icon btn-push"
+                                            title="Отправить Push · осталось {{ $pushLeft }} из {{ $pushMax }}"
+                                            onclick="openPushModal(this)"
+                                            data-action="{{ route('club.tournaments.sendPush', $stage) }}"
+                                            data-tournament="{{ $stage->name }}"
+                                            data-title="{{ $pushService->defaultTitle() }}"
+                                            data-body="{{ $pushService->defaultBody($stage) }}"
+                                            data-left="{{ $pushLeft }}">
+                                        <i class="bi bi-bell"></i>
+                                    </button>
+                                    <span class="push-left" title="Осталось отправок">{{ $pushLeft }}</span>
+                                @else
+                                    <button type="button" class="btn-icon btn-push is-spent" disabled
+                                            title="Лимит исчерпан: отправлено {{ $pushMax }} из {{ $pushMax }}">
+                                        <i class="bi bi-bell-slash"></i>
+                                    </button>
+                                @endif
+                            </span>
+                        @endif
                         @if($stage->status !== 'completed')
                             {{-- Завершённый этап не удаляем: его очки уже в таблице лиги --}}
                             <form method="POST" action="{{ route('club.leagues.stages.remove', [$league, $stage]) }}"
@@ -464,4 +494,6 @@ document.querySelectorAll('.tab-link').forEach(function (tab) {
     });
 })();
 </script>
+@include('club.tournaments.partials._push_modal')
+
 @endsection
