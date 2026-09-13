@@ -57,15 +57,19 @@ class GameFormatMetaTest extends TestCase
         ]))->assertCreated();
     }
 
-    public function test_americano_requires_sub_and_target(): void
+    /**
+     * Американо ничего не спрашивает: счёт вбивают по факту, как организатор
+     * турнира. Подформат и «до скольки» с формы убраны, старые сборки могут
+     * их ещё присылать — не отказываем.
+     */
+    public function test_americano_meta_not_required(): void
     {
         $club = Club::factory()->create();
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/mobile/games', $this->payload($club, [
             'format' => 'americano',
-            'format_meta' => ['sub' => 'nope', 'target' => 7],
-        ]))->assertStatus(422);
+        ]))->assertCreated();
 
         $this->postJson('/api/mobile/games', $this->payload($club, [
             'format' => 'americano',

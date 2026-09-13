@@ -172,15 +172,10 @@ class MobileGameController extends Controller
             return null;
         }
 
+        // Американо ничего не спрашивает: счёт вбивают по факту, как
+        // организатор турнира. Подформат и «до скольки» только мешали
+        // на форме и ни на что не влияли.
         if ($format === Game::FORMAT_AMERICANO) {
-            $sub = $meta['sub'] ?? null;
-            if (!in_array($sub, ['by_sets', 'by_tiebreak', 'by_points'], true)) {
-                return 'Выберите подформат Американо';
-            }
-            $target = $meta['target'] ?? null;
-            if (!is_int($target) || $target < 1) {
-                return 'Укажите значение для подформата';
-            }
             return null;
         }
 
