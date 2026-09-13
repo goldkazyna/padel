@@ -37,16 +37,17 @@ class GameScheduleRegenerateTest extends TestCase
         $organizer = User::factory()->create();
         [$game] = $this->startedAmericano($organizer);
 
+        // Пересобирается несыгранный раунд — сейчас он один, первый.
         $before = GameRound::where('game_id', $game->id)->orderBy('round_no')->pluck('id')->all();
-        $this->assertCount(3, $before);
+        $this->assertCount(1, $before);
 
         $this->postJson("/api/mobile/games/{$game->id}/schedule/regenerate")->assertOk();
 
         $after = GameRound::where('game_id', $game->id)->orderBy('round_no')->pluck('id')->all();
-        $this->assertCount(3, $after);
-        // Старые строки удалены, созданы новые.
+        $this->assertCount(1, $after);
+        // Старая строка удалена, создана новая.
         $this->assertEmpty(array_intersect($before, $after));
-        $this->assertSame([1, 2, 3], GameRound::where('game_id', $game->id)->orderBy('round_no')->pluck('round_no')->all());
+        $this->assertSame([1], GameRound::where('game_id', $game->id)->orderBy('round_no')->pluck('round_no')->all());
     }
 
     public function test_regenerate_blocked_after_score_entered(): void
@@ -58,7 +59,7 @@ class GameScheduleRegenerateTest extends TestCase
         $first->update(['score_a' => 24, 'score_b' => 18, 'is_played' => true]);
 
         $this->postJson("/api/mobile/games/{$game->id}/schedule/regenerate")->assertStatus(422);
-        $this->assertSame(3, GameRound::where('game_id', $game->id)->count());
+        $this->assertSame(1, GameRound::where('game_id', $game->id)->count());
     }
 
     public function test_regenerate_non_organizer_forbidden(): void

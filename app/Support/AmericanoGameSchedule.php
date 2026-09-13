@@ -63,39 +63,7 @@ class AmericanoGameSchedule
 
         $schedule = [];
         for ($r = 0; $r < $rounds; $r++) {
-            $best = null;
-            $bestCost = null;
-
-            foreach (self::foursomes($n, $played) as $four) {
-                foreach ([[0, 1, 2, 3], [0, 2, 1, 3], [0, 3, 1, 2]] as $split) {
-                    [$a1, $a2, $b1, $b2] = array_map(fn ($i) => $four[$i], $split);
-                    // Повтор партнёра неприятнее повтора соперника, отдых —
-                    // мелкий довесок: при прочих равных выпускаем засидевшихся.
-                    $cost = 1000 * (self::pairCount($partner, $a1, $a2) + self::pairCount($partner, $b1, $b2))
-                          + 100 * (self::pairCount($rival, $a1, $b1) + self::pairCount($rival, $a1, $b2)
-                                 + self::pairCount($rival, $a2, $b1) + self::pairCount($rival, $a2, $b2))
-                          - array_sum(array_map(fn ($i) => $rested[$i], $four));
-                    if ($bestCost === null || $cost < $bestCost) {
-                        $bestCost = $cost;
-                        $best = [$four, [$a1, $a2], [$b1, $b2]];
-                    }
-                }
-            }
-
-            [$four, [$a1, $a2], [$b1, $b2]] = $best;
-            self::bump($partner, $a1, $a2);
-            self::bump($partner, $b1, $b2);
-            foreach ([[$a1, $b1], [$a1, $b2], [$a2, $b1], [$a2, $b2]] as [$x, $y]) {
-                self::bump($rival, $x, $y);
-            }
-            for ($i = 0; $i < $n; $i++) {
-                if (in_array($i, $four, true)) {
-                    $played[$i]++;
-                    $rested[$i] = 0;
-                } else {
-                    $rested[$i]++;
-                }
-            }
+            [[$a1, $a2], [$b1, $b2]] = self::pickSlots($n, $played, $rested, $partner, $rival);
 
             $schedule[] = [
                 'a' => [$userIds[$a1], $userIds[$a2]],
@@ -104,6 +72,124 @@ class AmericanoGameSchedule
         }
 
         return $schedule;
+    }
+
+    /**
+     * Следующий раунд поверх уже сыгранных — для игры, где раунды набирают
+     * по кнопке и играют, пока хочется.
+     *
+     * Пока хватает готовой сетки, берём её раунд; дальше считаем по истории:
+     * выпускаем тех, кто меньше играл, и избегаем повторов пар.
+     *
+     * @param  array<int,int>  $userIds  игроки в стабильном порядке (по месту за кортом)
+     * @param  array<int,array{a:array<int,int>,b:array<int,int>}>  $history  уже созданные раунды
+     * @return array{a:array<int,int>,b:array<int,int>}|null
+     */
+    public static function next(array $userIds, array $history): ?array
+    {
+        $userIds = array_values($userIds);
+        $n = count($userIds);
+        if ($n < 4) {
+            return null;
+        }
+
+        $roundNo = count($history) + 1;
+
+        // Готовая сетка кончилась не сразу: пока раунд в её пределах, берём его.
+        $table = self::flexTable($userIds);
+        if ($table !== null && isset($table[$roundNo - 1])) {
+            return $table[$roundNo - 1];
+        }
+
+        // Дальше — по истории: кто сколько сыграл, с кем и против кого.
+        $slotOf = array_flip($userIds);
+        $played = array_fill(0, $n, 0);
+        $rested = array_fill(0, $n, 0);
+        $partner = [];
+        $rival = [];
+
+        foreach ($history as $round) {
+            $a = array_values(array_filter(array_map(
+                fn ($id) => $slotOf[$id] ?? null, $round['a'] ?? []), fn ($x) => $x !== null));
+            $b = array_values(array_filter(array_map(
+                fn ($id) => $slotOf[$id] ?? null, $round['b'] ?? []), fn ($x) => $x !== null));
+            if (count($a) !== 2 || count($b) !== 2) {
+                continue; // раунд собран вручную из тех, кого уже нет в составе
+            }
+
+            self::bump($partner, $a[0], $a[1]);
+            self::bump($partner, $b[0], $b[1]);
+            foreach ([[$a[0], $b[0]], [$a[0], $b[1]], [$a[1], $b[0]], [$a[1], $b[1]]] as [$x, $y]) {
+                self::bump($rival, $x, $y);
+            }
+
+            $four = array_merge($a, $b);
+            for ($i = 0; $i < $n; $i++) {
+                if (in_array($i, $four, true)) {
+                    $played[$i]++;
+                    $rested[$i] = 0;
+                } else {
+                    $rested[$i]++;
+                }
+            }
+        }
+
+        [[$a1, $a2], [$b1, $b2]] = self::pickSlots($n, $played, $rested, $partner, $rival);
+
+        return [
+            'a' => [$userIds[$a1], $userIds[$a2]],
+            'b' => [$userIds[$b1], $userIds[$b2]],
+        ];
+    }
+
+    /**
+     * Кого выпустить в следующем раунде: перебираем четвёрки из тех, кто
+     * меньше играл, и разбиения на пары; счётчики обновляем на месте.
+     *
+     * @return array{0:array<int,int>,1:array<int,int>} пары слотов A и B
+     */
+    private static function pickSlots(
+        int $n,
+        array &$played,
+        array &$rested,
+        array &$partner,
+        array &$rival
+    ): array {
+        $best = null;
+        $bestCost = null;
+
+        foreach (self::foursomes($n, $played) as $four) {
+            foreach ([[0, 1, 2, 3], [0, 2, 1, 3], [0, 3, 1, 2]] as $split) {
+                [$a1, $a2, $b1, $b2] = array_map(fn ($i) => $four[$i], $split);
+                // Повтор партнёра неприятнее повтора соперника, отдых —
+                // мелкий довесок: при прочих равных выпускаем засидевшихся.
+                $cost = 1000 * (self::pairCount($partner, $a1, $a2) + self::pairCount($partner, $b1, $b2))
+                      + 100 * (self::pairCount($rival, $a1, $b1) + self::pairCount($rival, $a1, $b2)
+                             + self::pairCount($rival, $a2, $b1) + self::pairCount($rival, $a2, $b2))
+                      - array_sum(array_map(fn ($i) => $rested[$i], $four));
+                if ($bestCost === null || $cost < $bestCost) {
+                    $bestCost = $cost;
+                    $best = [$four, [$a1, $a2], [$b1, $b2]];
+                }
+            }
+        }
+
+        [$four, [$a1, $a2], [$b1, $b2]] = $best;
+        self::bump($partner, $a1, $a2);
+        self::bump($partner, $b1, $b2);
+        foreach ([[$a1, $b1], [$a1, $b2], [$a2, $b1], [$a2, $b2]] as [$x, $y]) {
+            self::bump($rival, $x, $y);
+        }
+        for ($i = 0; $i < $n; $i++) {
+            if (in_array($i, $four, true)) {
+                $played[$i]++;
+                $rested[$i] = 0;
+            } else {
+                $rested[$i]++;
+            }
+        }
+
+        return [[$a1, $a2], [$b1, $b2]];
     }
 
     /**

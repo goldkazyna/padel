@@ -33,7 +33,8 @@ class GameAmericanoScheduleTest extends TestCase
         return [$game, $ids];
     }
 
-    public function test_start_americano_generates_three_rounds(): void
+    /** Старт кладёт первый раунд; дальше их набирают кнопкой «Следующий раунд». */
+    public function test_start_americano_generates_first_round(): void
     {
         $organizer = User::factory()->create();
         [$game, $ids] = $this->fullGame($organizer, 'americano');
@@ -42,8 +43,8 @@ class GameAmericanoScheduleTest extends TestCase
         $this->postJson("/api/mobile/games/{$game->id}/start")->assertOk();
 
         $rounds = GameRound::where('game_id', $game->id)->orderBy('round_no')->get();
-        $this->assertCount(3, $rounds);
-        $this->assertSame([1, 2, 3], $rounds->pluck('round_no')->all());
+        $this->assertCount(1, $rounds);
+        $this->assertSame([1], $rounds->pluck('round_no')->all());
 
         // Каждый раунд: 4 разных принятых игрока, счёт пуст (is_played=false).
         foreach ($rounds as $r) {
@@ -56,7 +57,7 @@ class GameAmericanoScheduleTest extends TestCase
             }
         }
 
-        // Каждая из 6 пар партнёров встречается ровно 1 раз (свойство Американо).
+        // В первом раунде две разные пары — остальные соберутся по ходу игры.
         $partnerKeys = [];
         foreach ($rounds as $r) {
             foreach ([$r->pair_a, $r->pair_b] as $pair) {
@@ -64,8 +65,8 @@ class GameAmericanoScheduleTest extends TestCase
                 $partnerKeys[] = implode('-', $pair);
             }
         }
-        $this->assertCount(6, $partnerKeys);
-        $this->assertCount(6, array_unique($partnerKeys));
+        $this->assertCount(2, $partnerKeys);
+        $this->assertCount(2, array_unique($partnerKeys));
     }
 
     public function test_start_non_americano_generates_no_rounds(): void
@@ -89,7 +90,7 @@ class GameAmericanoScheduleTest extends TestCase
         $this->postJson("/api/mobile/games/{$game->id}/start/cancel")->assertOk();
         $this->postJson("/api/mobile/games/{$game->id}/start")->assertOk();
 
-        // Повторный старт не плодит раунды (у игры уже есть расписание).
-        $this->assertSame(3, GameRound::where('game_id', $game->id)->count());
+        // Повторный старт не плодит раунды (первый уже есть).
+        $this->assertSame(1, GameRound::where('game_id', $game->id)->count());
     }
 }

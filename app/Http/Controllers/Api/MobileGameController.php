@@ -1556,38 +1556,102 @@ class MobileGameController extends Controller
         return null;
     }
 
-    /** Генерирует раунды Американо при старте (4 игрока, если раундов ещё нет). No-op иначе. */
+    /**
+     * Первый раунд Американо при старте. Дальше раунды набирают по кнопке —
+     * как в турнирном Флексе: играют, пока хочется, а не по готовому списку
+     * из четырнадцати строк, который пугает и никогда не доигрывается.
+     */
     private function generateAmericanoRounds(Game $game): void
     {
         if ($game->format !== Game::FORMAT_AMERICANO) {
             return;
         }
         if ($game->rounds()->exists()) {
-            return; // расписание уже есть — не дублируем при повторном старте
+            return; // раунды уже есть — не дублируем при повторном старте
         }
 
+        $this->createNextAmericanoRound($game);
+    }
+
+    /**
+     * Собрать следующий раунд Американо. Возвращает раунд или null, если
+     * играть некому (меньше четверых в составе).
+     */
+    private function createNextAmericanoRound(Game $game): ?GameRound
+    {
+        // Порядок стабильный: слоты сетки должны означать одних и тех же
+        // людей от раунда к раунду, иначе расклад рассыпается.
         $userIds = $game->players()
             ->where('status', GamePlayer::STATUS_ACCEPTED)
             ->orderBy('position')
+            ->orderBy('id')
             ->pluck('user_id')
             ->all();
 
         if (count($userIds) < 4) {
-            return; // вчетвером — минимум, иначе играть нечем
+            return null;
         }
 
-        shuffle($userIds); // слот→игрок случайно: варьирует партнёрства
+        $history = $game->rounds()->orderBy('round_no')->get()
+            ->map(fn ($r) => [
+                'a' => is_array($r->pair_a) ? $r->pair_a : [],
+                'b' => is_array($r->pair_b) ? $r->pair_b : [],
+            ])->all();
 
-        $roundNo = 1;
-        foreach (AmericanoGameSchedule::build($userIds) as $round) {
-            GameRound::create([
-                'game_id' => $game->id,
-                'round_no' => $roundNo++,
-                'pair_a' => $round['a'],
-                'pair_b' => $round['b'],
-                'is_played' => false,
-            ]);
+        $round = AmericanoGameSchedule::next($userIds, $history);
+        if ($round === null) {
+            return null;
         }
+
+        return GameRound::create([
+            'game_id' => $game->id,
+            'round_no' => count($history) + 1,
+            'pair_a' => $round['a'],
+            'pair_b' => $round['b'],
+            'is_played' => false,
+        ]);
+    }
+
+    /**
+     * Следующий раунд по кнопке.
+     * POST /api/mobile/games/{game}/rounds/next
+     */
+    public function nextRound(Request $request, Game $game)
+    {
+        $user = $request->user();
+
+        if (!$game->isOrganizer($user->id)) {
+            return response()->json(['success' => false, 'message' => 'Только организатор'], 403);
+        }
+        if ($game->format !== Game::FORMAT_AMERICANO) {
+            return response()->json(['success' => false, 'message' => 'Раунды набирает только Американо'], 422);
+        }
+        if ($game->status !== Game::STATUS_IN_PROGRESS || $game->score_locked) {
+            return response()->json(['success' => false, 'message' => 'Игра не идёт'], 422);
+        }
+
+        // Незаполненный раунд — значит его ещё играют. Иначе кнопка плодила бы
+        // пустые строки, а таблица стояла бы на месте.
+        $pending = $game->rounds()->where('is_played', false)->count();
+        if ($pending > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Сначала впишите счёт текущего раунда',
+            ], 422);
+        }
+
+        if ($this->createNextAmericanoRound($game) === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'В составе меньше четырёх игроков',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatGame(
+                $game->fresh(['creator', 'club', 'court', 'players.user', 'rounds']), $user),
+        ]);
     }
 
     /** Добавить раунд (сет/партию) с парами и опциональным счётом. */

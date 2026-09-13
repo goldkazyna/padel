@@ -19,7 +19,8 @@ class GameAmericanoRanking
         $stats = [];
         $ensure = function (int $id) use (&$stats) {
             if (!isset($stats[$id])) {
-                $stats[$id] = ['id' => $id, 'points' => 0, 'wins' => 0, 'for' => 0, 'against' => 0];
+                $stats[$id] = ['id' => $id, 'points' => 0, 'wins' => 0, 'losses' => 0,
+                    'draws' => 0, 'matches' => 0, 'for' => 0, 'against' => 0];
             }
         };
 
@@ -44,7 +45,10 @@ class GameAmericanoRanking
                 $stats[$uid]['points'] += $sa;
                 $stats[$uid]['for'] += $sa;
                 $stats[$uid]['against'] += $sb;
+                $stats[$uid]['matches']++;
                 if ($sa > $sb) $stats[$uid]['wins']++;
+                elseif ($sa < $sb) $stats[$uid]['losses']++;
+                else $stats[$uid]['draws']++;
             }
             foreach ($pairB as $uid) {
                 $uid = (int) $uid;
@@ -52,7 +56,10 @@ class GameAmericanoRanking
                 $stats[$uid]['points'] += $sb;
                 $stats[$uid]['for'] += $sb;
                 $stats[$uid]['against'] += $sa;
+                $stats[$uid]['matches']++;
                 if ($sb > $sa) $stats[$uid]['wins']++;
+                elseif ($sb < $sa) $stats[$uid]['losses']++;
+                else $stats[$uid]['draws']++;
             }
         }
 
@@ -82,17 +89,41 @@ class GameAmericanoRanking
         return $idx === false ? null : $idx + 1;
     }
 
-    /** Таблица для сериализации: [{user_id, points, wins, diff, place}], в порядке мест. */
+    /**
+     * Таблица для сериализации, в порядке мест.
+     *
+     * Ключи повторяют турнирный лидерборд Флекса (`position`, `points_for`,
+     * `matches_played`, …) — приложение рисует её тем же виджетом, что и
+     * таблицу турнира. Старые `user_id/points/place` оставлены: на них
+     * смотрит экран итогов и сборки, которые ещё у людей на телефонах.
+     */
     public static function table(Game $game): array
     {
+        $names = $game->relationLoaded('players')
+            ? $game->players
+            : $game->players()->with('user')->get();
+
         $out = [];
         foreach (self::computeSorted($game) as $i => $s) {
+            $player = $names->firstWhere('user_id', $s['id']);
+
             $out[] = [
                 'user_id' => (int) $s['id'],
                 'points' => (int) $s['points'],
                 'wins' => (int) $s['wins'],
                 'diff' => (int) ($s['for'] - $s['against']),
                 'place' => $i + 1,
+
+                // Для общей таблицы приложения.
+                'id' => (int) $s['id'],
+                'name' => $player?->user?->name,
+                'avatar' => $player?->user?->avatar,
+                'position' => $i + 1,
+                'points_for' => (int) $s['for'],
+                'points_against' => (int) $s['against'],
+                'matches_played' => (int) $s['matches'],
+                'losses' => (int) $s['losses'],
+                'draws' => (int) $s['draws'],
             ];
         }
         return $out;

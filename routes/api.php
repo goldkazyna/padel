@@ -457,6 +457,8 @@ Route::prefix('mobile')->group(function () {
         Route::post('/games/{game}/confirm-score', [MobileGameController::class, 'confirmScore']);
         Route::post('/games/{game}/schedule/regenerate', [MobileGameController::class, 'regenerateSchedule']);
         Route::post('/games/{game}/rounds', [MobileGameController::class, 'addRound']);
+        // Следующий раунд Американо по кнопке — как в турнирном Флексе.
+        Route::post('/games/{game}/rounds/next', [MobileGameController::class, 'nextRound']);
         Route::put('/games/{game}/rounds/{round}', [MobileGameController::class, 'updateRound']);
         Route::delete('/games/{game}/rounds/{round}', [MobileGameController::class, 'deleteRound']);
         Route::get('/games/{game}/logs', [MobileGameController::class, 'logs']);
