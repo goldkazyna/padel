@@ -5,10 +5,11 @@ namespace App\Support;
 /**
  * Расписание Американо для игры на одном корте.
  *
- * Четверо играют классические три раунда — каждый с каждым в паре.
  * Больше четверых на корт не помещается, поэтому раунд играет четвёрка,
- * остальные отдыхают: очередь строится так, чтобы у всех вышло поровну
- * матчей, а партнёры и соперники повторялись как можно реже.
+ * остальные отдыхают. Для 4–8 игроков берём готовую сетку Американо Флекс —
+ * ту же, по которой играют турниры: партнёр не повторяется, отдых разложен
+ * поровну. Для остальных чисел (сетки нет) собираем очередь алгоритмом: у
+ * всех поровну матчей, партнёры и соперники повторяются как можно реже.
  */
 class AmericanoGameSchedule
 {
@@ -33,6 +34,13 @@ class AmericanoGameSchedule
 
         if ($n < 4) {
             return [];
+        }
+
+        // Сначала готовая сетка Американо Флекс на один корт — та же, по
+        // которой играют турниры: партнёры там не повторяются, отдых
+        // разложен поровну. Своим алгоритмом такое не собрать.
+        if ($table = self::flexTable($userIds)) {
+            return $table;
         }
 
         if ($n === 4) {
@@ -159,5 +167,53 @@ class AmericanoGameSchedule
     {
         $k = self::key($x, $y);
         $map[$k] = ($map[$k] ?? 0) + 1;
+    }
+
+    /**
+     * Раунды из таблицы Американо Флекс для N игроков на одном корте.
+     *
+     * Таблицы лежат рядом с турнирными (`database/data`), ключ «N-1».
+     * Нет таблицы для такого числа — возвращаем null, и дальше работает
+     * алгоритм: игра не должна ломаться из-за отсутствия расклада.
+     *
+     * @param  array<int,int>  $userIds
+     * @return array<int,array{a:array<int,int>,b:array<int,int>}>|null
+     */
+    private static function flexTable(array $userIds): ?array
+    {
+        $key = count($userIds) . '-1';
+        $path = database_path('data/americano_flex_schedules.json');
+
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $all = json_decode((string) file_get_contents($path), true);
+        $schedule = $all[$key]['schedule'] ?? null;
+        if (!is_array($schedule) || $schedule === []) {
+            return null;
+        }
+
+        $rounds = [];
+        foreach ($schedule as $round) {
+            // На одном корте матч в раунде ровно один; отдыхающие (byes)
+            // в игре отдельно не хранятся — это все, кого нет в парах.
+            $match = $round['courts'][0] ?? null;
+            if (!is_array($match) || count($match) !== 2) {
+                return null;
+            }
+
+            [$a, $b] = $match;
+            if (count($a) !== 2 || count($b) !== 2) {
+                return null;
+            }
+
+            $rounds[] = [
+                'a' => [$userIds[$a[0]], $userIds[$a[1]]],
+                'b' => [$userIds[$b[0]], $userIds[$b[1]]],
+            ];
+        }
+
+        return $rounds;
     }
 }
