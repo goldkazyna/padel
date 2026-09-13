@@ -124,7 +124,10 @@ class Game extends Model
         if (!$this->share_token || $this->share_revoked_at) {
             return false;
         }
-        if ($this->share_expires_at && $this->share_expires_at->isPast()) {
+        // Срок ссылки — время начала игры, а оно в местных часах: isPast()
+        // мерил бы от UTC и держал ссылку живой лишние пять часов.
+        if ($this->share_expires_at
+            && $this->share_expires_at->format('Y-m-d H:i:s') < now('Asia/Almaty')->format('Y-m-d H:i:s')) {
             return false;
         }
         if ($this->share_max_uses !== null && $this->share_uses >= $this->share_max_uses) {

@@ -113,7 +113,9 @@ class MobileGameController extends Controller
         return $request->validate([
             'club_id' => 'required|exists:clubs,id',
             'court_id' => 'nullable|exists:courts,id',
-            'starts_at' => 'required|date|after:now',
+            // after:now сравнил бы с UTC и пропустил игру на пять часов
+            // в прошлом — время игры местное, и порог местный.
+            'starts_at' => 'required|date|after:' . now('Asia/Almaty')->format('Y-m-d H:i:s'),
             'ends_at' => 'required|date|after:starts_at',
             'type' => 'required|in:rated,friendly',
             'visibility' => 'required|in:public,private',
@@ -317,7 +319,10 @@ class MobileGameController extends Controller
         $query = Game::with(['creator', 'club', 'court', 'players.user'])
             ->where('visibility', Game::VISIBILITY_PUBLIC)
             ->whereIn('status', [Game::STATUS_OPEN, Game::STATUS_FULL])
-            ->where('starts_at', '>=', now())
+            // Часы игры лежат в базе как местные (Алматы) — и «сейчас» берём
+            // местное. С UTC-шным now() игра висела в ленте как предстоящая
+            // ещё пять часов после начала.
+            ->where('starts_at', '>=', now('Asia/Almaty'))
             ->orderBy('starts_at');
 
         if (!empty($filters['club_id'])) {
@@ -450,7 +455,8 @@ class MobileGameController extends Controller
         } else {
             $query->where('status', Invitation::STATUS_PENDING)
                 ->where(function ($q) {
-                    $q->whereNull('expires_at')->orWhere('expires_at', '>=', now());
+                    // Срок приглашения — время начала игры, местные часы.
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>=', now('Asia/Almaty'));
                 });
         }
 
