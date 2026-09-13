@@ -115,6 +115,9 @@ class RatingTrend
             $out[] = [
                 'tournament_id' => $entry['tournament_id'],
                 'name' => $t?->name ?? 'Турнир',
+                // Тип нужен приложению, чтобы открыть точку тем же экраном,
+                // что и сам турнир: у каждого формата свой вид результатов.
+                'type' => $t?->type,
                 'club_name' => $t?->club?->name,
                 'date' => $t?->start_date?->translatedFormat('j M Y'),
                 'rating' => $rating,
