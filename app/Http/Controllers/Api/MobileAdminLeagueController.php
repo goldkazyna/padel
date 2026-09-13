@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\ClubTime;
 use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\League;
@@ -121,7 +122,7 @@ class MobileAdminLeagueController extends Controller
                     'name' => $stage->name,
                     'status' => $stage->status,
                     'status_name' => $stage->status_name,
-                    'start_date' => $stage->start_date?->toIso8601String(),
+                    'start_date' => ClubTime::iso($stage->start_date),
                     'participants' => $stage->participants()->count(),
                     'max_participants' => $stage->max_participants,
                 ])->values(),
@@ -292,8 +293,8 @@ class MobileAdminLeagueController extends Controller
             'name' => $league->name,
             'status' => $league->status,
             'status_name' => $league->status_name,
-            'start_date' => $league->start_date?->toIso8601String(),
-            'end_date' => $league->end_date?->toIso8601String(),
+            'start_date' => ClubTime::iso($league->start_date),
+            'end_date' => ClubTime::iso($league->end_date),
             'min_level' => $league->min_level !== null ? (float) $league->min_level : null,
             'max_level' => $league->max_level !== null ? (float) $league->max_level : null,
             'price' => $league->price,
@@ -313,7 +314,7 @@ class MobileAdminLeagueController extends Controller
                 'id' => $summary['next_stage']->id,
                 'stage' => (int) $summary['next_stage']->league_stage,
                 'name' => $summary['next_stage']->name,
-                'start_date' => $summary['next_stage']->start_date?->toIso8601String(),
+                'start_date' => ClubTime::iso($summary['next_stage']->start_date),
             ] : null,
         ];
     }
