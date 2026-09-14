@@ -382,28 +382,8 @@ class MobileAdminTournamentController extends Controller
         // редактировании (счётчик и массив названий валидируются независимо).
         $tournament->syncCourtNames();
 
-        // Резервные игроки/пары
-        $reserveCount = (int) ($validated['reserve_count'] ?? 0);
-        if ($reserveCount > 0) {
-            $reserves = \App\Models\User::where('role', 'reserve')->orderBy('id')->get();
-
-            if ($tournament->type === 'team') {
-                $needed = $reserveCount * 2;
-                $reservePairs = $reserves->take($needed);
-                for ($i = 0; $i + 1 < $reservePairs->count(); $i += 2) {
-                    \App\Models\TournamentTeam::create([
-                        'tournament_id' => $tournament->id,
-                        'player1_id' => $reservePairs[$i]->id,
-                        'player2_id' => $reservePairs[$i + 1]->id,
-                        'status' => 'approved',
-                    ]);
-                }
-            } else {
-                foreach ($reserves->take($reserveCount) as $reserve) {
-                    $tournament->participants()->attach($reserve->id, ['status' => 'registered']);
-                }
-            }
-        }
+        // Забронированные места: сажаем служебные аккаунты «Резерв».
+        \App\Support\TournamentReserves::sync($tournament, (int) ($validated['reserve_count'] ?? 0));
 
         return $tournament;
     }

@@ -366,6 +366,14 @@ class MobileAdminTournamentDetailController extends Controller
         // Названия кортов приводим к их количеству — иначе массив расходится
         // со счётчиком (клиент может прислать одно без другого).
         $tournament->syncCourtNames();
+
+        // Забронированные места правим только до старта: после посева состав
+        // разложен по группам, и снимать/досаживать игроков нельзя. Раньше
+        // приложение просто писало число — резерв появлялся лишь при создании.
+        if ($request->has('reserve_count')
+            && in_array($tournament->status, ['draft', 'open'], true)) {
+            \App\Support\TournamentReserves::sync($tournament, (int) $request->input('reserve_count'));
+        }
         $tournament->refresh()->loadMissing(['club', 'venueClub']);
 
         return response()->json([
