@@ -179,7 +179,10 @@ class PlexyTransactions
             // Деньги у клиента уже придержаны, но ещё не списаны. Мешать это
             // с «в процессе» нельзя: холд можно снять, а недоплаченный
             // платёж — нет, и кнопка возврата у них разная.
-            'AUTHORIZED' => 'authorized',
+            //
+            // Шлюз называет холд по-разному: список транзакций отдаёт AUTHED,
+            // одиночная транзакция — AUTHORIZED. Принимаем оба.
+            'AUTHORIZED', 'AUTHED', 'AUTH', 'HOLD' => 'authorized',
             'PENDING', 'PROCESSING' => 'pending',
             'REFUNDED', 'REVERSED' => 'refunded',
             'REJECTED', 'FAILED', 'DECLINED', 'CANCELLED' => 'failed',

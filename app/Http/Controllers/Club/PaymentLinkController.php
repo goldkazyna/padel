@@ -251,9 +251,10 @@ class PaymentLinkController extends Controller
         // Карточная оплата живёт в двух состояниях: деньги придержаны
         // (authorized) или уже списаны (charged). Списанное возвращают,
         // придержанное отпускают — для клуба это одно действие.
+        // Шлюз зовёт холд то AUTHORIZED, то AUTHED — в разных ручках по-разному.
         $status = strtoupper((string) ($tx['status'] ?? ''));
         $charged = str_contains($status, 'CHARGED');
-        $authorized = str_contains($status, 'AUTHORIZED');
+        $authorized = str_contains($status, 'AUTH');
 
         if (!$charged && !$authorized) {
             return back()->with('error', 'Вернуть можно только прошедший платёж');

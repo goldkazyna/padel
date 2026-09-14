@@ -133,7 +133,9 @@ class PlexyRefundTest extends TestCase
         Http::fake([
             'api.plexypay.com/v1/transactions/*' => Http::response([
                 'transactionId' => self::TX, 'paymentId' => self::TX,
-                'status' => 'authorized', 'amount' => 32000,
+                // Так холд называет список транзакций — раньше мы ждали
+                // только «authorized» и кнопку не показывали.
+                'status' => 'TRANSACTION_STATUS_AUTHED', 'amount' => 32000,
                 'orderReference' => 'booking-' . $this->booking->id,
             ]),
             'api.plexypay.com/v1/payments/*/cancel' => Http::response(['success' => true]),
