@@ -486,6 +486,8 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
         Route::get('/payments/app', [App\Http\Controllers\Club\PaymentLinkController::class, 'appPayments'])->name('payments.app');
         Route::post('/payments', [App\Http\Controllers\Club\PaymentLinkController::class, 'store'])->name('payments.store');
         Route::post('/payments/sync-all', [App\Http\Controllers\Club\PaymentLinkController::class, 'syncAll'])->name('payments.syncAll');
+        // Возврат по транзакции Plexy — только админ клуба (проверка в методе).
+        Route::post('/payments/app/{transaction}/refund', [App\Http\Controllers\Club\PaymentLinkController::class, 'refund'])->name('payments.refund');
         Route::post('/payments/{link}/sync', [App\Http\Controllers\Club\PaymentLinkController::class, 'sync'])->name('payments.sync');
         Route::delete('/payments/{link}', [App\Http\Controllers\Club\PaymentLinkController::class, 'cancel'])->name('payments.cancel');
 

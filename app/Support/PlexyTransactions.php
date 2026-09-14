@@ -52,6 +52,17 @@ class PlexyTransactions
     }
 
     /**
+     * Забыть кэш страниц клуба: после возврата список обязан показать новый
+     * статус, а не минутную давность.
+     */
+    public static function forget(Club $club, int $pages = 20, int $size = 50): void
+    {
+        for ($page = 1; $page <= $pages; $page++) {
+            Cache::forget("plexy_tx:{$club->id}:{$page}:{$size}");
+        }
+    }
+
+    /**
      * Расшифровать ссылки заказов пачкой.
      *
      * @param  array<int, array<string, mixed>> $transactions

@@ -214,6 +214,110 @@ class PaymentLinkController extends Controller
     }
 
     /** Клуб текущего пользователя; менеджеру доступен его клуб. */
+    /**
+     * Вернуть деньги по транзакции Plexy.
+     * POST /club/payments/app/{transaction}/refund
+     *
+     * Возврат — деньги наружу, поэтому: только админ клуба, только по
+     * прошедшей транзакции и только на сумму не больше исходной. Сверяем это
+     * у шлюза перед вызовом, а не верим форме.
+     */
+    public function refund(Request $request, string $transaction)
+    {
+        $club = $this->club($request);
+        $user = $request->user();
+
+        if (!$user->isSuperAdmin() && !$user->adminClubs()->where('clubs.id', $club->id)->exists()) {
+            abort(403, 'Возврат делает администратор клуба');
+        }
+
+        if (!$club->hasPlexyConfigured()) {
+            return back()->with('error', 'У клуба не настроена онлайн-оплата');
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'reason' => 'nullable|string|max:255',
+        ]);
+
+        $plexy = new \App\Services\PlexyService($club->plexyApiKey());
+
+        try {
+            $tx = $plexy->getTransaction($transaction);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Транзакция не найдена у шлюза');
+        }
+
+        $status = strtoupper((string) ($tx['status'] ?? ''));
+        if (!str_contains($status, 'CHARGED')) {
+            return back()->with('error', 'Вернуть можно только прошедший платёж');
+        }
+
+        $paid = (float) ($tx['amount'] ?? 0);
+        $amount = round((float) $validated['amount'], 2);
+        if ($amount > $paid) {
+            return back()->with('error', "Больше оплаченного вернуть нельзя: платёж на {$paid} ₸");
+        }
+
+        try {
+            $plexy->refund((string) ($tx['paymentId'] ?? $transaction), $amount);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Шлюз отказал: ' . $e->getMessage());
+        }
+
+        $this->markRefunded((string) ($tx['orderReference'] ?? ''), $amount, $paid);
+
+        \App\Models\ActivityLog::log(
+            'refunded',
+            'PlexyTransaction',
+            null,
+            "Возврат {$amount} ₸ по платежу " . ($tx['orderReference'] ?: $transaction)
+                . (!empty($validated['reason']) ? '. Причина: ' . $validated['reason'] : ''),
+            ['transaction' => $transaction, 'amount' => $amount, 'of' => $paid],
+            $club->id,
+        );
+
+        // Список берётся из шлюза с минутным кэшем — иначе возврат «не виден».
+        \App\Support\PlexyTransactions::forget($club);
+
+        return back()->with('success', "Возврат {$amount} ₸ отправлен в банк");
+    }
+
+    /**
+     * Снять отметку оплаты с того, за что платили.
+     *
+     * Возврат целиком — бронь снова не оплачена, иначе в расписании она так и
+     * висит «оплачено», и деньги не сходятся. Частичный возврат отметку не
+     * трогает: часть денег клуб получил.
+     */
+    private function markRefunded(string $reference, float $amount, float $paid): void
+    {
+        if ($amount + 0.01 < $paid) {
+            return;   // вернули часть — бронь остаётся оплаченной
+        }
+
+        if (preg_match('/^booking-(\d+)$/', $reference, $m)) {
+            \App\Models\CourtBooking::where('id', (int) $m[1])->update([
+                'is_paid' => false,
+                'payment_status' => 'refunded',
+                'paid_at' => null,
+            ]);
+            return;
+        }
+
+        if (preg_match('/^paylink-(\d+)$/', $reference, $m)) {
+            PaymentLink::where('id', (int) $m[1])->update(['status' => 'refunded']);
+            return;
+        }
+
+        if (preg_match('/^tourpay-(\d+)$/', $reference, $m)) {
+            // Участника из турнира не выкидываем: вернуть деньги и снять
+            // человека с турнира — разные решения, второе принимает клуб.
+            \App\Models\TournamentPayment::where('id', (int) $m[1])
+                ->update(['status' => 'refunded']);
+        }
+    }
+
     private function club(Request $request)
     {
         $user = $request->user();

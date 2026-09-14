@@ -21,6 +21,10 @@
         'external' => 'Вне приложения',
     ];
 
+    // Возврат — деньги наружу: только администратор клуба, не менеджер.
+    $canRefund = auth()->user()->isSuperAdmin()
+        || auth()->user()->adminClubs()->where('clubs.id', $club->id)->exists();
+
     $paidSum = collect($rows)->where('status', 'paid')->sum('amount');
     $paidCount = collect($rows)->where('status', 'paid')->count();
 @endphp
@@ -151,6 +155,7 @@
                             <th>Сумма</th>
                             <th>Статус</th>
                             <th>RRN</th>
+                            @if($canRefund)<th></th>@endif
                         </tr>
                     </thead>
                     <tbody>
@@ -182,6 +187,21 @@
                                     </span>
                                 </td>
                                 <td class="apay-sub" style="padding-top: 16px;">{{ $row['rrn'] ?? '—' }}</td>
+                                @if($canRefund)
+                                    <td style="text-align: right; white-space: nowrap;">
+                                        {{-- Вернуть можно только прошедший платёж: по остальным
+                                             шлюз всё равно откажет. --}}
+                                        @if($row['status'] === 'paid' && $row['id'])
+                                            <button type="button" class="apay-refund-btn"
+                                                    onclick="openRefund(this)"
+                                                    data-id="{{ $row['id'] }}"
+                                                    data-amount="{{ (int) $row['amount'] }}"
+                                                    data-title="{{ $row['title'] }}{{ $row['subtitle'] ? ' · ' . $row['subtitle'] : '' }}">
+                                                Возврат
+                                            </button>
+                                        @endif
+                                    </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -207,4 +227,119 @@
         @endif
     @endif
 </div>
+
+@if($canRefund)
+    {{-- Окно возврата. Сумма подставляется полная, но её можно уменьшить:
+         шлюз умеет возвращать часть. --}}
+    <div class="apay-modal-overlay" id="refundOverlay" onclick="if(event.target === this) closeRefund()">
+        <form method="POST" id="refundForm" class="apay-modal">
+            @csrf
+            <div class="apay-modal-title">Возврат средств</div>
+            <div class="apay-modal-sub" id="refundSubject"></div>
+
+            <label class="apay-modal-label">Сумма возврата, ₸</label>
+            <input type="number" name="amount" id="refundAmount" class="apay-modal-input"
+                   min="1" step="1" required>
+            <div class="apay-modal-hint" id="refundHint"></div>
+
+            <label class="apay-modal-label">Причина (необязательно)</label>
+            <input type="text" name="reason" class="apay-modal-input" maxlength="255"
+                   placeholder="Например: клиент отменил бронь">
+
+            <div class="apay-modal-warn">
+                Деньги уйдут клиенту на карту. Отменить возврат нельзя.
+            </div>
+
+            <div class="apay-modal-actions">
+                <button type="button" class="apay-modal-btn apay-modal-ghost" onclick="closeRefund()">Отмена</button>
+                <button type="submit" class="apay-modal-btn apay-modal-danger">Вернуть деньги</button>
+            </div>
+        </form>
+    </div>
+
+    <style>
+        .apay-refund-btn {
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, .45);
+            color: #f87171;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .apay-refund-btn:hover { background: rgba(239, 68, 68, .12); border-color: #ef4444; }
+
+        .apay-modal-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0, 0, 0, .6);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .apay-modal-overlay.open { display: flex; align-items: center; justify-content: center; }
+        .apay-modal {
+            width: 100%; max-width: 420px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px 24px;
+        }
+        .apay-modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+        .apay-modal-sub { color: var(--text-secondary); font-size: .82rem; margin: 6px 0 16px; }
+        .apay-modal-label {
+            display: block; color: var(--text-secondary);
+            font-size: .74rem; font-weight: 700; letter-spacing: .4px;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+        .apay-modal-input {
+            width: 100%; padding: 11px 13px; margin-bottom: 14px;
+            background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--text-primary); font-size: .95rem;
+        }
+        .apay-modal-hint { color: var(--text-secondary); font-size: .76rem; margin: -10px 0 14px; }
+        .apay-modal-warn {
+            background: rgba(239, 68, 68, .1);
+            border: 1px solid rgba(239, 68, 68, .3);
+            color: #fca5a5;
+            border-radius: 10px; padding: 10px 12px;
+            font-size: .8rem; line-height: 1.4; margin-bottom: 16px;
+        }
+        .apay-modal-actions { display: flex; gap: 10px; }
+        .apay-modal-btn {
+            flex: 1; padding: 12px; border-radius: 10px;
+            font-size: .9rem; font-weight: 700; cursor: pointer; border: none;
+        }
+        .apay-modal-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .apay-modal-danger { background: #ef4444; color: #fff; }
+        .apay-modal-danger:hover { background: #dc2626; }
+    </style>
+
+    <script>
+        const REFUND_URL = '{{ url('club/payments/app') }}';
+
+        function openRefund(btn) {
+            const amount = btn.dataset.amount;
+            document.getElementById('refundForm').action = REFUND_URL + '/' + btn.dataset.id + '/refund';
+            document.getElementById('refundSubject').textContent = btn.dataset.title;
+            document.getElementById('refundAmount').value = amount;
+            document.getElementById('refundAmount').max = amount;
+            document.getElementById('refundHint').textContent =
+                'Оплачено ' + Number(amount).toLocaleString('ru-RU') + ' ₸. Можно вернуть часть.';
+            document.getElementById('refundOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeRefund() {
+            document.getElementById('refundOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('refundForm').addEventListener('submit', function (e) {
+            const btn = this.querySelector('.apay-modal-danger');
+            btn.disabled = true;
+            btn.textContent = 'Отправляем…';
+        });
+    </script>
+@endif
 @endsection

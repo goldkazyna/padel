@@ -97,6 +97,62 @@ class PlexyService
      *
      * @return array{data: array<int, array<string, mixed>>, page: int, size: int, total: int}
      */
+    /**
+     * Одна транзакция целиком (GET /v1/transactions/{id}).
+     *
+     * Нужна перед возвратом: по ней сверяем статус и сумму, чтобы не вернуть
+     * больше, чем заплатили, и не пытаться вернуть неудавшийся платёж.
+     *
+     * @return array<string, mixed>
+     */
+    public function getTransaction(string $id): array
+    {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(20)
+            ->get($this->baseUrl . '/v1/transactions/' . $id);
+
+        if (!$resp->successful()) {
+            throw new \RuntimeException('Plexy getTransaction: ' . ($resp->json('message') ?: $resp->body()));
+        }
+
+        return (array) $resp->json();
+    }
+
+    /**
+     * Вернуть деньги клиенту (POST /v1/payments/{id}/refund).
+     *
+     * $amount — в ТЕНГЕ, как и суммы в /v1/transactions (не в тиынах, в
+     * отличие от создания ссылки). Можно вернуть часть: шлюз проверяет только
+     * что сумма не больше исходной.
+     *
+     * Шлюз возвращает деньги лишь по транзакции в статусе charged — отказ
+     * приходит с внятным текстом, его и показываем клубу.
+     *
+     * @return array<string, mixed>
+     */
+    public function refund(string $paymentId, float $amount): array
+    {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(30)
+            ->post($this->baseUrl . '/v1/payments/' . $paymentId . '/refund', [
+                'amount' => $amount,
+            ]);
+
+        if (!$resp->successful()) {
+            $msg = (string) ($resp->json('message') ?: $resp->body());
+            // «failed to handle command: something went wrong, transaction can
+            // not be refunded: ...» — человеку нужен только хвост.
+            if (str_contains($msg, 'can not be refunded: ')) {
+                $msg = trim(explode('can not be refunded: ', $msg, 2)[1]);
+            }
+            throw new \RuntimeException($msg !== '' ? $msg : 'Шлюз отказал в возврате');
+        }
+
+        return (array) $resp->json();
+    }
+
     public function listTransactions(int $page = 1, int $size = 50): array
     {
         $resp = Http::withHeaders(['Authorization' => $this->apiKey])
