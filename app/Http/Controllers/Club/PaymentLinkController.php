@@ -222,7 +222,14 @@ class PaymentLinkController extends Controller
      * прошедшей транзакции и только на сумму не больше исходной. Сверяем это
      * у шлюза перед вызовом, а не верим форме.
      */
-    public function refund(Request $request, string $transaction)
+    /**
+     * Вернуть деньги по транзакции Plexy.
+     * POST /club/payments/app/{transaction}/refund
+     *
+     * Логика общая с приложением и живёт в PlexyRefundService: здесь только
+     * права и перевод результата во flash-сообщение.
+     */
+    public function refund(Request $request, string $transaction, \App\Services\PlexyRefundService $refunds)
     {
         $club = $this->club($request);
         $user = $request->user();
@@ -231,125 +238,23 @@ class PaymentLinkController extends Controller
             abort(403, 'Возврат делает администратор клуба');
         }
 
-        if (!$club->hasPlexyConfigured()) {
-            return back()->with('error', 'У клуба не настроена онлайн-оплата');
-        }
-
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
             'reason' => 'nullable|string|max:255',
         ]);
 
-        $plexy = new \App\Services\PlexyService($club->plexyApiKey());
-
         try {
-            $tx = $plexy->getTransaction($transaction);
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Транзакция не найдена у шлюза');
-        }
-
-        // Карточная оплата живёт в двух состояниях: деньги придержаны
-        // (authorized) или уже списаны (charged). Списанное возвращают,
-        // придержанное отпускают — для клуба это одно действие.
-        // Шлюз зовёт холд то AUTHORIZED, то AUTHED — в разных ручках по-разному.
-        $status = strtoupper((string) ($tx['status'] ?? ''));
-        $charged = str_contains($status, 'CHARGED');
-        $authorized = str_contains($status, 'AUTH');
-
-        if (!$charged && !$authorized) {
-            return back()->with('error', 'Вернуть можно только прошедший платёж');
-        }
-
-        $paid = (float) ($tx['amount'] ?? 0);
-        $amount = round((float) $validated['amount'], 2);
-        if ($amount > $paid) {
-            return back()->with('error', "Больше оплаченного вернуть нельзя: платёж на {$paid} ₸");
-        }
-
-        $paymentId = (string) ($tx['paymentId'] ?? $transaction);
-        // Ссылка заказа зовётся по-разному: в списке транзакций
-        // orderReference, в одиночной — merchantReference.
-        $reference = (string) ($tx['orderReference'] ?? $tx['merchantReference'] ?? '');
-
-        try {
-            if ($charged) {
-                $plexy->refund($paymentId, $amount);
-            } else {
-                // Частичное снятие холда шлюз может не принять — тогда
-                // отпускаем всю сумму: клиенту так даже лучше.
-                try {
-                    $plexy->cancelAuthorization($paymentId, $amount < $paid ? $amount : null);
-                } catch (\Throwable $e) {
-                    $plexy->cancelAuthorization($paymentId);
-                    $amount = $paid;
-                }
-            }
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Шлюз отказал: ' . $e->getMessage());
-        }
-
-        // Деньги уже ушли клиенту: дальше ничему нельзя ронять страницу, иначе
-        // получается «ошибка 500» поверх удавшегося возврата. Всё, что осталось,
-        // — наши отметки и журнал.
-        try {
-            $this->markRefunded($reference, $amount, $paid);
-
-            \App\Models\ActivityLog::log(
-                'refunded',
-                'PlexyTransaction',
-                null,
-                "Возврат {$amount} ₸ по платежу " . ($reference !== '' ? $reference : $transaction)
-                    . (!empty($validated['reason']) ? '. Причина: ' . $validated['reason'] : ''),
-                ['transaction' => $transaction, 'amount' => $amount, 'of' => $paid],
-                $club->id,
+            $result = $refunds->refund(
+                $club,
+                $transaction,
+                (float) $validated['amount'],
+                $validated['reason'] ?? null,
             );
-
-            // Список берётся из шлюза с минутным кэшем — иначе возврат «не виден».
-            \App\Support\PlexyTransactions::forget($club);
-        } catch (\Throwable $e) {
-            \Log::error('Возврат прошёл, но отметки не легли', [
-                'transaction' => $transaction, 'error' => $e->getMessage(),
-            ]);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', $charged
-            ? "Возврат {$amount} ₸ отправлен в банк"
-            : "Холд на {$amount} ₸ снят — деньги вернутся клиенту");
-    }
-
-    /**
-     * Снять отметку оплаты с того, за что платили.
-     *
-     * Возврат целиком — бронь снова не оплачена, иначе в расписании она так и
-     * висит «оплачено», и деньги не сходятся. Частичный возврат отметку не
-     * трогает: часть денег клуб получил.
-     */
-    private function markRefunded(string $reference, float $amount, float $paid): void
-    {
-        if ($amount + 0.01 < $paid) {
-            return;   // вернули часть — бронь остаётся оплаченной
-        }
-
-        if (preg_match('/^booking-(\d+)$/', $reference, $m)) {
-            \App\Models\CourtBooking::where('id', (int) $m[1])->update([
-                'is_paid' => false,
-                'payment_status' => 'refunded',
-                'paid_at' => null,
-            ]);
-            return;
-        }
-
-        if (preg_match('/^paylink-(\d+)$/', $reference, $m)) {
-            PaymentLink::where('id', (int) $m[1])->update(['status' => 'refunded']);
-            return;
-        }
-
-        if (preg_match('/^tourpay-(\d+)$/', $reference, $m)) {
-            // Участника из турнира не выкидываем: вернуть деньги и снять
-            // человека с турнира — разные решения, второе принимает клуб.
-            \App\Models\TournamentPayment::where('id', (int) $m[1])
-                ->update(['status' => 'refunded']);
-        }
+        return back()->with('success', $result['message']);
     }
 
     private function club(Request $request)

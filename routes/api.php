@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\MobileCourtController;
 use App\Http\Controllers\Api\MobileClubController;
 use App\Http\Controllers\Api\MobileClubCardController;
 use App\Http\Controllers\Api\MobileAdminTournamentController;
+use App\Http\Controllers\Api\MobileAdminPaymentController;
 use App\Http\Controllers\Api\MobileAdminTournamentDetailController;
 use App\Http\Controllers\Api\MobileAdminUserController;
 use App\Http\Controllers\Api\MobileAdminModeratorController;
@@ -171,6 +172,15 @@ Route::prefix('mobile')->group(function () {
         // Описание можно править в любом статусе, в том числе у завершённого.
         Route::match(['put', 'patch'], '/admin/tournaments/{tournament}/description', [MobileAdminTournamentDetailController::class, 'updateDescription']);
         Route::post('/admin/tournaments/{tournament}/send-push', [MobileAdminTournamentDetailController::class, 'sendPush']);
+
+        // Платежи клуба с телефона: счета, касса, возврат.
+        Route::get('/admin/payments', [MobileAdminPaymentController::class, 'index']);
+        Route::post('/admin/payments', [MobileAdminPaymentController::class, 'store']);
+        Route::get('/admin/payments/clients', [MobileAdminPaymentController::class, 'clients']);
+        Route::get('/admin/payments/transactions', [MobileAdminPaymentController::class, 'transactions']);
+        Route::post('/admin/payments/transactions/{transaction}/refund', [MobileAdminPaymentController::class, 'refund']);
+        Route::post('/admin/payments/{link}/sync', [MobileAdminPaymentController::class, 'sync']);
+        Route::delete('/admin/payments/{link}', [MobileAdminPaymentController::class, 'cancel']);
         Route::post('/admin/tournaments/{tournament}/start', [MobileAdminTournamentDetailController::class, 'start']);
         Route::post('/admin/tournaments/{tournament}/restart', [MobileAdminTournamentDetailController::class, 'restart']);
         Route::post('/admin/tournaments/{tournament}/cancel', [MobileAdminTournamentDetailController::class, 'cancelTournament']);
