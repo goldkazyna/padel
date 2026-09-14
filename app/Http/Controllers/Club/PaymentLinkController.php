@@ -267,6 +267,9 @@ class PaymentLinkController extends Controller
         }
 
         $paymentId = (string) ($tx['paymentId'] ?? $transaction);
+        // Ссылка заказа зовётся по-разному: в списке транзакций
+        // orderReference, в одиночной — merchantReference.
+        $reference = (string) ($tx['orderReference'] ?? $tx['merchantReference'] ?? '');
 
         try {
             if ($charged) {
@@ -285,20 +288,29 @@ class PaymentLinkController extends Controller
             return back()->with('error', 'Шлюз отказал: ' . $e->getMessage());
         }
 
-        $this->markRefunded((string) ($tx['orderReference'] ?? ''), $amount, $paid);
+        // Деньги уже ушли клиенту: дальше ничему нельзя ронять страницу, иначе
+        // получается «ошибка 500» поверх удавшегося возврата. Всё, что осталось,
+        // — наши отметки и журнал.
+        try {
+            $this->markRefunded($reference, $amount, $paid);
 
-        \App\Models\ActivityLog::log(
-            'refunded',
-            'PlexyTransaction',
-            null,
-            "Возврат {$amount} ₸ по платежу " . ($tx['orderReference'] ?: $transaction)
-                . (!empty($validated['reason']) ? '. Причина: ' . $validated['reason'] : ''),
-            ['transaction' => $transaction, 'amount' => $amount, 'of' => $paid],
-            $club->id,
-        );
+            \App\Models\ActivityLog::log(
+                'refunded',
+                'PlexyTransaction',
+                null,
+                "Возврат {$amount} ₸ по платежу " . ($reference !== '' ? $reference : $transaction)
+                    . (!empty($validated['reason']) ? '. Причина: ' . $validated['reason'] : ''),
+                ['transaction' => $transaction, 'amount' => $amount, 'of' => $paid],
+                $club->id,
+            );
 
-        // Список берётся из шлюза с минутным кэшем — иначе возврат «не виден».
-        \App\Support\PlexyTransactions::forget($club);
+            // Список берётся из шлюза с минутным кэшем — иначе возврат «не виден».
+            \App\Support\PlexyTransactions::forget($club);
+        } catch (\Throwable $e) {
+            \Log::error('Возврат прошёл, но отметки не легли', [
+                'transaction' => $transaction, 'error' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', $charged
             ? "Возврат {$amount} ₸ отправлен в банк"

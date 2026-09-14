@@ -149,6 +149,41 @@ class PlexyRefundTest extends TestCase
         $this->assertFalse((bool) $this->booking->fresh()->is_paid);
     }
 
+    /**
+     * Ссылка заказа в одиночной транзакции зовётся merchantReference —
+     * на этом возврат падал 500-й уже после того, как деньги ушли.
+     */
+    public function test_ссылка_заказа_читается_из_merchantReference(): void
+    {
+        Http::fake([
+            'api.plexypay.com/v1/transactions/*' => Http::response([
+                'transactionId' => self::TX, 'paymentId' => self::TX,
+                'status' => 'charged', 'amount' => 32000,
+                'merchantReference' => 'booking-' . $this->booking->id,
+            ]),
+            'api.plexypay.com/v1/payments/*/refund' => Http::response(['success' => true]),
+        ]);
+
+        $this->refund()->assertRedirect()->assertSessionHas('success');
+
+        $this->assertFalse((bool) $this->booking->fresh()->is_paid);
+    }
+
+    /** Деньги ушли — страница обязана открыться, чем бы ни кончились отметки. */
+    public function test_возврат_без_ссылки_заказа_не_падает(): void
+    {
+        Http::fake([
+            'api.plexypay.com/v1/transactions/*' => Http::response([
+                'transactionId' => self::TX, 'paymentId' => self::TX,
+                'status' => 'charged', 'amount' => 32000,
+                // Ни orderReference, ни merchantReference — платёж вне приложения.
+            ]),
+            'api.plexypay.com/v1/payments/*/refund' => Http::response(['success' => true]),
+        ]);
+
+        $this->refund()->assertRedirect()->assertSessionHas('success');
+    }
+
     public function test_менеджеру_возврат_недоступен(): void
     {
         $this->fakeGateway();
