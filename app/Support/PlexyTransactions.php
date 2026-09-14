@@ -176,7 +176,11 @@ class PlexyTransactions
 
         return match ($short) {
             'CHARGED', 'PAID', 'SUCCESS' => 'paid',
-            'AUTHORIZED', 'PENDING', 'PROCESSING' => 'pending',
+            // Деньги у клиента уже придержаны, но ещё не списаны. Мешать это
+            // с «в процессе» нельзя: холд можно снять, а недоплаченный
+            // платёж — нет, и кнопка возврата у них разная.
+            'AUTHORIZED' => 'authorized',
+            'PENDING', 'PROCESSING' => 'pending',
             'REFUNDED', 'REVERSED' => 'refunded',
             'REJECTED', 'FAILED', 'DECLINED', 'CANCELLED' => 'failed',
             default => strtolower($short) ?: 'unknown',

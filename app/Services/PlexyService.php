@@ -98,6 +98,43 @@ class PlexyService
      * @return array{data: array<int, array<string, mixed>>, page: int, size: int, total: int}
      */
     /**
+     * Снять холд по авторизованному платежу (POST /v1/payments/{id}/cancel).
+     *
+     * Карточная оплата идёт в два шага: сначала банк придерживает сумму
+     * (authorized), потом она списывается (charged). Вернуть можно только
+     * списанное; пока деньги в холде, их не возвращают, а отпускают — это
+     * другая ручка, но для клуба действие одно и то же: «вернуть деньги».
+     *
+     * @return array<string, mixed>
+     */
+    public function cancelAuthorization(string $paymentId, ?float $amount = null): array
+    {
+        $resp = Http::withHeaders(['Authorization' => $this->apiKey])
+            ->acceptJson()
+            ->timeout(30)
+            ->post($this->baseUrl . '/v1/payments/' . $paymentId . '/cancel',
+                $amount === null ? [] : ['amount' => $amount]);
+
+        if (!$resp->successful()) {
+            throw new \RuntimeException(self::readableError($resp->json('message') ?: $resp->body()));
+        }
+
+        return (array) $resp->json();
+    }
+
+    /** Хвост сообщения шлюза: клубу незачем читать «failed to handle command…». */
+    private static function readableError(string $message): string
+    {
+        foreach ([' can not be refunded: ', ' can not be canceled: ', 'something went wrong, '] as $marker) {
+            if (str_contains($message, $marker)) {
+                $message = trim(explode($marker, $message, 2)[1]);
+            }
+        }
+
+        return $message !== '' ? $message : 'Шлюз отказал';
+    }
+
+    /**
      * Одна транзакция целиком (GET /v1/transactions/{id}).
      *
      * Нужна перед возвратом: по ней сверяем статус и сумму, чтобы не вернуть
@@ -141,13 +178,9 @@ class PlexyService
             ]);
 
         if (!$resp->successful()) {
-            $msg = (string) ($resp->json('message') ?: $resp->body());
-            // «failed to handle command: something went wrong, transaction can
-            // not be refunded: ...» — человеку нужен только хвост.
-            if (str_contains($msg, 'can not be refunded: ')) {
-                $msg = trim(explode('can not be refunded: ', $msg, 2)[1]);
-            }
-            throw new \RuntimeException($msg !== '' ? $msg : 'Шлюз отказал в возврате');
+            throw new \RuntimeException(
+                self::readableError((string) ($resp->json('message') ?: $resp->body()))
+            );
         }
 
         return (array) $resp->json();

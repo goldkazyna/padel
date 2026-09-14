@@ -127,6 +127,26 @@ class PlexyRefundTest extends TestCase
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/refund') && $r->method() === 'POST');
     }
 
+    /** Холд — деньги придержаны: их не возвращают, а отпускают. */
+    public function test_по_холду_снимаем_авторизацию(): void
+    {
+        Http::fake([
+            'api.plexypay.com/v1/transactions/*' => Http::response([
+                'transactionId' => self::TX, 'paymentId' => self::TX,
+                'status' => 'authorized', 'amount' => 32000,
+                'orderReference' => 'booking-' . $this->booking->id,
+            ]),
+            'api.plexypay.com/v1/payments/*/cancel' => Http::response(['success' => true]),
+            'api.plexypay.com/v1/payments/*/refund' => Http::response(['success' => true]),
+        ]);
+
+        $this->refund()->assertRedirect();
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/cancel'));
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/refund') && $r->method() === 'POST');
+        $this->assertFalse((bool) $this->booking->fresh()->is_paid);
+    }
+
     public function test_менеджеру_возврат_недоступен(): void
     {
         $this->fakeGateway();

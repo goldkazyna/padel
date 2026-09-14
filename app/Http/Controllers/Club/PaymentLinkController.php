@@ -248,8 +248,14 @@ class PaymentLinkController extends Controller
             return back()->with('error', 'Транзакция не найдена у шлюза');
         }
 
+        // Карточная оплата живёт в двух состояниях: деньги придержаны
+        // (authorized) или уже списаны (charged). Списанное возвращают,
+        // придержанное отпускают — для клуба это одно действие.
         $status = strtoupper((string) ($tx['status'] ?? ''));
-        if (!str_contains($status, 'CHARGED')) {
+        $charged = str_contains($status, 'CHARGED');
+        $authorized = str_contains($status, 'AUTHORIZED');
+
+        if (!$charged && !$authorized) {
             return back()->with('error', 'Вернуть можно только прошедший платёж');
         }
 
@@ -259,8 +265,21 @@ class PaymentLinkController extends Controller
             return back()->with('error', "Больше оплаченного вернуть нельзя: платёж на {$paid} ₸");
         }
 
+        $paymentId = (string) ($tx['paymentId'] ?? $transaction);
+
         try {
-            $plexy->refund((string) ($tx['paymentId'] ?? $transaction), $amount);
+            if ($charged) {
+                $plexy->refund($paymentId, $amount);
+            } else {
+                // Частичное снятие холда шлюз может не принять — тогда
+                // отпускаем всю сумму: клиенту так даже лучше.
+                try {
+                    $plexy->cancelAuthorization($paymentId, $amount < $paid ? $amount : null);
+                } catch (\Throwable $e) {
+                    $plexy->cancelAuthorization($paymentId);
+                    $amount = $paid;
+                }
+            }
         } catch (\Throwable $e) {
             return back()->with('error', 'Шлюз отказал: ' . $e->getMessage());
         }
@@ -280,7 +299,9 @@ class PaymentLinkController extends Controller
         // Список берётся из шлюза с минутным кэшем — иначе возврат «не виден».
         \App\Support\PlexyTransactions::forget($club);
 
-        return back()->with('success', "Возврат {$amount} ₸ отправлен в банк");
+        return back()->with('success', $charged
+            ? "Возврат {$amount} ₸ отправлен в банк"
+            : "Холд на {$amount} ₸ снят — деньги вернутся клиенту");
     }
 
     /**

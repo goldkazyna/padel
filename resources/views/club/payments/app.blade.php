@@ -8,6 +8,7 @@
 
     $statusNames = [
         'paid' => 'Оплачен',
+        'authorized' => 'Холд',
         'pending' => 'В процессе',
         'refunded' => 'Возврат',
         'failed' => 'Не прошёл',
@@ -79,6 +80,9 @@
     .apay-badge { display: inline-block; padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; }
     .apay-paid { background: rgba(34, 197, 94, .16); color: #22c55e; }
     .apay-pending { background: rgba(245, 158, 11, .16); color: #f59e0b; }
+    /* Холд: деньги придержаны, но ещё не списаны — синим, чтобы не путать
+       ни с оплатой, ни с зависшим платежом. */
+    .apay-authorized { background: rgba(59, 130, 246, .16); color: #60a5fa; }
     .apay-failed { background: rgba(239, 68, 68, .14); color: #ef4444; }
     .apay-refunded { background: rgba(156, 163, 175, .16); color: var(--text-secondary); }
     .apay-unknown { background: rgba(156, 163, 175, .16); color: var(--text-secondary); }
@@ -191,13 +195,14 @@
                                     <td style="text-align: right; white-space: nowrap;">
                                         {{-- Вернуть можно только прошедший платёж: по остальным
                                              шлюз всё равно откажет. --}}
-                                        @if($row['status'] === 'paid' && $row['id'])
+                                        @if(in_array($row['status'], ['paid', 'authorized'], true) && $row['id'])
                                             <button type="button" class="apay-refund-btn"
                                                     onclick="openRefund(this)"
                                                     data-id="{{ $row['id'] }}"
                                                     data-amount="{{ (int) $row['amount'] }}"
+                                                    data-hold="{{ $row['status'] === 'authorized' ? '1' : '' }}"
                                                     data-title="{{ $row['title'] }}{{ $row['subtitle'] ? ' · ' . $row['subtitle'] : '' }}">
-                                                Возврат
+                                                {{ $row['status'] === 'authorized' ? 'Снять холд' : 'Возврат' }}
                                             </button>
                                         @endif
                                     </td>
@@ -320,12 +325,24 @@
 
         function openRefund(btn) {
             const amount = btn.dataset.amount;
+            const hold = btn.dataset.hold === '1';
             document.getElementById('refundForm').action = REFUND_URL + '/' + btn.dataset.id + '/refund';
             document.getElementById('refundSubject').textContent = btn.dataset.title;
             document.getElementById('refundAmount').value = amount;
             document.getElementById('refundAmount').max = amount;
-            document.getElementById('refundHint').textContent =
-                'Оплачено ' + Number(amount).toLocaleString('ru-RU') + ' ₸. Можно вернуть часть.';
+
+            // Холд — деньги ещё не списаны, их отпускают целиком: объясняем
+            // это прямо в окне, иначе «возврат» и «снятие холда» путают.
+            document.querySelector('.apay-modal-title').textContent =
+                hold ? 'Снять холд' : 'Возврат средств';
+            document.querySelector('.apay-modal-warn').textContent = hold
+                ? 'Деньги придержаны у клиента, но не списаны. Холд снимется, сумма вернётся на карту.'
+                : 'Деньги уйдут клиенту на карту. Отменить возврат нельзя.';
+            document.querySelector('.apay-modal-danger').textContent =
+                hold ? 'Снять холд' : 'Вернуть деньги';
+            document.getElementById('refundHint').textContent = hold
+                ? 'Придержано ' + Number(amount).toLocaleString('ru-RU') + ' ₸.'
+                : 'Оплачено ' + Number(amount).toLocaleString('ru-RU') + ' ₸. Можно вернуть часть.';
             document.getElementById('refundOverlay').classList.add('open');
             document.body.style.overflow = 'hidden';
         }
