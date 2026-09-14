@@ -9,6 +9,7 @@ use App\Models\CourtBooking;
 use App\Models\CourtBlock;
 use App\Services\CourtScheduleService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
 class CourtController extends Controller
@@ -857,6 +858,12 @@ class CourtController extends Controller
             'client_note' => 'nullable|string|max:1000',
             'payment_method' => 'required_unless:booking_type,group,tournament|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
             'is_paid' => 'required_unless:booking_type,group,tournament|nullable|boolean',
+            // Номер транзакции: клуб включает его в настройках и требует
+            // только у оплаченных броней — у наличных его попросту нет.
+            'transaction_number' => [
+                'nullable', 'string', 'max:64',
+                Rule::requiredIf(fn () => $this->needsTransactionNumber($request)),
+            ],
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
             'group_id' => 'nullable|exists:club_groups,id',
@@ -1125,6 +1132,7 @@ class CourtController extends Controller
                 'discount' => $discount,
                 'payment_method' => $validated['payment_method'] ?? null,
                 'is_paid' => $validated['is_paid'] ?? false,
+                'transaction_number' => $validated['transaction_number'] ?? null,
                 'comment' => $validated['comment'] ?? null,
                 'booking_type' => $validated['booking_type'] ?? null,
                 // Только проверенный турнир (принадлежит клубу) — не сырое значение из запроса,
@@ -1348,6 +1356,25 @@ class CourtController extends Controller
         return $dates;
     }
 
+    /**
+     * Нужен ли номер транзакции: клуб включил галочку, бронь клиентская
+     * и отмечена оплаченной. У групповых и турнирных броней оплаты нет,
+     * у неоплаченных номера ещё не существует.
+     */
+    private function needsTransactionNumber(Request $request): bool
+    {
+        $club = $this->getClub();
+        if (!$club || !$club->require_transaction_number) {
+            return false;
+        }
+
+        if (in_array($request->input('booking_type'), ['group', 'tournament'], true)) {
+            return false;
+        }
+
+        return $request->boolean('is_paid');
+    }
+
     public function updateBooking(Request $request, CourtBooking $booking)
     {
         $club = $this->getClub();
@@ -1380,6 +1407,12 @@ class CourtController extends Controller
             'client_note' => 'nullable|string|max:1000',
             'payment_method' => 'required_unless:booking_type,group,tournament|nullable|string|in:cash,card,kaspi,certificate,club_card,deposit,cashback,cashless,free,plexy',
             'is_paid' => 'required_unless:booking_type,group,tournament|nullable|boolean',
+            // Номер транзакции: клуб включает его в настройках и требует
+            // только у оплаченных броней — у наличных его попросту нет.
+            'transaction_number' => [
+                'nullable', 'string', 'max:64',
+                Rule::requiredIf(fn () => $this->needsTransactionNumber($request)),
+            ],
             'is_processed' => 'nullable|boolean',
             'comment' => 'nullable|string|max:500',
             'booking_type' => 'nullable|in:soft,group,individual,tournament',
@@ -1524,6 +1557,7 @@ class CourtController extends Controller
             $updateData['client_phone'] = $validated['client_phone'];
             $updateData['payment_method'] = $validated['payment_method'] ?? null;
             $updateData['is_paid'] = $validated['is_paid'] ?? false;
+            $updateData['transaction_number'] = $validated['transaction_number'] ?? null;
             if (($validated['payment_method'] ?? null) === 'club_card' && !$clubCardId && !$preserveChargedCard) {
                 return back()->withInput()->with('error', 'Выберите действующую клубную карту для оплаты картой');
             }

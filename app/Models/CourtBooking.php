@@ -21,6 +21,7 @@ class CourtBooking extends Model
         'is_paid',
         'payment_status',
         'payment_id',
+        'transaction_number',
         'paid_at',
         'discount',
         'is_processed',

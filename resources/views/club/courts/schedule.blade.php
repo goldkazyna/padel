@@ -439,6 +439,7 @@
                                             'price' => (float) ($booking->price ?? 0),
                                             'paymentMethod' => $booking->payment_method ?? '',
                                             'isPaid' => (bool) $booking->is_paid,
+                                            'transactionNumber' => $booking->transaction_number,
                                             'isProcessed' => (bool) $booking->is_processed,
                                             'comment' => $booking->comment ?? '',
                                             'bookingType' => $booking->booking_type ?? '',
@@ -603,6 +604,7 @@
                                 'clientPhone' => $ub->client_phone,
                                 'paymentMethod' => $ub->payment_method,
                                 'isPaid' => $ub->is_paid,
+                                'transactionNumber' => $ub->transaction_number,
                                 'isProcessed' => $ub->is_processed,
                                 'comment' => $ub->comment,
                                 'bookingType' => $ub->booking_type,
@@ -880,6 +882,16 @@
                             </div>
                         </div>
 
+                        @if($club?->require_transaction_number)
+                            {{-- Номер платежа для сверки с выпиской. Спрашиваем
+                                 только у оплаченных: у наличных его нет. --}}
+                            <div class="form-group js-hide-for-group" id="txnGroup" style="display:none;">
+                                <label class="form-label">Номер транзакции *</label>
+                                <input type="text" name="transaction_number" id="txnInput"
+                                       class="form-input" maxlength="64" placeholder="Например, 625421045265">
+                            </div>
+                        @endif
+
                         <div id="groupBookingHint" class="form-group js-show-for-group" style="display:none;">
                             <div style="padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;color:#a1a1aa;font-size:13px;line-height:1.5;">
                                 Для групповой брони данные о клиенте и оплате не требуются — занятие добавится в «Журнал занятий», оплата идёт через пакеты участников группы.
@@ -1127,6 +1139,14 @@
                                 <button type="button" class="paid-btn" data-value="1" onclick="setEditPaid(this)">Оплачено</button>
                             </div>
                         </div>
+
+                        @if($club?->require_transaction_number)
+                            <div class="form-group js-edit-hide-for-group" id="editTxnGroup" style="display:none;">
+                                <label class="form-label">Номер транзакции *</label>
+                                <input type="text" name="transaction_number" id="editTxnInput"
+                                       class="form-input" maxlength="64" placeholder="Например, 625421045265">
+                            </div>
+                        @endif
 
                         <div class="form-group" style="margin-top: 14px;">
                             <label class="form-label">Комментарий</label>
@@ -1764,6 +1784,9 @@
         loadClientCards('book', '', null); // сброс карт клиента
         document.getElementById('paymentMethodInput').value = '';
         document.getElementById('isPaidInput').value = '';
+        const newTxn = document.getElementById('txnInput');
+        if (newTxn) newTxn.value = '';
+        applyTxnVisibility('book');
         document.querySelectorAll('#paymentMethods .pay-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         resetBookingTypeSelection();
@@ -1862,6 +1885,9 @@
         // требованием выбрать турнир — иначе её вообще не сохранить.
         window.__editBookingWasTournament = (btVal === 'tournament');
 
+        const txnInput = document.getElementById('editTxnInput');
+        if (txnInput) txnInput.value = data.transactionNumber || '';
+
         // Paid status — берём строго из брони (true/false), не из дефолта
         const paidVal = data.isPaid ? '1' : '0';
         document.getElementById('editIsPaidInput').value = paidVal;
@@ -1871,6 +1897,7 @@
                 b.classList.toggle('active', b.getAttribute('data-value') === paidVal);
             }
         });
+        applyTxnVisibility('edit');
 
         // В поле ЦЕНА — полная цена (до скидки), скидка отдельно; иначе двойное вычитание.
         document.getElementById('editCustomPrice').value = Math.round(_preDiscount) || 0;
@@ -2334,6 +2361,20 @@
         document.querySelectorAll('#viewModal .paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('editIsPaidInput').value = btn.getAttribute('data-value');
+        applyTxnVisibility('edit');
+    }
+
+    /**
+     * Поле «Номер транзакции» показываем только у оплаченной брони: у
+     * наличных и неоплаченных номера нет, а пустое обязательное поле
+     * не даёт сохранить.
+     */
+    function applyTxnVisibility(scope) {
+        const box = document.getElementById(scope === 'edit' ? 'editTxnGroup' : 'txnGroup');
+        if (!box) return;   // клуб не включал номер транзакции
+
+        const paid = document.getElementById(scope === 'edit' ? 'editIsPaidInput' : 'isPaidInput');
+        box.style.display = paid && paid.value === '1' ? '' : 'none';
     }
 
     function openUnblockModal(blockId, courtName, time, comment) {
@@ -2400,6 +2441,7 @@
         document.querySelectorAll('.paid-toggle .paid-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('isPaidInput').value = btn.getAttribute('data-value');
+        applyTxnVisibility('book');
     }
 
     // Тип брони (опционально, повторный клик снимает выбор)

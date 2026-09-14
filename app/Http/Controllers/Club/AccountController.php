@@ -39,6 +39,8 @@ class AccountController extends Controller
             'auto_conduct_group_sessions' => $request->boolean('auto_conduct_group_sessions'),
             // Отчёты менеджерам открывает сам клуб: там выручка и долги.
             'moderators_can_view_reports' => $request->boolean('moderators_can_view_reports'),
+            // Номер транзакции у оплаченных броней — для сверки с выпиской.
+            'require_transaction_number' => $request->boolean('require_transaction_number'),
             'booking_cancel_hours' => $cancelHours,
             'card_bg_color' => $this->hexOrNull($request->input('card_bg_color')),
             'card_accent_color' => $this->hexOrNull($request->input('card_accent_color')),

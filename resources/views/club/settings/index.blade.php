@@ -103,6 +103,16 @@
         </label>
 
         <label class="settings-toggle-row">
+            <input type="hidden" name="require_transaction_number" value="0">
+            <input type="checkbox" name="require_transaction_number" value="1"
+                   {{ ($club->require_transaction_number ?? false) ? 'checked' : '' }}>
+            <span class="settings-toggle-text">
+                <span class="settings-toggle-title">Вносить номер транзакции</span>
+                <small class="form-hint">Если включено — в брони появится поле «Номер транзакции». Оно обязательно, когда бронь отмечена оплаченной: по нему потом сверяют платёж с выпиской.</small>
+            </span>
+        </label>
+
+        <label class="settings-toggle-row">
             <input type="hidden" name="moderators_can_view_reports" value="0">
             <input type="checkbox" name="moderators_can_view_reports" value="1"
                    {{ ($club->moderators_can_view_reports ?? false) ? 'checked' : '' }}>
