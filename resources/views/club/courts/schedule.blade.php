@@ -226,6 +226,11 @@
     @if(session('success'))
         <div class="flash-message flash-success">{{ session('success') }}</div>
     @endif
+    {{-- Ошибка проверки с сервера: форма перезагружает страницу, модалка
+         закрывается — без этой строки человек видит только «не сохранилось». --}}
+    @if($errors->any())
+        <div class="flash-message flash-error">{{ $errors->first() }}</div>
+    @endif
     @if(session('error'))
         <div class="flash-message flash-error">{{ session('error') }}</div>
     @endif
@@ -2308,6 +2313,16 @@
                 showEditFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
                 return;
             }
+            // Номер транзакции: клуб включил его в настройках и бронь оплачена.
+            // Проверяем здесь же, иначе форма уходит на сервер, возвращается
+            // с ошибкой — а модалка к тому моменту закрыта, и человек видит
+            // только «не сохранилось».
+            const editTxn = document.getElementById('editTxnInput');
+            if (editTxn && paidInput.value === '1' && !editTxn.value.trim()) {
+                e.preventDefault();
+                showEditFormError('Укажите номер транзакции — по нему сверяют платёж', editTxn);
+                return;
+            }
         }
         // Если выбран тренер по старому одиночному полю (виден блок оплаты) —
         // статус его оплаты обязателен. В мультитренере оплата задаётся чекбоксом
@@ -2781,6 +2796,12 @@
             if (paidInput.value === '') {
                 e.preventDefault();
                 showBookFormError('Выберите статус оплаты: «Оплачено» или «Не оплачено»', paidGroup);
+                return;
+            }
+            const bookTxn = document.getElementById('txnInput');
+            if (bookTxn && paidInput.value === '1' && !bookTxn.value.trim()) {
+                e.preventDefault();
+                showBookFormError('Укажите номер транзакции — по нему сверяют платёж', bookTxn);
                 return;
             }
         }
