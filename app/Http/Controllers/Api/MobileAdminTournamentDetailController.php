@@ -695,12 +695,17 @@ class MobileAdminTournamentDetailController extends Controller
         $copy = $tournament->replicate([
             // Per-instance / сгенерированные данные — не копируем.
             'round_robin_schedule',
+            // Счётчик рассылок: у копии свой турнир и свои четыре отправки.
+            // replicate() тащит все колонки подряд, поэтому дубль турнира,
+            // по которому уже писали участникам, рождался без права голоса.
+            'push_sent_count',
         ]);
         $copy->name = $tournament->name . ' (копия)';
         $copy->status = 'draft';
         $copy->start_date = null;
         $copy->registration_deadline = null;
         $copy->round_robin_schedule = null;
+        $copy->push_sent_count = 0;
         // Личный турнир остаётся за тем же создателем; клубный — за тем же клубом.
         $copy->save();
 
