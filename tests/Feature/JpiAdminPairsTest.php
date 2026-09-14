@@ -139,7 +139,7 @@ class JpiAdminPairsTest extends TestCase
      */
     public function test_self_pairing_pair_goes_to_teams(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         [$a, $b] = User::factory()->count(2)->create();
 
         $this->actingAs($this->admin)
@@ -257,7 +257,7 @@ class JpiAdminPairsTest extends TestCase
     /** То же самое, когда пары собирают сами игроки: пара живёт в командах. */
     public function test_pair_search_hides_someone_already_in_a_team(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         $a = User::factory()->create(['name' => 'Mister Bekson']);
         $b = User::factory()->create();
 
@@ -279,7 +279,7 @@ class JpiAdminPairsTest extends TestCase
      */
     public function test_unpaired_player_is_visible_and_removable(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         $solo = User::factory()->create(['name' => 'Mister Bekson']);
         $t->participants()->attach($solo->id, ['status' => 'registered']);
 
@@ -299,7 +299,7 @@ class JpiAdminPairsTest extends TestCase
     /** Когда все в парах, блок «Без пары» не мозолит глаза. */
     public function test_no_unpaired_block_when_everyone_is_paired(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         [$a, $b] = User::factory()->count(2)->create();
         $this->actingAs($this->admin)->post(route('club.tournaments.pairs.add', $t), [
             'player1_id' => $a->id, 'player2_id' => $b->id,
@@ -314,7 +314,7 @@ class JpiAdminPairsTest extends TestCase
     /** Форма пары названия не шлёт — оно для JPI бессмысленно. */
     public function test_pair_is_added_without_a_name(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         [$a, $b] = User::factory()->count(2)->create();
 
         $this->actingAs($this->admin)
@@ -334,7 +334,7 @@ class JpiAdminPairsTest extends TestCase
      */
     public function test_self_pairing_page_offers_a_pair_form_not_a_participant_one(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
 
         $this->actingAs($this->admin)
             ->get(route('club.tournaments.show', $t))

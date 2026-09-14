@@ -833,8 +833,12 @@ class MobileAdminTournamentDetailController extends Controller
         if ($t->isEscalera()) {
             $canStart = $t->status === 'open' && $taken === (int) $t->courts_count * 4;
         }
-        // Парный флекс: старт выбрасывает недособранные пары — значит, пока
-        // хоть в одной пустует место, запускать нельзя.
+        // Парный турнир: старт выбрасывает недособранные пары — значит, пока
+        // хоть в одной пустует место, запускать нельзя. У JPI своя проверка
+        // числа игроков, поэтому здесь только про пустые места.
+        if ($t->isPairedJustPadelIt() && $t->incompleteFlexPairs() > 0) {
+            $canStart = false;
+        }
         if ($t->isPairedFlex()) {
             $complete = $t->teams()
                 ->whereIn('status', ['approved', 'pending'])
@@ -1060,10 +1064,10 @@ class MobileAdminTournamentDetailController extends Controller
             'can_modify' => $this->canModifyParticipants($tournament),
         ];
 
-        // Парный флекс собирают по местам, а не списком: экран рисует всю
+        // Парные турниры собирают по местам, а не списком: экран рисует всю
         // сетку, включая пустые пары, и сажает людей тапом. Отдаём её здесь
         // же — второй запрос ради шести строк не нужен.
-        if ($tournament->isPairedFlex()) {
+        if ($tournament->usesPairGrid()) {
             $payload['flex_pairs'] = $this->flexPairs($tournament);
         }
 

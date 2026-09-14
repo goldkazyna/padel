@@ -35,7 +35,7 @@
         <i class="bi bi-people"></i>
         {{-- У парного флекса свои счётчики в блоке состава: там место меряется
              парами, а не креслами, и два счётчика рядом только путали. --}}
-        @if($tournament->isPairedFlex())
+        @if($tournament->usesPairGrid())
             Участники
         @else
             Участники ({{ $tournament->approvedParticipantsCount() }}/{{ $tournament->max_participants }})
@@ -50,7 +50,7 @@
             <i class="bi bi-chevron-down toggle-icon" id="toggleIcon"></i>
         @endif
     </h5>
-    @if(!$tournament->isPairedFlex() && $tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0 && !$hasGroups)
+    @if(!$tournament->usesPairGrid() && $tournament->status === 'open' && $tournament->pendingParticipantsCount() > 0 && !$hasGroups)
         <form action="{{ route('club.tournaments.participants.approveAll', $tournament) }}" method="POST" class="d-inline" onclick="event.stopPropagation()">
             @csrf
             <button type="submit" class="btn-outline-custom btn-sm" onclick="return confirm('Одобрить все заявки?')">
@@ -121,7 +121,7 @@
          поэтому здесь показываем пары — иначе организатору нечего одобрять. --}}
     {{-- Парный флекс собирается по-своему: пары строками, ниже пул тех, кому
          пары ещё нет, и заявки. Остальные парные форматы — прежним видом. --}}
-    @if($tournament->isPairedFlex())
+    @if($tournament->usesPairGrid())
         @include('club.tournaments.partials._flex_pairs', ['tournament' => $tournament])
     @elseif($showsPairs)
         @php
@@ -314,7 +314,7 @@
     @endif
 
     {{-- Заявки на модерации --}}
-    @if($tournament->usesSoloRegistration() && !$tournament->isPairedFlex() && $tournament->pendingParticipantsCount() > 0)
+    @if($tournament->usesSoloRegistration() && !$tournament->usesPairGrid() && $tournament->pendingParticipantsCount() > 0)
     <div class="pending-section mb-4">
         <div class="pending-header">
             <i class="bi bi-hourglass-split text-warning"></i>
@@ -499,7 +499,7 @@
     {{-- Лист ожидания. У парного флекса он свой, внутри блока состава: там
          у каждого есть меню «посадить в пару», и два одинаковых списка на
          странице только путали. --}}
-    @if(!$tournament->isPairedFlex() && $waitlistParticipants->count() > 0)
+    @if(!$tournament->usesPairGrid() && $waitlistParticipants->count() > 0)
     <div class="waitlist-section mb-4 mt-4">
         <div class="waitlist-header">
             <i class="bi bi-hourglass-split"></i>
@@ -556,7 +556,7 @@
     @endif
 
     {{-- Форма добавления участника: только при записи поодиночке --}}
-    @if($tournament->usesSoloRegistration() && !$tournament->isPairedFlex() && $tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
+    @if($tournament->usesSoloRegistration() && !$tournament->usesPairGrid() && $tournament->status === 'open' && $tournament->approvedParticipantsCount() < $tournament->max_participants && !$hasGroups)
     <div class="add-participant-section mt-4">
         <div class="add-participant-header">
             <i class="bi bi-person-plus"></i>

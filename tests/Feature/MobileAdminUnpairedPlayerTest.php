@@ -11,10 +11,13 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * Игрок без пары виден в мобильной админке парного турнира.
+ * Игрок без пары виден в мобильной админке командного турнира.
  *
  * Экран состава показывает пары; человек, которому пары не нашлось, не попадал
  * в выдачу вообще — организатор не мог ни убрать его, ни поставить в пару.
+ *
+ * Парный «Just Padel It» с этого релиза собирается сеткой открытых пар, там
+ * непосаженные видны в общем списке участников — см. JpiOpenPairsTest.
  */
 class MobileAdminUnpairedPlayerTest extends TestCase
 {
@@ -32,8 +35,10 @@ class MobileAdminUnpairedPlayerTest extends TestCase
         $this->admin = User::factory()->create(['role' => 'club_admin']);
         $this->admin->adminClubs()->attach($club->id);
 
+        // Командный турнир: там запись по-прежнему парой и выдача «teams».
+        // Парный JPI с открытыми парами ходит через сетку — это другой тест.
         $this->tournament = Tournament::create([
-            'club_id' => $club->id, 'name' => 'COUPLES', 'type' => 'just_padel_it',
+            'club_id' => $club->id, 'name' => 'COUPLES', 'type' => 'team',
             'status' => 'open', 'start_date' => now()->addDay()->toDateString(),
             'courts_count' => 2, 'max_participants' => 12,
             'is_paired' => true, 'pairing_mode' => 'self',

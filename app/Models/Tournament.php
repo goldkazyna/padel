@@ -253,12 +253,33 @@ class Tournament extends Model
 
     /**
      * Открытые пары: игрок записывается один и становится половиной пары,
-     * к которой подсаживается следующий. Только парный флекс и только у
-     * турниров, созданных после появления этой схемы.
+     * к которой подсаживается следующий.
+     *
+     * Так играет парный флекс, и тем же путём идёт парный «Just Padel It»,
+     * если пары собирают сами игроки: раньше там требовалось привести
+     * партнёра, и человек без пары просто не мог записаться.
      */
     public function usesOpenPairs(): bool
     {
-        return $this->isPairedFlex() && (bool) $this->open_pairs;
+        if (!$this->open_pairs) {
+            return false;
+        }
+
+        return $this->isPairedFlex()
+            || ($this->isPairedJustPadelIt() && !$this->isAdminPairing());
+    }
+
+    /**
+     * Турниры, состав которых показывается сеткой пар: место — половина пары,
+     * рядом видно, кто уже сел.
+     *
+     * Это флекс и парный JPI с открытыми парами. Турниры, созданные до
+     * появления схемы (и те, где пары собирает админ), доигрывают прежним
+     * списком: менять им вид на ходу — сбивать организатора.
+     */
+    public function usesPairGrid(): bool
+    {
+        return $this->isPairedFlex() || $this->usesOpenPairs();
     }
 
     /**
@@ -276,6 +297,13 @@ class Tournament extends Model
      */
     public function usesSoloRegistration(): bool
     {
+        // Открытые пары: записываются поодиночке, а пара складывается на
+        // месте — человек садится первым, к нему подсаживается следующий.
+        // Требовать партнёра заранее там незачем.
+        if ($this->usesOpenPairs()) {
+            return true;
+        }
+
         // Парой записываются только там, где есть выбор способа и выбран «сами
         // игроки». Во всех остальных случаях — поодиночке.
         return !$this->isSelfPairing();
@@ -334,7 +362,7 @@ class Tournament extends Model
      */
     public function incompleteFlexPairs(): int
     {
-        if (!$this->isPairedFlex()) {
+        if (!$this->usesPairGrid()) {
             return 0;
         }
 

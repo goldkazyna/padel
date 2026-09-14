@@ -62,7 +62,7 @@ class MobileAdminPairsTest extends TestCase
     /** При самостоятельной сборке пара ложится в команды турнира. */
     public function test_self_pairing_pair_goes_to_teams(): void
     {
-        $t = $this->tournament(['pairing_mode' => 'self']);
+        $t = $this->tournament(['pairing_mode' => 'self', 'open_pairs' => false]);
         [$a, $b] = User::factory()->count(2)->create();
         Sanctum::actingAs($this->admin);
 

@@ -50,6 +50,16 @@ class TournamentSlotsCountTest extends TestCase
             'player2_id' => $b->id,
             'status' => $status,
         ]);
+
+        // В открытых парах место занимает участник, а пара — это его посадка.
+        // Поэтому игроки пары должны быть и в составе, как при живой записи.
+        $pivot = $status === 'waiting' ? 'waiting' : ($status === 'pending' ? 'pending' : 'registered');
+        foreach ([$a, $b] as $player) {
+            if ($status === 'rejected') {
+                continue;   // отклонённая пара мест не занимает
+            }
+            $t->participants()->attach($player->id, ['status' => $pivot]);
+        }
     }
 
     public function test_pairs_count_as_two_slots_each(): void

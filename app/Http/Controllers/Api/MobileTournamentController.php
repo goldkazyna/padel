@@ -297,7 +297,7 @@ class MobileTournamentController extends Controller
             // организатором (парный флекс, этап лиги). Показываем их до
             // старта: человеку важно видеть, с кем он играет, а не гадать
             // по общему списку.
-            if ($tournament->isAdminPairing()) {
+            if ($tournament->isAdminPairing() || $tournament->usesOpenPairs()) {
                 $data['teams'] = $tournament->teams()
                     ->with(['player1', 'player2'])
                     ->whereIn('status', ['approved', 'pending'])
