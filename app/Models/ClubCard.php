@@ -10,6 +10,7 @@ class ClubCard extends Model
         'club_id',
         'club_card_type_id',
         'club_client_id',
+        'issued_by',
         'code',
         'balance',
         'initial_balance',
@@ -36,6 +37,12 @@ class ClubCard extends Model
     public function client()
     {
         return $this->belongsTo(ClubClient::class, 'club_client_id');
+    }
+
+    /** Кто привязал карту клиенту — продавец в отчёте о выручке. */
+    public function issuer()
+    {
+        return $this->belongsTo(User::class, 'issued_by');
     }
 
     public function transactions()

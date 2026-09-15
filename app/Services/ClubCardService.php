@@ -18,12 +18,14 @@ class ClubCardService
      *
      * @param int|null    $balanceOverride остаток вручную (для счётчиков); null → номинал типа
      * @param string|null $expiresAt       дата окончания YYYY-MM-DD; null → берём из типа
+     * @param int|null    $issuedBy        кто привязал карту; null → берём текущего пользователя
      */
     public function issue(
         ClubClient $client,
         ClubCardType $type,
         ?int $balanceOverride = null,
-        ?string $expiresAt = null
+        ?string $expiresAt = null,
+        ?int $issuedBy = null
     ): ClubCard {
         // Остаток только для счётчиков (visits/trainer); скидочные — без баланса.
         $balance = null;
@@ -37,6 +39,8 @@ class ClubCardService
             'club_id' => $type->club_id,
             'club_card_type_id' => $type->id,
             'club_client_id' => $client->id,
+            // Привязка карты — продажа: сохраняем продавца для отчёта.
+            'issued_by' => $issuedBy ?? auth()->id(),
             'code' => $this->nextCardCode($type),
             'balance' => $balance,
             'initial_balance' => $initial,

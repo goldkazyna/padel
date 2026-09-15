@@ -175,77 +175,133 @@ class FinanceReportService
     }
 
     /**
-     * Оплаченные брони с менеджером — «за что клуб получил деньги».
+     * Выручка: оплаченные брони и проданные клубные карты — с продавцом.
      *
-     * Только корты: групповые и турнирные брони сюда не попадают. За группу
-     * платят пакетами участников, за турнир — взносами; в выручке по броням
-     * они дали бы суммы, которых в кассе не было.
+     * Что сюда не идёт:
+     * - групповые и турнирные брони: за группу платят пакетами участников, за
+     *   турнир — взносами, в кассе этих денег не было;
+     * - брони, оплаченные клубной картой: деньги за них клуб получил в момент
+     *   продажи карты, и она в отчёте уже есть — иначе одна сумма считалась бы
+     *   дважды.
      *
-     * Под таблицей — свод по менеджерам: кто сколько провёл и на сколько.
+     * Онлайн-оплата записана на «Приложение»: платит сам клиент, сотрудник к
+     * этому не причастен.
+     *
+     * Под таблицей — свод: кто сколько продал.
      */
     public function paidBookings(Club $club, Carbon $from, Carbon $to): ReportSheet
     {
+        $names = [];
+        $entries = [];
+
         $bookings = $this->confirmed($club, $from, $to)
             ->where('is_paid', true)
-            ->filter(fn ($b) => !in_array($b->booking_type, ['group', 'tournament'], true));
+            ->filter(fn ($b) => !in_array($b->booking_type, ['group', 'tournament'], true))
+            ->filter(fn ($b) => $b->payment_method !== 'club_card');
 
-        $names = [];
+        foreach ($bookings as $b) {
+            $entries[] = [
+                'date' => $this->parseDate($b->date),
+                'amount' => $this->bookingRevenue($b, $club->id),
+                'seller' => $b->payment_method === 'plexy'
+                    ? 'Приложение'
+                    : ($this->managerName($b->booked_by, $names) ?: 'Не указан'),
+                'row' => [
+                    $this->parseDate($b->date)->format('d.m.Y'),
+                    Carbon::parse($b->start_time)->format('H:i')
+                        . '–' . Carbon::parse($b->end_time)->format('H:i'),
+                    $b->court->name ?? '',
+                    $b->client_name ?? '',
+                    $b->client_phone ?? '',
+                    round($this->bookingRevenue($b, $club->id), 2),
+                    round((float) $b->discount, 2),
+                    self::PAYMENT_LABELS[$b->payment_method ?? ''] ?? ($b->payment_method ?: 'Не указан'),
+                    (string) ($b->transaction_number ?? ''),
+                    '',
+                ],
+            ];
+        }
+
+        foreach ($this->cardSales($club, $from, $to) as $card) {
+            $price = (float) ($card->type->price ?? 0);
+            $issued = $this->parseDate($card->created_at);
+            $entries[] = [
+                'date' => $issued,
+                'amount' => $price,
+                'seller' => $this->managerName($card->issued_by, $names) ?: 'Не указан',
+                'row' => [
+                    $issued->format('d.m.Y'),
+                    $issued->format('H:i'),
+                    'Карта «' . ($card->type->name ?? '—') . '»',
+                    $card->client->name ?? '—',
+                    $card->client->phone ?? '',
+                    round($price, 2),
+                    0,
+                    'Продажа карты',
+                    (string) $card->code,
+                    '',
+                ],
+            ];
+        }
+
+        // Брони и карты идут одним списком по времени: так читается как лента
+        // продаж за период, а не как две несвязанные таблицы.
+        usort($entries, fn ($a, $b) => $a['date'] <=> $b['date']);
+
         $rows = [];
-        $byManager = [];
+        $bySeller = [];
         $total = 0.0;
         $totalDiscount = 0.0;
 
-        foreach ($bookings as $b) {
-            $amount = $this->bookingRevenue($b, $club->id);
-            // Онлайн-оплату делает сам клиент, менеджер к ней не причастен —
-            // иначе в своде ему записывались бы чужие деньги.
-            $manager = $b->payment_method === 'plexy'
-                ? 'Приложение'
-                : ($this->managerName($b->booked_by, $names) ?: 'Не указан');
+        foreach ($entries as $entry) {
+            $row = $entry['row'];
+            $row[9] = $entry['seller'];
+            $rows[] = $row;
 
-            $rows[] = [
-                $this->parseDate($b->date)->format('d.m.Y'),
-                Carbon::parse($b->start_time)->format('H:i')
-                    . '–' . Carbon::parse($b->end_time)->format('H:i'),
-                $b->court->name ?? '',
-                $b->client_name ?? '',
-                $b->client_phone ?? '',
-                round($amount, 2),
-                round((float) $b->discount, 2),
-                self::PAYMENT_LABELS[$b->payment_method ?? ''] ?? ($b->payment_method ?: 'Не указан'),
-                (string) ($b->transaction_number ?? ''),
-                $manager,
-            ];
-
-            $byManager[$manager] ??= ['count' => 0, 'sum' => 0.0];
-            $byManager[$manager]['count']++;
-            $byManager[$manager]['sum'] += $amount;
-            $total += $amount;
-            $totalDiscount += (float) $b->discount;
+            $bySeller[$entry['seller']] ??= ['count' => 0, 'sum' => 0.0];
+            $bySeller[$entry['seller']]['count']++;
+            $bySeller[$entry['seller']]['sum'] += $entry['amount'];
+            $total += $entry['amount'];
+            $totalDiscount += (float) $row[6];
         }
 
         $totals = ['Итого', '', '', '', '', round($total, 2), round($totalDiscount, 2), '', '', ''];
 
-        // Свод по менеджерам — отдельным блоком под таблицей, жирными строками:
-        // в одном отчёте видно и каждую бронь, и кто сколько сделал.
+        // Свод по продавцам — отдельным блоком под таблицей, жирными строками:
+        // в одном отчёте видно и каждую продажу, и кто сколько сделал.
         $boldRows = [];
-        if ($byManager) {
-            arsort($byManager);
+        if ($bySeller) {
+            uasort($bySeller, fn ($a, $b) => $b['sum'] <=> $a['sum']);
             $rows[] = array_fill(0, 10, '');
             $boldRows[] = count($rows);
-            $rows[] = ['По менеджерам', '', '', '', '', 'Сумма', 'Броней', '', '', ''];
-            foreach ($byManager as $manager => $data) {
-                $rows[] = [$manager, '', '', '', '', round($data['sum'], 2), $data['count'], '', '', ''];
+            $rows[] = ['По менеджерам', '', '', '', '', 'Сумма', 'Продаж', '', '', ''];
+            foreach ($bySeller as $seller => $data) {
+                $rows[] = [$seller, '', '', '', '', round($data['sum'], 2), $data['count'], '', '', ''];
             }
         }
 
         return new ReportSheet(
-            title: 'Оплаченные брони',
-            headings: ['Дата', 'Время', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Скидка', 'Оплата', '№ транзакции', 'Менеджер'],
+            title: 'Оплаченные брони и карты',
+            headings: ['Дата', 'Время', 'Корт / карта', 'Клиент', 'Телефон', 'Сумма', 'Скидка', 'Оплата', '№ транзакции / карты', 'Менеджер'],
             rows: $rows,
             totals: $totals,
             columnFormats: [4 => '@', 5 => '#,##0', 6 => '#,##0', 8 => '@'],
             boldRows: $boldRows ?: null,
         );
+    }
+
+    /**
+     * Карты, привязанные клиентам за период, — каждая привязка это продажа.
+     *
+     * Карты без клиента не берём: непривязанная карта никому не продана.
+     */
+    private function cardSales(Club $club, Carbon $from, Carbon $to)
+    {
+        return \App\Models\ClubCard::with(['client', 'type'])
+            ->where('club_id', $club->id)
+            ->whereNotNull('club_client_id')
+            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->orderBy('created_at')
+            ->get();
     }
 }

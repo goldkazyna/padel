@@ -41,7 +41,7 @@ class AdditionalReportsController extends Controller
         'coaches-salary'   => [CoachesReportService::class,  'salary',    'trenery-zarplata',       'Тренеры', 'Зарплата тренеров'],
         'coaches-income-type' => [CoachesReportService::class, 'incomeByType', 'trenery-dohod-po-tipam', 'Тренеры', 'Доход по типам'],
         'coaches-unpaid'   => [CoachesReportService::class,  'unpaid',    'trenery-neoplacheno',    'Тренеры', 'Неоплаченные тренеры'],
-        'finance-paid'     => [FinanceReportService::class,  'paidBookings', 'oplachennye-broni',   'Финансы', 'Оплаченные брони (без групп и турниров)'],
+        'finance-paid'     => [FinanceReportService::class,  'paidBookings', 'oplachennye-broni',   'Финансы', 'Оплаченные брони и продажи карт'],
         'finance-sales'    => [FinanceReportService::class,  'sales',     'prodazhi',               'Финансы', 'Продажи'],
         'finance-days'     => [FinanceReportService::class,  'byDays',    'prodazhi-po-dnyam',      'Финансы', 'Продажи по дням'],
         'finance-weeks'    => [FinanceReportService::class,  'byWeeks',   'prodazhi-po-nedelyam',   'Финансы', 'Продажи по неделям'],

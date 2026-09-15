@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Club;
+use App\Models\ClubCard;
+use App\Models\ClubCardType;
+use App\Models\ClubClient;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\User;
@@ -126,6 +129,53 @@ class PaidBookingsReportTest extends TestCase
         }
         $this->assertSame(26000.0, $byName['Приложение'] ?? null);
         $this->assertSame(10000.0, $byName['Асель М.'] ?? null);
+    }
+
+    public function test_привязка_карты_это_продажа(): void
+    {
+        $client = ClubClient::create([
+            'club_id' => $this->club->id, 'name' => 'Айна Б.', 'phone' => '77015556677',
+        ]);
+        $type = ClubCardType::create([
+            'club_id' => $this->club->id, 'name' => 'VIP 10',
+            'kind' => 'visits', 'nominal' => 10, 'price' => 90000,
+        ]);
+        ClubCard::create([
+            'club_id' => $this->club->id,
+            'club_card_type_id' => $type->id,
+            'club_client_id' => $client->id,
+            'issued_by' => $this->manager->id,
+            'code' => 'VIP000001',
+            'balance' => 10,
+            'initial_balance' => 10,
+            'status' => 'active',
+            'created_at' => '2026-09-10 12:00:00',
+        ]);
+
+        $this->booking(['price' => 10000]);
+
+        $sheet = $this->sheet();
+        $cardRow = collect($sheet->rows)->first(fn ($r) => str_contains((string) $r[2], 'VIP 10'));
+
+        $this->assertNotNull($cardRow, 'проданная карта должна быть в отчёте');
+        $this->assertSame('Айна Б.', $cardRow[3]);
+        $this->assertSame(90000.0, $cardRow[5]);
+        $this->assertSame('Продажа карты', $cardRow[7]);
+        $this->assertSame('VIP000001', $cardRow[8]);
+        $this->assertSame('Асель М.', $cardRow[9], 'видно, кто продал');
+
+        $this->assertSame(100000.0, $sheet->totals[5], 'бронь + карта');
+    }
+
+    public function test_бронь_по_клубной_карте_второй_раз_не_считаем(): void
+    {
+        // Деньги за неё клуб получил при продаже карты — иначе двойной счёт.
+        $this->booking(['price' => 20000, 'payment_method' => 'club_card']);
+        $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']);
+
+        $sheet = $this->sheet();
+
+        $this->assertSame(10000.0, $sheet->totals[5]);
     }
 
     public function test_способ_оплаты_пишем_по_русски(): void

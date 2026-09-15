@@ -40,7 +40,8 @@ class ClubCardController extends Controller
             $client,
             $type,
             $data['balance'] ?? null,
-            $data['expires_at'] ?? null
+            $data['expires_at'] ?? null,
+            auth()->id(),
         );
 
         return back()->with('success', 'Карта «' . $type->name . '» привязана клиенту');
