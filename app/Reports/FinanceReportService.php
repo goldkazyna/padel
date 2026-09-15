@@ -11,6 +11,20 @@ class FinanceReportService
 {
     use CalculatesBookingRevenue;
 
+    /** Способы оплаты по-русски: в выгрузке «kaspi» читается как мусор. */
+    private const PAYMENT_LABELS = [
+        'cash' => 'Наличные',
+        'card' => 'Карта',
+        'kaspi' => 'Kaspi',
+        'plexy' => 'Онлайн (Plexy)',
+        'certificate' => 'Сертификат',
+        'club_card' => 'Клубная карта',
+        'deposit' => 'Депозит',
+        'cashback' => 'Кэшбэк',
+        'cashless' => 'Безналичный',
+        'free' => 'Бесплатно',
+    ];
+
     private function confirmed(Club $club, Carbon $from, Carbon $to)
     {
         return CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
@@ -157,6 +171,77 @@ class FinanceReportService
             rows: $rows,
             totals: ['Итого', '', '', '', '', round($tDebt, 2), ''],
             columnFormats: [4 => '@', 5 => '#,##0'],
+        );
+    }
+
+    /**
+     * Оплаченные брони с менеджером — «за что клуб получил деньги».
+     *
+     * Только корты: групповые и турнирные брони сюда не попадают. За группу
+     * платят пакетами участников, за турнир — взносами; в выручке по броням
+     * они дали бы суммы, которых в кассе не было.
+     *
+     * Под таблицей — свод по менеджерам: кто сколько провёл и на сколько.
+     */
+    public function paidBookings(Club $club, Carbon $from, Carbon $to): ReportSheet
+    {
+        $bookings = $this->confirmed($club, $from, $to)
+            ->where('is_paid', true)
+            ->filter(fn ($b) => !in_array($b->booking_type, ['group', 'tournament'], true));
+
+        $names = [];
+        $rows = [];
+        $byManager = [];
+        $total = 0.0;
+        $totalDiscount = 0.0;
+
+        foreach ($bookings as $b) {
+            $amount = $this->bookingRevenue($b, $club->id);
+            $manager = $this->managerName($b->booked_by, $names) ?: 'Не указан';
+
+            $rows[] = [
+                $this->parseDate($b->date)->format('d.m.Y'),
+                Carbon::parse($b->start_time)->format('H:i')
+                    . '–' . Carbon::parse($b->end_time)->format('H:i'),
+                $b->court->name ?? '',
+                $b->client_name ?? '',
+                $b->client_phone ?? '',
+                round($amount, 2),
+                round((float) $b->discount, 2),
+                self::PAYMENT_LABELS[$b->payment_method ?? ''] ?? ($b->payment_method ?: 'Не указан'),
+                (string) ($b->transaction_number ?? ''),
+                $manager,
+            ];
+
+            $byManager[$manager] ??= ['count' => 0, 'sum' => 0.0];
+            $byManager[$manager]['count']++;
+            $byManager[$manager]['sum'] += $amount;
+            $total += $amount;
+            $totalDiscount += (float) $b->discount;
+        }
+
+        $totals = ['Итого', '', '', '', '', round($total, 2), round($totalDiscount, 2), '', '', ''];
+
+        // Свод по менеджерам — отдельным блоком под таблицей, жирными строками:
+        // в одном отчёте видно и каждую бронь, и кто сколько сделал.
+        $boldRows = [];
+        if ($byManager) {
+            arsort($byManager);
+            $rows[] = array_fill(0, 10, '');
+            $boldRows[] = count($rows);
+            $rows[] = ['По менеджерам', '', '', '', '', 'Сумма', 'Броней', '', '', ''];
+            foreach ($byManager as $manager => $data) {
+                $rows[] = [$manager, '', '', '', '', round($data['sum'], 2), $data['count'], '', '', ''];
+            }
+        }
+
+        return new ReportSheet(
+            title: 'Оплаченные брони',
+            headings: ['Дата', 'Время', 'Корт', 'Клиент', 'Телефон', 'Сумма', 'Скидка', 'Оплата', '№ транзакции', 'Менеджер'],
+            rows: $rows,
+            totals: $totals,
+            columnFormats: [4 => '@', 5 => '#,##0', 6 => '#,##0', 8 => '@'],
+            boldRows: $boldRows ?: null,
         );
     }
 }
