@@ -39,6 +39,7 @@ class PaidBookingsReportTest extends TestCase
             'open_time' => '08:00', 'close_time' => '22:00', 'slot_duration' => 60,
         ]);
         $this->manager = User::factory()->create(['role' => 'club_moderator', 'name' => 'Асель М.']);
+        $this->manager->moderatorClubs()->attach($this->club->id);
     }
 
     private function booking(array $attrs = []): CourtBooking
@@ -91,6 +92,7 @@ class PaidBookingsReportTest extends TestCase
     public function test_видно_кто_из_менеджеров_провёл(): void
     {
         $other = User::factory()->create(['role' => 'club_moderator', 'name' => 'Дана К.']);
+        $other->moderatorClubs()->attach($this->club->id);
 
         $this->booking(['price' => 12000]);
         $this->booking(['price' => 3000, 'start_time' => '11:00', 'end_time' => '12:00', 'booked_by' => $other->id]);
@@ -176,6 +178,21 @@ class PaidBookingsReportTest extends TestCase
         $sheet = $this->sheet();
 
         $this->assertSame(10000.0, $sheet->totals[5]);
+    }
+
+    public function test_бронь_клиента_из_приложения_не_записывается_на_менеджера(): void
+    {
+        // Клиент забронировал себе сам: в booked_by лежит его аккаунт, но
+        // сотрудником клуба он не является.
+        $client = User::factory()->create(['role' => 'user', 'name' => 'Андрей Малафеев']);
+
+        $this->booking(['price' => 26000, 'client_name' => 'Андрей Малафеев', 'booked_by' => $client->id]);
+        $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']);
+
+        $sheet = $this->sheet();
+
+        $this->assertSame('Приложение', $sheet->rows[0][9]);
+        $this->assertSame('Асель М.', $sheet->rows[1][9]);
     }
 
     public function test_способ_оплаты_пишем_по_русски(): void

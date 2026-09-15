@@ -184,8 +184,9 @@ class FinanceReportService
      *   продажи карты, и она в отчёте уже есть — иначе одна сумма считалась бы
      *   дважды.
      *
-     * Онлайн-оплата записана на «Приложение»: платит сам клиент, сотрудник к
-     * этому не причастен.
+     * В колонке продавца — только сотрудники клуба. Если бронь создал не
+     * сотрудник (клиент сам через приложение) или оплата прошла онлайн, пишем
+     * «Приложение»: иначе в своде «менеджеров» оказывались сами клиенты.
      *
      * Под таблицей — свод: кто сколько продал.
      */
@@ -193,6 +194,7 @@ class FinanceReportService
     {
         $names = [];
         $entries = [];
+        $staff = $this->staffIds($club);
 
         $bookings = $this->confirmed($club, $from, $to)
             ->where('is_paid', true)
@@ -203,9 +205,7 @@ class FinanceReportService
             $entries[] = [
                 'date' => $this->parseDate($b->date),
                 'amount' => $this->bookingRevenue($b, $club->id),
-                'seller' => $b->payment_method === 'plexy'
-                    ? 'Приложение'
-                    : ($this->managerName($b->booked_by, $names) ?: 'Не указан'),
+                'seller' => $this->seller($b->booked_by, $b->payment_method, $staff, $names),
                 'row' => [
                     $this->parseDate($b->date)->format('d.m.Y'),
                     Carbon::parse($b->start_time)->format('H:i')
@@ -228,7 +228,7 @@ class FinanceReportService
             $entries[] = [
                 'date' => $issued,
                 'amount' => $price,
-                'seller' => $this->managerName($card->issued_by, $names) ?: 'Не указан',
+                'seller' => $this->seller($card->issued_by, null, $staff, $names),
                 'row' => [
                     $issued->format('d.m.Y'),
                     $issued->format('H:i'),
@@ -288,6 +288,42 @@ class FinanceReportService
             columnFormats: [4 => '@', 5 => '#,##0', 6 => '#,##0', 8 => '@'],
             boldRows: $boldRows ?: null,
         );
+    }
+
+    /**
+     * Кого писать продавцом: сотрудника клуба или «Приложение».
+     *
+     * Бронь из приложения создаёт сам клиент, и его id лежит в booked_by —
+     * без этой проверки клиенты попадали в свод как менеджеры.
+     *
+     * @param array<int, true> $staff
+     */
+    private function seller(?int $userId, ?string $paymentMethod, array $staff, array &$names): string
+    {
+        if ($paymentMethod === 'plexy') {
+            return 'Приложение';
+        }
+        if ($userId === null) {
+            return 'Не указан';
+        }
+
+        return isset($staff[$userId])
+            ? ($this->managerName($userId, $names) ?: 'Не указан')
+            : 'Приложение';
+    }
+
+    /**
+     * Сотрудники клуба: администраторы и менеджеры.
+     *
+     * @return array<int, true>
+     */
+    private function staffIds(Club $club): array
+    {
+        return $club->admins()->pluck('users.id')
+            ->merge($club->moderators()->pluck('users.id'))
+            ->unique()
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
     }
 
     /**
