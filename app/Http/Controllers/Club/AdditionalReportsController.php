@@ -107,6 +107,13 @@ class AdditionalReportsController extends Controller
         $query = \App\Models\CourtBooking::whereIn('court_id', $club->courts()->pluck('id'))
             ->where('status', 'confirmed')
             ->where('is_paid', false)
+            // Групповые и турнирные брони — не долг клиента: за группу платят
+            // пакетами участников, за турнир — взносами. В разговоре «за что вы
+            // должны» им нечего делать. NULL — старые брони без типа, они личные.
+            ->where(function ($q) {
+                $q->whereNull('booking_type')
+                    ->orWhereNotIn('booking_type', ['group', 'tournament']);
+            })
             ->with(['court', 'coach'])
             ->orderBy('date')->orderBy('start_time');
 
