@@ -89,15 +89,17 @@ class GroupSessionService
             return;
         }
 
-        // У группы может быть своя ставка «за клиента» — тогда часы не при чём.
-        // Считаем по факту прихода: сколько человек было на корте, включая
-        // пробных гостей. Посещаемость к этому моменту уже записана.
+        // У группы может быть своя ставка «за клиента». Считаем по факту прихода:
+        // сколько человек было на корте, включая пробных гостей. Посещаемость к
+        // этому моменту уже записана. Если у группы цена за час, ставка тренера
+        // тоже умножается на длительность — единица у них общая.
         $group = $session->group;
-        if ($group && $group->coach_price_per_client !== null) {
+        $perClient = $group?->coachPriceForHours($session->hours());
+        if ($perClient !== null) {
             $attended = ClubGroupAttendance::where('session_id', $session->id)
                 ->where('attended', true)
                 ->count();
-            $booking->update(['coach_price' => (float) $group->coach_price_per_client * $attended]);
+            $booking->update(['coach_price' => $perClient * $attended]);
 
             return;
         }

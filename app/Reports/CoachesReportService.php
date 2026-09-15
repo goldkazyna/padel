@@ -276,7 +276,8 @@ class CoachesReportService
 
         $map = [];
         foreach ($sessions as $session) {
-            $rate = $session->group?->coach_price_per_client;
+            // Ставка за клиента; у групп с ценой за час — умноженная на длительность.
+            $rate = $session->group?->coachPriceForHours($session->hours());
             if ($rate === null) {
                 continue;
             }
@@ -288,7 +289,7 @@ class CoachesReportService
                 : $session->group->members->count();
 
             $map[(int) $session->court_booking_id] = [
-                'rate' => (float) $rate,
+                'rate' => $rate,
                 'people' => $people,
             ];
         }

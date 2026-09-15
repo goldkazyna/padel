@@ -107,6 +107,27 @@ class GroupPriceByHourTest extends TestCase
         $this->assertSame(20000.0, $service->sessionRevenue($this->lesson($bySession, '13:00', '15:00')));
     }
 
+    public function test_ставка_тренера_за_клиента_считается_той_же_единицей(): void
+    {
+        $byHour = $this->group(ClubGroup::PRICE_UNIT_HOUR);
+        $byHour->update(['coach_price_per_client' => 2700]);
+
+        $this->assertSame(2700.0, $byHour->coachPriceForHours(1));
+        $this->assertSame(5400.0, $byHour->coachPriceForHours(2), 'за два часа — вдвое');
+
+        $bySession = $this->group(ClubGroup::PRICE_UNIT_SESSION);
+        $bySession->update(['coach_price_per_client' => 2700]);
+
+        $this->assertSame(2700.0, $bySession->coachPriceForHours(2), 'за занятие — сколько задали');
+    }
+
+    public function test_без_ставки_за_клиента_платим_по_часовой(): void
+    {
+        $group = $this->group(ClubGroup::PRICE_UNIT_HOUR);
+
+        $this->assertNull($group->coachPriceForHours(2), 'пусто — считает вызывающий код');
+    }
+
     public function test_занятие_через_полночь_считает_часы_вперёд(): void
     {
         $group = $this->group(ClubGroup::PRICE_UNIT_HOUR);

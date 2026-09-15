@@ -62,6 +62,25 @@ class ClubGroup extends Model
         return $this->chargesByHour() ? $price * max($hours, 0) : $price;
     }
 
+    /**
+     * Сколько тренер получает за одного пришедшего на занятие такой длительности.
+     *
+     * Единица та же, что у цены для клиента: если клуб берёт с людей по часам,
+     * то и тренеру за двухчасовое занятие платится вдвое — иначе он ведёт вдвое
+     * дольше за те же деньги. null — ставка за клиента не задана, платим по
+     * часовой групповой ставке тренера.
+     */
+    public function coachPriceForHours(float $hours): ?float
+    {
+        if ($this->coach_price_per_client === null) {
+            return null;
+        }
+
+        $price = (float) $this->coach_price_per_client;
+
+        return $this->chargesByHour() ? $price * max($hours, 0) : $price;
+    }
+
     /** «за час» / «за занятие» — подпись рядом с ценой. */
     public function priceUnitLabel(): string
     {
