@@ -90,7 +90,7 @@
             <div class="gc-mid">
                 <div class="gc-info">
                     @if($cm)<span class="gc-coach-name">{{ $cm['name'] }}</span>@else<span class="gc-muted">без тренера</span>@endif
-                    @if($group->price_per_session > 0)<span class="gc-sep">·</span><span class="gc-muted">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸ / занятие</span>@endif
+                    @if($group->price_per_session > 0)<span class="gc-sep">·</span><span class="gc-muted">{{ number_format($group->price_per_session, 0, '.', ' ') }} ₸ / {{ $group->chargesByHour() ? 'час' : 'занятие' }}</span>@endif
                 </div>
                 <div class="gc-count {{ $full ? 'full' : '' }}">{{ $group->active_members_count }}@if($group->capacity)/{{ $group->capacity }}@endif</div>
             </div>
@@ -168,9 +168,17 @@
 
                 <div class="form-row-2">
                     <div class="form-group">
-                        <label class="form-label">Цена занятия для клиента (₸)</label>
+                        <label class="form-label">Цена для клиента (₸)</label>
                         <input type="number" name="price_per_session" class="form-input" min="0" step="1"
                                placeholder="0" value="{{ old('price_per_session') }}">
+                        <select name="price_unit" class="form-input" style="margin-top:8px;">
+                            <option value="session" {{ old('price_unit') === 'hour' ? '' : 'selected' }}>за занятие</option>
+                            <option value="hour" {{ old('price_unit') === 'hour' ? 'selected' : '' }}>за час</option>
+                        </select>
+                        <div class="field-hint">
+                            «За час» нужен группам со смешанным расписанием: двухчасовое
+                            занятие тогда стоит вдвое дороже часового.
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Макс. участников</label>

@@ -824,6 +824,7 @@
                                     return [$g->id => [
                                         'coach_id' => $g->coach_id,
                                         'price' => (float) $g->price_per_session,
+                                        'per_hour' => $g->chargesByHour(),
                                         'members' => $g->members->map(function ($m) use ($gmFreezeDate) {
                                             $bought = (int) $m->enrollments->sum('sessions');
                                             $used = (int) $m->attendance->where('charged', true)->count();
@@ -1329,6 +1330,7 @@
         if (selectedCert.book) applyCertPricing('book');
         // Пересчёт цены тренера под новую длительность.
         recalcBookCoachPrice();
+        refreshBookGroupPrice();
     }
 
     // Пересчитать цену тренера = ставка × длительность (если тренер выбран).
@@ -2118,6 +2120,7 @@
             if (rate > 0 && priceInp) priceInp.value = Math.round(rate * slots);
         });
         updateEditFinalPrice();
+        if (window.__editGroupData) renderEditGroup(window.__editGroupData);
     }
 
     function parseTimeToMinutes(t) {
@@ -2504,6 +2507,41 @@
         const cardWrap = document.getElementById('bookCardWrap');
         if (cardWrap) cardWrap.style.display = (!hideClientFields && (cardCache.book || []).length) ? '' : 'none';
     }
+    // Цена занятия в модалке. У групп с ценой за час она зависит от длительности
+    // брони: двухчасовое занятие стоит вдвое дороже часового.
+    function groupPriceHtml(g, cnt, hours) {
+        const base = Number((g && g.price) || 0);
+        if (!(base > 0)) {
+            return '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
+        }
+        const perHour = !!(g && g.per_hour);
+        const perPerson = perHour ? base * (hours || 1) : base;
+        const fmt = n => new Intl.NumberFormat('ru-RU').format(Math.round(n));
+        const calc = fmt(perPerson) + ' ₸ × ' + cnt
+            + (perHour ? ', ' + fmt(base) + ' ₸/час' : '');
+
+        return 'Цена занятия: <b style="color:#22c55e;">' + fmt(perPerson * cnt) + ' ₸</b>'
+            + ' <span style="color:#71717a;">(' + calc + ')</span>';
+    }
+
+    // Длительность брони в часах — нужна цене группы «за час».
+    function bookGroupHours() {
+        return (typeof currentBook === 'object' && currentBook.duration) ? currentBook.duration : 1;
+    }
+
+    function editGroupHours() {
+        const slots = parseInt(document.getElementById('editSlots')?.value) || 1;
+        const slotDur = (typeof currentEdit === 'object' && currentEdit && currentEdit.slotDuration) || 60;
+
+        return slots * slotDur / 60;
+    }
+
+    // Длительность изменили — цена группы могла поехать, перерисуем её.
+    function refreshBookGroupPrice() {
+        const sel = document.getElementById('bookGroupSelect');
+        if (sel && sel.value) renderGroupMembers(sel.value);
+    }
+
     function renderGroupMembers(groupId) {
         const block = document.getElementById('groupMembersBlock');
         const list = document.getElementById('gmList');
@@ -2532,13 +2570,8 @@
         }
         const data = (window.__groupMembers && window.__groupMembers[groupId]) || { coach_id: null, members: [] };
         if (priceEl) {
-            const p = Number(data.price || 0);
-            const cnt = (data.members || []).length;
-            const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
             priceEl.style.display = 'block';
-            priceEl.innerHTML = p > 0
-                ? 'Цена занятия: <b style="color:#22c55e;">' + fmt(p * cnt) + ' ₸</b> <span style="color:#71717a;">(' + fmt(p) + ' ₸ × ' + cnt + ')</span>'
-                : '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
+            priceEl.innerHTML = groupPriceHtml(data, (data.members || []).length, bookGroupHours());
         }
         const members = data.members || [];
         block.style.display = 'block';
@@ -2686,15 +2719,12 @@
                 schedLink.style.display = 'none';
             }
         }
+        // Запоминаем бронь: при смене длительности цену группы надо перерисовать.
+        window.__editGroupData = data;
         const priceEl = document.getElementById('editGmPrice');
         if (priceEl) {
-            const p = Number((g && g.price) || 0);
-            const cnt = members.length;
-            const fmt = n => new Intl.NumberFormat('ru-RU').format(n);
             priceEl.style.display = 'block';
-            priceEl.innerHTML = p > 0
-                ? 'Цена занятия: <b style="color:#22c55e;">' + fmt(p * cnt) + ' ₸</b> <span style="color:#71717a;">(' + fmt(p) + ' ₸ × ' + cnt + ')</span>'
-                : '<span style="color:#71717a;">Цена занятия не задана в группе</span>';
+            priceEl.innerHTML = groupPriceHtml(g, members.length, editGroupHours());
         }
         if (count) count.textContent = members.length ? members.length : '';
         if (!members.length) {

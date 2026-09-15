@@ -100,7 +100,8 @@
                                 @foreach($cell as $s)
                                     @php
                                         $cm = $coachMeta[$s->coach_id] ?? null;
-                                        $price = (float) ($s->group->price_per_session ?? 0);
+                                        // Цена с человека за это занятие: у групп «за час» зависит от длительности.
+                                        $price = (float) ($s->group?->priceForHours($s->hours()) ?? 0);
                                         $isHeld = $s->status === 'held';
                                         $sessionSum = $isHeld ? $s->charged_count * $price : null;
                                         $rate = $cm['rate_group'] ?? null;

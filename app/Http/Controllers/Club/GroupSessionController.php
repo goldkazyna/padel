@@ -50,7 +50,7 @@ class GroupSessionController extends Controller
         // Занятия недели
         $sessions = ClubGroupSession::where($filters)
             ->whereBetween('date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
-            ->with(['group:id,name,price_per_session', 'court:id,name', 'coach:id,name,first_name,last_name'])
+            ->with(['group:id,name,price_per_session,price_unit', 'court:id,name', 'coach:id,name,first_name,last_name'])
             ->withCount([
                 'attendance as attended_count' => fn($q) => $q->where('attended', true),
                 'attendance as absent_count' => fn($q) => $q->where('attended', false),

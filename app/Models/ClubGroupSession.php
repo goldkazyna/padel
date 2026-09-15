@@ -20,6 +20,23 @@ class ClubGroupSession extends Model
         'held_at' => 'datetime',
     ];
 
+    /**
+     * Длительность занятия в часах — по времени начала и конца.
+     *
+     * Занятие через полночь считаем как переход на следующий день, иначе
+     * «23:00–00:30» давало бы отрицательные часы.
+     */
+    public function hours(): float
+    {
+        $start = Carbon::parse(substr((string) $this->start_time, 0, 5));
+        $end = Carbon::parse(substr((string) $this->end_time, 0, 5));
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        return $start->diffInMinutes($end) / 60;
+    }
+
     public function group() { return $this->belongsTo(ClubGroup::class, 'group_id'); }
     public function court() { return $this->belongsTo(Court::class, 'court_id'); }
     public function coach() { return $this->belongsTo(User::class, 'coach_id'); }

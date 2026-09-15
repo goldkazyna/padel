@@ -911,9 +911,11 @@ class CourtController extends Controller
             $validated['is_paid'] = false;
             $validated['discount'] = 0;
             $validated['custom_price'] = 0;
-            // Цена групповой брони = цена занятия (на участника) × число активных участников.
+            // Цена групповой брони = цена с участника × число активных участников.
+            // У группы с ценой за час она ещё умножается на длительность брони.
+            $groupHours = ($validated['slots'] * $court->slot_duration) / 60;
             $groupSessionPrice = $group
-                ? (float) $group->price_per_session * $group->members()->where('status', 'active')->count()
+                ? $group->priceForHours($groupHours) * $group->members()->where('status', 'active')->count()
                 : 0.0;
             $linkedUser = null;
         } elseif ($isTournamentBooking) {
@@ -1791,9 +1793,12 @@ class CourtController extends Controller
             ]);
 
             if ($grp) {
-                // Пересчёт цены групповой брони = цена занятия × число активных участников.
+                // Пересчёт цены групповой брони = цена с участника × число активных.
+                // Длительность важна, если у группы цена за час: время брони
+                // здесь только что могли изменить.
                 $booking->update([
-                    'price' => (float) $grp->price_per_session * $grp->members()->where('status', 'active')->count(),
+                    'price' => $grp->priceForHours($linkedSession->fresh()->hours())
+                        * $grp->members()->where('status', 'active')->count(),
                 ]);
 
                 // В журнал — только если что-то реально изменилось, с деталями в тексте.

@@ -70,17 +70,18 @@ class ClubIncomeReportService
             $clubCard += $this->bookingHours($b) * ($price / $nominal);
         }
 
-        // 3) Групповые — проведённые занятия × списанные участники × цена занятия.
+        // 3) Групповые — проведённые занятия × списанные участники × цена с человека
+        //    (у групп с ценой за час она умножается на длительность занятия).
         $group = 0.0;
         $sessions = ClubGroupSession::whereIn('court_id', $courtIds)
             ->where('status', 'held')
             ->whereDate('date', '>=', $fromD)
             ->whereDate('date', '<=', $toD)
             ->withCount(['attendance as charged_count' => fn($q) => $q->where('charged', true)])
-            ->with('group:id,price_per_session')
+            ->with('group:id,price_per_session,price_unit')
             ->get();
         foreach ($sessions as $s) {
-            $group += (int) $s->charged_count * (float) ($s->group->price_per_session ?? 0);
+            $group += (int) $s->charged_count * (float) ($s->group?->priceForHours($s->hours()) ?? 0);
         }
 
         // 4) Выплаты тренерам (расход) — за групповые и за индивидуальные.

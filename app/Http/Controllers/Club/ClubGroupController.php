@@ -200,6 +200,7 @@ class ClubGroupController extends Controller
             'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
+            'price_unit' => 'nullable|in:session,hour',
             'coach_price_per_client' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
@@ -213,6 +214,7 @@ class ClubGroupController extends Controller
             ? (float) $request->input('coach_price_per_client')
             : null;
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
+        $validated['price_unit'] = $validated['price_unit'] ?? ClubGroup::PRICE_UNIT_SESSION;
 
         $group = ClubGroup::create($validated);
         \App\Models\ActivityLog::logGroup($group->id, 'created', 'ClubGroup', $group->id,
@@ -269,6 +271,7 @@ class ClubGroupController extends Controller
             'type' => 'nullable|in:subscription,trial',
             'coach_id' => 'nullable|exists:users,id',
             'price_per_session' => 'nullable|numeric|min:0',
+            'price_unit' => 'nullable|in:session,hour',
             'coach_price_per_client' => 'nullable|numeric|min:0',
             'capacity' => 'nullable|integer|min:1|max:100',
             'note' => 'nullable|string|max:1000',
@@ -277,6 +280,7 @@ class ClubGroupController extends Controller
             'type.in' => 'Выберите вид группы: абонемент или пробная',
         ]);
         $validated['price_per_session'] = $validated['price_per_session'] ?? 0;
+        $validated['price_unit'] = $validated['price_unit'] ?? ClubGroup::PRICE_UNIT_SESSION;
         $validated['coach_price_per_client'] = $request->filled('coach_price_per_client')
             ? (float) $request->input('coach_price_per_client')
             : null;
@@ -285,6 +289,7 @@ class ClubGroupController extends Controller
         $labels = [
             'name' => 'Название', 'type' => 'Вид группы', 'coach_id' => 'Тренер',
             'price_per_session' => 'Цена занятия',
+            'price_unit' => 'Единица цены',
             'coach_price_per_client' => 'Цена тренеру за клиента',
             'capacity' => 'Вместимость', 'note' => 'Заметка', 'status' => 'Статус',
         ];
@@ -294,7 +299,17 @@ class ClubGroupController extends Controller
             $old = $group->getOriginal($field);
             $new = $validated[$field];
             if ((string) $old === (string) $new) continue;
-            $fmt = fn($v) => $field === 'coach_id' ? (optional(\App\Models\User::find($v))->full_name ?? '—') : ($v === null || $v === '' ? '—' : $v);
+            $fmt = function ($v) use ($field) {
+                if ($field === 'coach_id') {
+                    return optional(\App\Models\User::find($v))->full_name ?? '—';
+                }
+                // «session/hour» в журнале читается как техническая деталь.
+                if ($field === 'price_unit') {
+                    return $v === ClubGroup::PRICE_UNIT_HOUR ? 'за час' : 'за занятие';
+                }
+
+                return $v === null || $v === '' ? '—' : $v;
+            };
             $changes[$label] = ['old' => $fmt($old), 'new' => $fmt($new)];
         }
 
