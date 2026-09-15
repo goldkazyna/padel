@@ -1981,6 +1981,200 @@ class CourtController extends Controller
         return back()->with('success', 'Бронирование отменено');
     }
 
+    /**
+     * Куда можно перенести бронь: свободное время на каждом корте клуба.
+     *
+     * GET /club/courts/bookings/{booking}/transfer-slots?date=YYYY-MM-DD
+     *
+     * Длительность сохраняем — переносим ту же бронь, а не создаём новую.
+     * Саму себя бронь не занимает: перенос «на час раньше на том же корте»
+     * должен быть возможен.
+     */
+    public function transferSlots(Request $request, \App\Models\CourtBooking $booking)
+    {
+        $club = $this->getClub();
+        if (!$club || $booking->court?->club_id !== $club->id) {
+            return response()->json(['courts' => []], 403);
+        }
+
+        $date = $request->validate(['date' => 'required|date'])['date'];
+        $minutes = $this->bookingMinutes($booking);
+
+        $courts = [];
+        foreach ($club->courts()->orderBy('sort_order')->orderBy('id')->get() as $court) {
+            $slots = [];
+            foreach ($this->scheduleService->generateTimeSlots($court, $date) as $slot) {
+                $start = $slot['time'] ?? $slot['start_time'] ?? null;
+                if (!$start) {
+                    continue;
+                }
+
+                $end = Carbon::parse($start)->addMinutes($minutes)->format('H:i');
+                $slots[] = [
+                    'time' => substr($start, 0, 5),
+                    'end' => $end,
+                    'free' => $this->scheduleService->canBook($court, $date, substr($start, 0, 5), $end, $booking->id),
+                ];
+            }
+
+            $courts[] = [
+                'id' => $court->id,
+                'name' => $court->name,
+                'slots' => $slots,
+                'free_count' => count(array_filter($slots, fn ($x) => $x['free'])),
+            ];
+        }
+
+        return response()->json([
+            'duration' => $minutes,
+            'current' => [
+                'court_id' => $booking->court_id,
+                'date' => $booking->date->format('Y-m-d'),
+                'time' => substr((string) $booking->start_time, 0, 5),
+            ],
+            'courts' => $courts,
+        ]);
+    }
+
+    /**
+     * Перенести бронь на другую дату, корт и время.
+     *
+     * POST /club/courts/bookings/{booking}/transfer
+     *
+     * Цену не пересчитываем: это перенос той же брони, а не новая продажа.
+     * Если у корта другой тариф, менеджер поправит цену в карточке отдельно —
+     * молча менять уже принятые деньги нельзя.
+     */
+    public function transferBooking(Request $request, \App\Models\CourtBooking $booking)
+    {
+        $club = $this->getClub();
+        if (!$club || $booking->court?->club_id !== $club->id) {
+            return back()->with('error', 'Нет доступа');
+        }
+        if ($booking->status !== 'confirmed') {
+            return back()->with('error', 'Отменённую бронь переносить нечего');
+        }
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'court_id' => 'required|integer',
+            'start_time' => 'required|date_format:H:i',
+        ], [
+            'court_id.required' => 'Выберите корт',
+            'start_time.required' => 'Выберите время',
+        ]);
+
+        $target = Court::where('club_id', $club->id)->find($validated['court_id']);
+        if (!$target) {
+            return back()->with('error', 'Корт не найден');
+        }
+
+        $minutes = $this->bookingMinutes($booking);
+        $endTime = Carbon::parse($validated['start_time'])->addMinutes($minutes)->format('H:i');
+
+        if (!$this->scheduleService->canBook($target, $validated['date'], $validated['start_time'], $endTime, $booking->id)) {
+            return back()->with('error', 'На это время корт занят — выберите другое');
+        }
+
+        $was = $booking->court?->name . ', ' . $booking->date->format('d.m.Y') . ' '
+            . substr((string) $booking->start_time, 0, 5);
+
+        $booking->update([
+            'court_id' => $target->id,
+            'date' => $validated['date'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $endTime,
+        ]);
+
+        // Занятие группы живёт вместе с бронью: иначе журнал покажет старое
+        // время, а расписание — новое.
+        $session = \App\Models\ClubGroupSession::where('court_booking_id', $booking->id)->first();
+        if ($session) {
+            $session->update([
+                'court_id' => $target->id,
+                'date' => $validated['date'],
+                'start_time' => $validated['start_time'],
+                'end_time' => $endTime,
+            ]);
+        }
+
+        $now = $target->name . ', ' . Carbon::parse($validated['date'])->format('d.m.Y') . ' ' . $validated['start_time'];
+        $description = "Перенос брони: {$booking->client_name} — {$was} → {$now}";
+
+        \App\Models\ActivityLog::log('updated', 'CourtBooking', $booking->id, $description, [
+            'transfer' => ['from' => $was, 'to' => $now],
+        ]);
+
+        if ($session) {
+            \App\Models\ActivityLog::logGroup($session->group_id, 'updated', 'ClubGroupSession', $session->id,
+                "Занятие перенесено вместе с бронью: {$was} → {$now}", clubId: $club->id);
+        }
+
+        $this->notifyTransfer($booking, $club, $was, $now);
+
+        return redirect()
+            ->route('club.courts.schedule', ['date' => $validated['date']])
+            ->with('success', 'Бронь перенесена: ' . $now);
+    }
+
+    /** Длительность брони в минутах (через полночь — на следующий день). */
+    private function bookingMinutes(\App\Models\CourtBooking $booking): int
+    {
+        $start = Carbon::parse($booking->start_time);
+        $end = Carbon::parse($booking->end_time);
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        return (int) $start->diffInMinutes($end);
+    }
+
+    /** Сообщить клубу и клиенту, что бронь переехала. */
+    private function notifyTransfer(\App\Models\CourtBooking $booking, \App\Models\Club $club, string $was, string $now): void
+    {
+        \App\Services\ClubTelegramNotifier::send(
+            $club,
+            "🔀 <b>Бронь перенесена</b>\n" . e($club->name) . "\n"
+            . 'Клиент: ' . e(trim((string) $booking->client_name) ?: '—') . "\n"
+            . e($was) . ' → ' . e($now),
+        );
+
+        if (!$booking->booked_by) {
+            return;
+        }
+
+        $userId = $booking->booked_by;
+        $bookingId = $booking->id;
+
+        app()->terminating(function () use ($userId, $bookingId, $now) {
+            try {
+                $user = \App\Models\User::find($userId);
+                if (!$user) {
+                    return;
+                }
+
+                $title = 'Бронь перенесена 🔀';
+                $body = $now;
+
+                \App\Models\Notification::create([
+                    'user_id' => $user->id,
+                    'title' => $title,
+                    'body' => $body,
+                    'type' => 'booking_transferred',
+                    'category' => 'booking',
+                    'data' => ['booking_id' => $bookingId],
+                ]);
+
+                app(\App\Services\FCMNotificationService::class)->sendToUser($user, $title, $body, [
+                    'type' => 'booking_transferred',
+                    'booking_id' => (string) $bookingId,
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Push booking transferred error: ' . $e->getMessage());
+            }
+        });
+    }
+
     // === Блокировка ===
 
     public function blockSlot(Request $request, Court $court)

@@ -1178,7 +1178,12 @@
                         <button type="button" class="btn-cancel" data-bs-dismiss="modal">Закрыть</button>
                         <button type="submit" class="btn-confirm">Сохранить</button>
                     </div>
-                    <button type="button" class="btn-danger" style="width: 100%;" id="cancelBookingBtn" onclick="cancelBooking()">Отменить бронь</button>
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <button type="button" class="btn-transfer" id="transferBookingBtn" onclick="openTransfer(window.__editBookingData)">
+                            <i class="bi bi-arrow-left-right"></i>Перенести
+                        </button>
+                        <button type="button" class="btn-danger" style="flex: 1;" id="cancelBookingBtn" onclick="cancelBooking()">Отменить бронь</button>
+                    </div>
                 </div>
             </form>
             <form id="cancelBookingForm" method="POST" style="display:none;">
@@ -1188,6 +1193,8 @@
         </div>
     </div>
 </div>
+
+@include('club.courts.partials._transfer_modal')
 
 <!-- Причина отмены групповой брони -->
 <div id="cancelBookingReasonModal" class="gcancel-modal" style="display:none;">
@@ -1982,6 +1989,8 @@
             editCoachPrice.value = '';
         }
 
+        // Перенос работает с той же бронью, что открыта в карточке.
+        window.__editBookingData = data;
         document.getElementById('editBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id;
         document.getElementById('cancelBookingForm').action = '{{ url("club/courts/bookings") }}/' + data.id + '/cancel';
         window._viewHasCert = !!data.hasCertificate;

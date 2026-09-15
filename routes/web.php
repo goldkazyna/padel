@@ -541,6 +541,9 @@ Route::middleware(['auth', 'shift.open'])->group(function () {
             Route::get('/courts/{court}/availability', [CourtController::class, 'availability'])->name('courts.availability');
             Route::post('/courts/bookings/{booking}/cancel', [CourtController::class, 'cancelBooking'])->name('courts.cancelBooking');
             Route::put('/courts/bookings/{booking}', [CourtController::class, 'updateBooking'])->name('courts.updateBooking');
+            // Перенос брони: сначала спрашиваем свободное время, потом двигаем.
+            Route::get('/courts/bookings/{booking}/transfer-slots', [CourtController::class, 'transferSlots'])->name('courts.transferSlots');
+            Route::post('/courts/bookings/{booking}/transfer', [CourtController::class, 'transferBooking'])->name('courts.transferBooking');
             Route::post('/courts/{court}/block', [CourtController::class, 'blockSlot'])->name('courts.blockSlot');
             Route::delete('/courts/blocks/{block}', [CourtController::class, 'unblock'])->name('courts.unblock');
             Route::put('/courts/blocks/{block}', [CourtController::class, 'updateBlock'])->name('courts.updateBlock');
