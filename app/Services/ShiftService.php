@@ -101,6 +101,9 @@ class ShiftService
 
         $shift->loadMissing(['club', 'user']);
         $this->notify($shift, $shift->club, $shift->user, 'closing');
+
+        // Отчёт по оплаченным броням за день — если клуб его включил.
+        app(ShiftReportSender::class)->sendForShift($shift);
     }
 
     /**

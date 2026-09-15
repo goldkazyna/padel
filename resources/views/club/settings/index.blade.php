@@ -190,6 +190,16 @@
                 </span>
             </label>
 
+            <label class="settings-toggle-row">
+                <input type="hidden" name="shift_report_enabled" value="0">
+                <input type="checkbox" name="shift_report_enabled" value="1"
+                       {{ old('shift_report_enabled', $club->shift_report_enabled) ? 'checked' : '' }}>
+                <span class="settings-toggle-text">
+                    <span class="settings-toggle-title">Отчёт по оплаченным броням после закрытия смены</span>
+                    <small class="form-hint">При закрытии смены бот пришлёт PDF за этот день: все оплаченные брони и продажи карт с менеджерами и суммой.</small>
+                </span>
+            </label>
+
             <div class="form-group" style="margin-top:6px">
                 <label class="form-label">Токен бота</label>
                 <input type="text" name="telegram_bot_token" class="form-input" autocomplete="off"

@@ -37,6 +37,35 @@ class ClubTelegramNotifier
     }
 
     /**
+     * Отправить файл всем получателям клуба (например, PDF-отчёт за день).
+     *
+     * Документ шлём тем же ботом: отдельный канал доставки заводить незачем,
+     * а в чате отчёт сразу открывается с телефона.
+     */
+    public static function sendDocument(Club $club, string $filename, string $contents, string $caption = ''): void
+    {
+        if (!$club->telegramNotifyReady()) {
+            return;
+        }
+        $token = $club->telegram_bot_token;
+        foreach ($club->telegramChatIds() as $chatId) {
+            try {
+                Http::timeout(30)
+                    ->attach('document', $contents, $filename)
+                    ->post("https://api.telegram.org/bot{$token}/sendDocument", [
+                        'chat_id' => $chatId,
+                        'caption' => $caption,
+                        'parse_mode' => 'HTML',
+                    ]);
+            } catch (\Throwable $e) {
+                Log::warning('ClubTelegramNotifier: файл не отправлен', [
+                    'club' => $club->id, 'chat' => $chatId, 'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
      * Уведомление о брони. $kind: 'new' | 'cancel'.
      * В сообщении: имя, телефон, id игрока в приложении.
      */

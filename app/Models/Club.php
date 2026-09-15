@@ -50,6 +50,7 @@ class Club extends Model
         'telegram_bot_token',
         'telegram_notify_enabled',
         'telegram_chat_ids',
+        'shift_report_enabled',
         'waiver_enabled',
         'waiver_text',
     ];
@@ -124,6 +125,7 @@ class Club extends Model
         'moderators_can_view_reports' => 'boolean',
         'require_transaction_number' => 'boolean',
         'telegram_notify_enabled' => 'boolean',
+        'shift_report_enabled' => 'boolean',
         'features' => 'array',
         'waiver_enabled' => 'boolean',
     ];

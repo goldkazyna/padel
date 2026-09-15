@@ -48,6 +48,8 @@ class AccountController extends Controller
             // Telegram-уведомления о бронях.
             'telegram_notify_enabled' => $request->boolean('telegram_notify_enabled'),
             'telegram_chat_ids' => trim((string) $request->input('telegram_chat_ids')) ?: null,
+            // PDF по оплаченным броням в Telegram после закрытия смены.
+            'shift_report_enabled' => $request->boolean('shift_report_enabled'),
         ];
         // Токен бота: пустое поле — не затираем существующий.
         $botToken = trim((string) $request->input('telegram_bot_token'));
