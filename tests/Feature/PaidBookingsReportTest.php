@@ -263,6 +263,16 @@ class PaidBookingsReportTest extends TestCase
         $this->assertSame('Приложение', $this->sheet()->rows[0][9]);
     }
 
+    public function test_бронь_из_crm_с_онлайн_оплатой_тоже_приложение(): void
+    {
+        // Бронь завёл сотрудник, но деньги пришли через шлюз по ссылке —
+        // принимал их не он.
+        $booking = $this->booking(['price' => 52000, 'payment_method' => 'plexy']);
+        $this->logCreated($booking, $this->manager);
+
+        $this->assertSame('Приложение', $this->sheet()->rows[0][9]);
+    }
+
     public function test_способ_оплаты_пишем_по_русски(): void
     {
         $this->booking(['payment_method' => 'kaspi']);
