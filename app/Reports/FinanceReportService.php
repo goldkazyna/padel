@@ -197,7 +197,11 @@ class FinanceReportService
 
         foreach ($bookings as $b) {
             $amount = $this->bookingRevenue($b, $club->id);
-            $manager = $this->managerName($b->booked_by, $names) ?: 'Не указан';
+            // Онлайн-оплату делает сам клиент, менеджер к ней не причастен —
+            // иначе в своде ему записывались бы чужие деньги.
+            $manager = $b->payment_method === 'plexy'
+                ? 'Приложение'
+                : ($this->managerName($b->booked_by, $names) ?: 'Не указан');
 
             $rows[] = [
                 $this->parseDate($b->date)->format('d.m.Y'),

@@ -107,6 +107,27 @@ class PaidBookingsReportTest extends TestCase
         $this->assertSame(1, $summary[2][6]);
     }
 
+    public function test_онлайн_оплата_записана_на_приложение(): void
+    {
+        // Клиент заплатил сам через Plexy — менеджеру эти деньги не засчитываем.
+        $this->booking(['price' => 26000, 'payment_method' => 'plexy']);
+        $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']);
+
+        $sheet = $this->sheet();
+
+        $this->assertSame('Приложение', $sheet->rows[0][9]);
+        $this->assertSame('Асель М.', $sheet->rows[1][9]);
+
+        // В своде «Приложение» — отдельной строкой, у менеджера только его бронь.
+        $summary = array_slice($sheet->rows, 2);
+        $byName = [];
+        foreach ($summary as $row) {
+            $byName[$row[0]] = $row[5];
+        }
+        $this->assertSame(26000.0, $byName['Приложение'] ?? null);
+        $this->assertSame(10000.0, $byName['Асель М.'] ?? null);
+    }
+
     public function test_способ_оплаты_пишем_по_русски(): void
     {
         $this->booking(['payment_method' => 'kaspi']);
