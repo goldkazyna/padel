@@ -14,7 +14,9 @@ use App\Reports\FinanceReportService;
 use App\Reports\ManagersReportService;
 use App\Reports\CardsReportService;
 use App\Exports\GenericSheetExport;
+use App\Support\ClubTime;
 use App\Support\ResolvesReportPeriod;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -82,6 +84,7 @@ class AdditionalReportsController extends Controller
             'to' => $to,
             'periodLabel' => $periodLabel,
             'preset' => $request->get('preset'),
+            'format' => $this->format($request),
             'grouped' => $grouped,
         ]);
     }
@@ -195,8 +198,25 @@ class AdditionalReportsController extends Controller
         [$from, $to] = $this->parsePeriod($request);
 
         $sheet = app($serviceClass)->{$method}($club, $from, $to);
-        $filename = $fileBase . '_' . $from->format('Y-m-d') . '_' . $to->format('Y-m-d') . '.xlsx';
+        $name = $fileBase . '_' . $from->format('Y-m-d') . '_' . $to->format('Y-m-d');
 
-        return Excel::download(new GenericSheetExport($sheet), $filename);
+        if ($this->format($request) === 'pdf') {
+            // Широкие таблицы в книжной ориентации не читаются — только альбом.
+            return Pdf::loadView('club.reports.pdf', [
+                'sheet' => $sheet,
+                'club' => $club,
+                'from' => $from,
+                'to' => $to,
+                'generatedAt' => ClubTime::now()->format('d.m.Y H:i'),
+            ])->setPaper('a4', 'landscape')->download($name . '.pdf');
+        }
+
+        return Excel::download(new GenericSheetExport($sheet), $name . '.xlsx');
+    }
+
+    /** Формат выгрузки: xlsx по умолчанию, pdf — если выбран на странице. */
+    private function format(Request $request): string
+    {
+        return $request->get('format') === 'pdf' ? 'pdf' : 'xlsx';
     }
 }

@@ -36,8 +36,24 @@
             <input type="date" name="from" value="{{ $from->format('Y-m-d') }}" style="padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f3f3f5;border:1px solid rgba(255,255,255,0.06);font-size:13px;">
             <span style="color:#6a6a73;">—</span>
             <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" style="padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f3f3f5;border:1px solid rgba(255,255,255,0.06);font-size:13px;">
+            <input type="hidden" name="format" value="{{ $format }}">
             <button type="submit" style="padding:8px 14px;border-radius:8px;background:#22c47a;color:#0a0a0d;border:none;font-weight:700;font-size:13px;cursor:pointer;">Применить</button>
         </form>
+
+        {{-- Формат выгрузки: выбор запоминается в адресе, и все карточки
+             отчётов ниже скачиваются именно в нём. --}}
+        <div style="display:inline-flex;gap:4px;padding:3px;border-radius:10px;background:#1c1c21;border:1px solid rgba(255,255,255,0.06);">
+            @php $formats = ['xlsx' => ['Excel', 'bi-file-earmark-excel'], 'pdf' => ['PDF', 'bi-file-earmark-pdf']]; @endphp
+            @foreach ($formats as $key => [$fLabel, $fIcon])
+                @php $isFormat = $format === $key; @endphp
+                <a href="{{ route('club.reports.extra.index', array_merge(request()->only(['preset','from','to']), ['format' => $key])) }}"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;text-decoration:none;
+                          background:{{ $isFormat ? 'rgba(34,196,122,0.16)' : 'transparent' }};
+                          color:{{ $isFormat ? '#22c47a' : '#a0a0a0' }};font-weight:700;font-size:12px;">
+                    <i class="bi {{ $fIcon }}"></i>{{ $fLabel }}
+                </a>
+            @endforeach
+        </div>
     </div>
 
     {{-- Разбор долга по конкретному человеку — отдельный экран, не Excel:
@@ -65,7 +81,10 @@
                 @foreach ($reports as $r)
                     @php
                         $dlUrl = route('club.reports.extra.download', $r['slug'])
-                            . '?' . http_build_query(request()->only(['preset','from','to']));
+                            . '?' . http_build_query(array_merge(
+                                request()->only(['preset','from','to']),
+                                ['format' => $format],
+                            ));
                     @endphp
                     <a href="{{ $dlUrl }}"
                        class="{{ !empty($r['fresh']) ? 'report-btn report-btn--fresh' : 'report-btn' }}"
@@ -77,7 +96,7 @@
                        onmouseover="this.style.background='rgba(34,196,122,0.07)'"
                        onmouseout="this.style.background='#1c1c21'">
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <i class="bi bi-file-earmark-excel" style="font-size:18px;color:#22c47a;flex-shrink:0;"></i>
+                            <i class="bi {{ $format === 'pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-excel' }}" style="font-size:18px;color:#22c47a;flex-shrink:0;"></i>
                             <span style="font-size:14px;font-weight:600;color:#f3f3f5;">{{ $r['label'] }}</span>
                         </div>
                         @if(!empty($r['fresh']))
@@ -86,7 +105,7 @@
                             </span>
                         @else
                             <span style="background:rgba(34,196,122,0.12);color:#22c47a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;">
-                                Excel
+                                {{ $format === 'pdf' ? 'PDF' : 'Excel' }}
                             </span>
                         @endif
                     </a>
