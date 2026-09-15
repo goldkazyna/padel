@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Club;
 use App\Models\ClubCard;
 use App\Models\ClubCardType;
@@ -59,6 +60,35 @@ class PaidBookingsReportTest extends TestCase
         ], $attrs));
     }
 
+    /** Запись в журнале: кто завёл бронь (как это делает CRM). */
+    private function logCreated(CourtBooking $booking, User $author, bool $fromApp = false): void
+    {
+        ActivityLog::create([
+            'user_id' => $author->id,
+            'club_id' => $this->club->id,
+            'action' => 'created',
+            'subject_type' => 'CourtBooking',
+            'subject_id' => $booking->id,
+            'description' => $fromApp
+                ? "Бронь из приложения: {$booking->client_name}"
+                : "Бронирование: {$booking->client_name}",
+        ]);
+    }
+
+    /** Запись в журнале: кто отметил бронь оплаченной. */
+    private function logPaid(CourtBooking $booking, User $author): void
+    {
+        ActivityLog::create([
+            'user_id' => $author->id,
+            'club_id' => $this->club->id,
+            'action' => 'updated',
+            'subject_type' => 'CourtBooking',
+            'subject_id' => $booking->id,
+            'description' => 'Редактирование брони',
+            'changes' => ['is_paid' => true],
+        ]);
+    }
+
     private function sheet()
     {
         return app(FinanceReportService::class)->paidBookings(
@@ -94,8 +124,11 @@ class PaidBookingsReportTest extends TestCase
         $other = User::factory()->create(['role' => 'club_moderator', 'name' => 'Дана К.']);
         $other->moderatorClubs()->attach($this->club->id);
 
-        $this->booking(['price' => 12000]);
-        $this->booking(['price' => 3000, 'start_time' => '11:00', 'end_time' => '12:00', 'booked_by' => $other->id]);
+        $this->logCreated($this->booking(['price' => 12000]), $this->manager);
+        $this->logCreated(
+            $this->booking(['price' => 3000, 'start_time' => '11:00', 'end_time' => '12:00']),
+            $other,
+        );
 
         $sheet = $this->sheet();
 
@@ -115,8 +148,14 @@ class PaidBookingsReportTest extends TestCase
     public function test_онлайн_оплата_записана_на_приложение(): void
     {
         // Клиент заплатил сам через Plexy — менеджеру эти деньги не засчитываем.
-        $this->booking(['price' => 26000, 'payment_method' => 'plexy']);
-        $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']);
+        $payer = User::factory()->create(['role' => 'user', 'name' => 'Клиент из приложения']);
+        $online = $this->booking(['price' => 26000, 'payment_method' => 'plexy', 'booked_by' => $payer->id]);
+        $this->logCreated($online, $payer, fromApp: true);
+
+        $this->logCreated(
+            $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']),
+            $this->manager,
+        );
 
         $sheet = $this->sheet();
 
@@ -154,7 +193,7 @@ class PaidBookingsReportTest extends TestCase
             'created_at' => '2026-09-10 12:00:00',
         ]);
 
-        $this->booking(['price' => 10000]);
+        $this->logCreated($this->booking(['price' => 10000]), $this->manager);
 
         $sheet = $this->sheet();
         $cardRow = collect($sheet->rows)->first(fn ($r) => str_contains((string) $r[2], 'VIP 10'));
@@ -186,13 +225,42 @@ class PaidBookingsReportTest extends TestCase
         // сотрудником клуба он не является.
         $client = User::factory()->create(['role' => 'user', 'name' => 'Андрей Малафеев']);
 
-        $this->booking(['price' => 26000, 'client_name' => 'Андрей Малафеев', 'booked_by' => $client->id]);
-        $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']);
+        $fromApp = $this->booking(['price' => 26000, 'client_name' => 'Андрей Малафеев', 'booked_by' => $client->id]);
+        $this->logCreated($fromApp, $client, fromApp: true);
+
+        $this->logCreated(
+            $this->booking(['price' => 10000, 'start_time' => '11:00', 'end_time' => '12:00']),
+            $this->manager,
+        );
 
         $sheet = $this->sheet();
 
         $this->assertSame('Приложение', $sheet->rows[0][9]);
         $this->assertSame('Асель М.', $sheet->rows[1][9]);
+    }
+
+    public function test_оплату_записываем_на_того_кто_её_отметил(): void
+    {
+        // Клиент забронировал в приложении, а заплатил наличными на ресепшене:
+        // продажа за тем, кто провёл оплату в CRM.
+        $client = User::factory()->create(['role' => 'user', 'name' => 'Ерасыл Б.']);
+        $booking = $this->booking(['price' => 13000, 'payment_method' => 'cash', 'booked_by' => $client->id]);
+        $this->logCreated($booking, $client, fromApp: true);
+        $this->logPaid($booking, $this->manager);
+
+        $sheet = $this->sheet();
+
+        $this->assertSame('Асель М.', $sheet->rows[0][9]);
+    }
+
+    public function test_онлайн_оплата_ни_за_кем_не_числится(): void
+    {
+        // Plexy подтверждает шлюз, в журнале этого действия нет.
+        $client = User::factory()->create(['role' => 'user', 'name' => 'Александр А']);
+        $booking = $this->booking(['price' => 52000, 'payment_method' => 'plexy', 'booked_by' => $client->id]);
+        $this->logCreated($booking, $client, fromApp: true);
+
+        $this->assertSame('Приложение', $this->sheet()->rows[0][9]);
     }
 
     public function test_способ_оплаты_пишем_по_русски(): void

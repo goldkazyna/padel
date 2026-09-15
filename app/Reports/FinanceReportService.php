@@ -184,9 +184,15 @@ class FinanceReportService
      *   продажи карты, и она в отчёте уже есть — иначе одна сумма считалась бы
      *   дважды.
      *
-     * В колонке продавца — только сотрудники клуба. Если бронь создал не
-     * сотрудник (клиент сам через приложение) или оплата прошла онлайн, пишем
-     * «Приложение»: иначе в своде «менеджеров» оказывались сами клиенты.
+     * Продавец берётся из журнала действий, а не из booked_by: в booked_by
+     * лежит игрок, за которым бронь (для брони на клиента с аккаунтом это сам
+     * клиент), поэтому в «менеджерах» оказывались клиенты. В журнале же
+     * записан тот, кто действие совершил.
+     *
+     * Кого считаем продавцом: сотрудника, который отметил бронь оплаченной,
+     * иначе — сотрудника, который её завёл в CRM. Бронь, сделанную клиентом в
+     * приложении и оплаченную онлайн, никто из клуба не оформлял — она идёт
+     * на «Приложение».
      *
      * Под таблицей — свод: кто сколько продал.
      */
@@ -201,11 +207,13 @@ class FinanceReportService
             ->filter(fn ($b) => !in_array($b->booking_type, ['group', 'tournament'], true))
             ->filter(fn ($b) => $b->payment_method !== 'club_card');
 
+        $sellers = $this->bookingSellers($bookings->pluck('id')->all(), $staff, $names);
+
         foreach ($bookings as $b) {
             $entries[] = [
                 'date' => $this->parseDate($b->date),
                 'amount' => $this->bookingRevenue($b, $club->id),
-                'seller' => $this->seller($b->booked_by, $b->payment_method, $staff, $names),
+                'seller' => $sellers[(int) $b->id] ?? ($b->payment_method === 'plexy' ? 'Приложение' : 'Не указан'),
                 'row' => [
                     $this->parseDate($b->date)->format('d.m.Y'),
                     Carbon::parse($b->start_time)->format('H:i')
@@ -228,7 +236,9 @@ class FinanceReportService
             $entries[] = [
                 'date' => $issued,
                 'amount' => $price,
-                'seller' => $this->seller($card->issued_by, null, $staff, $names),
+                'seller' => $card->issued_by !== null && isset($staff[(int) $card->issued_by])
+                    ? ($this->managerName((int) $card->issued_by, $names) ?: 'Не указан')
+                    : 'Не указан',
                 'row' => [
                     $issued->format('d.m.Y'),
                     $issued->format('H:i'),
@@ -291,25 +301,62 @@ class FinanceReportService
     }
 
     /**
-     * Кого писать продавцом: сотрудника клуба или «Приложение».
+     * Продавец по каждой брони — из журнала действий клуба.
      *
-     * Бронь из приложения создаёт сам клиент, и его id лежит в booked_by —
-     * без этой проверки клиенты попадали в свод как менеджеры.
+     * Приоритет: кто отметил оплату → кто завёл бронь в CRM → «Приложение».
+     * Оплату через Plexy подтверждает сам шлюз, в журнале её нет, и такая
+     * бронь остаётся за приложением.
      *
-     * @param array<int, true> $staff
+     * @param  array<int, int>  $bookingIds
+     * @param  array<int, true> $staff
+     * @return array<int, string>  booking_id => продавец
      */
-    private function seller(?int $userId, ?string $paymentMethod, array $staff, array &$names): string
+    private function bookingSellers(array $bookingIds, array $staff, array &$names): array
     {
-        if ($paymentMethod === 'plexy') {
-            return 'Приложение';
-        }
-        if ($userId === null) {
-            return 'Не указан';
+        if (empty($bookingIds)) {
+            return [];
         }
 
-        return isset($staff[$userId])
-            ? ($this->managerName($userId, $names) ?: 'Не указан')
-            : 'Приложение';
+        $logs = \App\Models\ActivityLog::where('subject_type', 'CourtBooking')
+            ->whereIn('subject_id', $bookingIds)
+            ->whereIn('action', ['created', 'updated'])
+            ->orderBy('id')
+            ->get(['user_id', 'subject_id', 'action', 'description', 'changes']);
+
+        $createdBy = [];
+        $paidBy = [];
+
+        foreach ($logs as $log) {
+            $bookingId = (int) $log->subject_id;
+            $userId = $log->user_id ? (int) $log->user_id : null;
+
+            if ($log->action === 'created') {
+                // Бронь из приложения делает клиент — сотрудником он не является,
+                // но и в «Не указан» её сваливать не надо.
+                $createdBy[$bookingId] = str_contains((string) $log->description, 'из приложения')
+                    ? null
+                    : $userId;
+                continue;
+            }
+
+            // Правка: интересует только момент, когда бронь стала оплаченной.
+            $changes = $log->changes;
+            if (is_array($changes) && array_key_exists('is_paid', $changes) && (bool) $changes['is_paid']) {
+                $paidBy[$bookingId] = $userId;
+            }
+        }
+
+        $out = [];
+        foreach ($bookingIds as $id) {
+            $id = (int) $id;
+            $userId = $paidBy[$id] ?? $createdBy[$id] ?? null;
+
+            $out[$id] = $userId !== null && isset($staff[$userId])
+                ? ($this->managerName($userId, $names) ?: 'Не указан')
+                : 'Приложение';
+        }
+
+        return $out;
     }
 
     /**
