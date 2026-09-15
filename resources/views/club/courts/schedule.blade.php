@@ -20,7 +20,12 @@
     // Ставка тренеру за клиента и число активных участников — для прикидки
     // выплаты на ещё не проведённом занятии.
     $groupCoachPerClient = collect($activeGroups ?? [])->mapWithKeys(fn ($g) => [
-        $g->id => ['rate' => $g->coach_price_per_client, 'members' => $g->members->count()],
+        $g->id => [
+            'rate' => $g->coach_price_per_client,
+            'members' => $g->members->count(),
+            // Единица ставки та же, что у цены занятия: «за час» — умножаем на часы.
+            'per_hour' => $g->chargesByHour(),
+        ],
     ]);
 @endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -403,7 +408,8 @@
                                                 // платит отчёт, и расписание не должно обещать другое.
                                                 // Ещё не провели — прикидка по составу группы.
                                                 $people = $heldAttendance[$booking->id] ?? $gcpc['members'];
-                                                $coachTotal = (float) $gcpc['rate'] * $people;
+                                                $rate = (float) $gcpc['rate'] * ($gcpc['per_hour'] ? $bkHours : 1);
+                                                $coachTotal = $rate * $people;
                                             } elseif ($booking->booking_type === 'group' && $ccObj && $ccObj->rate_group !== null) {
                                                 // Группа ещё не проведена — прикидка по текущей групповой ставке (₸/час × часы).
                                                 $coachTotal = (float) $ccObj->rate_group * $bkHours;
